@@ -95,6 +95,9 @@ If you have the required mods installed, then this issue might instead be caused
 ### NPCs keep repeating the same line of dialogue
 This is an issue with `mod_folder` not being set to the correct path in MantellaSoftware/config.ini. If you are using Mod Organizer 2, you can find the correct path by right-clicking the Mantella mod in the Mod Organizer 2 UI and selecting "Open in Explorer". If you are using Vortex, you should instead set this `mod_folder` path to your Skyrim/Data folder.
 
+### NPCs all use the same voice model
+Open xVASynth and go to your settings. Ensure that the paths for WaveGlow and BIG Waveglow end in /models/skyrim/ and not the path to a particular voice model
+
 ### No message box displayed to say spell has been added / Mantella spell is not in spell inventory
 This is an issue with the way the spell mod itself has been installed. Please check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details. The "File version" should be listed here. If it is 1.6 or above, you have Skyrim AE. If it is below 1.6, you have Skyrim SE. If you are using VR, there are separate versions of the required mods for VR (PapyrusUtil tends to catch out a lot of VR users, the VR version of this file is under "Miscellaneous Files" on the download page). If you are running the mod via the GOG version of Skyrim, there are slight differences in setting up a mod manager as discussed in this tutorial: https://www.youtube.com/watch?v=EJYddISZdeo
 
@@ -118,6 +121,9 @@ This error occurs when you introduce character symbols that can't be recognised 
 
 ### Mantella.exe closes after "VAD filter removed 00:00.000 of audio" statement
 This is an issue related to CUDA. Please try setting `process_device` to "cpu".
+
+### Mantella.exe opens, but does not display any text
+Ensure that you are not running Mantella.exe via a Vortex / Mod Organizer 2 shortcut, as this does not start the program properly.
 
 
 ## Attributions
