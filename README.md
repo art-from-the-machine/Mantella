@@ -104,6 +104,9 @@ This is an issue with the way the spell mod itself has been installed. Please ch
 ### RuntimeError('PytorchStreamReader failed reading zip archive: failed finding central directory')
 If an xVASynth voice model is corrupted, this error will display in MantellaSoftware/logging.log. Please re-download the voice model in this case. You may alternatively need to redownload xVASynth.
 
+### Loading voice model... xVASynth Error: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+If this xVASynth Error occurs after the "Loading voice model..." message (as can be seen in your MantellaSoftware/logging.log file), this is likely an issue with a corrupted voice model. Please try redownloading the model from https://www.nexusmods.com/skyrimspecialedition/mods/44184. If this does not resolve your issue, please share the text found in your xVASynth/server.log file on the Discord's #issues channel for further support.
+
 ### Voicelines are being displayed in Mantella.exe but are not being said in-game
 Try creating a save and then reloading that save. This ensures that the Mantella voice files get registered correctly
 
