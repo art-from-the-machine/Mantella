@@ -23,11 +23,9 @@ This mod requires ~17GB of space when all voice models are installed. A total of
 
 ## Installation
 ### Video Walkthrough
-A video walking through the installation of Mantella can be found below (kindly provided by Lucien Lachance on Discord):
+A video walking through the installation of Mantella by JackTheFallout can be found below:
 
-https://www.youtube.com/watch?v=8axcIZPKu5g
-
-This can be used as a visual reference to the below instructions.
+https://youtu.be/_mZFkTchwEo
 
 ### Skyrim
 As Mantella accesses and writes to files within your Skyrim folder, it is unlikely to work correctly if you have Skyrim stored in Program Files. Please ensure that you have Skyrim stored outside of this folder (Such as C:\Games\Steam for example).
