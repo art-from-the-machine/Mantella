@@ -27,6 +27,9 @@ A video walking through the installation of Mantella by JackTheFallout can be fo
 
 https://youtu.be/_mZFkTchwEo
 
+Just to note, the PapyrusUtil issue mentioned can be resolved by installing the VR version of the file (under "Miscellaneous") if you are a VR user.
+
+
 ### Skyrim
 As Mantella accesses and writes to files within your Skyrim folder, it is unlikely to work correctly if you have Skyrim stored in Program Files. Please ensure that you have Skyrim stored outside of this folder (Such as C:\Games\Steam for example).
 
@@ -59,11 +62,16 @@ SKSE (there is a separate VR version): http://skse.silverlock.org/
 VR Address Library for SKSEVR: https://www.nexusmods.com/skyrimspecialedition/mods/58101  
 or Address Library for SKSE Plugins: https://www.nexusmods.com/skyrimspecialedition/mods/32444
 
-PapyrusUtil SE (the VR version can be found under "Optional Files"): https://www.nexusmods.com/skyrimspecialedition/mods/13048
+PapyrusUtil SE (the VR version can be found under "Miscellaneous Files"): https://www.nexusmods.com/skyrimspecialedition/mods/13048
 
 
 ### Optional Mods
+These mods aren't strictly necessary for Mantella to work, but they do greatly improve the experience.
+
 No NPC Greetings (recommended so that Mantella voicelines are not interrupted by vanilla voicelines): https://www.nexusmods.com/skyrim/mods/746
+
+World Encounter Hostility Fix (stops certain NPCs from turning hostile when you cast the Mantella spell on them): https://www.nexusmods.com/skyrimspecialedition/mods/91403  
+Note that this mod requires the Unofficial Skyrim Special Edition Patch (USSEP). Mantella needs to be loaded after USSEP in your load order.
 
 
 ## Setup & Configuration
