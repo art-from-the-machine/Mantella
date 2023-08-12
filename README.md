@@ -51,7 +51,7 @@ This zip file can be installed in the same way as other mods. If you haven't ins
 
 4. Download the Elder Scrolls pronunciation dictionary from here, and follow the instructions to install: https://www.nexusmods.com/skyrimspecialedition/mods/56778/
 
-5. On the navigation bar on the top right of the xVASynth UI, click on the "ae" icon. Once opened, click on the CMUDict dictionary and select "Enable All" in the bottom left corner. Once done, close this menu and navigate to the settings menu by selecting the gear icon in the top right corner and ensure that "Audio sample rate (Hz)" is set to 44100. You can also select whether to process voicelines via you CPU or (NVIDIA) GPU from this menu.
+5. On the navigation bar on the top right of the xVASynth UI, click on the "ae" icon. Once opened, click on the CMUDict dictionary and select "Enable All" in the bottom left corner. Do the same for "xVADict - Elder Scrolls" received from the above step. Once done, close this menu and navigate to the settings menu by selecting the gear icon in the top right corner and ensure that "Audio sample rate (Hz)" is set to 44100. You can also select whether to process voicelines via you CPU or (NVIDIA) GPU from this menu.
 
 
 ### Required Mods
@@ -106,6 +106,8 @@ This is an issue with the way the spell mod itself has been installed. Please ch
 
 ### RuntimeError('PytorchStreamReader failed reading zip archive: failed finding central directory')
 If an xVASynth voice model is corrupted, this error will display in MantellaSoftware/logging.log. Please re-download the voice model in this case. You may alternatively need to redownload xVASynth.
+
+A way to check for other corrupted voice models, is to compare the file sizes within /models/skyrim/ folder of xVASynth. If they diverge from the norms, redownload **just** those. The norms for voice model sizes are **~54 MB** and/or **~90 MB** (v2 voice models) & **~220 MB** or **~260 MB** (v3 voice models)
 
 ### Loading voice model... xVASynth Error: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
 If this xVASynth Error occurs after the "Loading voice model..." message (as can be seen in your MantellaSoftware/logging.log file), this is likely an issue with a corrupted voice model. Please try redownloading the model from https://www.nexusmods.com/skyrimspecialedition/mods/44184. If this does not resolve your issue, please share the text found in your xVASynth/server.log file on the Discord's #issues channel for further support.
