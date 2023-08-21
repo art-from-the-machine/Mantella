@@ -27,7 +27,7 @@ A video walking through the installation of Mantella by JackTheFallout can be fo
 
 https://youtu.be/_mZFkTchwEo
 
-Just to note, the PapyrusUtil issue mentioned in this video can be resolved by installing the VR version of the file (under "Miscellaneous") if you are a VR user.
+Just a couple of notes, the PapyrusUtil issue mentioned in this video can be resolved by installing the VR version of the file (under "Miscellaneous") if you are a VR user. You also do not need to download the voice models manually if you have Nexus Premium (see below for instructions).
 
 
 ### Skyrim
