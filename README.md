@@ -18,6 +18,7 @@ This mod requires ~17GB of space when all voice models are installed. A total of
 
 
 ### Compatability
+- Mantella requires Windows 10 / 11
 - Mantella has been confirmed to work with the FUS (by pointing skyrim_folder to Skyrim), Librum (by pointing skyrim_folder to overwrite/root), and Wildlands (by pointing skyrim_folder to Wildlander/SKSE) Wabbajack modlists.
 - If you have the Unofficial Skyrim Special Edition Patch (USSEP) installed, Mantella needs to be loaded after this mod
 
