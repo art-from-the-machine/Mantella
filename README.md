@@ -3,7 +3,7 @@ Mantella is a Skyrim mod which allows you to naturally speak to NPCs using Whisp
 
 https://www.youtube.com/watch?v=fJPY6sD527A
 
-The mod is currently undergoing testing before release. The mod's files can be downloaded via Discord:  
+If you get stuck anywhere in the process, please see the Issues Q&A below or reach out on the Discord:  
 
 https://discord.gg/Q4BJAdtGUE
 
@@ -101,6 +101,9 @@ This is either an issue with the path set for `skyrim_folder` in MantellaSoftwar
 Some VR users miss that there is a separate VR version of PapyrusUtil, double check that you have downloaded this version of the mod if you are a VR user (it should be under the Miscallaneous Files section of the Nexus download page). If you are a SE user, please double check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details. The "File version" should be listed here. If it is 1.6 or above, you actually have Skyrim AE, not SE (its confusing I know), so please download the AE versions of the required mods.
 
 If you have the required mods installed, then this issue might instead be caused by the `skyrim_folder` being set incorrectly. This only seems to be an issue for Mod Organizer 2 / Wabbajack modlist users. Some Mod Orgnanizer 2 setups move the text files created by the Mantella spell to another folder. Try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path to try to find these Mantella text files, specifically a file called `_mantella__skyrim_folder.txt`. If you find this file, then please set its folder as your `skyrim_folder` path.
+
+### ChatGPT API Error: cannot access local variable 'audio_file' where it is not associated with a value
+This error occurs when something has failed in a previous step (likely xVASynth). Please check your MantellaSoftware/logging.log file to see the error which occurred before this, which should provide more clarification. If you are still ensure, please share your logging.log file to the Discord's issues channel.
 
 ### NPCs keep repeating the same line of dialogue
 This is an issue with `mod_folder` not being set to the correct path in MantellaSoftware/config.ini. If you are using Mod Organizer 2, you can find the correct path by right-clicking the Mantella mod in the Mod Organizer 2 UI and selecting "Open in Explorer". If you are using Vortex, you should instead set this `mod_folder` path to your Skyrim/Data folder.
