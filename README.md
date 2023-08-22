@@ -128,7 +128,7 @@ This means that the NPC's name exactly as written in the error message could not
 ### NPCs only respond with "I can't find the right words at the moment."
 This either means the ChatGPT servers are currently down or the API key has not been set up correctly / is missing payment information. If it is the latter issue, please check MantellaSoftware/logging.log to see the exact error
 
-### Microphone is not picking up sound
+### Microphone is not picking up sound / exe stuck on "Listening..."
 Make sure that your mic is picking up correctly on other software and that it is set as your default. For example, you can go to User Settings -> Voice & Video on Discord to test your mic. Otherwise, try adjusting the `audio_threshold` setting in MantellaSoftware/config.ini (instructions on how to do so are inluded in config.ini)
 
 ### "Invalid start byte" error
