@@ -1,4 +1,6 @@
 # Mantella
+https://www.nexusmods.com/skyrimspecialedition/mods/98631
+
 Mantella is a Skyrim mod which allows you to naturally speak to NPCs using Whisper (speech-to-text), ChatGPT (text generation), and xVASynth (text-to-speech). See here for a video demonstration:
 
 https://www.youtube.com/watch?v=fJPY6sD527A
@@ -35,12 +37,12 @@ Just a couple of notes, the PapyrusUtil issue mentioned in this video can be res
 As Mantella accesses and writes to files within your Skyrim folder, it is unlikely to work correctly if you have Skyrim stored in Program Files. Please ensure that you have Skyrim stored outside of this folder (Such as C:\Games\Steam for example).
 
 
-### MantellaSoftware
+### Mantella Software
 Extract this folder somewhere convenient to you.
 
 
-### MantellaSpell.zip
-This zip file can be installed in the same way as other mods. If you haven't installed a mod manually before, on Mod Organizer 2 there is a disc icon on the top left corner of the UI where you can point to the zipped mod MantellaSpell.zip to install. For Vortex, you should be able to drag the zipped mod into the Vortex panel.
+### Mantella Spell
+This file can be installed in the same way as other mods with your mod manager.
 
 
 ### xVASynth
@@ -130,7 +132,7 @@ This means that the NPC's name exactly as written in the error message could not
 This either means the ChatGPT servers are currently down or the API key has not been set up correctly / is missing payment information. If it is the latter issue, please check MantellaSoftware/logging.log to see the exact error
 
 ### Microphone is not picking up sound / exe stuck on "Listening..."
-Make sure that your mic is picking up correctly on other software and that it is set as your default. For example, you can go to User Settings -> Voice & Video on Discord to test your mic. Otherwise, try adjusting the `audio_threshold` setting in MantellaSoftware/config.ini (instructions on how to do so are inluded in config.ini)
+Make sure that your mic is picking up correctly on other software and that it is set as your default. For example, you can go to User Settings -> Voice & Video on Discord to test your mic. Otherwise, try adjusting the `audio_threshold` setting in MantellaSoftware/config.ini (instructions on how to do so are inluded in config.ini). If all else fails, make sure that no other microphones are plugged in except the one you want to use. There may be a rogue microphone such as a webcam picking up as your default!
 
 ### "Invalid start byte" error
 This error occurs when you introduce character symbols that can't be recognised either in MantellaSoftware/config.ini or skyrim_characters.csv. Please try re-downloading these files.
