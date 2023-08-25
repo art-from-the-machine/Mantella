@@ -134,6 +134,9 @@ This either means the ChatGPT servers are currently down or the API key has not 
 ### Microphone is not picking up sound / exe stuck on "Listening..."
 Make sure that your mic is picking up correctly on other software and that it is set as your default. For example, you can go to User Settings -> Voice & Video on Discord to test your mic. Otherwise, try adjusting the `audio_threshold` setting in MantellaSoftware/config.ini (instructions on how to do so are inluded in config.ini). If all else fails, make sure that no other microphones are plugged in except the one you want to use. There may be a rogue microphone such as a webcam picking up as your default!
 
+### 'NoneType' object has no attribute 'close'
+This error means that Whisper is unable to find a connected microphone. Please ensure that you have a working microphone plugged in and enabled.
+
 ### "Invalid start byte" error
 This error occurs when you introduce character symbols that can't be recognised either in MantellaSoftware/config.ini or skyrim_characters.csv. Please try re-downloading these files.
 
