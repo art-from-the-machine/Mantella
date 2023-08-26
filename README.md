@@ -1,22 +1,23 @@
 # Mantella
-https://www.nexusmods.com/skyrimspecialedition/mods/98631
+Nexus Page - https://www.nexusmods.com/skyrimspecialedition/mods/98631
 
-Mantella is a Skyrim mod which allows you to naturally speak to NPCs using Whisper (speech-to-text), ChatGPT (text generation), and xVASynth (text-to-speech). See here for a video demonstration:
+Mantella is a Skyrim mod which allows you to naturally speak to NPCs using OpenAI's [Whisper](https://github.com/openai/whisper) (speech-to-text), OpenAI's ChatGPT (text generation), and [xVASynth](https://github.com/DanRuta/xVA-Synth) (text-to-speech/TTS/T2S). See here for a video demonstration:
 
 https://www.youtube.com/watch?v=fJPY6sD527A
 
-If you get stuck anywhere in the process, please see the Issues Q&A below or reach out on the Discord:  
+If you get stuck anywhere in the process, please see the [`#Issues Q&A`](#issues-qa) below or reach out on the Discord:  
 
 https://discord.gg/Q4BJAdtGUE
 
 
 ## Requirements
 ### Hardware Requirements
-There are no discovered minimum requirements at the time of writing, but there has been a report of Mantella crashing when running a modlist of 2000 mods. Mantella needs a certain amount of hardware allocation to run successfully, and if this is being soaked up by other hardware intensive mods, it may crash.
+There are no discovered minimum requirements at the time of writing for Mantella, but there has been a report of Mantella crashing when running a modlist of 2000 mods. Mantella needs a certain amount of hardware allocation to run successfully, and if this is being soaked up by other hardware intensive mods, it may crash.
 
+The minimum requirements for xVASynth can be found on its [Steam page](https://store.steampowered.com/app/1765720/xVASynth/). It runs in CPU mode by default, using a single CPU core/thread. Only supports GPU acceleration on NVIDIA cards that have CUDA. Using the same GPU as the game will produce stutter. You may try using an older NVIDIA card if you have a free PCI-Express slot for your PC and run Whisper & xVASynth on that.
 
 ### Storage Requirements
-This mod requires ~17GB of space when all voice models are installed. A total of ~32GB is needed to unpack the voice models.
+This mod requires ~27GB of space when xVASynth and all voice models are installed. Temporarily another ~17GB is needed to unpack the voice models.
 
 
 ### Compatability
