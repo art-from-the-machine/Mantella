@@ -16,15 +16,22 @@ class VoiceModelNotFound(Exception):
 
 class Synthesizer:
     def __init__(self, config):
+        self.xvasynth_path = config.xvasynth_path
+        self.process_device = config.xvasynth_process_device
+        self.times_checked_xvasynth = 0
+
+        # check if xvasynth is running; otherwise try to run it
         self.check_if_xvasynth_is_running()
 
-        self.xvasynth_path = config.xvasynth_path
         # voice models path
         self.model_path = f"{self.xvasynth_path}/resources/app/models/skyrim/"
         # output wav / lip files path
         self.output_path = utils.resolve_path('data')+'/data'
 
         self.language = config.language
+
+        self.use_sr = bool(config.use_sr)
+        self.use_cleanup = bool(config.use_cleanup)
 
         # determines whether the voiceline should play internally
         self.debug_mode = config.debug_mode
@@ -184,8 +191,8 @@ class Synthesizer:
             'vocoder': 'n/a',
             'base_lang': self.language,
             'base_emb': self.base_speaker_emb,
-            'useSR': False,
-            'useCleanup': False, 
+            'useSR': self.use_sr,
+            'useCleanup': self.use_cleanup,
         }
         requests.post(self.synthesize_url, json=data)
 
@@ -207,17 +214,37 @@ class Synthesizer:
         }
         requests.post(self.synthesize_batch_url, json=data)
 
-
-    @utils.time_it
     def check_if_xvasynth_is_running(self):
+        self.times_checked_xvasynth += 1
+
         try:
+            if (self.times_checked_xvasynth > 10):
+                # break loop
+                logging.error('Could not connect to xVASynth multiple times. Ensure that xVASynth is running and restart Mantella.')
+                input('\nPress any key to stop Mantella...')
+                sys.exit(0)
+
+            # contact local xVASynth server; ~2 second timeout
+            logging.info(f'Attempting to connect to xVASynth... ({self.times_checked_xvasynth})')
             response = requests.get('http://127.0.0.1:8008/')
             response.raise_for_status()  # If the response contains an HTTP error status code, raise an exception
         except requests.exceptions.RequestException as err:
-            logging.error('Could not connect to xVASynth. Ensure that xVASynth is running and try again.')
-            input("Press Enter to exit.")
+            if (self.times_checked_xvasynth == 1):
+                logging.info('Could not connect to xVASynth. Attempting to run headless server...')
+                self.run_xvasynth_server()
+
+            # do the web request again; LOOP!!!
+            return self.check_if_xvasynth_is_running()
+
+    def run_xvasynth_server(self):
+        try:
+            # start the process without waiting for a response
+            subprocess.Popen(f'{self.xvasynth_path}/resources/app/cpython_{self.process_device}/server.exe', cwd=self.xvasynth_path)
+
+        except:
+            logging.error(f'Could not run xVASynth. Ensure that the path "{self.xvasynth_path}" is correct.')
+            input('\nPress any key to stop Mantella...')
             sys.exit(0)
-        
     
     @utils.time_it
     def _change_voice(self, voice):
