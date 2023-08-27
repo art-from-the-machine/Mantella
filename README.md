@@ -37,12 +37,13 @@ Just a couple of notes, the PapyrusUtil issue mentioned in this video can be res
 ### Skyrim
 As Mantella accesses and writes to files within your Skyrim folder, it is unlikely to work correctly if you have Skyrim stored in Program Files. Please ensure that you have Skyrim stored outside of this folder (Such as C:\Games\Steam for example).
 
+### Mantella Files
+The Mantella files can be downloaded from Nexus: https://www.nexusmods.com/skyrimspecialedition/mods/98631
 
-### Mantella Software
+#### Mantella Software
 Extract this folder somewhere convenient to you.
 
-
-### Mantella Spell
+#### Mantella Spell
 This file can be installed in the same way as other mods with your mod manager.
 
 
@@ -149,6 +150,19 @@ Ensure that you are not running Mantella.exe via a Vortex / Mod Organizer 2 shor
 
 ### ERROR: xVASynth Error: [WinError 5] Access is denied
 This happens when your antivirus is blocking Mantella.exe from working. Please add Mantella.exe to your safe list or try running as administrator.
+
+
+### Contribute
+The source code for Mantella is included in this repo. Here are the quick steps to get set up:
+
+1. Clone the repo to your machine
+2. Create a virtual environment via `py -3.11 -m venv MantellaEnv` in your console (Mantella requires Python 3.11)
+3. Start the environment in your console (`.\MantellaEnv\Scripts\Activate`)
+4. Install the required packages via `pip install -r requirements.txt`
+5. Create a file called `GPT_SECRET_KEY.txt` and paste your secret key in this file
+6. Set up your paths / any other required settings in the `config.ini`
+
+If you have any trouble in getting the repo set up, please reach out on Discord!: https://discord.gg/Q4BJAdtGUE
 
 
 ## Attributions
