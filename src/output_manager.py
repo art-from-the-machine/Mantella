@@ -15,6 +15,7 @@ class ChatManager:
         self.mod_folder = config.mod_path
         self.max_response_sentences = config.max_response_sentences
         self.llm = config.llm
+        self.alternative_openai_api_base = config.alternative_openai_api_base
         self.language = config.language
         self.encoding = encoding
         self.subtitles_enabled = config.subtitles_enabled
@@ -123,7 +124,8 @@ class ChatManager:
         sentence = ''
         full_reply = ''
         num_sentences = 0
-        openai.aiosession.set(ClientSession()) # https://github.com/openai/openai-python#async-api
+        if self.alternative_openai_api_base == 'none':
+            openai.aiosession.set(ClientSession()) # https://github.com/openai/openai-python#async-api
         while True:
             try:
                 start_time = time.time()
@@ -170,7 +172,8 @@ class ChatManager:
                             end_conversation = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
                             if (num_sentences >= self.max_response_sentences) or (end_conversation.lower() == 'true'):
                                 break
-                await openai.aiosession.get().close()
+                if self.alternative_openai_api_base == 'none':
+                    await openai.aiosession.get().close()
                 break
             except Exception as e:
                 logging.error(f"ChatGPT API Error: {e}")
