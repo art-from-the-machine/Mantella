@@ -30,6 +30,9 @@ class Synthesizer:
 
         self.language = config.language
 
+        self.use_sr = bool(config.use_sr)
+        self.use_cleanup = bool(config.use_cleanup)
+
         # determines whether the voiceline should play internally
         self.debug_mode = config.debug_mode
         self.play_audio_from_script = config.play_audio_from_script
@@ -188,8 +191,8 @@ class Synthesizer:
             'vocoder': 'n/a',
             'base_lang': self.language,
             'base_emb': self.base_speaker_emb,
-            'useSR': False,
-            'useCleanup': False, 
+            'useSR': self.use_sr,
+            'useCleanup': self.use_cleanup,
         }
         requests.post(self.synthesize_url, json=data)
 
@@ -233,7 +236,6 @@ class Synthesizer:
             else:
                 logging.warning('Could not connect to xVASynth.')
 
-    @utils.time_it
     def run_xvasynth_server(self):
         try:
             # start the process without waiting for a response

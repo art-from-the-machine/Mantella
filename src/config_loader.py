@@ -26,6 +26,8 @@ class ConfigLoader:
             self.llm = config['LanguageModel']['model']
 
             self.xvasynth_process_device = config['Speech']['tts_process_device']
+            self.use_cleanup = int(config['Speech']['use_cleanup'])
+            self.use_sr = int(config['Speech']['use_sr'])
 
             self.subtitles_enabled = config['HUD']['subtitles']
 
