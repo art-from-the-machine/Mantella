@@ -1,0 +1,15 @@
+/__pycache__/
+data/**/*.wav
+data/**/*.lip
+data/**/*.json
+data/**/*.txt
+GPT_SECRET_KEY.txt
+logging.log
+player_recording.wav
+dev_notes.txt
+dev_notes_completed.txt
+ChatAIEffect_Backup.psc
+MantellaEnv*
+build/
+dist/
+main.exe
