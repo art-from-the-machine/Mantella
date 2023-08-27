@@ -48,10 +48,12 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
     config = config_loader.ConfigLoader(config_file)
     setup_logging(logging_file)
     setup_openai_secret_key(secret_key_file)
-
+    
     character_df = get_character_df(character_df_file)
     language_info = get_language_info(language_file)
     encoding = tiktoken.encoding_for_model(config.llm)
     token_limit = get_token_limit(config.llm)
+    if config.alternative_openai_api_base != 'none':
+        openai.api_base = config.alternative_openai_api_base
 
     return config, character_df, language_info, encoding, token_limit

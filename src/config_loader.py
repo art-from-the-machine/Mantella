@@ -22,6 +22,7 @@ class ConfigLoader:
 
         self.max_response_sentences = int(config['LanguageModel']['max_response_sentences'])
         self.llm = config['LanguageModel']['model']
+        self.alternative_openai_api_base = config['LanguageModel']['alternative_openai_api_base']
 
         self.subtitles_enabled = config['HUD']['subtitles']
 
