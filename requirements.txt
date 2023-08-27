@@ -1,0 +1,13 @@
+# python 3.11
+pandas==1.5.3
+tiktoken==0.4.0
+openai==0.27.8
+aiohttp==3.8.4
+faster-whisper==0.6.0
+speechrecognition==3.10.0
+requests==2.28.2
+pyaudio==0.2.13
+soundfile==0.12.1
+numpy==1.25.0
+scipy==1.11.1
+charset-normalizer==3.2.0
