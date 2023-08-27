@@ -24,7 +24,9 @@ class ConfigLoader:
 
             self.max_response_sentences = int(config['LanguageModel']['max_response_sentences'])
             self.llm = config['LanguageModel']['model']
-            
+
+            self.xvasynth_process_device = config['Speech']['tts_process_device']
+
             self.subtitles_enabled = config['HUD']['subtitles']
 
             self.debug_mode = config['Debugging']['debugging']

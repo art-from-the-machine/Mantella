@@ -16,9 +16,13 @@ class VoiceModelNotFound(Exception):
 
 class Synthesizer:
     def __init__(self, config):
+        self.xvasynth_path = config.xvasynth_path
+        self.process_device = config.xvasynth_process_device
+        self.times_checked_xvasynth = 0
+
+        # check if xvasynth is running; otherwise try to run it
         self.check_if_xvasynth_is_running()
 
-        self.xvasynth_path = config.xvasynth_path
         # voice models path
         self.model_path = f"{self.xvasynth_path}/resources/app/models/skyrim/"
         # output wav / lip files path
@@ -207,17 +211,37 @@ class Synthesizer:
         }
         requests.post(self.synthesize_batch_url, json=data)
 
-
     @utils.time_it
     def check_if_xvasynth_is_running(self):
+        self.times_checked_xvasynth += 1
         try:
+            if (self.times_checked_xvasynth > 10):
+                # break loop
+                input('Could not connect to xVASynth multiple times. Ensure that xVASynth is running and restart Mantella.')
+                sys.exit(0)
+
+            # contact local xVASynth server; 1 second timeout
             response = requests.get('http://127.0.0.1:8008/')
             response.raise_for_status()  # If the response contains an HTTP error status code, raise an exception
         except requests.exceptions.RequestException as err:
-            logging.error('Could not connect to xVASynth. Ensure that xVASynth is running and try again.')
-            input("Press Enter to exit.")
-            sys.exit(0)
-        
+            if (self.times_checked_xvasynth == 1):
+                logging.info('Could not connect to xVASynth. Attempting to run headless server...')
+                self.run_xvasynth_server()
+
+                # do the web request again; LOOP!!!
+                return self.check_if_xvasynth_is_running()
+            else:
+                logging.warning('Could not connect to xVASynth.')
+
+    @utils.time_it
+    def run_xvasynth_server(self):
+        try:
+            # start the process without waiting for a response
+            subprocess.Popen(f'{self.xvasynth_path}/resources/app/cpython_{self.process_device}/server.exe', cwd=self.xvasynth_path)
+
+        except err:
+            logging.error('Could not run xVASynth. Ensure that the path to xVASynth is correct.')
+            raise e
     
     @utils.time_it
     def _change_voice(self, voice):
