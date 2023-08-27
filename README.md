@@ -152,7 +152,7 @@ Ensure that you are not running Mantella.exe via a Vortex / Mod Organizer 2 shor
 This happens when your antivirus is blocking Mantella.exe from working. Please add Mantella.exe to your safe list or try running as administrator.
 
 
-### Contribute
+## Contribute
 The source code for Mantella is included in this repo. Here are the quick steps to get set up:
 
 1. Clone the repo to your machine
