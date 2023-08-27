@@ -24,6 +24,7 @@ class ConfigLoader:
 
             self.max_response_sentences = int(config['LanguageModel']['max_response_sentences'])
             self.llm = config['LanguageModel']['model']
+            self.alternative_openai_api_base = config['LanguageModel']['alternative_openai_api_base']
 
             self.xvasynth_process_device = config['Speech']['tts_process_device']
             self.use_cleanup = int(config['Speech']['use_cleanup'])
