@@ -16,6 +16,7 @@ class ConfigLoader:
             self.xvasynth_path = config['Paths']['xvasynth_folder']
             self.mod_path = config['Paths']['mod_folder']+'\Sound\Voice\Mantella.esp'
 
+            self.mic_enabled = config['Microphone']['microphone_enabled']
             self.whisper_model = config['Microphone']['model_size']
             self.whisper_process_device = config['Microphone']['process_device']
             self.audio_threshold = config['Microphone']['audio_threshold']
