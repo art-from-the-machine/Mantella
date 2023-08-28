@@ -76,9 +76,14 @@ try:
         
         # start back and forth conversation loop until conversation ends
         while True:
-            transcribed_text, say_goodbye = transcriber.get_player_response(say_goodbye)
-            transcript_cleaned = utils.clean_text(transcribed_text)
+            with open(f'{config.game_path}/_mantella_end_conversation.txt', 'r') as f:
+                conversation_ended = f.readline().strip()
 
+            if conversation_ended.lower() != 'true':
+                transcribed_text, say_goodbye = transcriber.get_player_response(say_goodbye)
+                transcript_cleaned = utils.clean_text(transcribed_text)
+
+            # check if conversation has ended again after player input
             with open(f'{config.game_path}/_mantella_end_conversation.txt', 'r') as f:
                 conversation_ended = f.readline().strip()
 

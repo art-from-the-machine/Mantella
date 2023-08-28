@@ -6,6 +6,7 @@ import src.utils as utils
 class Transcriber:
     def __init__(self, game_state_manager, config):
         self.game_state_manager = game_state_manager
+        self.mic_enabled = config.mic_enabled
         self.language = config.language
         self.model = config.whisper_model
         self.process_device = config.whisper_process_device
@@ -41,8 +42,15 @@ class Transcriber:
         if (self.debug_mode == '1') & (self.debug_use_mic == '0'):
             transcribed_text = self.default_player_response
         else:
-            # listen for response
-            transcribed_text = self.recognize_input()
+            if self.mic_enabled == '1':
+                # listen for response
+                transcribed_text = self.recognize_input()
+            else:
+                self.game_state_manager.write_game_info('_mantella_text_input', '')
+                self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'True')
+                transcribed_text = self.game_state_manager.load_data_when_available('_mantella_text_input', '')
+                self.game_state_manager.write_game_info('_mantella_text_input', '')
+                self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'False')
 
         if (self.debug_mode == '1') & (self.debug_exit_on_first_exchange == '1'):
             if say_goodbye:
