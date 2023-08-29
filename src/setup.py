@@ -41,7 +41,8 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
             token_limit = 8192
         elif llm == 'gpt-4-32k':
             token_limit = 32768
-
+        else:
+            token_limit = 4096
         logging.info(f"Running Mantella with '{llm}'. The language model chosen can be changed via config.ini\n")
         return token_limit
 
@@ -51,7 +52,10 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
     
     character_df = get_character_df(character_df_file)
     language_info = get_language_info(language_file)
-    encoding = tiktoken.encoding_for_model(config.llm)
+    chosenmodel = config.llm
+    if 'openrouter' in config.alternative_openai_api_base:
+        chosenmodel = 'gpt-3.5-turbo'
+    encoding = tiktoken.encoding_for_model(chosenmodel)
     token_limit = get_token_limit(config.llm)
     if config.alternative_openai_api_base != 'none':
         openai.api_base = config.alternative_openai_api_base

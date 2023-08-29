@@ -13,7 +13,7 @@ def chatgpt_api(input_text, messages, llm):
         logging.info('Getting ChatGPT response...')
         try:
             chat_completion = openai.ChatCompletion.create(
-                model=llm, messages=messages
+                model=llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'},
             )
         except openai.error.RateLimitError:
             logging.warning('Could not connect to ChatGPT API, retrying in 5 seconds...')
