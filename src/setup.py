@@ -1,5 +1,6 @@
 import openai
 import logging
+import src.color_formatter as cf
 import src.utils as utils
 import pandas as pd
 import tiktoken
@@ -16,9 +17,21 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
 
     def setup_logging(file_name):
         logging.basicConfig(filename=file_name, format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
-        console = logging.StreamHandler()
+
+        # create console handler with a higher log level
+        ch = logging.StreamHandler()
+
+        ch.setFormatter(cf.CustomFormatter())
+
+        console = ch
         console.setLevel(logging.INFO)
         logging.getLogger('').addHandler(console)
+
+        logging.debug("debug message")
+        logging.info("info message")
+        logging.warning("warning message")
+        logging.error("error message")
+        logging.critical("critical message")
 
     def get_character_df(file_name):
         encoding = utils.get_file_encoding(file_name)
