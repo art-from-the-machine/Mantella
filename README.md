@@ -107,6 +107,9 @@ Some VR users miss that there is a separate VR version of PapyrusUtil, double ch
 
 If you have the required mods installed, then this issue might instead be caused by the `skyrim_folder` being set incorrectly. This only seems to be an issue for Mod Organizer 2 / Wabbajack modlist users. Some Mod Orgnanizer 2 setups move the text files created by the Mantella spell to another folder. Try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path to try to find these Mantella text files, specifically a file called `_mantella__skyrim_folder.txt`. If you find this file, then please set its folder as your `skyrim_folder` path.
 
+### Temp files getting added to AppData folder
+There is an issue with directories with the prefix "_MEI" building up in AppData/Local/Temp. This will be fixed in the next release, but in the mean time these files can be deleted to free up space.
+
 ### ChatGPT API Error: cannot access local variable 'audio_file' where it is not associated with a value
 This error occurs when something has failed in a previous step (likely xVASynth). Please check your MantellaSoftware/logging.log file to see the error which occurred before this, which should provide more clarification. If you are still ensure, please share your logging.log file to the Discord's issues channel.
 
