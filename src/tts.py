@@ -30,6 +30,7 @@ class Synthesizer:
 
         self.language = config.language
 
+        self.pace = config.pace
         self.use_sr = bool(config.use_sr)
         self.use_cleanup = bool(config.use_cleanup)
 
@@ -186,7 +187,7 @@ class Synthesizer:
             'pluginsContext': '{}',
             'modelType': self.model_type,
             'sequence': line,
-            'pace': 1,
+            'pace': self.pace,
             'outfile': save_path,
             'vocoder': 'n/a',
             'base_lang': self.language,

@@ -28,6 +28,7 @@ class ConfigLoader:
             self.alternative_openai_api_base = config['LanguageModel']['alternative_openai_api_base']
 
             self.xvasynth_process_device = config['Speech']['tts_process_device']
+            self.pace = float(config['Speech']['pace'])
             self.use_cleanup = int(config['Speech']['use_cleanup'])
             self.use_sr = int(config['Speech']['use_sr'])
 
