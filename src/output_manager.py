@@ -199,6 +199,7 @@ class ChatManager:
         full_reply = ''
         num_sentences = 0
         if self.alternative_openai_api_base == 'none':
+            logging.info('Creating OpenAI client session...')
             openai.aiosession.set(ClientSession()) # https://github.com/openai/openai-python#async-api
         while True:
             try:

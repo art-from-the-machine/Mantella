@@ -1,3 +1,4 @@
+from multiprocessing.dummy import Pool
 import requests
 import winsound
 import logging
@@ -11,6 +12,11 @@ import sys
 from pathlib import Path
 import json
 import subprocess
+
+pool = Pool(10) # Creates a pool with ten threads; more threads = more concurrency.
+                # "pool" is a module attribute; you can be sure there will only
+                # be one of them in your application
+                # as modules are cached after initialization.
 
 class VoiceModelNotFound(Exception):
     pass
@@ -39,8 +45,12 @@ class Synthesizer:
         self.debug_mode = config.debug_mode
         self.play_audio_from_script = config.play_audio_from_script
 
+        # web request sent to switch voice model; empty if not switching
+        self.switching_to_voice = ''
         # last active voice model
         self.last_voice = ''
+        # queued voiceline for synthesize
+        self.queued_voiceline = ''
 
         self.model_type = ''
         self.base_speaker_emb = ''
@@ -53,9 +63,18 @@ class Synthesizer:
 
     def synthesize(self, voice, voice_folder, voiceline):
         if voice != self.last_voice:
-            logging.info('Loading voice model...')
-            self._change_voice(voice)
-            logging.info('Voice model loaded.')
+            # current active model different, switching voice models...
+            if (self.switching_to_voice == '') or (self.switching_to_voice != voice):
+                # DEPRECATED: voice gets switched when loading in the character bio/info
+                logging.info(f'Switching voice model... ({voice})')
+                self._change_voice(voice)
+            else:
+                # model already getting switched
+                # await response from xVASynth and then synthesize it
+                self.queued_voiceline = voiceline
+                # TODO: add timeout in case xVASynth fails to respond for some reason
+                return
+        self.queued_voiceline = ''
 
         logging.info(f'Synthesizing voiceline: {voiceline}')
         phrases = self._split_voiceline(voiceline)
@@ -264,9 +283,14 @@ class Synthesizer:
             logging.error(f'Could not run xVASynth. Ensure that the path "{self.xvasynth_path}" is correct.')
             input('\nPress any key to stop Mantella...')
             sys.exit(0)
-    
-    @utils.time_it
-    def _change_voice(self, voice):
+
+    def _prepare_voice_change(self, voice):
+        if voice == self.last_voice:
+            logging.info('Skipping the loading of the same voice model.')
+            return
+
+        logging.info('Loading voice model...')
+
         voice_path = f"{self.model_path}sk_{voice.lower().replace(' ', '')}"
         if not os.path.exists(voice_path+'.json'):
             logging.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files (Ctrl+F for 'sk_{voice.lower().replace(' ', '')}').")
@@ -283,19 +307,50 @@ class Synthesizer:
 
         self.base_speaker_emb = base_speaker_emb
         self.model_type = voice_model_json.get('modelType')
-        
-        model_change = {
+
+        self.switching_to_voice = voice
+
+        return {
             'outputs': None,
             'version': '3.0',
-            'model': voice_path, 
+            'model': voice_path,
             'modelType': self.model_type,
-            'base_lang': self.language, 
+            'base_lang': self.language,
             'pluginsContext': '{}',
         }
+
+    @utils.time_it
+    def _change_voice(self, voice):
+        model_change = self._prepare_voice_change(voice)
+
         requests.post(self.loadmodel_url, json=model_change)
 
+        self.switching_to_voice = ''
         self.last_voice = voice
+        logging.info('Voice model loaded.')
 
+    @utils.time_it
+    async def change_voice(self, voice):
+        if voice == self.last_voice:
+            return
+
+        model_change = self._prepare_voice_change(voice)
+
+        def on_success(r: requests.Response):
+            self.switching_to_voice = ''
+            if r.status_code == 200:
+                self.last_voice = voice
+                if self.queued_voiceline != '':
+                    self.synthesize(voice=voice, voice_folder='', voiceline=self.queued_voiceline);
+            else:
+                logging.info('Voice model failed to load.')
+
+        def on_error(ex: Exception):
+            self.switching_to_voice = ''
+            logging.info(f'xVASynth post requests failed: {ex}')
+
+        pool.apply_async(requests.post, args=[self.loadmodel_url], kwds={'json': model_change},
+                                callback=on_success, error_callback=on_error)
 
     def run_command(self, command):
         startupinfo = subprocess.STARTUPINFO()

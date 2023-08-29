@@ -72,9 +72,11 @@ try:
         context = character.set_context(config.prompt, location, in_game_time, characters.active_characters, token_limit)
 
         tokens_available = token_limit - chat_response.num_tokens_from_messages(context, model=config.llm)
-        
+
         # initiate conversation with character
         try:
+            # load in TTS voice model
+            asyncio.run(synthesizer.change_voice(character_info['voice_model']))
             messages = asyncio.run(get_response(f"{language_info['hello']} {character.name}.", context, synthesizer, characters))
         except tts.VoiceModelNotFound:
             game_state_manager.write_game_info('_mantella_end_conversation', 'True')
