@@ -1,10 +1,18 @@
 import configparser
 import logging
+import os
+import sys
 
 class ConfigLoader:
     def __init__(self, file_name='config.ini'):
         config = configparser.ConfigParser()
         config.read(file_name)
+
+        def invalid_path(set_path, tested_path):
+            logging.error(f"\"{tested_path}\" does not exist!\n\nThe path set in config.ini: \"{set_path}\"")
+            input('\nPress any key to exit...')
+            sys.exit(0)
+            return
 
         try:
             self.language = config['Language']['language']
@@ -14,7 +22,7 @@ class ConfigLoader:
 
             self.game_path = config['Paths']['skyrim_folder']
             self.xvasynth_path = config['Paths']['xvasynth_folder']
-            self.mod_path = config['Paths']['mod_folder']+'\Sound\Voice\Mantella.esp'
+            self.mod_path = config['Paths']['mod_folder']
 
             self.mic_enabled = config['Microphone']['microphone_enabled']
             self.whisper_model = config['Microphone']['model_size']
@@ -46,3 +54,13 @@ class ConfigLoader:
         except Exception as e:
             logging.error('Parameter missing/invalid in config.ini file!')
             raise e
+
+        # don't trust; verify; test subfolders
+        if not os.path.exists(f"{self.game_path}\\Data\\"):
+            invalid_path(self.game_path, f"{self.game_path}\\Data\\")
+        if not os.path.exists(f"{self.xvasynth_path}\\resources\\"):
+            invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")
+        if not os.path.exists(f"{self.mod_path}\\Sound\\Voice\\Mantella.esp"):
+            invalid_path(self.mod_path, f"{self.mod_path}\\Sound\\Voice\\Mantella.esp")
+
+        self.mod_path += "\\Sound\\Voice\\Mantella.esp"
