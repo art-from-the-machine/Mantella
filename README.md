@@ -154,6 +154,9 @@ Ensure that you are not running Mantella.exe via a Vortex / Mod Organizer 2 shor
 ### ERROR: xVASynth Error: [WinError 5] Access is denied
 This happens when your antivirus is blocking Mantella.exe from working. Please add Mantella.exe to your safe list or try running as administrator.
 
+### Cannot start new conversation after ending previous conversation (conversation ended message)
+You might need to say something in the mic for Mantella.exe to realise that the conversation has ended (while it is on "Listening..." it does not look out for the conversation ending). The exe will check if the conversation has ended after 30 seconds by default. You can change this via the `listen_timeout`` setting in MantellaSoftware/config.ini, but just keep in mind if it is too short this will effect conversations as the exe will occasionally stop listening for mic input to check if the conversation has ended
+
 
 ## Contribute
 The source code for Mantella is included in this repo. Here are the quick steps to get set up:
