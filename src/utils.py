@@ -4,6 +4,7 @@ import re
 import string
 import sys
 import os
+from shutil import rmtree
 from charset_normalizer import detect
 
 
@@ -41,6 +42,22 @@ def get_file_encoding(file_path):
         data = f.read()
     encoding = detect(data).get("encoding")
     return encoding
+
+
+def cleanup_mei():
+    """
+    Rudimentary workaround for https://github.com/pyinstaller/pyinstaller/issues/2379
+    """
+    mei_bundle = getattr(sys, "_MEIPASS", False)
+
+    if mei_bundle:
+        dir_mei, current_mei = mei_bundle.split("_MEI")
+        for file in os.listdir(dir_mei):
+            if file.startswith("_MEI") and not file.endswith(current_mei):
+                try:
+                    rmtree(os.path.join(dir_mei, file))
+                except PermissionError:  # mainly to allow simultaneous pyinstaller instances
+                    pass
 
 
 def get_time_group(in_game_time):
