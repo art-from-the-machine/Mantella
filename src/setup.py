@@ -46,6 +46,8 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         logging.info(f"Running Mantella with '{llm}'. The language model chosen can be changed via config.ini\n")
         return token_limit
 
+    # clean up old instances of exe runtime files
+    utils.cleanup_mei()
     config = config_loader.ConfigLoader(config_file)
     setup_logging(logging_file)
     setup_openai_secret_key(secret_key_file)
