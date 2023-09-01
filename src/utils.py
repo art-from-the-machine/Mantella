@@ -44,7 +44,7 @@ def get_file_encoding(file_path):
     return encoding
 
 
-def cleanup_mei():
+def cleanup_mei(remove_mei_folders):
     """
     Rudimentary workaround for https://github.com/pyinstaller/pyinstaller/issues/2379
     """
@@ -52,12 +52,24 @@ def cleanup_mei():
 
     if mei_bundle:
         dir_mei, current_mei = mei_bundle.split("_MEI")
+        mei_files = []
         for file in os.listdir(dir_mei):
             if file.startswith("_MEI") and not file.endswith(current_mei):
-                try:
-                    rmtree(os.path.join(dir_mei, file))
-                except PermissionError:  # mainly to allow simultaneous pyinstaller instances
-                    pass
+                mei_files.append(file)
+        
+        if (len(mei_files) > 0):
+            if (remove_mei_folders == '1'):
+                file_removed = 0
+                for file in mei_files:
+                    try:
+                        rmtree(os.path.join(dir_mei, file))
+                        file_removed += 1
+                    except PermissionError:  # mainly to allow simultaneous pyinstaller instances
+                        pass
+                logging.info(f'{file_removed} previous runtime folder(s) cleaned up from AppData/Local/Temp')
+            else:
+                logging.warn(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in AppData/Local/Temp. See MantellaSoftware/config.ini's remove_mei_folders setting for more information.")
+        
 
 
 def get_time_group(in_game_time):
