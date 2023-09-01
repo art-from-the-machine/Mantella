@@ -42,6 +42,8 @@ class ConfigLoader:
 
             self.subtitles_enabled = config['HUD']['subtitles']
 
+            self.remove_mei_folders = config['Cleanup']['remove_mei_folders']
+
             self.debug_mode = config['Debugging']['debugging']
             self.play_audio_from_script = config['Debugging']['play_audio_from_script']
             self.debug_character_name = config['Debugging']['debugging_npc']
