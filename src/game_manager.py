@@ -333,8 +333,8 @@ class GameStateManager:
         audio_file = synthesizer.synthesize(character.info['voice_model'], character.info['skyrim_voice_folder'], config.collecting_thoughts_npc_response)
         chat_manager.save_files_to_voice_folders([audio_file, config.collecting_thoughts_npc_response])
 
-        messages.append({"role": "user", "content": config.end_conversation_keyword+'.'})
-        messages.append({"role": "assistant", "content": config.end_conversation_keyword+'.'})
+        messages.append({"role": "user", "content": character.info['name']+'?'})
+        messages.append({"role": "assistant", "content": config.collecting_thoughts_npc_response+'.'})
 
         # save the conversation so far
         character.save_conversation(encoding, messages, tokens_available, config.llm)
@@ -344,5 +344,10 @@ class GameStateManager:
         conversation_summary_file = character.get_latest_conversation_summary_file_path()
         # reload context
         context = character.set_context(config.prompt, location, in_game_time)
+
+        # add previous few back and forths from last conversation
+        messages_wo_system_prompt = messages[1:]
+        messages_last_entries = messages_wo_system_prompt[-8:]
+        context.extend(messages_last_entries)
 
         return conversation_summary_file, context, messages
