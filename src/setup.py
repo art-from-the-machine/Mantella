@@ -85,11 +85,16 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
     
     character_df = get_character_df(character_df_file)
     language_info = get_language_info(language_file)
+
     chosenmodel = config.llm
-    if 'openrouter' in config.alternative_openai_api_base:
+    # if using an alternative API, use encoding for GPT-3.5 by default
+    # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
+    #       this can lead to the token limit of the given model being overrun
+    if config.alternative_openai_api_base != 'none':
         chosenmodel = 'gpt-3.5-turbo'
     encoding = tiktoken.encoding_for_model(chosenmodel)
     token_limit = get_token_limit(config.llm, config.custom_token_count)
+
     if config.alternative_openai_api_base != 'none':
         openai.api_base = config.alternative_openai_api_base
 
