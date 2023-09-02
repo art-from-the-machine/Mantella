@@ -109,7 +109,7 @@ try:
             if chat_response.num_tokens_from_messages(messages[1:], model=config.llm) > (round(tokens_available*current_conversation_limit_pct,0)):
                 conversation_summary_file, context, messages = game_state_manager.reload_conversation(config, encoding, synthesizer, chat_manager, messages, character, tokens_available, location, in_game_time)
                 # continue conversation
-                messages = asyncio.run(get_response(f"{language_info['hello']}", context, synthesizer, character.info))
+                messages = asyncio.run(get_response(f"{character.info['name']}?", context, synthesizer, character.info))
 
 except Exception as e:
     try:

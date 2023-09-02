@@ -8,6 +8,7 @@ import time
 import shutil
 import src.utils as utils
 import unicodedata
+import re
 
 class ChatManager:
     def __init__(self, game_state_manager, config, encoding):
@@ -105,7 +106,33 @@ class ChatManager:
             """Remove 'As an XYZ,' from beginning of sentence"""
             if sentence.startswith('As a'):
                 if ', ' in sentence:
+                    logging.info(f"Removed '{sentence.split(', ')[0]} from response")
                     sentence = sentence.replace(sentence.split(', ')[0]+', ', '')
+            return sentence
+        
+        def parse_asterisks_brackets(sentence):
+            if ('*' in sentence):
+                # Check if sentence contains two asterisks
+                asterisk_check = re.search(r"(?<!\*)\*(?!\*)[^*]*\*(?!\*)", sentence)
+                if asterisk_check:
+                    logging.info(f"Removed asterisks text from response: {sentence}")
+                    # Remove text between two asterisks
+                    sentence = re.sub(r"(?<!\*)\*(?!\*)[^*]*\*(?!\*)", "", sentence)
+                else:
+                    logging.info(f"Removed response containing single asterisks: {sentence}")
+                    sentence = ''
+
+            if ('(' in sentence) or (')' in sentence):
+                # Check if sentence contains two brackets
+                bracket_check = re.search(r"\(.*\)", sentence)
+                if bracket_check:
+                    logging.info(f"Removed brackets text from response: {sentence}")
+                    # Remove text between brackets
+                    sentence = re.sub(r"\(.*?\)", "", sentence)
+                else:
+                    logging.info(f"Removed response containing single bracket: {sentence}")
+                    sentence = ''
+
             return sentence
         
         if ('Well, well, well' in sentence):
@@ -113,6 +140,11 @@ class ChatManager:
 
         sentence = remove_as_a(sentence)
         sentence = sentence.replace('"','')
+        sentence = sentence.replace('[', '(')
+        sentence = sentence.replace(']', ')')
+        sentence = sentence.replace('{', '(')
+        sentence = sentence.replace('}', ')')
+        sentence = parse_asterisks_brackets(sentence)
 
         return sentence
 
@@ -141,14 +173,11 @@ class ChatManager:
                         content_edit = unicodedata.normalize('NFKC', content)
                         # check if content marks the end of a sentence
                         if (any(char in content_edit for char in self.end_of_sentence_chars)):
+                            sentence = self.clean_sentence(sentence)
+
                             if len(sentence.strip()) < 3:
                                 logging.info(f'Skipping voiceline that is too short: {sentence}')
                                 break
-                            if ('*' in sentence):
-                                logging.info(f'Skipping voiceline which contains asterisks: {sentence}')
-                                break
-
-                            sentence = self.clean_sentence(sentence)
 
                             logging.info(f"ChatGPT returned sentence took {time.time() - start_time} seconds to execute")
                             # Generate the audio and return the audio file path

@@ -6,9 +6,12 @@ import tiktoken
 import src.config_loader as config_loader
 
 def initialise(config_file, logging_file, secret_key_file, character_df_file, language_file):
-    def setup_openai_secret_key(file_name):
-        with open(file_name, 'r') as f:
-            api_key = f.readline().strip()
+    def setup_openai_secret_key(file_name, is_local):
+        if is_local:
+            api_key = 'abc123'
+        else:
+            with open(file_name, 'r') as f:
+                api_key = f.readline().strip()
         openai.api_key = api_key
 
     def setup_logging(file_name):
@@ -32,7 +35,10 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         except:
             logging.error(f"Could not load language '{config.language}'. Please set a valid language in config.ini\n")
 
-    def get_token_limit(llm):
+    def get_token_limit(llm, custom_token_count):
+        if '/' in llm:
+            llm = llm.split('/')[-1]
+
         if llm == 'gpt-3.5-turbo':
             token_limit = 4096
         elif llm == 'gpt-3.5-turbo-16k':
@@ -41,24 +47,61 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
             token_limit = 8192
         elif llm == 'gpt-4-32k':
             token_limit = 32768
-        else:
+        elif llm == 'claude-2':
+            token_limit = 100_000
+        elif llm == 'claude-instant-v1':
+            token_limit = 100_000
+        elif llm == 'palm-2-chat-bison':
+            token_limit = 8000
+        elif llm == 'palm-2-codechat-bison':
+            token_limit = 8000
+        elif llm == 'llama-2-13b-chat':
             token_limit = 4096
-        logging.info(f"Running Mantella with '{llm}'. The language model chosen can be changed via config.ini\n")
+        elif llm == 'llama-2-70b-chat':
+            token_limit = 4096
+        elif llm == 'codellama-34b-instruct':
+            token_limit = 16000
+        elif llm == 'nous-hermes-llama2-13b':
+            token_limit = 4096
+        elif llm == 'weaver':
+            token_limit = 8000
+        elif llm == 'mythomax-L2-13b':
+            token_limit = 8192
+        elif llm == 'airoboros-l2-70b-2.1':
+            token_limit = 4096
+        else:
+            logging.info(f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count} (this number can be changed via the `custom_token_count` setting in config.ini)")
+            token_limit = custom_token_count
+        
+        if token_limit <= 4096:
+            logging.info(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
+        
         return token_limit
 
-    # clean up old instances of exe runtime files
-    utils.cleanup_mei()
     config = config_loader.ConfigLoader(config_file)
     setup_logging(logging_file)
-    setup_openai_secret_key(secret_key_file)
+
+    is_local = True
+    if (config.alternative_openai_api_base == 'none') or (config.alternative_openai_api_base == 'https://openrouter.ai/api/v1'):
+        is_local = False
+    setup_openai_secret_key(secret_key_file, is_local)
+    logging.info(f"Running Mantella with '{config.llm}'. The language model chosen can be changed via config.ini")
+
+    # clean up old instances of exe runtime files
+    utils.cleanup_mei(config.remove_mei_folders)
     
     character_df = get_character_df(character_df_file)
     language_info = get_language_info(language_file)
+
     chosenmodel = config.llm
-    if 'openrouter' in config.alternative_openai_api_base:
+    # if using an alternative API, use encoding for GPT-3.5 by default
+    # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
+    #       this can lead to the token limit of the given model being overrun
+    if config.alternative_openai_api_base != 'none':
         chosenmodel = 'gpt-3.5-turbo'
     encoding = tiktoken.encoding_for_model(chosenmodel)
-    token_limit = get_token_limit(config.llm)
+    token_limit = get_token_limit(config.llm, config.custom_token_count)
+
     if config.alternative_openai_api_base != 'none':
         openai.api_base = config.alternative_openai_api_base
 

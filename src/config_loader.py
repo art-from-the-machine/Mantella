@@ -34,6 +34,7 @@ class ConfigLoader:
             self.max_response_sentences = int(config['LanguageModel']['max_response_sentences'])
             self.llm = config['LanguageModel']['model']
             self.alternative_openai_api_base = config['LanguageModel']['alternative_openai_api_base']
+            self.custom_token_count = config['LanguageModel']['custom_token_count']
 
             self.xvasynth_process_device = config['Speech']['tts_process_device']
             self.pace = float(config['Speech']['pace'])
@@ -41,6 +42,8 @@ class ConfigLoader:
             self.use_sr = int(config['Speech']['use_sr'])
 
             self.subtitles_enabled = config['HUD']['subtitles']
+
+            self.remove_mei_folders = config['Cleanup']['remove_mei_folders']
 
             self.debug_mode = config['Debugging']['debugging']
             self.play_audio_from_script = config['Debugging']['play_audio_from_script']
