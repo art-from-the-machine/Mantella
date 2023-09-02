@@ -6,9 +6,12 @@ import tiktoken
 import src.config_loader as config_loader
 
 def initialise(config_file, logging_file, secret_key_file, character_df_file, language_file):
-    def setup_openai_secret_key(file_name):
-        with open(file_name, 'r') as f:
-            api_key = f.readline().strip()
+    def setup_openai_secret_key(file_name, is_local):
+        if is_local:
+            api_key = 'abc123'
+        else:
+            with open(file_name, 'r') as f:
+                api_key = f.readline().strip()
         openai.api_key = api_key
 
     def setup_logging(file_name):
@@ -77,7 +80,11 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
 
     config = config_loader.ConfigLoader(config_file)
     setup_logging(logging_file)
-    setup_openai_secret_key(secret_key_file)
+
+    is_local = True
+    if (config.alternative_openai_api_base == 'none') or (config.alternative_openai_api_base == 'https://openrouter.ai/api/v1'):
+        is_local = False
+    setup_openai_secret_key(secret_key_file, is_local)
     logging.info(f"Running Mantella with '{config.llm}'. The language model chosen can be changed via config.ini")
 
     # clean up old instances of exe runtime files
