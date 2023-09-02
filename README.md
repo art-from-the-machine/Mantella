@@ -21,9 +21,9 @@ This mod requires ~27GB of space when xVASynth and all voice models are installe
 
 
 ### Compatability
-- Mantella requires Windows 10 / 11
+- Mantella requires Windows 10 / 11 (it is yet unconfirmed whether it works on Windows 7)
 - Mantella has been confirmed to work with the FUS (by pointing skyrim_folder to Skyrim), Librum (by pointing skyrim_folder to overwrite/root), and Wildlands (by pointing skyrim_folder to Wildlander/SKSE) Wabbajack modlists.
-- If you have the Unofficial Skyrim Special Edition Patch (USSEP) installed, Mantella needs to be loaded after this mod
+- Mantella needs to be loaded after the Unofficial Skyrim Special Edition Patch (USSEP) mod in your load order
 
 ## Installation
 ### Video Walkthrough
@@ -79,24 +79,39 @@ These mods aren't strictly necessary for Mantella to work, but they do greatly i
 
 No NPC Greetings (recommended so that Mantella voicelines are not interrupted by vanilla voicelines): https://www.nexusmods.com/skyrim/mods/746
 
+UIExtensions (to use text input instead of mic input): https://www.nexusmods.com/skyrimspecialedition/mods/17561
+
 World Encounter Hostility Fix - Performance Version (stops certain NPCs from turning hostile when you cast the Mantella spell on them): https://www.nexusmods.com/skyrimspecialedition/mods/91403  
 Note that this mod requires the Unofficial Skyrim Special Edition Patch (USSEP). Mantella needs to be loaded after USSEP in your load order.
 
 
+### Language Models (LLMs)
+There are a number of different LLMs to choose from, ranging from small local models to expensive externally hosted models. If you just want to get started without thinking too much about it / explore alternative options later and are new to Mantella, you can quickly get started via the OpenAI instructions below (the first month gives you $5 free credits).
+
+#### OpenAI (First $5 Free)
+Copy your OpenAI secret API key (see here if you need help finding it (you will need to set up an account if you haven't already): https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key) and paste into MantellaSoftware/GPT_SECRET_KEY.txt. Do not share this key with anyone. While there is a free trial, you will need to set up your payment details for the API to work.
+
+#### OpenRouter (First $1 Free)
+Create an account with OpenRouter. Go to the "Keys" tab and generate a new key, saving its value to MantellaSoftware/GPT_SECRET_KEY.txt. Do not share this secret key with anyone. In MantellaSoftware/config.ini, set `model` to a model from the list here: https://openrouter.ai/docs#models (eg `meta-llama/llama-2-70b-chat`). Set `alternative_openai_api_base` to "https://openrouter.ai/api/v1" (without quotes).
+
+#### text-generation-webui (Free Local Models)
+Install text-generation-webui from here: https://github.com/oobabooga/text-generation-webui. Place a local model into the text-generation-webui\models folder (to get started, you can download `llama-2-7b-chat.ggmlv3.q4_K_S.bin` from here: https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/tree/main). Paste the text "--extensions openai" into the installed folder's CMD_FLAGS.txt file. Start text-generation-webui and paste the URL displayed in the console window into your web browser. Navigate to the "Model" tab, select your model from the drop-down list, and click "Load". In your MantellaSoftware/config.ini file, set `alternative_openai_api_base` to "http://127.0.0.1:5001/v1" (without quotes). Just to note, you need to make sure text-generation-webui is running when running Mantella!
+
+
+#### Local Models
+
 ## Setup & Configuration
 1. Set up the MantellaSoftware/config.ini file with your paths to Skyrim (`skyrim_folder`), xVASynth (`xvasynth_folder`), and the Mantella Skyrim mod (`mod_folder`). If you are using a Wabbajack modlist, you may need to try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path and set this as your `skyrim_folder` path. For FUS users, once you set this path and cast the spell once, you then need to set your `skyrim_folder` path back to your actual Skyrim folder. If you are using Mod Organizer 2, you can find the mod folder by right clicking the mod in the Mod Organizer 2 UI and selecting "Open in Explorer". If you are instead using Vortex, you need to point mod_folder to your Skyrim/Data folder. So Vortex users essentially need to take the Skyrim folder path they have set in `skyrim_folder` and add "\Data" to the end of it.
 
-2. Copy your OpenAI secret API key (see here if you need help finding it (you will need to set up an account if you haven't already): https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key) and paste into GPT_SECRET_KEY.txt. Do not share this key with anyone. While there is a free trial, you will need to set up your payment details for the API to work.
+2. The applications should be started in this order: 1. Run your xVASynth.exe. 2. Run Mantella.exe (found in the MantellaSoftware folder). It will say "Waiting for player to select an NPC..." when it is ready. 3. Run Skyrim
 
-3. The applications should be started in this order: 1. Run your xVASynth.exe. 2. Run Mantella.exe (found in the MantellaSoftware folder). It will say "Waiting for player to select an NPC..." when it is ready. 3. Run Skyrim
+3. When you first load the mod, MAKE SURE TO CREATE A SAVE AND RELOAD THAT SAVE. The voicelines will not play otherwise! I learned this the hard way. You do not have to create a new game to do this, you can also create a new save in an existing game. While there have not been issues reported with using Mantella in an existing save so far, please be aware that adding mods mid-game can cause problems.
 
-4. When you first load the mod, MAKE SURE TO CREATE A SAVE AND RELOAD THAT SAVE. The voicelines will not play otherwise! I learned this the hard way. You do not have to create a new game to do this, you can also create a new save in an existing game. While there have not been issues reported with using Mantella in an existing save so far, please be aware that adding mods mid-game can cause problems.
+4. The Mantella spell should be added to your inventory under the Illusion category in the Magic menu once you install the mod. Conversations can be started by selecting an NPC with the spell. You can end a conversation by selecting an NPC with the spell again, or by simply saying "goodbye". If the NPC responds with "safe travels" then the conversation has ended correctly via this latter method. Note that conversations can only be saved to memory (MantellaSoftware/data/conversations/NPC_Name) by either using the spell or by saying "goodbye". If the NPC is unavailable to the mod, the message "Conversation ended." should immediately pop up in the top left corner and the conversation will exit. If the only message you see from the spell is "Conversation ended", please refer to the "Issues Q&A" section for common solutions to this.
 
-5. The Mantella spell should be added to your inventory under the Illusion category in the Magic menu once you install the mod. Conversations can be started by selecting an NPC with the spell. You can end a conversation by selecting an NPC with the spell again, or by simply saying "goodbye". If the NPC responds with "safe travels" then the conversation has ended correctly via this latter method. Note that conversations can only be saved to memory (MantellaSoftware/data/conversations/NPC_Name) by either using the spell or by saying "goodbye". If the NPC is unavailable to the mod, the message "Conversation ended." should immediately pop up in the top left corner and the conversation will exit. If the only message you see from the spell is "Conversation ended", please refer to the "Issues Q&A" section for common solutions to this.
+5. Voicelines are cached in the MantellaSoftware/data/voicelines/ folder. If this data takes up too much space over time, the contents of voicelines/ can be periodically deleted.
 
-6. Voicelines are cached in the MantellaSoftware/data/voicelines/ folder. If this data takes up too much space over time, the contents of voicelines/ can be periodically deleted.
-
-7. If you are experiencing errors, please see the issues Q&A below. Otherwise, please share the details of the errors and your MantellaSoftware/logging.log file on the Mantella Discord #issues channel: https://discord.gg/Q4BJAdtGUE. You can also try enabling debugging in MantellaSoftware/config.ini. This allows Mantella.exe to run without Skyrim needing to be open. There are a few extra options in the debugging section to play around with which are applied when the debugging option is enabled.
+6. If you are experiencing errors, please see the issues Q&A below. Otherwise, please share the details of the errors and your MantellaSoftware/logging.log file on the Mantella Discord #issues channel: https://discord.gg/Q4BJAdtGUE. You can also try enabling debugging in MantellaSoftware/config.ini. This allows Mantella.exe to run without Skyrim needing to be open. There are a few extra options in the debugging section to play around with which are applied when the debugging option is enabled.
 
 
 ## Issues Q&A
