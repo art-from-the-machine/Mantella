@@ -19,23 +19,24 @@ class Transcriber:
         self.debug_exit_on_first_exchange = config.debug_exit_on_first_exchange
         self.end_conversation_keyword = config.end_conversation_keyword
 
-        self.recognizer = sr.Recognizer()
-        self.recognizer.pause_threshold = config.pause_threshold
-        self.microphone = sr.Microphone()
+        if self.mic_enabled == '1':
+            self.recognizer = sr.Recognizer()
+            self.recognizer.pause_threshold = config.pause_threshold
+            self.microphone = sr.Microphone()
 
-        if self.audio_threshold == 'auto':
-            logging.info(f"Audio threshold set to 'auto'. Adjusting microphone for ambient noise...")
-            with self.microphone as source:
-                self.recognizer.adjust_for_ambient_noise(source, duration=5)
-        else:
-            self.recognizer.dynamic_energy_threshold = False
-            self.recognizer.energy_threshold = int(self.audio_threshold)
-            logging.info(f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up speech, try lowering this value in config.ini. If the mic is picking up too much background noise, try increasing this value.\n")
+            if self.audio_threshold == 'auto':
+                logging.info(f"Audio threshold set to 'auto'. Adjusting microphone for ambient noise...")
+                with self.microphone as source:
+                    self.recognizer.adjust_for_ambient_noise(source, duration=5)
+            else:
+                self.recognizer.dynamic_energy_threshold = False
+                self.recognizer.energy_threshold = int(self.audio_threshold)
+                logging.info(f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up speech, try lowering this value in config.ini. If the mic is picking up too much background noise, try increasing this value.\n")
 
-        if self.process_device == 'cuda':
-            self.transcribe_model = WhisperModel(self.model, device=self.process_device)
-        else:
-            self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
+            if self.process_device == 'cuda':
+                self.transcribe_model = WhisperModel(self.model, device=self.process_device)
+            else:
+                self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
 
 
     def get_player_response(self, say_goodbye):
