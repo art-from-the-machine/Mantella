@@ -97,8 +97,9 @@ Create an account with OpenRouter. Go to the "Keys" tab and generate a new key, 
 #### text-generation-webui (Free Local Models)
 Install text-generation-webui from here: https://github.com/oobabooga/text-generation-webui. Place a local model into the text-generation-webui\models folder (to get started, you can download `llama-2-7b-chat.ggmlv3.q4_K_S.bin` from here: https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/tree/main). Paste the text "--extensions openai" into the installed folder's CMD_FLAGS.txt file. Start text-generation-webui and paste the URL displayed in the console window into your web browser. Navigate to the "Model" tab, select your model from the drop-down list, and click "Load". In your MantellaSoftware/config.ini file, set `alternative_openai_api_base` to "http://127.0.0.1:5001/v1" (without quotes). Just to note, you need to make sure text-generation-webui is running when running Mantella!
 
+#### Other Services
+Mantella has the ability to support other language model services, although these services do need to support outputs in the OpenAI format (like text-generation-webui does via the "--extensions openai" option above).
 
-#### Local Models
 
 ## Setup & Configuration
 1. Set up the MantellaSoftware/config.ini file with your paths to Skyrim (`skyrim_folder`), xVASynth (`xvasynth_folder`), and the Mantella Skyrim mod (`mod_folder`). If you are using a Wabbajack modlist, you may need to try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path and set this as your `skyrim_folder` path. For FUS users, once you set this path and cast the spell once, you then need to set your `skyrim_folder` path back to your actual Skyrim folder. If you are using Mod Organizer 2, you can find the mod folder by right clicking the mod in the Mod Organizer 2 UI and selecting "Open in Explorer". If you are instead using Vortex, you need to point mod_folder to your Skyrim/Data folder. So Vortex users essentially need to take the Skyrim folder path they have set in `skyrim_folder` and add "\Data" to the end of it.
