@@ -201,6 +201,7 @@ The source code for Mantella is included in this repo. Here are the quick steps 
 4. Install the required packages via `pip install -r requirements.txt`
 5. Create a file called `GPT_SECRET_KEY.txt` and paste your secret key in this file
 6. Set up your paths / any other required settings in the `config.ini`
+7. Run Mantella via `main.py` in the parent directory
 
 If you have any trouble in getting the repo set up, please reach out on Discord!: https://discord.gg/Q4BJAdtGUE
 
