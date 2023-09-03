@@ -109,7 +109,7 @@ class MantellaConfigEditor:
 
     # write directly to config file in order to preserve config comments; config.write does not save comments
     def write_to_config_preserve_comments(self):
-        with open('config.ini', 'w') as configfile:
+        with open('config_edited.ini', 'w') as configfile:
             for section in self.config.sections():
                 configfile.write('['+section+']\n')
 
@@ -123,6 +123,14 @@ class MantellaConfigEditor:
                     optionvalue = self.config.get(section, option).replace('\n', '\n    ')
                     configfile.write(f"{option} = {optionvalue}\n\n")
                 configfile.write('\n')
+
+        # test if config_edited.ini is a parsable INI file and if it is then overwrite config.ini with config_edited.ini
+        try:
+            configparser.ConfigParser().read('config_edited.ini')
+            subprocess.run('move config_edited.ini config.ini', shell=True)
+            print("config.ini saved successfully.")
+        except:
+            print("config_edited.ini is not a valid INI file. Please fix the errors and try again.")
 
     def stop(self):
         self.root.destroy()
