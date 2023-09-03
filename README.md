@@ -1,11 +1,11 @@
 ![alt text](./img/github_banner.png)
 
 
-# Mantella [![Nexus](./img/nexus_mods_link.png)](https://www.nexusmods.com/skyrimspecialedition/mods/98631)
+# Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631
+" target="_blank"><img src="./img/nexus_mods_link.png"
+alt="Mantella Nexus Mods link" width="auto" height="50"/></a>
 
 # Mantella
-Nexus: https://www.nexusmods.com/skyrimspecialedition/mods/98631
-
 <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631
 " target="_blank"><img src="./img/nexus_mods_link.png"
 alt="Mantella Nexus Mods link" width="auto" height="50"/></a>
@@ -14,7 +14,7 @@ Mantella is a Skyrim mod which allows you to naturally speak to NPCs using [Whis
 
 <a href="https://www.youtube.com/watch?v=fJPY6sD527A
 " target="_blank"><img src="./img/mantella_trailer.gif"
-alt="Mantella trailer link" width="480" height="360"/></a>
+alt="Mantella trailer link" width="auto" height="360"/></a>
 
 https://www.youtube.com/watch?v=fJPY6sD527A
 
