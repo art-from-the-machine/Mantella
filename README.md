@@ -1,5 +1,5 @@
 <img src="./img/mantella_logo_github.png" align="right"
-     alt="Mantella logo" width="120" height="auto">
+     alt="Mantella logo" width="150" height="auto">
 # Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank"><img src="./img/nexus_mods_link.png" alt="Mantella Nexus Mods link" width="auto" height="28"/></a>
 > Bring Skyrim NPCs to life with AI
 
@@ -9,10 +9,10 @@ Mantella is a Skyrim mod which allows you to naturally speak to NPCs using [Whis
 " target="_blank"><img src="./img/mantella_trailer.gif"
 alt="Mantella trailer link" width="auto" height="360"/></a>
 
-If you get stuck anywhere in the installation process, please see the [`#Issues Q&A`](#issues-qa) below or reach out on [Discord](https://discord.gg/Q4BJAdtGUE)
+If you get stuck anywhere in the installation process, please see the [`#Issues Q&A`](#issues-qa) below or reach out on [Discord](https://discord.gg/Q4BJAdtGUE).
 ## Key Features
-- Interact with 1,000+ NPCs, all with their own unique backgrounds
-- Support for local, OpenAI, and OpenRouter language models
+- Interact with 1,000+ NPCs, all with their own unique backgrounds (or [add your own](#adding-modded-npcs))
+- Support for local (eg Llama 2), OpenAI (eg GPT-4), and OpenRouter (eg Claude v2) language models
 - Compatibility with 20+ languages
 - NPCs remember past conversations with you
 - NPCs are aware of their location, the current time, and any items you pick up
@@ -120,6 +120,14 @@ Mantella has the ability to support other language model services, although thes
 5. Voicelines are cached in the MantellaSoftware/data/voicelines/ folder. If this data takes up too much space over time, the contents of voicelines/ can be periodically deleted.
 
 6. If you are experiencing errors, please see the issues Q&A below. Otherwise, please share the details of the errors and your MantellaSoftware/logging.log file on the Mantella Discord #issues channel: https://discord.gg/Q4BJAdtGUE. You can also try enabling debugging in MantellaSoftware/config.ini. This allows Mantella.exe to run without Skyrim needing to be open. There are a few extra options in the debugging section to play around with which are applied when the debugging option is enabled.
+
+
+## Adding Modded NPCs
+Mantella supports the inclusion of modded NPCs, but there a few steps needed to include them. Note that if the modded NPC is custom voiced then there may not be an xVASynth voice model associated with them, so you'll have to use one of the vanilla voice models. The steps are as follows:
+
+1. Add the NPC to `MantellaSoftware/data/skyrim_characters.csv` (if you don't have Excel, you can open this file with [LibreOffice](https://www.libreoffice.org/)). The key fields that need to be populated are `name`, `bio`, and `voice_model`, the rest can be left blank.
+2. Find out what the name of the voice folder is that the modded NPC uses. You can do that by digging into the mod files and looking for its `voice/ModName.esp/npcVoice` folder, where "npcVoice" is what you are looking for. For example, a Discord user has got Mantella working with [Xelzaz](https://www.nexusmods.com/skyrimspecialedition/mods/62893?tab=files). In this example, the folder needed is "BPUFXelzazVoice". 
+3. Once you have found the modded NPC's voice folder, add it to the Mantella spell's list of voice folders. The Mantella spell path is the same one you used to point `mod_folder` in `MantellaSoftware/config.ini`. The path you need to add the new voice folder in is `MantellaModFolder\Sound\Voice\Mantella.esp\`.
 
 
 ## Issues Q&A
