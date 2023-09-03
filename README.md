@@ -1,6 +1,6 @@
 ![alt text](./img/github_banner.png)
 
-# Mantella[![Nexus Mods][./img/nexus_mods_link.png]][Nexus Mods Link]
+# Mantella [![Nexus Mods][./img/nexus_mods_link.png]][Nexus Mods Link]
 # Mantella
 Nexus: https://www.nexusmods.com/skyrimspecialedition/mods/98631
 
