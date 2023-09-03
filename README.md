@@ -1,4 +1,6 @@
 ![alt text](./img/github_banner.png)
+
+# Mantella[![Nexus Mods][./img/nexus_mods_link.png]][Nexus Mods Link]
 # Mantella
 Nexus: https://www.nexusmods.com/skyrimspecialedition/mods/98631
 
@@ -10,7 +12,7 @@ Mantella is a Skyrim mod which allows you to naturally speak to NPCs using [Whis
 
 https://www.youtube.com/watch?v=fJPY6sD527A
 
-If you get stuck anywhere in the process, please see the [`#Issues Q&A`](#issues-qa) below or reach out on the Discord:  
+If you get stuck anywhere in the installation process, please see the [`#Issues Q&A`](#issues-qa) below or reach out on the Discord:  
 
 https://discord.gg/Q4BJAdtGUE
 
