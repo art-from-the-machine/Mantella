@@ -1,21 +1,22 @@
 <img src="./img/mantella_logo_github.png" align="right"
      alt="Mantella logo" width="120" height="auto">
 # Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank"><img src="./img/nexus_mods_link.png" alt="Mantella Nexus Mods link" width="auto" height="28"/></a>
-> Bring Skyrim NPCs to life
+> Bring Skyrim NPCs to life with AI
 
-Mantella is a Skyrim mod which allows you to naturally speak to NPCs using [Whisper](https://github.com/openai/whisper) (speech-to-text), LLMs (text generation), and [xVASynth](https://github.com/DanRuta/xVA-Synth) (text-to-speech). See here for a video demonstration:
+Mantella is a Skyrim mod which allows you to naturally speak to NPCs using [Whisper](https://github.com/openai/whisper) (speech-to-text), LLMs (text generation), and [xVASynth](https://github.com/DanRuta/xVA-Synth) (text-to-speech).
 
 <a href="https://www.youtube.com/watch?v=fJPY6sD527A
 " target="_blank"><img src="./img/mantella_trailer.gif"
 alt="Mantella trailer link" width="auto" height="360"/></a>
 
-https://www.youtube.com/watch?v=fJPY6sD527A
-
-If you get stuck anywhere in the installation process, please see the [`#Issues Q&A`](#issues-qa) below or reach out on the Discord:  
-
-https://discord.gg/Q4BJAdtGUE
-
-
+If you get stuck anywhere in the installation process, please see the [`#Issues Q&A`](#issues-qa) below or reach out on [Discord](https://discord.gg/Q4BJAdtGUE)
+## Key Features
+- Interact with 1,000+ NPCs, all with their own unique backgrounds
+- Support for local, OpenAI, and OpenRouter language models
+- Compatibility with 20+ languages
+- NPCs remember past conversations with you
+- NPCs are aware of their location, the current time, and any items you pick up
+- Fully playable in VR / SE / AE
 ## Requirements
 ### Hardware Requirements
 There are no discovered minimum requirements at the time of writing for Mantella, but there has been a report of Mantella crashing when running a modlist of 2000 mods. Mantella needs a certain amount of hardware allocation to run successfully, and if this is being soaked up by other hardware intensive mods, it may crash.
