@@ -5,9 +5,9 @@
 
 Mantella is a Skyrim mod which allows you to naturally speak to NPCs using [Whisper](https://github.com/openai/whisper) (speech-to-text), LLMs (text generation), and [xVASynth](https://github.com/DanRuta/xVA-Synth) (text-to-speech).  
 
-Click below or [here](https://www.youtube.com/watch?v=fJPY6sD527A) to see the full trailer:
+Click below or [here](https://youtu.be/FLmbd48r2Wo?si=QLe2_E1CogpxlaS1) to see the full trailer:
 
-<a href="https://www.youtube.com/watch?v=fJPY6sD527A
+<a href="https://youtu.be/FLmbd48r2Wo?si=QLe2_E1CogpxlaS1
 " target="_blank"><img src="./img/mantella_trailer.gif"
 alt="Mantella trailer link" width="auto" height="220"/></a>
 
