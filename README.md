@@ -1,7 +1,12 @@
+![alt text](./img/github_banner.png)
 # Mantella
 Nexus: https://www.nexusmods.com/skyrimspecialedition/mods/98631
 
-Mantella is a Skyrim mod which allows you to naturally speak to NPCs using OpenAI's [Whisper](https://github.com/openai/whisper) (speech-to-text), OpenAI's ChatGPT (text generation), and [xVASynth](https://github.com/DanRuta/xVA-Synth) (text-to-speech). See here for a video demonstration:
+<a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631
+" target="_blank"><img src="./img/nexus_mods_link.png"
+alt="Mantella Nexus Mods link" width="auto" height="50"/></a>
+
+Mantella is a Skyrim mod which allows you to naturally speak to NPCs using [Whisper](https://github.com/openai/whisper) (speech-to-text), LLMs (text generation), and [xVASynth](https://github.com/DanRuta/xVA-Synth) (text-to-speech). See here for a video demonstration:
 
 https://www.youtube.com/watch?v=fJPY6sD527A
 
