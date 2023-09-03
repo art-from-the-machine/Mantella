@@ -45,7 +45,8 @@ Just a couple of notes, the PapyrusUtil issue mentioned in this video can be res
 As Mantella accesses and writes to files within your Skyrim folder, it is unlikely to work correctly if you have Skyrim stored in Program Files. Please ensure that you have Skyrim stored outside of this folder (Such as C:\Games\Steam for example).
 
 ### Mantella Files
-The Mantella files can be downloaded from Nexus: https://www.nexusmods.com/skyrimspecialedition/mods/98631
+The Mantella files can be downloaded from Nexus: 
+https://www.nexusmods.com/skyrimspecialedition/mods/98631
 
 #### Mantella Software
 Extract this folder somewhere convenient to you.
