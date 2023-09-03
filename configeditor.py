@@ -4,7 +4,7 @@ import configparser
 import re
 import sys
 
-class ConfigEditorApp:
+class MantellaConfigEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("Mantella Config Editor")
@@ -14,6 +14,8 @@ class ConfigEditorApp:
 
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
+
+        self.widget_values = {}
 
         def read_config_file(filename):
             with open(filename, 'r') as file:
@@ -30,6 +32,9 @@ class ConfigEditorApp:
                     section = line[1:-1]
                     continue
                 elif line.startswith('; '):
+                    comment += line[1:] + '\n'
+                    continue
+                elif line.startswith('# '):
                     comment += line[1:] + '\n'
                     continue
                 elif '=' in line:
@@ -59,9 +64,11 @@ class ConfigEditorApp:
             label = ttk.Label(tab, text=self.comments[f"{section}.{option}"])
             label.grid(row=row, column=0, padx=10, pady=2, sticky='w', columnspan=2)
 
+            # Paths section has file browsing
             if section == "Paths":
                 entry = ttk.Entry(tab, width=90)
                 entry.insert(0, self.config.get(section, option))
+            # prompt option is a multiline string
             elif (option == 'prompt'):
                 entry = Text(tab)
                 entry.insert(1.0, self.config.get(section, option))
@@ -69,18 +76,17 @@ class ConfigEditorApp:
                 entry = ttk.Entry(tab)
                 entry.insert(0, self.config.get(section, option))
             entry.grid(row=row+1, column=0, padx=10, pady=5, sticky='w')
+            self.widget_values[f"{section}.{option}"] = entry
 
+            # add Browse button for widgets under Paths
             if section == "Paths":
                 browse_button = ttk.Button(tab, text="Browse...", command=lambda e=entry: self.browse_folder(e))
                 browse_button.grid(row=row+1, column=1, padx=10, pady=5, sticky='e')
 
             row += 2
 
-        save_button = ttk.Button(tab, text="Save", command=lambda: self.save_changes(section, tab))
+        save_button = ttk.Button(tab, text="Save All", command=lambda: self.save_all_changes())
         save_button.grid(row=row, column=0, padx=10, pady=10, sticky='w')
-
-        close_button = ttk.Button(tab, text="Close", command=lambda: self.stop())
-        close_button.grid(row=row, column=1, padx=10, pady=10, sticky='w')
 
     def browse_folder(self, entry):
         folder_path = filedialog.askdirectory()
@@ -88,13 +94,21 @@ class ConfigEditorApp:
             entry.delete(0, 'end')
             entry.insert(0, folder_path)
 
-    def save_changes(self, section, tab):
-        for widget in tab.winfo_children():
-            if isinstance(widget, ttk.Entry):
-                option = widget.grid_info()['row']
-                value = widget.get()
-                # self.config.set(section, self.config.options(section)[option], value)
+    # save the values of all widgets to self.config
+    def save_all_changes(self):
+        for section in self.config.sections():
+            options = self.config.options(section)
+            for option in options:
+                # prompt option is a multiline string
+                if (option == 'prompt'):
+                    self.config.set(section, option, self.widget_values[f"{section}.{option}"].get(1.0, 'end-1c'))
+                else:
+                    self.config.set(section, option, self.widget_values[f"{section}.{option}"].get())
 
+        self.write_to_config_preserve_comments();
+
+    # write directly to config file in order to preserve config comments; config.write does not save comments
+    def write_to_config_preserve_comments(self):
         with open('config.ini', 'w') as configfile:
             for section in self.config.sections():
                 configfile.write('['+section+']\n')
@@ -111,9 +125,9 @@ class ConfigEditorApp:
                 configfile.write('\n')
 
     def stop(self):
-        sys.exit(0)
+        self.root.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = ConfigEditorApp(root)
+    app = MantellaConfigEditor(root)
     root.mainloop()
