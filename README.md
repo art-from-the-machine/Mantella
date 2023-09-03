@@ -1,5 +1,5 @@
 <img src="./img/mantella_logo_github.png" align="right"
-     alt="Mantella logo" width="100" height="auto">
+     alt="Mantella logo" width="120" height="auto">
 # Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank"><img src="./img/nexus_mods_link.png" alt="Mantella Nexus Mods link" width="auto" height="28"/></a>
 > Bring Skyrim NPCs to life
 
