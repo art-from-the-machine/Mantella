@@ -9,7 +9,7 @@ Click below or [here](https://www.youtube.com/watch?v=fJPY6sD527A) to see the fu
 
 <a href="https://www.youtube.com/watch?v=fJPY6sD527A
 " target="_blank"><img src="./img/mantella_trailer.gif"
-alt="Mantella trailer link" width="auto" height="240"/></a>
+alt="Mantella trailer link" width="auto" height="220"/></a>
 
 If you get stuck anywhere in the installation process, please see the [`#Issues Q&A`](#issues-qa) below or reach out on [Discord](https://discord.gg/Q4BJAdtGUE).
 ## Key Features
