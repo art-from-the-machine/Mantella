@@ -1,15 +1,24 @@
-# Mantella
-Nexus: https://www.nexusmods.com/skyrimspecialedition/mods/98631
+<img src="./img/mantella_logo_github.png" align="right"
+     alt="Mantella logo" width="150" height="auto">
+# Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank"><img src="./img/nexus_mods_link.png" alt="Mantella Nexus Mods link" width="auto" height="28"/></a>
+> Bring Skyrim NPCs to life with AI
 
-Mantella is a Skyrim mod which allows you to naturally speak to NPCs using OpenAI's [Whisper](https://github.com/openai/whisper) (speech-to-text), OpenAI's ChatGPT (text generation), and [xVASynth](https://github.com/DanRuta/xVA-Synth) (text-to-speech). See here for a video demonstration:
+Mantella is a Skyrim mod which allows you to naturally speak to NPCs using [Whisper](https://github.com/openai/whisper) (speech-to-text), LLMs (text generation), and [xVASynth](https://github.com/DanRuta/xVA-Synth) (text-to-speech).  
 
-https://www.youtube.com/watch?v=fJPY6sD527A
+Click below or [here](https://www.youtube.com/watch?v=fJPY6sD527A) to see the full trailer:
 
-If you get stuck anywhere in the process, please see the [`#Issues Q&A`](#issues-qa) below or reach out on the Discord:  
+<a href="https://www.youtube.com/watch?v=fJPY6sD527A
+" target="_blank"><img src="./img/mantella_trailer.gif"
+alt="Mantella trailer link" width="auto" height="220"/></a>
 
-https://discord.gg/Q4BJAdtGUE
-
-
+If you get stuck anywhere in the installation process, please see the [`#Issues Q&A`](#issues-qa) below or reach out on [Discord](https://discord.gg/Q4BJAdtGUE).
+## Key Features
+- Interact with 1,000+ NPCs, all with their own unique backgrounds (or [add your own](#adding-modded-npcs))
+- Support for local (eg Llama 2), OpenAI (eg GPT-4), and OpenRouter (eg Claude v2) language models
+- Compatibility with 20+ languages
+- NPCs remember past conversations with you
+- NPCs are aware of their location, the current time, and any items you pick up
+- Fully playable in VR / SE / AE
 ## Requirements
 ### Hardware Requirements
 There are no discovered minimum requirements at the time of writing for Mantella, but there has been a report of Mantella crashing when running a modlist of 2000 mods. Mantella needs a certain amount of hardware allocation to run successfully, and if this is being soaked up by other hardware intensive mods, it may crash.
@@ -38,7 +47,8 @@ Just a couple of notes, the PapyrusUtil issue mentioned in this video can be res
 As Mantella accesses and writes to files within your Skyrim folder, it is unlikely to work correctly if you have Skyrim stored in Program Files. Please ensure that you have Skyrim stored outside of this folder (Such as C:\Games\Steam for example).
 
 ### Mantella Files
-The Mantella files can be downloaded from Nexus: https://www.nexusmods.com/skyrimspecialedition/mods/98631
+The Mantella files can be downloaded from Nexus: 
+https://www.nexusmods.com/skyrimspecialedition/mods/98631
 
 #### Mantella Software
 Extract this folder somewhere convenient to you.
@@ -115,6 +125,14 @@ Mantella has the ability to support other language model services, although thes
 6. If you are experiencing errors, please see the issues Q&A below. Otherwise, please share the details of the errors and your MantellaSoftware/logging.log file on the Mantella Discord #issues channel: https://discord.gg/Q4BJAdtGUE. You can also try enabling debugging in MantellaSoftware/config.ini. This allows Mantella.exe to run without Skyrim needing to be open. There are a few extra options in the debugging section to play around with which are applied when the debugging option is enabled.
 
 
+## Adding Modded NPCs
+Mantella supports the inclusion of modded NPCs, but there a few steps needed to include them. Note that if the modded NPC is custom voiced then there may not be an xVASynth voice model associated with them, so you'll have to use one of the vanilla voice models. The steps are as follows:
+
+1. Add the NPC to `MantellaSoftware/data/skyrim_characters.csv` (if you don't have Excel, you can open this file with [LibreOffice](https://www.libreoffice.org/)). The key fields that need to be populated are `name`, `bio`, and `voice_model`, the rest can be left blank.
+2. Find out what the name of the voice folder is that the modded NPC uses. You can do that by digging into the mod files and looking for its `voice/ModName.esp/npcVoice` folder, where "npcVoice" is what you are looking for. For example, a Discord user has got Mantella working with [Xelzaz](https://www.nexusmods.com/skyrimspecialedition/mods/62893?tab=files). In this example, the folder needed is "BPUFXelzazVoice". 
+3. Once you have found the modded NPC's voice folder, add it to the Mantella spell's list of voice folders. The Mantella spell path is the same one you used to point `mod_folder` in `MantellaSoftware/config.ini`. The path you need to add the new voice folder in is `MantellaModFolder\Sound\Voice\Mantella.esp\`.
+
+
 ## Issues Q&A
 ### Conversation ends as soon as spell is cast / [Errno 2] No such file or directory: 'path\to\Skyrim Special Edition/some_text_file.txt' 
 This is either an issue with the path set for `skyrim_folder` in MantellaSoftware/config.ini, an issue with your Skyrim folder being in Program Files, an issue with the installation of PapyrusUtil, or you are not running Skyrim via SKSE (please see the included readme.txt file in SKSE's downloaded folder for instructions on how to use it). 
@@ -183,6 +201,7 @@ The source code for Mantella is included in this repo. Here are the quick steps 
 4. Install the required packages via `pip install -r requirements.txt`
 5. Create a file called `GPT_SECRET_KEY.txt` and paste your secret key in this file
 6. Set up your paths / any other required settings in the `config.ini`
+7. Run Mantella via `main.py` in the parent directory
 
 If you have any trouble in getting the repo set up, please reach out on Discord!: https://discord.gg/Q4BJAdtGUE
 
