@@ -1,7 +1,7 @@
 ![alt text](./img/github_banner.png)
 
 
-# Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank"><img src="./img/nexus_mods_link.png" alt="Mantella Nexus Mods link" width="auto" height="30"/></a>
+# Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank"><img src="./img/nexus_mods_link.png" alt="Mantella Nexus Mods link" width="auto" height="20"/></a>
 
 # Mantella
 <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631
