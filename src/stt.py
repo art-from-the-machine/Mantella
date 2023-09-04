@@ -47,11 +47,17 @@ class Transcriber:
                 # listen for response
                 transcribed_text = self.recognize_input()
             else:
-                self.game_state_manager.write_game_info('_mantella_text_input', '')
-                self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'True')
-                transcribed_text = self.game_state_manager.load_data_when_available('_mantella_text_input', '')
-                self.game_state_manager.write_game_info('_mantella_text_input', '')
-                self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'False')
+                # text input through console
+                if (self.debug_mode == '1') & (self.debug_use_mic == '1'):
+                    transcribed_text = input('\nWrite player\'s response: ')
+                    logging.info(f'Player wrote: {transcribed_text}')
+                # await text input from the game
+                else:
+                    self.game_state_manager.write_game_info('_mantella_text_input', '')
+                    self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'True')
+                    transcribed_text = self.game_state_manager.load_data_when_available('_mantella_text_input', '')
+                    self.game_state_manager.write_game_info('_mantella_text_input', '')
+                    self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'False')
 
         if (self.debug_mode == '1') & (self.debug_exit_on_first_exchange == '1'):
             if say_goodbye:
