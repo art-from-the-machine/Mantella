@@ -55,6 +55,8 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
             token_limit = 8000
         elif llm == 'palm-2-codechat-bison':
             token_limit = 8000
+        elif llm == 'llama-2-7b-chat':
+            token_limit = 4096
         elif llm == 'llama-2-13b-chat':
             token_limit = 4096
         elif llm == 'llama-2-70b-chat':
@@ -71,8 +73,11 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
             token_limit = 4096
         else:
             logging.info(f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count} (this number can be changed via the `custom_token_count` setting in config.ini)")
-            token_limit = custom_token_count
-        
+            try:
+                token_limit = int(custom_token_count)
+            except ValueError:
+                logging.error(f"Invalid custom_token_count value: {custom_token_count}. It should be a valid integer. Please update your configuration.")
+                token_limit = 4096  # Default to 4096 in case of an error.
         if token_limit <= 4096:
             logging.info(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
         
