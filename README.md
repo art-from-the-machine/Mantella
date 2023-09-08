@@ -145,7 +145,7 @@ If you have the required mods installed, then this issue might instead be caused
 There is an issue with directories with the prefix "_MEI" building up in AppData/Local/Temp. This will be fixed in the next release, but in the mean time these files can be deleted to free up space.
 
 ### ChatGPT API Error: cannot access local variable 'audio_file' where it is not associated with a value
-This error occurs when something has failed in a previous step (likely xVASynth). Please check your MantellaSoftware/logging.log file to see the error which occurred before this, which should provide more clarification. If you are still ensure, please share your logging.log file to the Discord's issues channel.
+This error occurs when something has failed in a previous step (likely an issue with xVASynth / not having FaceFXWrapper installed). Please check your MantellaSoftware/logging.log file to see the error which occurred before this, which should provide more clarification. If you are still ensure, please share your logging.log file to the Discord's issues channel.
 
 ### NPCs keep repeating the same line of dialogue
 This is an issue with `mod_folder` not being set to the correct path in MantellaSoftware/config.ini. If you are using Mod Organizer 2, you can find the correct path by right-clicking the Mantella mod in the Mod Organizer 2 UI and selecting "Open in Explorer". If you are using Vortex, you should instead set this `mod_folder` path to your Skyrim/Data folder.
