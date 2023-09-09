@@ -85,8 +85,13 @@ class MantellaConfigEditor:
 
             row += 2
 
+        # Save widget values to config.ini button
         save_button = ttk.Button(tab, text="Save All", command=lambda: self.save_all_changes())
         save_button.grid(row=row, column=0, padx=10, pady=10, sticky='w')
+
+        #  Save widget values to config.ini and exit button
+        save_and_exit_button = ttk.Button(tab, text="Save All and Exit", command=lambda: [self.save_all_changes(), self.stop()])
+        save_and_exit_button.grid(row=row, column=0, padx=10, pady=10, sticky='e')
 
     def browse_folder(self, entry):
         folder_path = filedialog.askdirectory()
@@ -135,7 +140,15 @@ class MantellaConfigEditor:
     def stop(self):
         self.root.destroy()
 
+    def exit(self):
+        sys.exit(0)
+
 if __name__ == "__main__":
+    root = tk.Tk()
+    app = MantellaConfigEditor(root)
+    root.mainloop()
+
+def start():
     root = tk.Tk()
     app = MantellaConfigEditor(root)
     root.mainloop()

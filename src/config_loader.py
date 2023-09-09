@@ -15,6 +15,16 @@ class ConfigLoader:
             return
 
         try:
+            # run config editor if config.ini has the parameter
+            if int(config['Paths']['open_config_editor']) == 1:
+                import src.config_editor as configeditor
+
+                logging.info('Launching config editor...')
+                configeditor.start()
+                logging.info(f'Config editor closed. Re-reading {file_name} file...')
+
+                config.read(file_name)
+
             self.language = config['Language']['language']
             self.end_conversation_keyword = config['Language']['end_conversation_keyword']
             self.goodbye_npc_response = config['Language']['goodbye_npc_response']
