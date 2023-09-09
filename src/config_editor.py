@@ -3,6 +3,7 @@ from tkinter import ttk, Text, filedialog
 import configparser
 import re
 import sys
+import subprocess
 
 class MantellaConfigEditor:
     def __init__(self, root):
@@ -56,6 +57,9 @@ class MantellaConfigEditor:
             self.notebook.add(tab, text=section)
             self.create_section_widgets(tab, section)
 
+        # Create buttons for the entire window (common across all tabs)
+        self.create_buttons()
+
     def create_section_widgets(self, tab, section):
         options = self.config.options(section)
         row = 0
@@ -65,7 +69,7 @@ class MantellaConfigEditor:
             label.grid(row=row, column=0, padx=10, pady=2, sticky='w', columnspan=2)
 
             # Paths section has file browsing
-            if section == "Paths":
+            if section == "Paths" and option.endswith('_folder'):
                 entry = ttk.Entry(tab, width=90)
                 entry.insert(0, self.config.get(section, option))
             # prompt option is a multiline string
@@ -79,19 +83,28 @@ class MantellaConfigEditor:
             self.widget_values[f"{section}.{option}"] = entry
 
             # add Browse button for widgets under Paths
-            if section == "Paths":
+            if section == "Paths" and option.endswith('_folder'):
                 browse_button = ttk.Button(tab, text="Browse...", command=lambda e=entry: self.browse_folder(e))
                 browse_button.grid(row=row+1, column=1, padx=10, pady=5, sticky='e')
 
             row += 2
 
-        # Save widget values to config.ini button
-        save_button = ttk.Button(tab, text="Save All", command=lambda: self.save_all_changes())
-        save_button.grid(row=row, column=0, padx=10, pady=10, sticky='w')
+    def create_buttons(self):
+        # Create buttons for the entire window (common across all tabs)
+        buttons_frame = ttk.Frame(self.root)
+        buttons_frame.pack(side='bottom', fill='both', expand=True)
 
-        #  Save widget values to config.ini and exit button
-        save_and_exit_button = ttk.Button(tab, text="Save All and Exit", command=lambda: [self.save_all_changes(), self.stop()])
-        save_and_exit_button.grid(row=row, column=0, padx=10, pady=10, sticky='e')
+        # Save widget values to config.ini button
+        save_button = ttk.Button(buttons_frame, text="Save All", command=lambda: self.save_all_changes())
+        save_button.pack(side='left', padx=10, pady=10)
+
+        # Exit button
+        exit_button = ttk.Button(buttons_frame, text="Exit", command=lambda: self.exit())
+        exit_button.pack(side='right', padx=10, pady=10)
+
+        # Save widget values to config.ini and stop button
+        save_and_stop_button = ttk.Button(buttons_frame, text="Save All and Run", command=lambda: [self.save_all_changes(), self.stop()])
+        save_and_stop_button.pack(side='right', padx=10, pady=10)
 
     def browse_folder(self, entry):
         folder_path = filedialog.askdirectory()
@@ -134,8 +147,8 @@ class MantellaConfigEditor:
             configparser.ConfigParser().read('config_edited.ini')
             subprocess.run('move config_edited.ini config.ini', shell=True)
             print("config.ini saved successfully.")
-        except:
-            print("config_edited.ini is not a valid INI file. Please fix the errors and try again.")
+        except Exception as e:
+            print(f"config_edited.ini is not a valid INI file. Please fix the errors and try again. {e}")
 
     def stop(self):
         self.root.destroy()
