@@ -83,8 +83,8 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         
         return token_limit
 
-    config = config_loader.ConfigLoader(config_file)
     setup_logging(logging_file)
+    config = config_loader.ConfigLoader(config_file)
 
     is_local = True
     if (config.alternative_openai_api_base == 'none') or (config.alternative_openai_api_base == 'https://openrouter.ai/api/v1'):
