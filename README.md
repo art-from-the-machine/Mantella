@@ -56,8 +56,7 @@ This mod requires ~27GB of space when xVASynth and all voice models are installe
 As Mantella accesses and writes to files within your Skyrim folder, it is unlikely to work correctly if you have Skyrim stored in Program Files. Please ensure that you have Skyrim stored outside of this folder (Such as C:\Games\Steam for example).
 
 ### Mantella Files
-The Mantella files can be downloaded from Nexus: 
-https://www.nexusmods.com/skyrimspecialedition/mods/98631
+The Mantella files can be downloaded from [Nexus Mods](https://www.nexusmods.com/skyrimspecialedition/mods/98631).
 
 #### Mantella Software
 Extract this folder somewhere convenient to you.
@@ -75,17 +74,17 @@ Just a couple of notes, the PapyrusUtil issue mentioned in this video can be res
 
 
 ## xVASynth
-1. Download xVASynth via Steam (https://store.steampowered.com/app/1765720/xVASynth/) or Nexus (https://www.nexusmods.com/skyrimspecialedition/mods/44184).
+1. Download xVASynth via [Steam](https://store.steampowered.com/app/1765720/xVASynth/) or [Nexus](https://www.nexusmods.com/skyrimspecialedition/mods/44184).
 
 2. Download xVASynth trained voice models of Skyrim for all or any characters that you are likely to encounter. If downloading all models sounds a bit daunting, you can start with the "Male Nord" and "Male Soldier" voice models to at least allow talking to Skyrim guards. You will have to do this manually through the Nexus Mods page or automatically using Nexus Premium, whose API is implemented within xVASynth:
 
-* Under "Optional" (not "Old") from https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files and store the zipped files in a folder. Open xVASynth and drag all zipped voice model files from the folder into the voices panel. Wait for the installation to complete (this may take some time; a popup will display when finished saying "x models installed successfully"). If this method doesn't work for you, you can also unzip the models manually into the correct xVASynth folder (xVASynth\resources\app\models\skyrim). Once the extraction is complete, you can delete the zipped voice model files.
+* The voice models can be found under "Optional" (not "Old") from [here](https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files) and store the zipped files in a folder. Open xVASynth and drag all zipped voice model files from the folder into the voices panel. Wait for the installation to complete (this may take some time; a popup will display when finished saying "x models installed successfully"). If this method doesn't work for you, you can also unzip the models manually into the correct xVASynth folder (xVASynth\resources\app\models\skyrim). Once the extraction is complete, you can delete the zipped voice model files.
 
 * If you are subscribed to Nexus Premium, open xVASynth and select "Get More Voices" from the bottom left corner. Unselect all games except for Skyrim and download all models. Note that this may require restarting a few times for the downloads to properly complete.
 
-3. Download the .lip plugin for xVASynth here: https://www.nexusmods.com/skyrimspecialedition/mods/55605 and download FaceFXWrapper from here (you do not need to download CK64Fixes): https://www.nexusmods.com/skyrimspecialedition/mods/20061. Instructions on how to install these are on the .lip plugin Nexus page. Make sure to place FaceFXWrapper in the plugins folder as stated on the .lip plugin page.
+3. Download the .lip plugin for xVASynth [here](https://www.nexusmods.com/skyrimspecialedition/mods/55605) and download FaceFXWrapper from [here](https://www.nexusmods.com/skyrimspecialedition/mods/20061) (you do not need to download CK64Fixes). Instructions on how to install these are on the .lip plugin Nexus page. Make sure to place FaceFXWrapper in the plugins folder as stated on the .lip plugin page.
 
-4. Download the Elder Scrolls pronunciation dictionary from here, and follow the instructions to install: https://www.nexusmods.com/skyrimspecialedition/mods/56778/
+4. Download the Elder Scrolls pronunciation dictionary from [here](https://www.nexusmods.com/skyrimspecialedition/mods/56778/), and follow the instructions to install.
 
 5. In the xVASynth UI, if "Skyrim" is not already selected, please do so by clicking the arrows symbol in the top left corner. On the navigation bar on the top right of the xVASynth UI, click on the "ae" icon. Once opened, click on the CMUDict dictionary and select "Enable All" in the bottom left corner. Do the same for "xVADict - Elder Scrolls" received from the above step. Once done, close this menu and navigate to the settings menu by selecting the gear icon in the top right corner and ensure that "Audio sample rate (Hz)" is set to 44100. You can also select whether to process voicelines via you CPU or (NVIDIA) GPU from this menu.
 
@@ -117,7 +116,7 @@ Copy your OpenAI secret API key (see [here](https://help.openai.com/en/articles/
 Create an account with OpenRouter. Go to the "Keys" tab and generate a new key, saving its value to MantellaSoftware/GPT_SECRET_KEY.txt. Do not share this secret key with anyone. In MantellaSoftware/config.ini, set `model` to a model from the list [here](https://openrouter.ai/docs#models) (eg `meta-llama/llama-2-70b-chat`). Set `alternative_openai_api_base` to "https://openrouter.ai/api/v1" (without quotes).
 
 ### text-generation-webui (Free Local Models)
-Install text-generation-webui from [here](https://github.com/oobabooga/text-generation-webui. Place a local model into the text-generation-webui\models folder (to get started, you can download `llama-2-7b-chat.ggmlv3.q4_K_S.bin` from here: https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/tree/main). Paste the text "--extensions openai --auto-launch" into the installed folder's CMD_FLAGS.txt file. Start text-generation-webui and wait for the UI to open in your web browser. Navigate to the "Model" tab, select your model from the drop-down list, and click "Load". In your `MantellaSoftware/config.ini` file, set `alternative_openai_api_base` to "http://127.0.0.1:5001/v1" (without quotes). Just to note, you need to make sure text-generation-webui is running when running Mantella!
+Install text-generation-webui from [here](https://github.com/oobabooga/text-generation-webui). Place a local model into the `text-generation-webui\models folder` (to get started, you can download `llama-2-7b-chat.ggmlv3.q4_K_S.bin` from [here](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/tree/main)). Paste the text "--extensions openai --auto-launch" into the installed folder's CMD_FLAGS.txt file. Start text-generation-webui and wait for the UI to open in your web browser. Navigate to the "Model" tab, select your model from the drop-down list, and click "Load". In your `MantellaSoftware/config.ini` file, set `alternative_openai_api_base` to "http://127.0.0.1:5001/v1" (without quotes). Just to note, you need to make sure text-generation-webui is running when running Mantella!
 
 ### Other Services
 Mantella has the ability to support other language model services, although these services do need to support outputs in the OpenAI format (like text-generation-webui does via the "--extensions openai" option above).
