@@ -159,7 +159,9 @@ If an xVASynth voice model is corrupted, this error will display in MantellaSoft
 A way to check for other corrupted voice models, is to compare the file sizes within /models/skyrim/ folder of xVASynth. If they diverge from the norms, redownload **just** those. The norms for voice model sizes are **~54 MB** and/or **~90 MB** (v2 voice models) & **~220 MB** or **~260 MB** (v3 voice models)
 
 ### Loading voice model... xVASynth Error: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
-If this xVASynth Error occurs after the "Loading voice model..." message (as can be seen in your MantellaSoftware/logging.log file), this is likely an issue with a corrupted voice model. Please try redownloading the model from https://www.nexusmods.com/skyrimspecialedition/mods/44184. If this does not resolve your issue, please share the text found in your xVASynth/server.log file on the Discord's #issues channel for further support.
+If this xVASynth Error occurs after the "Loading voice model..." message (as can be seen in your MantellaSoftware/logging.log file), this is likely an issue with a corrupted voice model. Please try redownloading the model from https://www.nexusmods.com/skyrimspecialedition/mods/44184. If you have `use_cleanup` enabled, try setting this value to 0 in MantellaSoftware/config.ini.
+
+If this does not resolve your issue, please share the text found in your xVASynth/server.log file on the Discord's #issues channel for further support.
 
 ### Voicelines are being displayed in Mantella.exe but are not being said in-game
 Try creating a save and then reloading that save. This ensures that the Mantella voice files get registered correctly
