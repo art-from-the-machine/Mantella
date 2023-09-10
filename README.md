@@ -19,42 +19,57 @@ If you get stuck anywhere in the installation process, please see the [`#Issues 
 - NPCs remember past conversations with you
 - NPCs are aware of their location, the current time, and any items you pick up
 - Fully playable in VR / SE / AE
-## Requirements
-### Hardware Requirements
+
+## Table of Contents
+- [Installation](#installation)
+	- [Requirements](#requirements)
+	- [Video Walkthrough](#video-walkthrough)
+	- [xVASynth](xVASynth)
+	- [Required Mods](#required-mods)
+	- [Optional Mods](#optional-mods)
+	- [Language Models (LLMs)](#language-models-(llms))
+	- [Setup & Configuration](#setup-&-configuration)
+- [Adding Modded NPCs](#adding-modded-npcs)
+- [Issues Q&A](#issues-q&a)
+- [Contribute](#contribute)
+- [Attributions](#attributions)
+
+## Installation
+### Requirements
+#### Hardware Requirements
 There are no discovered minimum requirements at the time of writing for Mantella, but there has been a report of Mantella crashing when running a modlist of 2000 mods. Mantella needs a certain amount of hardware allocation to run successfully, and if this is being soaked up by other hardware intensive mods, it may crash.
 
 The minimum requirements for xVASynth can be found on its [Steam page](https://store.steampowered.com/app/1765720/xVASynth/). It runs in CPU mode by default, using a single CPU core/thread. Only supports GPU acceleration on NVIDIA cards that have CUDA. Using the same GPU as the game will produce stutter. You may try using an older NVIDIA card if you have a free PCI-Express slot for your PC and run Whisper & xVASynth on that.
 
-### Storage Requirements
+#### Storage Requirements
 This mod requires ~27GB of space when xVASynth and all voice models are installed. Temporarily another ~17GB is needed to unpack the voice models.
 
 
-### Compatability
+#### Compatability
 - Mantella requires Windows 10 / 11 (it is yet unconfirmed whether it works on Windows 7)
 - Mantella has been confirmed to work with the FUS (by pointing skyrim_folder to Skyrim), Librum (by pointing skyrim_folder to overwrite/root), and Wildlands (by pointing skyrim_folder to Wildlander/SKSE) Wabbajack modlists.
 - Mantella needs to be loaded after the Unofficial Skyrim Special Edition Patch (USSEP) mod in your load order
 
-## Installation
+#### Skyrim
+As Mantella accesses and writes to files within your Skyrim folder, it is unlikely to work correctly if you have Skyrim stored in Program Files. Please ensure that you have Skyrim stored outside of this folder (Such as C:\Games\Steam for example).
+
+#### Mantella Files
+The Mantella files can be downloaded from Nexus: 
+https://www.nexusmods.com/skyrimspecialedition/mods/98631
+
+##### Mantella Software
+Extract this folder somewhere convenient to you.
+
+##### Mantella Spell
+This file can be installed in the same way as other mods with your mod manager.
+
+
 ### Video Walkthrough
 A video walking through the installation of Mantella by JackTheFallout can be found below:
 
 https://youtu.be/_mZFkTchwEo
 
 Just a couple of notes, the PapyrusUtil issue mentioned in this video can be resolved by installing the VR version of the file (under "Miscellaneous") if you are a VR user. You also do not need to download the voice models manually if you have Nexus Premium (see below for instructions).
-
-
-### Skyrim
-As Mantella accesses and writes to files within your Skyrim folder, it is unlikely to work correctly if you have Skyrim stored in Program Files. Please ensure that you have Skyrim stored outside of this folder (Such as C:\Games\Steam for example).
-
-### Mantella Files
-The Mantella files can be downloaded from Nexus: 
-https://www.nexusmods.com/skyrimspecialedition/mods/98631
-
-#### Mantella Software
-Extract this folder somewhere convenient to you.
-
-#### Mantella Spell
-This file can be installed in the same way as other mods with your mod manager.
 
 
 ### xVASynth
@@ -111,7 +126,7 @@ Install text-generation-webui from here: https://github.com/oobabooga/text-gener
 Mantella has the ability to support other language model services, although these services do need to support outputs in the OpenAI format (like text-generation-webui does via the "--extensions openai" option above).
 
 
-## Setup & Configuration
+### Setup & Configuration
 1. Set up the MantellaSoftware/config.ini file with your paths to Skyrim (`skyrim_folder`), xVASynth (`xvasynth_folder`), and the Mantella Skyrim mod (`mod_folder`). If you are using a Wabbajack modlist, you may need to try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path and set this as your `skyrim_folder` path. For FUS users, once you set this path and cast the spell once, you then need to set your `skyrim_folder` path back to your actual Skyrim folder. If you are using Mod Organizer 2, you can find the mod folder by right clicking the mod in the Mod Organizer 2 UI and selecting "Open in Explorer". If you are instead using Vortex, you need to point mod_folder to your Skyrim/Data folder. So Vortex users essentially need to take the Skyrim folder path they have set in `skyrim_folder` and add "\Data" to the end of it.
 
 2. The applications should be started in this order: 1. Run your xVASynth.exe. 2. Run Mantella.exe (found in the MantellaSoftware folder). It will say "Waiting for player to select an NPC..." when it is ready. 3. Run Skyrim
@@ -134,63 +149,63 @@ Mantella supports the inclusion of modded NPCs, but there a few steps needed to 
 
 
 ## Issues Q&A
-### Conversation ends as soon as spell is cast / [Errno 2] No such file or directory: 'path\to\Skyrim Special Edition/some_text_file.txt' 
+#### Conversation ends as soon as spell is cast / [Errno 2] No such file or directory: 'path\to\Skyrim Special Edition/some_text_file.txt' 
 This is either an issue with the path set for `skyrim_folder` in MantellaSoftware/config.ini, an issue with your Skyrim folder being in Program Files, an issue with the installation of PapyrusUtil, or you are not running Skyrim via SKSE (please see the included readme.txt file in SKSE's downloaded folder for instructions on how to use it). 
 
 Some VR users miss that there is a separate VR version of PapyrusUtil, double check that you have downloaded this version of the mod if you are a VR user (it should be under the Miscallaneous Files section of the Nexus download page). If you are a SE user, please double check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details. The "File version" should be listed here. If it is 1.6 or above, you actually have Skyrim AE, not SE (its confusing I know), so please download the AE versions of the required mods. You can tell if PapyrusUtil is working by checking if you have a file called `_mantella__skyrim_folder.txt` in your `skyrim_folder` path.
 
 If you have the required mods installed, then this issue might instead be caused by the `skyrim_folder` being set incorrectly. This only seems to be an issue for Mod Organizer 2 / Wabbajack modlist users. Some Mod Orgnanizer 2 setups move the text files created by the Mantella spell to another folder. Try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path to try to find these Mantella text files, specifically a file called `_mantella__skyrim_folder.txt`. If you find this file, then please set its folder as your `skyrim_folder` path.
 
-### Temp files getting added to AppData folder
+#### Temp files getting added to AppData folder
 There is an issue with directories with the prefix "_MEI" building up in AppData/Local/Temp. This will be fixed in the next release, but in the mean time these files can be deleted to free up space.
 
-### ChatGPT API Error: cannot access local variable 'audio_file' where it is not associated with a value
+#### ChatGPT API Error: cannot access local variable 'audio_file' where it is not associated with a value
 This error occurs when something has failed in a previous step (likely an issue with xVASynth / not having FaceFXWrapper installed). Please check your MantellaSoftware/logging.log file to see the error which occurred before this, which should provide more clarification. If you are still ensure, please share your logging.log file to the Discord's issues channel.
 
-### NPCs keep repeating the same line of dialogue
+#### NPCs keep repeating the same line of dialogue
 This is an issue with `mod_folder` not being set to the correct path in MantellaSoftware/config.ini. If you are using Mod Organizer 2, you can find the correct path by right-clicking the Mantella mod in the Mod Organizer 2 UI and selecting "Open in Explorer". If you are using Vortex, you should instead set this `mod_folder` path to your Skyrim/Data folder.
 
-### No message box displayed to say spell has been added / Mantella spell is not in spell inventory
+#### No message box displayed to say spell has been added / Mantella spell is not in spell inventory
 This is an issue with the way the spell mod itself has been installed. Please check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details. The "File version" should be listed here. If it is 1.6 or above, you have Skyrim AE. If it is below 1.6, you have Skyrim SE. If you are using VR, there are separate versions of the required mods for VR (PapyrusUtil tends to catch out a lot of VR users, the VR version of this file is under "Miscellaneous Files" on the download page). If you are running the mod via the GOG version of Skyrim, there are slight differences in setting up a mod manager as discussed in this tutorial: https://www.youtube.com/watch?v=EJYddISZdeo
 
-### RuntimeError('PytorchStreamReader failed reading zip archive: failed finding central directory')
+#### RuntimeError('PytorchStreamReader failed reading zip archive: failed finding central directory')
 If an xVASynth voice model is corrupted, this error will display in MantellaSoftware/logging.log. Please re-download the voice model in this case. You may alternatively need to redownload xVASynth.
 
 A way to check for other corrupted voice models, is to compare the file sizes within /models/skyrim/ folder of xVASynth. If they diverge from the norms, redownload **just** those. The norms for voice model sizes are **~54 MB** and/or **~90 MB** (v2 voice models) & **~220 MB** or **~260 MB** (v3 voice models)
 
-### Loading voice model... xVASynth Error: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+#### Loading voice model... xVASynth Error: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
 If this xVASynth Error occurs after the "Loading voice model..." message (as can be seen in your MantellaSoftware/logging.log file), this is likely an issue with a corrupted voice model. Please try redownloading the model from https://www.nexusmods.com/skyrimspecialedition/mods/44184. If you have `use_cleanup` enabled, try setting this value to 0 in MantellaSoftware/config.ini.
 
 If this does not resolve your issue, please share the text found in your xVASynth/server.log file on the Discord's #issues channel for further support.
 
-### Voicelines are being displayed in Mantella.exe but are not being said in-game
+#### Voicelines are being displayed in Mantella.exe but are not being said in-game
 Try creating a save and then reloading that save. This ensures that the Mantella voice files get registered correctly
 
-### NPC 'XYZ' could not be found in skyrim_characters.csv
+#### NPC 'XYZ' could not be found in skyrim_characters.csv
 This means that the NPC's name exactly as written in the error message could not be found in skyrim_characters.csv. If you are running Skyrim in another language, sometimes the NPC's name in this language does not match up to the English name, causing this error. It might also mean that the character is missing from skyrim_characters.csv. Please reach out on the Discord's issues channel if this is the case
 
-### NPCs only respond with "I can't find the right words at the moment."
+#### NPCs only respond with "I can't find the right words at the moment."
 This either means the ChatGPT servers are currently down or the API key has not been set up correctly / is missing payment information. If it is the latter issue, please check MantellaSoftware/logging.log to see the exact error
 
-### Microphone is not picking up sound / exe stuck on "Listening..."
+#### Microphone is not picking up sound / exe stuck on "Listening..."
 Make sure that your mic is picking up correctly on other software and that it is set as your default. For example, you can go to User Settings -> Voice & Video on Discord to test your mic. Otherwise, try adjusting the `audio_threshold` setting in MantellaSoftware/config.ini (instructions on how to do so are inluded in config.ini). If all else fails, make sure that no other microphones are plugged in except the one you want to use. There may be a rogue microphone such as a webcam picking up as your default!
 
-### 'NoneType' object has no attribute 'close'
+#### 'NoneType' object has no attribute 'close'
 This error means that Whisper is unable to find a connected microphone. Please ensure that you have a working microphone plugged in and enabled.
 
-### "Invalid start byte" error
+#### "Invalid start byte" error
 This error occurs when you introduce character symbols that can't be recognised either in MantellaSoftware/config.ini or skyrim_characters.csv. Please try re-downloading these files.
 
-### Mantella.exe closes after "VAD filter removed 00:00.000 of audio" statement
+#### Mantella.exe closes after "VAD filter removed 00:00.000 of audio" statement
 This is an issue related to CUDA. Please try setting `process_device` to "cpu".
 
-### Mantella.exe opens, but does not display any text
+#### Mantella.exe opens, but does not display any text
 Ensure that you are not running Mantella.exe via a Vortex / Mod Organizer 2 shortcut, as this does not start the program properly.
 
-### ERROR: xVASynth Error: [WinError 5] Access is denied
+#### ERROR: xVASynth Error: [WinError 5] Access is denied
 This happens when your antivirus is blocking Mantella.exe from working. Please add Mantella.exe to your safe list or try running as administrator.
 
-### Cannot start new conversation after ending previous conversation (conversation ended message)
+#### Cannot start new conversation after ending previous conversation (conversation ended message)
 You might need to say something in the mic for Mantella.exe to realise that the conversation has ended (while it is on "Listening..." it does not look out for the conversation ending). The exe will check if the conversation has ended after 30 seconds by default. You can change this via the `listen_timeout`` setting in MantellaSoftware/config.ini, but just keep in mind if it is too short this will effect conversations as the exe will occasionally stop listening for mic input to check if the conversation has ended
 
 
