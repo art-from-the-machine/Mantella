@@ -77,7 +77,7 @@ Just a couple of notes, the PapyrusUtil issue mentioned in this video can be res
 ## xVASynth
 1. Download xVASynth via Steam (https://store.steampowered.com/app/1765720/xVASynth/) or Nexus (https://www.nexusmods.com/skyrimspecialedition/mods/44184).
 
-2. Download xVASynth trained voice models of Skyrim for all or any characters that you are likely to encounter. If downloading all models sounds a bit daunting, you can start with the "Male Nord" and "Male Soldier" voice models to allow talking to Skyrim guards to start with. You will have to do this manually through the Nexus Mods page or automatically using Nexus Premium, whose API is implemented within xVASynth:
+2. Download xVASynth trained voice models of Skyrim for all or any characters that you are likely to encounter. If downloading all models sounds a bit daunting, you can start with the "Male Nord" and "Male Soldier" voice models to at least allow talking to Skyrim guards. You will have to do this manually through the Nexus Mods page or automatically using Nexus Premium, whose API is implemented within xVASynth:
 
 * Under "Optional" (not "Old") from https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files and store the zipped files in a folder. Open xVASynth and drag all zipped voice model files from the folder into the voices panel. Wait for the installation to complete (this may take some time; a popup will display when finished saying "x models installed successfully"). If this method doesn't work for you, you can also unzip the models manually into the correct xVASynth folder (xVASynth\resources\app\models\skyrim). Once the extraction is complete, you can delete the zipped voice model files.
 
@@ -93,36 +93,31 @@ Just a couple of notes, the PapyrusUtil issue mentioned in this video can be res
 ## Required Mods
 Please follow the installation instructions on each of the linked pages:
 
-SKSE (there is a separate VR version): http://skse.silverlock.org/
-
-VR Address Library for SKSEVR: https://www.nexusmods.com/skyrimspecialedition/mods/58101  
-or Address Library for SKSE Plugins: https://www.nexusmods.com/skyrimspecialedition/mods/32444
-
-PapyrusUtil SE (the VR version can be found under "Miscellaneous Files"): https://www.nexusmods.com/skyrimspecialedition/mods/13048
+- [SKSE](http://skse.silverlock.org/) (there is a separate VR version)
+- [VR Address Library for SKSEVR](https://www.nexusmods.com/skyrimspecialedition/mods/58101  )
+  or [Address Library for SKSE Plugins](https://www.nexusmods.com/skyrimspecialedition/mods/32444)
+- [PapyrusUtil SE]( https://www.nexusmods.com/skyrimspecialedition/mods/13048) (the VR version can be found under "Miscellaneous Files")
 
 
 ## Optional Mods
 These mods aren't strictly necessary for Mantella to work, but they do greatly improve the experience.
 
-No NPC Greetings (recommended so that Mantella voicelines are not interrupted by vanilla voicelines): https://www.nexusmods.com/skyrim/mods/746
-
-UIExtensions (to use text input instead of mic input): https://www.nexusmods.com/skyrimspecialedition/mods/17561
-
-World Encounter Hostility Fix - Performance Version (stops certain NPCs from turning hostile when you cast the Mantella spell on them): https://www.nexusmods.com/skyrimspecialedition/mods/91403  
-Note that this mod requires the Unofficial Skyrim Special Edition Patch (USSEP). Mantella needs to be loaded after USSEP in your load order.
+- [No NPC Greetings](https://www.nexusmods.com/skyrim/mods/746) (recommended so that Mantella voicelines are not interrupted by vanilla voicelines)
+- [UIExtensions](https://www.nexusmods.com/skyrimspecialedition/mods/17561) (to use text input instead of mic input)
+- [World Encounter Hostility Fix - Performance Version](https://www.nexusmods.com/skyrimspecialedition/mods/91403  ) (stops certain NPCs from turning hostile when you cast the Mantella spell on them). Note that this mod requires the Unofficial Skyrim Special Edition Patch (USSEP). Mantella needs to be loaded after USSEP in your load order.
 
 
 ## Language Models (LLMs)
 There are a number of different LLMs to choose from, ranging from small local models to expensive externally hosted models. If you just want to get started without thinking too much about it / explore alternative options later and are new to Mantella, you can quickly get started via the OpenAI instructions below (the first month gives you $5 free credits).
 
 ### OpenAI (First $5 Free)
-Copy your OpenAI secret API key (see here if you need help finding it (you will need to set up an account if you haven't already): https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key) and paste into MantellaSoftware/GPT_SECRET_KEY.txt. Do not share this key with anyone. While there is a free trial, you will need to set up your payment details for the API to work.
+Copy your OpenAI secret API key (see [here](https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key) if you need help finding it (you will need to set up an account if you haven't already) and paste into `MantellaSoftware/GPT_SECRET_KEY.txt`. Do not share this key with anyone. While there is a free trial, you will need to set up your payment details for the API to work.
 
 ### OpenRouter (First $1 Free)
-Create an account with OpenRouter. Go to the "Keys" tab and generate a new key, saving its value to MantellaSoftware/GPT_SECRET_KEY.txt. Do not share this secret key with anyone. In MantellaSoftware/config.ini, set `model` to a model from the list here: https://openrouter.ai/docs#models (eg `meta-llama/llama-2-70b-chat`). Set `alternative_openai_api_base` to "https://openrouter.ai/api/v1" (without quotes).
+Create an account with OpenRouter. Go to the "Keys" tab and generate a new key, saving its value to MantellaSoftware/GPT_SECRET_KEY.txt. Do not share this secret key with anyone. In MantellaSoftware/config.ini, set `model` to a model from the list [here](https://openrouter.ai/docs#models) (eg `meta-llama/llama-2-70b-chat`). Set `alternative_openai_api_base` to "https://openrouter.ai/api/v1" (without quotes).
 
 ### text-generation-webui (Free Local Models)
-Install text-generation-webui from here: https://github.com/oobabooga/text-generation-webui. Place a local model into the text-generation-webui\models folder (to get started, you can download `llama-2-7b-chat.ggmlv3.q4_K_S.bin` from here: https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/tree/main). Paste the text "--extensions openai" into the installed folder's CMD_FLAGS.txt file. Start text-generation-webui and paste the URL displayed in the console window into your web browser. Navigate to the "Model" tab, select your model from the drop-down list, and click "Load". In your MantellaSoftware/config.ini file, set `alternative_openai_api_base` to "http://127.0.0.1:5001/v1" (without quotes). Just to note, you need to make sure text-generation-webui is running when running Mantella!
+Install text-generation-webui from [here](https://github.com/oobabooga/text-generation-webui. Place a local model into the text-generation-webui\models folder (to get started, you can download `llama-2-7b-chat.ggmlv3.q4_K_S.bin` from here: https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/tree/main). Paste the text "--extensions openai --auto-launch" into the installed folder's CMD_FLAGS.txt file. Start text-generation-webui and wait for the UI to open in your web browser. Navigate to the "Model" tab, select your model from the drop-down list, and click "Load". In your `MantellaSoftware/config.ini` file, set `alternative_openai_api_base` to "http://127.0.0.1:5001/v1" (without quotes). Just to note, you need to make sure text-generation-webui is running when running Mantella!
 
 ### Other Services
 Mantella has the ability to support other language model services, although these services do need to support outputs in the OpenAI format (like text-generation-webui does via the "--extensions openai" option above).
@@ -139,7 +134,7 @@ Mantella has the ability to support other language model services, although thes
 
 5. Voicelines are cached in the MantellaSoftware/data/voicelines/ folder. If this data takes up too much space over time, the contents of voicelines/ can be periodically deleted.
 
-6. If you are experiencing errors, please see the issues Q&A below. Otherwise, please share the details of the errors and your MantellaSoftware/logging.log file on the Mantella Discord #issues channel: https://discord.gg/Q4BJAdtGUE. You can also try enabling debugging in MantellaSoftware/config.ini. This allows Mantella.exe to run without Skyrim needing to be open. There are a few extra options in the debugging section to play around with which are applied when the debugging option is enabled.
+6. If you are experiencing errors, please see the issues Q&A below. Otherwise, please share the details of the errors and your MantellaSoftware/logging.log file on the Mantella Discord [#issues channel](https://discord.gg/Q4BJAdtGUE). You can also try enabling debugging in `MantellaSoftware/config.ini`. This allows Mantella.exe to run without Skyrim needing to be open. There are a few extra options in the debugging section to play around with which are applied when the debugging option is enabled.
 
 
 # Issues Q&A
@@ -160,7 +155,7 @@ This error occurs when something has failed in a previous step (likely an issue 
 This is an issue with `mod_folder` not being set to the correct path in MantellaSoftware/config.ini. If you are using Mod Organizer 2, you can find the correct path by right-clicking the Mantella mod in the Mod Organizer 2 UI and selecting "Open in Explorer". If you are using Vortex, you should instead set this `mod_folder` path to your Skyrim/Data folder.
 
 ### No message box displayed to say spell has been added / Mantella spell is not in spell inventory
-This is an issue with the way the spell mod itself has been installed. Please check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details. The "File version" should be listed here. If it is 1.6 or above, you have Skyrim AE. If it is below 1.6, you have Skyrim SE. If you are using VR, there are separate versions of the required mods for VR (PapyrusUtil tends to catch out a lot of VR users, the VR version of this file is under "Miscellaneous Files" on the download page). If you are running the mod via the GOG version of Skyrim, there are slight differences in setting up a mod manager as discussed in this tutorial: https://www.youtube.com/watch?v=EJYddISZdeo
+This is an issue with the way the spell mod itself has been installed. Please check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details. The "File version" should be listed here. If it is 1.6 or above, you have Skyrim AE. If it is below 1.6, you have Skyrim SE. If you are using VR, there are separate versions of the required mods for VR (PapyrusUtil tends to catch out a lot of VR users, the VR version of this file is under "Miscellaneous Files" on the download page). If you are running the mod via the GOG version of Skyrim, there are slight differences in setting up a mod manager as discussed in [this tutorial](https://www.youtube.com/watch?v=EJYddISZdeo).
 
 ### RuntimeError('PytorchStreamReader failed reading zip archive: failed finding central directory')
 If an xVASynth voice model is corrupted, this error will display in MantellaSoftware/logging.log. Please re-download the voice model in this case. You may alternatively need to redownload xVASynth.
@@ -168,9 +163,9 @@ If an xVASynth voice model is corrupted, this error will display in MantellaSoft
 A way to check for other corrupted voice models, is to compare the file sizes within /models/skyrim/ folder of xVASynth. If they diverge from the norms, redownload **just** those. The norms for voice model sizes are **~54 MB** and/or **~90 MB** (v2 voice models) & **~220 MB** or **~260 MB** (v3 voice models)
 
 ### Loading voice model... xVASynth Error: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
-If this xVASynth Error occurs after the "Loading voice model..." message (as can be seen in your MantellaSoftware/logging.log file), this is likely an issue with a corrupted voice model. Please try redownloading the model from https://www.nexusmods.com/skyrimspecialedition/mods/44184. If you have `use_cleanup` enabled, try setting this value to 0 in MantellaSoftware/config.ini.
+If this xVASynth Error occurs after the "Loading voice model..." message (as can be seen in your MantellaSoftware/logging.log file), this is likely an issue with a corrupted voice model. Please try redownloading the model from [here](https://www.nexusmods.com/skyrimspecialedition/mods/44184). If you have `use_cleanup` enabled, try setting this value to 0 in MantellaSoftware/config.ini.
 
-If this does not resolve your issue, please share the text found in your xVASynth/server.log file on the Discord's #issues channel for further support.
+If this does not resolve your issue, please share the text found in your xVASynth/server.log file on the [Discord's #issues channel](https://discord.gg/Q4BJAdtGUE) for further support.
 
 ### Voicelines are being displayed in Mantella.exe but are not being said in-game
 Try creating a save and then reloading that save. This ensures that the Mantella voice files get registered correctly
@@ -221,7 +216,7 @@ The source code for Mantella is included in this repo. Here are the quick steps 
 6. Set up your paths / any other required settings in the `config.ini`
 7. Run Mantella via `main.py` in the parent directory
 
-If you have any trouble in getting the repo set up, please reach out on Discord!: https://discord.gg/Q4BJAdtGUE
+If you have any trouble in getting the repo set up, please reach out on [Discord](https://discord.gg/Q4BJAdtGUE)!
 
 
 # Attributions
