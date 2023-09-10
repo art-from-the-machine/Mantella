@@ -140,14 +140,6 @@ Mantella has the ability to support other language model services, although thes
 6. If you are experiencing errors, please see the issues Q&A below. Otherwise, please share the details of the errors and your MantellaSoftware/logging.log file on the Mantella Discord #issues channel: https://discord.gg/Q4BJAdtGUE. You can also try enabling debugging in MantellaSoftware/config.ini. This allows Mantella.exe to run without Skyrim needing to be open. There are a few extra options in the debugging section to play around with which are applied when the debugging option is enabled.
 
 
-## Adding Modded NPCs
-Mantella supports the inclusion of modded NPCs, but there a few steps needed to include them. Note that if the modded NPC is custom voiced then there may not be an xVASynth voice model associated with them, so you'll have to use one of the vanilla voice models. The steps are as follows:
-
-1. Add the NPC to `MantellaSoftware/data/skyrim_characters.csv` (if you don't have Excel, you can open this file with [LibreOffice](https://www.libreoffice.org/)). The key fields that need to be populated are `name`, `bio`, and `voice_model`, the rest can be left blank.
-2. Find out what the name of the voice folder is that the modded NPC uses. You can do that by digging into the mod files and looking for its `voice/ModName.esp/npcVoice` folder, where "npcVoice" is what you are looking for. For example, a Discord user has got Mantella working with [Xelzaz](https://www.nexusmods.com/skyrimspecialedition/mods/62893?tab=files). In this example, the folder needed is "BPUFXelzazVoice". 
-3. Once you have found the modded NPC's voice folder, add it to the Mantella spell's list of voice folders. The Mantella spell path is the same one you used to point `mod_folder` in `MantellaSoftware/config.ini`. The path you need to add the new voice folder in is `MantellaModFolder\Sound\Voice\Mantella.esp\`.
-
-
 ## Issues Q&A
 #### Conversation ends as soon as spell is cast / [Errno 2] No such file or directory: 'path\to\Skyrim Special Edition/some_text_file.txt' 
 This is either an issue with the path set for `skyrim_folder` in MantellaSoftware/config.ini, an issue with your Skyrim folder being in Program Files, an issue with the installation of PapyrusUtil, or you are not running Skyrim via SKSE (please see the included readme.txt file in SKSE's downloaded folder for instructions on how to use it). 
@@ -208,6 +200,13 @@ This happens when your antivirus is blocking Mantella.exe from working. Please a
 #### Cannot start new conversation after ending previous conversation (conversation ended message)
 You might need to say something in the mic for Mantella.exe to realise that the conversation has ended (while it is on "Listening..." it does not look out for the conversation ending). The exe will check if the conversation has ended after 30 seconds by default. You can change this via the `listen_timeout`` setting in MantellaSoftware/config.ini, but just keep in mind if it is too short this will effect conversations as the exe will occasionally stop listening for mic input to check if the conversation has ended
 
+
+## Adding Modded NPCs
+Mantella supports the inclusion of modded NPCs, but there a few steps needed to include them. Note that if the modded NPC is custom voiced then there may not be an xVASynth voice model associated with them, so you'll have to use one of the vanilla voice models. The steps are as follows:
+
+1. Add the NPC to `MantellaSoftware/data/skyrim_characters.csv` (if you don't have Excel, you can open this file with [LibreOffice](https://www.libreoffice.org/)). The key fields that need to be populated are `name`, `bio`, and `voice_model`, the rest can be left blank.
+2. Find out what the name of the voice folder is that the modded NPC uses. You can do that by digging into the mod files and looking for its `voice/ModName.esp/npcVoice` folder, where "npcVoice" is what you are looking for. For example, a Discord user has got Mantella working with [Xelzaz](https://www.nexusmods.com/skyrimspecialedition/mods/62893?tab=files). In this example, the folder needed is "BPUFXelzazVoice". 
+3. Once you have found the modded NPC's voice folder, add it to the Mantella spell's list of voice folders. The Mantella spell path is the same one you used to point `mod_folder` in `MantellaSoftware/config.ini`. The path you need to add the new voice folder in is `MantellaModFolder\Sound\Voice\Mantella.esp\`.
 
 ## Contribute
 The source code for Mantella is included in this repo. Here are the quick steps to get set up:
