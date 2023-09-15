@@ -262,6 +262,10 @@ class GameStateManager:
 
         in_game_time = self.load_data_when_available('_mantella_in_game_time', in_game_time)
 
+        actor_voice_model = self.load_data_when_available('_mantella_actor_voice', '')
+        actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
+        character_info['in_game_voice_model'] = actor_voice_model_name
+
         return character_info, location, in_game_time, is_generic_npc
     
     
