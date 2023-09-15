@@ -9,6 +9,7 @@ import shutil
 import src.utils as utils
 import unicodedata
 import re
+import sys
 
 class ChatManager:
     def __init__(self, game_state_manager, config, encoding):
@@ -41,6 +42,19 @@ class ChatManager:
         buffer = 1.1
         duration = frames / float(rate) + buffer
         return duration
+    
+
+    def setup_voiceline_save_location(self, in_game_voice_folder):
+        """Save voice model folder to Mantella Spell if it does not already exist"""
+        self.in_game_voice_model = in_game_voice_folder
+
+        if not os.path.exists(f"{self.mod_folder}/{in_game_voice_folder}/"):
+            os.mkdir(f"{self.mod_folder}/{in_game_voice_folder}/")
+
+            self.game_state_manager.write_game_info('_mantella_error_check', 'True')
+            logging.warn("Modded NPC detected. This NPC will work correctly once you restart Skyrim. To learn how to add memory, a background, and a voice model of your choosing to this NPC, see here: https://github.com/art-from-the-machine/Mantella#adding-modded-npcs")
+            input('\nPress any key to exit...')
+            sys.exit(0)
 
 
     @utils.time_it
@@ -54,10 +68,13 @@ class ChatManager:
         else:
             subtitle = ''
         self.game_state_manager.write_game_info('_mantella_subtitle', subtitle)
-        for sub_folder in os.scandir(self.mod_folder):
-            if sub_folder.is_dir():
-                shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
-                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.lip_file}")
+        # for sub_folder in os.scandir(self.mod_folder):
+        #     if sub_folder.is_dir():
+        #         shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
+        #         shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.lip_file}")
+
+        shutil.copyfile(audio_file, f"{self.mod_folder}/{self.in_game_voice_model}/{self.wav_file}")
+        shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.in_game_voice_model}/{self.lip_file}")
 
         self.game_state_manager.write_game_info('_mantella_say_line', 'True')
 
