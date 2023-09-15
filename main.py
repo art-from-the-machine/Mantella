@@ -44,6 +44,7 @@ try:
         # clear _mantella_ files in Skyrim folder
         character_name, character_id, location, in_game_time = game_state_manager.reset_game_info()
 
+        logging.info('\nConversations not starting when you select an NPC? See here:\nhttps://github.com/art-from-the-machine/Mantella#issues-qa')
         logging.info('\nWaiting for player to select an NPC...')
         try:
             # load character when data is available
@@ -56,6 +57,8 @@ try:
             continue
 
         character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+        # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
+        chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
         context = character.set_context(config.prompt, location, in_game_time)
 
         tokens_available = token_limit - chat_response.num_tokens_from_messages(context, model=config.llm)
