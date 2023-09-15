@@ -12,7 +12,6 @@ class ConfigLoader:
             logging.error(f"\"{tested_path}\" does not exist!\n\nThe path set in config.ini: \"{set_path}\"")
             input('\nPress any key to exit...')
             sys.exit(0)
-            return
 
         def run_config_editor():
             try:
@@ -29,7 +28,7 @@ class ConfigLoader:
 
         try:
             # run config editor if config.ini has the parameter
-            if int(config['Paths']['open_config_editor']) == 1:
+            if int(config['Startup']['open_config_editor']) == 1:
                 run_config_editor()
 
             self.language = config['Language']['language']
@@ -68,6 +67,7 @@ class ConfigLoader:
             self.debug_use_mic = config['Debugging']['use_mic']
             self.default_player_response = config['Debugging']['default_player_response']
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
+            self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
 
             self.prompt = config['Prompt']['prompt']
             pass

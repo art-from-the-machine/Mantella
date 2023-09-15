@@ -21,6 +21,7 @@ class ChatManager:
         self.language = config.language
         self.encoding = encoding
         self.subtitles_enabled = config.subtitles_enabled
+        self.add_voicelines_to_all_voice_folders = config.add_voicelines_to_all_voice_folders
 
         self.wav_file = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
         self.lip_file = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
@@ -68,13 +69,14 @@ class ChatManager:
         else:
             subtitle = ''
         self.game_state_manager.write_game_info('_mantella_subtitle', subtitle)
-        # for sub_folder in os.scandir(self.mod_folder):
-        #     if sub_folder.is_dir():
-        #         shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
-        #         shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.lip_file}")
-
-        shutil.copyfile(audio_file, f"{self.mod_folder}/{self.in_game_voice_model}/{self.wav_file}")
-        shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.in_game_voice_model}/{self.lip_file}")
+        if self.add_voicelines_to_all_voice_folders == '1':
+            for sub_folder in os.scandir(self.mod_folder):
+                if sub_folder.is_dir():
+                    shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
+                    shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.lip_file}")
+        else:
+            shutil.copyfile(audio_file, f"{self.mod_folder}/{self.in_game_voice_model}/{self.wav_file}")
+            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.in_game_voice_model}/{self.lip_file}")
 
         self.game_state_manager.write_game_info('_mantella_say_line', 'True')
 
