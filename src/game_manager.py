@@ -61,6 +61,8 @@ class GameStateManager:
 
         self.write_game_info('_mantella_say_line', 'False')
 
+        self.write_game_info('_mantella_player_input', '')
+
         return character_name, character_id, location, in_game_time
     
     

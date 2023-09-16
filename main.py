@@ -81,6 +81,9 @@ try:
 
             if conversation_ended.lower() != 'true':
                 transcribed_text, say_goodbye = transcriber.get_player_response(say_goodbye)
+
+                game_state_manager.write_game_info('_mantella_player_input', transcribed_text)
+
                 transcript_cleaned = utils.clean_text(transcribed_text)
 
             # check if conversation has ended again after player input
