@@ -90,7 +90,10 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
     if (config.alternative_openai_api_base == 'none') or (config.alternative_openai_api_base == 'https://openrouter.ai/api/v1'):
         is_local = False
     setup_openai_secret_key(secret_key_file, is_local)
-    logging.info(f"Running Mantella with '{config.llm}'. The language model chosen can be changed via config.ini")
+    if is_local:
+        logging.info(f"Running Mantella with '{config.llm}'. The language model chosen can be changed via config.ini")
+    else:
+        logging.info(f"Running Mantella with local language model")
 
     # clean up old instances of exe runtime files
     utils.cleanup_mei(config.remove_mei_folders)
