@@ -35,7 +35,7 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         except:
             logging.error(f"Could not load language '{config.language}'. Please set a valid language in config.ini\n")
 
-    def get_token_limit(llm, custom_token_count):
+    def get_token_limit(llm, custom_token_count, is_local):
         if '/' in llm:
             llm = llm.split('/')[-1]
 
@@ -79,6 +79,8 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
                 logging.error(f"Invalid custom_token_count value: {custom_token_count}. It should be a valid integer. Please update your configuration.")
                 token_limit = 4096  # Default to 4096 in case of an error.
         if token_limit <= 4096:
+            if is_local:
+                llm = 'Local language model'
             logging.info(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
         
         return token_limit
@@ -90,7 +92,10 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
     if (config.alternative_openai_api_base == 'none') or (config.alternative_openai_api_base == 'https://openrouter.ai/api/v1'):
         is_local = False
     setup_openai_secret_key(secret_key_file, is_local)
-    logging.info(f"Running Mantella with '{config.llm}'. The language model chosen can be changed via config.ini")
+    if is_local:
+        logging.info(f"Running Mantella with local language model")
+    else:
+       logging.info(f"Running Mantella with '{config.llm}'. The language model chosen can be changed via config.ini")
 
     # clean up old instances of exe runtime files
     utils.cleanup_mei(config.remove_mei_folders)
@@ -105,7 +110,7 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
     if config.alternative_openai_api_base != 'none':
         chosenmodel = 'gpt-3.5-turbo'
     encoding = tiktoken.encoding_for_model(chosenmodel)
-    token_limit = get_token_limit(config.llm, config.custom_token_count)
+    token_limit = get_token_limit(config.llm, config.custom_token_count, is_local)
 
     if config.alternative_openai_api_base != 'none':
         openai.api_base = config.alternative_openai_api_base

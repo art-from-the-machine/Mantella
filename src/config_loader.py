@@ -12,7 +12,21 @@ class ConfigLoader:
             logging.error(f"\"{tested_path}\" does not exist!\n\nThe path set in config.ini: \"{set_path}\"")
             input('\nPress any key to exit...')
             sys.exit(0)
-            return
+
+        def check_missing_mantella_file(set_path):
+            try:
+                with open(set_path+'/_mantella__skyrim_folder.txt') as f:
+                    check = f.readline().strip()
+            except:
+                logging.warn(f'''
+Warning: Could not find _mantella__skyrim_folder.txt in {set_path}. 
+If you have not yet casted the Mantella spell in-game you can safely ignore this message. 
+If you have casted the Mantella spell please check that your 
+MantellaSoftware/config.ini "skyrim_folder" has been set correctly 
+(instructions on how to set this up are in the config file itself).
+If you are still having issues, a list of solutions can be found here: 
+https://github.com/art-from-the-machine/Mantella#issues-qa
+''')
 
         def run_config_editor():
             try:
@@ -29,7 +43,7 @@ class ConfigLoader:
 
         try:
             # run config editor if config.ini has the parameter
-            if int(config['Paths']['open_config_editor']) == 1:
+            if int(config['Startup']['open_config_editor']) == 1:
                 run_config_editor()
 
             self.language = config['Language']['language']
@@ -68,6 +82,7 @@ class ConfigLoader:
             self.debug_use_mic = config['Debugging']['use_mic']
             self.default_player_response = config['Debugging']['default_player_response']
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
+            self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
 
             self.prompt = config['Prompt']['prompt']
             pass
@@ -76,8 +91,11 @@ class ConfigLoader:
             raise e
 
         # don't trust; verify; test subfolders
-        if not os.path.exists(f"{self.game_path}\\Data\\"):
-            invalid_path(self.game_path, f"{self.game_path}\\Data\\")
+        if not os.path.exists(f"{self.game_path}"):
+            invalid_path(self.game_path, f"{self.game_path}")
+        else:
+            check_missing_mantella_file(self.game_path)
+
         if not os.path.exists(f"{self.xvasynth_path}\\resources\\"):
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")
         if not os.path.exists(f"{self.mod_path}\\Sound\\Voice\\Mantella.esp"):
