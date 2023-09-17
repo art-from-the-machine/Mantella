@@ -66,9 +66,9 @@ def cleanup_mei(remove_mei_folders):
                         file_removed += 1
                     except PermissionError:  # mainly to allow simultaneous pyinstaller instances
                         pass
-                logging.info(f'{file_removed} previous runtime folder(s) cleaned up from AppData/Local/Temp')
+                logging.info(f'{file_removed} previous runtime folder(s) cleaned up from MantellaSoftware/data/tmp')
             else:
-                logging.warn(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in AppData/Local/Temp. See MantellaSoftware/config.ini's remove_mei_folders setting for more information.")
+                logging.warn(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in MantellaSoftware/data/tmp. See MantellaSoftware/config.ini's remove_mei_folders setting for more information.")
         
 
 
