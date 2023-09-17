@@ -49,9 +49,9 @@ class ChatManager:
         """Save voice model folder to Mantella Spell if it does not already exist"""
         self.in_game_voice_model = in_game_voice_folder
 
-        in_game_volce_folder = f"{self.mod_folder}/{in_game_voice_folder}/"
-        if not os.path.exists(in_game_volce_folder):
-            os.mkdir(in_game_volce_folder)
+        in_game_voice_folder_path = f"{self.mod_folder}/{in_game_voice_folder}/"
+        if not os.path.exists(in_game_voice_folder_path):
+            os.mkdir(in_game_voice_folder_path)
 
             # copy voicelines from one voice folder to this new voice folder
             # this step is needed for Skyrim to acknowledge the folder
@@ -60,7 +60,7 @@ class ChatManager:
                 source_file_path = os.path.join(example_folder, file_name)
 
                 if os.path.isfile(source_file_path):
-                    shutil.copy(source_file_path, in_game_volce_folder)
+                    shutil.copy(source_file_path, in_game_voice_folder_path)
 
             self.game_state_manager.write_game_info('_mantella_error_check', 'True')
             logging.warn("Unknown NPC detected. This NPC will be able to speak once you restart Skyrim. To learn how to add memory, a background, and a voice model of your choosing to this NPC, see here: https://github.com/art-from-the-machine/Mantella#adding-modded-npcs")
