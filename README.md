@@ -202,7 +202,7 @@ You might need to say something in the mic for Mantella.exe to realise that the 
 # Adding Modded NPCs
 Mantella allows you to talk to any NPC. If you cast the Mantella spell on an unknown / modded NPC, an error message will display asking you to restart Skyrim. Once this is done, the NPC will be able to speak to you. 
 
-If a given NPC cannot be found in `MantellaSoftware/data/skyrim_characters.csv``, Mantella will try its best to fill in the blanks on the NPC, making an educated guess on the NPC's background based on their name (eg Whiterun Guard) and on their voice model based on various factors such as race and sex.
+If a given NPC cannot be found in `MantellaSoftware/data/skyrim_characters.csv`, Mantella will try its best to fill in the blanks on the NPC, making an educated guess on the NPC's background based on their name (eg Whiterun Guard) and on their voice model based on various factors such as race and sex.
 
 Of course, if you are unhappy with Mantella's assumptions, you can add full support for modded NPCs to `MantellaSoftware/data/skyrim_characters.csv` by adding a new row containing the NPC's name (`name`), background description (`bio`), and voice model (`voice_model`). The rest of the column entries can be left blank. If you don't have Excel, you can open this CSV file with [LibreOffice](https://www.libreoffice.org/). 
 
