@@ -72,8 +72,6 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.use_cleanup = int(config['Speech']['use_cleanup'])
             self.use_sr = int(config['Speech']['use_sr'])
 
-            self.subtitles_enabled = config['HUD']['subtitles']
-
             self.remove_mei_folders = config['Cleanup']['remove_mei_folders']
 
             self.debug_mode = config['Debugging']['debugging']
