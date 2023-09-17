@@ -163,6 +163,9 @@ class ChatManager:
         sentence = sentence.replace(']', ')')
         sentence = sentence.replace('{', '(')
         sentence = sentence.replace('}', ')')
+        # local models sometimes get the idea in their head to use double asterisks **like this** in sentences instead of single
+        # this converts double asterisks to single so that they can be filtered out appropriately
+        sentence = sentence.replace('**','*')
         sentence = parse_asterisks_brackets(sentence)
 
         return sentence
