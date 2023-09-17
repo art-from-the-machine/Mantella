@@ -26,12 +26,13 @@ class Transcriber:
 
             if self.audio_threshold == 'auto':
                 logging.info(f"Audio threshold set to 'auto'. Adjusting microphone for ambient noise...")
+                logging.info("If the mic is not picking up your voice, try setting this audio_threshold value manually in MantellaSoftware/config.ini.\n")
                 with self.microphone as source:
                     self.recognizer.adjust_for_ambient_noise(source, duration=5)
             else:
                 self.recognizer.dynamic_energy_threshold = False
                 self.recognizer.energy_threshold = int(self.audio_threshold)
-                logging.info(f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up speech, try lowering this value in config.ini. If the mic is picking up too much background noise, try increasing this value.\n")
+                logging.info(f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this value in MantellaSoftware/config.ini. If the mic is picking up too much background noise, try increasing this value.\n")
 
             if self.process_device == 'cuda':
                 self.transcribe_model = WhisperModel(self.model, device=self.process_device)
