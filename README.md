@@ -200,11 +200,11 @@ You might need to say something in the mic for Mantella.exe to realise that the 
 
 
 # Adding Modded NPCs
-Mantella supports the inclusion of modded NPCs, but there a few steps needed to include them. Note that if the modded NPC is custom voiced then there may not be an xVASynth voice model associated with them, so you'll have to use one of the vanilla voice models. The steps are as follows:
+Mantella allows you to talk to any NPC. If you cast the Mantella spell on an unknown / modded NPC, an error message will display asking you to restart Skyrim. Once this is done, the NPC will be able to speak to you. If a given NPC cannot be found in MantellaSoftware/data/skyrim_characters.csv, Mantella will try its best to fill in the blanks on the NPC, making an educated guess on the NPC's background based on their name (eg Whiterun Guard) and on their voice model based on various factors such as race and sex.
 
-1. Add the NPC to `MantellaSoftware/data/skyrim_characters.csv` (if you don't have Excel, you can open this file with [LibreOffice](https://www.libreoffice.org/)). The key fields that need to be populated are `name`, `bio`, and `voice_model`, the rest can be left blank.
-2. Find out what the name of the voice folder is that the modded NPC uses. You can do that by digging into the mod files and looking for its `voice/ModName.esp/npcVoice` folder, where "npcVoice" is what you are looking for. For example, a Discord user has got Mantella working with [Xelzaz](https://www.nexusmods.com/skyrimspecialedition/mods/62893?tab=files). In this example, the folder needed is "BPUFXelzazVoice". 
-3. Once you have found the modded NPC's voice folder, add it to the Mantella spell's list of voice folders. The Mantella spell path is the same one you used to point `mod_folder` in `MantellaSoftware/config.ini`. The path you need to add the new voice folder in is `MantellaModFolder\Sound\Voice\Mantella.esp\`.
+Of course, if you are unhappy with Mantella's assumptions, you can add full support for modded NPCs to MantellaSoftware/data/skyrim_characters.csv by adding a new row containing the NPC's name (`name`), background description (`bio`), and voice model (`voice_model`). The rest of the column entries can be left blank. If you don't have Excel, you can open this CSV file with [LibreOffice](https://www.libreoffice.org/). Note that if the modded NPC is custom voiced there may not be a xVASynth model available, and you will need to assign the NPC a vanilla voice. By default, Mantella will not create memories for NPCs not found in skyrim_characters.csv as they will assumed to be generic (eg there are many NPCs called "Whiterun Guard" so it does not make sense for them all to share the same memory).
+
+For further support and examples of what other users have created, see the [custom-npcs channel on Discord](https://discord.gg/Q4BJAdtGUE).
 
 # Contribute
 The source code for Mantella is included in this repo. Here are the quick steps to get set up:
