@@ -20,7 +20,6 @@ class ChatManager:
         self.alternative_openai_api_base = config.alternative_openai_api_base
         self.language = config.language
         self.encoding = encoding
-        self.subtitles_enabled = config.subtitles_enabled
         self.add_voicelines_to_all_voice_folders = config.add_voicelines_to_all_voice_folders
 
         self.wav_file = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
@@ -73,11 +72,6 @@ class ChatManager:
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file, subtitle = queue_output
-        # add commas where "and" / "or" exist so that Papyrus splits subtitles appropriately
-        if self.subtitles_enabled == '1':
-            subtitle = subtitle.replace(' and ', ', and ').replace(' or ', ', or ')
-        else:
-            subtitle = ''
         self.game_state_manager.write_game_info('_mantella_subtitle', subtitle)
         if self.add_voicelines_to_all_voice_folders == '1':
             for sub_folder in os.scandir(self.mod_folder):
