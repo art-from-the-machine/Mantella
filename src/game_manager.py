@@ -320,8 +320,11 @@ class GameStateManager:
 
         messages.append({"role": "user", "content": config.end_conversation_keyword+'.'})
         messages.append({"role": "assistant", "content": config.end_conversation_keyword+'.'})
-
-        character.save_conversation(encoding, messages, tokens_available, config.llm)
+        llm_choice = config.llm
+        # check if using kobold or not, and if so pass kobold through as the llm choice so character_manager and chat_response can use kobold to generate summary instead of chatgpt
+        if 'api/extra/generate/stream' in config.alternative_openai_api_base:
+            llm_choice = config.alternative_openai_api_base
+        character.save_conversation(encoding, messages, tokens_available, llm_choice)
         logging.info('Conversation ended.')
 
         self.write_game_info('_mantella_in_game_events', '')

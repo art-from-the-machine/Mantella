@@ -1,5 +1,5 @@
 import openai
-from aiohttp import ClientSession
+import aiohttp
 import asyncio
 import os
 import wave
@@ -10,6 +10,8 @@ import src.utils as utils
 import unicodedata
 import re
 import sys
+import json
+from aiohttp import ClientSession
 
 class ChatManager:
     def __init__(self, game_state_manager, config, encoding):
@@ -182,54 +184,175 @@ class ChatManager:
         sentence = ''
         full_reply = ''
         num_sentences = 0
+        kobold_url = ''
+        # check if user is using kobold by checking the alternative_openai_api_base
+        if 'api/extra/generate/stream' in self.alternative_openai_api_base:
+            kobold_url = self.alternative_openai_api_base
         if self.alternative_openai_api_base == 'none':
             openai.aiosession.set(ClientSession()) # https://github.com/openai/openai-python#async-api
         while True:
             try:
                 start_time = time.time()
-                async for chunk in await openai.ChatCompletion.acreate(model=self.llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'},stream=True,):
-                    content = chunk["choices"][0].get("delta", {}).get("content")
-                    if content is not None:
-                        sentence += content
+                # use this async function if user is using kobold, kobold_url will be set above if the right alternative_openai_api_base is entered by the user
+                if kobold_url != '':
+                    kobold_headers = {'Content-Type': 'application/json'}
+                    # need to convert messages array into a single string prompt for kobold which does not use messages array format
+                    formatted_messages = []
+                    for message in messages:
+                        role = message["role"]
+                        content = message["content"]
+                        if role == "user":
+                            formatted_messages.append(f"###Instruction: {content}")
+                        elif role == "assistant":
+                            formatted_messages.append(f"###Response: {content}")
+                        elif role == "system":
+                            formatted_messages.append(f"###Instruction: {content}")
+                    formatted_messages.append("###Response:")
+                    kobold_messages_string = "\n".join(formatted_messages)
+                    kobold_stop_sequence = ["user:","\nuser ","\n", "Narrator:", "assistant:", "###Instruction:"]
+                    # data in request going to kobold
+                    # example from default kobold GUI user interface test with llama2-7b-gguf:
+                    #{"n": 1, 
+                    #"max_context_length": 1024,
+                    #"max_length": 80,
+                    #"rep_pen": 1.19,
+                    #"temperature": 0.79,
+                    #"top_p": 0.9,
+                    #"top_k": 0,
+                    #"top_a": 0,
+                    #"typical": 1,
+                    #"tfs": 0.95,
+                    #"rep_pen_range": 1024,
+                    #"rep_pen_slope": 0.9,
+                    #"sampler_order": [6, 0, 1, 2, 3, 4, 5],
+                    #"prompt": "[The following is an interesting chat message log between Teddy and Aela the Huntress.]\n\nTeddy: Hi.\nAela the Huntress: Hello.\nTeddy: Hi there how are you today?\nAela the Huntress:",
+                    #"quiet": true,
+                    #"stop_sequence": ["Teddy:", "\nTeddy ", "\nAela the Huntress: "],
+                    #"use_default_badwordsids": true}
+                    
+                    kobold_data = {
+                    'prompt': kobold_messages_string,
+                    'temperature':0.9,
+                    'top_p':0.9,
+                    'max_length': 80,
+                    'rep_pen':1.12,
+                    'stop_sequence':kobold_stop_sequence
+                    }
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(kobold_url, headers=kobold_headers, data=json.dumps(kobold_data)) as response:
+                            
+                            if response.status == 200:
+                                async for line in response.content.iter_any():
+                                    # kobold generates streaming responses in the format of:
+                                    # event: message
+                                    # data: {"token": " I"}
+                                    # then at the end it stops with an entry {"results":{"text":full response}}
+                                    line = line.decode('utf-8')
+                                    line = line.strip()
+                                    split_response = line.split('\n')
+                                    # if results is in the first slot of the split response, we've hit the end of kobold's response and can stop processing
+                                    if 'results:' in split_response[0]:
+                                        break
+                                    # Because of the delays in processing due to voice lines, sometimes several message events are cached together in the async, so need to parse them all
+                                    for entry in split_response:
+                                        # we only want to parse the content of lines that start with data.  If that's not what we have, skip.
+                                        if not 'data: {' in entry:
+                                            logging.info("Skipping line because does not have data: { in it")
+                                            continue
+                                        # entry[6:] should mean we are left with the dictionary after data: in the response because that's all we're parsing at this point
+                                        response_token = entry[6:].strip()
+                                        data_dict = json.loads(response_token)
+                                        # content represents each streaming token of text response received from the kobold API, will return None if no token
+                                        content = data_dict.get('token')
+                                        
+                                        if content is not None:
+                                            sentence+=content
+                                            if ('assist' in content) and (num_sentences>0):
+                                                logging.info(f"'assist' keyword found. Ignoring sentence which begins with: {sentence}")
+                                                break
 
-                        if ('assist' in content) and (num_sentences>0):
-                            logging.info(f"'assist' keyword found. Ignoring sentence which begins with: {sentence}")
+                                            content_edit = unicodedata.normalize('NFKC', content)
+                                            # check if content marks the end of a sentence
+                                            if (any(char in content_edit for char in self.end_of_sentence_chars)):
+                                                sentence = self.clean_sentence(sentence)
+
+                                                if len(sentence.strip()) < 3:
+                                                    logging.info(f'Skipping voiceline that is too short: {sentence}')
+                                                    break
+
+                                                logging.info(f"ChatGPT returned sentence took {time.time() - start_time} seconds to execute")
+                                                # Generate the audio and return the audio file path
+                                                try:
+                                                    audio_file = synthesizer.synthesize(character['voice_model'], character['skyrim_voice_folder'], ' ' + sentence + ' ')
+                                                except Exception as e:
+                                                    logging.error(f"xVASynth Error: {e}")
+
+                                                # Put the audio file path in the sentence_queue
+                                                await sentence_queue.put([audio_file, sentence])
+
+                                                full_reply += sentence
+                                                num_sentences += 1
+                                                sentence = ''
+
+                                                # clear the event for the next iteration
+                                                event.clear()
+                                                # wait for the event to be set before generating the next line
+                                                await event.wait()
+
+                                                end_conversation = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
+                                                if (num_sentences >= self.max_response_sentences) or (end_conversation.lower() == 'true'):
+                                                    break
+                            else:
+                                logging.error(f'Failed to connect to kobold api. Check your kobold settings.  Status code: {response.status}')
                             break
+                    await session.close()
+                    break
+                # use this async function if user is using anything else that emulates openai API
+                else:
+                    async for chunk in await openai.ChatCompletion.acreate(model=self.llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'},stream=True,):
+                        content = chunk["choices"][0].get("delta", {}).get("content")
+                        if content is not None:
+                            sentence += content
 
-                        content_edit = unicodedata.normalize('NFKC', content)
-                        # check if content marks the end of a sentence
-                        if (any(char in content_edit for char in self.end_of_sentence_chars)):
-                            sentence = self.clean_sentence(sentence)
-
-                            if len(sentence.strip()) < 3:
-                                logging.info(f'Skipping voiceline that is too short: {sentence}')
+                            if ('assist' in content) and (num_sentences>0):
+                                logging.info(f"'assist' keyword found. Ignoring sentence which begins with: {sentence}")
                                 break
 
-                            logging.info(f"ChatGPT returned sentence took {time.time() - start_time} seconds to execute")
-                            # Generate the audio and return the audio file path
-                            try:
-                                audio_file = synthesizer.synthesize(character['voice_model'], character['skyrim_voice_folder'], ' ' + sentence + ' ')
-                            except Exception as e:
-                                logging.error(f"xVASynth Error: {e}")
+                            content_edit = unicodedata.normalize('NFKC', content)
+                            # check if content marks the end of a sentence
+                            if (any(char in content_edit for char in self.end_of_sentence_chars)):
+                                sentence = self.clean_sentence(sentence)
 
-                            # Put the audio file path in the sentence_queue
-                            await sentence_queue.put([audio_file, sentence])
+                                if len(sentence.strip()) < 3:
+                                    logging.info(f'Skipping voiceline that is too short: {sentence}')
+                                    break
 
-                            full_reply += sentence
-                            num_sentences += 1
-                            sentence = ''
+                                logging.info(f"ChatGPT returned sentence took {time.time() - start_time} seconds to execute")
+                                # Generate the audio and return the audio file path
+                                try:
+                                    audio_file = synthesizer.synthesize(character['voice_model'], character['skyrim_voice_folder'], ' ' + sentence + ' ')
+                                except Exception as e:
+                                    logging.error(f"xVASynth Error: {e}")
 
-                            # clear the event for the next iteration
-                            event.clear()
-                            # wait for the event to be set before generating the next line
-                            await event.wait()
+                                # Put the audio file path in the sentence_queue
+                                await sentence_queue.put([audio_file, sentence])
 
-                            end_conversation = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
-                            if (num_sentences >= self.max_response_sentences) or (end_conversation.lower() == 'true'):
-                                break
-                if self.alternative_openai_api_base == 'none':
-                    await openai.aiosession.get().close()
-                break
+                                full_reply += sentence
+                                num_sentences += 1
+                                sentence = ''
+
+                                # clear the event for the next iteration
+                                event.clear()
+                                # wait for the event to be set before generating the next line
+                                await event.wait()
+
+                                end_conversation = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
+                                if (num_sentences >= self.max_response_sentences) or (end_conversation.lower() == 'true'):
+                                    break
+                    if self.alternative_openai_api_base == 'none':
+                        await openai.aiosession.get().close()
+                    break
+                break 
             except Exception as e:
                 logging.error(f"ChatGPT API Error: {e}")
                 error_response = "I can't find the right words at the moment."
