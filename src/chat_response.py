@@ -18,7 +18,7 @@ def chatgpt_api(input_text, messages, llm):
             if 'api/extra/generate/stream' in llm:
                 # need to parse llm to just get the domain stored in llm and then add /api/v1/generate dynamically; note here we are using the non-streaming API for the summary.
                 parts_of_url = llm.split('/')
-                start_of_url = '/'.join(parts[:3])
+                start_of_url = '/'.join(parts_of_url[:3])
                 kobold_url = start_of_url + '/api/v1/generate' #'http://localhost:5001/api/v1/generate'
                 # need to convert messages array into a single string prompt for kobold which does not use messages array format
                 formatted_messages = []

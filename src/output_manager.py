@@ -257,7 +257,6 @@ class ChatManager:
                                     for entry in split_response:
                                         # we only want to parse the content of lines that start with data.  If that's not what we have, skip.
                                         if not 'data: {' in entry:
-                                            logging.info("Skipping line because does not have data: { in it")
                                             continue
                                         # entry[6:] should mean we are left with the dictionary after data: in the response because that's all we're parsing at this point
                                         response_token = entry[6:].strip()
