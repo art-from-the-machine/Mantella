@@ -40,7 +40,7 @@ class Character:
         return conversation_summary_file
     
 
-    def set_context(self, prompt, location, in_game_time):
+    def set_context(self, system_message, prompt, location, in_game_time):
         # if conversation history exists, load it
         if os.path.exists(self.conversation_history_file):
             with open(self.conversation_history_file, 'r') as f:
@@ -53,14 +53,14 @@ class Character:
             with open(self.conversation_summary_file, 'r') as f:
                 previous_conversation_summaries = f.read()
 
-            context = self.create_context(prompt, location, in_game_time, len(previous_conversations), previous_conversation_summaries)
+            context = self.create_context(system_message, prompt, location, in_game_time, len(previous_conversations), previous_conversation_summaries)
         else:
-            context = self.create_context(prompt, location, in_game_time)
+            context = self.create_context(system_message, prompt, location, in_game_time)
 
         return context
     
 
-    def create_context(self, prompt, location='Skyrim', time='12', trust_level=0, conversation_summary=''):
+    def create_context(self, system_message, prompt, location='Skyrim', time='12', trust_level=0, conversation_summary=''):
         if trust_level < 1:
             trust = 'a stranger'
         elif trust_level < 10:
@@ -74,6 +74,17 @@ class Character:
 
         time_group = utils.get_time_group(time)
 
+        formatted_system_message = system_message.format(
+            name=self.name, 
+            bio=self.bio, 
+            trust=trust, 
+            location=location, 
+            time=time, 
+            time_group=time_group, 
+            language=self.language, 
+            conversation_summary=conversation_summary
+        )
+        
         character_desc = prompt.format(
             name=self.name, 
             bio=self.bio, 
@@ -85,8 +96,10 @@ class Character:
             conversation_summary=conversation_summary
         )
         
+        logging.info(formatted_system_message)
         logging.info(character_desc)
-        context = [{"role": "system", "content": character_desc}]
+        
+        context = [{"role": "system", "content": formatted_system_message}, {"role": "user", "content": character_desc}]
         return context
         
 

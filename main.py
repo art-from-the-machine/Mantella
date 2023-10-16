@@ -59,7 +59,7 @@ try:
         character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
         # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
         chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
-        context = character.set_context(config.prompt, location, in_game_time)
+        context = character.set_context(config.system_message, config.prompt, location, in_game_time)
 
         tokens_available = token_limit - chat_response.num_tokens_from_messages(context, model=config.llm)
         
@@ -113,7 +113,7 @@ try:
 
             # if the conversation is becoming too long, save the conversation to memory and reload
             current_conversation_limit_pct = 0.45
-            if chat_response.num_tokens_from_messages(messages[1:], model=config.llm) > (round(tokens_available*current_conversation_limit_pct,0)):
+            if chat_response.num_tokens_from_messages(messages[2:], model=config.llm) > (round(tokens_available*current_conversation_limit_pct,0)):
                 conversation_summary_file, context, messages = game_state_manager.reload_conversation(config, encoding, synthesizer, chat_manager, messages, character, tokens_available, location, in_game_time)
                 # continue conversation
                 messages = asyncio.run(get_response(f"{character.info['name']}?", context, synthesizer, character.info))

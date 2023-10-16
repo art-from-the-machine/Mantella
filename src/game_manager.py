@@ -349,10 +349,10 @@ class GameStateManager:
         # if a new conversation summary file was created, load this latest file
         conversation_summary_file = character.get_latest_conversation_summary_file_path()
         # reload context
-        context = character.set_context(config.prompt, location, in_game_time)
+        context = character.set_context(config.system_message, config.prompt, location, in_game_time)
 
         # add previous few back and forths from last conversation
-        messages_wo_system_prompt = messages[1:]
+        messages_wo_system_prompt = messages[2:]
         messages_last_entries = messages_wo_system_prompt[-8:]
         context.extend(messages_last_entries)
 

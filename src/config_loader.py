@@ -82,6 +82,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
             self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
 
+            self.system_message = config['Prompt']['system_message']
             self.prompt = config['Prompt']['prompt']
             pass
         except Exception as e:

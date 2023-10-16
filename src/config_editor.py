@@ -73,7 +73,7 @@ class MantellaConfigEditor:
                 entry = ttk.Entry(tab, width=90)
                 entry.insert(0, self.config.get(section, option))
             # prompt option is a multiline string
-            elif (option == 'prompt'):
+            elif (option == 'prompt' or option == 'system_message'):
                 entry = Text(tab)
                 entry.insert(1.0, self.config.get(section, option))
             else:
@@ -118,7 +118,7 @@ class MantellaConfigEditor:
             options = self.config.options(section)
             for option in options:
                 # prompt option is a multiline string
-                if (option == 'prompt'):
+                if (option == 'prompt') or (option == 'system_message'):
                     self.config.set(section, option, self.widget_values[f"{section}.{option}"].get(1.0, 'end-1c'))
                 else:
                     self.config.set(section, option, self.widget_values[f"{section}.{option}"].get())
