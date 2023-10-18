@@ -18,9 +18,9 @@ If you get stuck anywhere in the installation process, please see the [`#Issues 
 - [Installation](#installation)
 	- [Requirements](#requirements)
 	- [Video Walkthrough](#video-walkthrough)
-	- [xVASynth](xVASynth)
-	- [Required Mods](#required-mods)
-	- [Optional Mods](#optional-mods)
+	- [xVASynth TTS](#xVASynth)
+	- [Required Skyrim Mods](#required-mods)
+	- [Optional Skyrim Mods](#optional-mods)
 	- [Language Models (LLMs)](#language-models-llms)
 	- [Setup & Configuration](#setup-&-configuration)
 - [Issues Q&A](#issues-qa)
@@ -85,20 +85,31 @@ Just a couple of notes, the PapyrusUtil issue mentioned in this video can be res
 
 * Another option is to use BitTorrent, the communication protocol for peer-to-peer file sharing. Peer availability may vary depending on the time of day. Unlike on Nexus Mods, these voice models are already unarchived. So, you only need to point the torrent download location to **models** +***\skyrim*** folder depending on whenever your BitTorrent client makes another subfolder. Having the torrent in the already correct folder for xVASynth means you can become a seeder of it for others without it really impacting your PC or internet performance.
 
-  Open the following URI in your BitTorrent client, note that if you are using the [Brave](https://github.com/brave/brave-browser), it has built-in client:
+  Open the following URI in your BitTorrent client:
   
   `magnet:?xt=urn:btih:798BB3190E776BFDCF590910C0805656420F45BC&dn=skyrim&tr=udp%3a%2f%2ftracker.opentrackr.org%3a1337&tr=udp%3a%2f%2fexplodie.org%3a6969&tr=wss%3a%2f%2ftracker.btorrent.xyz&tr=wss%3a%2f%2ftracker.openwebtorrent.com`
 
-  Note that this magnet URI may be removed from this page, if any voice model in it also becomes unavailable on Nexus Mods.
+  If you are viewing this page with the [Brave browser](https://github.com/brave/brave-browser), it has built-in client.
+  
+  This magnet URI may be removed from this page, if any voice model in it also becomes unavailable on Nexus Mods.
 
-3. Download the .lip plugin for xVASynth [here](https://www.nexusmods.com/skyrimspecialedition/mods/55605) and download FaceFXWrapper from [here](https://www.nexusmods.com/skyrimspecialedition/mods/20061) (you do not need to download CK64Fixes). Instructions on how to install these are on the .lip plugin Nexus page. Make sure to place FaceFXWrapper in the plugins folder as stated on the .lip plugin page.
+3. Download the _required_ xVASynth mods. You can **skip** these _last three steps_ [by downloading this ZIP](https://1drv.ms/u/s!AuEqVKK0eUKDh_VzPdbCgP-kUzJaHQ?e=HRE7ST) file that already contains all the mentioned mods and unzip the archive within the **xVASynth** folder.
+  
+	ZIP contains:
+	* .lip and .fuz plugin for xVASynth v1.3
+	* FaceFXWrapper v0.4
+	* xVADict - Elder Scrolls v1.0.4 (With all entries enabled for xVASynth)
+	* CMUDict pronunciation dictionary (With all entries enabled for xVASynth)
+	
+4. _Download the .lip plugin for xVASynth [here](https://www.nexusmods.com/skyrimspecialedition/mods/55605) and download FaceFXWrapper from [here](https://www.nexusmods.com/skyrimspecialedition/mods/20061) (you do not need to download CK64Fixes). 
+	Instructions on how to install these are on the .lip plugin Nexus page. Make sure to place FaceFXWrapper in the plugins folder as stated on the .lip plugin page._
 
-4. Download the Elder Scrolls pronunciation dictionary from [here](https://www.nexusmods.com/skyrimspecialedition/mods/56778/), and follow the instructions to install.
+5. _(Optional) Download the Elder Scrolls pronunciation dictionary from [here](https://www.nexusmods.com/skyrimspecialedition/mods/56778/), and follow the instructions to install._
 
-5. In the xVASynth UI, if "Skyrim" is not already selected, please do so by clicking the arrows symbol in the top left corner. On the navigation bar on the top right of the xVASynth UI, click on the "ae" icon. Once opened, click on the CMUDict dictionary and select "Enable All" in the bottom left corner. Do the same for "xVADict - Elder Scrolls" received from the above step. Once done, close this menu and navigate to the settings menu by selecting the gear icon in the top right corner and ensure that "Audio sample rate (Hz)" is set to 44100. You can also select whether to process voicelines via you CPU or (NVIDIA) GPU from this menu.
+6. _In the xVASynth UI, if "Skyrim" is not already selected, please do so by clicking the arrows symbol in the top left corner. On the navigation bar on the top right of the xVASynth UI, click on the "ae" icon. Once opened, click on the CMUDict dictionary and select "Enable All" in the bottom left corner. Do the same for "xVADict - Elder Scrolls" received from the above step._
 
 
-## Required Mods
+## Required Skyrim Mods
 Please follow the installation instructions on each of the linked pages:
 
 - [SKSE](http://skse.silverlock.org/) (there is a separate VR version)
@@ -107,7 +118,7 @@ Please follow the installation instructions on each of the linked pages:
 - [PapyrusUtil SE]( https://www.nexusmods.com/skyrimspecialedition/mods/13048) (the VR version can be found under "Miscellaneous Files")
 
 
-## Optional Mods
+## Optional Skyrim Mods
 These mods aren't strictly necessary for Mantella to work, but they do greatly improve the experience.
 
 - [No NPC Greetings](https://www.nexusmods.com/skyrim/mods/746) (recommended so that Mantella voicelines are not interrupted by vanilla voicelines)
