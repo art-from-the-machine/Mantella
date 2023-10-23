@@ -50,6 +50,8 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.end_conversation_keyword = config['Language']['end_conversation_keyword']
             self.goodbye_npc_response = config['Language']['goodbye_npc_response']
             self.collecting_thoughts_npc_response = config['Language']['collecting_thoughts_npc_response']
+            self.offended_npc_response = config['Language']['offended_npc_response']
+            self.forgiven_npc_response = config['Language']['forgiven_npc_response']
 
             self.game_path = config['Paths']['skyrim_folder']
             self.xvasynth_path = config['Paths']['xvasynth_folder']

@@ -26,6 +26,8 @@ class ChatManager:
         self.language = config.language
         self.encoding = encoding
         self.add_voicelines_to_all_voice_folders = config.add_voicelines_to_all_voice_folders
+        self.offended_npc_response = config.offended_npc_response
+        self.forgiven_npc_response = config.forgiven_npc_response
 
         self.wav_file = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
         self.lip_file = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
@@ -211,23 +213,33 @@ class ChatManager:
                                 break
 
                             logging.info(f"ChatGPT returned sentence took {time.time() - start_time} seconds to execute")
-                            # Generate the audio and return the audio file path
-                            try:
-                                audio_file = synthesizer.synthesize(character['voice_model'], character['skyrim_voice_folder'], ' ' + sentence + ' ')
-                            except Exception as e:
-                                logging.error(f"xVASynth Error: {e}")
 
-                            # Put the audio file path in the sentence_queue
-                            await sentence_queue.put([audio_file, sentence])
+                            if sentence.strip().lower()[:-1] == self.offended_npc_response.lower():
+                                logging.info(f"The player offended the NPC")
+                                self.game_state_manager.write_game_info('_mantella_aggro', '1')
+                                sentence = ''
+                            elif sentence.strip().lower()[:-1] == self.forgiven_npc_response.lower():
+                                logging.info(f"The player made up with the NPC")
+                                self.game_state_manager.write_game_info('_mantella_aggro', '0')
+                                sentence = ''
+                            else:
+                                # Generate the audio and return the audio file path
+                                try:
+                                    audio_file = synthesizer.synthesize(character['voice_model'], character['skyrim_voice_folder'], ' ' + sentence + ' ')
+                                except Exception as e:
+                                    logging.error(f"xVASynth Error: {e}")
 
-                            full_reply += sentence
-                            num_sentences += 1
-                            sentence = ''
+                                # Put the audio file path in the sentence_queue
+                                await sentence_queue.put([audio_file, sentence])
 
-                            # clear the event for the next iteration
-                            event.clear()
-                            # wait for the event to be set before generating the next line
-                            await event.wait()
+                                full_reply += sentence
+                                num_sentences += 1
+                                sentence = ''
+
+                                # clear the event for the next iteration
+                                event.clear()
+                                # wait for the event to be set before generating the next line
+                                await event.wait()
 
                             end_conversation = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
                             if (num_sentences >= self.max_response_sentences) or (end_conversation.lower() == 'true'):
