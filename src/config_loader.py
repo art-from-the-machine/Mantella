@@ -6,7 +6,7 @@ import sys
 class ConfigLoader:
     def __init__(self, file_name='config.ini'):
         config = configparser.ConfigParser()
-        config.read(file_name)
+        config.read(file_name, encoding='utf-8')
 
         def invalid_path(set_path, tested_path):
             logging.error(f"\"{tested_path}\" does not exist!\n\nThe path set in config.ini: \"{set_path}\"")

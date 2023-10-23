@@ -1,7 +1,6 @@
 import logging
 import src.utils as utils
 import time
-import src.utils as utils
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv"""
@@ -20,7 +19,7 @@ class GameStateManager:
 
         for attempt in range(max_attempts):
             try:
-                with open(f'{self.game_path}/{text_file_name}.txt', 'w') as f:
+                with open(f'{self.game_path}/{text_file_name}.txt', 'w', encoding='utf-8') as f:
                     f.write(text)
                 break
             except PermissionError:
@@ -34,7 +33,7 @@ class GameStateManager:
 
     def load_data_when_available(self, text_file_name, text):
         while text == '':
-            with open(f'{self.game_path}/{text_file_name}.txt', 'r') as f:
+            with open(f'{self.game_path}/{text_file_name}.txt', 'r', encoding='utf-8') as f:
                 text = f.readline().strip()
         return text
     
@@ -276,7 +275,7 @@ class GameStateManager:
         """Add in-game events to player's response"""
 
         # append in-game events to player's response
-        with open(f'{self.game_path}/_mantella_in_game_events.txt', 'r') as f:
+        with open(f'{self.game_path}/_mantella_in_game_events.txt', 'r', encoding='utf-8') as f:
             in_game_events_lines = f.readlines()[-5:] # read latest 5 events
 
         # encapsulate events in {}

@@ -14,12 +14,12 @@ class MantellaConfigEditor:
         self.notebook.pack(fill='both', expand=True)
 
         self.config = configparser.ConfigParser()
-        self.config.read('config.ini')
+        self.config.read('config.ini', encoding='utf-8')
 
         self.widget_values = {}
 
         def read_config_file(filename):
-            with open(filename, 'r') as file:
+            with open(filename, 'r', encoding='utf-8') as file:
                 return file.read()
 
         def extract_comments(config_text):
@@ -127,7 +127,7 @@ class MantellaConfigEditor:
 
     # write directly to config file in order to preserve config comments; config.write does not save comments
     def write_to_config_preserve_comments(self):
-        with open('config_edited.ini', 'w') as configfile:
+        with open('config_edited.ini', 'w', encoding='utf-8') as configfile:
             for section in self.config.sections():
                 configfile.write('['+section+']\n')
 
