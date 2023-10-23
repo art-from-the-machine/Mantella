@@ -169,7 +169,7 @@ class Character:
         if len(conversation) > 5:
             conversation = conversation[3:-2] # drop the context (0) hello (1,2) and "Goodbye." (-2, -1) lines
             if prompt == None:
-                prompt = f"You are tasked with summarizing the conversation between {self.name} (the assistant) and the player (the user), which took place in Skyrim. It is not necessary to comment on any mixups in communication such as mishearings. Please summarize the conversation into a single paragraph in {self.language}."
+                prompt = f"You are tasked with summarizing the conversation between {self.name} (the assistant) and the player (the user), which took place in Skyrim. It is not necessary to comment on any mixups in communication such as mishearings. Text contained within asterisks state in-game events. Please summarize the conversation into a single paragraph in {self.language}."
             context = [{"role": "system", "content": prompt}]
             summary, _ = chat_response.chatgpt_api(f"{conversation}", context, llm)
 
