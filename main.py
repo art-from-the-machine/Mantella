@@ -32,7 +32,7 @@ try:
         language_file='data/language_support.csv'
     )
 
-    mantella_version = '0.8'
+    mantella_version = '0.9'
     logging.info(f'\nMantella v{mantella_version}')
 
     game_state_manager = game_manager.GameStateManager(config.game_path)
