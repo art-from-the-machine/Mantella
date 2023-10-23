@@ -1,7 +1,6 @@
 import logging
 import src.utils as utils
 import time
-import src.utils as utils
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv"""
@@ -62,6 +61,8 @@ class GameStateManager:
         self.write_game_info('_mantella_say_line', 'False')
 
         self.write_game_info('_mantella_player_input', '')
+
+        self.write_game_info('_mantella_aggro', '')
 
         return character_name, character_id, location, in_game_time
     
@@ -280,7 +281,7 @@ class GameStateManager:
             in_game_events_lines = f.readlines()[-5:] # read latest 5 events
 
         # encapsulate events in {}
-        formatted_in_game_events_lines = ['*{}*'.format(line) for line in in_game_events_lines]
+        formatted_in_game_events_lines = ['*{}*'.format(line.strip()) for line in in_game_events_lines]
         in_game_events = '\n'.join(formatted_in_game_events_lines)
 
         is_in_combat = self.load_data_when_available('_mantella_actor_is_enemy', '')
