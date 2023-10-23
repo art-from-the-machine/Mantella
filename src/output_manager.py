@@ -26,6 +26,8 @@ class ChatManager:
         self.language = config.language
         self.encoding = encoding
         self.add_voicelines_to_all_voice_folders = config.add_voicelines_to_all_voice_folders
+        self.offended_npc_response = config.offended_npc_response
+        self.forgiven_npc_response = config.forgiven_npc_response
 
         self.wav_file = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
         self.lip_file = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
@@ -212,11 +214,11 @@ class ChatManager:
 
                             logging.info(f"ChatGPT returned sentence took {time.time() - start_time} seconds to execute")
 
-                            if sentence.strip().lower()[:-1] == 'offended':
+                            if sentence.strip().lower()[:-1] == self.offended_npc_response.lower():
                                 logging.info(f"The player offended the NPC")
                                 self.game_state_manager.write_game_info('_mantella_aggro', '1')
                                 sentence = ''
-                            elif sentence.strip().lower()[:-1] in ['forgiven', 'i forgive you']:
+                            elif sentence.strip().lower()[:-1] == self.forgiven_npc_response.lower():
                                 logging.info(f"The player made up with the NPC")
                                 self.game_state_manager.write_game_info('_mantella_aggro', '0')
                                 sentence = ''
