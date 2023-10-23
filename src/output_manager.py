@@ -18,6 +18,11 @@ class ChatManager:
         self.max_response_sentences = config.max_response_sentences
         self.llm = config.llm
         self.alternative_openai_api_base = config.alternative_openai_api_base
+        self.temperature = config.temperature
+        self.top_p = config.top_p
+        self.stop = config.stop
+        self.frequency_penalty = config.frequency_penalty
+        self.max_tokens = config.max_tokens
         self.language = config.language
         self.encoding = encoding
         self.add_voicelines_to_all_voice_folders = config.add_voicelines_to_all_voice_folders
@@ -187,7 +192,7 @@ class ChatManager:
         while True:
             try:
                 start_time = time.time()
-                async for chunk in await openai.ChatCompletion.acreate(model=self.llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'},stream=True,):
+                async for chunk in await openai.ChatCompletion.acreate(model=self.llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'},stream=True,stop=self.stop,temperature=self.temperature,top_p=self.top_p,frequency_penalty=self.frequency_penalty, max_tokens=self.max_tokens):
                     content = chunk["choices"][0].get("delta", {}).get("content")
                     if content is not None:
                         sentence += content

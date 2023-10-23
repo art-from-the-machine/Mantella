@@ -6,7 +6,7 @@ import sys
 class ConfigLoader:
     def __init__(self, file_name='config.ini'):
         config = configparser.ConfigParser()
-        config.read(file_name)
+        config.read(file_name, encoding='utf-8')
 
         def invalid_path(set_path, tested_path):
             logging.error(f"\"{tested_path}\" does not exist!\n\nThe path set in config.ini: \"{set_path}\"")
@@ -66,6 +66,19 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.llm = config['LanguageModel']['model']
             self.alternative_openai_api_base = config['LanguageModel']['alternative_openai_api_base']
             self.custom_token_count = config['LanguageModel']['custom_token_count']
+            self.temperature = float(config['LanguageModel']['temperature'])
+            self.top_p = float(config['LanguageModel']['top_p'])
+
+            stop_value = config['LanguageModel']['stop']
+            if ',' in stop_value:
+                # If there are commas in the stop value, split the string by commas and store the values in a list
+                self.stop = stop_value.split(',')
+            else:
+                # If there are no commas, put the single value into a list
+                self.stop = [stop_value]
+
+            self.frequency_penalty = float(config['LanguageModel']['frequency_penalty'])
+            self.max_tokens = int(config['LanguageModel']['max_tokens'])
 
             self.xvasynth_process_device = config['Speech']['tts_process_device']
             self.pace = float(config['Speech']['pace'])
