@@ -254,7 +254,7 @@ class Synthesizer:
             logging.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files (Ctrl+F for 'sk_{voice.lower().replace(' ', '')}').")
             raise VoiceModelNotFound()
 
-        with open(voice_path+'.json', 'r') as f:
+        with open(voice_path+'.json', 'r', encoding='utf-8') as f:
             voice_model_json = json.load(f)
 
         try:

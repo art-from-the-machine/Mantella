@@ -43,14 +43,14 @@ class Character:
     def set_context(self, prompt, location, in_game_time):
         # if conversation history exists, load it
         if os.path.exists(self.conversation_history_file):
-            with open(self.conversation_history_file, 'r') as f:
+            with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
                 conversation_history = json.load(f)
 
             previous_conversations = []
             for conversation in conversation_history:
                 previous_conversations.extend(conversation)
 
-            with open(self.conversation_summary_file, 'r') as f:
+            with open(self.conversation_summary_file, 'r', encoding='utf-8') as f:
                 previous_conversation_summaries = f.read()
 
             context = self.create_context(prompt, location, in_game_time, len(previous_conversations), previous_conversation_summaries)
@@ -100,7 +100,7 @@ class Character:
         # save conversation history
         # if this is not the first conversation
         if os.path.exists(self.conversation_history_file):
-            with open(self.conversation_history_file, 'r') as f:
+            with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
                 conversation_history = json.load(f)
 
             # add new conversation to conversation history
@@ -111,12 +111,12 @@ class Character:
             os.makedirs(directory, exist_ok=True)
             conversation_history = [messages[1:]]
         
-        with open(self.conversation_history_file, 'w') as f:
+        with open(self.conversation_history_file, 'w', encoding='utf-8') as f:
             json.dump(conversation_history, f, indent=4) # save everything except the initial system prompt
 
         # if this is not the first conversation
         if os.path.exists(self.conversation_summary_file):
-            with open(self.conversation_summary_file, 'r') as f:
+            with open(self.conversation_summary_file, 'r', encoding='utf-8') as f:
                 previous_conversation_summaries = f.read()
         # if this is the first conversation
         else:
@@ -134,7 +134,7 @@ class Character:
                 continue
         conversation_summaries = previous_conversation_summaries + new_conversation_summary
 
-        with open(self.conversation_summary_file, 'w') as f:
+        with open(self.conversation_summary_file, 'w', encoding='utf-8') as f:
             f.write(conversation_summaries)
 
         # if summaries token limit is reached, summarize the summaries
@@ -158,7 +158,7 @@ class Character:
             new_number = int(old_number) + 1
             new_conversation_summary_file = os.path.join(base_directory, f"{file_prefix}_{new_number}.txt")
 
-            with open(new_conversation_summary_file, 'w') as f:
+            with open(new_conversation_summary_file, 'w', encoding='utf-8') as f:
                 f.write(long_conversation_summary)
         
         return None
