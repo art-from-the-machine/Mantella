@@ -28,6 +28,7 @@ class ChatManager:
         self.add_voicelines_to_all_voice_folders = config.add_voicelines_to_all_voice_folders
         self.offended_npc_response = config.offended_npc_response
         self.forgiven_npc_response = config.forgiven_npc_response
+        self.wait_time_buffer = config.wait_time_buffer
 
         self.wav_file = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
         self.lip_file = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
@@ -46,8 +47,7 @@ class ChatManager:
             rate = wf.getframerate()
 
         # wait `buffer` seconds longer to let processes finish running correctly
-        buffer = 1.1
-        duration = frames / float(rate) + buffer
+        duration = frames / float(rate) + self.wait_time_buffer
         return duration
     
 
