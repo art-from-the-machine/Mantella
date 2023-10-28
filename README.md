@@ -18,9 +18,10 @@ If you get stuck anywhere in the installation process, please see the [`#Issues 
 - [Installation](#installation)
 	- [Requirements](#requirements)
 	- [Video Walkthrough](#video-walkthrough)
-	- [xVASynth](xVASynth)
-	- [Required Mods](#required-mods)
-	- [Optional Mods](#optional-mods)
+	- [Whisper](#Whisper)
+	- [xVASynth](#xVASynth)
+	- [Required Skyrim Mods](#required-mods)
+	- [Optional Skyrim Mods](#optional-mods)
 	- [Language Models (LLMs)](#language-models-llms)
 	- [Setup & Configuration](#setup-&-configuration)
 - [Issues Q&A](#issues-qa)
@@ -52,6 +53,7 @@ This mod requires ~27GB of space when xVASynth and all voice models are installe
 - Mantella requires Windows 10 / 11 (it is yet unconfirmed whether it works on Windows 7)
 - Mantella has been confirmed to work with the FUS (by pointing skyrim_folder to Skyrim), Librum (by pointing skyrim_folder to overwrite/root), and Wildlands (by pointing skyrim_folder to Wildlander/SKSE) Wabbajack modlists.
 - Mantella needs to be loaded after the Unofficial Skyrim Special Edition Patch (USSEP) mod in your load order
+- GPU acceleration is only possible with CUDA enabled NVIDIA GPUs
 
 ### Skyrim
 As Mantella accesses and writes to files within your Skyrim folder, it is unlikely to work correctly if you have Skyrim stored in Program Files. Please ensure that you have Skyrim stored outside of this folder (Such as C:\Games\Steam for example).
@@ -76,7 +78,13 @@ https://youtu.be/_mZFkTchwEo
 Just a couple of notes, the PapyrusUtil issue mentioned in this video can be resolved by installing the VR version of the file (under "Miscellaneous") if you are a VR user. You also do not need to download the voice models manually if you have Nexus Premium (see below for instructions).
 
 
+## Whisper
+guillaumekln's Faster-Whisper version of Whisper is used as Speech-To-Text engine by Mantella. The engine is **already part of the executable** and will download a chosen model automatically when launched. Uses a single CPU core by default when listening to the set default Windows microphone. Alternatively text input can be enabled by setting `microphone_enabled = 0` within _config.ini_ file.
+
+It is reasonably fast even in CPU mode with the base model. _**Optionally**_ to use GPU/CUDA mode, some extra files are required, see [Faster Whisper documentation](https://github.com/guillaumekln/faster-whisper#gpu). Note that _cuBLAS_ may already be part of the CUDA Toolkit, so you may only require the _`cudnn_###_infer64_8.dll`_ files to be beside the Mantella executable. Afterwards enable `process_device = cuda` under `[Microphone]` within Mantella's _config.ini_.
+
 ## xVASynth
+xVASynth is used as Text-To-Speech engine by Mantella due to being free open-source software and already having Skyrim voice models trained.
 1. Download xVASynth via [Steam](https://store.steampowered.com/app/1765720/xVASynth/) or [Nexus](https://www.nexusmods.com/skyrimspecialedition/mods/44184).
 
 2. Download xVASynth trained voice models of Skyrim for all or any characters that you are likely to encounter. If downloading all models sounds a bit daunting, you can start with the "Male Nord" and "Male Soldier" voice models to at least allow talking to Skyrim guards. You will have to do this manually through the Nexus Mods page or automatically using Nexus Premium, whose API is implemented within xVASynth:
@@ -100,7 +108,7 @@ Just a couple of notes, the PapyrusUtil issue mentioned in this video can be res
 5. In the xVASynth UI, if "Skyrim" is not already selected, please do so by clicking the arrows symbol in the top left corner. On the navigation bar on the top right of the xVASynth UI, click on the "ae" icon. Once opened, click on the CMUDict dictionary and select "Enable All" in the bottom left corner. Do the same for "xVADict - Elder Scrolls" received from the above step. Once done, close this menu and navigate to the settings menu by selecting the gear icon in the top right corner and ensure that "Audio sample rate (Hz)" is set to 44100. You can also select whether to process voicelines via you CPU or (NVIDIA) GPU from this menu.
 
 
-## Required Mods
+## Required Skyrim Mods
 Please follow the installation instructions on each of the linked pages:
 
 - [SKSE](http://skse.silverlock.org/) (there is a separate VR version)
@@ -109,7 +117,7 @@ Please follow the installation instructions on each of the linked pages:
 - [PapyrusUtil SE]( https://www.nexusmods.com/skyrimspecialedition/mods/13048) (the VR version can be found under "Miscellaneous Files")
 
 
-## Optional Mods
+## Optional Skyrim Mods
 These mods aren't strictly necessary for Mantella to work, but they do greatly improve the experience.
 
 - [No NPC Greetings](https://www.nexusmods.com/skyrim/mods/746) (recommended so that Mantella voicelines are not interrupted by vanilla voicelines)
