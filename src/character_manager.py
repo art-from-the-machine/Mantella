@@ -10,6 +10,7 @@ class Character:
         self.info = info
         self.name = info['name']
         self.bio = info['bio']
+        self.relationship_rank = info['in_game_relationship_level']
         self.language = language
         self.is_generic_npc = is_generic_npc
         self.in_game_voice_model = info['in_game_voice_model']
@@ -61,14 +62,21 @@ class Character:
     
 
     def create_context(self, prompt, location='Skyrim', time='12', trust_level=0, conversation_summary=''):
-        if trust_level < 1:
-            trust = 'a stranger'
-        elif trust_level < 10:
-            trust = 'an acquaintance'
-        elif trust_level < 50:
+        if self.relationship_rank == 0:
+            if trust_level < 1:
+                trust = 'a stranger'
+            elif trust_level < 10:
+                trust = 'an acquaintance'
+            elif trust_level < 50:
+                trust = 'a friend'
+            elif trust_level >= 50:
+                trust = 'a close friend'
+        elif self.relationship_rank == 4:
+            trust = 'a lover'
+        elif self.relationship_rank > 0:
             trust = 'a friend'
-        elif trust_level >= 50:
-            trust = 'a close friend'
+        elif self.relationship_rank < 0:
+            trust = 'an enemy'
         if len(conversation_summary) > 0:
             conversation_summary = f"Below is a summary for each of your previous conversations:\n\n{conversation_summary}"
 
