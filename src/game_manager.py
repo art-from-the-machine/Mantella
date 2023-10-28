@@ -269,6 +269,13 @@ class GameStateManager:
         actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
         character_info['in_game_voice_model'] = actor_voice_model_name
 
+        actor_relationship_rank = self.load_data_when_available('_mantella_actor_relationship', '')
+        try:
+            actor_relationship_rank = int(actor_relationship_rank)
+        except:
+            actor_relationship_rank = 0
+        character_info['in_game_relationship_level'] = actor_relationship_rank
+
         return character_info, location, in_game_time, is_generic_npc
     
     
