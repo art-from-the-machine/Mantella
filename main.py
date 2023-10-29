@@ -44,6 +44,10 @@ try:
         # clear _mantella_ files in Skyrim folder
         character_name, character_id, location, in_game_time = game_state_manager.reset_game_info()
 
+        # add hotkey info
+        game_state_manager.write_game_info('_mantella_conversation_hotkey', config.hotkey)
+        game_state_manager.write_game_info('_mantella_response_timer', config.textbox_timer)
+
         logging.info('\nConversations not starting when you select an NPC? See here:\nhttps://github.com/art-from-the-machine/Mantella#issues-qa')
         logging.info('\nWaiting for player to select an NPC...')
         try:
