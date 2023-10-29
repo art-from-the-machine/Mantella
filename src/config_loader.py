@@ -64,6 +64,9 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.pause_threshold = float(config['Microphone']['pause_threshold'])
             self.listen_timeout = int(config['Microphone']['listen_timeout'])
 
+            self.hotkey = config['Hotkey']['hotkey']
+            self.textbox_timer = config['Hotkey']['textbox_timer']
+
             self.max_response_sentences = int(config['LanguageModel']['max_response_sentences'])
             self.llm = config['LanguageModel']['model']
             self.wait_time_buffer = float(config['LanguageModel']['wait_time_buffer'])
