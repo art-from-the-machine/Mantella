@@ -28,6 +28,8 @@ class ChatManager:
         self.add_voicelines_to_all_voice_folders = config.add_voicelines_to_all_voice_folders
         self.offended_npc_response = config.offended_npc_response
         self.forgiven_npc_response = config.forgiven_npc_response
+        self.follow_npc_response = config.follow_npc_response
+        self.experimental_features = config.experimental_features
         self.wait_time_buffer = config.wait_time_buffer
 
         self.wav_file = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
@@ -214,13 +216,21 @@ class ChatManager:
 
                             logging.info(f"ChatGPT returned sentence took {time.time() - start_time} seconds to execute")
 
-                            if sentence.strip().lower()[:-1] == self.offended_npc_response.lower():
-                                logging.info(f"The player offended the NPC")
-                                self.game_state_manager.write_game_info('_mantella_aggro', '1')
+                            keyword_extraction = sentence.strip().lower()[:-1]
+                            if keyword_extraction == self.offended_npc_response.lower():
+                                if self.experimental_features:
+                                    logging.info(f"The player offended the NPC")
+                                    self.game_state_manager.write_game_info('_mantella_aggro', '1')
                                 sentence = ''
-                            elif sentence.strip().lower()[:-1] == self.forgiven_npc_response.lower():
-                                logging.info(f"The player made up with the NPC")
-                                self.game_state_manager.write_game_info('_mantella_aggro', '0')
+                            elif keyword_extraction == self.forgiven_npc_response.lower():
+                                if self.experimental_features:
+                                    logging.info(f"The player made up with the NPC")
+                                    self.game_state_manager.write_game_info('_mantella_aggro', '0')
+                                sentence = ''
+                            elif keyword_extraction == self.follow_npc_response.lower():
+                                if self.experimental_features:
+                                    logging.info(f"The NPC is willing to follow the player")
+                                    self.game_state_manager.write_game_info('_mantella_aggro', '2')
                                 sentence = ''
                             else:
                                 # Generate the audio and return the audio file path
