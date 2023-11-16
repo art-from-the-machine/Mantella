@@ -82,16 +82,17 @@ class Character:
 
         time_group = utils.get_time_group(time)
 
-        character_desc = prompt.format(
-            name=self.name, 
-            bio=self.bio, 
-            trust=trust, 
-            location=location, 
-            time=time, 
-            time_group=time_group, 
-            language=self.language, 
-            conversation_summary=conversation_summary
-        )
+        # character_desc = prompt.format(
+        #     name=self.name, 
+        #     bio=self.bio, 
+        #     trust=trust, 
+        #     location=location, 
+        #     time=time, 
+        #     time_group=time_group, 
+        #     language=self.language, 
+        #     conversation_summary=conversation_summary
+        # )
+        character_desc = prompt
         
         logging.info(character_desc)
         context = [{"role": "system", "content": character_desc}]

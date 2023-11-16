@@ -8,6 +8,7 @@ import asyncio
 import src.output_manager as output_manager
 import src.game_manager as game_manager
 import src.character_manager as character_manager
+import src.characters_manager as characters_manager
 import src.setup as setup
 
 async def get_response(input_text, messages, synthesizer, character):
@@ -40,6 +41,8 @@ try:
     transcriber = stt.Transcriber(game_state_manager, config)
     synthesizer = tts.Synthesizer(config)
 
+    characters = characters_manager.Characters()
+
     while True:
         # clear _mantella_ files in Skyrim folder
         character_name, character_id, location, in_game_time = game_state_manager.reset_game_info()
@@ -61,6 +64,7 @@ try:
             continue
 
         character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+        characters.active_characters[character.name] = character
         # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
         chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
         context = character.set_context(config.prompt, location, in_game_time)
@@ -85,6 +89,25 @@ try:
         while True:
             with open(f'{config.game_path}/_mantella_end_conversation.txt', 'r', encoding='utf-8') as f:
                 conversation_ended = f.readline().strip()
+
+            with open(f'{config.game_path}/_mantella_actor_count.txt', 'r', encoding='utf-8') as f:
+                num_characters_selected = int(f.readline().strip())
+
+            if num_characters_selected > characters.active_character_count():
+                try:
+                    # load character when data is available
+                    character_info, location, in_game_time, is_generic_npc = game_state_manager.load_game_state(
+                        config.debug_mode, config.debug_character_name, character_df, character_name, character_id, location, in_game_time
+                    )
+                except game_manager.CharacterDoesNotExist:
+                    game_state_manager.write_game_info('_mantella_end_conversation', 'True')
+                    logging.info('Restarting...')
+                    continue
+
+                character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+                characters.active_characters[character.name] = character
+                # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
+                chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
 
             transcript_cleaned = ''
             if conversation_ended.lower() != 'true':

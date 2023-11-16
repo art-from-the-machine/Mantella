@@ -59,6 +59,8 @@ class GameStateManager:
         self.write_game_info('_mantella_actor_is_enemy', 'False')
 
         self.write_game_info('_mantella_say_line', 'False')
+        self.write_game_info('_mantella_say_line_2', 'False')
+        self.write_game_info('_mantella_actor_count', '0')
 
         self.write_game_info('_mantella_player_input', '')
 

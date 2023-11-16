@@ -32,6 +32,9 @@ class ChatManager:
         self.experimental_features = config.experimental_features
         self.wait_time_buffer = config.wait_time_buffer
 
+        self.alternate = 0
+        self.voice_model = 'Delphine'
+
         self.wav_file = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
         self.lip_file = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
 
@@ -91,7 +94,14 @@ class ChatManager:
             shutil.copyfile(audio_file, f"{self.mod_folder}/{self.in_game_voice_model}/{self.wav_file}")
             shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.in_game_voice_model}/{self.lip_file}")
 
-        self.game_state_manager.write_game_info('_mantella_say_line', 'True')
+        if self.alternate == 0:
+            logging.info(f"Actor 1 should speak")
+            self.game_state_manager.write_game_info('_mantella_say_line', 'True')
+            #self.alternate = 1
+        elif self.alternate == 1:
+            logging.info(f"Actor 2 should speak")
+            self.game_state_manager.write_game_info('_mantella_say_line_2', 'True')
+            #self.alternate = 0
 
 
     @utils.time_it
@@ -217,25 +227,35 @@ class ChatManager:
                             logging.info(f"ChatGPT returned sentence took {time.time() - start_time} seconds to execute")
 
                             keyword_extraction = sentence.strip().lower()[:-1]
-                            if keyword_extraction == self.offended_npc_response.lower():
-                                if self.experimental_features:
-                                    logging.info(f"The player offended the NPC")
-                                    self.game_state_manager.write_game_info('_mantella_aggro', '1')
-                                sentence = ''
-                            elif keyword_extraction == self.forgiven_npc_response.lower():
-                                if self.experimental_features:
-                                    logging.info(f"The player made up with the NPC")
-                                    self.game_state_manager.write_game_info('_mantella_aggro', '0')
-                                sentence = ''
-                            elif keyword_extraction == self.follow_npc_response.lower():
-                                if self.experimental_features:
-                                    logging.info(f"The NPC is willing to follow the player")
-                                    self.game_state_manager.write_game_info('_mantella_aggro', '2')
-                                sentence = ''
+                            # if keyword_extraction == self.offended_npc_response.lower():
+                            #     if self.experimental_features:
+                            #         logging.info(f"The player offended the NPC")
+                            #         self.game_state_manager.write_game_info('_mantella_aggro', '1')
+                            #     sentence = ''
+                            # elif keyword_extraction == self.forgiven_npc_response.lower():
+                            #     if self.experimental_features:
+                            #         logging.info(f"The player made up with the NPC")
+                            #         self.game_state_manager.write_game_info('_mantella_aggro', '0')
+                            #     sentence = ''
+                            # elif keyword_extraction == self.follow_npc_response.lower():
+                            #     if self.experimental_features:
+                            #         logging.info(f"The NPC is willing to follow the player")
+                            #         self.game_state_manager.write_game_info('_mantella_aggro', '2')
+                            #     sentence = ''
+                            if keyword_extraction == 'delphine':
+                                logging.info(f"Switched to Delphine")
+                                self.voice_model = 'Delphine'
+                                self.alternate = 0
+                                #sentence = ''
+                            elif keyword_extraction == 'orgnar':
+                                logging.info(f"Switched to Orgnar")
+                                self.voice_model = 'Male Brute'
+                                self.alternate = 1
+                                #sentence = ''
                             else:
                                 # Generate the audio and return the audio file path
                                 try:
-                                    audio_file = synthesizer.synthesize(character['voice_model'], character['skyrim_voice_folder'], ' ' + sentence + ' ')
+                                    audio_file = synthesizer.synthesize(self.voice_model, character['skyrim_voice_folder'], ' ' + sentence + ' ') #character['voice_model']
                                 except Exception as e:
                                     logging.error(f"xVASynth Error: {e}")
 
