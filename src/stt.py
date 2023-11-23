@@ -7,7 +7,11 @@ class Transcriber:
     def __init__(self, game_state_manager, config):
         self.game_state_manager = game_state_manager
         self.mic_enabled = config.mic_enabled
-        self.language = config.language
+        self.language = config.stt_language
+        self.task = "transcribe"
+        if config.stt_translate == 1:
+            # translate to English
+            self.task = "translate"
         self.model = config.whisper_model
         self.process_device = config.whisper_process_device
         self.audio_threshold = config.audio_threshold
@@ -98,7 +102,7 @@ class Transcriber:
         """
         @utils.time_it
         def whisper_transcribe(audio):
-            segments, info = self.transcribe_model.transcribe(audio, language=self.language, beam_size=5, vad_filter=True)
+            segments, info = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=5, vad_filter=True)
             result_text = ' '.join(segment.text for segment in segments)
 
             return result_text

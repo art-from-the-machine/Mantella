@@ -61,6 +61,10 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.mic_enabled = config['Microphone']['microphone_enabled']
             self.whisper_model = config['Microphone']['model_size']
             self.whisper_process_device = config['Microphone']['process_device']
+            self.stt_language = config['Microphone']['stt_language']
+            if (self.stt_language == 'default'):
+                self.stt_language = self.language
+            self.stt_translate = int(config['Microphone']['stt_translate'])
             self.audio_threshold = config['Microphone']['audio_threshold']
             self.pause_threshold = float(config['Microphone']['pause_threshold'])
             self.listen_timeout = int(config['Microphone']['listen_timeout'])
