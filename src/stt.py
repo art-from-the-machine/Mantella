@@ -4,6 +4,7 @@ import logging
 import src.utils as utils
 import requests
 import json
+import openai
 
 class Transcriber:
     def __init__(self, game_state_manager, config):
@@ -117,8 +118,10 @@ class Transcriber:
             # this code queries the whispercpp server set by the user to obtain the response
             else:
                 url = self.whisper_url
+                headers = {"Authorization": f"Bearer {openai.api_key}",}
+                data = {'model': self.model}
                 files = {'file': open(audio, 'rb')}
-                response = requests.post(url, files=files)
+                response = requests.post(url, headers=headers, files=files, data=data)
                 response_data = json.loads(response.text)
                 if 'text' in response_data:
                     return response_data['text'].strip()
