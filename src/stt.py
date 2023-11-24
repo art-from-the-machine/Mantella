@@ -134,7 +134,7 @@ class Transcriber:
 
         audio_file = 'player_recording.wav'
         with open(audio_file, 'wb') as file:
-            file.write(audio.get_wav_data())
+            file.write(audio.get_wav_data(convert_rate=16000))
         
         transcript = whisper_transcribe(audio_file)
         logging.info(transcript)
