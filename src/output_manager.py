@@ -32,8 +32,8 @@ class ChatManager:
         self.experimental_features = config.experimental_features
         self.wait_time_buffer = config.wait_time_buffer
 
-        self.alternate = 0
-        self.voice_model = 'Delphine'
+        self.character_num = 0
+        self.active_character = None
 
         self.wav_file = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
         self.lip_file = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
@@ -94,11 +94,11 @@ class ChatManager:
             shutil.copyfile(audio_file, f"{self.mod_folder}/{self.in_game_voice_model}/{self.wav_file}")
             shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.in_game_voice_model}/{self.lip_file}")
 
-        if self.alternate == 0:
+        if self.character_num == 0:
             logging.info(f"Actor 1 should speak")
             self.game_state_manager.write_game_info('_mantella_say_line', 'True')
             #self.alternate = 1
-        elif self.alternate == 1:
+        elif self.character_num == 1:
             logging.info(f"Actor 2 should speak")
             self.game_state_manager.write_game_info('_mantella_say_line_2', 'True')
             #self.alternate = 0
@@ -194,7 +194,7 @@ class ChatManager:
         return sentence
 
 
-    async def process_response(self, sentence_queue, input_text, messages, synthesizer, character, event):
+    async def process_response(self, sentence_queue, input_text, messages, synthesizer, characters, event):
         """Stream response from LLM one sentence at a time"""
 
         messages.append({"role": "user", "content": input_text})
@@ -226,7 +226,7 @@ class ChatManager:
 
                             logging.info(f"ChatGPT returned sentence took {time.time() - start_time} seconds to execute")
 
-                            keyword_extraction = sentence.strip().lower()[:-1]
+                            keyword_extraction = sentence.strip()[:-1] #.lower()
                             # if keyword_extraction == self.offended_npc_response.lower():
                             #     if self.experimental_features:
                             #         logging.info(f"The player offended the NPC")
@@ -242,20 +242,17 @@ class ChatManager:
                             #         logging.info(f"The NPC is willing to follow the player")
                             #         self.game_state_manager.write_game_info('_mantella_aggro', '2')
                             #     sentence = ''
-                            if keyword_extraction == 'delphine':
-                                logging.info(f"Switched to Delphine")
-                                self.voice_model = 'Delphine'
-                                self.alternate = 0
-                                #sentence = ''
-                            elif keyword_extraction == 'orgnar':
-                                logging.info(f"Switched to Orgnar")
-                                self.voice_model = 'Male Brute'
-                                self.alternate = 1
-                                #sentence = ''
+                            if keyword_extraction in characters.active_characters:
+                                logging.info(f"Switched to {keyword_extraction}")
+                                self.active_character = characters.active_characters[keyword_extraction]
+                                # characters are mapped to say_line based on order of selection
+                                # taking the order of the dictionary to find which say_line to use, but it is bad practice to use dictionaries in this way
+                                self.character_num = list(characters.active_characters.keys()).index(keyword_extraction)
+                                sentence = ''
                             else:
                                 # Generate the audio and return the audio file path
                                 try:
-                                    audio_file = synthesizer.synthesize(self.voice_model, character['skyrim_voice_folder'], ' ' + sentence + ' ') #character['voice_model']
+                                    audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ')
                                 except Exception as e:
                                     logging.error(f"xVASynth Error: {e}")
 
@@ -280,7 +277,7 @@ class ChatManager:
             except Exception as e:
                 logging.error(f"ChatGPT API Error: {e}")
                 error_response = "I can't find the right words at the moment."
-                audio_file = synthesizer.synthesize(character['voice_model'], character['skyrim_voice_folder'], error_response)
+                audio_file = synthesizer.synthesize(self.active_character.voice_model, None, error_response)
                 self.save_files_to_voice_folders([audio_file, error_response])
                 logging.info('Retrying connection to OpenAI...')
                 time.sleep(5)

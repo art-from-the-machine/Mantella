@@ -14,6 +14,7 @@ class Character:
         self.language = language
         self.is_generic_npc = is_generic_npc
         self.in_game_voice_model = info['in_game_voice_model']
+        self.voice_model = info['voice_model']
         self.conversation_history_file = f"data/conversations/{self.name}/{self.name}.json"
         self.conversation_summary_file = self.get_latest_conversation_summary_file_path()
 
@@ -41,7 +42,7 @@ class Character:
         return conversation_summary_file
     
 
-    def set_context(self, prompt, location, in_game_time):
+    def set_context(self, prompt, location, in_game_time, active_characters):
         # if conversation history exists, load it
         if os.path.exists(self.conversation_history_file):
             with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
@@ -54,14 +55,14 @@ class Character:
             with open(self.conversation_summary_file, 'r', encoding='utf-8') as f:
                 previous_conversation_summaries = f.read()
 
-            context = self.create_context(prompt, location, in_game_time, len(previous_conversations), previous_conversation_summaries)
+            context = self.create_context(prompt, location, in_game_time, active_characters, len(previous_conversations), previous_conversation_summaries)
         else:
-            context = self.create_context(prompt, location, in_game_time)
+            context = self.create_context(prompt, location, in_game_time, active_characters)
 
         return context
     
 
-    def create_context(self, prompt, location='Skyrim', time='12', trust_level=0, conversation_summary=''):
+    def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, trust_level=0, conversation_summary=''):
         if self.relationship_rank == 0:
             if trust_level < 1:
                 trust = 'a stranger'
@@ -92,7 +93,16 @@ class Character:
         #     language=self.language, 
         #     conversation_summary=conversation_summary
         # )
-        character_desc = prompt
+        keys = list(active_characters.keys())
+
+        # Check if there are more than two keys in the dictionary
+        if len(keys) > 1:
+            # Join all but the last key with a comma, and add the last key with "and" in front
+            formatted_string = ', '.join(keys[:-1]) + ' and ' + keys[-1]
+        else:
+            # If there's only one key, use it directly
+            formatted_string = keys[0] if keys else ''
+        character_desc = prompt.format(name=self.name, names=formatted_string)
         
         logging.info(character_desc)
         context = [{"role": "system", "content": character_desc}]
