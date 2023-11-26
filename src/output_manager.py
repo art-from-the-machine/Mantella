@@ -91,17 +91,18 @@ class ChatManager:
                     shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
                     shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.lip_file}")
         else:
-            shutil.copyfile(audio_file, f"{self.mod_folder}/{self.in_game_voice_model}/{self.wav_file}")
-            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.in_game_voice_model}/{self.lip_file}")
+            shutil.copyfile(audio_file, f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.wav_file}")
+            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.lip_file}")
 
         if self.character_num == 0:
             logging.info(f"Actor 1 should speak")
             self.game_state_manager.write_game_info('_mantella_say_line', 'True')
-            #self.alternate = 1
         elif self.character_num == 1:
             logging.info(f"Actor 2 should speak")
             self.game_state_manager.write_game_info('_mantella_say_line_2', 'True')
-            #self.alternate = 0
+        elif self.character_num == 2:
+            logging.info(f"Actor 3 should speak")
+            self.game_state_manager.write_game_info('_mantella_say_line_3', 'True')
 
 
     @utils.time_it
@@ -248,6 +249,7 @@ class ChatManager:
                                 # characters are mapped to say_line based on order of selection
                                 # taking the order of the dictionary to find which say_line to use, but it is bad practice to use dictionaries in this way
                                 self.character_num = list(characters.active_characters.keys()).index(keyword_extraction)
+                                full_reply += sentence
                                 sentence = ''
                             else:
                                 # Generate the audio and return the audio file path
