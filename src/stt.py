@@ -115,10 +115,13 @@ class Transcriber:
                 result_text = ' '.join(segment.text for segment in segments)
 
                 return result_text
-            # this code queries the whispercpp server set by the user to obtain the response
+            # this code queries the whispercpp server set by the user to obtain the response, this format also allows use of official openai whisper API
             else:
                 url = self.whisper_url
-                headers = {"Authorization": f"Bearer {openai.api_key}",}
+                if 'openai' in url:
+                    headers = {"Authorization": f"Bearer {openai.api_key}",}
+                else:
+                    headers = {"Authorization": "Bearer apikey",}
                 data = {'model': self.model}
                 files = {'file': open(audio, 'rb')}
                 response = requests.post(url, headers=headers, files=files, data=data)
