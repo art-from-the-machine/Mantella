@@ -17,6 +17,7 @@ class Character:
         self.voice_model = info['voice_model']
         self.conversation_history_file = f"data/conversations/{self.name}/{self.name}.json"
         self.conversation_summary_file = self.get_latest_conversation_summary_file_path()
+        self.conversation_summary = ''
 
 
     def get_latest_conversation_summary_file_path(self):
@@ -54,6 +55,8 @@ class Character:
 
             with open(self.conversation_summary_file, 'r', encoding='utf-8') as f:
                 previous_conversation_summaries = f.read()
+
+            self.conversation_summary = previous_conversation_summaries
 
             context = self.create_context(prompt, location, in_game_time, active_characters, len(previous_conversations), previous_conversation_summaries)
         else:
@@ -98,18 +101,40 @@ class Character:
         # Check if there are more than two keys in the dictionary
         if len(keys) > 1:
             # Join all but the last key with a comma, and add the last key with "and" in front
-            formatted_string = ', '.join(keys[:-1]) + ' and ' + keys[-1]
+            character_names_list = ', '.join(keys[:-1]) + ' and ' + keys[-1]
         else:
             # If there's only one key, use it directly
-            formatted_string = keys[0] if keys else ''
-        character_desc = prompt.format(name=self.name, names=formatted_string)
+            character_names_list = keys[0] if keys else ''
+
+        # Building the string
+        bio_descriptions = []
+        for character_name, character in active_characters.items():
+            bio_descriptions.append(f"{character_name}: {character.bio}")
+
+        formatted_bios = "\n".join(bio_descriptions)
+
+        conversation_histories = []
+        for character_name, character in active_characters.items():
+            conversation_histories.append(f"{character_name}: {character.conversation_summary}")
+
+        formatted_histories = "\n".join(conversation_histories)
+        
+        character_desc = prompt.format(
+            name=self.name, 
+            names=character_names_list,
+            language=self.language,
+            location=location,
+            time=time,
+            time_group=time_group,
+            bios=formatted_bios,
+            conversation_summaries=formatted_histories)
         
         logging.info(character_desc)
         context = [{"role": "system", "content": character_desc}]
         return context
         
 
-    def save_conversation(self, encoding, messages, tokens_available, llm, summary_limit_pct=0.45):
+    def save_conversation(self, encoding, messages, tokens_available, llm, summary=None, summary_limit_pct=0.45):
         if self.is_generic_npc:
             logging.info('A summary will not be saved for this generic NPC.')
             return None
@@ -143,14 +168,17 @@ class Character:
             os.makedirs(directory, exist_ok=True)
             previous_conversation_summaries = ''
 
-        while True:
-            try:
-                new_conversation_summary = self.summarize_conversation(messages, llm)
-                break
-            except:
-                logging.error('Failed to summarize conversation. Retrying...')
-                time.sleep(5)
-                continue
+        if summary == None:
+            while True:
+                try:
+                    new_conversation_summary = self.summarize_conversation(messages, llm)
+                    break
+                except:
+                    logging.error('Failed to summarize conversation. Retrying...')
+                    time.sleep(5)
+                    continue
+        else:
+            new_conversation_summary = summary
         conversation_summaries = previous_conversation_summaries + new_conversation_summary
 
         with open(self.conversation_summary_file, 'w', encoding='utf-8') as f:
@@ -180,7 +208,7 @@ class Character:
             with open(new_conversation_summary_file, 'w', encoding='utf-8') as f:
                 f.write(long_conversation_summary)
         
-        return None
+        return new_conversation_summary
     
 
     def summarize_conversation(self, conversation, llm, prompt=None):

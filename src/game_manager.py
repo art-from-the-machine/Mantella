@@ -52,6 +52,8 @@ class GameStateManager:
         self.write_game_info('_mantella_in_game_time', '')
         in_game_time = ''
 
+        self.write_game_info('_mantella_active_actors', '')
+
         self.write_game_info('_mantella_in_game_events', '')
 
         self.write_game_info('_mantella_error_check', 'False')
@@ -60,6 +62,7 @@ class GameStateManager:
 
         self.write_game_info('_mantella_say_line', 'False')
         self.write_game_info('_mantella_say_line_2', 'False')
+        self.write_game_info('_mantella_say_line_3', 'False')
         self.write_game_info('_mantella_actor_count', '0')
 
         self.write_game_info('_mantella_player_input', '')
@@ -320,18 +323,24 @@ class GameStateManager:
     
     
     @utils.time_it
-    def end_conversation(self, conversation_ended, config, encoding, synthesizer, chat_manager, messages, character, tokens_available):
+    def end_conversation(self, conversation_ended, config, encoding, synthesizer, chat_manager, messages, active_characters, tokens_available):
         """Say final goodbye lines and save conversation to memory"""
 
         # say goodbyes
         if conversation_ended.lower() != 'true': # say line if NPC is not already deactivated
-            audio_file = synthesizer.synthesize(character.info['voice_model'], character.info['skyrim_voice_folder'], config.goodbye_npc_response)
+            latest_character = list(active_characters.items())[-1][1]
+            audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
             chat_manager.save_files_to_voice_folders([audio_file, config.goodbye_npc_response])
 
         messages.append({"role": "user", "content": config.end_conversation_keyword+'.'})
         messages.append({"role": "assistant", "content": config.end_conversation_keyword+'.'})
 
-        character.save_conversation(encoding, messages, tokens_available, config.llm)
+        summary = None
+        for character_name, character in active_characters.items():
+            if summary == None:
+                summary = character.save_conversation(encoding, messages, tokens_available, config.llm)
+            else:
+                _ = character.save_conversation(encoding, messages, tokens_available, config.llm, summary)
         logging.info('Conversation ended.')
 
         self.write_game_info('_mantella_in_game_events', '')

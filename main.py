@@ -41,11 +41,11 @@ chat_manager = output_manager.ChatManager(game_state_manager, config, encoding)
 transcriber = stt.Transcriber(game_state_manager, config)
 synthesizer = tts.Synthesizer(config)
 
-characters = characters_manager.Characters()
-
 while True:
     # clear _mantella_ files in Skyrim folder
     character_name, character_id, location, in_game_time = game_state_manager.reset_game_info()
+
+    characters = characters_manager.Characters()
 
     # add hotkey info
     game_state_manager.write_game_info('_mantella_conversation_hotkey', config.hotkey)
@@ -125,7 +125,7 @@ while True:
 
         # check if user is ending conversation
         if (transcriber.activation_name_exists(transcript_cleaned, config.end_conversation_keyword.lower())) or (transcriber.activation_name_exists(transcript_cleaned, 'good bye')) or (conversation_ended.lower() == 'true'):
-            game_state_manager.end_conversation(conversation_ended, config, encoding, synthesizer, chat_manager, messages, character, tokens_available)
+            game_state_manager.end_conversation(conversation_ended, config, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available)
             break
 
         # Let the player know that they were heard
@@ -153,5 +153,5 @@ while True:
 #     except:
 #         None
 
-    logging.error(f"Error: {e}")
-    input("Press Enter to exit.")
+    # logging.error(f"Error: {e}")
+    # input("Press Enter to exit.")
