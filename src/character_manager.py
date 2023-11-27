@@ -43,7 +43,7 @@ class Character:
         return conversation_summary_file
     
 
-    def set_context(self, prompt, location, in_game_time, active_characters):
+    def set_context(self, prompt, location, in_game_time, active_characters, token_limit):
         # if conversation history exists, load it
         if os.path.exists(self.conversation_history_file):
             with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
@@ -58,14 +58,14 @@ class Character:
 
             self.conversation_summary = previous_conversation_summaries
 
-            context = self.create_context(prompt, location, in_game_time, active_characters, len(previous_conversations), previous_conversation_summaries)
+            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit, len(previous_conversations), previous_conversation_summaries)
         else:
-            context = self.create_context(prompt, location, in_game_time, active_characters)
+            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit)
 
         return context
     
 
-    def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, trust_level=0, conversation_summary=''):
+    def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, token_limit=4096, trust_level=0, conversation_summary='', prompt_limit_pct=0.75):
         if self.relationship_rank == 0:
             if trust_level < 1:
                 trust = 'a stranger'
@@ -128,6 +128,32 @@ class Character:
             time_group=time_group,
             bios=formatted_bios,
             conversation_summaries=formatted_histories)
+        
+        prompt_num_tokens = chat_response.num_tokens_from_messages([{"role": "system", "content": character_desc}])
+        prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
+        if prompt_num_tokens > prompt_token_limit:
+            character_desc = prompt.format(
+                name=self.name, 
+                names=character_names_list,
+                language=self.language,
+                location=location,
+                time=time,
+                time_group=time_group,
+                bios=formatted_bios,
+                conversation_summaries='NPC memories not available.')
+            
+            prompt_num_tokens = chat_response.num_tokens_from_messages([{"role": "system", "content": character_desc}])
+            prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
+            if prompt_num_tokens > prompt_token_limit:
+                character_desc = prompt.format(
+                    name=self.name, 
+                    names=character_names_list,
+                    language=self.language,
+                    location=location,
+                    time=time,
+                    time_group=time_group,
+                    bios='NPC backgrounds not available.',
+                    conversation_summaries='NPC memories not available.')
         
         logging.info(character_desc)
         context = [{"role": "system", "content": character_desc}]
