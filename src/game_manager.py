@@ -351,24 +351,35 @@ class GameStateManager:
     
     
     @utils.time_it
-    def reload_conversation(self, config, encoding, synthesizer, chat_manager, messages, character, tokens_available, location, in_game_time):
+    def reload_conversation(self, config, encoding, synthesizer, chat_manager, messages, active_characters, tokens_available, token_limit, location, in_game_time):
         """Restart conversation to save conversation to memory when token count is reaching its limit"""
 
+        latest_character = list(active_characters.items())[-1][1]
         # let the player know that the conversation is reloading
-        audio_file = synthesizer.synthesize(character.info['voice_model'], character.info['skyrim_voice_folder'], config.collecting_thoughts_npc_response)
+        audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.collecting_thoughts_npc_response)
         chat_manager.save_files_to_voice_folders([audio_file, config.collecting_thoughts_npc_response])
 
-        messages.append({"role": "user", "content": character.info['name']+'?'})
-        messages.append({"role": "assistant", "content": config.collecting_thoughts_npc_response+'.'})
+        messages.append({"role": "user", "content": latest_character.info['name']+'?'})
+        if len(list(active_characters.items())) > 1:
+            collecting_thoughts_response = latest_character.info['name']+': '+config.collecting_thoughts_npc_response+'.'
+        else:
+            collecting_thoughts_response = config.collecting_thoughts_npc_response+'.'
+        messages.append({"role": "assistant", "content": collecting_thoughts_response})
 
         # save the conversation so far
-        character.save_conversation(encoding, messages, tokens_available, config.llm)
+        summary = None
+        for character_name, character in active_characters.items():
+            if summary == None:
+                summary = character.save_conversation(encoding, messages, tokens_available, config.llm)
+            else:
+                _ = character.save_conversation(encoding, messages, tokens_available, config.llm, summary)
         # let the new file register on the system
         time.sleep(1)
         # if a new conversation summary file was created, load this latest file
-        conversation_summary_file = character.get_latest_conversation_summary_file_path()
+        for character_name, character in active_characters.items():
+            conversation_summary_file = character.get_latest_conversation_summary_file_path()
         # reload context
-        context = character.set_context(config.prompt, location, in_game_time)
+        context = latest_character.set_context(config.prompt, location, in_game_time, active_characters, token_limit)
 
         # add previous few back and forths from last conversation
         messages_wo_system_prompt = messages[1:]
