@@ -60,9 +60,18 @@ class GameStateManager:
 
         self.write_game_info('_mantella_actor_is_enemy', 'False')
 
+        self.write_game_info('_mantella_actor_relationship', '')
+
         self.write_game_info('_mantella_say_line', 'False')
         self.write_game_info('_mantella_say_line_2', 'False')
         self.write_game_info('_mantella_say_line_3', 'False')
+        self.write_game_info('_mantella_say_line_4', 'False')
+        self.write_game_info('_mantella_say_line_5', 'False')
+        self.write_game_info('_mantella_say_line_6', 'False')
+        self.write_game_info('_mantella_say_line_7', 'False')
+        self.write_game_info('_mantella_say_line_8', 'False')
+        self.write_game_info('_mantella_say_line_9', 'False')
+        self.write_game_info('_mantella_say_line_10', 'False')
         self.write_game_info('_mantella_actor_count', '0')
 
         self.write_game_info('_mantella_player_input', '')

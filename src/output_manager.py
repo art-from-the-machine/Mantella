@@ -94,16 +94,12 @@ class ChatManager:
             shutil.copyfile(audio_file, f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.wav_file}")
             shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.lip_file}")
 
+        logging.info(f"{self.active_character.name} should speak")
         if self.character_num == 0:
-            logging.info(f"Actor 1 should speak")
             self.game_state_manager.write_game_info('_mantella_say_line', 'True')
-        elif self.character_num == 1:
-            logging.info(f"Actor 2 should speak")
-            self.game_state_manager.write_game_info('_mantella_say_line_2', 'True')
-        elif self.character_num == 2:
-            logging.info(f"Actor 3 should speak")
-            self.game_state_manager.write_game_info('_mantella_say_line_3', 'True')
-
+        else:
+            say_line_file = '_mantella_say_line_'+str(self.character_num+1)
+            self.game_state_manager.write_game_info(say_line_file, 'True')
 
     @utils.time_it
     def remove_files_from_voice_folders(self):
