@@ -62,6 +62,8 @@ class GameStateManager:
 
         self.write_game_info('_mantella_actor_relationship', '')
 
+        self.write_game_info('_mantella_character_selection', 'True')
+
         self.write_game_info('_mantella_say_line', 'False')
         self.write_game_info('_mantella_say_line_2', 'False')
         self.write_game_info('_mantella_say_line_3', 'False')
@@ -387,8 +389,13 @@ class GameStateManager:
         # if a new conversation summary file was created, load this latest file
         for character_name, character in active_characters.items():
             conversation_summary_file = character.get_latest_conversation_summary_file_path()
+
         # reload context
-        context = latest_character.set_context(config.prompt, location, in_game_time, active_characters, token_limit)
+        keys = list(active_characters.keys())
+        prompt = config.prompt
+        if len(keys) > 1:
+            prompt = config.multi_npc_prompt
+        context = latest_character.set_context(prompt, location, in_game_time, active_characters, token_limit)
 
         # add previous few back and forths from last conversation
         messages_wo_system_prompt = messages[1:]

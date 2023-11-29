@@ -86,52 +86,36 @@ class Character:
 
         time_group = utils.get_time_group(time)
 
-        # character_desc = prompt.format(
-        #     name=self.name, 
-        #     bio=self.bio, 
-        #     trust=trust, 
-        #     location=location, 
-        #     time=time, 
-        #     time_group=time_group, 
-        #     language=self.language, 
-        #     conversation_summary=conversation_summary
-        # )
         keys = list(active_characters.keys())
 
         # Check if there are more than two keys in the dictionary
-        if len(keys) > 1:
+        if len(keys) == 1:
+            character_desc = prompt.format(
+                name=self.name, 
+                bio=self.bio, 
+                trust=trust, 
+                location=location, 
+                time=time, 
+                time_group=time_group, 
+                language=self.language, 
+                conversation_summary=conversation_summary
+            )
+        else:
             # Join all but the last key with a comma, and add the last key with "and" in front
             character_names_list = ', '.join(keys[:-1]) + ' and ' + keys[-1]
-        else:
-            # If there's only one key, use it directly
-            character_names_list = keys[0] if keys else ''
 
-        # Building the string
-        bio_descriptions = []
-        for character_name, character in active_characters.items():
-            bio_descriptions.append(f"{character_name}: {character.bio}")
+            bio_descriptions = []
+            for character_name, character in active_characters.items():
+                bio_descriptions.append(f"{character_name}: {character.bio}")
 
-        formatted_bios = "\n".join(bio_descriptions)
+            formatted_bios = "\n".join(bio_descriptions)
 
-        conversation_histories = []
-        for character_name, character in active_characters.items():
-            conversation_histories.append(f"{character_name}: {character.conversation_summary}")
+            conversation_histories = []
+            for character_name, character in active_characters.items():
+                conversation_histories.append(f"{character_name}: {character.conversation_summary}")
 
-        formatted_histories = "\n".join(conversation_histories)
-        
-        character_desc = prompt.format(
-            name=self.name, 
-            names=character_names_list,
-            language=self.language,
-            location=location,
-            time=time,
-            time_group=time_group,
-            bios=formatted_bios,
-            conversation_summaries=formatted_histories)
-        
-        prompt_num_tokens = chat_response.num_tokens_from_messages([{"role": "system", "content": character_desc}])
-        prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
-        if prompt_num_tokens > prompt_token_limit:
+            formatted_histories = "\n".join(conversation_histories)
+            
             character_desc = prompt.format(
                 name=self.name, 
                 names=character_names_list,
@@ -140,8 +124,8 @@ class Character:
                 time=time,
                 time_group=time_group,
                 bios=formatted_bios,
-                conversation_summaries='NPC memories not available.')
-            
+                conversation_summaries=formatted_histories)
+        
             prompt_num_tokens = chat_response.num_tokens_from_messages([{"role": "system", "content": character_desc}])
             prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
             if prompt_num_tokens > prompt_token_limit:
@@ -152,8 +136,21 @@ class Character:
                     location=location,
                     time=time,
                     time_group=time_group,
-                    bios='NPC backgrounds not available.',
+                    bios=formatted_bios,
                     conversation_summaries='NPC memories not available.')
+                
+                prompt_num_tokens = chat_response.num_tokens_from_messages([{"role": "system", "content": character_desc}])
+                prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
+                if prompt_num_tokens > prompt_token_limit:
+                    character_desc = prompt.format(
+                        name=self.name, 
+                        names=character_names_list,
+                        language=self.language,
+                        location=location,
+                        time=time,
+                        time_group=time_group,
+                        bios='NPC backgrounds not available.',
+                        conversation_summaries='NPC memories not available.')
         
         logging.info(character_desc)
         context = [{"role": "system", "content": character_desc}]

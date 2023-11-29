@@ -66,6 +66,7 @@ while True:
     character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
     chat_manager.active_character = character
     characters.active_characters[character.name] = character
+    game_state_manager.write_game_info('_mantella_character_selection', 'True')
     # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
     chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
     context = character.set_context(config.prompt, location, in_game_time, characters.active_characters, token_limit)
@@ -110,9 +111,10 @@ while True:
             # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
             chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
             messages_wo_system_prompt = messages[1:]
-            new_context = character.set_context(config.prompt, location, in_game_time, characters.active_characters, token_limit)
+            new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit)
             new_context.extend(messages_wo_system_prompt)
             messages = new_context.copy()
+            game_state_manager.write_game_info('_mantella_character_selection', 'True')
 
         transcript_cleaned = ''
         if conversation_ended.lower() != 'true':

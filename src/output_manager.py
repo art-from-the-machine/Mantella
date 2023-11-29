@@ -224,21 +224,6 @@ class ChatManager:
                             logging.info(f"ChatGPT returned sentence took {time.time() - start_time} seconds to execute")
 
                             keyword_extraction = sentence.strip()[:-1] #.lower()
-                            # if keyword_extraction == self.offended_npc_response.lower():
-                            #     if self.experimental_features:
-                            #         logging.info(f"The player offended the NPC")
-                            #         self.game_state_manager.write_game_info('_mantella_aggro', '1')
-                            #     sentence = ''
-                            # elif keyword_extraction == self.forgiven_npc_response.lower():
-                            #     if self.experimental_features:
-                            #         logging.info(f"The player made up with the NPC")
-                            #         self.game_state_manager.write_game_info('_mantella_aggro', '0')
-                            #     sentence = ''
-                            # elif keyword_extraction == self.follow_npc_response.lower():
-                            #     if self.experimental_features:
-                            #         logging.info(f"The NPC is willing to follow the player")
-                            #         self.game_state_manager.write_game_info('_mantella_aggro', '2')
-                            #     sentence = ''
                             if keyword_extraction in characters.active_characters:
                                 logging.info(f"Switched to {keyword_extraction}")
                                 self.active_character = characters.active_characters[keyword_extraction]
@@ -246,6 +231,21 @@ class ChatManager:
                                 # taking the order of the dictionary to find which say_line to use, but it is bad practice to use dictionaries in this way
                                 self.character_num = list(characters.active_characters.keys()).index(keyword_extraction)
                                 full_reply += sentence
+                                sentence = ''
+                            elif keyword_extraction.lower() == self.offended_npc_response.lower():
+                                if self.experimental_features:
+                                    logging.info(f"The player offended the NPC")
+                                    self.game_state_manager.write_game_info('_mantella_aggro', '1')
+                                sentence = ''
+                            elif keyword_extraction.lower() == self.forgiven_npc_response.lower():
+                                if self.experimental_features:
+                                    logging.info(f"The player made up with the NPC")
+                                    self.game_state_manager.write_game_info('_mantella_aggro', '0')
+                                sentence = ''
+                            elif keyword_extraction.lower() == self.follow_npc_response.lower():
+                                if self.experimental_features:
+                                    logging.info(f"The NPC is willing to follow the player")
+                                    self.game_state_manager.write_game_info('_mantella_aggro', '2')
                                 sentence = ''
                             else:
                                 # Generate the audio and return the audio file path
