@@ -84,7 +84,7 @@ class ChatManager:
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file, subtitle = queue_output
-        self.game_state_manager.write_game_info('_mantella_subtitle', subtitle)
+        self.game_state_manager.write_game_info('_mantella_subtitle', subtitle.strip())
         if self.add_voicelines_to_all_voice_folders == '1':
             for sub_folder in os.scandir(self.mod_folder):
                 if sub_folder.is_dir():
