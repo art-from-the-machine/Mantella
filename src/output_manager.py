@@ -273,7 +273,7 @@ class ChatManager:
                     await openai.aiosession.get().close()
                 break
             except Exception as e:
-                logging.error(f"ChatGPT API Error: {e}")
+                logging.error(f"LLM API Error: {e}")
                 error_response = "I can't find the right words at the moment."
                 audio_file = synthesizer.synthesize(self.active_character.voice_model, None, error_response)
                 self.save_files_to_voice_folders([audio_file, error_response])
