@@ -2,16 +2,25 @@ from faster_whisper import WhisperModel
 import speech_recognition as sr
 import logging
 import src.utils as utils
+import requests
+import json
+import openai
 
 class Transcriber:
     def __init__(self, game_state_manager, config):
         self.game_state_manager = game_state_manager
         self.mic_enabled = config.mic_enabled
-        self.language = config.language
+        self.language = config.stt_language
+        self.task = "transcribe"
+        if config.stt_translate == 1:
+            # translate to English
+            self.task = "translate"
         self.model = config.whisper_model
         self.process_device = config.whisper_process_device
         self.audio_threshold = config.audio_threshold
         self.listen_timeout = config.listen_timeout
+        self.whisper_type = config.whisper_type
+        self.whisper_url = config.whisper_url
 
         self.debug_mode = config.debug_mode
         self.debug_use_mic = config.debug_use_mic
@@ -34,10 +43,12 @@ class Transcriber:
                 self.recognizer.energy_threshold = int(self.audio_threshold)
                 logging.info(f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this value in MantellaSoftware/config.ini. If the mic is picking up too much background noise, try increasing this value.\n")
 
-            if self.process_device == 'cuda':
-                self.transcribe_model = WhisperModel(self.model, device=self.process_device)
-            else:
-                self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
+            # if using faster_whisper, load model selected by player, otherwise skip this step
+            if self.whisper_type == 'faster_whisper':
+                if self.process_device == 'cuda':
+                    self.transcribe_model = WhisperModel(self.model, device=self.process_device)
+                else:
+                    self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
 
 
     def get_player_response(self, say_goodbye):
@@ -98,10 +109,25 @@ class Transcriber:
         """
         @utils.time_it
         def whisper_transcribe(audio):
-            segments, info = self.transcribe_model.transcribe(audio, language=self.language, beam_size=5, vad_filter=True)
-            result_text = ' '.join(segment.text for segment in segments)
+            # if using faster_whisper (default) return based on faster_whisper's code, if not assume player wants to use server mode and send query to whisper_url set by player.
+            if self.whisper_type == 'faster_whisper':
+                segments, info = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=5, vad_filter=True)
+                result_text = ' '.join(segment.text for segment in segments)
 
-            return result_text
+                return result_text
+            # this code queries the whispercpp server set by the user to obtain the response, this format also allows use of official openai whisper API
+            else:
+                url = self.whisper_url
+                if 'openai' in url:
+                    headers = {"Authorization": f"Bearer {openai.api_key}",}
+                else:
+                    headers = {"Authorization": "Bearer apikey",}
+                data = {'model': self.model}
+                files = {'file': open(audio, 'rb')}
+                response = requests.post(url, headers=headers, files=files, data=data)
+                response_data = json.loads(response.text)
+                if 'text' in response_data:
+                    return response_data['text'].strip()
 
         with self.microphone as source:
             try:
@@ -111,7 +137,7 @@ class Transcriber:
 
         audio_file = 'player_recording.wav'
         with open(audio_file, 'wb') as file:
-            file.write(audio.get_wav_data())
+            file.write(audio.get_wav_data(convert_rate=16000))
         
         transcript = whisper_transcribe(audio_file)
         logging.info(transcript)
