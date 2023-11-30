@@ -8,15 +8,16 @@ import asyncio
 import src.output_manager as output_manager
 import src.game_manager as game_manager
 import src.character_manager as character_manager
+import src.characters_manager as characters_manager
 import src.setup as setup
 
-async def get_response(input_text, messages, synthesizer, character):
+async def get_response(input_text, messages, synthesizer, characters):
     sentence_queue = asyncio.Queue()
     event = asyncio.Event()
     event.set()
 
     results = await asyncio.gather(
-        chat_manager.process_response(sentence_queue, input_text, messages, synthesizer, character, event), 
+        chat_manager.process_response(sentence_queue, input_text, messages, synthesizer, characters, event), 
         chat_manager.send_response(sentence_queue, event)
     )
     messages, _ = results
@@ -32,7 +33,7 @@ try:
         language_file='data/language_support.csv'
     )
 
-    mantella_version = '0.9'
+    mantella_version = '0.10'
     logging.info(f'\nMantella v{mantella_version}')
 
     game_state_manager = game_manager.GameStateManager(config.game_path)
@@ -43,6 +44,8 @@ try:
     while True:
         # clear _mantella_ files in Skyrim folder
         character_name, character_id, location, in_game_time = game_state_manager.reset_game_info()
+
+        characters = characters_manager.Characters()
 
         # add hotkey info
         game_state_manager.write_game_info('_mantella_conversation_hotkey', config.hotkey)
@@ -61,15 +64,18 @@ try:
             continue
 
         character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+        chat_manager.active_character = character
+        characters.active_characters[character.name] = character
+        game_state_manager.write_game_info('_mantella_character_selection', 'True')
         # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
         chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
-        context = character.set_context(config.prompt, location, in_game_time)
+        context = character.set_context(config.prompt, location, in_game_time, characters.active_characters, token_limit)
 
         tokens_available = token_limit - chat_response.num_tokens_from_messages(context, model=config.llm)
         
         # initiate conversation with character
         try:
-            messages = asyncio.run(get_response(f"{language_info['hello']} {character.name}.", context, synthesizer, character.info))
+            messages = asyncio.run(get_response(f"{language_info['hello']} {character.name}.", context, synthesizer, characters))
         except tts.VoiceModelNotFound:
             game_state_manager.write_game_info('_mantella_end_conversation', 'True')
             logging.info('Restarting...')
@@ -86,6 +92,37 @@ try:
             with open(f'{config.game_path}/_mantella_end_conversation.txt', 'r', encoding='utf-8') as f:
                 conversation_ended = f.readline().strip()
 
+            with open(f'{config.game_path}/_mantella_actor_count.txt', 'r', encoding='utf-8') as f:
+                num_characters_selected = int(f.readline().strip())
+
+            if num_characters_selected > characters.active_character_count():
+                try:
+                    # load character when data is available
+                    character_info, location, in_game_time, is_generic_npc = game_state_manager.load_game_state(
+                        config.debug_mode, config.debug_character_name, character_df, character_name, character_id, location, in_game_time
+                    )
+                except game_manager.CharacterDoesNotExist:
+                    game_state_manager.write_game_info('_mantella_end_conversation', 'True')
+                    logging.info('Restarting...')
+                    continue
+
+                messages_wo_system_prompt = messages[1:]
+                # add character name before each response to be consistent with the multi-NPC format
+                if characters.active_character_count() == 1:
+                    for message in messages_wo_system_prompt:
+                        if message['role'] == 'assistant':
+                            message['content'] = character.name+': '+message['content']
+
+                character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+                characters.active_characters[character.name] = character
+                # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
+                chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
+                
+                new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit)
+                new_context.extend(messages_wo_system_prompt)
+                messages = new_context.copy()
+                game_state_manager.write_game_info('_mantella_character_selection', 'True')
+
             transcript_cleaned = ''
             if conversation_ended.lower() != 'true':
                 transcribed_text, say_goodbye = transcriber.get_player_response(say_goodbye)
@@ -100,7 +137,7 @@ try:
 
             # check if user is ending conversation
             if (transcriber.activation_name_exists(transcript_cleaned, config.end_conversation_keyword.lower())) or (transcriber.activation_name_exists(transcript_cleaned, 'good bye')) or (conversation_ended.lower() == 'true'):
-                game_state_manager.end_conversation(conversation_ended, config, encoding, synthesizer, chat_manager, messages, character, tokens_available)
+                game_state_manager.end_conversation(conversation_ended, config, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available)
                 break
 
             # Let the player know that they were heard
@@ -113,14 +150,14 @@ try:
 
             # get character's response
             if transcribed_text:
-                messages = asyncio.run(get_response(transcribed_text, messages, synthesizer, character.info))
+                messages = asyncio.run(get_response(transcribed_text, messages, synthesizer, characters))
 
             # if the conversation is becoming too long, save the conversation to memory and reload
             current_conversation_limit_pct = 0.45
             if chat_response.num_tokens_from_messages(messages[1:], model=config.llm) > (round(tokens_available*current_conversation_limit_pct,0)):
-                conversation_summary_file, context, messages = game_state_manager.reload_conversation(config, encoding, synthesizer, chat_manager, messages, character, tokens_available, location, in_game_time)
+                conversation_summary_file, context, messages = game_state_manager.reload_conversation(config, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available, token_limit, location, in_game_time)
                 # continue conversation
-                messages = asyncio.run(get_response(f"{character.info['name']}?", context, synthesizer, character.info))
+                messages = asyncio.run(get_response(f"{character.name}?", context, synthesizer, characters))
 
 except Exception as e:
     try:

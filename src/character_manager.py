@@ -14,8 +14,10 @@ class Character:
         self.language = language
         self.is_generic_npc = is_generic_npc
         self.in_game_voice_model = info['in_game_voice_model']
+        self.voice_model = info['voice_model']
         self.conversation_history_file = f"data/conversations/{self.name}/{self.name}.json"
         self.conversation_summary_file = self.get_latest_conversation_summary_file_path()
+        self.conversation_summary = ''
 
 
     def get_latest_conversation_summary_file_path(self):
@@ -41,7 +43,7 @@ class Character:
         return conversation_summary_file
     
 
-    def set_context(self, prompt, location, in_game_time):
+    def set_context(self, prompt, location, in_game_time, active_characters, token_limit):
         # if conversation history exists, load it
         if os.path.exists(self.conversation_history_file):
             with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
@@ -54,14 +56,16 @@ class Character:
             with open(self.conversation_summary_file, 'r', encoding='utf-8') as f:
                 previous_conversation_summaries = f.read()
 
-            context = self.create_context(prompt, location, in_game_time, len(previous_conversations), previous_conversation_summaries)
+            self.conversation_summary = previous_conversation_summaries
+
+            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit, len(previous_conversations), previous_conversation_summaries)
         else:
-            context = self.create_context(prompt, location, in_game_time)
+            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit)
 
         return context
     
 
-    def create_context(self, prompt, location='Skyrim', time='12', trust_level=0, conversation_summary=''):
+    def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, token_limit=4096, trust_level=0, conversation_summary='', prompt_limit_pct=0.75):
         if self.relationship_rank == 0:
             if trust_level < 1:
                 trust = 'a stranger'
@@ -82,23 +86,79 @@ class Character:
 
         time_group = utils.get_time_group(time)
 
-        character_desc = prompt.format(
-            name=self.name, 
-            bio=self.bio, 
-            trust=trust, 
-            location=location, 
-            time=time, 
-            time_group=time_group, 
-            language=self.language, 
-            conversation_summary=conversation_summary
-        )
+        keys = list(active_characters.keys())
+
+        if len(keys) == 1: # Single NPC prompt
+            character_desc = prompt.format(
+                name=self.name, 
+                bio=self.bio, 
+                trust=trust, 
+                location=location, 
+                time=time, 
+                time_group=time_group, 
+                language=self.language, 
+                conversation_summary=conversation_summary
+            )
+        else: # Multi NPC prompt
+            # Join all but the last key with a comma, and add the last key with "and" in front
+            character_names_list = ', '.join(keys[:-1]) + ' and ' + keys[-1]
+
+            bio_descriptions = []
+            for character_name, character in active_characters.items():
+                bio_descriptions.append(f"{character_name}: {character.bio}")
+
+            formatted_bios = "\n".join(bio_descriptions)
+
+            conversation_histories = []
+            for character_name, character in active_characters.items():
+                conversation_histories.append(f"{character_name}: {character.conversation_summary}")
+
+            formatted_histories = "\n".join(conversation_histories)
+            
+            character_desc = prompt.format(
+                name=self.name, 
+                names=character_names_list,
+                language=self.language,
+                location=location,
+                time=time,
+                time_group=time_group,
+                bios=formatted_bios,
+                conversation_summaries=formatted_histories)
+        
+            prompt_num_tokens = chat_response.num_tokens_from_messages([{"role": "system", "content": character_desc}])
+            prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
+            # If the full prompt is too long, exclude NPC memories from prompt
+            if prompt_num_tokens > prompt_token_limit:
+                character_desc = prompt.format(
+                    name=self.name, 
+                    names=character_names_list,
+                    language=self.language,
+                    location=location,
+                    time=time,
+                    time_group=time_group,
+                    bios=formatted_bios,
+                    conversation_summaries='NPC memories not available.')
+                
+                prompt_num_tokens = chat_response.num_tokens_from_messages([{"role": "system", "content": character_desc}])
+                prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
+                # If the prompt with all bios included is too long, exclude NPC bios and just list the names of NPCs in the conversation
+                if prompt_num_tokens > prompt_token_limit:
+                    character_desc = prompt.format(
+                        name=self.name, 
+                        names=character_names_list,
+                        language=self.language,
+                        location=location,
+                        time=time,
+                        time_group=time_group,
+                        bios='NPC backgrounds not available.',
+                        conversation_summaries='NPC memories not available.')
         
         logging.info(character_desc)
         context = [{"role": "system", "content": character_desc}]
         return context
         
 
-    def save_conversation(self, encoding, messages, tokens_available, llm, summary_limit_pct=0.45):
+    def save_conversation(self, encoding, messages, tokens_available, llm, summary=None, summary_limit_pct=0.45):
         if self.is_generic_npc:
             logging.info('A summary will not be saved for this generic NPC.')
             return None
@@ -132,14 +192,18 @@ class Character:
             os.makedirs(directory, exist_ok=True)
             previous_conversation_summaries = ''
 
-        while True:
-            try:
-                new_conversation_summary = self.summarize_conversation(messages, llm)
-                break
-            except:
-                logging.error('Failed to summarize conversation. Retrying...')
-                time.sleep(5)
-                continue
+        # If summary has not already been generated for another character in a multi NPC conversation (multi NPC memory summaries are shared)
+        if summary == None:
+            while True:
+                try:
+                    new_conversation_summary = self.summarize_conversation(messages, llm)
+                    break
+                except:
+                    logging.error('Failed to summarize conversation. Retrying...')
+                    time.sleep(5)
+                    continue
+        else:
+            new_conversation_summary = summary
         conversation_summaries = previous_conversation_summaries + new_conversation_summary
 
         with open(self.conversation_summary_file, 'w', encoding='utf-8') as f:
@@ -169,7 +233,7 @@ class Character:
             with open(new_conversation_summary_file, 'w', encoding='utf-8') as f:
                 f.write(long_conversation_summary)
         
-        return None
+        return new_conversation_summary
     
 
     def summarize_conversation(self, conversation, llm, prompt=None):

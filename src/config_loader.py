@@ -110,6 +110,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
 
             self.prompt = config['Prompt']['prompt']
+            self.multi_npc_prompt = config['Prompt']['multi_npc_prompt']
             pass
         except Exception as e:
             logging.error('Parameter missing/invalid in config.ini file!')

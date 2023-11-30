@@ -32,6 +32,9 @@ class ChatManager:
         self.experimental_features = config.experimental_features
         self.wait_time_buffer = config.wait_time_buffer
 
+        self.character_num = 0
+        self.active_character = None
+
         self.wav_file = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
         self.lip_file = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
 
@@ -81,18 +84,22 @@ class ChatManager:
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file, subtitle = queue_output
-        self.game_state_manager.write_game_info('_mantella_subtitle', subtitle)
+        self.game_state_manager.write_game_info('_mantella_subtitle', subtitle.strip())
         if self.add_voicelines_to_all_voice_folders == '1':
             for sub_folder in os.scandir(self.mod_folder):
                 if sub_folder.is_dir():
                     shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
                     shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.lip_file}")
         else:
-            shutil.copyfile(audio_file, f"{self.mod_folder}/{self.in_game_voice_model}/{self.wav_file}")
-            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.in_game_voice_model}/{self.lip_file}")
+            shutil.copyfile(audio_file, f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.wav_file}")
+            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.lip_file}")
 
-        self.game_state_manager.write_game_info('_mantella_say_line', 'True')
-
+        logging.info(f"{self.active_character.name} should speak")
+        if self.character_num == 0:
+            self.game_state_manager.write_game_info('_mantella_say_line', 'True')
+        else:
+            say_line_file = '_mantella_say_line_'+str(self.character_num+1)
+            self.game_state_manager.write_game_info(say_line_file, 'True')
 
     @utils.time_it
     def remove_files_from_voice_folders(self):
@@ -184,7 +191,7 @@ class ChatManager:
         return sentence
 
 
-    async def process_response(self, sentence_queue, input_text, messages, synthesizer, character, event):
+    async def process_response(self, sentence_queue, input_text, messages, synthesizer, characters, event):
         """Stream response from LLM one sentence at a time"""
 
         messages.append({"role": "user", "content": input_text})
@@ -216,18 +223,26 @@ class ChatManager:
 
                             logging.info(f"ChatGPT returned sentence took {time.time() - start_time} seconds to execute")
 
-                            keyword_extraction = sentence.strip().lower()[:-1]
-                            if keyword_extraction == self.offended_npc_response.lower():
+                            keyword_extraction = sentence.strip()[:-1] #.lower()
+                            if keyword_extraction in characters.active_characters:
+                                logging.info(f"Switched to {keyword_extraction}")
+                                self.active_character = characters.active_characters[keyword_extraction]
+                                # characters are mapped to say_line based on order of selection
+                                # taking the order of the dictionary to find which say_line to use, but it is bad practice to use dictionaries in this way
+                                self.character_num = list(characters.active_characters.keys()).index(keyword_extraction)
+                                full_reply += sentence
+                                sentence = ''
+                            elif keyword_extraction.lower() == self.offended_npc_response.lower():
                                 if self.experimental_features:
                                     logging.info(f"The player offended the NPC")
                                     self.game_state_manager.write_game_info('_mantella_aggro', '1')
                                 sentence = ''
-                            elif keyword_extraction == self.forgiven_npc_response.lower():
+                            elif keyword_extraction.lower() == self.forgiven_npc_response.lower():
                                 if self.experimental_features:
                                     logging.info(f"The player made up with the NPC")
                                     self.game_state_manager.write_game_info('_mantella_aggro', '0')
                                 sentence = ''
-                            elif keyword_extraction == self.follow_npc_response.lower():
+                            elif keyword_extraction.lower() == self.follow_npc_response.lower():
                                 if self.experimental_features:
                                     logging.info(f"The NPC is willing to follow the player")
                                     self.game_state_manager.write_game_info('_mantella_aggro', '2')
@@ -235,7 +250,7 @@ class ChatManager:
                             else:
                                 # Generate the audio and return the audio file path
                                 try:
-                                    audio_file = synthesizer.synthesize(character['voice_model'], character['skyrim_voice_folder'], ' ' + sentence + ' ')
+                                    audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ')
                                 except Exception as e:
                                     logging.error(f"xVASynth Error: {e}")
 
@@ -258,11 +273,11 @@ class ChatManager:
                     await openai.aiosession.get().close()
                 break
             except Exception as e:
-                logging.error(f"ChatGPT API Error: {e}")
+                logging.error(f"LLM API Error: {e}")
                 error_response = "I can't find the right words at the moment."
-                audio_file = synthesizer.synthesize(character['voice_model'], character['skyrim_voice_folder'], error_response)
+                audio_file = synthesizer.synthesize(self.active_character.voice_model, None, error_response)
                 self.save_files_to_voice_folders([audio_file, error_response])
-                logging.info('Retrying connection to OpenAI...')
+                logging.info('Retrying connection to API...')
                 time.sleep(5)
 
         # Mark the end of the response

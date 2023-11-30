@@ -71,6 +71,10 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
             token_limit = 8192
         elif llm == 'airoboros-l2-70b-2.1':
             token_limit = 4096
+        elif llm == 'gpt-3.5-turbo-1106':
+            token_limit = 16_385
+        elif llm == 'gpt-4-1106-preview':
+            token_limit = 128_000
         else:
             logging.info(f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count} (this number can be changed via the `custom_token_count` setting in config.ini)")
             try:

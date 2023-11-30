@@ -52,13 +52,29 @@ class GameStateManager:
         self.write_game_info('_mantella_in_game_time', '')
         in_game_time = ''
 
+        self.write_game_info('_mantella_active_actors', '')
+
         self.write_game_info('_mantella_in_game_events', '')
 
         self.write_game_info('_mantella_error_check', 'False')
 
         self.write_game_info('_mantella_actor_is_enemy', 'False')
 
+        self.write_game_info('_mantella_actor_relationship', '')
+
+        self.write_game_info('_mantella_character_selection', 'True')
+
         self.write_game_info('_mantella_say_line', 'False')
+        self.write_game_info('_mantella_say_line_2', 'False')
+        self.write_game_info('_mantella_say_line_3', 'False')
+        self.write_game_info('_mantella_say_line_4', 'False')
+        self.write_game_info('_mantella_say_line_5', 'False')
+        self.write_game_info('_mantella_say_line_6', 'False')
+        self.write_game_info('_mantella_say_line_7', 'False')
+        self.write_game_info('_mantella_say_line_8', 'False')
+        self.write_game_info('_mantella_say_line_9', 'False')
+        self.write_game_info('_mantella_say_line_10', 'False')
+        self.write_game_info('_mantella_actor_count', '0')
 
         self.write_game_info('_mantella_player_input', '')
 
@@ -318,18 +334,25 @@ class GameStateManager:
     
     
     @utils.time_it
-    def end_conversation(self, conversation_ended, config, encoding, synthesizer, chat_manager, messages, character, tokens_available):
+    def end_conversation(self, conversation_ended, config, encoding, synthesizer, chat_manager, messages, active_characters, tokens_available):
         """Say final goodbye lines and save conversation to memory"""
 
         # say goodbyes
         if conversation_ended.lower() != 'true': # say line if NPC is not already deactivated
-            audio_file = synthesizer.synthesize(character.info['voice_model'], character.info['skyrim_voice_folder'], config.goodbye_npc_response)
+            latest_character = list(active_characters.items())[-1][1]
+            audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
             chat_manager.save_files_to_voice_folders([audio_file, config.goodbye_npc_response])
 
         messages.append({"role": "user", "content": config.end_conversation_keyword+'.'})
         messages.append({"role": "assistant", "content": config.end_conversation_keyword+'.'})
 
-        character.save_conversation(encoding, messages, tokens_available, config.llm)
+        summary = None
+        for character_name, character in active_characters.items():
+            # If summary has already been generated for another character in a multi NPC conversation (multi NPC memory summaries are shared)
+            if summary == None:
+                summary = character.save_conversation(encoding, messages, tokens_available, config.llm)
+            else:
+                _ = character.save_conversation(encoding, messages, tokens_available, config.llm, summary)
         logging.info('Conversation ended.')
 
         self.write_game_info('_mantella_in_game_events', '')
@@ -340,24 +363,40 @@ class GameStateManager:
     
     
     @utils.time_it
-    def reload_conversation(self, config, encoding, synthesizer, chat_manager, messages, character, tokens_available, location, in_game_time):
+    def reload_conversation(self, config, encoding, synthesizer, chat_manager, messages, active_characters, tokens_available, token_limit, location, in_game_time):
         """Restart conversation to save conversation to memory when token count is reaching its limit"""
 
+        latest_character = list(active_characters.items())[-1][1]
         # let the player know that the conversation is reloading
-        audio_file = synthesizer.synthesize(character.info['voice_model'], character.info['skyrim_voice_folder'], config.collecting_thoughts_npc_response)
+        audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.collecting_thoughts_npc_response)
         chat_manager.save_files_to_voice_folders([audio_file, config.collecting_thoughts_npc_response])
 
-        messages.append({"role": "user", "content": character.info['name']+'?'})
-        messages.append({"role": "assistant", "content": config.collecting_thoughts_npc_response+'.'})
+        messages.append({"role": "user", "content": latest_character.info['name']+'?'})
+        if len(list(active_characters.items())) > 1:
+            collecting_thoughts_response = latest_character.info['name']+': '+config.collecting_thoughts_npc_response+'.'
+        else:
+            collecting_thoughts_response = config.collecting_thoughts_npc_response+'.'
+        messages.append({"role": "assistant", "content": collecting_thoughts_response})
 
         # save the conversation so far
-        character.save_conversation(encoding, messages, tokens_available, config.llm)
+        summary = None
+        for character_name, character in active_characters.items():
+            if summary == None:
+                summary = character.save_conversation(encoding, messages, tokens_available, config.llm)
+            else:
+                _ = character.save_conversation(encoding, messages, tokens_available, config.llm, summary)
         # let the new file register on the system
         time.sleep(1)
         # if a new conversation summary file was created, load this latest file
-        conversation_summary_file = character.get_latest_conversation_summary_file_path()
+        for character_name, character in active_characters.items():
+            conversation_summary_file = character.get_latest_conversation_summary_file_path()
+
         # reload context
-        context = character.set_context(config.prompt, location, in_game_time)
+        keys = list(active_characters.keys())
+        prompt = config.prompt
+        if len(keys) > 1:
+            prompt = config.multi_npc_prompt
+        context = latest_character.set_context(prompt, location, in_game_time, active_characters, token_limit)
 
         # add previous few back and forths from last conversation
         messages_wo_system_prompt = messages[1:]
