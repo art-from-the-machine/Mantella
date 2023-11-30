@@ -88,8 +88,7 @@ class Character:
 
         keys = list(active_characters.keys())
 
-        # Check if there are more than two keys in the dictionary
-        if len(keys) == 1:
+        if len(keys) == 1: # Single NPC prompt
             character_desc = prompt.format(
                 name=self.name, 
                 bio=self.bio, 
@@ -100,7 +99,7 @@ class Character:
                 language=self.language, 
                 conversation_summary=conversation_summary
             )
-        else:
+        else: # Multi NPC prompt
             # Join all but the last key with a comma, and add the last key with "and" in front
             character_names_list = ', '.join(keys[:-1]) + ' and ' + keys[-1]
 
@@ -128,6 +127,7 @@ class Character:
         
             prompt_num_tokens = chat_response.num_tokens_from_messages([{"role": "system", "content": character_desc}])
             prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
+            # If the full prompt is too long, exclude NPC memories from prompt
             if prompt_num_tokens > prompt_token_limit:
                 character_desc = prompt.format(
                     name=self.name, 
@@ -141,6 +141,7 @@ class Character:
                 
                 prompt_num_tokens = chat_response.num_tokens_from_messages([{"role": "system", "content": character_desc}])
                 prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
+                # If the prompt with all bios included is too long, exclude NPC bios and just list the names of NPCs in the conversation
                 if prompt_num_tokens > prompt_token_limit:
                     character_desc = prompt.format(
                         name=self.name, 
@@ -191,6 +192,7 @@ class Character:
             os.makedirs(directory, exist_ok=True)
             previous_conversation_summaries = ''
 
+        # If summary has not already been generated for another character in a multi NPC conversation (multi NPC memory summaries are shared)
         if summary == None:
             while True:
                 try:

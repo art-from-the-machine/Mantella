@@ -348,6 +348,7 @@ class GameStateManager:
 
         summary = None
         for character_name, character in active_characters.items():
+            # If summary has already been generated for another character in a multi NPC conversation (multi NPC memory summaries are shared)
             if summary == None:
                 summary = character.save_conversation(encoding, messages, tokens_available, config.llm)
             else:

@@ -277,7 +277,7 @@ class ChatManager:
                 error_response = "I can't find the right words at the moment."
                 audio_file = synthesizer.synthesize(self.active_character.voice_model, None, error_response)
                 self.save_files_to_voice_folders([audio_file, error_response])
-                logging.info('Retrying connection to OpenAI...')
+                logging.info('Retrying connection to API...')
                 time.sleep(5)
 
         # Mark the end of the response
