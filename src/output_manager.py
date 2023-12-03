@@ -236,16 +236,22 @@ class ChatManager:
                                 if self.experimental_features:
                                     logging.info(f"The player offended the NPC")
                                     self.game_state_manager.write_game_info('_mantella_aggro', '1')
+                                else:
+                                    logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Offended feature")
                                 sentence = ''
                             elif keyword_extraction.lower() == self.forgiven_npc_response.lower():
                                 if self.experimental_features:
                                     logging.info(f"The player made up with the NPC")
                                     self.game_state_manager.write_game_info('_mantella_aggro', '0')
+                                else:
+                                    logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Forgiven feature")
                                 sentence = ''
                             elif keyword_extraction.lower() == self.follow_npc_response.lower():
                                 if self.experimental_features:
                                     logging.info(f"The NPC is willing to follow the player")
                                     self.game_state_manager.write_game_info('_mantella_aggro', '2')
+                                else:
+                                    logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Follow feature")
                                 sentence = ''
                             else:
                                 # Generate the audio and return the audio file path
