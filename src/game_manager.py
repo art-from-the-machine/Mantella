@@ -78,6 +78,16 @@ class GameStateManager:
 
         self.write_game_info('_mantella_player_input', '')
 
+        # The voice model used by the character
+        self.write_game_info('_mantella_actor_voice', '')
+
+        # NPC fights player
+        self.write_game_info('_mantella_aggro', '')
+
+        # Skyrim relation indicator of the NPC with the player (-4 to 4)
+        self.write_game_info('_mantella_actor_relationship', '0')
+
+
         self.write_game_info('_mantella_aggro', '')
 
         return character_name, character_id, location, in_game_time
@@ -281,9 +291,12 @@ class GameStateManager:
 
         in_game_time = self.load_data_when_available('_mantella_in_game_time', in_game_time)
 
-        actor_voice_model = self.load_data_when_available('_mantella_actor_voice', '')
-        actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
-        character_info['in_game_voice_model'] = actor_voice_model_name
+        if debug_mode == '1':
+            character_info['in_game_voice_model'] = character_info['voice_model']
+        else:
+            actor_voice_model = self.load_data_when_available('_mantella_actor_voice', '')
+            actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
+            character_info['in_game_voice_model'] = actor_voice_model_name
 
         actor_relationship_rank = self.load_data_when_available('_mantella_actor_relationship', '')
         try:
