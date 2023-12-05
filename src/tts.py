@@ -97,6 +97,7 @@ class Synthesizer:
             os.remove(final_voiceline_file.replace(".wav", ".lip"))
 
         # Synthesize voicelines
+        self.times_checked_xvasynth = 0
         if len(phrases) == 1:
             self._synthesize_line(phrases[0], final_voiceline_file)
         else:
@@ -220,6 +221,7 @@ class Synthesizer:
 
     @utils.time_it
     def _synthesize_line(self, line, save_path):
+        self.times_checked_xvasynth += 1
         data = {
             'pluginsContext': '{}',
             'modelType': self.model_type,
@@ -232,7 +234,24 @@ class Synthesizer:
             'useSR': self.use_sr,
             'useCleanup': self.use_cleanup,
         }
-        requests.post(self.synthesize_url, json=data)
+
+        try:
+            if (self.times_checked_xvasynth > 10):
+                # break loop
+                logging.error('Could not connect to xVASynth multiple times. Ensure that xVASynth is running and restart Mantella.')
+                input('\nPress any key to stop Mantella...')
+                sys.exit(0)
+
+            # contact local xVASynth server; ~2 second timeout
+            logging.info(f'Attempting to connect to xVASynth... ({self.times_checked_xvasynth})')
+            response = requests.post(self.synthesize_url, json=data)
+            response.raise_for_status()  # If the response contains an HTTP error status code, raise an exception
+        except requests.exceptions.RequestException as err:
+            logging.info(f'xVASynth failed to generate audio... ({self.times_checked_xvasynth})')
+
+            # do the web request again; LOOP!!!
+            return self._synthesize_line(line, save_path)
+
 
 
     @utils.time_it
@@ -339,11 +358,13 @@ class Synthesizer:
         def on_success(r: requests.Response):
             self.switching_to_voice = ''
             if r.status_code == 200:
+                logging.info('Voice model loaded.')
                 self.last_voice = voice
-                if self.queued_voiceline != '':
-                    self.synthesize(voice=voice, voice_folder='', voiceline=self.queued_voiceline);
+                # synthesize a queued voiceline
+                # if (self.queued_voiceline != ''):
+                #     self.synthesize(voice=voice, voice_folder='', voiceline=self.queued_voiceline);
             else:
-                logging.info('Voice model failed to load.')
+                logging.info('Voice model failed to load properly.')
 
         def on_error(ex: Exception):
             self.switching_to_voice = ''

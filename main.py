@@ -76,8 +76,8 @@ try:
         # initiate conversation with character
         try:
             # load in TTS voice model
-            asyncio.run(synthesizer.change_voice(character_info['voice_model']))
             messages = asyncio.run(get_response(f"{language_info['hello']} {character.name}.", context, synthesizer, characters))
+            asyncio.run(synthesizer.change_voice(character_info['voice_model']))
         except tts.VoiceModelNotFound:
             game_state_manager.write_game_info('_mantella_end_conversation', 'True')
             logging.info('Restarting...')
