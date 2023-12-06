@@ -108,15 +108,20 @@ try:
 
                 messages_wo_system_prompt = messages[1:]
                 # add character name before each response to be consistent with the multi-NPC format
-                if characters.active_character_count() == 1:
-                    for message in messages_wo_system_prompt:
-                        if message['role'] == 'assistant':
+                last_assistant_idx = None
+                for idx, message in enumerate(messages_wo_system_prompt):
+                    if message['role'] == 'assistant':
+                        last_assistant_idx = idx
+                        if characters.active_character_count() == 1:
                             message['content'] = character.name+': '+message['content']
 
                 character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
                 characters.active_characters[character.name] = character
                 # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
                 chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
+
+                # add greeting from newly added NPC to help the LLM understand that this NPC has joined the conversation
+                messages_wo_system_prompt[last_assistant_idx]['content'] += f"\n{character.name}: {language_info['hello']}."
                 
                 new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit)
                 new_context.extend(messages_wo_system_prompt)
