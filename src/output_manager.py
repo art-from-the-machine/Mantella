@@ -73,7 +73,7 @@ class ChatManager:
                 if os.path.isfile(source_file_path):
                     shutil.copy(source_file_path, in_game_voice_folder_path)
 
-            self.game_state_manager.write_game_info('_mantella_error_check', 'True')
+            self.game_state_manager.write_game_info('_mantella_status', 'Error with Mantella.exe. Please check MantellaSoftware/logging.log')
             logging.warn("Unknown NPC detected. This NPC will be able to speak once you restart Skyrim. To learn how to add memory, a background, and a voice model of your choosing to this NPC, see here: https://github.com/art-from-the-machine/Mantella#adding-modded-npcs")
             input('\nPress any key to exit...')
             sys.exit(0)

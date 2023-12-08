@@ -85,7 +85,7 @@ class Transcriber:
         Recognize input from mic and return transcript if activation tag (assistant name) exist
         """
         while True:
-            self.game_state_manager.write_game_info('_mantella_listening', 'True')
+            self.game_state_manager.write_game_info('_mantella_status', 'Listening...')
             logging.info('Listening...')
             transcript = self._recognize_speech_from_mic()
             transcript_cleaned = utils.clean_text(transcript)
@@ -98,7 +98,7 @@ class Transcriber:
             if transcript_cleaned in ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much']:
                 continue
 
-            self.game_state_manager.write_game_info('_mantella_thinking', 'True')
+            self.game_state_manager.write_game_info('_mantella_status', 'Thinking...')
             return transcript
     
 
