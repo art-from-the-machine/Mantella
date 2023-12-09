@@ -91,22 +91,22 @@ class GameStateManager:
     def write_dummy_game_info(self, character_name, character_df):
         """Write fake data to game files when debugging"""
         logging.info(f'Writing dummy game status for debugging character {character_name}')
+        actor_sex = random.choice(['Female','Male'])
+        actor_race = random.choice(['ArgonianRace','BretonRace','DarkElfRace','HighElfRace','ImperialRace','KhajiitRace','NordRace','OrcRace','RedguardRace','WoodElfRace'])
+        try:
+            actor_sex = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'gender'].values[0]
+        except:
+            pass
+        try:
+            actor_race = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'race'].values[0]
+        except:
+            pass
+        self.write_game_info('_mantella_actor_race', f'<{actor_race}')
+        self.write_game_info('_mantella_actor_sex', actor_sex)
         voice_model = random.choice(['Female Nord', 'Male Nord'])
         try: # search for voice model in skyrim_characters.csv
             voice_model = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'voice_model'].values[0]
         except: # guess voice model based on sex and race
-            actor_sex = random.choice(['Female','Male'])
-            actor_race = random.choice(['ArgonianRace','BretonRace','DarkElfRace','HighElfRace','ImperialRace','KhajiitRace','NordRace','OrcRace','RedguardRace','WoodElfRace'])
-            try:
-                actor_sex = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'gender'].values[0]
-            except:
-                pass
-            try:
-                actor_race = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'race'].values[0]
-            except:
-                pass
-            self.write_game_info('_mantella_actor_race', f'<{actor_race}')
-            self.write_game_info('_mantella_actor_sex', actor_sex)
             if actor_sex == 'Female':
                 try:
                     voice_model = _female_voice_models[actor_race]
