@@ -11,3 +11,4 @@ soundfile==0.12.1
 numpy==1.25.0
 scipy==1.11.1
 charset-normalizer==3.2.0
+chromadb==0.4.18
