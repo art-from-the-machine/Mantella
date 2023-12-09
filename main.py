@@ -1,3 +1,4 @@
+import traceback
 import src.tts as tts
 import src.stt as stt
 import src.chat_response as chat_response
@@ -176,5 +177,5 @@ except Exception as e:
     except:
         None
 
-    logging.error(f"Error: {e}")
+    logging.error("".join(traceback.format_exception(e)))
     input("Press Enter to exit.")
