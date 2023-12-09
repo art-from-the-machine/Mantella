@@ -73,7 +73,7 @@ class ChatManager:
                 if os.path.isfile(source_file_path):
                     shutil.copy(source_file_path, in_game_voice_folder_path)
 
-            self.game_state_manager.write_game_info('_mantella_error_check', 'True')
+            self.game_state_manager.write_game_info('_mantella_status', 'Error with Mantella.exe. Please check MantellaSoftware/logging.log')
             logging.warn("Unknown NPC detected. This NPC will be able to speak once you restart Skyrim. To learn how to add memory, a background, and a voice model of your choosing to this NPC, see here: https://github.com/art-from-the-machine/Mantella#adding-modded-npcs")
             input('\nPress any key to exit...')
             sys.exit(0)
@@ -84,7 +84,6 @@ class ChatManager:
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file, subtitle = queue_output
-        self.game_state_manager.write_game_info('_mantella_subtitle', subtitle.strip())
         if self.add_voicelines_to_all_voice_folders == '1':
             for sub_folder in os.scandir(self.mod_folder):
                 if sub_folder.is_dir():
@@ -96,10 +95,10 @@ class ChatManager:
 
         logging.info(f"{self.active_character.name} should speak")
         if self.character_num == 0:
-            self.game_state_manager.write_game_info('_mantella_say_line', 'True')
+            self.game_state_manager.write_game_info('_mantella_say_line', subtitle.strip())
         else:
             say_line_file = '_mantella_say_line_'+str(self.character_num+1)
-            self.game_state_manager.write_game_info(say_line_file, 'True')
+            self.game_state_manager.write_game_info(say_line_file, subtitle.strip())
 
     @utils.time_it
     def remove_files_from_voice_folders(self):

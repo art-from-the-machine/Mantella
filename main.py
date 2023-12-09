@@ -166,7 +166,7 @@ try:
 
 except Exception as e:
     try:
-        game_state_manager.write_game_info('_mantella_error_check', 'True')
+        game_state_manager.write_game_info('_mantella_status', 'Error with Mantella.exe. Please check MantellaSoftware/logging.log')
     except:
         None
 
