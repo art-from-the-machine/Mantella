@@ -2,11 +2,13 @@ import os
 import logging
 import json
 import time
+import uuid
 import src.utils as utils
 import src.chat_response as chat_response
+import src.memory_manager as memory_manager
 
 class Character:
-    def __init__(self, info, language, is_generic_npc):
+    def __init__(self, info, language, is_generic_npc, memory: memory_manager.Memory):
         self.info = info
         self.name = info['name']
         self.bio = info['bio']
@@ -18,6 +20,17 @@ class Character:
         self.conversation_history_file = f"data/conversations/{self.name}/{self.name}.json"
         self.conversation_summary_file = self.get_latest_conversation_summary_file_path()
         self.conversation_summary = ''
+        self.memory = memory
+
+    def get_number_of_past_conversations(self): 
+        """Get number of past conversations with character"""
+        if os.path.exists(f"data/conversations/{self.name}"):
+            # get all files from the directory
+            files = os.listdir(f"data/conversations/{self.name}")
+            # filter only .txt files
+            txt_files = [f for f in files if f.endswith('.txt')]
+            return len(txt_files)
+        return 0
 
 
     def get_latest_conversation_summary_file_path(self):
@@ -43,7 +56,7 @@ class Character:
         return conversation_summary_file
     
 
-    def set_context(self, prompt, location, in_game_time, active_characters, token_limit):
+    def set_context(self, prompt, location, in_game_time, active_characters, token_limit, convo_id):
         # if conversation history exists, load it
         if os.path.exists(self.conversation_history_file):
             with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
@@ -58,31 +71,24 @@ class Character:
 
             self.conversation_summary = previous_conversation_summaries
 
-            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit, len(previous_conversations), previous_conversation_summaries)
+            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit, len(previous_conversations), previous_conversation_summaries, convo_id=convo_id)
         else:
-            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit)
+            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit, convo_id)
 
         return context
     
 
-    def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, token_limit=4096, trust_level=0, conversation_summary='', prompt_limit_pct=0.75):
-        if self.relationship_rank == 0:
-            if trust_level < 1:
-                trust = 'a stranger'
-            elif trust_level < 10:
-                trust = 'an acquaintance'
-            elif trust_level < 50:
-                trust = 'a friend'
-            elif trust_level >= 50:
-                trust = 'a close friend'
-        elif self.relationship_rank == 4:
-            trust = 'a lover'
-        elif self.relationship_rank > 0:
-            trust = 'a friend'
-        elif self.relationship_rank < 0:
-            trust = 'an enemy'
+    def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, token_limit=4096, trust_level=0, conversation_summary='', prompt_limit_pct=0.75, convo_id=uuid.uuid4()):
+        trust = utils.get_trust_desc(trust_level, self.relationship_rank)
         if len(conversation_summary) > 0:
             conversation_summary = f"Below is a summary for each of your previous conversations:\n\n{conversation_summary}"
+            memories = []
+        
+        memories = self.memory.recall(convo_id, self.info, location, time, trust)
+        memory_str = ''
+        if memories is not None and len(memories) > 0:
+            memory_str = "Below are your memories of past interactions:\n\n%s" % "\n\n".join(memories[0])
+            conversation_summary = ""
 
         time_group = utils.get_time_group(time)
 
@@ -97,7 +103,8 @@ class Character:
                 time=time, 
                 time_group=time_group, 
                 language=self.language, 
-                conversation_summary=conversation_summary
+                conversation_summary=conversation_summary,
+                memories=memory_str
             )
         else: # Multi NPC prompt
             # Join all but the last key with a comma, and add the last key with "and" in front
@@ -156,7 +163,6 @@ class Character:
         logging.info(character_desc)
         context = [{"role": "system", "content": character_desc}]
         return context
-        
 
     def save_conversation(self, encoding, messages, tokens_available, llm, summary=None, summary_limit_pct=0.45):
         if self.is_generic_npc:

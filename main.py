@@ -1,4 +1,5 @@
 import traceback
+import uuid
 import src.tts as tts
 import src.stt as stt
 import src.chat_response as chat_response
@@ -11,6 +12,7 @@ import src.game_manager as game_manager
 import src.character_manager as character_manager
 import src.characters_manager as characters_manager
 import src.setup as setup
+import src.memory_manager as memory_manager
 import argparse
 
 async def get_response(input_text, messages, synthesizer, characters):
@@ -44,6 +46,9 @@ try:
     logging.info(f'\nMantella v{mantella_version}')
 
     game_state_manager = game_manager.GameStateManager(config.game_path)
+    
+    memory = memory_manager.Memory(config)
+
     chat_manager = output_manager.ChatManager(game_state_manager, config, encoding)
     transcriber = stt.Transcriber(game_state_manager, config)
     synthesizer = tts.Synthesizer(config)
@@ -53,6 +58,8 @@ try:
         character_name, character_id, location, in_game_time = game_state_manager.reset_game_info()
 
         characters = characters_manager.Characters()
+
+        convo_id = uuid.uuid4().hex
 
         # add hotkey info
         game_state_manager.write_game_info('_mantella_conversation_hotkey', config.hotkey)
@@ -70,13 +77,13 @@ try:
             logging.info('Restarting...')
             continue
 
-        character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+        character = character_manager.Character(character_info, language_info['language'], is_generic_npc, memory)
         chat_manager.active_character = character
         characters.active_characters[character.name] = character
         game_state_manager.write_game_info('_mantella_character_selection', 'True')
         # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
         chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
-        context = character.set_context(config.prompt, location, in_game_time, characters.active_characters, token_limit)
+        context = character.set_context(config.prompt, location, in_game_time, characters.active_characters, token_limit, convo_id)
 
         tokens_available = token_limit - chat_response.num_tokens_from_messages(context, model=config.llm)
         
@@ -101,7 +108,7 @@ try:
 
             with open(f'{config.game_path}/_mantella_actor_count.txt', 'r', encoding='utf-8') as f:
                 num_characters_selected = int(f.readline().strip())
-
+            
             if num_characters_selected > characters.active_character_count():
                 try:
                     # load character when data is available
@@ -122,15 +129,14 @@ try:
                         if characters.active_character_count() == 1:
                             message['content'] = character.name+': '+message['content']
 
-                character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+                character = character_manager.Character(character_info, language_info['language'], is_generic_npc, memory)
                 characters.active_characters[character.name] = character
                 # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
                 chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
 
                 # add greeting from newly added NPC to help the LLM understand that this NPC has joined the conversation
                 messages_wo_system_prompt[last_assistant_idx]['content'] += f"\n{character.name}: {language_info['hello']}."
-                
-                new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit)
+                new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit, convo_id)
                 new_context.extend(messages_wo_system_prompt)
                 messages = new_context.copy()
                 game_state_manager.write_game_info('_mantella_character_selection', 'True')
@@ -142,6 +148,15 @@ try:
                 game_state_manager.write_game_info('_mantella_player_input', transcribed_text)
 
                 transcript_cleaned = utils.clean_text(transcribed_text)
+
+            relationship = utils.get_trust_desc(character.get_number_of_past_conversations(), character.relationship_rank) 
+            last_character_comment = ''
+            if len(messages) > 0:
+                for _, message in enumerate(messages):
+                    if message['role'] == 'assistant':
+                        last_character_comment = message['content']
+            memory.memorize(character_info=character_info, convo_id=convo_id, location=location, relationship=relationship, time=in_game_time, character_comment=last_character_comment, player_comment=transcript_cleaned)
+            memories = memory.recall(character_info=character_info, convo_id=convo_id, location=location, relationship=relationship, time=in_game_time, player_comment=transcript_cleaned)
 
             # check if conversation has ended again after player input
             with open(f'{config.game_path}/_mantella_end_conversation.txt', 'r', encoding='utf-8') as f:

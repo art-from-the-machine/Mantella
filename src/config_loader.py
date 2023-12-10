@@ -109,6 +109,12 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
             self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
 
+            self.vector_memory_enabled = config['VectorMemory']['vector_memory_enabled']
+            self.vector_memory_db_path = config['VectorMemory']['db_path']
+            self.vector_memory_db_host = config['VectorMemory']['db_host']
+            self.vector_memory_db_port = config['VectorMemory']['db_port']
+            self.vector_memory_chromadb_c_s = config['VectorMemory']['chromadb_client_server']
+
             self.prompt = config['Prompt']['prompt']
             self.multi_npc_prompt = config['Prompt']['multi_npc_prompt']
             pass
