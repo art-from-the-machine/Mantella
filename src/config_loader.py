@@ -53,6 +53,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.offended_npc_response = config['Language']['offended_npc_response']
             self.forgiven_npc_response = config['Language']['forgiven_npc_response']
             self.follow_npc_response = config['Language']['follow_npc_response']
+            self.player_speaks_first = bool(int(config['Language']['player_speaks_first']))
 
             self.game_path = config['Paths']['skyrim_folder']
             self.xvasynth_path = config['Paths']['xvasynth_folder']

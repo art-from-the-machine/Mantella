@@ -40,7 +40,8 @@ try:
     chat_manager = output_manager.ChatManager(game_state_manager, config, encoding)
     transcriber = stt.Transcriber(game_state_manager, config)
     synthesizer = tts.Synthesizer(config)
-
+    # check if player speaks first option is true (1) or false (0, default) to determine how to initiate chat
+    player_speaks_first = config.player_speaks_first
     while True:
         # clear _mantella_ files in Skyrim folder
         character_name, character_id, location, in_game_time = game_state_manager.reset_game_info()
@@ -72,21 +73,23 @@ try:
         context = character.set_context(config.prompt, location, in_game_time, characters.active_characters, token_limit)
 
         tokens_available = token_limit - chat_response.num_tokens_from_messages(context, model=config.llm)
-        
-        # initiate conversation with character
-        try:
-            messages = asyncio.run(get_response(f"{language_info['hello']} {character.name}.", context, synthesizer, characters))
-        except tts.VoiceModelNotFound:
-            game_state_manager.write_game_info('_mantella_end_conversation', 'True')
-            logging.info('Restarting...')
-            # if debugging and character name not found, exit here to avoid endless loop
-            if (config.debug_mode == '1') & (config.debug_character_name != 'None'):
-                sys.exit(0)
-            continue
-
+        messages = []
+        # if player_speaks_first is false, then use default mantella chat behavior
+        if player_speaks_first == False:
+            try:
+                messages = asyncio.run(get_response(f"{language_info['hello']} {character.name}.", context, synthesizer, characters))
+            except tts.VoiceModelNotFound:
+                game_state_manager.write_game_info('_mantella_end_conversation', 'True')
+                logging.info('Restarting...')
+                # if debugging and character name not found, exit here to avoid endless loop
+                if (config.debug_mode == '1') & (config.debug_character_name != 'None'):
+                    sys.exit(0)
+                continue
         # debugging variable
         say_goodbye = False
-        
+        # keep track of whether first contact with NPC for player initiated conversation option
+        first_contact = True
+
         # start back and forth conversation loop until conversation ends
         while True:
             with open(f'{config.game_path}/_mantella_end_conversation.txt', 'r', encoding='utf-8') as f:
@@ -155,8 +158,22 @@ try:
 
             # get character's response
             if transcribed_text:
-                messages = asyncio.run(get_response(transcribed_text, messages, synthesizer, characters))
-
+                # default behavior or behavior when not first time speaking to NPC and player speaks first is active
+                if player_speaks_first == False or first_contact == False:
+                    messages = asyncio.run(get_response(transcribed_text, messages, synthesizer, characters))
+                # if player speaks first option is active and first contact, send context, if not, don't.
+                else:
+                    first_contact = False
+                    try:
+                        messages = asyncio.run(get_response(transcribed_text, context, synthesizer, characters)) 
+                    except tts.VoiceModelNotFound:
+                        game_state_manager.write_game_info('_mantella_end_conversation', 'True')
+                        logging.info('Restarting...')
+                        # if debugging and character name not found, exit here to avoid endless loop
+                        if (config.debug_mode == '1') & (config.debug_character_name != 'None'):
+                            sys.exit(0)
+                        continue
+                    
             # if the conversation is becoming too long, save the conversation to memory and reload
             current_conversation_limit_pct = 0.45
             if chat_response.num_tokens_from_messages(messages[1:], model=config.llm) > (round(tokens_available*current_conversation_limit_pct,0)):
