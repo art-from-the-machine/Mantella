@@ -4,6 +4,7 @@ import src.chat_response as chat_response
 import logging
 import src.utils as utils
 import sys
+import os
 import asyncio
 import src.output_manager as output_manager
 import src.game_manager as game_manager
@@ -36,6 +37,13 @@ try:
     mantella_version = '0.10'
     logging.info(f'\nMantella v{mantella_version}')
 
+    # Check if the mic setting has been configured in MCM
+    # If it has, use this instead of the config.ini setting, otherwise take the config.ini value
+    if os.path.exists(f'{config.game_path}/_mantella_microphone_enabled.txt'):
+        with open(f'{config.game_path}/_mantella_microphone_enabled.txt', 'r', encoding='utf-8') as f:
+            mcm_mic_enabled = f.readline().strip()
+        config.mic_enabled = '1' if mcm_mic_enabled == 'TRUE' else '0'
+
     game_state_manager = game_manager.GameStateManager(config.game_path)
     chat_manager = output_manager.ChatManager(game_state_manager, config, encoding)
     transcriber = stt.Transcriber(game_state_manager, config)
@@ -46,10 +54,6 @@ try:
         character_name, character_id, location, in_game_time = game_state_manager.reset_game_info()
 
         characters = characters_manager.Characters()
-
-        # add hotkey info
-        game_state_manager.write_game_info('_mantella_conversation_hotkey', config.hotkey)
-        game_state_manager.write_game_info('_mantella_response_timer', config.textbox_timer)
 
         logging.info('\nConversations not starting when you select an NPC? See here:\nhttps://github.com/art-from-the-machine/Mantella#issues-qa')
         logging.info('\nWaiting for player to select an NPC...')
