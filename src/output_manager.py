@@ -209,7 +209,7 @@ class ChatManager:
                     if content is not None:
                         sentence += content
                         # Check for the last occurrence of sentence-ending punctuation
-                        last_punctuation = max(sentence.rfind('.'), sentence.rfind('!'), sentence.rfind('?'))
+                        last_punctuation = max(sentence.rfind('.'), sentence.rfind('!'), sentence.rfind(':'), sentence.rfind('?'))
                         if last_punctuation != -1:
                             # Split the sentence at the last punctuation mark
                             remaining_content = sentence[last_punctuation + 1:]
