@@ -222,6 +222,9 @@ This happens when your antivirus is blocking Mantella.exe from working. Please a
 ### Cannot start new conversation after ending previous conversation (conversation ended message)
 You might need to say something in the mic for Mantella.exe to realise that the conversation has ended (while it is on "Listening..." it does not look out for the conversation ending). The exe will check if the conversation has ended after 30 seconds by default. You can change this via the `listen_timeout`` setting in MantellaSoftware/config.ini, but just keep in mind if it is too short this will effect conversations as the exe will occasionally stop listening for mic input to check if the conversation has ended
 
+### RuntimeWarning: Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work
+xVASynth related warning when started by Mantella. Thus far has not impacted Mantella so it can be safely ignored.
+
 
 # Adding Modded NPCs
 Mantella allows you to talk to any NPC. If you cast the Mantella spell on an unknown / modded NPC, a message will display in Mantella.exe asking you to restart Skyrim. Once this is done, the NPC will be able to speak to you. 
