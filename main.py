@@ -4,6 +4,7 @@ import src.chat_response as chat_response
 import logging
 import src.utils as utils
 import sys
+import os
 import asyncio
 import src.output_manager as output_manager
 import src.game_manager as game_manager
@@ -11,13 +12,13 @@ import src.character_manager as character_manager
 import src.characters_manager as characters_manager
 import src.setup as setup
 
-async def get_response(input_text, messages, synthesizer, characters):
+async def get_response(input_text, messages, synthesizer, characters, radiant_dialogue):
     sentence_queue = asyncio.Queue()
     event = asyncio.Event()
     event.set()
 
     results = await asyncio.gather(
-        chat_manager.process_response(sentence_queue, input_text, messages, synthesizer, characters, event), 
+        chat_manager.process_response(sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event), 
         chat_manager.send_response(sentence_queue, event)
     )
     messages, _ = results
@@ -36,6 +37,13 @@ try:
     mantella_version = '0.10'
     logging.info(f'\nMantella v{mantella_version}')
 
+    # Check if the mic setting has been configured in MCM
+    # If it has, use this instead of the config.ini setting, otherwise take the config.ini value
+    if os.path.exists(f'{config.game_path}/_mantella_microphone_enabled.txt'):
+        with open(f'{config.game_path}/_mantella_microphone_enabled.txt', 'r', encoding='utf-8') as f:
+            mcm_mic_enabled = f.readline().strip()
+        config.mic_enabled = '1' if mcm_mic_enabled == 'TRUE' else '0'
+
     game_state_manager = game_manager.GameStateManager(config.game_path)
     chat_manager = output_manager.ChatManager(game_state_manager, config, encoding)
     transcriber = stt.Transcriber(game_state_manager, config)
@@ -46,10 +54,7 @@ try:
         character_name, character_id, location, in_game_time = game_state_manager.reset_game_info()
 
         characters = characters_manager.Characters()
-
-        # add hotkey info
-        game_state_manager.write_game_info('_mantella_conversation_hotkey', config.hotkey)
-        game_state_manager.write_game_info('_mantella_response_timer', config.textbox_timer)
+        transcriber.call_count = 0 # reset radiant back and forth count
 
         logging.info('\nConversations not starting when you select an NPC? See here:\nhttps://github.com/art-from-the-machine/Mantella#issues-qa')
         logging.info('\nWaiting for player to select an NPC...')
@@ -69,22 +74,27 @@ try:
         game_state_manager.write_game_info('_mantella_character_selection', 'True')
         # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
         chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
-        context = character.set_context(config.prompt, location, in_game_time, characters.active_characters, token_limit)
+
+        with open(f'{config.game_path}/_mantella_radiant_dialogue.txt', 'r', encoding='utf-8') as f:
+            radiant_dialogue = f.readline().strip().lower()
+            conversation_started_radiant = radiant_dialogue
+        
+        context = character.set_context(config.prompt, location, in_game_time, characters.active_characters, token_limit, radiant_dialogue)
 
         tokens_available = token_limit - chat_response.num_tokens_from_messages(context, model=config.llm)
-
-        # initiate conversation with character
-        try:
-            # load in TTS voice model
-            messages = asyncio.run(get_response(f"{language_info['hello']} {character.name}.", context, synthesizer, characters))
-            asyncio.run(synthesizer.change_voice(character_info['voice_model']))
-        except tts.VoiceModelNotFound:
-            game_state_manager.write_game_info('_mantella_end_conversation', 'True')
-            logging.info('Restarting...')
-            # if debugging and character name not found, exit here to avoid endless loop
-            if (config.debug_mode == '1') & (config.debug_character_name != 'None'):
-                sys.exit(0)
-            continue
+        
+        messages = context.copy()
+        if radiant_dialogue == "false":
+            # initiate conversation with character
+            try:
+                messages = asyncio.run(get_response(f"{language_info['hello']} {character.name}.", context, synthesizer, characters, radiant_dialogue))
+            except tts.VoiceModelNotFound:
+                game_state_manager.write_game_info('_mantella_end_conversation', 'True')
+                logging.info('Restarting...')
+                # if debugging and character name not found, exit here to avoid endless loop
+                if (config.debug_mode == '1') & (config.debug_character_name != 'None'):
+                    sys.exit(0)
+                continue
 
         # debugging variable
         say_goodbye = False
@@ -95,8 +105,12 @@ try:
                 conversation_ended = f.readline().strip()
 
             with open(f'{config.game_path}/_mantella_actor_count.txt', 'r', encoding='utf-8') as f:
-                num_characters_selected = int(f.readline().strip())
+                try:
+                    num_characters_selected = int(f.readline().strip())
+                except:
+                    logging.info('Failed to read _mantella_actor_count.txt')
 
+            # check if new character has been added to conversation
             if num_characters_selected > characters.active_character_count():
                 try:
                     # load character when data is available
@@ -110,60 +124,87 @@ try:
 
                 messages_wo_system_prompt = messages[1:]
                 # add character name before each response to be consistent with the multi-NPC format
-                if characters.active_character_count() == 1:
-                    for message in messages_wo_system_prompt:
-                        if message['role'] == 'assistant':
+                last_assistant_idx = None
+                for idx, message in enumerate(messages_wo_system_prompt):
+                    if message['role'] == 'assistant':
+                        last_assistant_idx = idx
+                        if characters.active_character_count() == 1:
                             message['content'] = character.name+': '+message['content']
 
                 character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
                 characters.active_characters[character.name] = character
                 # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
                 chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
+
+                # if not radiant dialogue format
+                if radiant_dialogue == "false":
+                    # add greeting from newly added NPC to help the LLM understand that this NPC has joined the conversation
+                    messages_wo_system_prompt[last_assistant_idx]['content'] += f"\n{character.name}: {language_info['hello']}."
                 
-                new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit)
-                new_context.extend(messages_wo_system_prompt)
+                new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit, radiant_dialogue)
+
+                # if not radiant dialogue format
+                if radiant_dialogue == "false":
+                    new_context.extend(messages_wo_system_prompt)
+                    new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit, radiant_dialogue)
+
                 messages = new_context.copy()
                 game_state_manager.write_game_info('_mantella_character_selection', 'True')
+            
+            # if radiant dialogue, do not run the conversation until all NPCs are loaded (ie actor count > 1)
+            if (characters.active_character_count() > 1) or (radiant_dialogue == "false"):
+                # if the conversation was initially radiant but now the player is jumping in, reset the system prompt to include player
+                if (radiant_dialogue == "false") and (conversation_started_radiant == "true"):
+                    conversation_started_radiant = "false"
+                    messages_wo_system_prompt = messages[1:]
 
-            transcript_cleaned = ''
-            if conversation_ended.lower() != 'true':
-                transcribed_text, say_goodbye = transcriber.get_player_response(say_goodbye)
+                # check if radiant dialogue has switched to multi NPC
+                with open(f'{config.game_path}/_mantella_radiant_dialogue.txt', 'r', encoding='utf-8') as f:
+                    radiant_dialogue = f.readline().strip().lower()
+                
+                transcript_cleaned = ''
+                transcribed_text = None
+                if conversation_ended.lower() != 'true':
+                    transcribed_text, say_goodbye = transcriber.get_player_response(say_goodbye, radiant_dialogue)
 
-                game_state_manager.write_game_info('_mantella_player_input', transcribed_text)
+                    game_state_manager.write_game_info('_mantella_player_input', transcribed_text)
 
-                transcript_cleaned = utils.clean_text(transcribed_text)
+                    transcript_cleaned = utils.clean_text(transcribed_text)
 
-            # check if conversation has ended again after player input
-            with open(f'{config.game_path}/_mantella_end_conversation.txt', 'r', encoding='utf-8') as f:
-                conversation_ended = f.readline().strip()
+                    # if multi NPC conversation, add "Player:" to beginning of output to clarify to the LLM who is speaking
+                    if (characters.active_character_count() > 1) and (radiant_dialogue != "true"):
+                        transcribed_text = 'Player: ' + transcribed_text
+                    # add in-game events to player's response
+                    transcribed_text = game_state_manager.update_game_events(transcribed_text)
+                    logging.info(f"Text passed to NPC: {transcribed_text}")
 
-            # check if user is ending conversation
-            if (transcriber.activation_name_exists(transcript_cleaned, config.end_conversation_keyword.lower())) or (transcriber.activation_name_exists(transcript_cleaned, 'good bye')) or (conversation_ended.lower() == 'true'):
-                game_state_manager.end_conversation(conversation_ended, config, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available)
-                break
+                # check if conversation has ended again after player input
+                with open(f'{config.game_path}/_mantella_end_conversation.txt', 'r', encoding='utf-8') as f:
+                    conversation_ended = f.readline().strip()
 
-            # Let the player know that they were heard
-            #audio_file = synthesizer.synthesize(character.info['voice_model'], character.info['skyrim_voice_folder'], 'Beep boop. Let me think.')
-            #chat_manager.save_files_to_voice_folders([audio_file, 'Beep boop. Let me think.'])
+                # check if user is ending conversation
+                if (transcriber.activation_name_exists(transcript_cleaned, config.end_conversation_keyword.lower())) or (transcriber.activation_name_exists(transcript_cleaned, 'good bye')) or (conversation_ended.lower() == 'true'):
+                    game_state_manager.end_conversation(conversation_ended, config, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available)
+                    break
 
-            # add in-game events to player's response
-            transcribed_text = game_state_manager.update_game_events(transcribed_text)
-            logging.info(f"Text passed to NPC: {transcribed_text}")
+                # Let the player know that they were heard
+                #audio_file = synthesizer.synthesize(character.info['voice_model'], character.info['skyrim_voice_folder'], 'Beep boop. Let me think.')
+                #chat_manager.save_files_to_voice_folders([audio_file, 'Beep boop. Let me think.'])
 
-            # get character's response
-            if transcribed_text:
-                messages = asyncio.run(get_response(transcribed_text, messages, synthesizer, characters))
+                # get character's response
+                if transcribed_text:
+                    messages = asyncio.run(get_response(transcribed_text, messages, synthesizer, characters, radiant_dialogue))
 
-            # if the conversation is becoming too long, save the conversation to memory and reload
-            current_conversation_limit_pct = 0.45
-            if chat_response.num_tokens_from_messages(messages[1:], model=config.llm) > (round(tokens_available*current_conversation_limit_pct,0)):
-                conversation_summary_file, context, messages = game_state_manager.reload_conversation(config, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available, token_limit, location, in_game_time)
-                # continue conversation
-                messages = asyncio.run(get_response(f"{character.name}?", context, synthesizer, characters))
+                # if the conversation is becoming too long, save the conversation to memory and reload
+                current_conversation_limit_pct = 0.45
+                if chat_response.num_tokens_from_messages(messages[1:], model=config.llm) > (round(tokens_available*current_conversation_limit_pct,0)):
+                    conversation_summary_file, context, messages = game_state_manager.reload_conversation(config, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available, token_limit, location, in_game_time)
+                    # continue conversation
+                    messages = asyncio.run(get_response(f"{character.name}?", context, synthesizer, characters, radiant_dialogue))
 
 except Exception as e:
     try:
-        game_state_manager.write_game_info('_mantella_error_check', 'True')
+        game_state_manager.write_game_info('_mantella_status', 'Error with Mantella.exe. Please check MantellaSoftware/logging.log')
     except:
         None
 

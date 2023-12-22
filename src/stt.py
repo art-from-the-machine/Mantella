@@ -28,6 +28,8 @@ class Transcriber:
         self.debug_exit_on_first_exchange = config.debug_exit_on_first_exchange
         self.end_conversation_keyword = config.end_conversation_keyword
 
+        self.call_count = 0
+
         if self.mic_enabled == '1':
             self.recognizer = sr.Recognizer()
             self.recognizer.pause_threshold = config.pause_threshold
@@ -51,8 +53,21 @@ class Transcriber:
                     self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
 
 
-    def get_player_response(self, say_goodbye):
-        if (self.debug_mode == '1') & (self.debug_use_mic == '0'):
+    def get_player_response(self, say_goodbye, radiant_dialogue="false"):
+        if radiant_dialogue == "true":
+            if self.call_count < 1:
+                logging.info('Running radiant dialogue')
+                transcribed_text = '*Please begin / continue a conversation topic (greetings are not needed). Ensure to change the topic if the current one is losing steam. The conversation should steer towards topics which reveal information about the characters and who they are, or instead drive forward conversations previously discussed in their memory.*'
+                self.call_count += 1
+            elif self.call_count <= 1:
+                logging.info('Ending radiant dialogue')
+                transcribed_text = '*Please wrap up the current topic between the NPCs in a natural way. Nobody is leaving, so no formal goodbyes.*'
+                self.call_count += 1
+            else:
+                logging.info('Radiant dialogue ended')
+                transcribed_text = self.end_conversation_keyword
+                self.call_count = 0
+        elif (self.debug_mode == '1') & (self.debug_use_mic == '0'):
             transcribed_text = self.default_player_response
         else:
             if self.mic_enabled == '1':
@@ -85,7 +100,7 @@ class Transcriber:
         Recognize input from mic and return transcript if activation tag (assistant name) exist
         """
         while True:
-            self.game_state_manager.write_game_info('_mantella_listening', 'True')
+            self.game_state_manager.write_game_info('_mantella_status', 'Listening...')
             logging.info('Listening...')
             transcript = self._recognize_speech_from_mic()
             transcript_cleaned = utils.clean_text(transcript)
@@ -98,7 +113,7 @@ class Transcriber:
             if transcript_cleaned in ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much']:
                 continue
 
-            self.game_state_manager.write_game_info('_mantella_thinking', 'True')
+            self.game_state_manager.write_game_info('_mantella_status', 'Thinking...')
             return transcript
     
 

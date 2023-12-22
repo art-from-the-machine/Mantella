@@ -43,7 +43,7 @@ class Character:
         return conversation_summary_file
     
 
-    def set_context(self, prompt, location, in_game_time, active_characters, token_limit):
+    def set_context(self, prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue):
         # if conversation history exists, load it
         if os.path.exists(self.conversation_history_file):
             with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
@@ -58,14 +58,14 @@ class Character:
 
             self.conversation_summary = previous_conversation_summaries
 
-            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit, len(previous_conversations), previous_conversation_summaries)
+            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue, len(previous_conversations), previous_conversation_summaries)
         else:
-            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit)
+            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue)
 
         return context
     
 
-    def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, token_limit=4096, trust_level=0, conversation_summary='', prompt_limit_pct=0.75):
+    def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, token_limit=4096, radiant_dialogue='false', trust_level=0, conversation_summary='', prompt_limit_pct=0.75):
         if self.relationship_rank == 0:
             if trust_level < 1:
                 trust = 'a stranger'
@@ -100,8 +100,14 @@ class Character:
                 conversation_summary=conversation_summary
             )
         else: # Multi NPC prompt
+            if radiant_dialogue == 'false': # don't mention player if radiant dialogue
+                keys_w_player = ['the player'] + keys
+            else:
+                keys_w_player = keys
+            
             # Join all but the last key with a comma, and add the last key with "and" in front
             character_names_list = ', '.join(keys[:-1]) + ' and ' + keys[-1]
+            character_names_list_w_player = ', '.join(keys_w_player[:-1]) + ' and ' + keys_w_player[-1]
 
             bio_descriptions = []
             for character_name, character in active_characters.items():
@@ -118,6 +124,7 @@ class Character:
             character_desc = prompt.format(
                 name=self.name, 
                 names=character_names_list,
+                names_w_player=character_names_list_w_player,
                 language=self.language,
                 location=location,
                 time=time,
@@ -132,6 +139,7 @@ class Character:
                 character_desc = prompt.format(
                     name=self.name, 
                     names=character_names_list,
+                    names_w_player=character_names_list_w_player,
                     language=self.language,
                     location=location,
                     time=time,
@@ -146,6 +154,7 @@ class Character:
                     character_desc = prompt.format(
                         name=self.name, 
                         names=character_names_list,
+                        names_w_player=character_names_list_w_player,
                         language=self.language,
                         location=location,
                         time=time,
@@ -214,7 +223,7 @@ class Character:
             logging.info(f'Token limit of conversation summaries reached ({len(encoding.encode(conversation_summaries))} / {summary_limit} tokens). Creating new summary file...')
             while True:
                 try:
-                    prompt = f"You are tasked with summarizing the conversation history between {self.name} (the assistant) and the player (the user), which took place in Skyrim. "\
+                    prompt = f"You are tasked with summarizing the conversation history between {self.name} (the assistant) and the player (the user) / other characters. These conversations take place in Skyrim. "\
                         f"Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {self.language}."
                     long_conversation_summary = self.summarize_conversation(conversation_summaries, llm, prompt)
                     break
@@ -241,7 +250,7 @@ class Character:
         if len(conversation) > 5:
             conversation = conversation[3:-2] # drop the context (0) hello (1,2) and "Goodbye." (-2, -1) lines
             if prompt == None:
-                prompt = f"You are tasked with summarizing the conversation between {self.name} (the assistant) and the player (the user), which took place in Skyrim. It is not necessary to comment on any mixups in communication such as mishearings. Text contained within asterisks state in-game events. Please summarize the conversation into a single paragraph in {self.language}."
+                prompt = f"You are tasked with summarizing the conversation between {self.name} (the assistant) and the player (the user) / other characters. These conversations take place in Skyrim. It is not necessary to comment on any mixups in communication such as mishearings. Text contained within asterisks state in-game events. Please summarize the conversation into a single paragraph in {self.language}."
             context = [{"role": "system", "content": prompt}]
             summary, _ = chat_response.chatgpt_api(f"{conversation}", context, llm)
 
