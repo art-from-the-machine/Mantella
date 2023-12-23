@@ -11,14 +11,15 @@ import src.game_manager as game_manager
 import src.character_manager as character_manager
 import src.characters_manager as characters_manager
 import src.setup as setup
+from src.llm.openai_client import openai_client
 
-async def get_response(input_text, messages, synthesizer, characters, radiant_dialogue):
+async def get_response(client: openai_client, input_text, messages, synthesizer, characters, radiant_dialogue):
     sentence_queue = asyncio.Queue()
     event = asyncio.Event()
     event.set()
 
     results = await asyncio.gather(
-        chat_manager.process_response(sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event), 
+        chat_manager.process_response(client, sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event), 
         chat_manager.send_response(sentence_queue, event)
     )
     messages, _ = results
@@ -26,14 +27,14 @@ async def get_response(input_text, messages, synthesizer, characters, radiant_di
     return messages
 
 try:
-    config, character_df, language_info, encoding, token_limit = setup.initialise(
+    config, character_df, language_info, encoding, client = setup.initialise(
         config_file='config.ini',
         logging_file='logging.log', 
         secret_key_file='GPT_SECRET_KEY.txt', 
         character_df_file='data/skyrim_characters.csv', 
         language_file='data/language_support.csv'
     )
-
+    token_limit = client.token_limit
     mantella_version = '0.10'
     logging.info(f'\nMantella v{mantella_version}')
 
@@ -46,7 +47,7 @@ try:
 
     game_state_manager = game_manager.GameStateManager(config.game_path)
     chat_manager = output_manager.ChatManager(game_state_manager, config, encoding)
-    transcriber = stt.Transcriber(game_state_manager, config)
+    transcriber = stt.Transcriber(game_state_manager, config, client)
     synthesizer = tts.Synthesizer(config)
 
     while True:
@@ -87,7 +88,7 @@ try:
         if radiant_dialogue == "false":
             # initiate conversation with character
             try:
-                messages = asyncio.run(get_response(f"{language_info['hello']} {character.name}.", context, synthesizer, characters, radiant_dialogue))
+                messages = asyncio.run(get_response(client,f"{language_info['hello']} {character.name}.", context, synthesizer, characters, radiant_dialogue))
             except tts.VoiceModelNotFound:
                 game_state_manager.write_game_info('_mantella_end_conversation', 'True')
                 logging.info('Restarting...')
@@ -184,7 +185,7 @@ try:
 
                 # check if user is ending conversation
                 if (transcriber.activation_name_exists(transcript_cleaned, config.end_conversation_keyword.lower())) or (transcriber.activation_name_exists(transcript_cleaned, 'good bye')) or (conversation_ended.lower() == 'true'):
-                    game_state_manager.end_conversation(conversation_ended, config, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available)
+                    game_state_manager.end_conversation(conversation_ended, config, client, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available)
                     break
 
                 # Let the player know that they were heard
@@ -193,14 +194,14 @@ try:
 
                 # get character's response
                 if transcribed_text:
-                    messages = asyncio.run(get_response(transcribed_text, messages, synthesizer, characters, radiant_dialogue))
+                    messages = asyncio.run(get_response(client, transcribed_text, messages, synthesizer, characters, radiant_dialogue))
 
                 # if the conversation is becoming too long, save the conversation to memory and reload
                 current_conversation_limit_pct = 0.45
                 if chat_response.num_tokens_from_messages(messages[1:], model=config.llm) > (round(tokens_available*current_conversation_limit_pct,0)):
-                    conversation_summary_file, context, messages = game_state_manager.reload_conversation(config, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available, token_limit, location, in_game_time)
+                    conversation_summary_file, context, messages = game_state_manager.reload_conversation(config, client, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available, token_limit, location, in_game_time, radiant_dialogue)
                     # continue conversation
-                    messages = asyncio.run(get_response(f"{character.name}?", context, synthesizer, characters, radiant_dialogue))
+                    messages = asyncio.run(get_response(client, f"{character.name}?", context, synthesizer, characters, radiant_dialogue))
 
 except Exception as e:
     try:
