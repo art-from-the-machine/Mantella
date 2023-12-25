@@ -70,15 +70,6 @@ Extract this folder somewhere convenient to you (if you need some inspiration, I
 #### Mantella Spell
 This file can be installed in the same way as other mods with your mod manager.
 
-
-## Video Walkthrough
-A video walking through the installation of Mantella by JackTheFallout can be found below:
-
-https://youtu.be/_mZFkTchwEo
-
-Please ensure to also read through the installation steps below as some steps have changed since the video has been published.
-
-
 ## Whisper
 guillaumekln's Faster-Whisper version of Whisper is used as Speech-To-Text engine by Mantella. The engine is **already part of the executable** and will download a chosen model automatically when launched. Uses a single CPU core by default when listening to the set default Windows microphone. Alternatively text input can be enabled by setting `microphone_enabled = 0` within _config.ini_ file.
 
