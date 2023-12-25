@@ -103,7 +103,7 @@ xVASynth is used as Text-To-Speech engine by Mantella due to being free open-sou
 ## Required Skyrim Mods
 Please follow the installation instructions on each of the linked pages:
 
-- [SKSE](http://skse.silverlock.org/) (there is a separate VR version)
+- [SKSE](http://skse.silverlock.org/) (has to be run before launching Skyrim, everytime; there is a separate VR version)
 - [VR Address Library for SKSEVR](https://www.nexusmods.com/skyrimspecialedition/mods/58101  )
   or [Address Library for SKSE Plugins](https://www.nexusmods.com/skyrimspecialedition/mods/32444)
 - [PapyrusUtil SE]( https://www.nexusmods.com/skyrimspecialedition/mods/13048) (the VR version can be found under "Miscellaneous Files")
@@ -185,6 +185,10 @@ If this does not resolve your issue, please share the text found in your xVASynt
 
 ### Voicelines are being displayed in Mantella.exe but are not being said in-game
 Try creating a save and then reloading that save. This ensures that the Mantella voice files get registered correctly
+
+### 'Starting conversation with' without the NPC name is displayed ingame and nothing happens after
+Make sure Skyrim Script Extender (SKSE) is started before Skyrim itself.
+[SKSE ReadME](https://skse.silverlock.org/skse_readme.txt)
 
 ### NPC 'XYZ' could not be found in skyrim_characters.csv
 This means that the NPC's name exactly as written in the error message could not be found in skyrim_characters.csv. If you are running Skyrim in another language, sometimes the NPC's name in this language does not match up to the English name, causing this error. It might also mean that the character is missing from skyrim_characters.csv. Please reach out on the Discord's issues channel if this is the case
