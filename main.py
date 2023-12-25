@@ -19,9 +19,10 @@ async def get_response(input_text, messages, synthesizer, characters, radiant_di
 
     results = await asyncio.gather(
         chat_manager.process_response(sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event), 
-        chat_manager.send_response(sentence_queue, event)
+        chat_manager.send_response(sentence_queue, event),
+        synthesizer.change_voice(chat_manager.active_character.voice_model)
     )
-    messages, _ = results
+    messages, _, _ = results
 
     return messages
 
@@ -87,7 +88,15 @@ try:
         if radiant_dialogue == "false":
             # initiate conversation with character
             try:
-                messages = asyncio.run(get_response(f"{language_info['hello']} {character.name}.", context, synthesizer, characters, radiant_dialogue))
+                messages = asyncio.run(
+                    get_response(
+                        f"{language_info['hello']} {character.name}.",
+                        context,
+                        synthesizer,
+                        characters,
+                        radiant_dialogue
+                    )
+                )
             except tts.VoiceModelNotFound:
                 game_state_manager.write_game_info('_mantella_end_conversation', 'True')
                 logging.info('Restarting...')

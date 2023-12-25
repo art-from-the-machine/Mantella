@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 import json
 import subprocess
+import time
 
 pool = Pool(10) # Creates a pool with ten threads; more threads = more concurrency.
                 # "pool" is a module attribute; you can be sure there will only
@@ -49,8 +50,6 @@ class Synthesizer:
         self.switching_to_voice = ''
         # last active voice model
         self.last_voice = ''
-        # queued voiceline for synthesize
-        self.queued_voiceline = ''
 
         self.model_type = ''
         self.base_speaker_emb = ''
@@ -62,20 +61,6 @@ class Synthesizer:
     
 
     def synthesize(self, voice, voice_folder, voiceline):
-        if voice != self.last_voice:
-            # current active model different, switching voice models...
-            if (self.switching_to_voice == '') or (self.switching_to_voice != voice):
-                # DEPRECATED: voice gets switched when loading in the character bio/info
-                logging.info(f'Switching voice model... ({voice})')
-                self._change_voice(voice)
-            else:
-                # model already getting switched
-                # await response from xVASynth and then synthesize it
-                self.queued_voiceline = voiceline
-                # TODO: add timeout in case xVASynth fails to respond for some reason
-                return
-        self.queued_voiceline = ''
-
         logging.info(f'Synthesizing voiceline: {voiceline}')
         phrases = self._split_voiceline(voiceline)
 
@@ -95,6 +80,29 @@ class Synthesizer:
             os.remove(final_voiceline_file)
         if os.path.exists(final_voiceline_file.replace(".wav", ".lip")):
             os.remove(final_voiceline_file.replace(".wav", ".lip"))
+
+        # check voice model
+        if (voice != self.last_voice):
+            wait_times = 0
+            # current active model different, switching voice models...
+            if (
+                (self.switching_to_voice == '')
+                or (self.switching_to_voice != voice)
+            ):
+                # DEPRECATED: voice gets switched when loading in the character bio/info
+                logging.info(f'Switching voice model... ({voice})')
+                self._change_voice(voice)
+            else:
+                # model already getting switched
+                logging.info(f'Waiting on xVASynth to switch voice model... (2 seconds max)')
+                while (wait_times < 41):
+                    wait_times += 1
+                    time.sleep(0.05)
+                    if (voice == self.last_voice):
+                        break
+
+        if (voice != self.last_voice):
+            logging.warning(f'Seems xVASynth has not loaded voice model, voiceline may be static')
 
         # Synthesize voicelines
         self.times_checked_xvasynth = 0
@@ -243,7 +251,8 @@ class Synthesizer:
                 sys.exit(0)
 
             # contact local xVASynth server; ~2 second timeout
-            logging.info(f'Attempting to connect to xVASynth... ({self.times_checked_xvasynth})')
+            if (self.times_checked_xvasynth > 1):
+                logging.info(f'Attempting to connect to xVASynth... ({self.times_checked_xvasynth})')
             response = requests.post(self.synthesize_url, json=data)
             response.raise_for_status()  # If the response contains an HTTP error status code, raise an exception
         except requests.exceptions.RequestException as err:
@@ -275,13 +284,13 @@ class Synthesizer:
         self.times_checked_xvasynth += 1
 
         try:
-            if (self.times_checked_xvasynth > 10):
+            if (self.times_checked_xvasynth > 15):
                 # break loop
                 logging.error('Could not connect to xVASynth multiple times. Ensure that xVASynth is running and restart Mantella.')
                 input('\nPress any key to stop Mantella...')
                 sys.exit(0)
 
-            # contact local xVASynth server; ~2 second timeout
+            # contact local xVASynth server; ~2 second timeout (30 second max total)
             logging.info(f'Attempting to connect to xVASynth... ({self.times_checked_xvasynth})')
             response = requests.get('http://127.0.0.1:8008/')
             response.raise_for_status()  # If the response contains an HTTP error status code, raise an exception
@@ -358,11 +367,8 @@ class Synthesizer:
         def on_success(r: requests.Response):
             self.switching_to_voice = ''
             if r.status_code == 200:
-                logging.info('Voice model loaded.')
+                logging.info('Voice model loaded. (async)')
                 self.last_voice = voice
-                # synthesize a queued voiceline
-                # if (self.queued_voiceline != ''):
-                #     self.synthesize(voice=voice, voice_folder='', voiceline=self.queued_voiceline);
             else:
                 logging.info('Voice model failed to load properly.')
 
