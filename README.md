@@ -184,7 +184,9 @@ If this xVASynth Error occurs after the "Loading voice model..." message (as can
 If this does not resolve your issue, please share the text found in your xVASynth/server.log file on the [Discord's #issues channel](https://discord.gg/Q4BJAdtGUE) for further support.
 
 ### Voicelines are being displayed in Mantella.exe but are not being said in-game
-Try creating a save and then reloading that save. This ensures that the Mantella voice files get registered correctly
+Try creating a save and then reloading that save. This ensures that the Mantella voice files get registered correctly. 
+
+If the above fails, a more unlikely reason for voicelines not playing is if you have updated the Mantella spell with a more recent version by replacing files in the mod's folder. If this is the case, open Skyrim, end all Mantella conversations and unequip the Mantella spell, and create a save. In your mod organizer, disable the Mantella spell plugin. Open your newly created save and create another save (now with no Mantella mod). Finally, in your mod organizer re-enable the Mantella spell plugin. This should effectively "reset" the mod. When you next open your recent save, you should see a notification that the Mantella spell has been added to your inventory.
 
 ### 'Starting conversation with' without the NPC name is displayed ingame and nothing happens after
 Make sure Skyrim Script Extender (SKSE) is started before Skyrim itself.
@@ -203,7 +205,7 @@ Make sure that your mic is picking up correctly on other software and that it is
 This error means that Whisper is unable to find a connected microphone. Please ensure that you have a working microphone plugged in and enabled.
 
 ### "Invalid start byte" error
-This error occurs when you introduce character symbols that can't be recognised either in MantellaSoftware/config.ini or skyrim_characters.csv. Please try re-downloading these files.
+This error occurs when you introduce character symbols that can't be recognised either in MantellaSoftware/config.ini or skyrim_characters.csv. Please try re-downloading these files. Note that if you are using Excel to edit the CSV, Excel often likes to corrupt CSVs when saving these files. If you are experiencing issues with Excel, there are free CSV editors available such as [LibreOffice](https://www.libreoffice.org/). 
 
 ### Mantella.exe closes after "VAD filter removed 00:00.000 of audio" statement
 This is an issue related to CUDA. Please try setting `process_device` to "cpu".
@@ -245,7 +247,7 @@ The source code for Mantella is included in this repo. Here are the quick steps 
 
 If you have any trouble in getting the repo set up, please reach out on [Discord](https://discord.gg/Q4BJAdtGUE)!
 
-The source code for the Mantella spell mod can be found [here](https://github.com/art-from-the-machine/Mantella-Spell).
+The source code for the Mantella spell mod can be found [here](https://github.com/art-from-the-machine/Mantella-Spell). Updates made on one repo are often intertwined with the other, so it is best to ensure you have the latest versions of each when developing.
 
 # Attributions
 Mantella uses material from the "[Skyrim: Characters](https://elderscrolls.fandom.com/wiki/Category:Skyrim:_Characters)" articles on the [Elder Scrolls wiki](https://elderscrolls.fandom.com/wiki/The_Elder_Scrolls_Wiki) at [Fandom](https://www.fandom.com/) and is licensed under the [Creative Commons Attribution-Share Alike License](https://creativecommons.org/licenses/by-sa/3.0/).
