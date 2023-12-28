@@ -103,10 +103,11 @@ xVASynth is used as Text-To-Speech engine by Mantella due to being free open-sou
 ## Required Skyrim Mods
 Please follow the installation instructions on each of the linked pages:
 
-- [SKSE](http://skse.silverlock.org/) (has to be run before launching Skyrim, everytime; there is a separate VR version)
+- [SKSE](http://skse.silverlock.org/) (once installed by following the included readme.txt, run SKSE instead of the Skyrim exe. Note that there is a separate VR version of SKSE)
 - [VR Address Library for SKSEVR](https://www.nexusmods.com/skyrimspecialedition/mods/58101  )
   or [Address Library for SKSE Plugins](https://www.nexusmods.com/skyrimspecialedition/mods/32444)
 - [PapyrusUtil SE]( https://www.nexusmods.com/skyrimspecialedition/mods/13048) (the VR version can be found under "Miscellaneous Files")
+- [UIExtensions](https://www.nexusmods.com/skyrimspecialedition/mods/17561) (if using text input instead of mic)
 
 
 ## Optional Skyrim Mods
@@ -114,7 +115,7 @@ These mods aren't strictly necessary for Mantella to work, but they do greatly i
 
 - [No NPC Greetings](https://www.nexusmods.com/skyrim/mods/746) (recommended so that Mantella voicelines are not interrupted by vanilla voicelines)
 - [UIExtensions](https://www.nexusmods.com/skyrimspecialedition/mods/17561) (to use text input instead of mic input)
-- [World Encounter Hostility Fix - Performance Version](https://www.nexusmods.com/skyrimspecialedition/mods/91403  ) (stops certain NPCs from turning hostile when you cast the Mantella spell on them). Note that this mod requires the Unofficial Skyrim Special Edition Patch (USSEP). Mantella needs to be loaded after USSEP in your load order.
+- [World Encounter Hostility Fix - Performance Version](https://www.nexusmods.com/skyrimspecialedition/mods/91403  ) (stops certain NPCs from turning hostile when you cast the Mantella spell on them). Note that this mod requires the [Unofficial Skyrim Special Edition Patch (USSEP)](https://www.nexusmods.com/skyrimspecialedition/mods/266). Mantella needs to be loaded after USSEP in your load order.
 
 
 ## Language Models (LLMs)
