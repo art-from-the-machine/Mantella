@@ -5,6 +5,7 @@ import src.utils as utils
 import requests
 import json
 import openai
+from io import BytesIO
 
 class Transcriber:
     def __init__(self, game_state_manager, config):
@@ -126,19 +127,21 @@ class Transcriber:
         def whisper_transcribe(audio):
             # if using faster_whisper (default) return based on faster_whisper's code, if not assume player wants to use server mode and send query to whisper_url set by player.
             if self.whisper_type == 'faster_whisper':
-                segments, info = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=5, vad_filter=True)
+                audio_stream = BytesIO(audio_data)
+                segments, info = self.transcribe_model.transcribe(audio_stream, task=self.task, language=self.language, beam_size=5, vad_filter=True)
                 result_text = ' '.join(segment.text for segment in segments)
 
                 return result_text
             # this code queries the whispercpp server set by the user to obtain the response, this format also allows use of official openai whisper API
             else:
                 url = self.whisper_url
+                audio_file = BytesIO(audio_data)
                 if 'openai' in url:
                     headers = {"Authorization": f"Bearer {openai.api_key}",}
                 else:
                     headers = {"Authorization": "Bearer apikey",}
                 data = {'model': self.model}
-                files = {'file': open(audio, 'rb')}
+                files = {'file': ('audio.wav', BytesIO(audio_data), 'audio/wav')}
                 response = requests.post(url, headers=headers, files=files, data=data)
                 response_data = json.loads(response.text)
                 if 'text' in response_data:
@@ -150,11 +153,8 @@ class Transcriber:
             except sr.WaitTimeoutError:
                 return ''
 
-        audio_file = 'player_recording.wav'
-        with open(audio_file, 'wb') as file:
-            file.write(audio.get_wav_data(convert_rate=16000))
-        
-        transcript = whisper_transcribe(audio_file)
+        audio_data = audio.get_wav_data(convert_rate=16000)
+        transcript = whisper_transcribe(audio_data)
         logging.info(transcript)
 
         return transcript
