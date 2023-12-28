@@ -1,4 +1,3 @@
-from openai import OpenAI, AsyncOpenAI
 import logging
 import src.utils as utils
 import pandas as pd
@@ -51,7 +50,5 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `alternative_openai_api_base` in MantellaSoftware/config.ini and follow the instructions to change this setting')
         raise
     client = openai_client(config, secret_key_file)
-    # if config.alternative_openai_api_base != 'none':
-    #     openai.api_base = config.alternative_openai_api_base
 
     return config, character_df, language_info, encoding, client

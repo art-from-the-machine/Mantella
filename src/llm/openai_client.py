@@ -1,45 +1,50 @@
-from openai import OpenAI, AsyncOpenAI
+from typing import AsyncGenerator, List
+from openai import OpenAI, AsyncOpenAI, RateLimitError
+from openai.types.chat import ChatCompletionMessageParam, ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam, ChatCompletionSystemMessageParam
 import logging
+import time
 from src.config_loader import ConfigLoader
 
 class openai_client:
     """Joint setup for sync and async access to the LLMs
     """
-    __sync_client: OpenAI
-    __async_client: AsyncOpenAI
     __token_limit: int
     __model_name: str
     __is_local: bool
+    __api_key: str
+    __base_url: str
+    __header: dict[str, str]
+    __stop : str | List[str]
+    __temperature: float
+    __top_p : float
+    __frequency_penalty : float
+    __max_tokens: int
 
     def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
         if (config.alternative_openai_api_base == 'none') or (config.alternative_openai_api_base == 'https://openrouter.ai/api/v1'):
             #cloud LLM
             self.__is_local = False
             with open(secret_key_file, 'r') as f:
-                api_key = f.readline().strip()
+                self.__api_key = f.readline().strip()
             logging.info(f"Running Mantella with '{config.llm}'. The language model chosen can be changed via config.ini")
         else:
             #local LLM
             self.__is_local = True
-            api_key = 'abc123'
+            self.__api_key = 'abc123'
             logging.info(f"Running Mantella with local language model")
 
+        self.__base_url = config.alternative_openai_api_base
+        self.__stop = config.stop
+        self.__temperature = config.temperature
+        self.__top_p = config.top_p
+        self.__frequency_penalty = config.frequency_penalty
+        self.__max_tokens = config.max_tokens
         self.__model_name = config.llm
         self.__token_limit = self.__get_token_limit(config.llm, config.custom_token_count, self.__is_local)
-        self.__sync_client = OpenAI(api_key=api_key, base_url=config.alternative_openai_api_base)#should the header for openrouter be added to the sync call as well? It wasn't in the original
-        self.__async_client = AsyncOpenAI(api_key=api_key, base_url=config.alternative_openai_api_base, default_headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'})
-    
-    @property
-    def sync_client(self) -> OpenAI:
-        """Provides sync acess to the OpenAI client
-        """
-        return self.__sync_client
-    
-    @property
-    def async_client(self) -> AsyncOpenAI:
-        """Provides async acess to the OpenAI client
-        """
-        return self.__async_client
+        # timeout = httpx.Timeout(60.0, read=60.0, write=60.0, connect=15.0)
+        referrer = "https://github.com/art-from-the-machine/Mantella"
+        xtitle = "mantella"
+        self.__header = {"HTTP-Referer": referrer, "X-Title": xtitle, }
     
     @property
     def token_limit(self) -> int:
@@ -58,6 +63,108 @@ class openai_client:
         """Is the model run locally?
         """
         return self.__is_local
+    
+    def generate_async_client(self) -> AsyncOpenAI:
+        """Generates a new AsyncOpenAI client already setup to be used right away.
+        Close the client after usage using 'await client.close()'
+
+        At the time of this writing (28.Dec.2023), calling OpenRouter using this client tends to 'break' at some point.
+        To circumvent this, use a new client for each call to 'client.chat.completions.create'
+
+        Use :func:`~openai_client.openai_client.streaming_call` for a normal streaming call to the LLM
+
+        Returns:
+            AsyncOpenAI: The new async client object
+        """
+        return AsyncOpenAI(api_key=self.__api_key, base_url=self.__base_url, default_headers=self.__header)
+
+    def generate_sync_client(self) -> OpenAI:
+        """Generates a new OpenAI client already setup to be used right away.
+        Close the client after usage using 'client.close()'
+
+        Use :func:`~openai_client.openai_client.request_call` for a normal call to the LLM
+
+        Returns:
+            OpenAI: The new sync client object
+        """
+        return OpenAI(api_key=self.__api_key, base_url=self.__base_url, default_headers=self.__header)
+    
+    async def streaming_call(self, messages: list[dict[str,str]]) -> AsyncGenerator[str | None, None]:
+        """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
+        This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
+
+        Args:
+            messages (list[dict[str,str]]): The message thread of the conversation
+
+        Returns:
+            AsyncGenerator[str | None, None]: Returns an iterable object. Iterate over this using 'async for'
+
+        Yields:
+            Iterator[AsyncGenerator[str | None, None]]: Yields the return of the 'client.chat.completions.create' method immediately
+        """
+        message_thread = self.__convert_messages(messages)
+        async_client = self.generate_async_client()
+        logging.info('Getting LLM response...')
+        try:
+            async for chunk in await async_client.chat.completions.create(model=self.model_name, 
+                                                                            messages=message_thread, 
+                                                                            stream=True,
+                                                                            stop=self.__stop,
+                                                                            temperature=self.__temperature,
+                                                                            top_p=self.__top_p,
+                                                                            frequency_penalty=self.__frequency_penalty, 
+                                                                            max_tokens=self.__max_tokens):
+                if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
+                    yield chunk.choices[0].delta.content
+                else:
+                    break
+        except Exception as e:
+            logging.error(f"LLM API Error: {e}")
+        finally:
+            await async_client.close()
+
+    def request_call(self, messages: list[dict[str,str]]) -> str | None:
+        """A standard sync request call to the LLM. 
+        This method generates a new client, calls 'client.chat.completions.create', returns the result and closes when finished
+
+        Args:
+            messages (list[dict[str,str]]): The message thread of the conversation
+
+        Returns:
+            str | None: The reply of the LLM
+        """
+        message_thread = self.__convert_messages(messages)
+        sync_client = self.generate_sync_client()        
+        chat_completion = None
+        logging.info('Getting LLM response...')
+        try:
+            chat_completion = sync_client.chat.completions.create(model=self.model_name, messages=message_thread, max_tokens=1_000)
+        except RateLimitError:
+            logging.warning('Could not connect to LLM API, retrying in 5 seconds...') #Do we really retry here?
+            time.sleep(5)
+
+        sync_client.close()
+
+        if not chat_completion or chat_completion.choices.__len__() < 1 or not chat_completion.choices[0].message.content:
+            logging.info(f"LLM Response failed")
+            return None
+        
+        reply = chat_completion.choices[0].message.content
+        logging.info(f"LLM Response: {reply}")
+        return reply
+    
+    
+    # --- Private methods ---    
+    def __convert_messages(self, messages: list[dict[str,str]]) -> list[ChatCompletionMessageParam]:
+        result = []
+        for message in messages:
+            if message["role"] == "user":
+                result.append(ChatCompletionUserMessageParam(role = "user", content=message["content"]))
+            if message["role"] == "assistant":
+                result.append(ChatCompletionAssistantMessageParam(role = "assistant", content=message["content"]))
+            if message["role"] == "system":
+                result.append(ChatCompletionSystemMessageParam(role = "system", content=message["content"]))
+        return result
 
     def __get_token_limit(self, llm, custom_token_count, is_local):
         if '/' in llm:

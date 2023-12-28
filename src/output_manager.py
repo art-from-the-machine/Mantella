@@ -202,8 +202,7 @@ class ChatManager:
         while True:
             try:
                 start_time = time.time()
-                async for chunk in await client.async_client.chat.completions.create(model=self.llm, messages=messages, stream=True,stop=self.stop,temperature=self.temperature,top_p=self.top_p,frequency_penalty=self.frequency_penalty, max_tokens=self.max_tokens):
-                    content = chunk.choices[0].delta.content
+                async for content in client.streaming_call(messages= messages):
                     if content is not None:
                         sentence += content
 
