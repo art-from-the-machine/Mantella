@@ -34,7 +34,7 @@ If you get stuck anywhere in the installation process, please see the [`#Issues 
 - Support for local (eg Llama 2), OpenAI (eg GPT-4), and OpenRouter (eg Claude v2) language models
 - Compatibility with 20+ languages
 - NPCs remember past conversations with you
-- NPCs are aware of their location, the current time, and any items you pick up
+- NPCs are aware of in-game events
 - Fully playable in VR / SE / AE
 
 # Installation
@@ -52,7 +52,7 @@ This mod requires ~27GB of space when xVASynth and all voice models are installe
 - Some users have reported that Skyrim crashes when Mantella is used with Fuz Ro D'oh. A possible fix is to disable and re-enable Fuz Ro D'oh
 - The mod VR Keyboard conflicts with Mantella
 - Mantella requires Windows 10 / 11 (it is yet unconfirmed whether it works on Windows 7)
-- Mantella has been confirmed to work with the FUS (by pointing skyrim_folder to Skyrim), Librum (by pointing skyrim_folder to overwrite/root), and Wildlands (by pointing skyrim_folder to Wildlander/SKSE) Wabbajack modlists.
+- Mantella has been confirmed to work with the FUS (by pointing skyrim_folder to Skyrim), Librum (by pointing skyrim_folder to overwrite/root), and Wildlands (by pointing skyrim_folder to Wildlander/SKSE) , and Nolvus Wabbajack modlists.
 - Mantella needs to be loaded after the Unofficial Skyrim Special Edition Patch (USSEP) mod in your load order
 - GPU acceleration is only possible with CUDA enabled NVIDIA GPUs
 
@@ -69,15 +69,6 @@ Extract this folder somewhere convenient to you (if you need some inspiration, I
 
 #### Mantella Spell
 This file can be installed in the same way as other mods with your mod manager.
-
-
-## Video Walkthrough
-A video walking through the installation of Mantella by JackTheFallout can be found below:
-
-https://youtu.be/_mZFkTchwEo
-
-Please ensure to also read through the installation steps below as some steps have changed since the video has been published.
-
 
 ## Whisper
 guillaumekln's Faster-Whisper version of Whisper is used as Speech-To-Text engine by Mantella. The engine is **already part of the executable** and will download a chosen model automatically when launched. Uses a single CPU core by default when listening to the set default Windows microphone. Alternatively text input can be enabled by setting `microphone_enabled = 0` within _config.ini_ file.
@@ -112,7 +103,7 @@ xVASynth is used as Text-To-Speech engine by Mantella due to being free open-sou
 ## Required Skyrim Mods
 Please follow the installation instructions on each of the linked pages:
 
-- [SKSE](http://skse.silverlock.org/) (there is a separate VR version)
+- [SKSE](http://skse.silverlock.org/) (has to be run before launching Skyrim, everytime; there is a separate VR version)
 - [VR Address Library for SKSEVR](https://www.nexusmods.com/skyrimspecialedition/mods/58101  )
   or [Address Library for SKSE Plugins](https://www.nexusmods.com/skyrimspecialedition/mods/32444)
 - [PapyrusUtil SE]( https://www.nexusmods.com/skyrimspecialedition/mods/13048) (the VR version can be found under "Miscellaneous Files")
@@ -193,7 +184,13 @@ If this xVASynth Error occurs after the "Loading voice model..." message (as can
 If this does not resolve your issue, please share the text found in your xVASynth/server.log file on the [Discord's #issues channel](https://discord.gg/Q4BJAdtGUE) for further support.
 
 ### Voicelines are being displayed in Mantella.exe but are not being said in-game
-Try creating a save and then reloading that save. This ensures that the Mantella voice files get registered correctly
+Try creating a save and then reloading that save. This ensures that the Mantella voice files get registered correctly. 
+
+If the above fails, a more unlikely reason for voicelines not playing is if you have updated the Mantella spell with a more recent version by replacing files in the mod's folder. If this is the case, open Skyrim, end all Mantella conversations and unequip the Mantella spell, and create a save. In your mod organizer, disable the Mantella spell plugin. Open your newly created save and create another save (now with no Mantella mod). Finally, in your mod organizer re-enable the Mantella spell plugin. This should effectively "reset" the mod. When you next open your recent save, you should see a notification that the Mantella spell has been added to your inventory.
+
+### 'Starting conversation with' without the NPC name is displayed ingame and nothing happens after
+Make sure Skyrim Script Extender (SKSE) is started before Skyrim itself.
+[SKSE ReadME](https://skse.silverlock.org/skse_readme.txt)
 
 ### NPC 'XYZ' could not be found in skyrim_characters.csv
 This means that the NPC's name exactly as written in the error message could not be found in skyrim_characters.csv. If you are running Skyrim in another language, sometimes the NPC's name in this language does not match up to the English name, causing this error. It might also mean that the character is missing from skyrim_characters.csv. Please reach out on the Discord's issues channel if this is the case
@@ -208,7 +205,7 @@ Make sure that your mic is picking up correctly on other software and that it is
 This error means that Whisper is unable to find a connected microphone. Please ensure that you have a working microphone plugged in and enabled.
 
 ### "Invalid start byte" error
-This error occurs when you introduce character symbols that can't be recognised either in MantellaSoftware/config.ini or skyrim_characters.csv. Please try re-downloading these files.
+This error occurs when you introduce character symbols that can't be recognised either in MantellaSoftware/config.ini or skyrim_characters.csv. Please try re-downloading these files. Note that if you are using Excel to edit the CSV, Excel often likes to corrupt CSVs when saving these files. If you are experiencing issues with Excel, there are free CSV editors available such as [LibreOffice](https://www.libreoffice.org/). 
 
 ### Mantella.exe closes after "VAD filter removed 00:00.000 of audio" statement
 This is an issue related to CUDA. Please try setting `process_device` to "cpu".
@@ -221,6 +218,9 @@ This happens when your antivirus is blocking Mantella.exe from working. Please a
 
 ### Cannot start new conversation after ending previous conversation (conversation ended message)
 You might need to say something in the mic for Mantella.exe to realise that the conversation has ended (while it is on "Listening..." it does not look out for the conversation ending). The exe will check if the conversation has ended after 30 seconds by default. You can change this via the `listen_timeout`` setting in MantellaSoftware/config.ini, but just keep in mind if it is too short this will effect conversations as the exe will occasionally stop listening for mic input to check if the conversation has ended
+
+### RuntimeWarning: Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work
+xVASynth related warning when started by Mantella. Thus far has not impacted Mantella so it can be safely ignored.
 
 
 # Adding Modded NPCs
@@ -247,7 +247,7 @@ The source code for Mantella is included in this repo. Here are the quick steps 
 
 If you have any trouble in getting the repo set up, please reach out on [Discord](https://discord.gg/Q4BJAdtGUE)!
 
-The source code for the Mantella spell mod can be found [here](https://github.com/art-from-the-machine/Mantella-Spell).
+The source code for the Mantella spell mod can be found [here](https://github.com/art-from-the-machine/Mantella-Spell). Updates made on one repo are often intertwined with the other, so it is best to ensure you have the latest versions of each when developing.
 
 # Attributions
 Mantella uses material from the "[Skyrim: Characters](https://elderscrolls.fandom.com/wiki/Category:Skyrim:_Characters)" articles on the [Elder Scrolls wiki](https://elderscrolls.fandom.com/wiki/The_Elder_Scrolls_Wiki) at [Fandom](https://www.fandom.com/) and is licensed under the [Creative Commons Attribution-Share Alike License](https://creativecommons.org/licenses/by-sa/3.0/).
