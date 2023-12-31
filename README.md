@@ -35,7 +35,7 @@ If you get stuck anywhere in the installation process, please see the [`#Issues 
 - Compatibility with 20+ languages
 - NPCs remember past conversations with you
 - NPCs are aware of in-game events
-- Fully playable in VR / SE / AE
+- Fully playable in VR / SE / AE (including .1130)
 
 # Installation
 ## Requirements
