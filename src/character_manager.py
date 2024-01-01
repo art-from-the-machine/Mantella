@@ -3,8 +3,9 @@ import logging
 import json
 import time
 import src.utils as utils
-import src.chat_response as chat_response
 from src.llm.openai_client import openai_client
+from src.llm.message_thread import message_thread
+from src.llm.messages import user_message
 
 class Character:
     def __init__(self, info, language, is_generic_npc):
@@ -44,7 +45,7 @@ class Character:
         return conversation_summary_file
     
 
-    def set_context(self, prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue):
+    def set_context(self, prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue) -> str:
         # if conversation history exists, load it
         if os.path.exists(self.conversation_history_file):
             with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
@@ -66,7 +67,7 @@ class Character:
         return context
     
 
-    def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, token_limit=4096, radiant_dialogue='false', trust_level=0, conversation_summary='', prompt_limit_pct=0.75):
+    def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, token_limit=4096, radiant_dialogue='false', trust_level=0, conversation_summary='', prompt_limit_pct=0.75) -> str:
         if self.relationship_rank == 0:
             if trust_level < 1:
                 trust = 'a stranger'
@@ -132,8 +133,8 @@ class Character:
                 time_group=time_group,
                 bios=formatted_bios,
                 conversation_summaries=formatted_histories)
-        
-            prompt_num_tokens = chat_response.num_tokens_from_messages([{"role": "system", "content": character_desc}])
+
+            prompt_num_tokens = openai_client.num_tokens_from_messages(message_thread(character_desc))
             prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
             # If the full prompt is too long, exclude NPC memories from prompt
             if prompt_num_tokens > prompt_token_limit:
@@ -148,7 +149,7 @@ class Character:
                     bios=formatted_bios,
                     conversation_summaries='NPC memories not available.')
                 
-                prompt_num_tokens = chat_response.num_tokens_from_messages([{"role": "system", "content": character_desc}])
+                prompt_num_tokens = openai_client.num_tokens_from_messages(message_thread(character_desc))
                 prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
                 # If the prompt with all bios included is too long, exclude NPC bios and just list the names of NPCs in the conversation
                 if prompt_num_tokens > prompt_token_limit:
@@ -164,11 +165,9 @@ class Character:
                         conversation_summaries='NPC memories not available.')
         
         logging.info(character_desc)
-        context = [{"role": "system", "content": character_desc}]
-        return context
-        
+        return character_desc
 
-    def save_conversation(self, encoding, messages, tokens_available, client: openai_client, summary=None, summary_limit_pct=0.45):
+    def save_conversation(self, encoding, messages: message_thread, tokens_available, client: openai_client, summary=None, summary_limit_pct=0.45):
         if self.is_generic_npc:
             logging.info('A summary will not be saved for this generic NPC.')
             return None
@@ -182,12 +181,12 @@ class Character:
                 conversation_history = json.load(f)
 
             # add new conversation to conversation history
-            conversation_history.append(messages[1:]) # append everything except the initial system prompt
+            conversation_history.append(messages.transform_to_openai_messages(messages.get_talk_only())) # append everything except the initial system prompt
         # if this is the first conversation
         else:
             directory = os.path.dirname(self.conversation_history_file)
             os.makedirs(directory, exist_ok=True)
-            conversation_history = [messages[1:]]
+            conversation_history = messages.transform_to_openai_messages(messages.get_talk_only())
         
         with open(self.conversation_history_file, 'w', encoding='utf-8') as f:
             json.dump(conversation_history, f, indent=4) # save everything except the initial system prompt
@@ -203,10 +202,15 @@ class Character:
             previous_conversation_summaries = ''
 
         # If summary has not already been generated for another character in a multi NPC conversation (multi NPC memory summaries are shared)
+        new_conversation_summary = ""
         if summary == None:
             while True:
                 try:
-                    new_conversation_summary = self.summarize_conversation(messages, client)
+                    if len(messages) > 5:
+                        prompt = f"You are tasked with summarizing the conversation between {self.name} (the assistant) and the player (the user) / other characters. These conversations take place in Skyrim. It is not necessary to comment on any mixups in communication such as mishearings. Text contained within asterisks state in-game events. Please summarize the conversation into a single paragraph in {self.language}."
+                        new_conversation_summary = self.summarize_conversation(messages.transform_to_dict_representation(messages.get_talk_only()), client, prompt)
+                    else:
+                        logging.info(f"Conversation summary not saved. Not enough dialogue spoken.")
                     break
                 except:
                     logging.error('Failed to summarize conversation. Retrying...')
@@ -246,14 +250,15 @@ class Character:
         return new_conversation_summary
     
 
-    def summarize_conversation(self, conversation, client: openai_client, prompt=None):
+    def summarize_conversation(self, text_to_summarize: str, client: openai_client, prompt: str) -> str:
         summary = ''
-        if len(conversation) > 5:
-            conversation = conversation[3:-2] # drop the context (0) hello (1,2) and "Goodbye." (-2, -1) lines
-            if prompt == None:
-                prompt = f"You are tasked with summarizing the conversation between {self.name} (the assistant) and the player (the user) / other characters. These conversations take place in Skyrim. It is not necessary to comment on any mixups in communication such as mishearings. Text contained within asterisks state in-game events. Please summarize the conversation into a single paragraph in {self.language}."
-            context = [{"role": "system", "content": prompt}]
-            summary, _ = chat_response.chatgpt_api(f"{conversation}", context, client)
+        if len(text_to_summarize) > 5:
+            messages = message_thread(prompt)
+            messages.add_message(user_message(text_to_summarize))
+            summary = client.request_call(messages)
+            if not summary:
+                logging.info(f"Summarizing conversation failed.")
+                return ""
 
             summary = summary.replace('The assistant', self.name)
             summary = summary.replace('the assistant', self.name)

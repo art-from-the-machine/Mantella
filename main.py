@@ -1,6 +1,5 @@
 import src.tts as tts
 import src.stt as stt
-import src.chat_response as chat_response
 import logging
 import src.utils as utils
 import sys
@@ -12,14 +11,16 @@ import src.character_manager as character_manager
 import src.characters_manager as characters_manager
 import src.setup as setup
 from src.llm.openai_client import openai_client
+from src.llm.message_thread import message_thread
+from src.llm.messages import user_message
 
-async def get_response(client: openai_client, input_text, messages, synthesizer, characters, radiant_dialogue):
+async def get_response(client: openai_client, messages: message_thread, synthesizer, characters, radiant_dialogue) -> message_thread:
     sentence_queue = asyncio.Queue()
     event = asyncio.Event()
     event.set()
 
     results = await asyncio.gather(
-        chat_manager.process_response(client, sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event), 
+        chat_manager.process_response(client, sentence_queue, messages, synthesizer, characters, radiant_dialogue, event), 
         chat_manager.send_response(sentence_queue, event)
     )
     messages, _ = results
@@ -49,6 +50,8 @@ try:
     chat_manager = output_manager.ChatManager(game_state_manager, config, encoding)
     transcriber = stt.Transcriber(game_state_manager, config, client.api_key)
     synthesizer = tts.Synthesizer(config)
+
+    player_name: str = "Player"
 
     while True:
         # clear _mantella_ files in Skyrim folder
@@ -81,14 +84,14 @@ try:
             conversation_started_radiant = radiant_dialogue
         
         context = character.set_context(config.prompt, location, in_game_time, characters.active_characters, token_limit, radiant_dialogue)
-
-        tokens_available = token_limit - chat_response.num_tokens_from_messages(context, model=config.llm)
+        messages = message_thread(context)
+        tokens_available = token_limit - client.calculate_tokens_from_messages(messages)
         
-        messages = context.copy()
         if radiant_dialogue == "false":
             # initiate conversation with character
+            messages.add_message(user_message(f"{language_info['hello']} {character.name}.", player_name, True))
             try:
-                messages = asyncio.run(get_response(client,f"{language_info['hello']} {character.name}.", context, synthesizer, characters, radiant_dialogue))
+                messages = asyncio.run(get_response(client, messages, synthesizer, characters, radiant_dialogue))
             except tts.VoiceModelNotFound:
                 game_state_manager.write_game_info('_mantella_end_conversation', 'True')
                 logging.info('Restarting...')
@@ -122,42 +125,24 @@ try:
                     game_state_manager.write_game_info('_mantella_end_conversation', 'True')
                     logging.info('Restarting...')
                     continue
-
-                messages_wo_system_prompt = messages[1:]
-                # add character name before each response to be consistent with the multi-NPC format
-                last_assistant_idx = None
-                for idx, message in enumerate(messages_wo_system_prompt):
-                    if message['role'] == 'assistant':
-                        last_assistant_idx = idx
-                        if characters.active_character_count() == 1:
-                            message['content'] = character.name+': '+message['content']
-
+                
                 character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
                 characters.active_characters[character.name] = character
                 # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
                 chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
 
+                new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit, radiant_dialogue)
+
+                messages.turn_into_multi_npc_conversation(new_context)
                 # if not radiant dialogue format
                 if radiant_dialogue == "false":
                     # add greeting from newly added NPC to help the LLM understand that this NPC has joined the conversation
-                    messages_wo_system_prompt[last_assistant_idx]['content'] += f"\n{character.name}: {language_info['hello']}."
-                
-                new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit, radiant_dialogue)
+                    messages.append_text_to_last_assitant_message(f"\n{character.name}: {language_info['hello']}.")
 
-                # if not radiant dialogue format
-                if radiant_dialogue == "false":
-                    new_context.extend(messages_wo_system_prompt)
-                    new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit, radiant_dialogue)
-
-                messages = new_context.copy()
                 game_state_manager.write_game_info('_mantella_character_selection', 'True')
             
             # if radiant dialogue, do not run the conversation until all NPCs are loaded (ie actor count > 1)
             if (characters.active_character_count() > 1) or (radiant_dialogue == "false"):
-                # if the conversation was initially radiant but now the player is jumping in, reset the system prompt to include player
-                if (radiant_dialogue == "false") and (conversation_started_radiant == "true"):
-                    conversation_started_radiant = "false"
-                    messages_wo_system_prompt = messages[1:]
 
                 # check if radiant dialogue has switched to multi NPC
                 with open(f'{config.game_path}/_mantella_radiant_dialogue.txt', 'r', encoding='utf-8') as f:
@@ -172,11 +157,9 @@ try:
 
                     transcript_cleaned = utils.clean_text(transcribed_text)
 
-                    # if multi NPC conversation, add "Player:" to beginning of output to clarify to the LLM who is speaking
-                    if (characters.active_character_count() > 1) and (radiant_dialogue != "true"):
-                        transcribed_text = 'Player: ' + transcribed_text
-                    # add in-game events to player's response
-                    transcribed_text = game_state_manager.update_game_events(transcribed_text)
+                    new_user_message = user_message(transcribed_text, player_name, radiant_dialogue == "true" and transcriber.call_count != 2)#ToDo: This check is awkward. Currently for a radiant conversation the first and last user message is removed while the one in the middle is kept. This retains function parity for the moment
+                    new_user_message = game_state_manager.update_game_events(new_user_message) # add in-game events to player's response
+                    messages.add_message(new_user_message)
                     logging.info(f"Text passed to NPC: {transcribed_text}")
 
                 # check if conversation has ended again after player input
@@ -185,7 +168,7 @@ try:
 
                 # check if user is ending conversation
                 if (transcriber.activation_name_exists(transcript_cleaned, config.end_conversation_keyword.lower())) or (transcriber.activation_name_exists(transcript_cleaned, 'good bye')) or (conversation_ended.lower() == 'true'):
-                    game_state_manager.end_conversation(conversation_ended, config, client, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available)
+                    game_state_manager.end_conversation(conversation_ended, config, client, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available, player_name)
                     break
 
                 # Let the player know that they were heard
@@ -194,14 +177,17 @@ try:
 
                 # get character's response
                 if transcribed_text:
-                    messages = asyncio.run(get_response(client, transcribed_text, messages, synthesizer, characters, radiant_dialogue))
+                    messages = asyncio.run(get_response(client, messages, synthesizer, characters, radiant_dialogue))
 
                 # if the conversation is becoming too long, save the conversation to memory and reload
                 current_conversation_limit_pct = 0.45
-                if chat_response.num_tokens_from_messages(messages[1:], model=config.llm) > (round(tokens_available*current_conversation_limit_pct,0)):
-                    conversation_summary_file, context, messages = game_state_manager.reload_conversation(config, client, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available, token_limit, location, in_game_time, radiant_dialogue)
+                if client.num_tokens_from_messages(messages.get_talk_only()) > (round(tokens_available*current_conversation_limit_pct,0)):
+                    # conversation_summary_file, context, messages = game_state_manager.reload_conversation(config, client, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available, token_limit, location, in_game_time, radiant_dialogue)
+                    #Note (Leidtier): conversation_summary_file has not been used at all and context is now part of the messages and does not need to be separate -> I removed both
+                    messages = game_state_manager.reload_conversation(config, client, encoding, synthesizer, chat_manager, messages, characters.active_characters, tokens_available, token_limit, location, in_game_time, radiant_dialogue, player_name)
                     # continue conversation
-                    messages = asyncio.run(get_response(client, f"{character.name}?", context, synthesizer, characters, radiant_dialogue))
+                    messages.add_message(user_message(f"{character.name}?", player_name, True))
+                    messages = asyncio.run(get_response(client, messages, synthesizer, characters, radiant_dialogue))
 
 except Exception as e:
     try:

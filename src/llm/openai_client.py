@@ -1,8 +1,11 @@
+import src.utils as utils
 from typing import AsyncGenerator, List
 from openai import OpenAI, AsyncOpenAI, RateLimitError
-from openai.types.chat import ChatCompletionMessageParam, ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam, ChatCompletionSystemMessageParam
 import logging
 import time
+import tiktoken
+from src.llm.message_thread import message_thread
+from src.llm.messages import message
 from src.config_loader import ConfigLoader
 
 class openai_client:
@@ -21,7 +24,7 @@ class openai_client:
             self.__api_key: str = 'abc123'
             logging.info(f"Running Mantella with local language model")
 
-        self.__base_url: str = config.alternative_openai_api_base
+        self.__base_url:str = config.alternative_openai_api_base
         self.__stop: str | List[str] = config.stop
         self.__temperature: float = config.temperature
         self.__top_p: float = config.top_p
@@ -29,10 +32,9 @@ class openai_client:
         self.__max_tokens: int = config.max_tokens
         self.__model_name: str = config.llm
         self.__token_limit: int = self.__get_token_limit(config.llm, config.custom_token_count, self.__is_local)
-        # timeout = httpx.Timeout(60.0, read=60.0, write=60.0, connect=15.0)
-        referrer = "https://github.com/art-from-the-machine/Mantella"
+        referer = "https://github.com/art-from-the-machine/Mantella"
         xtitle = "mantella"
-        self.__header: dict[str, str] = {"HTTP-Referer": referrer, "X-Title": xtitle, }
+        self.__header: dict[str, str] = {"HTTP-Referer": referer, "X-Title": xtitle, }
     
     @property
     def token_limit(self) -> int:
@@ -83,12 +85,12 @@ class openai_client:
         """
         return OpenAI(api_key=self.__api_key, base_url=self.__base_url, default_headers=self.__header)
     
-    async def streaming_call(self, messages: list[dict[str,str]]) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: message_thread) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
 
         Args:
-            messages (list[dict[str,str]]): The message thread of the conversation
+            messages (conversation_thread): The message thread of the conversation
 
         Returns:
             AsyncGenerator[str | None, None]: Returns an iterable object. Iterate over this using 'async for'
@@ -96,12 +98,11 @@ class openai_client:
         Yields:
             Iterator[AsyncGenerator[str | None, None]]: Yields the return of the 'client.chat.completions.create' method immediately
         """
-        message_thread = self.__convert_messages(messages)
         async_client = self.generate_async_client()
         logging.info('Getting LLM response...')
         try:
             async for chunk in await async_client.chat.completions.create(model=self.model_name, 
-                                                                            messages=message_thread, 
+                                                                            messages=messages.get_openai_messages(), 
                                                                             stream=True,
                                                                             stop=self.__stop,
                                                                             temperature=self.__temperature,
@@ -117,22 +118,22 @@ class openai_client:
         finally:
             await async_client.close()
 
-    def request_call(self, messages: list[dict[str,str]]) -> str | None:
+    @utils.time_it
+    def request_call(self, messages: message_thread) -> str | None:
         """A standard sync request call to the LLM. 
         This method generates a new client, calls 'client.chat.completions.create', returns the result and closes when finished
 
         Args:
-            messages (list[dict[str,str]]): The message thread of the conversation
+            messages (conversation_thread): The message thread of the conversation
 
         Returns:
             str | None: The reply of the LLM
         """
-        message_thread = self.__convert_messages(messages)
         sync_client = self.generate_sync_client()        
         chat_completion = None
         logging.info('Getting LLM response...')
         try:
-            chat_completion = sync_client.chat.completions.create(model=self.model_name, messages=message_thread, max_tokens=1_000)
+            chat_completion = sync_client.chat.completions.create(model=self.model_name, messages=messages.get_openai_messages(), max_tokens=1_000)
         except RateLimitError:
             logging.warning('Could not connect to LLM API, retrying in 5 seconds...') #Do we really retry here?
             time.sleep(5)
@@ -147,19 +148,38 @@ class openai_client:
         logging.info(f"LLM Response: {reply}")
         return reply
     
+    @staticmethod
+    def num_tokens_from_messages(messages: message_thread | list[message], model="gpt-3.5-turbo") -> int:
+        """Returns the number of tokens used by a list of messages
+        """
+        try:
+            encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            encoding = tiktoken.get_encoding("cl100k_base")
+        
+        messages_to_check = []
+        if isinstance(messages, message_thread):
+            messages_to_check = messages.get_openai_messages()
+        else:
+            for m in messages:
+                messages_to_check.append(m.get_openai_message())
+
+        # note: this calculation is based on GPT-3.5, future models may deviate from this
+        num_tokens = 0
+        for message in messages_to_check:
+            num_tokens += 4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
+            for key, value in message.items():
+                if isinstance(value, str):
+                    num_tokens += len(encoding.encode(value))
+                    if key == "name":  # if there's a name, the role is omitted
+                        num_tokens += -1  # role is always required and always 1 token
+        num_tokens += 2  # every reply is primed with <im_start>assistant
+        return num_tokens
+    
+    def calculate_tokens_from_messages(self, messages: message_thread) -> int:
+        return openai_client.num_tokens_from_messages(messages, self.__model_name)
     
     # --- Private methods ---    
-    def __convert_messages(self, messages: list[dict[str,str]]) -> list[ChatCompletionMessageParam]:
-        result = []
-        for message in messages:
-            if message["role"] == "user":
-                result.append(ChatCompletionUserMessageParam(role = "user", content=message["content"]))
-            if message["role"] == "assistant":
-                result.append(ChatCompletionAssistantMessageParam(role = "assistant", content=message["content"]))
-            if message["role"] == "system":
-                result.append(ChatCompletionSystemMessageParam(role = "system", content=message["content"]))
-        return result
-
     def __get_token_limit(self, llm, custom_token_count, is_local):
         if '/' in llm:
             llm = llm.split('/')[-1]
