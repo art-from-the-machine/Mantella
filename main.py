@@ -47,7 +47,7 @@ try:
 
     game_state_manager = game_manager.GameStateManager(config.game_path)
     chat_manager = output_manager.ChatManager(game_state_manager, config, encoding)
-    transcriber = stt.Transcriber(game_state_manager, config, client)
+    transcriber = stt.Transcriber(game_state_manager, config, client.api_key)
     synthesizer = tts.Synthesizer(config)
 
     while True:

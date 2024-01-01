@@ -4,10 +4,9 @@ import logging
 import src.utils as utils
 import requests
 import json
-from src.llm.openai_client import openai_client
 
 class Transcriber:
-    def __init__(self, game_state_manager, config, client: openai_client):
+    def __init__(self, game_state_manager, config, api_key: str):
         self.game_state_manager = game_state_manager
         self.mic_enabled = config.mic_enabled
         self.language = config.stt_language
@@ -29,7 +28,7 @@ class Transcriber:
         self.end_conversation_keyword = config.end_conversation_keyword
 
         self.call_count = 0
-        self._client = client
+        self.api_key = api_key
 
         if self.mic_enabled == '1':
             self.recognizer = sr.Recognizer()
@@ -135,7 +134,7 @@ class Transcriber:
             else:
                 url = self.whisper_url
                 if 'openai' in url:
-                    headers = {"Authorization": f"Bearer {self._client.sync_client.api_key}",}
+                    headers = {"Authorization": f"Bearer {self.api_key}",}
                 else:
                     headers = {"Authorization": "Bearer apikey",}
                 data = {'model': self.model}

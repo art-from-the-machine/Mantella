@@ -8,43 +8,31 @@ from src.config_loader import ConfigLoader
 class openai_client:
     """Joint setup for sync and async access to the LLMs
     """
-    __token_limit: int
-    __model_name: str
-    __is_local: bool
-    __api_key: str
-    __base_url: str
-    __header: dict[str, str]
-    __stop : str | List[str]
-    __temperature: float
-    __top_p : float
-    __frequency_penalty : float
-    __max_tokens: int
-
     def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
         if (config.alternative_openai_api_base == 'none') or (config.alternative_openai_api_base == 'https://openrouter.ai/api/v1'):
             #cloud LLM
-            self.__is_local = False
+            self.__is_local: bool = False
             with open(secret_key_file, 'r') as f:
-                self.__api_key = f.readline().strip()
+                self.__api_key: str = f.readline().strip()
             logging.info(f"Running Mantella with '{config.llm}'. The language model chosen can be changed via config.ini")
         else:
             #local LLM
-            self.__is_local = True
-            self.__api_key = 'abc123'
+            self.__is_local: bool = True
+            self.__api_key: str = 'abc123'
             logging.info(f"Running Mantella with local language model")
 
-        self.__base_url = config.alternative_openai_api_base
-        self.__stop = config.stop
-        self.__temperature = config.temperature
-        self.__top_p = config.top_p
-        self.__frequency_penalty = config.frequency_penalty
-        self.__max_tokens = config.max_tokens
-        self.__model_name = config.llm
-        self.__token_limit = self.__get_token_limit(config.llm, config.custom_token_count, self.__is_local)
+        self.__base_url: str = config.alternative_openai_api_base
+        self.__stop: str | List[str] = config.stop
+        self.__temperature: float = config.temperature
+        self.__top_p: float = config.top_p
+        self.__frequency_penalty: float = config.frequency_penalty
+        self.__max_tokens: int = config.max_tokens
+        self.__model_name: str = config.llm
+        self.__token_limit: int = self.__get_token_limit(config.llm, config.custom_token_count, self.__is_local)
         # timeout = httpx.Timeout(60.0, read=60.0, write=60.0, connect=15.0)
         referrer = "https://github.com/art-from-the-machine/Mantella"
         xtitle = "mantella"
-        self.__header = {"HTTP-Referer": referrer, "X-Title": xtitle, }
+        self.__header: dict[str, str] = {"HTTP-Referer": referrer, "X-Title": xtitle, }
     
     @property
     def token_limit(self) -> int:
@@ -63,6 +51,12 @@ class openai_client:
         """Is the model run locally?
         """
         return self.__is_local
+    
+    @property
+    def api_key(self) -> str:
+        """The secret key
+        """
+        return self.__api_key
     
     def generate_async_client(self) -> AsyncOpenAI:
         """Generates a new AsyncOpenAI client already setup to be used right away.
