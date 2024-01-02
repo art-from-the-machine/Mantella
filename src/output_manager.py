@@ -93,7 +93,7 @@ class ChatManager:
             shutil.copyfile(audio_file, f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.wav_file}")
             shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.lip_file}")
 
-        logging.info(f"{self.active_character.name} should speak")
+        logging.info(f"{self.active_character.name} (character {self.character_num}) should speak")
         if self.character_num == 0:
             self.game_state_manager.write_game_info('_mantella_say_line', subtitle.strip())
         else:
@@ -230,6 +230,7 @@ class ChatManager:
                                     #TODO: or (any(key.split(' ')[0] == keyword_extraction for key in characters.active_characters))
                                     logging.info(f"Switched to {keyword_extraction}")
                                     self.active_character = characters.active_characters[keyword_extraction]
+                                    synthesizer.change_voice(self.active_character.voice_model)
                                     # characters are mapped to say_line based on order of selection
                                     # taking the order of the dictionary to find which say_line to use, but it is bad practice to use dictionaries in this way
                                     self.character_num = list(characters.active_characters.keys()).index(keyword_extraction)
