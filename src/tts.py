@@ -53,9 +53,7 @@ class Synthesizer:
 
     def synthesize(self, voice, voice_folder, voiceline):
         if voice != self.last_voice:
-            logging.info('Loading voice model...')
-            self._change_voice(voice)
-            logging.info('Voice model loaded.')
+            self.change_voice(voice)
 
         logging.info(f'Synthesizing voiceline: {voiceline}')
         phrases = self._split_voiceline(voiceline)
@@ -72,10 +70,13 @@ class Synthesizer:
         final_voiceline_file_name = 'voiceline'
         final_voiceline_file =  f"{self.output_path}/voicelines/{self.last_voice}/{final_voiceline_file_name}.wav"
 
-        if os.path.exists(final_voiceline_file):
-            os.remove(final_voiceline_file)
-        if os.path.exists(final_voiceline_file.replace(".wav", ".lip")):
-            os.remove(final_voiceline_file.replace(".wav", ".lip"))
+        try:
+            if os.path.exists(final_voiceline_file):
+                os.remove(final_voiceline_file)
+            if os.path.exists(final_voiceline_file.replace(".wav", ".lip")):
+                os.remove(final_voiceline_file.replace(".wav", ".lip"))
+        except:
+            logging.warning("Failed to remove spoken voicelines")
 
         # Synthesize voicelines
         if len(phrases) == 1:
@@ -266,7 +267,9 @@ class Synthesizer:
             sys.exit(0)
     
     @utils.time_it
-    def _change_voice(self, voice):
+    def change_voice(self, voice):
+        logging.info('Loading voice model...')
+
         voice_path = f"{self.model_path}sk_{voice.lower().replace(' ', '')}"
         if not os.path.exists(voice_path+'.json'):
             logging.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files (Ctrl+F for 'sk_{voice.lower().replace(' ', '')}').")
@@ -295,6 +298,8 @@ class Synthesizer:
         requests.post(self.loadmodel_url, json=model_change)
 
         self.last_voice = voice
+
+        logging.info('Voice model loaded.')
 
 
     def run_command(self, command):
