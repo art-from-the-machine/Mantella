@@ -4,6 +4,7 @@ import json
 import time
 import src.utils as utils
 import src.chat_response as chat_response
+from src.llm.openai_client import openai_client
 
 class Character:
     def __init__(self, info, language, is_generic_npc):
@@ -167,7 +168,7 @@ class Character:
         return context
         
 
-    def save_conversation(self, encoding, messages, tokens_available, llm, summary=None, summary_limit_pct=0.45):
+    def save_conversation(self, encoding, messages, tokens_available, client: openai_client, summary=None, summary_limit_pct=0.45):
         if self.is_generic_npc:
             logging.info('A summary will not be saved for this generic NPC.')
             return None
@@ -205,7 +206,7 @@ class Character:
         if summary == None:
             while True:
                 try:
-                    new_conversation_summary = self.summarize_conversation(messages, llm)
+                    new_conversation_summary = self.summarize_conversation(messages, client)
                     break
                 except:
                     logging.error('Failed to summarize conversation. Retrying...')
@@ -225,7 +226,7 @@ class Character:
                 try:
                     prompt = f"You are tasked with summarizing the conversation history between {self.name} (the assistant) and the player (the user) / other characters. These conversations take place in Skyrim. "\
                         f"Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {self.language}."
-                    long_conversation_summary = self.summarize_conversation(conversation_summaries, llm, prompt)
+                    long_conversation_summary = self.summarize_conversation(conversation_summaries, client, prompt)
                     break
                 except:
                     logging.error('Failed to summarize conversation. Retrying...')
@@ -245,14 +246,14 @@ class Character:
         return new_conversation_summary
     
 
-    def summarize_conversation(self, conversation, llm, prompt=None):
+    def summarize_conversation(self, conversation, client: openai_client, prompt=None):
         summary = ''
         if len(conversation) > 5:
             conversation = conversation[3:-2] # drop the context (0) hello (1,2) and "Goodbye." (-2, -1) lines
             if prompt == None:
                 prompt = f"You are tasked with summarizing the conversation between {self.name} (the assistant) and the player (the user) / other characters. These conversations take place in Skyrim. It is not necessary to comment on any mixups in communication such as mishearings. Text contained within asterisks state in-game events. Please summarize the conversation into a single paragraph in {self.language}."
             context = [{"role": "system", "content": prompt}]
-            summary, _ = chat_response.chatgpt_api(f"{conversation}", context, llm)
+            summary, _ = chat_response.chatgpt_api(f"{conversation}", context, client)
 
             summary = summary.replace('The assistant', self.name)
             summary = summary.replace('the assistant', self.name)
