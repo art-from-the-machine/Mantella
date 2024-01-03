@@ -11,6 +11,7 @@ import src.game_manager as game_manager
 import src.character_manager as character_manager
 import src.characters_manager as characters_manager
 import src.setup as setup
+import argparse
 
 async def get_response(input_text, messages, synthesizer, characters, radiant_dialogue):
     sentence_queue = asyncio.Queue()
@@ -26,10 +27,15 @@ async def get_response(input_text, messages, synthesizer, characters, radiant_di
     return messages
 
 try:
+    argParser = argparse.ArgumentParser()
+    argParser.add_argument("-c", "--config", help="config file name", default="config.ini")
+    argParser.add_argument("-s", "--secret", help="secret key file name", default="GPT_SECRET_KEY.txt")
+    args = argParser.parse_args()
+
     config, character_df, language_info, encoding, token_limit = setup.initialise(
-        config_file='config.ini',
+        config_file=args.config,
         logging_file='logging.log', 
-        secret_key_file='GPT_SECRET_KEY.txt', 
+        secret_key_file=args.secret, 
         character_df_file='data/skyrim_characters.csv', 
         language_file='data/language_support.csv'
     )
