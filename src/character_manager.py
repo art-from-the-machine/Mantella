@@ -10,6 +10,8 @@ class Character:
         self.info = info
         self.name = info['name']
         self.bio = info['bio']
+        self.aggro = info['aggro']
+        self.is_in_combat = info['is_in_combat']
         self.relationship_rank = info['in_game_relationship_level']
         self.language = language
         self.is_generic_npc = is_generic_npc

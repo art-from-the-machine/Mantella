@@ -289,6 +289,16 @@ class GameStateManager:
         actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
         character_info['in_game_voice_model'] = actor_voice_model_name
 
+        # Is Player is in combat with NPC
+        is_in_combat = self.load_data_when_available('_mantella_actor_is_enemy', '')
+        character_info['is_in_combat'] = is_in_combat
+
+        # Player taunted the NPC to combat
+        actor_aggro = 0
+        with open(f'{self.game_path}/_mantella_aggro.txt', 'r') as f:
+            actor_aggro = f.readline().strip()
+        character_info['aggro'] = actor_aggro
+
         actor_relationship_rank = self.load_data_when_available('_mantella_actor_relationship', '')
         try:
             actor_relationship_rank = int(actor_relationship_rank)
