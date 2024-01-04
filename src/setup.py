@@ -113,7 +113,11 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
     #       this can lead to the token limit of the given model being overrun
     if config.alternative_openai_api_base != 'none':
         chosenmodel = 'gpt-3.5-turbo'
-    encoding = tiktoken.encoding_for_model(chosenmodel)
+    try:
+        encoding = tiktoken.encoding_for_model(chosenmodel)
+    except:
+        logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `alternative_openai_api_base` in MantellaSoftware/config.ini and follow the instructions to change this setting')
+        raise
     token_limit = get_token_limit(config.llm, config.custom_token_count, is_local)
 
     if config.alternative_openai_api_base != 'none':
