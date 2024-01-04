@@ -73,7 +73,9 @@ try:
             continue
 
         character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+        synthesizer.change_voice(character.voice_model)
         chat_manager.active_character = character
+        chat_manager.character_num = 0
         characters.active_characters[character.name] = character
         game_state_manager.write_game_info('_mantella_character_selection', 'True')
         # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
