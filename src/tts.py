@@ -61,6 +61,9 @@ class Synthesizer:
     
 
     def synthesize(self, voice, voice_folder, voiceline):
+        if voice != self.last_voice:
+            self.change_voice(voice)
+
         logging.info(f'Synthesizing voiceline: {voiceline}')
         phrases = self._split_voiceline(voiceline)
 
@@ -76,10 +79,13 @@ class Synthesizer:
         final_voiceline_file_name = 'voiceline'
         final_voiceline_file =  f"{self.output_path}/voicelines/{self.last_voice}/{final_voiceline_file_name}.wav"
 
-        if os.path.exists(final_voiceline_file):
-            os.remove(final_voiceline_file)
-        if os.path.exists(final_voiceline_file.replace(".wav", ".lip")):
-            os.remove(final_voiceline_file.replace(".wav", ".lip"))
+        try:
+            if os.path.exists(final_voiceline_file):
+                os.remove(final_voiceline_file)
+            if os.path.exists(final_voiceline_file.replace(".wav", ".lip")):
+                os.remove(final_voiceline_file.replace(".wav", ".lip"))
+        except:
+            logging.warning("Failed to remove spoken voicelines")
 
         # check voice model
         if (voice != self.last_voice):

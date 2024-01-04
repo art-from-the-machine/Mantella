@@ -70,7 +70,9 @@ try:
             continue
 
         character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+        synthesizer.change_voice(character.voice_model)
         chat_manager.active_character = character
+        chat_manager.character_num = 0
         characters.active_characters[character.name] = character
         game_state_manager.write_game_info('_mantella_character_selection', 'True')
         # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
@@ -155,7 +157,6 @@ try:
                 # if not radiant dialogue format
                 if radiant_dialogue == "false":
                     new_context.extend(messages_wo_system_prompt)
-                    new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit, radiant_dialogue)
 
                 messages = new_context.copy()
                 game_state_manager.write_game_info('_mantella_character_selection', 'True')
