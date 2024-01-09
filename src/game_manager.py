@@ -35,6 +35,8 @@ class GameStateManager:
         while text == '':
             with open(f'{self.game_path}/{text_file_name}.txt', 'r', encoding='utf-8') as f:
                 text = f.readline().strip()
+            # decrease stress on CPU while waiting for file to populate
+            time.sleep(0.01)
         return text
     
 
@@ -79,6 +81,8 @@ class GameStateManager:
         self.write_game_info('_mantella_player_input', '')
 
         self.write_game_info('_mantella_aggro', '')
+
+        self.write_game_info('_mantella_radiant_dialogue', 'False')
 
         return character_name, character_id, location, in_game_time
     

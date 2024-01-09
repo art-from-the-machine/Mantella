@@ -71,8 +71,8 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.whisper_type = config['Microphone']['whisper_type']
             self.whisper_url = config['Microphone']['whisper_url']
 
-            self.hotkey = config['Hotkey']['hotkey']
-            self.textbox_timer = config['Hotkey']['textbox_timer']
+            #self.hotkey = config['Hotkey']['hotkey']
+            #self.textbox_timer = config['Hotkey']['textbox_timer']
 
             self.max_response_sentences = int(config['LanguageModel']['max_response_sentences'])
             self.llm = config['LanguageModel']['model']
@@ -94,6 +94,8 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.frequency_penalty = float(config['LanguageModel']['frequency_penalty'])
             self.max_tokens = int(config['LanguageModel']['max_tokens'])
 
+            self.tts_synthesize_url = config['Speech']['tts_synthesize_url']
+            self.tts_stream_url = config['Speech']['tts_stream_url']
             self.xvasynth_process_device = config['Speech']['tts_process_device']
             self.pace = float(config['Speech']['pace'])
             self.use_cleanup = int(config['Speech']['use_cleanup'])
