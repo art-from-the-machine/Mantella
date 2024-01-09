@@ -244,6 +244,8 @@ class ChatManager:
                                     if self.experimental_features:
                                         logging.info(f"The player offended the NPC")
                                         self.game_state_manager.write_game_info('_mantella_aggro', '1')
+                                        self.active_character.aggro = 1
+                                        self.active_character.is_in_combat = 1
                                     else:
                                         logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Offended feature")
                                     full_reply += sentence
@@ -253,6 +255,8 @@ class ChatManager:
                                     if self.experimental_features:
                                         logging.info(f"The player made up with the NPC")
                                         self.game_state_manager.write_game_info('_mantella_aggro', '0')
+                                        self.active_character.aggro = 0
+                                        self.active_character.is_in_combat = 0
                                     else:
                                         logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Forgiven feature")
                                     full_reply += sentence
@@ -271,7 +275,7 @@ class ChatManager:
                             if action_taken == False:
                                 # Generate the audio and return the audio file path
                                 try:
-                                    audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ')
+                                    audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ', self.active_character.is_in_combat)
                                 except Exception as e:
                                     logging.error(f"xVASynth Error: {e}")
 
