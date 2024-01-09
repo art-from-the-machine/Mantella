@@ -244,7 +244,6 @@ class ChatManager:
                                     if self.experimental_features:
                                         logging.info(f"The player offended the NPC")
                                         self.game_state_manager.write_game_info('_mantella_aggro', '1')
-                                        self.active_character.aggro = 1
                                         self.active_character.is_in_combat = 1
                                     else:
                                         logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Offended feature")
@@ -255,7 +254,6 @@ class ChatManager:
                                     if self.experimental_features:
                                         logging.info(f"The player made up with the NPC")
                                         self.game_state_manager.write_game_info('_mantella_aggro', '0')
-                                        self.active_character.aggro = 0
                                         self.active_character.is_in_combat = 0
                                     else:
                                         logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Forgiven feature")
