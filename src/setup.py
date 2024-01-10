@@ -93,7 +93,7 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
     config = config_loader.ConfigLoader(config_file)
 
     is_local = True
-    if (config.alternative_openai_api_base == 'none') or (config.alternative_openai_api_base == 'https://openrouter.ai/api/v1'):
+    if (config.alternative_openai_api_base == 'none') or ("https" in config.alternative_openai_api_base):
         is_local = False
     setup_openai_secret_key(secret_key_file, is_local)
     if is_local:
