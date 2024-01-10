@@ -111,6 +111,8 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
 
             self.prompt = config['Prompt']['prompt']
             self.multi_npc_prompt = config['Prompt']['multi_npc_prompt']
+            self.radiant_start_prompt = config['Prompt']['radiant_start_prompt']
+            self.radiant_end_prompt = config['Prompt']['radiant_end_prompt']
             pass
         except Exception as e:
             logging.error('Parameter missing/invalid in config.ini file!')
