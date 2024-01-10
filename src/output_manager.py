@@ -93,7 +93,7 @@ class ChatManager:
             shutil.copyfile(audio_file, f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.wav_file}")
             shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.lip_file}")
 
-        logging.info(f"{self.active_character.name} should speak")
+        logging.info(f"{self.active_character.name} (character {self.character_num}) should speak")
         if self.character_num == 0:
             self.game_state_manager.write_game_info('_mantella_say_line', subtitle.strip())
         else:
@@ -190,13 +190,14 @@ class ChatManager:
         return sentence
 
 
-    async def process_response(self, sentence_queue, input_text, messages, synthesizer, characters, event):
+    async def process_response(self, sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event):
         """Stream response from LLM one sentence at a time"""
 
         messages.append({"role": "user", "content": input_text})
         sentence = ''
         full_reply = ''
         num_sentences = 0
+        action_taken = False
         if self.alternative_openai_api_base == 'none':
             openai.aiosession.set(ClientSession()) # https://github.com/openai/openai-python#async-api
         while True:
@@ -228,43 +229,60 @@ class ChatManager:
                                 logging.info(f'Skipping voiceline that is too short: {sentence}')
                                 break
 
-                            logging.info(f"ChatGPT returned sentence took {time.time() - start_time} seconds to execute")
+                            logging.info(f"LLM returned sentence took {time.time() - start_time} seconds to execute")
 
-                            keyword_extraction = sentence.strip()[:-1] #.lower()
-                            if keyword_extraction in characters.active_characters:
-                                logging.info(f"Switched to {keyword_extraction}")
-                                self.active_character = characters.active_characters[keyword_extraction]
-                                # characters are mapped to say_line based on order of selection
-                                # taking the order of the dictionary to find which say_line to use, but it is bad practice to use dictionaries in this way
-                                self.character_num = list(characters.active_characters.keys()).index(keyword_extraction)
-                                full_reply += sentence
-                                sentence = ''
-                            elif keyword_extraction.lower() == self.offended_npc_response.lower():
-                                if self.experimental_features:
-                                    logging.info(f"The player offended the NPC")
-                                    self.game_state_manager.write_game_info('_mantella_aggro', '1')
-                                else:
-                                    logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Offended feature")
-                                sentence = ''
-                            elif keyword_extraction.lower() == self.forgiven_npc_response.lower():
-                                if self.experimental_features:
-                                    logging.info(f"The player made up with the NPC")
-                                    self.game_state_manager.write_game_info('_mantella_aggro', '0')
-                                else:
-                                    logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Forgiven feature")
-                                sentence = ''
-                            elif keyword_extraction.lower() == self.follow_npc_response.lower():
-                                if self.experimental_features:
-                                    logging.info(f"The NPC is willing to follow the player")
-                                    self.game_state_manager.write_game_info('_mantella_aggro', '2')
-                                else:
-                                    logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Follow feature")
-                                sentence = ''
-                            else:
+                            if content_edit == ':':
+                                keyword_extraction = sentence.strip()[:-1] #.lower()
+                                # if LLM is switching character
+                                if (keyword_extraction in characters.active_characters):
+                                    #TODO: or (any(key.split(' ')[0] == keyword_extraction for key in characters.active_characters))
+                                    logging.info(f"Switched to {keyword_extraction}")
+                                    self.active_character = characters.active_characters[keyword_extraction]
+                                    synthesizer.change_voice(self.active_character.voice_model)
+                                    # characters are mapped to say_line based on order of selection
+                                    # taking the order of the dictionary to find which say_line to use, but it is bad practice to use dictionaries in this way
+                                    self.character_num = list(characters.active_characters.keys()).index(keyword_extraction)
+                                    full_reply += sentence
+                                    sentence = ''
+                                    action_taken = True
+                                elif keyword_extraction == 'Player':
+                                    logging.info(f"Stopped LLM from speaking on behalf of the player")
+                                    break
+                                elif keyword_extraction.lower() == self.offended_npc_response.lower():
+                                    if self.experimental_features:
+                                        logging.info(f"The player offended the NPC")
+                                        self.game_state_manager.write_game_info('_mantella_aggro', '1')
+                                        self.active_character.is_in_combat = 1
+                                    else:
+                                        logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Offended feature")
+                                    full_reply += sentence
+                                    sentence = ''
+                                    action_taken = True
+                                elif keyword_extraction.lower() == self.forgiven_npc_response.lower():
+                                    if self.experimental_features:
+                                        logging.info(f"The player made up with the NPC")
+                                        self.game_state_manager.write_game_info('_mantella_aggro', '0')
+                                        self.active_character.is_in_combat = 0
+                                    else:
+                                        logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Forgiven feature")
+                                    full_reply += sentence
+                                    sentence = ''
+                                    action_taken = True
+                                elif keyword_extraction.lower() == self.follow_npc_response.lower():
+                                    if self.experimental_features:
+                                        logging.info(f"The NPC is willing to follow the player")
+                                        self.game_state_manager.write_game_info('_mantella_aggro', '2')
+                                    else:
+                                        logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Follow feature")
+                                    full_reply += sentence
+                                    sentence = ''
+                                    action_taken = True
+
+                            if action_taken == False:
                                 # Generate the audio and return the audio file path
                                 try:
                                     logging.info(f"'DEBUGERFR Before audio_file{sentence}")
-                                    audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ')
+                                    audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ', self.active_character.is_in_combat)
                                 except Exception as e:
                                     logging.error(f"xVASynth Error: {e}")
 
@@ -282,9 +300,16 @@ class ChatManager:
                                 # wait for the event to be set before generating the next line
                                 await event.wait()
 
-                            end_conversation = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
-                            if (num_sentences >= self.max_response_sentences) or (end_conversation.lower() == 'true'):
-                                break
+                                end_conversation = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
+                                radiant_dialogue_update = self.game_state_manager.load_data_when_available('_mantella_radiant_dialogue', '')
+                                # stop processing LLM response if:
+                                # max_response_sentences reached (and the conversation isn't radiant)
+                                # conversation has switched from radiant to multi NPC (this allows the player to "interrupt" radiant dialogue and include themselves in the conversation)
+                                # the conversation has ended
+                                if ((num_sentences >= self.max_response_sentences) and (radiant_dialogue == 'false')) or ((radiant_dialogue == 'true') and (radiant_dialogue_update.lower() == 'false')) or (end_conversation.lower() == 'true'):
+                                    break
+                            else:
+                                action_taken = False
                 if self.alternative_openai_api_base == 'none':
                     await openai.aiosession.get().close()
                 break

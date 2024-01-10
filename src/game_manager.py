@@ -35,6 +35,8 @@ class GameStateManager:
         while text == '':
             with open(f'{self.game_path}/{text_file_name}.txt', 'r', encoding='utf-8') as f:
                 text = f.readline().strip()
+            # decrease stress on CPU while waiting for file to populate
+            time.sleep(0.01)
         return text
     
 
@@ -59,6 +61,7 @@ class GameStateManager:
         self.write_game_info('_mantella_status', 'False')
 
         self.write_game_info('_mantella_actor_is_enemy', 'False')
+        self.write_game_info('_mantella_actor_is_in_combat', 'False')
 
         self.write_game_info('_mantella_actor_relationship', '')
 
@@ -79,6 +82,8 @@ class GameStateManager:
         self.write_game_info('_mantella_player_input', '')
 
         self.write_game_info('_mantella_aggro', '')
+
+        self.write_game_info('_mantella_radiant_dialogue', 'False')
 
         return character_name, character_id, location, in_game_time
     
@@ -284,6 +289,10 @@ class GameStateManager:
         actor_voice_model = self.load_data_when_available('_mantella_actor_voice', '')
         actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
         character_info['in_game_voice_model'] = actor_voice_model_name
+
+        # Is Player in combat with NPC
+        is_in_combat = self.load_data_when_available('_mantella_actor_is_enemy', '')
+        character_info['is_in_combat'] = is_in_combat
 
         actor_relationship_rank = self.load_data_when_available('_mantella_actor_relationship', '')
         try:
