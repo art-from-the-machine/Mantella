@@ -9,7 +9,7 @@ class openai_client:
     """Joint setup for sync and async access to the LLMs
     """
     def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
-        if (config.alternative_openai_api_base == 'none') or (config.alternative_openai_api_base == 'https://openrouter.ai/api/v1'):
+        if (config.alternative_openai_api_base == 'none') or ("https" in config.alternative_openai_api_base):
             #cloud LLM
             self.__is_local: bool = False
             with open(secret_key_file, 'r') as f:
