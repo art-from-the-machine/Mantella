@@ -1,3 +1,4 @@
+import traceback
 import src.tts as tts
 import src.stt as stt
 import src.chat_response as chat_response
@@ -70,7 +71,9 @@ try:
             continue
 
         character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+        synthesizer.change_voice(character.voice_model)
         chat_manager.active_character = character
+        chat_manager.character_num = 0
         characters.active_characters[character.name] = character
         game_state_manager.write_game_info('_mantella_character_selection', 'True')
         # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
@@ -147,7 +150,6 @@ try:
                 # if not radiant dialogue format
                 if radiant_dialogue == "false":
                     new_context.extend(messages_wo_system_prompt)
-                    new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit, radiant_dialogue)
 
                 messages = new_context.copy()
                 game_state_manager.write_game_info('_mantella_character_selection', 'True')
@@ -192,6 +194,14 @@ try:
                 #audio_file = synthesizer.synthesize(character.info['voice_model'], character.info['skyrim_voice_folder'], 'Beep boop. Let me think.')
                 #chat_manager.save_files_to_voice_folders([audio_file, 'Beep boop. Let me think.'])
 
+                # check if NPC is in combat to change their voice tone (if one on one conversation)
+                if characters.active_character_count() == 1:
+                    aggro = game_state_manager.load_data_when_available('_mantella_actor_is_in_combat', '').lower()
+                    if aggro == 'true':
+                        chat_manager.active_character.is_in_combat = 1
+                    else:
+                        chat_manager.active_character.is_in_combat = 0
+
                 # get character's response
                 if transcribed_text:
                     messages = asyncio.run(get_response(client, transcribed_text, messages, synthesizer, characters, radiant_dialogue))
@@ -209,5 +219,5 @@ except Exception as e:
     except:
         None
 
-    logging.error(f"Error: {e}")
+    logging.error("".join(traceback.format_exception(e)))
     input("Press Enter to exit.")
