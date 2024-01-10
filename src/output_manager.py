@@ -186,7 +186,7 @@ class ChatManager:
         # this converts double asterisks to single so that they can be filtered out appropriately
         sentence = sentence.replace('**','*')
         sentence = parse_asterisks_brackets(sentence)
-
+        logging.info(f'\nDEBUGFR v{sentence}')
         return sentence
 
 
@@ -203,10 +203,18 @@ class ChatManager:
         while True:
             try:
                 start_time = time.time()
-                async for chunk in await openai.ChatCompletion.acreate(model=self.llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'},stream=True,stop=self.stop,temperature=self.temperature,top_p=self.top_p,frequency_penalty=self.frequency_penalty, max_tokens=self.max_tokens):
+                async for chunk in await openai.ChatCompletion.acreate(model=self.llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'}, stream=True, stop=self.stop, temperature=self.temperature, top_p=self.top_p, frequency_penalty=self.frequency_penalty, max_tokens=self.max_tokens):
                     content = chunk["choices"][0].get("delta", {}).get("content")
+                    logging.info(f"'content info : {content}")
+
                     if content is not None:
                         sentence += content
+                        # Check for the last occurrence of sentence-ending punctuation
+                        last_punctuation = max(sentence.rfind('.'), sentence.rfind('!'), sentence.rfind(':'), sentence.rfind('?'))
+                        if last_punctuation != -1:
+                            # Split the sentence at the last punctuation mark
+                            remaining_content = sentence[last_punctuation + 1:]
+                            sentence = sentence[:last_punctuation + 1]
 
                         if ('assist' in content) and (num_sentences>0):
                             logging.info(f"'assist' keyword found. Ignoring sentence which begins with: {sentence}")
@@ -273,6 +281,7 @@ class ChatManager:
                             if action_taken == False:
                                 # Generate the audio and return the audio file path
                                 try:
+                                    logging.info(f"'DEBUGERFR Before audio_file{sentence}")
                                     audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ', self.active_character.is_in_combat)
                                 except Exception as e:
                                     logging.error(f"xVASynth Error: {e}")
@@ -283,6 +292,8 @@ class ChatManager:
                                 full_reply += sentence
                                 num_sentences += 1
                                 sentence = ''
+                                sentence = remaining_content
+                                remaining_content = ''
 
                                 # clear the event for the next iteration
                                 event.clear()
