@@ -205,7 +205,6 @@ class ChatManager:
                 start_time = time.time()
                 async for chunk in await openai.ChatCompletion.acreate(model=self.llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'}, stream=True, stop=self.stop, temperature=self.temperature, top_p=self.top_p, frequency_penalty=self.frequency_penalty, max_tokens=self.max_tokens):
                     content = chunk["choices"][0].get("delta", {}).get("content")
-                    logging.info(f"'content info : {content}")
 
                     if content is not None:
                         sentence += content
