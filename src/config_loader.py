@@ -109,8 +109,10 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
             self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
 
+            self.player_name = config['Prompt']['player_name']
             self.prompt = config['Prompt']['prompt']
             self.multi_npc_prompt = config['Prompt']['multi_npc_prompt']
+            self.radiant_dialogue_prompt = config['Prompt']['radiant_dialogue_prompt']
             pass
         except Exception as e:
             logging.error('Parameter missing/invalid in config.ini file!')

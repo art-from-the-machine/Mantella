@@ -45,127 +45,127 @@ class Character:
         return conversation_summary_file
     
 
-    def set_context(self, prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue) -> str:
-        # if conversation history exists, load it
-        if os.path.exists(self.conversation_history_file):
-            with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
-                conversation_history = json.load(f)
+    # def set_context(self, prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue) -> str:
+    #     # if conversation history exists, load it
+    #     if os.path.exists(self.conversation_history_file):
+    #         with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
+    #             conversation_history = json.load(f)
 
-            previous_conversations = []
-            for conversation in conversation_history:
-                previous_conversations.extend(conversation)
+    #         previous_conversations = []
+    #         for conversation in conversation_history:
+    #             previous_conversations.extend(conversation)
 
-            with open(self.conversation_summary_file, 'r', encoding='utf-8') as f:
-                previous_conversation_summaries = f.read()
+    #         with open(self.conversation_summary_file, 'r', encoding='utf-8') as f:
+    #             previous_conversation_summaries = f.read()
 
-            self.conversation_summary = previous_conversation_summaries
+    #         self.conversation_summary = previous_conversation_summaries
 
-            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue, len(previous_conversations), previous_conversation_summaries)
-        else:
-            context = self.create_context(prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue)
+    #         context = self.create_context(prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue, len(previous_conversations), previous_conversation_summaries)
+    #     else:
+    #         context = self.create_context(prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue)
 
-        return context
+    #     return context
     
 
-    def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, token_limit=4096, radiant_dialogue='false', trust_level=0, conversation_summary='', prompt_limit_pct=0.75) -> str:
-        if self.relationship_rank == 0:
-            if trust_level < 1:
-                trust = 'a stranger'
-            elif trust_level < 10:
-                trust = 'an acquaintance'
-            elif trust_level < 50:
-                trust = 'a friend'
-            elif trust_level >= 50:
-                trust = 'a close friend'
-        elif self.relationship_rank == 4:
-            trust = 'a lover'
-        elif self.relationship_rank > 0:
-            trust = 'a friend'
-        elif self.relationship_rank < 0:
-            trust = 'an enemy'
-        if len(conversation_summary) > 0:
-            conversation_summary = f"Below is a summary for each of your previous conversations:\n\n{conversation_summary}"
+    # def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, token_limit=4096, radiant_dialogue='false', trust_level=0, conversation_summary='', prompt_limit_pct=0.75) -> str:
+    #     if self.relationship_rank == 0:
+    #         if trust_level < 1:
+    #             trust = 'a stranger'
+    #         elif trust_level < 10:
+    #             trust = 'an acquaintance'
+    #         elif trust_level < 50:
+    #             trust = 'a friend'
+    #         elif trust_level >= 50:
+    #             trust = 'a close friend'
+    #     elif self.relationship_rank == 4:
+    #         trust = 'a lover'
+    #     elif self.relationship_rank > 0:
+    #         trust = 'a friend'
+    #     elif self.relationship_rank < 0:
+    #         trust = 'an enemy'
+    #     if len(conversation_summary) > 0:
+    #         conversation_summary = f"Below is a summary for each of your previous conversations:\n\n{conversation_summary}"
 
-        time_group = utils.get_time_group(time)
+    #     time_group = utils.get_time_group(time)
 
-        keys = list(active_characters.keys())
+    #     keys = list(active_characters.keys())
 
-        if len(keys) == 1: # Single NPC prompt
-            character_desc = prompt.format(
-                name=self.name, 
-                bio=self.bio, 
-                trust=trust, 
-                location=location, 
-                time=time, 
-                time_group=time_group, 
-                language=self.language, 
-                conversation_summary=conversation_summary
-            )
-        else: # Multi NPC prompt
-            if radiant_dialogue == 'false': # don't mention player if radiant dialogue
-                keys_w_player = ['the player'] + keys
-            else:
-                keys_w_player = keys
+    #     if len(keys) == 1: # Single NPC prompt
+    #         character_desc = prompt.format(
+    #             name=self.name, 
+    #             bio=self.bio, 
+    #             trust=trust, 
+    #             location=location, 
+    #             time=time, 
+    #             time_group=time_group, 
+    #             language=self.language, 
+    #             conversation_summary=conversation_summary
+    #         )
+    #     else: # Multi NPC prompt
+    #         if radiant_dialogue == 'false': # don't mention player if radiant dialogue
+    #             keys_w_player = ['the player'] + keys
+    #         else:
+    #             keys_w_player = keys
             
-            # Join all but the last key with a comma, and add the last key with "and" in front
-            character_names_list = ', '.join(keys[:-1]) + ' and ' + keys[-1]
-            character_names_list_w_player = ', '.join(keys_w_player[:-1]) + ' and ' + keys_w_player[-1]
+    #         # Join all but the last key with a comma, and add the last key with "and" in front
+    #         character_names_list = ', '.join(keys[:-1]) + ' and ' + keys[-1]
+    #         character_names_list_w_player = ', '.join(keys_w_player[:-1]) + ' and ' + keys_w_player[-1]
 
-            bio_descriptions = []
-            for character_name, character in active_characters.items():
-                bio_descriptions.append(f"{character_name}: {character.bio}")
+    #         bio_descriptions = []
+    #         for character_name, character in active_characters.items():
+    #             bio_descriptions.append(f"{character_name}: {character.bio}")
 
-            formatted_bios = "\n".join(bio_descriptions)
+    #         formatted_bios = "\n".join(bio_descriptions)
 
-            conversation_histories = []
-            for character_name, character in active_characters.items():
-                conversation_histories.append(f"{character_name}: {character.conversation_summary}")
+    #         conversation_histories = []
+    #         for character_name, character in active_characters.items():
+    #             conversation_histories.append(f"{character_name}: {character.conversation_summary}")
 
-            formatted_histories = "\n".join(conversation_histories)
+    #         formatted_histories = "\n".join(conversation_histories)
             
-            character_desc = prompt.format(
-                name=self.name, 
-                names=character_names_list,
-                names_w_player=character_names_list_w_player,
-                language=self.language,
-                location=location,
-                time=time,
-                time_group=time_group,
-                bios=formatted_bios,
-                conversation_summaries=formatted_histories)
+    #         character_desc = prompt.format(
+    #             name=self.name, 
+    #             names=character_names_list,
+    #             names_w_player=character_names_list_w_player,
+    #             language=self.language,
+    #             location=location,
+    #             time=time,
+    #             time_group=time_group,
+    #             bios=formatted_bios,
+    #             conversation_summaries=formatted_histories)
 
-            prompt_num_tokens = openai_client.num_tokens_from_messages(message_thread(character_desc))
-            prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
-            # If the full prompt is too long, exclude NPC memories from prompt
-            if prompt_num_tokens > prompt_token_limit:
-                character_desc = prompt.format(
-                    name=self.name, 
-                    names=character_names_list,
-                    names_w_player=character_names_list_w_player,
-                    language=self.language,
-                    location=location,
-                    time=time,
-                    time_group=time_group,
-                    bios=formatted_bios,
-                    conversation_summaries='NPC memories not available.')
+    #         prompt_num_tokens = openai_client.num_tokens_from_messages(message_thread(character_desc))
+    #         prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
+    #         # If the full prompt is too long, exclude NPC memories from prompt
+    #         if prompt_num_tokens > prompt_token_limit:
+    #             character_desc = prompt.format(
+    #                 name=self.name, 
+    #                 names=character_names_list,
+    #                 names_w_player=character_names_list_w_player,
+    #                 language=self.language,
+    #                 location=location,
+    #                 time=time,
+    #                 time_group=time_group,
+    #                 bios=formatted_bios,
+    #                 conversation_summaries='NPC memories not available.')
                 
-                prompt_num_tokens = openai_client.num_tokens_from_messages(message_thread(character_desc))
-                prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
-                # If the prompt with all bios included is too long, exclude NPC bios and just list the names of NPCs in the conversation
-                if prompt_num_tokens > prompt_token_limit:
-                    character_desc = prompt.format(
-                        name=self.name, 
-                        names=character_names_list,
-                        names_w_player=character_names_list_w_player,
-                        language=self.language,
-                        location=location,
-                        time=time,
-                        time_group=time_group,
-                        bios='NPC backgrounds not available.',
-                        conversation_summaries='NPC memories not available.')
+    #             prompt_num_tokens = openai_client.num_tokens_from_messages(message_thread(character_desc))
+    #             prompt_token_limit = (round(token_limit*prompt_limit_pct,0))
+    #             # If the prompt with all bios included is too long, exclude NPC bios and just list the names of NPCs in the conversation
+    #             if prompt_num_tokens > prompt_token_limit:
+    #                 character_desc = prompt.format(
+    #                     name=self.name, 
+    #                     names=character_names_list,
+    #                     names_w_player=character_names_list_w_player,
+    #                     language=self.language,
+    #                     location=location,
+    #                     time=time,
+    #                     time_group=time_group,
+    #                     bios='NPC backgrounds not available.',
+    #                     conversation_summaries='NPC memories not available.')
         
-        logging.info(character_desc)
-        return character_desc
+    #     logging.info(character_desc)
+    #     return character_desc
 
     def save_conversation(self, encoding, messages: message_thread, tokens_available, client: openai_client, summary=None, summary_limit_pct=0.45):
         if self.is_generic_npc:

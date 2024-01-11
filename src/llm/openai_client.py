@@ -176,6 +176,28 @@ class openai_client:
         num_tokens += 2  # every reply is primed with <im_start>assistant
         return num_tokens
     
+    @staticmethod
+    def num_tokens_from_message(message_to_measure: message | str, encoding: tiktoken.Encoding | None, model="gpt-3.5-turbo") -> int:
+        if not encoding:
+            try:
+                encoding = tiktoken.encoding_for_model(model)
+            except KeyError:
+                encoding = tiktoken.get_encoding("cl100k_base")
+        
+        text: str = ""
+        if isinstance(message_to_measure, message):
+            text = message_to_measure.get_formatted_content()
+        else:
+            text = message_to_measure
+
+        num_tokens = 4 # every message follows <im_start>{role/name}\n{content}<im_end>\n
+        num_tokens += len(text)
+        if isinstance(message_to_measure, message) and message_to_measure.get_openai_message().__contains__("name"):# if there's a name, the role is omitted
+            num_tokens += -1# role is always required and always 1 token
+        
+        return num_tokens
+
+    
     def calculate_tokens_from_messages(self, messages: message_thread) -> int:
         return openai_client.num_tokens_from_messages(messages, self.__model_name)
     
