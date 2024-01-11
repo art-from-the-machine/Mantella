@@ -26,6 +26,8 @@ class Transcriber:
         self.default_player_response = config.default_player_response
         self.debug_exit_on_first_exchange = config.debug_exit_on_first_exchange
         self.end_conversation_keyword = config.end_conversation_keyword
+        self.radiant_start_prompt = config.radiant_start_prompt
+        self.radiant_end_prompt = config.radiant_end_prompt
 
         self.call_count = 0
         self.api_key = api_key

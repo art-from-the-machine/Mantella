@@ -1,3 +1,4 @@
+import traceback
 import src.tts as tts
 import src.stt as stt
 import logging
@@ -178,6 +179,14 @@ try:
                 #audio_file = synthesizer.synthesize(character.info['voice_model'], character.info['skyrim_voice_folder'], 'Beep boop. Let me think.')
                 #chat_manager.save_files_to_voice_folders([audio_file, 'Beep boop. Let me think.'])
 
+                # check if NPC is in combat to change their voice tone (if one on one conversation)
+                if characters.active_character_count() == 1:
+                    aggro = game_state_manager.load_data_when_available('_mantella_actor_is_in_combat', '').lower()
+                    if aggro == 'true':
+                        chat_manager.active_character.is_in_combat = 1
+                    else:
+                        chat_manager.active_character.is_in_combat = 0
+
                 # get character's response
                 if transcribed_text:
                     messages = asyncio.run(get_response(client, messages, synthesizer, characters, radiant_dialogue))
@@ -198,5 +207,5 @@ except Exception as e:
     except:
         None
 
-    logging.error(f"Error: {e}")
+    logging.error("".join(traceback.format_exception(e)))
     input("Press Enter to exit.")

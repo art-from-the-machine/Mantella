@@ -188,7 +188,7 @@ class ChatManager:
         # this converts double asterisks to single so that they can be filtered out appropriately
         sentence = sentence.replace('**','*')
         sentence = parse_asterisks_brackets(sentence)
-
+        logging.info(f'\nDEBUGFR v{sentence}')
         return sentence
 
 
@@ -205,6 +205,12 @@ class ChatManager:
                 async for content in client.streaming_call(messages= messages):
                     if content is not None:
                         sentence += content
+                        # Check for the last occurrence of sentence-ending punctuation
+                        last_punctuation = max(sentence.rfind('.'), sentence.rfind('!'), sentence.rfind(':'), sentence.rfind('?'))
+                        if last_punctuation != -1:
+                            # Split the sentence at the last punctuation mark
+                            remaining_content = sentence[last_punctuation + 1:]
+                            sentence = sentence[:last_punctuation + 1]
 
                         if ('assist' in content) and (num_sentences>0):
                             logging.info(f"'assist' keyword found. Ignoring sentence which begins with: {sentence}")
@@ -242,6 +248,7 @@ class ChatManager:
                                     if self.experimental_features:
                                         logging.info(f"The player offended the NPC")
                                         self.game_state_manager.write_game_info('_mantella_aggro', '1')
+                                        self.active_character.is_in_combat = 1
                                     else:
                                         logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Offended feature")
                                     full_reply += sentence
@@ -251,6 +258,7 @@ class ChatManager:
                                     if self.experimental_features:
                                         logging.info(f"The player made up with the NPC")
                                         self.game_state_manager.write_game_info('_mantella_aggro', '0')
+                                        self.active_character.is_in_combat = 0
                                     else:
                                         logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Forgiven feature")
                                     full_reply += sentence
@@ -269,7 +277,8 @@ class ChatManager:
                             if action_taken == False:
                                 # Generate the audio and return the audio file path
                                 try:
-                                    audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ')
+                                    logging.info(f"'DEBUGERFR Before audio_file{sentence}")
+                                    audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ', self.active_character.is_in_combat)
                                 except Exception as e:
                                     logging.error(f"xVASynth Error: {e}")
 
@@ -279,6 +288,8 @@ class ChatManager:
                                 full_reply += sentence
                                 num_sentences += 1
                                 sentence = ''
+                                sentence = remaining_content
+                                remaining_content = ''
 
                                 # clear the event for the next iteration
                                 event.clear()
