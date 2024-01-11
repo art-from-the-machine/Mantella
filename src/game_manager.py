@@ -1,6 +1,7 @@
 import logging
 import src.utils as utils
 import time
+import random
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv"""
@@ -61,6 +62,7 @@ class GameStateManager:
         self.write_game_info('_mantella_status', 'False')
 
         self.write_game_info('_mantella_actor_is_enemy', 'False')
+        self.write_game_info('_mantella_actor_is_in_combat', 'False')
 
         self.write_game_info('_mantella_actor_relationship', '')
 
@@ -97,13 +99,49 @@ class GameStateManager:
         return character_name, character_id, location, in_game_time
     
     
-    def write_dummy_game_info(self, character_name):
+    def write_dummy_game_info(self, character_name, character_df):
         """Write fake data to game files when debugging"""
+        logging.info(f'Writing dummy game status for debugging character {character_name}')
+        actor_sex = random.choice(['Female','Male'])
+        actor_race = random.choice(['ArgonianRace','BretonRace','DarkElfRace','HighElfRace','ImperialRace','KhajiitRace','NordRace','OrcRace','RedguardRace','WoodElfRace'])
+        try:
+            actor_sex = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'gender'].values[0]
+        except:
+            pass
+        try:
+            actor_race = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'race'].values[0]
+        except:
+            pass
+        self.write_game_info('_mantella_actor_race', f'<{actor_race}')
+        self.write_game_info('_mantella_actor_sex', actor_sex)
+        voice_model = random.choice(['Female Nord', 'Male Nord'])
+        try: # search for voice model in skyrim_characters.csv
+            voice_model = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'voice_model'].values[0]
+        except: # guess voice model based on sex and race
+            if actor_sex == 'Female':
+                try:
+                    voice_model = _female_voice_models[actor_race]
+                except:
+                    voice_model = 'Female Nord'
+            else:
+                try:
+                    voice_model = _male_voice_models[actor_race]
+                except:
+                    voice_model = 'Male Nord'
+
+        self.write_game_info('_mantella_actor_voice', f'<{voice_model}')
+
+        relationship = '0'
+        self.write_game_info('_mantella_actor_relationship', relationship)
 
         self.write_game_info('_mantella_current_actor', character_name)
 
         character_id = '0'
-        self.write_game_info('_mantella_current_actor_id', character_id)
+        try: # search for voice model in skyrim_characters.csv
+            voice_model = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'base_id_int'].values[0]
+        except:
+            pass
+        self.write_game_info('_mantella_current_actor_id', str(character_id))
 
         location = 'Skyrim'
         self.write_game_info('_mantella_current_location', location)
@@ -125,7 +163,7 @@ class GameStateManager:
         return character_id, character_name
     
     
-    def debugging_setup(self, debug_character_name):
+    def debugging_setup(self, debug_character_name, character_df):
         """Select character based on debugging parameters"""
 
         # None == in-game character chosen by spell
@@ -135,39 +173,13 @@ class GameStateManager:
             character_name = debug_character_name
             debug_character_name = ''
 
-        character_name, character_id, location, in_game_time = self.write_dummy_game_info(character_name)
+        character_name, character_id, location, in_game_time = self.write_dummy_game_info(character_name, character_df)
 
         return character_name, character_id, location, in_game_time
     
     
     def load_unnamed_npc(self, character_name, character_df):
         """Load generic NPC if character cannot be found in skyrim_characters.csv"""
-
-        male_voice_models = {
-            'ArgonianRace': 'Male Argonian',
-            'BretonRace': 'Male Even Toned',
-            'DarkElfRace': 'Male Dark Elf Commoner',
-            'HighElfRace': 'Male Elf Haughty',
-            'ImperialRace': 'Male Even Toned',
-            'KhajiitRace': 'Male Khajit',
-            'NordRace': 'Male Nord',
-            'OrcRace': 'Male Orc',
-            'RedguardRace': 'Male Even Toned',
-            'WoodElfRace': 'Male Young Eager',
-        }
-        female_voice_models = {
-            'ArgonianRace': 'Female Argonian',
-            'BretonRace': 'Female Even Toned',
-            'DarkElfRace': 'Female Dark Elf Commoner',
-            'HighElfRace': 'Female Elf Haughty',
-            'ImperialRace': 'Female Even Toned',
-            'KhajiitRace': 'Female Khajit',
-            'NordRace': 'Female Nord',
-            'OrcRace': 'Female Orc',
-            'RedguardRace': 'Female Sultry',
-            'WoodElfRace': 'Female Young Eager',
-        }
-
         # unknown == I couldn't find the IDs for these voice models
         voice_model_ids = {
             '0002992B':	'Dragon',
@@ -242,12 +254,12 @@ class GameStateManager:
             except: # guess voice model based on sex and race
                 if actor_sex == '1':
                     try:
-                        voice_model = female_voice_models[actor_race]
+                        voice_model = _female_voice_models[actor_race]
                     except:
                         voice_model = 'Female Nord'
                 else:
                     try:
-                        voice_model = male_voice_models[actor_race]
+                        voice_model = _male_voice_models[actor_race]
                     except:
                         voice_model = 'Male Nord'
 
@@ -271,7 +283,7 @@ class GameStateManager:
         """Load game variables from _mantella_ files in Skyrim folder (data passed by the Mantella spell)"""
 
         if debug_mode == '1':
-            character_name, character_id, location, in_game_time = self.debugging_setup(debug_character_name)
+            character_name, character_id, location, in_game_time = self.debugging_setup(debug_character_name, character_df)
         
         # tell Skyrim papyrus script to start waiting for voiceline input
         self.write_game_info('_mantella_end_conversation', 'False')
@@ -301,6 +313,10 @@ class GameStateManager:
             actor_voice_model = self.load_data_when_available('_mantella_actor_voice', '')
             actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
             character_info['in_game_voice_model'] = actor_voice_model_name
+
+        # Is Player in combat with NPC
+        is_in_combat = self.load_data_when_available('_mantella_actor_is_enemy', '')
+        character_info['is_in_combat'] = is_in_combat
 
         actor_relationship_rank = self.load_data_when_available('_mantella_actor_relationship', '')
         try:
@@ -421,3 +437,28 @@ class GameStateManager:
         context.extend(messages_last_entries)
 
         return conversation_summary_file, context, messages
+    
+_male_voice_models = {
+    'ArgonianRace': 'Male Argonian',
+    'BretonRace': 'Male Even Toned',
+    'DarkElfRace': 'Male Dark Elf Commoner',
+    'HighElfRace': 'Male Elf Haughty',
+    'ImperialRace': 'Male Even Toned',
+    'KhajiitRace': 'Male Khajit',
+    'NordRace': 'Male Nord',
+    'OrcRace': 'Male Orc',
+    'RedguardRace': 'Male Even Toned',
+    'WoodElfRace': 'Male Young Eager',
+}
+_female_voice_models = {
+    'ArgonianRace': 'Female Argonian',
+    'BretonRace': 'Female Even Toned',
+    'DarkElfRace': 'Female Dark Elf Commoner',
+    'HighElfRace': 'Female Elf Haughty',
+    'ImperialRace': 'Female Even Toned',
+    'KhajiitRace': 'Female Khajit',
+    'NordRace': 'Female Nord',
+    'OrcRace': 'Female Orc',
+    'RedguardRace': 'Female Sultry',
+    'WoodElfRace': 'Female Young Eager',
+}
