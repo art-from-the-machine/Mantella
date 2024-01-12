@@ -29,7 +29,6 @@ class ChatManager:
         self.offended_npc_response = config.offended_npc_response
         self.forgiven_npc_response = config.forgiven_npc_response
         self.follow_npc_response = config.follow_npc_response
-        self.experimental_features = config.experimental_features
         self.wait_time_buffer = config.wait_time_buffer
 
         self.character_num = 0
@@ -248,31 +247,22 @@ class ChatManager:
                                     logging.info(f"Stopped LLM from speaking on behalf of the player")
                                     break
                                 elif keyword_extraction.lower() == self.offended_npc_response.lower():
-                                    if self.experimental_features:
-                                        logging.info(f"The player offended the NPC")
-                                        self.game_state_manager.write_game_info('_mantella_aggro', '1')
-                                        self.active_character.is_in_combat = 1
-                                    else:
-                                        logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Offended feature")
+                                    logging.info(f"The player offended the NPC")
+                                    self.game_state_manager.write_game_info('_mantella_aggro', '1')
+                                    self.active_character.is_in_combat = 1
                                     full_reply += sentence
                                     sentence = ''
                                     action_taken = True
                                 elif keyword_extraction.lower() == self.forgiven_npc_response.lower():
-                                    if self.experimental_features:
-                                        logging.info(f"The player made up with the NPC")
-                                        self.game_state_manager.write_game_info('_mantella_aggro', '0')
-                                        self.active_character.is_in_combat = 0
-                                    else:
-                                        logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Forgiven feature")
+                                    logging.info(f"The player made up with the NPC")
+                                    self.game_state_manager.write_game_info('_mantella_aggro', '0')
+                                    self.active_character.is_in_combat = 0
                                     full_reply += sentence
                                     sentence = ''
                                     action_taken = True
                                 elif keyword_extraction.lower() == self.follow_npc_response.lower():
-                                    if self.experimental_features:
-                                        logging.info(f"The NPC is willing to follow the player")
-                                        self.game_state_manager.write_game_info('_mantella_aggro', '2')
-                                    else:
-                                        logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Follow feature")
+                                    logging.info(f"The NPC is willing to follow the player")
+                                    self.game_state_manager.write_game_info('_mantella_aggro', '2')
                                     full_reply += sentence
                                     sentence = ''
                                     action_taken = True

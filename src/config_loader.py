@@ -81,7 +81,6 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.custom_token_count = config['LanguageModel']['custom_token_count']
             self.temperature = float(config['LanguageModel']['temperature'])
             self.top_p = float(config['LanguageModel']['top_p'])
-            self.experimental_features = True if config['LanguageModel']['experimental_features'] == '1' else False
 
             stop_value = config['LanguageModel']['stop']
             if ',' in stop_value:
