@@ -88,6 +88,9 @@ class message_thread():
                     result.append(deepcopy(message))
         return result
     
+    def get_last_message(self) -> message:
+        return self.__messages[len(self.__messages) -1]
+
     def get_last_assistant_message(self) -> assistant_message | None:
         for message in reversed(self.__messages):
             if isinstance(message, assistant_message):

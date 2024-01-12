@@ -18,6 +18,10 @@ class context:
         return self.__npcs_in_conversation
     
     @property
+    def config(self) -> ConfigLoader:
+        return self.__config
+
+    @property
     def prompt_multinpc(self) -> str:
         return self.__config.multi_npc_prompt
     
@@ -96,8 +100,11 @@ class context:
                         result += f"{character.name}: {previous_conversation_summaries}"
         return result
     
+    def get_character_names(self) -> list[str]:
+        return [c.name for c in self.__npcs_in_conversation]
+
     def __get_characters_text(self, player_name: str = "") -> str:
-        keys = [c.name for c in self.__npcs_in_conversation]
+        keys = self.get_character_names()
         if len(player_name) > 0:
             keys.append(player_name)
         return context.formated_listing(keys)

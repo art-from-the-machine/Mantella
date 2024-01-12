@@ -23,8 +23,12 @@ class conversation_type(ABC):
     def proceed_conversation(self, settings: context, messages: message_thread):
         pass
 
-    def get_user_text(self, stt: Transcriber) -> str:
+    def get_user_text(self, stt: Transcriber, messages: message_thread) -> str:
         pass
+
+    @property
+    def is_radiant(self) -> bool:
+        return False
         
 
 class pc_to_npc(conversation_type):
@@ -59,3 +63,10 @@ class radiant(conversation_type):
 
     def proceed_conversation(self, settings: context, messages: message_thread):
         pass
+    
+    def get_user_text(self, stt: Transcriber, messages: message_thread) -> str:
+        pass
+
+    @property
+    def is_radiant(self) -> bool:
+        return True

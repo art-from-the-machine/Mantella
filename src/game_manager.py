@@ -355,22 +355,22 @@ class GameStateManager:
     def end_conversation(self, conversation_ended, config, client: openai_client, encoding, synthesizer, chat_manager, messages: message_thread, active_characters: dict[str, Character], tokens_available, player_name: str):
         """Say final goodbye lines and save conversation to memory"""
 
-        # say goodbyes
-        if conversation_ended.lower() != 'true': # say line if NPC is not already deactivated
-            latest_character = list(active_characters.items())[-1][1]
-            audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
-            chat_manager.save_files_to_voice_folders([audio_file, config.goodbye_npc_response])
+        # # say goodbyes
+        # if conversation_ended.lower() != 'true': # say line if NPC is not already deactivated
+        #     latest_character = list(active_characters.items())[-1][1]
+        #     audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
+        #     chat_manager.save_files_to_voice_folders([audio_file, config.goodbye_npc_response])
 
-        messages.add_message(user_message(config.end_conversation_keyword+'.', player_name, is_system_generated_message=True))
-        messages.add_message(assistant_message(config.end_conversation_keyword+'.', list(active_characters.keys()), is_system_generated_message=True))
+        # messages.add_message(user_message(config.end_conversation_keyword+'.', player_name, is_system_generated_message=True))
+        # messages.add_message(assistant_message(config.end_conversation_keyword+'.', list(active_characters.keys()), is_system_generated_message=True))
 
-        summary = None
-        for character_name, character in active_characters.items():
-            # If summary has already been generated for another character in a multi NPC conversation (multi NPC memory summaries are shared)
-            if summary == None:
-                summary = character.save_conversation(encoding, messages, tokens_available, client)
-            else:
-                _ = character.save_conversation(encoding, messages, tokens_available, client, summary)
+        # summary = None
+        # for character_name, character in active_characters.items():
+        #     # If summary has already been generated for another character in a multi NPC conversation (multi NPC memory summaries are shared)
+        #     if summary == None:
+        #         summary = character.save_conversation(encoding, messages, tokens_available, client)
+        #     else:
+        #         _ = character.save_conversation(encoding, messages, tokens_available, client, summary)
         logging.info('Conversation ended.')
 
         self.write_game_info('_mantella_in_game_events', '')

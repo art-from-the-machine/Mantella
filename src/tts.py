@@ -51,7 +51,7 @@ class Synthesizer:
         self.setvocoder_url = 'http://127.0.0.1:8008/setVocoder'
     
 
-    def synthesize(self, voice, voice_folder, voiceline, aggro=0):
+    def synthesize(self, voice, voiceline, aggro=0):
         if voice != self.last_voice:
             self.change_voice(voice)
 
