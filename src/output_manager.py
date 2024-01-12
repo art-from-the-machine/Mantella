@@ -28,7 +28,7 @@ class ChatManager:
         self.add_voicelines_to_all_voice_folders = config.add_voicelines_to_all_voice_folders
         self.offended_npc_response = config.offended_npc_response
         self.forgiven_npc_response = config.forgiven_npc_response
-        self.follow_npc_response = config.follow_npc_response#
+        self.follow_npc_response = config.follow_npc_response
         self.wait_time_buffer = config.wait_time_buffer
 
         self.character_num = 0
