@@ -161,7 +161,7 @@ try:
                     transcript_cleaned = utils.clean_text(transcribed_text)
 
                     new_user_message = user_message(transcribed_text, player_name, radiant_dialogue == "true" and transcriber.call_count != 2)#ToDo: This check is awkward. Currently for a radiant conversation the first and last user message is removed while the one in the middle is kept. This retains function parity for the moment
-                    new_user_message.is_multi_npc_message = characters.active_character_count() > 1
+                    new_user_message.is_multi_npc_message = characters.active_character_count() > 1 and not radiant_dialogue == "true"
                     new_user_message = game_state_manager.update_game_events(new_user_message) # add in-game events to player's response
                     messages.add_message(new_user_message)
                     logging.info(f"Text passed to NPC: {transcribed_text}")
