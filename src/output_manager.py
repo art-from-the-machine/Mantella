@@ -74,8 +74,9 @@ class ChatManager:
 
             self.game_state_manager.write_game_info('_mantella_status', 'Error with Mantella.exe. Please check MantellaSoftware/logging.log')
             logging.warn("Unknown NPC detected. This NPC will be able to speak once you restart Skyrim. To learn how to add memory, a background, and a voice model of your choosing to this NPC, see here: https://github.com/art-from-the-machine/Mantella#adding-modded-npcs")
-            input('\nPress any key to exit...')
-            sys.exit(0)
+            time.sleep(5)
+            return True
+        return False
 
 
     @utils.time_it
@@ -185,7 +186,6 @@ class ChatManager:
         # this converts double asterisks to single so that they can be filtered out appropriately
         sentence = sentence.replace('**','*')
         sentence = parse_asterisks_brackets(sentence)
-        logging.info(f'\nDEBUGFR v{sentence}')
         return sentence
 
 
@@ -270,7 +270,6 @@ class ChatManager:
                             if action_taken == False:
                                 # Generate the audio and return the audio file path
                                 try:
-                                    logging.info(f"'DEBUGERFR Before audio_file{sentence}")
                                     audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ', self.active_character.is_in_combat)
                                 except Exception as e:
                                     logging.error(f"xVASynth Error: {e}")
