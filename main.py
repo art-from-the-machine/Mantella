@@ -76,7 +76,9 @@ try:
         characters.active_characters[character.name] = character
         game_state_manager.write_game_info('_mantella_character_selection', 'True')
         # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
-        chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
+        restart_required = chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
+        if restart_required:
+            continue
 
         with open(f'{config.game_path}/_mantella_radiant_dialogue.txt', 'r', encoding='utf-8') as f:
             radiant_dialogue = f.readline().strip().lower()
