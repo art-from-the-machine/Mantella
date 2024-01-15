@@ -48,7 +48,7 @@ The minimum requirements for xVASynth can be found on its [Steam page](https://s
 This mod requires ~27GB of space when xVASynth and all voice models are installed. Temporarily another ~17GB is needed to unpack the voice models, unless the torrent is used which does not have the voice files archived.
 
 
-### Compatability
+### Compatibility
 - Some users have reported that Skyrim crashes when Mantella is used with Fuz Ro D'oh. A possible fix is to disable and re-enable Fuz Ro D'oh
 - The mod VR Keyboard conflicts with Mantella
 - Mantella requires Windows 10 / 11 (it is yet unconfirmed whether it works on Windows 7)
