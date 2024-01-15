@@ -144,7 +144,13 @@ try:
                 # if not radiant dialogue format
                 if radiant_dialogue == "false":
                     # add greeting from newly added NPC to help the LLM understand that this NPC has joined the conversation
-                    messages_wo_system_prompt[last_assistant_idx]['content'] += f"\n{character.name}: {language_info['hello']}."
+                    for active_character in characters.active_characters:
+                        if active_character != character.name: 
+                            # existing NPCs greet the new NPC
+                            messages_wo_system_prompt[last_assistant_idx]['content'] += f"\n{active_character}: {language_info['hello']} {character.name}."
+                        else: 
+                            # new NPC greets the existing NPCs
+                            messages_wo_system_prompt[last_assistant_idx]['content'] += f"\n{active_character}: {language_info['hello']}."
                 
                 new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit, radiant_dialogue)
 
