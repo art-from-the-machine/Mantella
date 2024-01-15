@@ -13,6 +13,7 @@ import sys
 
 class ChatManager:
     def __init__(self, game_state_manager, config, encoding):
+        self.game = config.game
         self.game_state_manager = game_state_manager
         self.mod_folder = config.mod_path
         self.max_response_sentences = config.max_response_sentences
@@ -30,12 +31,18 @@ class ChatManager:
         self.forgiven_npc_response = config.forgiven_npc_response
         self.follow_npc_response = config.follow_npc_response
         self.wait_time_buffer = config.wait_time_buffer
+        self.root_mod_folter = config.game_path
 
         self.character_num = 0
         self.active_character = None
 
         self.wav_file = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
         self.lip_file = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
+
+        self.f4_use_wav_file1 = True
+        self.f4_wav_file1 = f'MutantellaOutput1.wav'
+        self.f4_wav_file2 = f'MutantellaOutput2.wav'
+        self.f4_lip_file = f'00001ED2_1.lip'
 
         self.end_of_sentence_chars = ['.', '?', '!', ':', ';']
         self.end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.end_of_sentence_chars]
@@ -84,14 +91,39 @@ class ChatManager:
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file, subtitle = queue_output
+
+        # The if block below checks if it's Fallout 4, if that's the case it will add the wav file in the mod_folder\Sound\Voice\Mantella.esp\ 
+        # and alternate between two wavs to prevent access denied issues if Mantella.exe is trying to access a wav currently loaded in Fallout4
+        if self.game == "Fallout4":
+            if self.f4_use_wav_file1:
+                wav_file_to_use = self.f4_wav_file1
+                subtitle += " Mutantella1"
+                self.f4_use_wav_file1 = False
+            else:
+                wav_file_to_use = self.f4_wav_file2
+                subtitle += " Mutantella2"
+                self.f4_use_wav_file1 = True
+            wav_file_path = f"{self.mod_folder}/{wav_file_to_use}"
+            if os.path.exists(wav_file_path):
+                os.remove(wav_file_path)
+            shutil.copyfile(audio_file, wav_file_path)
+
         if self.add_voicelines_to_all_voice_folders == '1':
             for sub_folder in os.scandir(self.mod_folder):
                 if sub_folder.is_dir():
-                    shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
-                    shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.lip_file}")
+                    #copy both the wav file and lip file if the game isn't Fallout4
+                    if self.game !="Fallout4":
+                        shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
+                        shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.lip_file}")
+                    #if the game is Fallout 4 only copy the lip file
+                    else:    
+                        shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.f4_lip_file}")
         else:
-            shutil.copyfile(audio_file, f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.wav_file}")
-            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.lip_file}")
+            if self.game !="Fallout4":
+                shutil.copyfile(audio_file, f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.wav_file}")
+                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.lip_file}")
+            else: 
+                 shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.f4_lip_file}")
 
         logging.info(f"{self.active_character.name} (character {self.character_num}) should speak")
         if self.character_num == 0:
@@ -104,8 +136,13 @@ class ChatManager:
     def remove_files_from_voice_folders(self):
         for sub_folder in os.listdir(self.mod_folder):
             try:
-                os.remove(f"{self.mod_folder}/{sub_folder}/{self.wav_file}")
-                os.remove(f"{self.mod_folder}/{sub_folder}/{self.lip_file}")
+                #delete both the wav file and lip file if the game isn't Fallout4
+                if self.game !="Fallout4":
+                    os.remove(f"{self.mod_folder}/{sub_folder}/{self.wav_file}")
+                    os.remove(f"{self.mod_folder}/{sub_folder}/{self.lip_file}")
+                #if the game is Fallout 4 only delete the lip file
+                else:
+                    os.remove(f"{self.mod_folder}/{sub_folder}/{self.f4_lip_file}")
             except:
                 continue
 
@@ -134,10 +171,22 @@ class ChatManager:
             await self.send_audio_to_external_software(queue_output)
             event.set()
 
-            audio_duration = await self.get_audio_duration(queue_output[0])
-            # wait for the audio playback to complete before getting the next file
-            logging.info(f"Waiting {int(round(audio_duration,4))} seconds...")
-            await asyncio.sleep(audio_duration)
+            #if Fallout4 is running the audio will be sync by checking if say line is set to false because the game can internally check if an audio file has finished playing
+            if self.game =="Fallout4":
+                # Loop to check if _mantella_say_line_ is set to false
+                while True:
+                    with open(f'{self.root_mod_folter}/_mantella_say_line.txt', 'r', encoding='utf-8') as f:
+                        content = f.read().strip()
+                        if content.lower() == 'false':
+                            break
+                    # Wait for a short period before checking the file again
+                    await asyncio.sleep(0.1)  # adjust the sleep duration as needed
+            #if Skyrim's running then estimate audio duration to sync lip files
+            else:
+                audio_duration = await self.get_audio_duration(queue_output[0])
+                # wait for the audio playback to complete before getting the next file
+                logging.info(f"Waiting {int(round(audio_duration,4))} seconds...")
+                await asyncio.sleep(audio_duration)
 
     def clean_sentence(self, sentence):
         def remove_as_a(sentence):

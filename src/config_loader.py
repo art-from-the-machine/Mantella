@@ -46,6 +46,8 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             if int(config['Startup']['open_config_editor']) == 1:
                 run_config_editor()
 
+            self.game = config['Game']['game']
+
             self.language = config['Language']['language']
             self.end_conversation_keyword = config['Language']['end_conversation_keyword']
             self.goodbye_npc_response = config['Language']['goodbye_npc_response']
