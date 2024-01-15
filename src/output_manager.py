@@ -232,14 +232,16 @@ class ChatManager:
                             if content_edit == ':':
                                 keyword_extraction = sentence.strip()[:-1] #.lower()
                                 # if LLM is switching character
-                                if (keyword_extraction in characters.active_characters):
-                                    #TODO: or (any(key.split(' ')[0] == keyword_extraction for key in characters.active_characters))
-                                    logging.info(f"Switched to {keyword_extraction}")
-                                    self.active_character = characters.active_characters[keyword_extraction]
+                                # Find the first character whose name starts with keyword_extraction
+                                matching_character_key = next((key for key in characters.active_characters if key.startswith(keyword_extraction)), None)
+                                if matching_character_key:
+                                    logging.info(f"Switched to {matching_character_key}")
+                                    self.active_character = characters.active_characters[matching_character_key]
                                     synthesizer.change_voice(self.active_character.voice_model)
-                                    # characters are mapped to say_line based on order of selection
-                                    # taking the order of the dictionary to find which say_line to use, but it is bad practice to use dictionaries in this way
-                                    self.character_num = list(characters.active_characters.keys()).index(keyword_extraction)
+
+                                    # Find the index of the matching character
+                                    self.character_num = list(characters.active_characters.keys()).index(matching_character_key)
+
                                     full_reply += sentence
                                     sentence = ''
                                     action_taken = True
