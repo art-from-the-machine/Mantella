@@ -87,9 +87,9 @@ xVASynth is used as Text-To-Speech engine by Mantella due to being free open-sou
 
 * Another option is to use BitTorrent, the communication protocol for peer-to-peer file sharing. Peer availability may vary depending on the time of day. Unlike on Nexus Mods, these voice models are already unarchived. So, you only need to point the torrent download location to **models** +***\skyrim*** folder depending on whenever your BitTorrent client makes another subfolder. Having the torrent in the already correct folder for xVASynth means you can become a seeder of it for others without it really impacting your PC or internet performance.
 
-  Open the following URI in your BitTorrent client, note that if you are using the [Brave](https://github.com/brave/brave-browser), it has built-in client:
+  Open the following URI in your BitTorrent client, note that if you are using the [Brave](https://github.com/brave/brave-browser), it has a built-in client:
   
-  `magnet:?xt=urn:btih:798BB3190E776BFDCF590910C0805656420F45BC&dn=skyrim&tr=udp%3a%2f%2ftracker.opentrackr.org%3a1337&tr=udp%3a%2f%2fexplodie.org%3a6969&tr=wss%3a%2f%2ftracker.btorrent.xyz&tr=wss%3a%2f%2ftracker.openwebtorrent.com`
+  [Torrent Magnet Link](magnet:?xt=urn:btih:798BB3190E776BFDCF590910C0805656420F45BC&dn=skyrim&tr=udp%3a%2f%2ftracker.opentrackr.org%3a1337&tr=udp%3a%2f%2fexplodie.org%3a6969&tr=wss%3a%2f%2ftracker.btorrent.xyz&tr=wss%3a%2f%2ftracker.openwebtorrent.com)
 
   Note that this magnet URI may be removed from this page, if any voice model in it also becomes unavailable on Nexus Mods.
 
