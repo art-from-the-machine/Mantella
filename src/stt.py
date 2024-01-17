@@ -27,6 +27,8 @@ class Transcriber:
         self.default_player_response = config.default_player_response
         self.debug_exit_on_first_exchange = config.debug_exit_on_first_exchange
         self.end_conversation_keyword = config.end_conversation_keyword
+        self.radiant_start_prompt = config.radiant_start_prompt
+        self.radiant_end_prompt = config.radiant_end_prompt
 
         self.call_count = 0
 
@@ -57,11 +59,11 @@ class Transcriber:
         if radiant_dialogue == "true":
             if self.call_count < 1:
                 logging.info('Running radiant dialogue')
-                transcribed_text = '*Please begin / continue a conversation topic (greetings are not needed). Ensure to change the topic if the current one is losing steam. The conversation should steer towards topics which reveal information about the characters and who they are, or instead drive forward conversations previously discussed in their memory.*'
+                transcribed_text = f'*{self.radiant_start_prompt}*'
                 self.call_count += 1
             elif self.call_count <= 1:
                 logging.info('Ending radiant dialogue')
-                transcribed_text = '*Please wrap up the current topic between the NPCs in a natural way. Nobody is leaving, so no formal goodbyes.*'
+                transcribed_text = f'*{self.radiant_end_prompt}*'
                 self.call_count += 1
             else:
                 logging.info('Radiant dialogue ended')

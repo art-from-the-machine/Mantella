@@ -22,7 +22,7 @@ class Synthesizer:
         self.times_checked_xvasynth = 0
 
         # check if xvasynth is running; otherwise try to run it
-        # self.check_if_xvasynth_is_running()
+        #self.check_if_xvasynth_is_running()
 
         # voice models path
         self.model_path = f"{self.xvasynth_path}/resources/app/models/skyrim/"
@@ -45,17 +45,21 @@ class Synthesizer:
         self.model_type = ''
         self.base_speaker_emb = ''
 
-        self.tts_stream_url = config.tts_stream_url
-        self.tts_synthesize_url = config.tts_synthesize_url
         self.synthesize_url = 'http://127.0.0.1:8008/synthesize'
         self.synthesize_batch_url = 'http://127.0.0.1:8008/synthesize_batch'
         self.loadmodel_url = 'http://127.0.0.1:8008/loadModel'
         self.setvocoder_url = 'http://127.0.0.1:8008/setVocoder'
+        
+        #Added from xTTS implementation
+        self.use_external_tts = int(config.use_external_tts)
+        self.xtts_server_path = config.xtts_server_path
+        self.synthesize_url_xtts = 'http://127.0.0.1:8020/tts_to_audio/'
+        self.switch_model_url = 'http://127.0.0.1:8020/switch_model'
     
 
-    def synthesize(self, voice, voice_folder, voiceline):
+    def synthesize(self, voice, voice_folder, voiceline, aggro=0):
         if voice != self.last_voice:
-            self.change_voice(voice, voice_folder)
+            self.change_voice(voice)
 
         logging.info(f'Synthesizing voiceline: {voiceline}')
         phrases = self._split_voiceline(voiceline)
@@ -82,7 +86,7 @@ class Synthesizer:
 
         # Synthesize voicelines
         if len(phrases) == 1:
-            self._synthesize_line(phrases[0], final_voiceline_file)
+            self._synthesize_line(phrases[0], final_voiceline_file, aggro)
         else:
             # TODO: include batch synthesis for v3 models (batch not needed very often)
             if self.model_type != 'xVAPitch':
@@ -117,7 +121,70 @@ class Synthesizer:
 
         # if Debug Mode is on, play the audio file
         if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):
-            logging.info(f"Playing audio through console: {final_voiceline_file}")
+            winsound.PlaySound(final_voiceline_file, winsound.SND_FILENAME)
+
+        return final_voiceline_file
+    
+    def synthesize_xtts(self, voice, voice_folder, voiceline, aggro=0):
+        if voice != self.last_voice:
+            self.change_voice_xtts(voice)
+
+        logging.info(f'Synthesizing voiceline: {voiceline}')
+        phrases = self._split_voiceline(voiceline)
+
+        # make voice model folder if it doesn't already exist
+        if not os.path.exists(f"{self.output_path}/voicelines/{self.last_voice}"):
+            os.makedirs(f"{self.output_path}/voicelines/{self.last_voice}")
+        
+        voiceline_files = []
+        for phrase in phrases:
+            voiceline_file = f"{self.output_path}/voicelines/{self.last_voice}/{utils.clean_text(phrase)[:150]}.wav"
+            voiceline_files.append(voiceline_file)
+
+        final_voiceline_file_name = 'voiceline'
+        final_voiceline_file =  f"{self.output_path}/voicelines/{self.last_voice}/{final_voiceline_file_name}.wav"
+
+        try:
+            if os.path.exists(final_voiceline_file):
+                os.remove(final_voiceline_file)
+            if os.path.exists(final_voiceline_file.replace(".wav", ".lip")):
+                os.remove(final_voiceline_file.replace(".wav", ".lip"))
+        except:
+            logging.warning("Failed to remove spoken voicelines")
+
+        # Synthesize voicelines
+        if len(phrases) == 1:
+            self._synthesize_line_xtts(phrases[0], final_voiceline_file, aggro)
+        else:
+            for i, voiceline_file in enumerate(voiceline_files):
+                self._synthesize_line_xtts(phrases[i], voiceline_files[i])
+            self.merge_audio_files(voiceline_files, final_voiceline_file)
+
+        if not os.path.exists(final_voiceline_file):
+            logging.error(f'xTTS failed to generate voiceline at: {Path(final_voiceline_file)}')
+            raise FileNotFoundError()
+
+        # check if FonixData.cdf file is besides FaceFXWrapper.exe
+        cdf_path = f'{self.xtts_server_path}/plugins/lip_fuz/FonixData.cdf'
+        if not os.path.exists(Path(cdf_path)):
+            logging.error(f'Could not find FonixData.cdf in "{Path(cdf_path).parent}" required by FaceFXWrapper. Look for the Lip Fuz plugin of xVASynth.')
+            raise FileNotFoundError()
+
+        # generate .lip file from the .wav file with FaceFXWrapper
+        face_wrapper_executable = f'{self.xtts_server_path}/plugins/lip_fuz/FaceFXWrapper.exe';
+        if os.path.exists(face_wrapper_executable):
+            # Run FaceFXWrapper.exe
+            self.run_command(f'{face_wrapper_executable} "Skyrim" "USEnglish" "{self.xtts_server_path}/plugins/lip_fuz/FonixData.cdf" "{final_voiceline_file}" "{final_voiceline_file.replace(".wav", "_r.wav")}" "{final_voiceline_file.replace(".wav", ".lip")}" "{voiceline}"')
+        else:
+            logging.error(f'Could not find FaceFXWrapper.exe in "{Path(face_wrapper_executable).parent}" with which to create a Lip Sync file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
+            raise FileNotFoundError()
+
+        # remove file created by FaceFXWrapper
+        if os.path.exists(final_voiceline_file.replace(".wav", "_r.wav")):
+            os.remove(final_voiceline_file.replace(".wav", "_r.wav"))
+
+        # if Debug Mode is on, play the audio file
+        if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):
             winsound.PlaySound(final_voiceline_file, winsound.SND_FILENAME)
 
         return final_voiceline_file
@@ -204,24 +271,15 @@ class Synthesizer:
     
 
     @utils.time_it
-    def _synthesize_line(self, line, save_path):
-
-        if (self.model_type == ''):
-            # external TTS
-            data = {
-                'speaker_wav': self.last_voice,
-                'text': line,
-                'language': self.language
+    def _synthesize_line(self, line, save_path, aggro=0):
+        pluginsContext = {}
+        # in combat
+        if (aggro == 1):
+            pluginsContext["mantella_settings"] = {
+                "emAngry": 0.6
             }
-            response = requests.post(self.tts_synthesize_url, json=data)
-
-            logging.info(response)
-            with open(save_path, 'wb') as f:
-                f.write(response.content)
-            return
-
         data = {
-            'pluginsContext': '{}',
+            'pluginsContext': json.dumps(pluginsContext),
             'modelType': self.model_type,
             'sequence': line,
             'pace': self.pace,
@@ -234,6 +292,14 @@ class Synthesizer:
         }
         requests.post(self.synthesize_url, json=data)
 
+    @utils.time_it
+    def _synthesize_line_xtts(self, line, save_path, aggro=0):
+        data = {
+        'text': line,
+        'language': self.language,
+        'save_path': save_path
+        }       
+        requests.post(self.synthesize_url_xtts, json=data)
 
     @utils.time_it
     def _batch_synthesize(self, grouped_sentences, voiceline_files):
@@ -285,19 +351,7 @@ class Synthesizer:
             sys.exit(0)
     
     @utils.time_it
-    def change_voice(self, voice, voice_folder='xVA'):
-        if (
-            voice_folder == ''
-            or voice_folder == 'nan'
-            or voice_folder == 'xVA'
-        ):
-            self.last_voice = voice
-            self.model_type = ''
-
-            # use external TTS service
-            logging.info('External service uses multi-voice model.')
-            return
-
+    def change_voice(self, voice):
         logging.info('Loading voice model...')
 
         voice_path = f"{self.model_path}sk_{voice.lower().replace(' ', '')}"
@@ -331,6 +385,15 @@ class Synthesizer:
 
         logging.info('Voice model loaded.')
 
+    @utils.time_it
+    def change_voice_xtts(self, voice):
+        logging.info('Loading voice model...')
+        
+        requests.post(self.switch_model_url, json={"model_name": voice})
+
+        self.last_voice = voice
+
+        logging.info('Voice model loaded.')
 
     def run_command(self, command):
         startupinfo = subprocess.STARTUPINFO()
