@@ -89,7 +89,7 @@ xVASynth is used as Text-To-Speech engine by Mantella due to being free open-sou
 
   Open the following URI in your BitTorrent client, note that if you are using the [Brave](https://github.com/brave/brave-browser), it has a built-in client:
   
-  [Torrent Magnet Link](magnet:?xt=urn:btih:798BB3190E776BFDCF590910C0805656420F45BC&dn=skyrim&tr=udp%3a%2f%2ftracker.opentrackr.org%3a1337&tr=udp%3a%2f%2fexplodie.org%3a6969&tr=wss%3a%2f%2ftracker.btorrent.xyz&tr=wss%3a%2f%2ftracker.openwebtorrent.com)
+`magnet:?xt=urn:btih:798BB3190E776BFDCF590910C0805656420F45BC&dn=skyrim&tr=udp%3a%2f%2ftracker.opentrackr.org%3a1337&tr=udp%3a%2f%2fexplodie.org%3a6969&tr=wss%3a%2f%2ftracker.btorrent.xyz&tr=wss%3a%2f%2ftracker.openwebtorrent.com`
 
   Note that this magnet URI may be removed from this page, if any voice model in it also becomes unavailable on Nexus Mods.
 
