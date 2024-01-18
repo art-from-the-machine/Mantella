@@ -91,17 +91,17 @@ xVASynth is used as Text-To-Speech engine by Mantella due to being free open-sou
 	<details>
 	<summary><b>xVASynth Model Installation Options</b></summary>  
 
- 	**💎 Nexus Premium (Quickest)**  
+   	### 💎 Nexus Premium (Quickest)  
    	If you are subscribed to Nexus Premium, open the xVASynth UI and select "Get More Voices" from the bottom left corner. Unselect all games except for Skyrim and download all models. Note that this may require restarting a few times for the downloads to properly complete.  
 
-   	**🌊 Torrent (Slowest, Easiest)**  
+   	### 🌊 Torrent (Slowest, Easiest)  
    	Voice models can be downloaded via a single torrent. Torrents can be downloaded via Bittorent clients such as [qBittorent](https://www.qbittorrent.org/download). Note that download speeds vary depending on the time of day. Paste the below magnet link in your browser to receive a popup to open it via your Bittorent client, and set the download location to `your_xVASynth_folder/resources/app/models/skyrim`:  
 
    	`magnet:?xt=urn:btih:798BB3190E776BFDCF590910C0805656420F45BC&dn=skyrim&tr=udp%3a%2f%2ftracker.opentrackr.org%3a1337&tr=udp%3a%2f%2fexplodie.org%3a6969&tr=wss%3a%2f%2ftracker.btorrent.xyz&tr=wss%3a%2f%2ftracker.openwebtorrent.com`  
 
    	Note that this magnet URI may be removed from this page if any voice model becomes unavailable on Nexus Mods.  
    
-	**🛠️ Manual (Hardest)**  
+	### 🛠️ Manual (Hardest)  
    	If you do not have Nexus Premium, or if the torrent is not available, you can also download the voice models directly from Nexus [here](https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files) (under "Optional", not "Old). Once you have manually downloaded each voice model into a folder, open xVASynth and drag all zipped voice model files from this folder into the voices panel. Wait for the installation to complete (this may take some time; a popup will display when finished saying "x models installed successfully"). If this method doesn't work for you, you can also unzip the models manually into the correct xVASynth folder (xVASynth\resources\app\models\skyrim). Once the extraction is complete, you can delete the zipped voice model files.  
 	  
 	</details>
