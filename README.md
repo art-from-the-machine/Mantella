@@ -89,7 +89,7 @@ xVASynth is used as Text-To-Speech engine by Mantella due to being free open-sou
 2. Download xVASynth trained voice models of Skyrim for all or any characters that you are likely to encounter. If downloading all models sounds a bit daunting, you can start with the "Male Nord" and "Male Soldier" voice models to at least allow talking to Skyrim guards. You can either download all models via a torrent, via the xVASynth UI if you have Nexus Premium, or manually via the Nexus Mods page.  
 
 	<details>
-	<summary>**xVASynth Model Installation Options**</summary>  
+	**<summary>xVASynth Model Installation Options</summary>**  
 
  	**Nexus Premium (Quickest)**  
    	If you are subscribed to Nexus Premium, open the xVASynth UI and select "Get More Voices" from the bottom left corner. Unselect all games except for Skyrim and download all models. Note that this may require restarting a few times for the downloads to properly complete.  
