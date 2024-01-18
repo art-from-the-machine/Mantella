@@ -279,17 +279,6 @@ class Synthesizer:
             else:
                 # ignore output
                 Popen(f'{self.xvasynth_path}/resources/app/cpython_{self.process_device}/server.exe', cwd=self.xvasynth_path, stdout=DEVNULL, stderr=DEVNULL)
-            # with sp.stdout:
-            #     self.log_subprocess_output(sp.stdout)
-            # print('precomm')
-            # output, error = sp.communicate()
-            # print('postcomm')
-            # log_subprocess_output(StringIO(output))
-            # exitcode = process.wait() # 0 means success
-                # log_subprocess_output(process.stdout)
-                # exitcode = process.wait() # 0 means success
-                # logger = logging.getLogger('serverLog')
-                # logger.setLevel(logging.WARNING)
         except:
             logging.error(f'Could not run xVASynth. Ensure that the path "{self.xvasynth_path}" is correct.')
             raise TTSServiceFailure()
