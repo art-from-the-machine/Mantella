@@ -383,7 +383,7 @@ class GameStateManager:
     
     
     @utils.time_it
-    def reload_conversation(self, config, client: openai_client, encoding, synthesizer, chat_manager, messages, active_characters, tokens_available, token_limit, location, in_game_time, radiant_dialogue):
+    def reload_conversation(self, config, client: openai_client, encoding, synthesizer, chat_manager, messages, active_characters, tokens_available, token_limit, location, in_game_time):
         """Restart conversation to save conversation to memory when token count is reaching its limit"""
 
         latest_character = list(active_characters.items())[-1][1]
