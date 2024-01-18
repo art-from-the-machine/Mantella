@@ -41,7 +41,7 @@ If you get stuck anywhere in the installation process, please see the [`#Issues 
 ## Video Tutorial
 For a visual reference to help install Mantella, see here (the video is in French with English subtitles):
 
-[https://youtu.be/-zRj2zFvGo0?si=drw36_fvqiSiPf70](https://youtu.be/-zRj2zFvGo0?si=drw36_fvqiSiPf70)
+[https://www.youtube.com/watch?v=-zRj2zFvGo0](https://www.youtube.com/watch?v=-zRj2zFvGo0)
 
 Note that xVASynth does not need to be run before Mantella.exe, and the bugs mentioned in the video have since been fixed.
 
