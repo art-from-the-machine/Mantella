@@ -38,6 +38,13 @@ If you get stuck anywhere in the installation process, please see the [`#Issues 
 - Fully playable in VR / SE / AE (including .1130)
 
 # Installation
+## Video Tutorial
+For a visual reference to help install Mantella, see here (the video is in French with English subtitles):
+
+[https://youtu.be/-zRj2zFvGo0?si=drw36_fvqiSiPf70](https://youtu.be/-zRj2zFvGo0?si=drw36_fvqiSiPf70)
+
+Note that xVASynth does not need to be run before Mantella.exe, and the bugs mentioned in the video have since been fixed.
+
 ## Requirements
 ### Hardware Requirements
 There are no discovered minimum requirements at the time of writing for Mantella, but there has been a report of Mantella crashing when running a modlist of 2000 mods. Mantella needs a certain amount of hardware allocation to run successfully, and if this is being soaked up by other hardware intensive mods, it may crash.
