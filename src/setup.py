@@ -42,6 +42,15 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         logging.log(22, "NPC voiceline")
         logging.log(23, "NPC info")
 
+
+        logging.addLevelName(27, "INFO STT")
+        logging.addLevelName(28, "INFO LLM")
+        logging.addLevelName(29, "INFO TTS")
+
+        logging.log(27, "Speech-To-Text related")
+        logging.log(28, "Large Language Model related")
+        logging.log(29, "Text-To-Speech related")
+
     def get_character_df(file_name):
         encoding = utils.get_file_encoding(file_name)
         character_df = pd.read_csv(file_name, engine='python', encoding=encoding)
@@ -98,7 +107,7 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         elif llm == 'gpt-4-1106-preview':
             token_limit = 128_000
         else:
-            logging.info(f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count} (this number can be changed via the `custom_token_count` setting in config.ini)")
+            logging.log(28, f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count} (this number can be changed via the `custom_token_count` setting in config.ini)")
             try:
                 token_limit = int(custom_token_count)
             except ValueError:
@@ -107,7 +116,7 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         if token_limit <= 4096:
             if is_local:
                 llm = 'Local language model'
-            logging.info(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
+            logging.log(28, f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
         
         return token_limit
 
@@ -119,9 +128,9 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         is_local = False
     setup_openai_secret_key(secret_key_file, is_local)
     if is_local:
-        logging.info(f"Running Mantella with local language model")
+        logging.log(28, f"Running Mantella with local language model")
     else:
-       logging.info(f"Running Mantella with '{config.llm}'. The language model chosen can be changed via config.ini")
+       logging.log(28, f"Running Mantella with '{config.llm}'. The language model chosen can be changed via config.ini")
 
     # clean up old instances of exe runtime files
     utils.cleanup_mei(config.remove_mei_folders)

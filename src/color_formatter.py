@@ -47,6 +47,13 @@ class CustomFormatter(logging.Formatter):
         # NPC info
         23: dim + "%(message)s" + reset,
 
+        # STT
+        27: blue + format + reset,
+        # LLM
+        28: cyan + format + reset,
+        # STT
+        29: magenta + format + reset,
+
         # WARNING level
         # 30:
     }

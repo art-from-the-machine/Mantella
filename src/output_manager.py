@@ -13,6 +13,7 @@ import sys
 
 class ChatManager:
     def __init__(self, game_state_manager, config, encoding):
+        self.loglevel = 28
         self.game_state_manager = game_state_manager
         self.mod_folder = config.mod_path
         self.max_response_sentences = config.max_response_sentences
@@ -136,7 +137,7 @@ class ChatManager:
 
             audio_duration = await self.get_audio_duration(queue_output[0])
             # wait for the audio playback to complete before getting the next file
-            logging.info(f"Waiting {int(round(audio_duration,4))} seconds...")
+            logging.log(29, f"Waiting {int(round(audio_duration,4))} seconds...")
             await asyncio.sleep(audio_duration)
 
     def clean_sentence(self, sentence):
@@ -227,7 +228,7 @@ class ChatManager:
                                 logging.info(f'Skipping voiceline that is too short: {sentence}')
                                 break
 
-                            logging.info(f"LLM returned sentence took {time.time() - start_time} seconds to execute")
+                            logging.log(self.loglevel, f"LLM returned sentence took {time.time() - start_time} seconds to execute")
 
                             if content_edit == ':':
                                 keyword_extraction = sentence.strip()[:-1] #.lower()
@@ -308,7 +309,7 @@ class ChatManager:
                 error_response = "I can't find the right words at the moment."
                 audio_file = synthesizer.synthesize(self.active_character.voice_model, None, error_response)
                 self.save_files_to_voice_folders([audio_file, error_response])
-                logging.info('Retrying connection to API...')
+                logging.log(self.loglevel, 'Retrying connection to API...')
                 time.sleep(5)
 
         # Mark the end of the response

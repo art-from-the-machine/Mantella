@@ -92,6 +92,7 @@ try:
         if radiant_dialogue == "false":
             # initiate conversation with character
             try:
+                logging.log(21, f"{language_info['hello']} {character.name}.")
                 messages = asyncio.run(get_response(f"{language_info['hello']} {character.name}.", context, synthesizer, characters, radiant_dialogue))
             except tts.VoiceModelNotFound:
                 game_state_manager.write_game_info('_mantella_end_conversation', 'True')
