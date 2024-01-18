@@ -137,7 +137,7 @@ class ChatManager:
 
             audio_duration = await self.get_audio_duration(queue_output[0])
             # wait for the audio playback to complete before getting the next file
-            logging.log(29, f"Waiting {int(round(audio_duration,4))} seconds...")
+            logging.info(f"Waiting {int(round(audio_duration,4))} seconds...")
             await asyncio.sleep(audio_duration)
 
     def clean_sentence(self, sentence):

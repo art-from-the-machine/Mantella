@@ -16,16 +16,27 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         openai.api_key = api_key
 
     def setup_logging(file_name):
-        logging.basicConfig(filename=file_name, format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
+        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[])
 
-        # create console handler with a higher log level
-        ch = logging.StreamHandler()
+        # create custom formatter
+        formatter = cf.CustomFormatter()
 
-        ch.setFormatter(cf.CustomFormatter())
+        # add formatter to ch
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
 
-        console = ch
-        console.setLevel(logging.INFO)
-        logging.getLogger('').addHandler(console)
+        # Create a formatter for file output
+        file_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+
+        # Create a file handler and set the formatter
+        file_handler = logging.FileHandler(file_name)
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(file_formatter)
+
+        # Add the handlers to the logger
+        logging.getLogger().addHandler(console_handler)
+        logging.getLogger().addHandler(file_handler)
 
         logging.debug("debug message")
         logging.info("info message")
@@ -33,7 +44,7 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         logging.error("error message")
         logging.critical("critical message")
 
-        # custom
+        # custom levels
         logging.addLevelName(21, "INFO")
         logging.addLevelName(22, "INFO")
         logging.addLevelName(23, "INFO")

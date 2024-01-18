@@ -30,7 +30,7 @@ class CustomFormatter(logging.Formatter):
     BGcyan = "\x1b[46m"
     BGwhite = "\x1b[47m"
 
-    format = "%(asctime)s %(levelname)s: %(message)s"
+    format = "%(asctime)s.%(msecs)03d %(levelname)s: %(message)s"
 
     FORMATS = {
         logging.DEBUG: dim + format + reset,
@@ -60,5 +60,5 @@ class CustomFormatter(logging.Formatter):
 
     def format(self, record):
         log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt)
+        formatter = logging.Formatter(log_fmt, "%H:%M:%S")
         return formatter.format(record)

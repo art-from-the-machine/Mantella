@@ -80,7 +80,7 @@ class Transcriber:
                 # text input through console
                 if (self.debug_mode == '1') & (self.debug_use_mic == '1'):
                     transcribed_text = input('\nWrite player\'s response: ')
-                    logging.log(self.loglevel, f'Player wrote: {transcribed_text}')
+                    logging.log(self.loglevel, f'Player wrote "{transcribed_text}"')
                 # await text input from the game
                 else:
                     self.game_state_manager.write_game_info('_mantella_text_input', '')
