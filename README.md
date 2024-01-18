@@ -115,6 +115,8 @@ xVASynth is used as Text-To-Speech engine by Mantella due to being free open-sou
 
 
 ## Required Skyrim Mods
+**NB:** Always ensure you are downloading the right version of each mod with your version of Skyrim (you can check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details -> File version. VR users can just download the VR version of each mod if available, or SE if not). This is the #1 reason for installation problems.
+
 Please follow the installation instructions on each of the linked pages:
 
 - [SKSE](http://skse.silverlock.org/) (once installed by following the included readme.txt, run SKSE instead of the Skyrim exe. Note that there is a separate VR version of SKSE)
