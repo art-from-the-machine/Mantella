@@ -55,7 +55,7 @@ class Synthesizer:
         if voice != self.last_voice:
             self.change_voice(voice)
 
-        logging.info(f'Synthesizing voiceline: {voiceline}')
+        logging.log(22, f'Synthesizing voiceline: {voiceline}')
         phrases = self._split_voiceline(voiceline)
 
         # make voice model folder if it doesn't already exist
@@ -120,7 +120,6 @@ class Synthesizer:
         return final_voiceline_file
     
 
-    @utils.time_it
     def _group_sentences(self, voiceline_sentences, max_length=150):
         """
         Splits sentences into separate voicelines based on their length (max=max_length)
@@ -142,7 +141,6 @@ class Synthesizer:
         return grouped_sentences
     
 
-    @utils.time_it
     def _split_voiceline(self, voiceline, max_length=150):
         """Split voiceline into phrases by commas, 'and', and 'or'"""
 
@@ -182,7 +180,7 @@ class Synthesizer:
                 result.append(current_line.strip())
 
         result = self._group_sentences(result, max_length)
-        logging.info(f'Split sentence into : {result}')
+        logging.debug(f'Split sentence into : {result}')
 
         return result
     

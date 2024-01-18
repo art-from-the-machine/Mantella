@@ -165,7 +165,8 @@ class Character:
                         bios='NPC backgrounds not available.',
                         conversation_summaries='NPC memories not available.')
         
-        logging.info(character_desc)
+        logging.log(23, character_desc)
+
         context = [{"role": "system", "content": character_desc}]
         return context
         

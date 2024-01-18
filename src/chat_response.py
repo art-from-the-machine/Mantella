@@ -23,7 +23,7 @@ def chatgpt_api(input_text, messages, llm):
     messages.append(
         {"role": "assistant", "content": chat_completion.choices[0].message.content},
     )
-    logging.info(f"LLM Response: {reply}")
+    logging.log(23, f"LLM Response: {reply}")
 
     return reply, messages
 

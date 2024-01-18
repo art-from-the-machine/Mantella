@@ -315,6 +315,6 @@ class ChatManager:
         await sentence_queue.put(None)
 
         messages.append({"role": "assistant", "content": full_reply})
-        logging.info(f"Full response saved ({len(self.encoding.encode(full_reply))} tokens): {full_reply}")
+        logging.log(23, f"Full response saved ({len(self.encoding.encode(full_reply))} tokens): {full_reply}")
 
         return messages

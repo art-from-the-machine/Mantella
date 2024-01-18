@@ -33,6 +33,15 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         logging.error("error message")
         logging.critical("critical message")
 
+        # custom
+        logging.addLevelName(21, "INFO")
+        logging.addLevelName(22, "INFO")
+        logging.addLevelName(23, "INFO")
+
+        logging.log(21, "Player transcription")
+        logging.log(22, "NPC voiceline")
+        logging.log(23, "NPC info")
+
     def get_character_df(file_name):
         encoding = utils.get_file_encoding(file_name)
         character_df = pd.read_csv(file_name, engine='python', encoding=encoding)

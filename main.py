@@ -186,7 +186,7 @@ try:
                         transcribed_text = 'Player: ' + transcribed_text
                     # add in-game events to player's response
                     transcribed_text = game_state_manager.update_game_events(transcribed_text)
-                    logging.info(f"Text passed to NPC: {transcribed_text}")
+                    logging.log(21, f"Text passed to NPC: {transcribed_text}")
 
                 # check if conversation has ended again after player input
                 with open(f'{config.game_path}/_mantella_end_conversation.txt', 'r', encoding='utf-8') as f:
