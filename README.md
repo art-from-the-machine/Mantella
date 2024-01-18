@@ -17,7 +17,7 @@ If you get stuck anywhere in the installation process, please see the [`#Issues 
 - [Key Features](#key-features)
 - [Installation](#installation)
 	- [Requirements](#requirements)
-	- [Video Walkthrough](#video-walkthrough)
+	- [Video Walkthrough](#video-tutorial)
 	- [Whisper](#Whisper)
 	- [xVASynth](#xVASynth)
 	- [Required Skyrim Mods](#required-mods)
