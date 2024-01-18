@@ -91,6 +91,7 @@ xVASynth is used as Text-To-Speech engine by Mantella due to being free open-sou
 	<details>
 	<summary><b>xVASynth Model Installation Options</b></summary>  
 
+
  	**Nexus Premium (Quickest)**  
    	If you are subscribed to Nexus Premium, open the xVASynth UI and select "Get More Voices" from the bottom left corner. Unselect all games except for Skyrim and download all models. Note that this may require restarting a few times for the downloads to properly complete.  
 
