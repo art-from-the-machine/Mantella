@@ -88,21 +88,21 @@ xVASynth is used as Text-To-Speech engine by Mantella due to being free open-sou
 
 2. Download xVASynth trained voice models of Skyrim for all or any characters that you are likely to encounter. If downloading all models sounds a bit daunting, you can start with the "Male Nord" and "Male Soldier" voice models to at least allow talking to Skyrim guards. You can either download all models via a torrent, via the xVASynth UI if you have Nexus Premium, or manually via the Nexus Mods page.
 
-<details>
-<summary>xVASynth Model Installation Options</summary>
-
-* The voice models can be found under "Optional" (not "Old") from [here](https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files) and store the zipped files in a folder. Open xVASynth and drag all zipped voice model files from the folder into the voices panel. Wait for the installation to complete (this may take some time; a popup will display when finished saying "x models installed successfully"). If this method doesn't work for you, you can also unzip the models manually into the correct xVASynth folder (xVASynth\resources\app\models\skyrim). Once the extraction is complete, you can delete the zipped voice model files.
-
-* If you are subscribed to Nexus Premium, open xVASynth and select "Get More Voices" from the bottom left corner. Unselect all games except for Skyrim and download all models. Note that this may require restarting a few times for the downloads to properly complete.
-
-* Another option is to use BitTorrent, the communication protocol for peer-to-peer file sharing. Peer availability may vary depending on the time of day. Unlike on Nexus Mods, these voice models are already unarchived. So, you only need to point the torrent download location to **models** +***\skyrim*** folder depending on whenever your BitTorrent client makes another subfolder. Having the torrent in the already correct folder for xVASynth means you can become a seeder of it for others without it really impacting your PC or internet performance.
-
-  Open the following URI in your BitTorrent client, note that if you are using the [Brave](https://github.com/brave/brave-browser), it has a built-in client:
-  
-  `magnet:?xt=urn:btih:798BB3190E776BFDCF590910C0805656420F45BC&dn=skyrim&tr=udp%3a%2f%2ftracker.opentrackr.org%3a1337&tr=udp%3a%2f%2fexplodie.org%3a6969&tr=wss%3a%2f%2ftracker.btorrent.xyz&tr=wss%3a%2f%2ftracker.openwebtorrent.com`
-
-  Note that this magnet URI may be removed from this page, if any voice model in it also becomes unavailable on Nexus Mods.
-</details>
+	<details>
+	<summary>xVASynth Model Installation Options</summary>
+	
+	* The voice models can be found under "Optional" (not "Old") from [here](https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files) and store the zipped files in a folder. Open xVASynth and drag all zipped voice model files from the folder into the voices panel. Wait for the installation to complete (this may take some time; a popup will display when finished saying "x models installed successfully"). If this method doesn't work for you, you can also unzip the models manually into the correct xVASynth folder (xVASynth\resources\app\models\skyrim). Once the extraction is complete, you can delete the zipped voice model files.
+	
+	* If you are subscribed to Nexus Premium, open xVASynth and select "Get More Voices" from the bottom left corner. Unselect all games except for Skyrim and download all models. Note that this may require restarting a few times for the downloads to properly complete.
+	
+	* Another option is to use BitTorrent, the communication protocol for peer-to-peer file sharing. Peer availability may vary depending on the time of day. Unlike on Nexus Mods, these voice models are already unarchived. So, you only need to point the torrent download location to **models** +***\skyrim*** folder depending on whenever your BitTorrent client makes another subfolder. Having the torrent in the already correct folder for xVASynth means you can become a seeder of it for others without it really impacting your PC or internet performance.
+	
+	  Open the following URI in your BitTorrent client, note that if you are using the [Brave](https://github.com/brave/brave-browser), it has a built-in client:
+	  
+	  `magnet:?xt=urn:btih:798BB3190E776BFDCF590910C0805656420F45BC&dn=skyrim&tr=udp%3a%2f%2ftracker.opentrackr.org%3a1337&tr=udp%3a%2f%2fexplodie.org%3a6969&tr=wss%3a%2f%2ftracker.btorrent.xyz&tr=wss%3a%2f%2ftracker.openwebtorrent.com`
+	
+	  Note that this magnet URI may be removed from this page, if any voice model in it also becomes unavailable on Nexus Mods.
+	</details>
 
 
 3. Download the .lip plugin for xVASynth [here](https://www.nexusmods.com/skyrimspecialedition/mods/55605) and download FaceFXWrapper from [here](https://www.nexusmods.com/skyrimspecialedition/mods/20061) (you do not need to download CK64Fixes). Instructions on how to install these are on the .lip plugin Nexus page. Make sure to place FaceFXWrapper in the plugins folder as stated on the .lip plugin page.
