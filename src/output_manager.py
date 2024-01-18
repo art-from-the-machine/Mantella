@@ -112,7 +112,7 @@ class ChatManager:
 
 
     async def send_audio_to_external_software(self, queue_output):
-        logging.info(f"Dialogue to play: {queue_output[0]}")
+        logging.debug(f"Dialogue to play: {queue_output[0]}")
         self.save_files_to_voice_folders(queue_output)
         
         
