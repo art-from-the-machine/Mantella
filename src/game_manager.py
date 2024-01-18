@@ -357,8 +357,7 @@ class GameStateManager:
 
         # say goodbyes
         if conversation_ended.lower() != 'true': # say line if NPC is not already deactivated
-            latest_character = list(active_characters.items())[-1][1]
-            audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
+            audio_file = synthesizer.synthesize(chat_manager.active_character.info['voice_model'], chat_manager.active_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
             chat_manager.save_files_to_voice_folders([audio_file, config.goodbye_npc_response])
 
         messages.add_message(user_message(config.end_conversation_keyword+'.', player_name, is_system_generated_message=True))
@@ -381,7 +380,7 @@ class GameStateManager:
     
     
     @utils.time_it
-    def reload_conversation(self, config, client: openai_client, encoding, synthesizer, chat_manager, messages: message_thread, active_characters: dict[str, Character], tokens_available, token_limit, location, in_game_time, radiant_dialogue, player_name: str) -> message_thread:
+    def reload_conversation(self, config, client: openai_client, encoding, synthesizer, chat_manager, messages: message_thread, active_characters: dict[str, Character], tokens_available, token_limit, location, in_game_time, player_name: str) -> message_thread:
         """Restart conversation to save conversation to memory when token count is reaching its limit"""
 
         latest_character = list(active_characters.items())[-1][1]
@@ -411,7 +410,7 @@ class GameStateManager:
         prompt = config.prompt
         if len(keys) > 1:
             prompt = config.multi_npc_prompt
-        context = latest_character.set_context(prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue)
+        context = latest_character.set_context(prompt, location, in_game_time, active_characters, token_limit, 'false')
 
         messages.reload_message_thread(context, 8)
 

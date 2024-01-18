@@ -8,7 +8,7 @@ from src.llm.message_thread import message_thread
 from src.llm.messages import user_message
 
 class Character:
-    def __init__(self, info, language, is_generic_npc):
+    def __init__(self, info, language, is_generic_npc, memory_prompt, resummarize_prompt):
         self.info = info
         self.name = info['name']
         self.bio = info['bio']
@@ -18,6 +18,8 @@ class Character:
         self.is_generic_npc = is_generic_npc
         self.in_game_voice_model = info['in_game_voice_model']
         self.voice_model = info['voice_model']
+        self.memory_prompt = memory_prompt
+        self.resummarize_prompt = resummarize_prompt
         self.conversation_history_file = f"data/conversations/{self.name}/{self.name}.json"
         self.conversation_summary_file = self.get_latest_conversation_summary_file_path()
         self.conversation_summary = ''
@@ -208,7 +210,10 @@ class Character:
             while True:
                 try:
                     if len(messages) > 5:
-                        prompt = f"You are tasked with summarizing the conversation between {self.name} (the assistant) and the player (the user) / other characters. These conversations take place in Skyrim. It is not necessary to comment on any mixups in communication such as mishearings. Text contained within asterisks state in-game events. Please summarize the conversation into a single paragraph in {self.language}."
+                        prompt = self.memory_prompt.format(
+                            name=self.name,
+                            language=self.language
+                        )
                         new_conversation_summary = self.summarize_conversation(messages.transform_to_dict_representation(messages.get_talk_only()), client, prompt)
                     else:
                         logging.info(f"Conversation summary not saved. Not enough dialogue spoken.")
@@ -229,8 +234,10 @@ class Character:
             logging.info(f'Token limit of conversation summaries reached ({len(encoding.encode(conversation_summaries))} / {summary_limit} tokens). Creating new summary file...')
             while True:
                 try:
-                    prompt = f"You are tasked with summarizing the conversation history between {self.name} (the assistant) and the player (the user) / other characters. These conversations take place in Skyrim. "\
-                        f"Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {self.language}."
+                    prompt = self.resummarize_prompt.format(
+                        name=self.name,
+                        language=self.language
+                    )
                     long_conversation_summary = self.summarize_conversation(conversation_summaries, client, prompt)
                     break
                 except:
