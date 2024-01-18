@@ -90,6 +90,7 @@ xVASynth is used as Text-To-Speech engine by Mantella due to being free open-sou
 
 <details>
 <summary>xVASynth Model Installation Options</summary>
+
 * The voice models can be found under "Optional" (not "Old") from [here](https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files) and store the zipped files in a folder. Open xVASynth and drag all zipped voice model files from the folder into the voices panel. Wait for the installation to complete (this may take some time; a popup will display when finished saying "x models installed successfully"). If this method doesn't work for you, you can also unzip the models manually into the correct xVASynth folder (xVASynth\resources\app\models\skyrim). Once the extraction is complete, you can delete the zipped voice model files.
 
 * If you are subscribed to Nexus Premium, open xVASynth and select "Get More Voices" from the bottom left corner. Unselect all games except for Skyrim and download all models. Note that this may require restarting a few times for the downloads to properly complete.
