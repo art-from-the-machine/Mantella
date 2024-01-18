@@ -360,8 +360,7 @@ class GameStateManager:
 
         # say goodbyes
         if conversation_ended.lower() != 'true': # say line if NPC is not already deactivated
-            latest_character = list(active_characters.items())[-1][1]
-            audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
+            audio_file = synthesizer.synthesize(chat_manager.active_character.info['voice_model'], chat_manager.active_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
             chat_manager.save_files_to_voice_folders([audio_file, config.goodbye_npc_response])
 
         messages.append({"role": "user", "content": config.end_conversation_keyword+'.'})
@@ -417,7 +416,7 @@ class GameStateManager:
         prompt = config.prompt
         if len(keys) > 1:
             prompt = config.multi_npc_prompt
-        context = latest_character.set_context(prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue)
+        context = latest_character.set_context(prompt, location, in_game_time, active_characters, token_limit, 'false')
 
         # add previous few back and forths from last conversation
         messages_wo_system_prompt = messages[1:]

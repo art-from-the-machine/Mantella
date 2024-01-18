@@ -7,7 +7,7 @@ import src.chat_response as chat_response
 from src.llm.openai_client import openai_client
 
 class Character:
-    def __init__(self, info, language, is_generic_npc):
+    def __init__(self, info, language, is_generic_npc, memory_prompt, resummarize_prompt):
         self.info = info
         self.name = info['name']
         self.bio = info['bio']
@@ -17,6 +17,8 @@ class Character:
         self.is_generic_npc = is_generic_npc
         self.in_game_voice_model = info['in_game_voice_model']
         self.voice_model = info['voice_model']
+        self.memory_prompt = memory_prompt
+        self.resummarize_prompt = resummarize_prompt
         self.conversation_history_file = f"data/conversations/{self.name}/{self.name}.json"
         self.conversation_summary_file = self.get_latest_conversation_summary_file_path()
         self.conversation_summary = ''
@@ -225,8 +227,10 @@ class Character:
             logging.info(f'Token limit of conversation summaries reached ({len(encoding.encode(conversation_summaries))} / {summary_limit} tokens). Creating new summary file...')
             while True:
                 try:
-                    prompt = f"You are tasked with summarizing the conversation history between {self.name} (the assistant) and the player (the user) / other characters. These conversations take place in Skyrim. "\
-                        f"Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {self.language}."
+                    prompt = self.resummarize_prompt.format(
+                        name=self.name,
+                        language=self.language
+                    )
                     long_conversation_summary = self.summarize_conversation(conversation_summaries, client, prompt)
                     break
                 except:
@@ -252,7 +256,10 @@ class Character:
         if len(conversation) > 5:
             conversation = conversation[3:-2] # drop the context (0) hello (1,2) and "Goodbye." (-2, -1) lines
             if prompt == None:
-                prompt = f"You are tasked with summarizing the conversation between {self.name} (the assistant) and the player (the user) / other characters. These conversations take place in Skyrim. It is not necessary to comment on any mixups in communication such as mishearings. Text contained within asterisks state in-game events. Please summarize the conversation into a single paragraph in {self.language}."
+                prompt = self.memory_prompt.format(
+                    name=self.name,
+                    language=self.language
+                )
             context = [{"role": "system", "content": prompt}]
             summary, _ = chat_response.chatgpt_api(f"{conversation}", context, client)
 
