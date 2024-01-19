@@ -94,8 +94,9 @@ class ChatManager:
 
             self.game_state_manager.write_game_info('_mantella_status', 'Error with Mantella.exe. Please check MantellaSoftware/logging.log')
             logging.warn("Unknown NPC detected. This NPC will be able to speak once you restart Skyrim. To learn how to add memory, a background, and a voice model of your choosing to this NPC, see here: https://github.com/art-from-the-machine/Mantella#adding-modded-npcs")
-            input('\nPress any key to exit...')
-            sys.exit(0)
+            time.sleep(5)
+            return True
+        return False
 
 
     @utils.time_it
@@ -205,7 +206,6 @@ class ChatManager:
         # this converts double asterisks to single so that they can be filtered out appropriately
         sentence = sentence.replace('**','*')
         sentence = parse_asterisks_brackets(sentence)
-        logging.info(f'\nDEBUGFR v{sentence}')
         return sentence
 
 
@@ -247,14 +247,16 @@ class ChatManager:
                             if content_edit == ':':
                                 keyword_extraction = sentence.strip()[:-1] #.lower()
                                 # if LLM is switching character
-                                if characters.contains_character(keyword_extraction):
-                                    #TODO: or (any(key.split(' ')[0] == keyword_extraction for key in characters.active_characters))
-                                    logging.info(f"Switched to {keyword_extraction}")
-                                    self.active_character = characters.get_character_by_name(keyword_extraction)
+                                # Find the first character whose name starts with keyword_extraction
+                                matching_character_key = next((key for key in characters.get_all_names() if key.startswith(keyword_extraction)), None)
+                                if matching_character_key:
+                                    logging.info(f"Switched to {matching_character_key}")
+                                    self.active_character = characters.get_character_by_name(matching_character_key)
                                     self.__tts.change_voice(self.active_character.voice_model)
-                                    # characters are mapped to say_line based on order of selection
-                                    # taking the order of the dictionary to find which say_line to use, but it is bad practice to use dictionaries in this way
-                                    self.character_num = characters.get_all_names().index(keyword_extraction)
+
+                                    # Find the index of the matching character
+                                    self.character_num = characters.get_all_names().index(matching_character_key)
+
                                     full_reply += sentence
                                     sentence = ''
                                     action_taken = True
@@ -282,10 +284,9 @@ class ChatManager:
                                     sentence = ''
                                     action_taken = True
 
-                            if action_taken == False:
+                            if action_taken == False and self.active_character:
                                 # Generate the audio and return the audio file path
                                 try:
-                                    logging.info(f"'DEBUGERFR Before audio_file{sentence}")
                                     audio_file = self.__tts.synthesize(self.active_character.voice_model, ' ' + sentence + ' ', self.active_character.is_in_combat)
                                 except Exception as e:
                                     logging.error(f"xVASynth Error: {e}")
