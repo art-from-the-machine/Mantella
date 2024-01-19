@@ -40,7 +40,7 @@ try:
     game_state_manager = game_manager.GameStateManager(config.game_path)
     chat_manager = output_manager.ChatManager(game_state_manager, config, synthesizer, client)
     transcriber = stt.Transcriber(game_state_manager, config, client.api_key)    
-    rememberer: remembering = summaries(client, language_info['language'])
+    rememberer: remembering = summaries(config.memory_prompt, config.resummarize_prompt, client, language_info['language'])
     
     while True:
         # clear _mantella_ files in Skyrim folder

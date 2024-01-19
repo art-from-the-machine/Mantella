@@ -44,7 +44,14 @@ class conversation:
         if isinstance(self.__conversation_type, pc_to_npc) and len(self.__context.npcs_in_conversation) > 1:
             self.__switch_to_multi_npc()
             # add greeting from newly added NPC to help the LLM understand that this NPC has joined the conversation
-            self.__messages.append_text_to_last_assitant_message(f"\n{new_character.name}: {self.__context.language['hello']}.")
+            # add greeting from newly added NPC to help the LLM understand that this NPC has joined the conversation
+            for npc in self.__context.npcs_in_conversation.get_all_characters():
+                if npc != new_character: 
+                    # existing NPCs greet the new NPC
+                    self.__messages.append_text_to_last_assitant_message(f"\n{npc.name}: {self.__context.language['hello']} {new_character.name}.")
+                else: 
+                    # new NPC greets the existing NPCs
+                    self.__messages.append_text_to_last_assitant_message(f"\n{npc.name}: {self.__context.language['hello']}.")            
     
     def __switch_to_multi_npc(self):
         """Switches the conversation to multi-npc
@@ -100,7 +107,7 @@ class conversation:
         if not self.__has_already_ended:
             config = self.__context.config
             # say goodbyes
-            npc = self.__context.npcs_in_conversation.last_added_character
+            npc = self.__output_manager.active_character
             if npc:
                 self.__output_manager.play_sentence_ingame(config.goodbye_npc_response, npc)
 
