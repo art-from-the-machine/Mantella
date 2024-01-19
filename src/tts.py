@@ -20,9 +20,14 @@ class Synthesizer:
         self.xvasynth_path = config.xvasynth_path
         self.process_device = config.xvasynth_process_device
         self.times_checked_xvasynth = 0
+        #Added from xTTS implementation
+        self.use_external_tts = int(config.use_external_tts)
 
         # check if xvasynth is running; otherwise try to run it
-        #self.check_if_xvasynth_is_running()
+        if self.use_external_tts == 1:
+            logging.info(f'Placeholder : You should run xTTS api server')
+        else:
+            self.check_if_xvasynth_is_running()
 
         # voice models path
         self.model_path = f"{self.xvasynth_path}/resources/app/models/skyrim/"
@@ -51,7 +56,6 @@ class Synthesizer:
         self.setvocoder_url = 'http://127.0.0.1:8008/setVocoder'
         
         #Added from xTTS implementation
-        self.use_external_tts = int(config.use_external_tts)
         self.xtts_server_path = config.xtts_server_path
         self.synthesize_url_xtts = 'http://127.0.0.1:8020/tts_to_audio/'
         self.switch_model_url = 'http://127.0.0.1:8020/switch_model'
@@ -130,16 +134,10 @@ class Synthesizer:
             self.change_voice_xtts(voice)
 
         logging.info(f'Synthesizing voiceline: {voiceline}')
-        phrases = self._split_voiceline(voiceline)
 
         # make voice model folder if it doesn't already exist
         if not os.path.exists(f"{self.output_path}/voicelines/{self.last_voice}"):
             os.makedirs(f"{self.output_path}/voicelines/{self.last_voice}")
-        
-        voiceline_files = []
-        for phrase in phrases:
-            voiceline_file = f"{self.output_path}/voicelines/{self.last_voice}/{utils.clean_text(phrase)[:150]}.wav"
-            voiceline_files.append(voiceline_file)
 
         final_voiceline_file_name = 'voiceline'
         final_voiceline_file =  f"{self.output_path}/voicelines/{self.last_voice}/{final_voiceline_file_name}.wav"
@@ -153,12 +151,7 @@ class Synthesizer:
             logging.warning("Failed to remove spoken voicelines")
 
         # Synthesize voicelines
-        if len(phrases) == 1:
-            self._synthesize_line_xtts(phrases[0], final_voiceline_file, aggro)
-        else:
-            for i, voiceline_file in enumerate(voiceline_files):
-                self._synthesize_line_xtts(phrases[i], voiceline_files[i])
-            self.merge_audio_files(voiceline_files, final_voiceline_file)
+        self._synthesize_line_xtts(voiceline, final_voiceline_file, aggro)
 
         if not os.path.exists(final_voiceline_file):
             logging.error(f'xTTS failed to generate voiceline at: {Path(final_voiceline_file)}')
@@ -388,8 +381,8 @@ class Synthesizer:
     @utils.time_it
     def change_voice_xtts(self, voice):
         logging.info('Loading voice model...')
-        
-        requests.post(self.switch_model_url, json={"model_name": voice})
+        voice_path = f"{voice.lower().replace(' ', '')}"
+        requests.post(self.switch_model_url, json={"model_name": voice_path})
 
         self.last_voice = voice
 
