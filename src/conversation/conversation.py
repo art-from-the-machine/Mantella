@@ -28,7 +28,6 @@ class conversation:
         self.__rememberer: remembering = rememberer
         self.__context_length: int = context_length
         self.__token_limit_percent: float = 0.45
-        self.__latest_character: Character | None = None
         self.__has_already_ended: bool = False
 
     def add_character(self, new_character: Character):
@@ -38,12 +37,10 @@ class conversation:
             new_character (Character): the new character to add
         """
         self.__context.npcs_in_conversation.add_character(new_character)
-        self.__latest_character = new_character
 
         #switch to multi-npc dialog
         if isinstance(self.__conversation_type, pc_to_npc) and len(self.__context.npcs_in_conversation) > 1:
             self.__switch_to_multi_npc()
-            # add greeting from newly added NPC to help the LLM understand that this NPC has joined the conversation
             # add greeting from newly added NPC to help the LLM understand that this NPC has joined the conversation
             for npc in self.__context.npcs_in_conversation.get_all_characters():
                 if npc != new_character: 
@@ -153,17 +150,18 @@ class conversation:
     @utils.time_it
     def __reload_conversation(self):
         """Saves conversation and reloads it afterwards with reduced messages to reduce context length"""
-        if self.__latest_character == None: # 
+        latest_npc = self.__context.npcs_in_conversation.last_added_character
+        if not latest_npc: 
             self.end()
             return
-
+        
         # Play gather thoughts
         collecting_thoughts_text = self.__context.config.collecting_thoughts_npc_response
-        self.__output_manager.play_sentence_ingame(collecting_thoughts_text, self.__latest_character)
+        self.__output_manager.play_sentence_ingame(collecting_thoughts_text, latest_npc)
         # Add gather thought messages to thread
-        self.__messages.add_message(user_message(self.__latest_character.name +'?', self.__context.config.player_name, is_system_generated_message=True))
+        self.__messages.add_message(user_message(latest_npc.name +'?', self.__context.config.player_name, is_system_generated_message=True))
         if len(self.__context.npcs_in_conversation) > 1:
-            collecting_thoughts_response = self.__latest_character.name +': '+ collecting_thoughts_text +'.'
+            collecting_thoughts_response = latest_npc.name +': '+ collecting_thoughts_text +'.'
         else:
             collecting_thoughts_response = collecting_thoughts_text+'.'
         self.__messages.add_message(assistant_message(collecting_thoughts_response, self.__context.npcs_in_conversation.get_all_names(), is_system_generated_message=True))
