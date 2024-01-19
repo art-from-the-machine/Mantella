@@ -35,6 +35,18 @@ class openai_client:
         referer = "https://github.com/art-from-the-machine/Mantella"
         xtitle = "mantella"
         self.__header: dict[str, str] = {"HTTP-Referer": referer, "X-Title": xtitle, }
+
+        chosenmodel = config.llm
+        # if using an alternative API, use encoding for GPT-3.5 by default
+        # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
+        #       this can lead to the token limit of the given model being overrun
+        if config.alternative_openai_api_base != 'none':
+            chosenmodel = 'gpt-3.5-turbo'
+        try:
+            self.__encoding = tiktoken.encoding_for_model(chosenmodel)
+        except:
+            logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `alternative_openai_api_base` in MantellaSoftware/config.ini and follow the instructions to change this setting')
+            raise
     
     @property
     def token_limit(self) -> int:
@@ -200,6 +212,9 @@ class openai_client:
     
     def calculate_tokens_from_messages(self, messages: message_thread) -> int:
         return openai_client.num_tokens_from_messages(messages, self.__model_name)
+    
+    def calculate_tokens_from_text(self, text: str) -> int:
+        return len(self.__encoding.encode(text))
     
     # --- Private methods ---    
     def __get_token_limit(self, llm, custom_token_count, is_local):

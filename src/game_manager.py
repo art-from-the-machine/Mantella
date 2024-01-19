@@ -1,10 +1,7 @@
 import logging
-from src.character_manager import Character
-from src.llm.message_thread import message_thread
-from src.llm.messages import user_message, assistant_message
+from src.llm.messages import user_message
 import src.utils as utils
 import time
-from src.llm.openai_client import openai_client
 import random
 
 class CharacterDoesNotExist(Exception):
@@ -44,6 +41,8 @@ class GameStateManager:
             time.sleep(0.01)
         return text
     
+    def wait_for_conversation_init(self):
+        self.load_data_when_available('_mantella_current_actor_id', '')
 
     @utils.time_it
     def reset_game_info(self):
@@ -352,25 +351,7 @@ class GameStateManager:
         return message
     
     @utils.time_it
-    def end_conversation(self, conversation_ended, config, client: openai_client, encoding, synthesizer, chat_manager, messages: message_thread, active_characters: dict[str, Character], tokens_available, player_name: str):
-        """Say final goodbye lines and save conversation to memory"""
-
-        # # say goodbyes
-        # if conversation_ended.lower() != 'true': # say line if NPC is not already deactivated
-        #     latest_character = list(active_characters.items())[-1][1]
-        #     audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
-        #     chat_manager.save_files_to_voice_folders([audio_file, config.goodbye_npc_response])
-
-        # messages.add_message(user_message(config.end_conversation_keyword+'.', player_name, is_system_generated_message=True))
-        # messages.add_message(assistant_message(config.end_conversation_keyword+'.', list(active_characters.keys()), is_system_generated_message=True))
-
-        # summary = None
-        # for character_name, character in active_characters.items():
-        #     # If summary has already been generated for another character in a multi NPC conversation (multi NPC memory summaries are shared)
-        #     if summary == None:
-        #         summary = character.save_conversation(encoding, messages, tokens_available, client)
-        #     else:
-        #         _ = character.save_conversation(encoding, messages, tokens_available, client, summary)
+    def end_conversation(self):
         logging.info('Conversation ended.')
 
         self.write_game_info('_mantella_in_game_events', '')
@@ -378,44 +359,6 @@ class GameStateManager:
         time.sleep(5) # wait a few seconds for everything to register
 
         return None
-    
-    
-    @utils.time_it
-    def reload_conversation(self, config, client: openai_client, encoding, synthesizer, chat_manager, messages: message_thread, active_characters: dict[str, Character], tokens_available, token_limit, location, in_game_time, radiant_dialogue, player_name: str) -> message_thread:
-        """Restart conversation to save conversation to memory when token count is reaching its limit"""
-
-        latest_character = list(active_characters.items())[-1][1]
-        # let the player know that the conversation is reloading
-        audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.collecting_thoughts_npc_response)
-        chat_manager.save_files_to_voice_folders([audio_file, config.collecting_thoughts_npc_response])
-
-        messages.add_message(user_message(latest_character.info['name']+'?', player_name, is_system_generated_message=True))
-        if len(list(active_characters.items())) > 1:
-            collecting_thoughts_response = latest_character.info['name']+': '+config.collecting_thoughts_npc_response+'.'
-        else:
-            collecting_thoughts_response = config.collecting_thoughts_npc_response+'.'
-        messages.add_message(assistant_message(collecting_thoughts_response, list(active_characters.keys()), is_system_generated_message=True))    
-
-        # save the conversation so far
-        summary = None
-        for character_name, character in active_characters.items():
-            if summary == None:
-                summary = character.save_conversation(encoding, messages, tokens_available, client)
-            else:
-                _ = character.save_conversation(encoding, messages, tokens_available, client, summary)
-        # let the new file register on the system
-        time.sleep(1)
-
-        # reload context
-        keys = list(active_characters.keys())
-        prompt = config.prompt
-        if len(keys) > 1:
-            prompt = config.multi_npc_prompt
-        context = latest_character.set_context(prompt, location, in_game_time, active_characters, token_limit, radiant_dialogue)
-
-        messages.reload_message_thread(context, 8)
-
-        return messages
         
 _male_voice_models = {
     'ArgonianRace': 'Male Argonian',
