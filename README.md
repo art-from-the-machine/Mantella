@@ -38,7 +38,7 @@ If you get stuck anywhere in the installation process, please see the [`#Issues 
 - NPCs can start Mantella conversations with each other
 - As many NPCs can be added to a conversation as you like
 - Compatibility with 20+ languages
-- Fully playable in VR / SE / AE (up to .1130)
+- Fully playable in VR / SE / AE (up to .1170)
 
 # Installation
 ## Video Tutorial
