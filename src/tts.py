@@ -21,10 +21,13 @@ class Synthesizer:
         self.process_device = config.xvasynth_process_device
         self.times_checked_xvasynth = 0
         #Added from xTTS implementation
-        self.use_external_tts = int(config.use_external_tts)
+        self.use_external_xtts = int(config.use_external_xtts)
+        self.xtts_set_tts_settings = config.xtts_set_tts_settings
+        self.xTTS_tts_data = config.xTTS_tts_data
 
         # check if xvasynth is running; otherwise try to run it
-        if self.use_external_tts == 1:
+        if self.use_external_xtts == 1:
+            self._set_tts_settings_and_test_if_serv_running()
             logging.info(f'Placeholder : You should run xTTS api server')
         else:
             self.check_if_xvasynth_is_running()
@@ -57,8 +60,8 @@ class Synthesizer:
         
         #Added from xTTS implementation
         self.xtts_server_path = config.xtts_server_path
-        self.synthesize_url_xtts = 'http://127.0.0.1:8020/tts_to_audio/'
-        self.switch_model_url = 'http://127.0.0.1:8020/switch_model'
+        self.synthesize_url_xtts = config.xtts_synthesize_url
+        self.switch_model_url = config.xtts_switch_model
     
 
     def synthesize(self, voice, voice_folder, voiceline, aggro=0):
@@ -344,7 +347,22 @@ class Synthesizer:
             logging.error(f'Could not run xVASynth. Ensure that the path "{self.xvasynth_path}" is correct.')
             input('\nPress any key to stop Mantella...')
             sys.exit(0)
-    
+ 
+    def _set_tts_settings_and_test_if_serv_running(self):
+        try:
+            # Sending a POST request to the API endpoint
+            logging.info(f'Attempting to connect to xTTS...')
+            tts_data_dict = json.loads(self.xTTS_tts_data.replace('\n', ''))
+            response = requests.post(self.xtts_set_tts_settings, json=tts_data_dict)
+            response.raise_for_status() 
+        except requests.exceptions.RequestException as e:
+            # Log the error
+            logging.error(f'Could not reach the API at "{self.xtts_set_tts_settings}". Error: {e}')
+            # Wait for user input before exiting
+            input('\nPress any key to stop Mantella...')
+            sys.exit(0)
+            
+
     @utils.time_it
     def change_voice(self, voice):
         logging.info('Loading voice model...')

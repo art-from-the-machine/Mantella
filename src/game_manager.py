@@ -359,7 +359,7 @@ class GameStateManager:
 
         # say goodbyes
         if conversation_ended.lower() != 'true': # say line if NPC is not already deactivated
-            if config.use_external_tts == 1:   
+            if config.use_external_xtts == 1:   
                 audio_file = synthesizer.synthesize_xtts(chat_manager.active_character.info['voice_model'], chat_manager.active_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
             else:
                 audio_file = synthesizer.synthesize(chat_manager.active_character.info['voice_model'], chat_manager.active_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
@@ -390,7 +390,7 @@ class GameStateManager:
 
         latest_character = list(active_characters.items())[-1][1]
         # let the player know that the conversation is reloading
-        if config.use_external_tts == 1:   
+        if config.use_external_xtts == 1:   
             audio_file = synthesizer.synthesize_xtts(chat_manager.active_character.info['voice_model'], chat_manager.active_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
         else:
             audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.collecting_thoughts_npc_response)

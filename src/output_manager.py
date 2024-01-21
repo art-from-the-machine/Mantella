@@ -31,7 +31,7 @@ class ChatManager:
         self.follow_npc_response = config.follow_npc_response
         self.wait_time_buffer = config.wait_time_buffer
         #Added from xTTS implementation
-        self.use_external_tts = config.use_external_tts
+        self.use_external_xtts = config.use_external_xtts
         self.character_num = 0
         self.active_character = None
 
@@ -217,7 +217,7 @@ class ChatManager:
                                     remaining_content = sentence[last_punctuation + 1:]
 
                                     # Accumulate sentences if less than 4 words
-                                    if len(current_sentence.split()) + len(accumulated_sentence.split()) < 4:
+                                    if len(current_sentence.split()) + len(accumulated_sentence.split()) < 8:
                                         accumulated_sentence += current_sentence
                                         sentence = remaining_content
                                         continue
@@ -244,7 +244,7 @@ class ChatManager:
                                                 logging.info(f"Switched to {matching_character_key}")
                                                 self.active_character = characters.active_characters[matching_character_key]
                                                 #Added from xTTS implementation
-                                                if self.use_external_tts == 1:
+                                                if self.use_external_xtts == 1:
                                                     synthesizer.change_voice_xtts(self.active_character.voice_model)
                                                 else:
                                                     synthesizer.change_voice(self.active_character.voice_model)
@@ -281,7 +281,7 @@ class ChatManager:
                                             # Generate the audio and return the audio file path
                                             try:
                                                 #Added from xTTS implementation
-                                                if self.use_external_tts == 1:   
+                                                if self.use_external_xtts == 1:   
                                                     audio_file = synthesizer.synthesize_xtts(self.active_character.voice_model, None, ' ' + sentence + ' ', self.active_character.is_in_combat)
                                                 else:
                                                     audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ', self.active_character.is_in_combat)
@@ -316,7 +316,7 @@ class ChatManager:
                     except Exception as e:
                         logging.error(f"LLM API Error: {e}")
                         error_response = "I can't find the right words at the moment."
-                        if self.use_external_tts == 1:  
+                        if self.use_external_xtts == 1:  
                             audio_file = synthesizer.synthesize_xtts(self.active_character.voice_model, None, error_response)
                         else:
                             audio_file = synthesizer.synthesize(self.active_character.voice_model, None, error_response)
@@ -325,6 +325,11 @@ class ChatManager:
                         time.sleep(5)
                 
                 # Mark the end of the response
+                if accumulated_sentence != '':
+                    logging.info(f"accumulated_sentence at the end !!!!! {accumulated_sentence}")
+                else:
+                    logging.info(f"accumulated_sentence at the end is None")
+                
                 await sentence_queue.put(None)
                 messages.append({"role": "assistant", "content": full_reply})
                 logging.info(f"Full response saved ({len(self.encoding.encode(full_reply))} tokens): {full_reply}")

@@ -69,7 +69,7 @@ try:
             continue
 
         character = character_manager.Character(character_info, language_info['language'], is_generic_npc, config.memory_prompt, config.resummarize_prompt)
-        if config.use_external_tts == 1:
+        if config.use_external_xtts == 1:
             synthesizer.change_voice_xtts(character.voice_model)
         else:
             synthesizer.change_voice(character.voice_model)

@@ -97,7 +97,11 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.max_tokens = int(config['LanguageModel']['max_tokens'])
 
             #Added from xTTS implementation
-            self.use_external_tts = int(config['Speech']['use_external_tts'])
+            self.use_external_xtts = int(config['Speech']['use_external_xtts'])
+            self.xtts_synthesize_url = config['Speech']['xtts_synthesize_url']
+            self.xtts_switch_model = config['Speech']['xtts_switch_model']
+            self.xtts_set_tts_settings = config['Speech']['xtts_set_tts_settings']
+            self.xTTS_tts_data = config['Speech']['xTTS_tts_data']
             self.xvasynth_process_device = config['Speech']['tts_process_device']
             self.pace = float(config['Speech']['pace'])
             self.use_cleanup = int(config['Speech']['use_cleanup'])
