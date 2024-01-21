@@ -28,7 +28,6 @@ class Synthesizer:
         # check if xvasynth is running; otherwise try to run it
         if self.use_external_xtts == 1:
             self._set_tts_settings_and_test_if_serv_running()
-            logging.info(f'Placeholder : You should run xTTS api server')
         else:
             self.check_if_xvasynth_is_running()
 
@@ -359,6 +358,7 @@ class Synthesizer:
             # Log the error
             logging.error(f'Could not reach the API at "{self.xtts_set_tts_settings}". Error: {e}')
             # Wait for user input before exiting
+            logging.error(f'You should run xTTS api server before running Mantella.')
             input('\nPress any key to stop Mantella...')
             sys.exit(0)
             
