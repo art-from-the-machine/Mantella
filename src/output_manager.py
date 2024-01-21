@@ -111,20 +111,19 @@ class ChatManager:
         if self.add_voicelines_to_all_voice_folders == '1':
             for sub_folder in os.scandir(self.mod_folder):
                 if sub_folder.is_dir():
-                    #if the game is Fallout 4 only copy the lip file
-                    if self.game =="Fallout4": 
-                        shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.f4_lip_file}")
                     #copy both the wav file and lip file if the game isn't Fallout4
-                    else:
+                    if self.game !="Fallout4":
                         shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
                         shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.lip_file}")
-                    
+                    #if the game is Fallout 4 only copy the lip file
+                    else:    
+                        shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.f4_lip_file}")
         else:
-            if self.game =="Fallout4":
-                 shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.f4_lip_file}")
-            else:
+            if self.game !="Fallout4":
                 shutil.copyfile(audio_file, f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.wav_file}")
                 shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.lip_file}")
+            else: 
+                 shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.f4_lip_file}")
 
         logging.info(f"{self.active_character.name} (character {self.character_num}) should speak")
         if self.character_num == 0:
@@ -137,14 +136,13 @@ class ChatManager:
     def remove_files_from_voice_folders(self):
         for sub_folder in os.listdir(self.mod_folder):
             try:
-                #if the game is Fallout 4 only delete the lip file
-                if self.game =="Fallout4":
-                    os.remove(f"{self.mod_folder}/{sub_folder}/{self.f4_lip_file}")
                 #delete both the wav file and lip file if the game isn't Fallout4
-                else: 
+                if self.game !="Fallout4":
                     os.remove(f"{self.mod_folder}/{sub_folder}/{self.wav_file}")
                     os.remove(f"{self.mod_folder}/{sub_folder}/{self.lip_file}")
-                
+                #if the game is Fallout 4 only delete the lip file
+                else:
+                    os.remove(f"{self.mod_folder}/{sub_folder}/{self.f4_lip_file}")
             except:
                 continue
 
@@ -178,8 +176,10 @@ class ChatManager:
                 # Loop to check if _mantella_say_line_ is set to false
                 while True:
                     with open(f'{self.root_mod_folter}/_mantella_say_line.txt', 'r', encoding='utf-8') as f:
-                        content = f.read().strip()
-                        if content.lower() == 'false':
+                        content = f.read().strip()                              
+                    with open(f'{self.root_mod_folter}/_mantella_say_line_2.txt', 'r', encoding='utf-8') as f:
+                        content2 = f.read().strip()
+                        if content.lower() == 'false' and content2.lower() == 'false' :
                             break
                     # Wait for a short period before checking the file again
                     await asyncio.sleep(0.1)  # adjust the sleep duration as needed
