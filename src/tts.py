@@ -151,7 +151,7 @@ class Synthesizer:
             logging.warning("Failed to remove spoken voicelines")
 
         # Synthesize voicelines
-        self._synthesize_line_xtts(voiceline, final_voiceline_file, aggro)
+        self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, aggro)
 
         if not os.path.exists(final_voiceline_file):
             logging.error(f'xTTS failed to generate voiceline at: {Path(final_voiceline_file)}')
@@ -286,9 +286,11 @@ class Synthesizer:
         requests.post(self.synthesize_url, json=data)
 
     @utils.time_it
-    def _synthesize_line_xtts(self, line, save_path, aggro=0):
+    def _synthesize_line_xtts(self, line, save_path, voice, aggro=0):
+        voice_path = f"{voice.lower().replace(' ', '')}"
         data = {
         'text': line,
+        'speaker_wav': voice_path,
         'language': self.language,
         'save_path': save_path
         }       
