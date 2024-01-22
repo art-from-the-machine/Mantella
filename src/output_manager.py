@@ -337,6 +337,8 @@ class ChatManager:
                             audio_file = synthesizer.synthesize_xtts(self.active_character.voice_model, None, ' ' + accumulated_sentence + ' ', self.active_character.is_in_combat)
                         else:
                             audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + accumulated_sentence + ' ', self.active_character.is_in_combat)
+                        await sentence_queue.put([audio_file, accumulated_sentence])
+                        full_reply += accumulated_sentence
                         accumulated_sentence = ''
                     except Exception as e:
                         accumulated_sentence = ''
