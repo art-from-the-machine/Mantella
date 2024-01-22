@@ -216,8 +216,8 @@ class ChatManager:
                                     current_sentence = sentence[:last_punctuation + 1]
                                     remaining_content = sentence[last_punctuation + 1:]
 
-                                    # Accumulate sentences if less than 4 words
-                                    if len(current_sentence.split()) + len(accumulated_sentence.split()) < 8:
+                                    # Accumulate sentences if less than 6 words
+                                    if len(current_sentence.split()) + len(accumulated_sentence.split()) < 6:
                                         accumulated_sentence += current_sentence
                                         sentence = remaining_content
                                         continue
@@ -325,8 +325,22 @@ class ChatManager:
                         time.sleep(5)
                 
                 # Mark the end of the response
-                if accumulated_sentence != '':
+
+                #Added from xTTS implementation
+                # Check if there is any accumulated sentence at the end
+                if accumulated_sentence != '' and accumulated_sentence != None :
                     logging.info(f"accumulated_sentence at the end !!!!! {accumulated_sentence}")
+                    # Generate the audio and return the audio file path
+                    try:
+                        #Added from xTTS implementation
+                        if self.use_external_xtts == 1:   
+                            audio_file = synthesizer.synthesize_xtts(self.active_character.voice_model, None, ' ' + accumulated_sentence + ' ', self.active_character.is_in_combat)
+                        else:
+                            audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + accumulated_sentence + ' ', self.active_character.is_in_combat)
+                        accumulated_sentence = ''
+                    except Exception as e:
+                        accumulated_sentence = ''
+                        logging.error(f"xVASynth Error: {e}")
                 else:
                     logging.info(f"accumulated_sentence at the end is None")
                 
