@@ -127,6 +127,7 @@ Please follow the installation instructions on each of the linked pages:
   or [Address Library for SKSE Plugins](https://www.nexusmods.com/skyrimspecialedition/mods/32444)
 - [PapyrusUtil SE]( https://www.nexusmods.com/skyrimspecialedition/mods/13048) (the VR version can be found under "Miscellaneous Files")
 - [UIExtensions](https://www.nexusmods.com/skyrimspecialedition/mods/17561) (if using text input instead of mic)
+- [SkyUI](https://www.nexusmods.com/skyrimspecialedition/mods/12604) (to access Mantella's MCM)
 
 
 ## Optional Skyrim Mods
