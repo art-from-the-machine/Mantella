@@ -61,8 +61,22 @@ class Synthesizer:
         self.xtts_server_path = config.xtts_server_path
         self.synthesize_url_xtts = config.xtts_synthesize_url
         self.switch_model_url = config.xtts_switch_model
-    
+        self.xtts_get_models_list = config.xtts_get_models_list
+        self.available_models = self._get_available_models()
+        self.official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
 
+    def _get_available_models(self):
+        # Code to request and return the list of available models
+        response = requests.get(self.xtts_get_models_list)
+        return response.json() if response.status_code == 200 else []
+    
+    def get_first_available_official_model(self):
+        # Check in the available models list if there is an official model
+        for model in self.official_model_list:
+            if model in self.available_models:
+                return model
+        return None
+    
     def synthesize(self, voice, voice_folder, voiceline, aggro=0):
         if voice != self.last_voice:
             self.change_voice(voice)
@@ -132,6 +146,7 @@ class Synthesizer:
         return final_voiceline_file
     
     def synthesize_xtts(self, voice, voice_folder, voiceline, aggro=0):
+        # If the voice has changed, update it
         if voice != self.last_voice:
             self.change_voice_xtts(voice)
 
@@ -401,9 +416,25 @@ class Synthesizer:
     @utils.time_it
     def change_voice_xtts(self, voice):
         logging.info('Loading voice model...')
-        voice_path = f"{voice.lower().replace(' ', '')}"
-        requests.post(self.switch_model_url, json={"model_name": voice_path})
 
+        # Format the voice string to match the model naming convention
+        voice_path = f"{voice.lower().replace(' ', '')}"
+        model_voice = voice_path
+        # Check if the specified voice is available
+        if voice_path not in self.available_models and voice != self.last_voice:
+            logging.info(f'Voice "{voice}" not in available models. Available models: {self.available_models}')
+            # Use the first available official model as a fallback
+            model_voice = self.get_first_available_official_model()
+            if model_voice is None:
+                # Handle the case where no official model is available
+                raise ValueError("No available voice model found.")
+            # Update the voice_path with the fallback model
+            model_voice = f"{model_voice.lower().replace(' ', '')}"
+
+        # Request to switch the voice model
+        requests.post(self.switch_model_url, json={"model_name": model_voice})
+
+        # Update the last used voice
         self.last_voice = voice
 
         logging.info('Voice model loaded.')

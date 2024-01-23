@@ -70,6 +70,7 @@ try:
 
         character = character_manager.Character(character_info, language_info['language'], is_generic_npc, config.memory_prompt, config.resummarize_prompt)
         if config.use_external_xtts == 1:
+            logging.info(f'What am I doing here send help I am in MAIN.PY : {character.voice_model}')
             synthesizer.change_voice_xtts(character.voice_model)
         else:
             synthesizer.change_voice(character.voice_model)

@@ -102,6 +102,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.xtts_switch_model = config['Speech']['xtts_switch_model']
             self.xtts_set_tts_settings = config['Speech']['xtts_set_tts_settings']
             self.xTTS_tts_data = config['Speech']['xTTS_tts_data']
+            self.xtts_get_models_list = config['Speech']['xtts_get_models_list']
             self.xvasynth_process_device = config['Speech']['tts_process_device']
             self.pace = float(config['Speech']['pace'])
             self.use_cleanup = int(config['Speech']['use_cleanup'])
