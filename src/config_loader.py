@@ -13,7 +13,16 @@ class ConfigLoader:
             input('\nPress any key to exit...')
             sys.exit(0)
 
-        def check_missing_mantella_file(set_path):
+        def check_program_files(set_path):
+            skyrim_in_program_files = False
+            if 'Program Files' in set_path:
+                logging.warn(f'''
+Skyrim is installed in Program Files. Mantella is unlikely to work. 
+See here to learn how to move your Skyrim installation folder: https://github.com/art-from-the-machine/Mantella#skyrim''')
+                skyrim_in_program_files = True
+            return skyrim_in_program_files
+
+        def check_missing_mantella_file(set_path, skyrim_in_program_files):
             try:
                 with open(set_path+'/_mantella__skyrim_folder.txt') as f:
                     check = f.readline().strip()
@@ -27,6 +36,7 @@ MantellaSoftware/config.ini "skyrim_folder" has been set correctly
 If you are still having issues, a list of solutions can be found here: 
 https://github.com/art-from-the-machine/Mantella#issues-qa
 ''')
+                input("Press Enter to confirm these warnings...")
 
         def run_config_editor():
             try:
@@ -123,7 +133,8 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
         if not os.path.exists(f"{self.game_path}"):
             invalid_path(self.game_path, f"{self.game_path}")
         else:
-            check_missing_mantella_file(self.game_path)
+            skyrim_in_program_files = check_program_files(self.game_path)
+            check_missing_mantella_file(self.game_path, skyrim_in_program_files)
 
         if not os.path.exists(f"{self.xvasynth_path}\\resources\\"):
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")
