@@ -36,10 +36,7 @@ MantellaSoftware/config.ini "skyrim_folder" has been set correctly
 If you are still having issues, a list of solutions can be found here: 
 https://github.com/art-from-the-machine/Mantella#issues-qa
 ''')
-                if skyrim_in_program_files:
-                    input("Press Enter to confirm the warning above may be because Skyrim is installed in Program Files...")
-                else:
-                    input("Press Enter to confirm this warning...")
+                input("Press Enter to confirm these warnings...")
 
         def run_config_editor():
             try:
