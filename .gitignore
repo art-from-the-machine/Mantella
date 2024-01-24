@@ -13,3 +13,10 @@ build/
 dist/
 main.exe
 /.obsidian/
+env
+.vs
+.vs/slnx.sqlite
+data/voicelines/Female Dark Elf/desktop.ini
+.gitignore
+config_old.ini
+.vs/slnx.sqlite
