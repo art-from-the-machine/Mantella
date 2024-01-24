@@ -18,9 +18,9 @@ async def get_response(input_text, messages, synthesizer, characters, radiant_di
     event = asyncio.Event()
     event.set()
     results = await asyncio.gather(
-            chat_manager.process_response(sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event), 
-            chat_manager.send_response(sentence_queue, event)
-        )
+        chat_manager.process_response(sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event), 
+        chat_manager.send_response(sentence_queue, event)
+    )
     messages, _ = results
 
     return messages
