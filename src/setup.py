@@ -1,3 +1,5 @@
+import os
+import shutil
 import openai
 import logging
 import src.utils as utils
@@ -26,6 +28,23 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         character_df = character_df.loc[character_df['voice_model'].notna()]
 
         return character_df
+    
+    def create_all_voice_folders(config, character_df: pd.DataFrame):
+        all_voice_folders = character_df["skyrim_voice_folder"]
+        all_voice_folders = all_voice_folders.loc[all_voice_folders.notna()]
+        set_of_voice_folders = set()
+        for voice_folder in all_voice_folders:
+            if voice_folder and not set_of_voice_folders.__contains__(voice_folder):
+                set_of_voice_folders.add(voice_folder)
+                in_game_voice_folder_path = f"{config.mod_path}/{voice_folder}/"
+                if not os.path.exists(in_game_voice_folder_path):
+                    os.mkdir(in_game_voice_folder_path)
+                    example_folder = f"{config.mod_path}/MaleNord/"
+                    for file_name in os.listdir(example_folder):
+                        source_file_path = os.path.join(example_folder, file_name)
+
+                        if os.path.isfile(source_file_path):
+                            shutil.copy(source_file_path, in_game_voice_folder_path)
     
     def get_language_info(file_name):
         language_df = pd.read_csv(file_name)
@@ -105,6 +124,7 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
     utils.cleanup_mei(config.remove_mei_folders)
     
     character_df = get_character_df(character_df_file)
+    create_all_voice_folders(config, character_df)    
     language_info = get_language_info(language_file)
 
     chosenmodel = config.llm
