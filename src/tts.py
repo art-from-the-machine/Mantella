@@ -20,16 +20,25 @@ class Synthesizer:
         self.xvasynth_path = config.xvasynth_path
         self.process_device = config.xvasynth_process_device
         self.times_checked_xvasynth = 0
+        
         #Added from xTTS implementation
         self.use_external_xtts = int(config.use_external_xtts)
         self.xtts_set_tts_settings = config.xtts_set_tts_settings
         self.xTTS_tts_data = config.xTTS_tts_data
+        self.xtts_server_path = config.xtts_server_path
+        self.synthesize_url_xtts = config.xtts_synthesize_url
+        self.switch_model_url = config.xtts_switch_model
+        self.xtts_get_models_list = config.xtts_get_models_list
+        self.available_models = self._get_available_models()
+        self.official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
 
         # check if xvasynth is running; otherwise try to run it
         if self.use_external_xtts == 1:
             self._set_tts_settings_and_test_if_serv_running()
+            self.plugins_path = self.xtts_server_path + "/plugins/lip_fuz"
         else:
             self.check_if_xvasynth_is_running()
+            self.plugins_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
 
         # voice models path
         self.model_path = f"{self.xvasynth_path}/resources/app/models/skyrim/"
@@ -56,14 +65,7 @@ class Synthesizer:
         self.synthesize_batch_url = 'http://127.0.0.1:8008/synthesize_batch'
         self.loadmodel_url = 'http://127.0.0.1:8008/loadModel'
         self.setvocoder_url = 'http://127.0.0.1:8008/setVocoder'
-        
-        #Added from xTTS implementation
-        self.xtts_server_path = config.xtts_server_path
-        self.synthesize_url_xtts = config.xtts_synthesize_url
-        self.switch_model_url = config.xtts_switch_model
-        self.xtts_get_models_list = config.xtts_get_models_list
-        self.available_models = self._get_available_models()
-        self.official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
+       
 
     def _get_available_models(self):
         # Code to request and return the list of available models
@@ -80,12 +82,8 @@ class Synthesizer:
     def synthesize(self, voice, voice_folder, voiceline, aggro=0):
         if self.use_external_xtts == 1:
             self.plugins_path = self.xtts_server_path + "/plugins/lip_fuz"
-            if voice != self.last_voice:
-                self.change_voice_xtts(voice)
         else:
             self.plugins_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
-            if voice != self.last_voice:
-                self.change_voice(voice)
 
         logging.info(f'Synthesizing voiceline: {voiceline}')
         if self.use_external_xtts == 0:
@@ -332,64 +330,55 @@ class Synthesizer:
             input('\nPress any key to stop Mantella...')
             sys.exit(0)
             
-
     @utils.time_it
     def change_voice(self, voice):
         logging.info('Loading voice model...')
+        if self.use_external_xtts == 1:
+            # Format the voice string to match the model naming convention
+            voice_path = f"{voice.lower().replace(' ', '')}"
+            model_voice = voice_path
+            # Check if the specified voice is available
+            if voice_path not in self.available_models and voice != self.last_voice:
+                logging.info(f'Voice "{voice}" not in available models. Available models: {self.available_models}')
+                # Use the first available official model as a fallback
+                model_voice = self.get_first_available_official_model()
+                if model_voice is None:
+                    # Handle the case where no official model is available
+                    raise ValueError("No available voice model found.")
+                # Update the voice_path with the fallback model
+                model_voice = f"{model_voice.lower().replace(' ', '')}"
 
-        voice_path = f"{self.model_path}sk_{voice.lower().replace(' ', '')}"
-        if not os.path.exists(voice_path+'.json'):
-            logging.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files (Ctrl+F for 'sk_{voice.lower().replace(' ', '')}').")
-            raise VoiceModelNotFound()
+            # Request to switch the voice model
+            requests.post(self.switch_model_url, json={"model_name": model_voice})
+            
+        else :
+            voice_path = f"{self.model_path}sk_{voice.lower().replace(' ', '')}"
+            if not os.path.exists(voice_path+'.json'):
+                logging.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files (Ctrl+F for 'sk_{voice.lower().replace(' ', '')}').")
+                raise VoiceModelNotFound()
 
-        with open(voice_path+'.json', 'r', encoding='utf-8') as f:
-            voice_model_json = json.load(f)
+            with open(voice_path+'.json', 'r', encoding='utf-8') as f:
+                voice_model_json = json.load(f)
 
-        try:
-            base_speaker_emb = voice_model_json['games'][0]['base_speaker_emb']
-            base_speaker_emb = str(base_speaker_emb).replace('[','').replace(']','')
-        except:
-            base_speaker_emb = None
+            try:
+                base_speaker_emb = voice_model_json['games'][0]['base_speaker_emb']
+                base_speaker_emb = str(base_speaker_emb).replace('[','').replace(']','')
+            except:
+                base_speaker_emb = None
 
-        self.base_speaker_emb = base_speaker_emb
-        self.model_type = voice_model_json.get('modelType')
+            self.base_speaker_emb = base_speaker_emb
+            self.model_type = voice_model_json.get('modelType')
         
-        model_change = {
-            'outputs': None,
-            'version': '3.0',
-            'model': voice_path, 
-            'modelType': self.model_type,
-            'base_lang': self.language, 
-            'pluginsContext': '{}',
-        }
-        requests.post(self.loadmodel_url, json=model_change)
+            model_change = {
+                'outputs': None,
+                'version': '3.0',
+                'model': voice_path, 
+                'modelType': self.model_type,
+                'base_lang': self.language, 
+                'pluginsContext': '{}',
+            }
+            requests.post(self.loadmodel_url, json=model_change)
 
-        self.last_voice = voice
-
-        logging.info('Voice model loaded.')
-
-    @utils.time_it
-    def change_voice_xtts(self, voice):
-        logging.info('Loading voice model...')
-
-        # Format the voice string to match the model naming convention
-        voice_path = f"{voice.lower().replace(' ', '')}"
-        model_voice = voice_path
-        # Check if the specified voice is available
-        if voice_path not in self.available_models and voice != self.last_voice:
-            logging.info(f'Voice "{voice}" not in available models. Available models: {self.available_models}')
-            # Use the first available official model as a fallback
-            model_voice = self.get_first_available_official_model()
-            if model_voice is None:
-                # Handle the case where no official model is available
-                raise ValueError("No available voice model found.")
-            # Update the voice_path with the fallback model
-            model_voice = f"{model_voice.lower().replace(' ', '')}"
-
-        # Request to switch the voice model
-        requests.post(self.switch_model_url, json={"model_name": model_voice})
-
-        # Update the last used voice
         self.last_voice = voice
 
         logging.info('Voice model loaded.')
