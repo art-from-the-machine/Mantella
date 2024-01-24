@@ -1,3 +1,4 @@
+import traceback
 import src.tts as tts
 import src.stt as stt
 import src.chat_response as chat_response
@@ -16,7 +17,6 @@ async def get_response(input_text, messages, synthesizer, characters, radiant_di
     sentence_queue = asyncio.Queue()
     event = asyncio.Event()
     event.set()
-
     results = await asyncio.gather(
         chat_manager.process_response(sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event), 
         chat_manager.send_response(sentence_queue, event)
@@ -68,14 +68,16 @@ try:
             logging.info('Restarting...')
             continue
 
-        character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+        character = character_manager.Character(character_info, language_info['language'], is_generic_npc, config.memory_prompt, config.resummarize_prompt)
         synthesizer.change_voice(character.voice_model)
         chat_manager.active_character = character
         chat_manager.character_num = 0
         characters.active_characters[character.name] = character
         game_state_manager.write_game_info('_mantella_character_selection', 'True')
         # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
-        chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
+        restart_required = chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
+        if restart_required:
+            continue
 
         with open(f'{config.game_path}/_mantella_radiant_dialogue.txt', 'r', encoding='utf-8') as f:
             radiant_dialogue = f.readline().strip().lower()
@@ -133,7 +135,7 @@ try:
                         if characters.active_character_count() == 1:
                             message['content'] = character.name+': '+message['content']
 
-                character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+                character = character_manager.Character(character_info, language_info['language'], is_generic_npc, config.memory_prompt, config.resummarize_prompt)
                 characters.active_characters[character.name] = character
                 # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
                 chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])
@@ -141,7 +143,13 @@ try:
                 # if not radiant dialogue format
                 if radiant_dialogue == "false":
                     # add greeting from newly added NPC to help the LLM understand that this NPC has joined the conversation
-                    messages_wo_system_prompt[last_assistant_idx]['content'] += f"\n{character.name}: {language_info['hello']}."
+                    for active_character in characters.active_characters:
+                        if active_character != character.name: 
+                            # existing NPCs greet the new NPC
+                            messages_wo_system_prompt[last_assistant_idx]['content'] += f"\n{active_character}: {language_info['hello']} {character.name}."
+                        else: 
+                            # new NPC greets the existing NPCs
+                            messages_wo_system_prompt[last_assistant_idx]['content'] += f"\n{active_character}: {language_info['hello']}."
                 
                 new_context = character.set_context(config.multi_npc_prompt, location, in_game_time, characters.active_characters, token_limit, radiant_dialogue)
 
@@ -217,5 +225,5 @@ except Exception as e:
     except:
         None
 
-    logging.error(f"Error: {e}")
+    logging.error("".join(traceback.format_exception(e)))
     input("Press Enter to exit.")

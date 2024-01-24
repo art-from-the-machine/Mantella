@@ -29,9 +29,9 @@ class ChatManager:
         self.offended_npc_response = config.offended_npc_response
         self.forgiven_npc_response = config.forgiven_npc_response
         self.follow_npc_response = config.follow_npc_response
-        self.experimental_features = config.experimental_features
         self.wait_time_buffer = config.wait_time_buffer
-
+        #Added from xTTS implementation
+        self.use_external_xtts = config.use_external_xtts
         self.character_num = 0
         self.active_character = None
 
@@ -75,8 +75,9 @@ class ChatManager:
 
             self.game_state_manager.write_game_info('_mantella_status', 'Error with Mantella.exe. Please check MantellaSoftware/logging.log')
             logging.warn("Unknown NPC detected. This NPC will be able to speak once you restart Skyrim. To learn how to add memory, a background, and a voice model of your choosing to this NPC, see here: https://github.com/art-from-the-machine/Mantella#adding-modded-npcs")
-            input('\nPress any key to exit...')
-            sys.exit(0)
+            time.sleep(5)
+            return True
+        return False
 
 
     @utils.time_it
@@ -186,145 +187,156 @@ class ChatManager:
         # this converts double asterisks to single so that they can be filtered out appropriately
         sentence = sentence.replace('**','*')
         sentence = parse_asterisks_brackets(sentence)
-        logging.info(f'\nDEBUGFR v{sentence}')
         return sentence
 
-
     async def process_response(self, sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event):
-        """Stream response from LLM one sentence at a time"""
+                """Stream response from LLM one sentence at a time"""
 
-        messages.append({"role": "user", "content": input_text})
-        sentence = ''
-        full_reply = ''
-        num_sentences = 0
-        action_taken = False
-        if self.alternative_openai_api_base == 'none':
-            openai.aiosession.set(ClientSession()) # https://github.com/openai/openai-python#async-api
-        while True:
-            try:
-                start_time = time.time()
-                async for chunk in await openai.ChatCompletion.acreate(model=self.llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'}, stream=True, stop=self.stop, temperature=self.temperature, top_p=self.top_p, frequency_penalty=self.frequency_penalty, max_tokens=self.max_tokens):
-                    content = chunk["choices"][0].get("delta", {}).get("content")
-                    logging.info(f"'content info : {content}")
-
-                    if content is not None:
-                        sentence += content
-                        # Check for the last occurrence of sentence-ending punctuation
-                        last_punctuation = max(sentence.rfind('.'), sentence.rfind('!'), sentence.rfind(':'), sentence.rfind('?'))
-                        if last_punctuation != -1:
-                            # Split the sentence at the last punctuation mark
-                            remaining_content = sentence[last_punctuation + 1:]
-                            sentence = sentence[:last_punctuation + 1]
-
-                        if ('assist' in content) and (num_sentences>0):
-                            logging.info(f"'assist' keyword found. Ignoring sentence which begins with: {sentence}")
-                            break
-
-                        content_edit = unicodedata.normalize('NFKC', content)
-                        # check if content marks the end of a sentence
-                        if (any(char in content_edit for char in self.end_of_sentence_chars)):
-                            sentence = self.clean_sentence(sentence)
-
-                            if len(sentence.strip()) < 3:
-                                logging.info(f'Skipping voiceline that is too short: {sentence}')
-                                break
-
-                            logging.info(f"LLM returned sentence took {time.time() - start_time} seconds to execute")
-
-                            if content_edit == ':':
-                                keyword_extraction = sentence.strip()[:-1] #.lower()
-                                # if LLM is switching character
-                                if (keyword_extraction in characters.active_characters):
-                                    #TODO: or (any(key.split(' ')[0] == keyword_extraction for key in characters.active_characters))
-                                    logging.info(f"Switched to {keyword_extraction}")
-                                    self.active_character = characters.active_characters[keyword_extraction]
-                                    synthesizer.change_voice(self.active_character.voice_model)
-                                    # characters are mapped to say_line based on order of selection
-                                    # taking the order of the dictionary to find which say_line to use, but it is bad practice to use dictionaries in this way
-                                    self.character_num = list(characters.active_characters.keys()).index(keyword_extraction)
-                                    full_reply += sentence
-                                    sentence = ''
-                                    action_taken = True
-                                elif keyword_extraction == 'Player':
-                                    logging.info(f"Stopped LLM from speaking on behalf of the player")
-                                    break
-                                elif keyword_extraction.lower() == self.offended_npc_response.lower():
-                                    if self.experimental_features:
-                                        logging.info(f"The player offended the NPC")
-                                        self.game_state_manager.write_game_info('_mantella_aggro', '1')
-                                        self.active_character.is_in_combat = 1
-                                    else:
-                                        logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Offended feature")
-                                    full_reply += sentence
-                                    sentence = ''
-                                    action_taken = True
-                                elif keyword_extraction.lower() == self.forgiven_npc_response.lower():
-                                    if self.experimental_features:
-                                        logging.info(f"The player made up with the NPC")
-                                        self.game_state_manager.write_game_info('_mantella_aggro', '0')
-                                        self.active_character.is_in_combat = 0
-                                    else:
-                                        logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Forgiven feature")
-                                    full_reply += sentence
-                                    sentence = ''
-                                    action_taken = True
-                                elif keyword_extraction.lower() == self.follow_npc_response.lower():
-                                    if self.experimental_features:
-                                        logging.info(f"The NPC is willing to follow the player")
-                                        self.game_state_manager.write_game_info('_mantella_aggro', '2')
-                                    else:
-                                        logging.info(f"Experimental features disabled. Please set experimental_features = 1 in config.ini to enable the Follow feature")
-                                    full_reply += sentence
-                                    sentence = ''
-                                    action_taken = True
-
-                            if action_taken == False:
-                                # Generate the audio and return the audio file path
-                                try:
-                                    logging.info(f"'DEBUGERFR Before audio_file{sentence}")
-                                    audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ', self.active_character.is_in_combat)
-                                except Exception as e:
-                                    logging.error(f"xVASynth Error: {e}")
-
-                                # Put the audio file path in the sentence_queue
-                                await sentence_queue.put([audio_file, sentence])
-
-                                full_reply += sentence
-                                num_sentences += 1
-                                sentence = ''
-                                sentence = remaining_content
-                                remaining_content = ''
-
-                                # clear the event for the next iteration
-                                event.clear()
-                                # wait for the event to be set before generating the next line
-                                await event.wait()
-
-                                end_conversation = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
-                                radiant_dialogue_update = self.game_state_manager.load_data_when_available('_mantella_radiant_dialogue', '')
-                                # stop processing LLM response if:
-                                # max_response_sentences reached (and the conversation isn't radiant)
-                                # conversation has switched from radiant to multi NPC (this allows the player to "interrupt" radiant dialogue and include themselves in the conversation)
-                                # the conversation has ended
-                                if ((num_sentences >= self.max_response_sentences) and (radiant_dialogue == 'false')) or ((radiant_dialogue == 'true') and (radiant_dialogue_update.lower() == 'false')) or (end_conversation.lower() == 'true'):
-                                    break
-                            else:
-                                action_taken = False
+                messages.append({"role": "user", "content": input_text})
+                sentence = ''
+                full_reply = ''
+                num_sentences = 0
+                action_taken = False
+                #Added from xTTS implementation
+                accumulated_sentence = ''
                 if self.alternative_openai_api_base == 'none':
-                    await openai.aiosession.get().close()
-                break
-            except Exception as e:
-                logging.error(f"LLM API Error: {e}")
-                error_response = "I can't find the right words at the moment."
-                audio_file = synthesizer.synthesize(self.active_character.voice_model, None, error_response)
-                self.save_files_to_voice_folders([audio_file, error_response])
-                logging.info('Retrying connection to API...')
-                time.sleep(5)
+                    openai.aiosession.set(ClientSession()) # https://github.com/openai/openai-python#async-api
+                while True:
+                    try:
+                        start_time = time.time()
+                        async for chunk in await openai.ChatCompletion.acreate(model=self.llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'}, stream=True, stop=self.stop, temperature=self.temperature, top_p=self.top_p, frequency_penalty=self.frequency_penalty, max_tokens=self.max_tokens):
+                            content = chunk["choices"][0].get("delta", {}).get("content")
 
-        # Mark the end of the response
-        await sentence_queue.put(None)
+                            if content is not None:
+                                sentence += content
+                                # Check for the last occurrence of sentence-ending punctuation
+                                last_punctuation = max(sentence.rfind('.'), sentence.rfind('!'), sentence.rfind(':'), sentence.rfind('?'))
+                                if last_punctuation != -1:
+                                    # Split the sentence at the last punctuation mark
+                                    current_sentence = sentence[:last_punctuation + 1]
+                                    remaining_content = sentence[last_punctuation + 1:]
 
-        messages.append({"role": "assistant", "content": full_reply})
-        logging.info(f"Full response saved ({len(self.encoding.encode(full_reply))} tokens): {full_reply}")
+                                    # Accumulate sentences if less than 6 words
+                                    if len(current_sentence.split()) + len(accumulated_sentence.split()) < 6:
+                                        accumulated_sentence += current_sentence
+                                        sentence = remaining_content
+                                        continue
+                                    else:
+                                        sentence = accumulated_sentence + current_sentence
+                                        accumulated_sentence = ''
 
-        return messages
+                                    if ('assist' in content) and (num_sentences > 0):
+                                        logging.info(f"'assist' keyword found. Ignoring sentence which begins with: {sentence}")
+                                        break
+
+                                    content_edit = unicodedata.normalize('NFKC', content)
+                                    # check if content marks the end of a sentence
+                                    if any(char in content_edit for char in self.end_of_sentence_chars):
+                                        sentence = self.clean_sentence(sentence)
+                                        logging.info(f"LLM returned sentence took {time.time() - start_time} seconds to execute")
+
+                                        if content_edit == ':':
+                                            keyword_extraction = sentence.strip()[:-1] #.lower()
+                                        # if LLM is switching character
+                                        # Find the first character whose name starts with keyword_extraction
+                                            matching_character_key = next((key for key in characters.active_characters if key.startswith(keyword_extraction)), None)
+                                            if matching_character_key:
+                                                logging.info(f"Switched to {matching_character_key}")
+                                                self.active_character = characters.active_characters[matching_character_key]
+                                                #Added from xTTS implementation
+                                                if self.use_external_xtts == 1:
+                                                    synthesizer.change_voice(self.active_character.voice_model)
+                                                # Find the index of the matching character
+                                                self.character_num = list(characters.active_characters.keys()).index(matching_character_key)
+                                                full_reply += sentence
+                                                sentence = ''
+                                                action_taken = True
+                                            elif keyword_extraction == 'Player':
+                                                logging.info(f"Stopped LLM from speaking on behalf of the player")
+                                                break
+                                            elif keyword_extraction.lower() == self.offended_npc_response.lower():
+                                                logging.info(f"The player offended the NPC")
+                                                self.game_state_manager.write_game_info('_mantella_aggro', '1')
+                                                self.active_character.is_in_combat = 1
+                                                full_reply += sentence
+                                                sentence = ''
+                                                action_taken = True
+                                            elif keyword_extraction.lower() == self.forgiven_npc_response.lower():
+                                                logging.info(f"The player made up with the NPC")
+                                                self.game_state_manager.write_game_info('_mantella_aggro', '0')
+                                                self.active_character.is_in_combat = 0
+                                                full_reply += sentence
+                                                sentence = ''
+                                                action_taken = True
+                                            elif keyword_extraction.lower() == self.follow_npc_response.lower():
+                                                logging.info(f"The NPC is willing to follow the player")
+                                                self.game_state_manager.write_game_info('_mantella_aggro', '2')
+                                                full_reply += sentence
+                                                sentence = ''
+                                                action_taken = True
+
+                                        if not action_taken:
+                                            # Generate the audio and return the audio file path
+                                            try:
+                                                #Added from xTTS implementation
+                                                audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ', self.active_character.is_in_combat)
+                                                # Put the audio file path in the sentence_queue    
+                                                await sentence_queue.put([audio_file, sentence])
+                                            except Exception as e:
+                                                logging.error(f"xVASynth Error: {e}")
+                                            full_reply += sentence
+                                            num_sentences += 1
+                                        sentence = remaining_content
+                                        remaining_content = ''
+                                        # clear the event for the next iteration
+                                        event.clear()
+                                        # wait for the event to be set before generating the next line
+                                        await event.wait()
+
+                                        end_conversation = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
+                                        radiant_dialogue_update = self.game_state_manager.load_data_when_available('_mantella_radiant_dialogue', '')
+                                        # stop processing LLM response if:
+                                        # max_response_sentences reached (and the conversation isn't radiant)
+                                        # conversation has switched from radiant to multi NPC (this allows the player to "interrupt" radiant dialogue and include themselves in the conversation)
+                                        # the conversation has ended
+                                        if ((num_sentences >= self.max_response_sentences) and (radiant_dialogue == 'false')) or ((radiant_dialogue == 'true') and (radiant_dialogue_update.lower() == 'false')) or (end_conversation.lower() == 'true'):
+                                            break
+                                        else:
+                                            action_taken = False
+
+                        if self.alternative_openai_api_base == 'none':
+                            await openai.aiosession.get().close()
+                        break
+
+                    except Exception as e:
+                        logging.error(f"LLM API Error: {e}")
+                        error_response = "I can't find the right words at the moment."
+                        audio_file = synthesizer.synthesize(self.active_character.voice_model, None, error_response)
+                        self.save_files_to_voice_folders([audio_file, error_response])
+                        logging.info('Retrying connection to API...')
+                        time.sleep(5)
+                
+                # Mark the end of the response
+
+                #Added from xTTS implementation
+                # Check if there is any accumulated sentence at the end
+                if accumulated_sentence != '' and accumulated_sentence != None :
+                    logging.info(f"accumulated_sentence at the end !!!!! {accumulated_sentence}")
+                    # Generate the audio and return the audio file path
+                    try:
+                        #Added from xTTS implementation
+                        audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + accumulated_sentence + ' ', self.active_character.is_in_combat)
+                        await sentence_queue.put([audio_file, accumulated_sentence])
+                        full_reply += accumulated_sentence
+                        accumulated_sentence = ''
+                    except Exception as e:
+                        accumulated_sentence = ''
+                        logging.error(f"xVASynth Error: {e}")
+                else:
+                    logging.info(f"accumulated_sentence at the end is None")
+                
+                await sentence_queue.put(None)
+                messages.append({"role": "assistant", "content": full_reply})
+                logging.info(f"Full response saved ({len(self.encoding.encode(full_reply))} tokens): {full_reply}")
+
+                return messages
