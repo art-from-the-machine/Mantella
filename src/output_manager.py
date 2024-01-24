@@ -195,6 +195,7 @@ class ChatManager:
 
         messages.append({"role": "user", "content": input_text})
         sentence = ''
+        remaining_content = ''
         full_reply = ''
         num_sentences = 0
         action_taken = False
@@ -226,7 +227,7 @@ class ChatManager:
 
                             logging.info(f"LLM returned sentence took {time.time() - start_time} seconds to execute")
 
-                            if content_edit == ':':
+                            if ':' in content_edit:
                                 keyword_extraction = sentence.strip()[:-1] #.lower()
                                 # if LLM is switching character
                                 # Find the first character whose name starts with keyword_extraction
@@ -240,7 +241,7 @@ class ChatManager:
                                     self.character_num = list(characters.active_characters.keys()).index(matching_character_key)
 
                                     full_reply += sentence
-                                    sentence = ''
+                                    sentence = remaining_content
                                     action_taken = True
                                 elif keyword_extraction == 'Player':
                                     logging.info(f"Stopped LLM from speaking on behalf of the player")
@@ -250,20 +251,20 @@ class ChatManager:
                                     self.game_state_manager.write_game_info('_mantella_aggro', '1')
                                     self.active_character.is_in_combat = 1
                                     full_reply += sentence
-                                    sentence = ''
+                                    sentence = remaining_content
                                     action_taken = True
                                 elif keyword_extraction.lower() == self.forgiven_npc_response.lower():
                                     logging.info(f"The player made up with the NPC")
                                     self.game_state_manager.write_game_info('_mantella_aggro', '0')
                                     self.active_character.is_in_combat = 0
                                     full_reply += sentence
-                                    sentence = ''
+                                    sentence = remaining_content
                                     action_taken = True
                                 elif keyword_extraction.lower() == self.follow_npc_response.lower():
                                     logging.info(f"The NPC is willing to follow the player")
                                     self.game_state_manager.write_game_info('_mantella_aggro', '2')
                                     full_reply += sentence
-                                    sentence = ''
+                                    sentence = remaining_content
                                     action_taken = True
 
                             if action_taken == False:
@@ -278,7 +279,6 @@ class ChatManager:
 
                                 full_reply += sentence
                                 num_sentences += 1
-                                sentence = ''
                                 sentence = remaining_content
                                 remaining_content = ''
 
