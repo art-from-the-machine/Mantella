@@ -29,12 +29,12 @@ class Synthesizer:
         self.synthesize_url_xtts = config.xtts_synthesize_url
         self.switch_model_url = config.xtts_switch_model
         self.xtts_get_models_list = config.xtts_get_models_list
-        self.available_models = self._get_available_models()
         self.official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
 
         # check if xvasynth is running; otherwise try to run it
         if self.use_external_xtts == 1:
             self._set_tts_settings_and_test_if_serv_running()
+            self.available_models = self._get_available_models()
             self.plugins_path = self.xtts_server_path + "/plugins/lip_fuz"
         else:
             self.check_if_xvasynth_is_running()
