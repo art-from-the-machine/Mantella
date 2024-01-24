@@ -282,10 +282,7 @@ class ChatManager:
                                             # Generate the audio and return the audio file path
                                             try:
                                                 #Added from xTTS implementation
-                                                if self.use_external_xtts == 1:   
-                                                    audio_file = synthesizer.synthesize_xtts(self.active_character.voice_model, None, ' ' + sentence + ' ', self.active_character.is_in_combat)
-                                                else:
-                                                    audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ', self.active_character.is_in_combat)
+                                                audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + sentence + ' ', self.active_character.is_in_combat)
                                                 # Put the audio file path in the sentence_queue    
                                                 await sentence_queue.put([audio_file, sentence])
                                             except Exception as e:
@@ -317,10 +314,7 @@ class ChatManager:
                     except Exception as e:
                         logging.error(f"LLM API Error: {e}")
                         error_response = "I can't find the right words at the moment."
-                        if self.use_external_xtts == 1:  
-                            audio_file = synthesizer.synthesize_xtts(self.active_character.voice_model, None, error_response)
-                        else:
-                            audio_file = synthesizer.synthesize(self.active_character.voice_model, None, error_response)
+                        audio_file = synthesizer.synthesize(self.active_character.voice_model, None, error_response)
                         self.save_files_to_voice_folders([audio_file, error_response])
                         logging.info('Retrying connection to API...')
                         time.sleep(5)
@@ -334,10 +328,7 @@ class ChatManager:
                     # Generate the audio and return the audio file path
                     try:
                         #Added from xTTS implementation
-                        if self.use_external_xtts == 1:   
-                            audio_file = synthesizer.synthesize_xtts(self.active_character.voice_model, None, ' ' + accumulated_sentence + ' ', self.active_character.is_in_combat)
-                        else:
-                            audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + accumulated_sentence + ' ', self.active_character.is_in_combat)
+                        audio_file = synthesizer.synthesize(self.active_character.voice_model, None, ' ' + accumulated_sentence + ' ', self.active_character.is_in_combat)
                         await sentence_queue.put([audio_file, accumulated_sentence])
                         full_reply += accumulated_sentence
                         accumulated_sentence = ''

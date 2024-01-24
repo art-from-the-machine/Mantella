@@ -78,20 +78,27 @@ class Synthesizer:
         return None
     
     def synthesize(self, voice, voice_folder, voiceline, aggro=0):
-        if voice != self.last_voice:
-            self.change_voice(voice)
+        if self.use_external_xtts == 1:
+            self.plugins_path = self.xtts_server_path + "/plugins/lip_fuz"
+            if voice != self.last_voice:
+                self.change_voice_xtts(voice)
+        else:
+            self.plugins_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
+            if voice != self.last_voice:
+                self.change_voice(voice)
 
         logging.info(f'Synthesizing voiceline: {voiceline}')
-        phrases = self._split_voiceline(voiceline)
+        if self.use_external_xtts == 0:
+            phrases = self._split_voiceline(voiceline)
 
-        # make voice model folder if it doesn't already exist
-        if not os.path.exists(f"{self.output_path}/voicelines/{self.last_voice}"):
-            os.makedirs(f"{self.output_path}/voicelines/{self.last_voice}")
-        
-        voiceline_files = []
-        for phrase in phrases:
-            voiceline_file = f"{self.output_path}/voicelines/{self.last_voice}/{utils.clean_text(phrase)[:150]}.wav"
-            voiceline_files.append(voiceline_file)
+			# make voice model folder if it doesn't already exist
+            if not os.path.exists(f"{self.output_path}/voicelines/{self.last_voice}"):
+                os.makedirs(f"{self.output_path}/voicelines/{self.last_voice}")
+			
+            voiceline_files = []
+            for phrase in phrases:
+                voiceline_file = f"{self.output_path}/voicelines/{self.last_voice}/{utils.clean_text(phrase)[:150]}.wav"
+                voiceline_files.append(voiceline_file)
 
         final_voiceline_file_name = 'voiceline'
         final_voiceline_file =  f"{self.output_path}/voicelines/{self.last_voice}/{final_voiceline_file_name}.wav"
@@ -105,32 +112,35 @@ class Synthesizer:
             logging.warning("Failed to remove spoken voicelines")
 
         # Synthesize voicelines
-        if len(phrases) == 1:
-            self._synthesize_line(phrases[0], final_voiceline_file, aggro)
+        if self.use_external_xtts == 1:
+            self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, aggro)
         else:
-            # TODO: include batch synthesis for v3 models (batch not needed very often)
-            if self.model_type != 'xVAPitch':
-                self._batch_synthesize(phrases, voiceline_files)
+            if len(phrases) == 1:
+                self._synthesize_line(phrases[0], final_voiceline_file, aggro)
             else:
-                for i, voiceline_file in enumerate(voiceline_files):
-                    self._synthesize_line(phrases[i], voiceline_files[i])
-            self.merge_audio_files(voiceline_files, final_voiceline_file)
+				# TODO: include batch synthesis for v3 models (batch not needed very often)
+                if self.model_type != 'xVAPitch':
+                    self._batch_synthesize(phrases, voiceline_files)
+                else:
+                    for i, voiceline_file in enumerate(voiceline_files):
+                        self._synthesize_line(phrases[i], voiceline_files[i])
+                self.merge_audio_files(voiceline_files, final_voiceline_file)
 
         if not os.path.exists(final_voiceline_file):
             logging.error(f'xVASynth failed to generate voiceline at: {Path(final_voiceline_file)}')
             raise FileNotFoundError()
 
         # check if FonixData.cdf file is besides FaceFXWrapper.exe
-        cdf_path = f'{self.xvasynth_path}/resources/app/plugins/lip_fuz/FonixData.cdf'
+        cdf_path = f'{self.plugins_path}/FonixData.cdf'
         if not os.path.exists(Path(cdf_path)):
             logging.error(f'Could not find FonixData.cdf in "{Path(cdf_path).parent}" required by FaceFXWrapper. Look for the Lip Fuz plugin of xVASynth.')
             raise FileNotFoundError()
 
         # generate .lip file from the .wav file with FaceFXWrapper
-        face_wrapper_executable = f'{self.xvasynth_path}/resources/app/plugins/lip_fuz/FaceFXWrapper.exe';
+        face_wrapper_executable = f'{self.plugins_path}/FaceFXWrapper.exe';
         if os.path.exists(face_wrapper_executable):
             # Run FaceFXWrapper.exe
-            self.run_command(f'{face_wrapper_executable} "Skyrim" "USEnglish" "{self.xvasynth_path}/resources/app/plugins/lip_fuz/FonixData.cdf" "{final_voiceline_file}" "{final_voiceline_file.replace(".wav", "_r.wav")}" "{final_voiceline_file.replace(".wav", ".lip")}" "{voiceline}"')
+            self.run_command(f'{face_wrapper_executable} "Skyrim" "USEnglish" "{self.plugins_path}/FonixData.cdf" "{final_voiceline_file}" "{final_voiceline_file.replace(".wav", "_r.wav")}" "{final_voiceline_file.replace(".wav", ".lip")}" "{voiceline}"')
         else:
             logging.error(f'Could not find FaceFXWrapper.exe in "{Path(face_wrapper_executable).parent}" with which to create a Lip Sync file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
             raise FileNotFoundError()
@@ -144,61 +154,6 @@ class Synthesizer:
             winsound.PlaySound(final_voiceline_file, winsound.SND_FILENAME)
 
         return final_voiceline_file
-    
-    def synthesize_xtts(self, voice, voice_folder, voiceline, aggro=0):
-        # If the voice has changed, update it
-        if voice != self.last_voice:
-            self.change_voice_xtts(voice)
-
-        logging.info(f'Synthesizing voiceline: {voiceline}')
-
-        # make voice model folder if it doesn't already exist
-        if not os.path.exists(f"{self.output_path}/voicelines/{self.last_voice}"):
-            os.makedirs(f"{self.output_path}/voicelines/{self.last_voice}")
-
-        final_voiceline_file_name = 'voiceline'
-        final_voiceline_file =  f"{self.output_path}/voicelines/{self.last_voice}/{final_voiceline_file_name}.wav"
-
-        try:
-            if os.path.exists(final_voiceline_file):
-                os.remove(final_voiceline_file)
-            if os.path.exists(final_voiceline_file.replace(".wav", ".lip")):
-                os.remove(final_voiceline_file.replace(".wav", ".lip"))
-        except:
-            logging.warning("Failed to remove spoken voicelines")
-
-        # Synthesize voicelines
-        self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, aggro)
-
-        if not os.path.exists(final_voiceline_file):
-            logging.error(f'xTTS failed to generate voiceline at: {Path(final_voiceline_file)}')
-            raise FileNotFoundError()
-
-        # check if FonixData.cdf file is besides FaceFXWrapper.exe
-        cdf_path = f'{self.xtts_server_path}/plugins/lip_fuz/FonixData.cdf'
-        if not os.path.exists(Path(cdf_path)):
-            logging.error(f'Could not find FonixData.cdf in "{Path(cdf_path).parent}" required by FaceFXWrapper. Look for the Lip Fuz plugin of xVASynth.')
-            raise FileNotFoundError()
-
-        # generate .lip file from the .wav file with FaceFXWrapper
-        face_wrapper_executable = f'{self.xtts_server_path}/plugins/lip_fuz/FaceFXWrapper.exe';
-        if os.path.exists(face_wrapper_executable):
-            # Run FaceFXWrapper.exe
-            self.run_command(f'{face_wrapper_executable} "Skyrim" "USEnglish" "{self.xtts_server_path}/plugins/lip_fuz/FonixData.cdf" "{final_voiceline_file}" "{final_voiceline_file.replace(".wav", "_r.wav")}" "{final_voiceline_file.replace(".wav", ".lip")}" "{voiceline}"')
-        else:
-            logging.error(f'Could not find FaceFXWrapper.exe in "{Path(face_wrapper_executable).parent}" with which to create a Lip Sync file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
-            raise FileNotFoundError()
-
-        # remove file created by FaceFXWrapper
-        if os.path.exists(final_voiceline_file.replace(".wav", "_r.wav")):
-            os.remove(final_voiceline_file.replace(".wav", "_r.wav"))
-
-        # if Debug Mode is on, play the audio file
-        if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):
-            winsound.PlaySound(final_voiceline_file, winsound.SND_FILENAME)
-
-        return final_voiceline_file
-    
 
     @utils.time_it
     def _group_sentences(self, voiceline_sentences, max_length=150):
