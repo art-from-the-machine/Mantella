@@ -245,7 +245,7 @@ class ChatManager:
                                                 self.active_character = characters.active_characters[matching_character_key]
                                                 #Added from xTTS implementation
                                                 if self.use_external_xtts == 1:
-                                                synthesizer.change_voice(self.active_character.voice_model)
+                                                    synthesizer.change_voice(self.active_character.voice_model)
                                                 # Find the index of the matching character
                                                 self.character_num = list(characters.active_characters.keys()).index(matching_character_key)
                                                 full_reply += sentence
