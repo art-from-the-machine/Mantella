@@ -85,13 +85,13 @@ class Synthesizer:
         else:
             self.plugins_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
 
+		# make voice model folder if it doesn't already exist
+        if not os.path.exists(f"{self.output_path}/voicelines/{self.last_voice}"):
+            os.makedirs(f"{self.output_path}/voicelines/{self.last_voice}")
+            
         logging.info(f'Synthesizing voiceline: {voiceline}')
         if self.use_external_xtts == 0:
             phrases = self._split_voiceline(voiceline)
-
-			# make voice model folder if it doesn't already exist
-            if not os.path.exists(f"{self.output_path}/voicelines/{self.last_voice}"):
-                os.makedirs(f"{self.output_path}/voicelines/{self.last_voice}")
 			
             voiceline_files = []
             for phrase in phrases:
