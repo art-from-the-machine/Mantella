@@ -175,7 +175,8 @@ try:
                 transcript_cleaned = ''
                 transcribed_text = None
                 if conversation_ended.lower() != 'true':
-                    transcribed_text, say_goodbye = transcriber.get_player_response(say_goodbye, radiant_dialogue)
+                    all_names: str =  ", ".join(characters.active_characters.keys())
+                    transcribed_text, say_goodbye = transcriber.get_player_response(say_goodbye, all_names, radiant_dialogue)
 
                     game_state_manager.write_game_info('_mantella_player_input', transcribed_text)
 
