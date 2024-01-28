@@ -67,6 +67,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.game_path = config['Paths']['skyrim_folder']
             self.xvasynth_path = config['Paths']['xvasynth_folder']
             self.mod_path = config['Paths']['mod_folder']
+            self.facefx_path = config['Paths']['facefx_folder']
 
             self.mic_enabled = config['Microphone']['microphone_enabled']
             self.whisper_model = config['Microphone']['model_size']

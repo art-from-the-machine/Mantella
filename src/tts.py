@@ -18,6 +18,7 @@ class VoiceModelNotFound(Exception):
 class Synthesizer:
     def __init__(self, config):
         self.xvasynth_path = config.xvasynth_path
+        self.facefx_path = config.facefx_path if config.facefx_path else (config.xvasynth_path + '/resources/app/plugins/lip_fuz/')
         self.process_device = config.xvasynth_process_device
         self.times_checked_xvasynth = 0
 
@@ -94,24 +95,28 @@ class Synthesizer:
             logging.error(f'xVASynth failed to generate voiceline at: {Path(final_voiceline_file)}')
             raise FileNotFoundError()
 
-        # check if FonixData.cdf file is besides FaceFXWrapper.exe
-        cdf_path = f'{self.xvasynth_path}/resources/app/plugins/lip_fuz/FonixData.cdf'
-        if not os.path.exists(Path(cdf_path)):
-            logging.error(f'Could not find FonixData.cdf in "{Path(cdf_path).parent}" required by FaceFXWrapper. Look for the Lip Fuz plugin of xVASynth.')
-            raise FileNotFoundError()
+        # FaceFX for creating a LIP file
+        try:
+            # check if FonixData.cdf file is besides FaceFXWrapper.exe
+            cdf_path = f'{self.facefx_path}FonixData.cdf'
+            if not os.path.exists(Path(cdf_path)):
+                logging.error(f'Could not find FonixData.cdf in "{Path(cdf_path).parent}" required by FaceFXWrapper. Look for the Lip Fuz plugin of xVASynth.')
+                raise FileNotFoundError()
 
-        # generate .lip file from the .wav file with FaceFXWrapper
-        face_wrapper_executable = f'{self.xvasynth_path}/resources/app/plugins/lip_fuz/FaceFXWrapper.exe';
-        if os.path.exists(face_wrapper_executable):
-            # Run FaceFXWrapper.exe
-            self.run_command(f'{face_wrapper_executable} "Skyrim" "USEnglish" "{self.xvasynth_path}/resources/app/plugins/lip_fuz/FonixData.cdf" "{final_voiceline_file}" "{final_voiceline_file.replace(".wav", "_r.wav")}" "{final_voiceline_file.replace(".wav", ".lip")}" "{voiceline}"')
-        else:
-            logging.error(f'Could not find FaceFXWrapper.exe in "{Path(face_wrapper_executable).parent}" with which to create a Lip Sync file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
-            raise FileNotFoundError()
+            # generate .lip file from the .wav file with FaceFXWrapper
+            face_wrapper_executable = f'{self.facefx_path}FaceFXWrapper.exe';
+            if os.path.exists(face_wrapper_executable):
+                # Run FaceFXWrapper.exe
+                self.run_command(f'{face_wrapper_executable} "Skyrim" "USEnglish" "{self.facefx_path}FonixData.cdf" "{final_voiceline_file}" "{final_voiceline_file.replace(".wav", "_r.wav")}" "{final_voiceline_file.replace(".wav", ".lip")}" "{voiceline}"')
+            else:
+                logging.error(f'Could not find FaceFXWrapper.exe in "{Path(face_wrapper_executable).parent}" with which to create a Lip Sync file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
+                raise FileNotFoundError()
 
-        # remove file created by FaceFXWrapper
-        if os.path.exists(final_voiceline_file.replace(".wav", "_r.wav")):
-            os.remove(final_voiceline_file.replace(".wav", "_r.wav"))
+            # remove file created by FaceFXWrapper
+            if os.path.exists(final_voiceline_file.replace(".wav", "_r.wav")):
+                os.remove(final_voiceline_file.replace(".wav", "_r.wav"))
+        except Exception as e:
+            logging.warning(e)
 
         # if Debug Mode is on, play the audio file
         if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):
