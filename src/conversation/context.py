@@ -132,7 +132,7 @@ class context:
         
         return context.format_listing(relationships)
        
-    def __get_characters_text(self, player_name: str = "") -> str:
+    def __get_character_names_as_text(self, player_name: str = "") -> str:
         """Gets the names of the NPCs in the conversation as a natural language list
 
         Args:
@@ -173,8 +173,11 @@ class context:
         player_name = ""
         if include_player:
             player_name = self.__config.player_name
-        name = self.__get_characters_text()
-        names_w_player = self.__get_characters_text(player_name)
+        name = ""
+        if self.npcs_in_conversation.last_added_character:
+            name: str = self.npcs_in_conversation.last_added_character.name
+        names = self.__get_character_names_as_text()
+        names_w_player = self.__get_character_names_as_text(player_name)
         if include_bios:            
             bios = self.__get_bios_text()
         else:
@@ -194,7 +197,7 @@ class context:
             result = prompt.format(
                 player_name = player_name,
                 name=name,
-                names=name,
+                names=names,
                 names_w_player = names_w_player,
                 bio=content[0],
                 bios=content[0], 
