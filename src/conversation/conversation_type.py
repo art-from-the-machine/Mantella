@@ -57,9 +57,13 @@ class conversation_type(ABC):
         Returns:
             user_message: the text for the next user message
         """
-        transcribed_text, _ = stt.get_player_response(False)
+        player_name = context_for_conversation.config.player_name
+
+
+        names_in_conversation = ', '.join([player_name] + context_for_conversation.npcs_in_conversation.get_all_names())
+        transcribed_text, _ = stt.get_player_response(False, names_in_conversation)
         if isinstance(transcribed_text, str):
-            return user_message(transcribed_text, context_for_conversation.config.player_name)
+            return user_message(transcribed_text, player_name)
         else:
             return user_message("*Complete gibberish*")
     

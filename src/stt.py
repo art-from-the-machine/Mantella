@@ -54,13 +54,13 @@ class Transcriber:
                 else:
                     self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
 
-    def get_player_response(self, say_goodbye):
+    def get_player_response(self, say_goodbye, prompt: str):
         if (self.debug_mode == '1') & (self.debug_use_mic == '0'):
             transcribed_text = self.default_player_response
         else:
             if self.mic_enabled == '1':
                 # listen for response
-                transcribed_text = self.recognize_input()
+                transcribed_text = self.recognize_input(prompt)
             else:
                 # text input through console
                 if (self.debug_mode == '1') & (self.debug_use_mic == '1'):
@@ -124,14 +124,14 @@ class Transcriber:
     #     return transcribed_text, say_goodbye
 
 
-    def recognize_input(self):
+    def recognize_input(self, prompt: str):
         """
         Recognize input from mic and return transcript if activation tag (assistant name) exist
         """
         while True:
             self.game_state_manager.write_game_info('_mantella_status', 'Listening...')
             logging.info('Listening...')
-            transcript = self._recognize_speech_from_mic()
+            transcript = self._recognize_speech_from_mic(prompt)
             transcript_cleaned = utils.clean_text(transcript)
 
             conversation_ended = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
@@ -146,16 +146,16 @@ class Transcriber:
             return transcript
     
 
-    def _recognize_speech_from_mic(self):
+    def _recognize_speech_from_mic(self, prompt:str):
         """
         Capture the words from the recorded audio (audio stream --> free text).
         Transcribe speech from recorded from `microphone`.
         """
         @utils.time_it
-        def whisper_transcribe(audio):
+        def whisper_transcribe(audio, prompt: str):
             # if using faster_whisper (default) return based on faster_whisper's code, if not assume player wants to use server mode and send query to whisper_url set by player.
             if self.whisper_type == 'faster_whisper':
-                segments, info = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=5, vad_filter=True)
+                segments, info = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=5, vad_filter=True, initial_prompt=prompt)
                 result_text = ' '.join(segment.text for segment in segments)
 
                 return result_text
@@ -167,7 +167,8 @@ class Transcriber:
                 else:
                     headers = {"Authorization": "Bearer apikey",}
                 data = {'model': self.model}
-                files = {'file': open(audio, 'rb')}
+                files = {'file': open(audio, 'rb'),
+                         "prompt": prompt}
                 response = requests.post(url, headers=headers, files=files, data=data)
                 response_data = json.loads(response.text)
                 if 'text' in response_data:
@@ -183,7 +184,7 @@ class Transcriber:
         with open(audio_file, 'wb') as file:
             file.write(audio.get_wav_data(convert_rate=16000))
         
-        transcript = whisper_transcribe(audio_file)
+        transcript = whisper_transcribe(audio_file, prompt)
         logging.info(transcript)
 
         return transcript
