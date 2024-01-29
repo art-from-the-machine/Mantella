@@ -78,7 +78,29 @@ class Synthesizer:
             if model in self.available_models:
                 return model
         return None
-    
+
+    def convert_to_16bit(self, input_file, output_file=None):
+        if output_file is None:
+            output_file = input_file
+        # Read the audio file
+        data, samplerate = sf.read(input_file)
+
+        # Directly convert to 16-bit if data is in float format and assumed to be in the -1.0 to 1.0 range
+        if np.issubdtype(data.dtype, np.floating):
+            # Ensure no value exceeds the -1.0 to 1.0 range before conversion (optional, based on your data's characteristics)
+            # data = np.clip(data, -1.0, 1.0)  # Uncomment if needed
+            data_16bit = np.int16(data * 32767)
+        elif not np.issubdtype(data.dtype, np.int16):
+            # If data is not floating-point or int16, consider logging or handling this case explicitly
+            # For simplicity, this example just converts to int16 without scaling
+            data_16bit = data.astype(np.int16)
+        else:
+            # If data is already int16, no conversion is necessary
+            data_16bit = data
+
+        # Write the 16-bit audio data back to a file
+        sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
+      
     def synthesize(self, voice, voice_folder, voiceline, aggro=0):
         if self.use_external_xtts == 1:
             self.plugins_path = self.xtts_server_path + "/plugins/lip_fuz"
@@ -108,7 +130,7 @@ class Synthesizer:
                 os.remove(final_voiceline_file.replace(".wav", ".lip"))
         except:
             logging.warning("Failed to remove spoken voicelines")
-
+    
         # Synthesize voicelines
         if self.use_external_xtts == 1:
             self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, aggro)
@@ -123,11 +145,10 @@ class Synthesizer:
                     for i, voiceline_file in enumerate(voiceline_files):
                         self._synthesize_line(phrases[i], voiceline_files[i])
                 self.merge_audio_files(voiceline_files, final_voiceline_file)
-
         if not os.path.exists(final_voiceline_file):
             logging.error(f'xVASynth failed to generate voiceline at: {Path(final_voiceline_file)}')
             raise FileNotFoundError()
-
+       
         # check if FonixData.cdf file is besides FaceFXWrapper.exe
         cdf_path = f'{self.plugins_path}/FonixData.cdf'
         if not os.path.exists(Path(cdf_path)):
@@ -150,7 +171,6 @@ class Synthesizer:
         # if Debug Mode is on, play the audio file
         if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):
             winsound.PlaySound(final_voiceline_file, winsound.SND_FILENAME)
-
         return final_voiceline_file
 
     @utils.time_it
@@ -259,12 +279,20 @@ class Synthesizer:
     def _synthesize_line_xtts(self, line, save_path, voice, aggro=0):
         voice_path = f"{voice.lower().replace(' ', '')}"
         data = {
-        'text': line,
-        'speaker_wav': voice_path,
-        'language': self.language,
-        'save_path': save_path
-        }       
-        requests.post(self.synthesize_url_xtts, json=data)
+            'text': line,
+            'speaker_wav': voice_path,
+            'language': self.language,
+            'save_path': save_path
+        }
+        response = requests.post(self.synthesize_url_xtts, json=data)
+
+        # Check if the response is successful
+        if response.ok:
+            # Convert the audio file to 16-bit format only if the POST request was successful
+            self.convert_to_16bit(save_path)
+        else:
+            logging.error(f"Failed to synthesize line with xTTS: {response.status_code} - {response.text}")
+
 
     @utils.time_it
     def _batch_synthesize(self, grouped_sentences, voiceline_files):
