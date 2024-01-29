@@ -102,6 +102,8 @@ class Synthesizer:
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
       
     def synthesize(self, voice, voice_folder, voiceline, aggro=0):
+        if voice != self.last_voice:
+            self.change_voice(voice)
         if self.use_external_xtts == 1:
             self.plugins_path = self.xtts_server_path + "/plugins/lip_fuz"
         else:
