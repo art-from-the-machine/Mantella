@@ -112,10 +112,7 @@ xVASynth is used as Text-To-Speech engine by Mantella due to being free open-sou
 
 4. Download the .lip plugin for xVASynth [here](https://www.nexusmods.com/skyrimspecialedition/mods/55605) and download FaceFXWrapper from [here](https://www.nexusmods.com/skyrimspecialedition/mods/20061) (you do not need to download CK64Fixes). Instructions on how to install these are on the .lip plugin Nexus page. Make sure to place FaceFXWrapper in the plugins folder as stated on the .lip plugin page.
 
-5. Download the Elder Scrolls pronunciation dictionary from [here](https://www.nexusmods.com/skyrimspecialedition/mods/56778/), and follow the instructions to install.
-
-6. In the xVASynth UI, if "Skyrim" is not already selected, please do so by clicking the arrows symbol in the top left corner. On the navigation bar on the top right of the xVASynth UI, click on the "ae" icon. Once opened, click on the CMUDict dictionary and select "Enable All" in the bottom left corner. Do the same for "xVADict - Elder Scrolls" received from the above step.
-
+5. (Optional) Download the xVASynth DeepMoji Plugin [here](https://www.nexusmods.com/skyrimspecialedition/mods/107142). It boosts the emotionality of v3 xVASynth voice models, making them sound less robotic, based upon the _English_ voiceline.
 
 ## Required Skyrim Mods
 **NB:** Always ensure you are downloading the right version of each mod for your version of Skyrim. **This is the #1 reason for installation problems.** You can check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details -> File version. VR users can just download the VR version of each mod if available, or SE if not.
@@ -136,7 +133,6 @@ These mods aren't strictly necessary for Mantella to work, but they do greatly i
 - [No NPC Greetings](https://www.nexusmods.com/skyrim/mods/746) (recommended so that Mantella voicelines are not interrupted by vanilla voicelines)
 - [UIExtensions](https://www.nexusmods.com/skyrimspecialedition/mods/17561) (to use text input instead of mic input)
 - [World Encounter Hostility Fix - Performance Version](https://www.nexusmods.com/skyrimspecialedition/mods/91403  ) (stops certain NPCs from turning hostile when you cast the Mantella spell on them). Note that this mod requires the [Unofficial Skyrim Special Edition Patch (USSEP)](https://www.nexusmods.com/skyrimspecialedition/mods/266). Mantella needs to be loaded after USSEP in your load order.
-
 
 ## Language Models (LLMs)
 There are a number of different LLMs to choose from, ranging from small local models to expensive externally hosted models. Note that some smaller models may struggle to handle long term conversations and memory summarising. If you just want to get started without thinking too much about it / explore alternative options later and are new to Mantella, you can quickly get started via the OpenAI instructions below (the first month gives you $5 free credits).
