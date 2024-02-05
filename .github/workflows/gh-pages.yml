@@ -25,6 +25,6 @@ jobs:
       uses: sphinx-notes/pages@v3
       with:
         documentation_path: ./docs
-        requirements_path: ./requirements.txt
+        requirements_path: ./doc/gh_pages_requirements.txt
         cache: true
         python_version: 3.11
