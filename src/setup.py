@@ -5,7 +5,7 @@ import pandas as pd
 import tiktoken
 import src.config_loader as config_loader
 
-def initialise(config_file, logging_file, secret_key_file, character_df_file, language_file):
+def initialise(config_file, logging_file, secret_key_file, character_df_files, language_file):
     def setup_openai_secret_key(file_name, is_local):
         if is_local:
             api_key = 'abc123'
@@ -104,6 +104,13 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
     # clean up old instances of exe runtime files
     utils.cleanup_mei(config.remove_mei_folders)
     
+    # Determine which game we're running for and select the appropriate character file
+
+    if "Fallout4" or "Fallout4VR" in config.game.lower().replace(' ', '').replace('_', ''):
+        character_df_file = character_df_files[1] 
+    else :
+        character_df_file = character_df_files[0]  # if not Fallout assume Skyrim
+
     character_df = get_character_df(character_df_file)
     language_info = get_language_info(language_file)
 

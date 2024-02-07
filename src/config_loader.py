@@ -47,7 +47,24 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
                 run_config_editor()
 
             self.game = config['Game']['game']
-
+            self.game = str(self.game).lower().replace(' ', '').replace('_', '')
+            if self.game =="fallout4":
+                self.game ="Fallout4"
+                self.game_path = config['Paths']['fallout4_folder']
+                self.mod_path = config['Paths']['fallout4_mod_folder']
+            elif self.game =="fallout4vr":
+                self.game ="Fallout4VR"
+                self.game_path = config['Paths']['fallout4VR_folder'] 
+                self.mod_path = config['Paths']['fallout4VR_mod_folder']
+            elif self.game =="skyrimvr":
+                self.game ="SkyrimVR"
+                self.game_path = config['Paths']['skyrimVR_folder']
+                self.mod_path = config['Paths']['skyrimVR_mod_folder']
+            else:
+                self.game ="Skyrim"
+                self.game_path = config['Paths']['skyrim_folder']
+                self.mod_path = config['Paths']['skyrim_mod_folder']
+            logging.info(f'Mantella currently running for {self.game} located in {self.game_path}. Mantella esp located in {self.mod_path}.  \n')
             self.language = config['Language']['language']
             self.end_conversation_keyword = config['Language']['end_conversation_keyword']
             self.goodbye_npc_response = config['Language']['goodbye_npc_response']
@@ -56,10 +73,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.forgiven_npc_response = config['Language']['forgiven_npc_response']
             self.follow_npc_response = config['Language']['follow_npc_response']
 
-            self.game_path = config['Paths']['skyrim_folder']
-            self.xvasynth_path = config['Paths']['xvasynth_folder']
-            self.mod_path = config['Paths']['mod_folder']
-
+            self.xvasynth_path = config['Paths']['xvasynth_folder']            
             self.mic_enabled = config['Microphone']['microphone_enabled']
             self.whisper_model = config['Microphone']['model_size']
             self.whisper_process_device = config['Microphone']['process_device']
@@ -99,6 +113,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.pace = float(config['Speech']['pace'])
             self.use_cleanup = int(config['Speech']['use_cleanup'])
             self.use_sr = int(config['Speech']['use_sr'])
+            self.FO4Volume = int(config['Speech']['FO4_NPC_response_volume'])
 
             self.remove_mei_folders = config['Cleanup']['remove_mei_folders']
 

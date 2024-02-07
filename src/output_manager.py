@@ -9,6 +9,8 @@ import shutil
 import src.utils as utils
 import unicodedata
 import re
+import numpy as np
+import simpleaudio as sa
 import sys
 
 class ChatManager:
@@ -31,7 +33,7 @@ class ChatManager:
         self.forgiven_npc_response = config.forgiven_npc_response
         self.follow_npc_response = config.follow_npc_response
         self.wait_time_buffer = config.wait_time_buffer
-        self.root_mod_folter = config.game_path
+        self.root_mod_folder = config.game_path
 
         self.character_num = 0
         self.active_character = None
@@ -43,6 +45,7 @@ class ChatManager:
         self.f4_wav_file1 = f'MutantellaOutput1.wav'
         self.f4_wav_file2 = f'MutantellaOutput2.wav'
         self.f4_lip_file = f'00001ED2_1.lip'
+        self.FO4Volume = config.FO4Volume
 
         self.end_of_sentence_chars = ['.', '?', '!', ':', ';']
         self.end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.end_of_sentence_chars]
@@ -94,7 +97,7 @@ class ChatManager:
 
         # The if block below checks if it's Fallout 4, if that's the case it will add the wav file in the mod_folder\Sound\Voice\Mantella.esp\ 
         # and alternate between two wavs to prevent access denied issues if Mantella.exe is trying to access a wav currently loaded in Fallout4
-        if self.game == "Fallout4":
+        if self.game == "Fallout4" or self.game == "Fallout4VR":
             if self.f4_use_wav_file1:
                 wav_file_to_use = self.f4_wav_file1
                 subtitle += " Mutantella1"
@@ -111,38 +114,78 @@ class ChatManager:
         if self.add_voicelines_to_all_voice_folders == '1':
             for sub_folder in os.scandir(self.mod_folder):
                 if sub_folder.is_dir():
-                    #copy both the wav file and lip file if the game isn't Fallout4
-                    if self.game !="Fallout4":
+                    #if the game is Fallout 4 only copy the lip file
+                    if self.game =="Fallout4" or self.game == "Fallout4VR":
+                        shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.f4_lip_file}")
+                    #copy both the wav file and lip file if the game isn't Fallout4 or Fallout 4 VR
+                    else:    
                         shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
                         shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.lip_file}")
-                    #if the game is Fallout 4 only copy the lip file
-                    else:    
-                        shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.f4_lip_file}")
         else:
-            if self.game !="Fallout4":
+
+            if self.game =="Fallout4" or self.game == "Fallout4VR":
+            #if the game is Fallout 4 only copy the lip file
+                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.f4_lip_file}")
+            #copy both the wav file and lip file if the game isn't Fallout4 or Fallout 4 VR
+            else: 
                 shutil.copyfile(audio_file, f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.wav_file}")
                 shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.lip_file}")
-            else: 
-                 shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.f4_lip_file}")
 
         logging.info(f"{self.active_character.name} (character {self.character_num}) should speak")
         if self.character_num == 0:
             self.game_state_manager.write_game_info('_mantella_say_line', subtitle.strip())
+            if self.game =="Fallout4" or self.game =="Fallout4VR":
+                self.play_adjusted_volume(wav_file_path)
+                '''
+                print("starting while loop for Fallout 4")
+                while True:
+                    
+                    with open(f'{self.root_mod_folder}/_mantella_audio_ready.txt', 'r', encoding='utf-8') as f:
+                            audioReadyToPlay = f.read().strip() 
+                            if audioReadyToPlay.lower() =='true':
+                                wave_obj = sa.WaveObject.from_wave_file(wav_file_path)
+                                play_obj = wave_obj.play()
+                                play_obj.wait_done()
+                                self.game_state_manager.write_game_info('_mantella_audio_ready', 'false')
+                                break
+                '''
         else:
             say_line_file = '_mantella_say_line_'+str(self.character_num+1)
             self.game_state_manager.write_game_info(say_line_file, subtitle.strip())
+
+    def play_adjusted_volume(self, wav_file_path):
+        volume_scale = self.FO4Volume / 100.0  # Normalize to 0.0-1.0
+        print("Waiting for _mantella_audio_ready.txt to be set to true in Fallout 4 directory")
+        while True:
+            with open(f'{self.root_mod_folder}/_mantella_audio_ready.txt', 'r', encoding='utf-8') as f:
+                audioReadyToPlay = f.read().strip()
+                if audioReadyToPlay.lower() == 'true':
+                    wave_obj = sa.WaveObject.from_wave_file(wav_file_path)
+                    
+                    # Adjust volume
+                    audio_data = np.frombuffer(wave_obj.audio_data, dtype=np.int16)
+                    adjusted_audio_data = (audio_data * volume_scale).astype(np.int16)
+                    wave_obj = sa.WaveObject(adjusted_audio_data.tobytes(), wave_obj.num_channels, wave_obj.bytes_per_sample, wave_obj.sample_rate)
+                    
+                    play_obj = wave_obj.play()
+                    play_obj.wait_done()
+                    self.game_state_manager.write_game_info('_mantella_audio_ready', 'false')
+                    break
+
+
 
     @utils.time_it
     def remove_files_from_voice_folders(self):
         for sub_folder in os.listdir(self.mod_folder):
             try:
+               #if the game is Fallout 4 only delete the lip file
+                if self.game =="Fallout4" or self.game =="Fallout4VR": 
+                    os.remove(f"{self.mod_folder}/{sub_folder}/{self.f4_lip_file}")
                 #delete both the wav file and lip file if the game isn't Fallout4
-                if self.game !="Fallout4":
+                else:
                     os.remove(f"{self.mod_folder}/{sub_folder}/{self.wav_file}")
                     os.remove(f"{self.mod_folder}/{sub_folder}/{self.lip_file}")
-                #if the game is Fallout 4 only delete the lip file
-                else:
-                    os.remove(f"{self.mod_folder}/{sub_folder}/{self.f4_lip_file}")
+
             except:
                 continue
 
@@ -172,8 +215,8 @@ class ChatManager:
             event.set()
 
             #if Fallout4 is running the audio will be sync by checking if say line is set to false because the game can internally check if an audio file has finished playing
-            if self.game =="Fallout4":
-                with open(f'{self.root_mod_folter}/_mantella_actor_count.txt', 'r', encoding='utf-8') as f:
+            if self.game =="Fallout4" or self.game == "Fallout4VR":
+                with open(f'{self.root_mod_folder}/_mantella_actor_count.txt', 'r', encoding='utf-8') as f:
                         mantellaactorcount = f.read().strip() 
                 # Outer loop to continuously check the files
                 while True:
@@ -181,7 +224,7 @@ class ChatManager:
 
                     # Iterate through the number of files indicated by mantellaactorcount
                     for i in range(1, int(mantellaactorcount) + 1):
-                        file_name = f'{self.root_mod_folter}/_mantella_say_line'
+                        file_name = f'{self.root_mod_folder}/_mantella_say_line'
                         if i != 1:
                             file_name += f'_{i}'  # Append the file number for files 2 and above
                         file_name += '.txt'
@@ -199,13 +242,13 @@ class ChatManager:
                     await asyncio.sleep(0.1)  # Adjust the sleep duration as needed
 
 
-                #with open(f'{self.root_mod_folter}/_mantella_actor_count.txt', 'r', encoding='utf-8') as f:
+                #with open(f'{self.root_mod_folder}/_mantella_actor_count.txt', 'r', encoding='utf-8') as f:
                 #        mantellaactorcount = f.read().strip() 
                 # Loop to check if _mantella_say_line_ is set to false
                 #while True:
-                #    with open(f'{self.root_mod_folter}/_mantella_say_line.txt', 'r', encoding='utf-8') as f:
+                #    with open(f'{self.root_mod_folder}/_mantella_say_line.txt', 'r', encoding='utf-8') as f:
                 #        content = f.read().strip()                              
-                #    with open(f'{self.root_mod_folter}/_mantella_say_line_2.txt', 'r', encoding='utf-8') as f:
+                #    with open(f'{self.root_mod_folder}/_mantella_say_line_2.txt', 'r', encoding='utf-8') as f:
                 #        content2 = f.read().strip()
                 #        if content.lower() == 'false' and content2.lower() == 'false' :
                 #            break

@@ -85,6 +85,7 @@ class GameStateManager:
         self.write_game_info('_mantella_aggro', '')
 
         self.write_game_info('_mantella_radiant_dialogue', 'False')
+        self.write_game_info('_mantella_audio_ready', 'False')
 
         return character_name, character_id, location, in_game_time
     

@@ -24,10 +24,12 @@ class Synthesizer:
         # check if xvasynth is running; otherwise try to run it
         self.check_if_xvasynth_is_running()
 
-        # currrent game running
-        self.game = config.game
-
-        # voice models path
+        # voice models path (renaming Fallout4VR to Fallout4 to allow for filepath completion)
+        if config.game == "Fallout4" or config.game == "Fallout4VR":
+            self.game = "Fallout4"
+        #(renaming SkyrimVR to Skyrim to allow for filepath completion)
+        else: 
+            self.game = "Skyrim"
         self.model_path = f"{self.xvasynth_path}/resources/app/models/{self.game}/"
         # output wav / lip files path
         self.output_path = utils.resolve_path('data')+'/data'
@@ -279,7 +281,7 @@ class Synthesizer:
     def change_voice(self, voice):
         logging.info('Loading voice model...')
         #this is a game check for Fallout4/Skyrim to correctly search the XVASynth voice models for the right game.
-        if self.game == "Fallout4":
+        if self.game == "Fallout4" or self.game == "Fallout4VR":
             XVASynthAcronym="f4_"
             XVASynthModNexusLink="https://www.nexusmods.com/fallout4/mods/49340?tab=files"
         else:

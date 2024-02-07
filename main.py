@@ -31,10 +31,9 @@ try:
         config_file='config.ini',
         logging_file='logging.log', 
         secret_key_file='GPT_SECRET_KEY.txt', 
-        character_df_file='data/skyrim_characters.csv', 
+        character_df_files=('data/skyrim_characters.csv', 'data/fallout4_characters.csv'), 
         language_file='data/language_support.csv'
     )
-
     mantella_version = '0.10'
     logging.info(f'\nMantella v{mantella_version}')
 
