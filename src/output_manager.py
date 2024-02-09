@@ -152,10 +152,12 @@ class ChatManager:
         else:
             say_line_file = '_mantella_say_line_'+str(self.character_num+1)
             self.game_state_manager.write_game_info(say_line_file, subtitle.strip())
+            if self.game =="Fallout4" or self.game =="Fallout4VR":
+                self.play_adjusted_volume(wav_file_path)
 
     def play_adjusted_volume(self, wav_file_path):
         volume_scale = self.FO4Volume / 100.0  # Normalize to 0.0-1.0
-        print("Waiting for _mantella_audio_ready.txt to be set to true in Fallout 4 directory")
+        logging.info("Waiting for _mantella_audio_ready.txt to be set to true in Fallout 4 directory")
         while True:
             with open(f'{self.root_mod_folder}/_mantella_audio_ready.txt', 'r', encoding='utf-8') as f:
                 audioReadyToPlay = f.read().strip()
