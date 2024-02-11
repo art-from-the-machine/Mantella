@@ -5,7 +5,7 @@ import pandas as pd
 import tiktoken
 import src.config_loader as config_loader
 
-def initialise(config_file, logging_file, secret_key_file, character_df_files, language_file):
+def initialise(config_file, logging_file, secret_key_file, character_df_files, language_file, FO4_XVASynth_file):
     def setup_openai_secret_key(file_name, is_local):
         if is_local:
             api_key = 'abc123'
@@ -26,6 +26,12 @@ def initialise(config_file, logging_file, secret_key_file, character_df_files, l
         character_df = character_df.loc[character_df['voice_model'].notna()]
 
         return character_df
+    
+    def get_voice_folders_and_models(file_name):
+        encoding = utils.get_file_encoding(file_name)
+        FO4_Voice_folder_and_models_df = pd.read_csv(file_name, engine='python', encoding=encoding)
+
+        return FO4_Voice_folder_and_models_df
     
     def get_language_info(file_name):
         language_df = pd.read_csv(file_name)
@@ -109,8 +115,10 @@ def initialise(config_file, logging_file, secret_key_file, character_df_files, l
     formatted_game_name = config.game.lower().replace(' ', '').replace('_', '')
     if formatted_game_name in ("fallout4", "fallout4vr"):
         character_df_file = character_df_files[1] 
+        FO4_Voice_folder_and_models_df = get_voice_folders_and_models(FO4_XVASynth_file)
     else :
         character_df_file = character_df_files[0]  # if not Fallout assume Skyrim
+        FO4_Voice_folder_and_models_df=''
 
     character_df = get_character_df(character_df_file)
     language_info = get_language_info(language_file)
@@ -131,4 +139,4 @@ def initialise(config_file, logging_file, secret_key_file, character_df_files, l
     if config.alternative_openai_api_base != 'none':
         openai.api_base = config.alternative_openai_api_base
 
-    return config, character_df, language_info, encoding, token_limit
+    return config, character_df, language_info, encoding, token_limit, FO4_Voice_folder_and_models_df

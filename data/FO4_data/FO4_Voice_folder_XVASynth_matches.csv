@@ -1,0 +1,108 @@
+voice_file_name,voice_actor,voice_ID,voice_model
+BoSFemale01,Kimberly Brooks,00077D1D,femalebos01
+BoSFemale02,Dorothy Elias-Fahn,00077D1E,femalebos02
+BoSMale01,Leo Marks,00077D1B,malebos01
+BoSMale02,Mark Engelhardt,00077D1C,malebos02
+ChildrenOfAtomMale01,Paul Ganus,0002FB80,childrenofatommale01
+ChildrenOfAtomMale02,Joe Ochman,000859DC,childrenofatommale02
+CrSuperMutant,Wes Johnson,0006D7B7,supermutant
+CrSuperMutant02,Dave Carter,000C7203,supermutant02
+CrSuperMutant03,Popeye Vogelsang,000C7204,supermutant03
+FemaleBoston,Mandy Kaplan,00023324,femaleboston
+FemaleEvenToned,Misty Lee,00013ADD,femaleeventoned
+FemaleGhoul,Gabrielle Sanalitro,00023322,femaleghoul
+FemaleOld,Veronica Cartwright,000CEAA2,femaleold
+FemaleRough,Joey Honsa,0000002E,femalerough
+GuardMaleDiamondCity01,Ike Amadi,000AA8D3,maleguarddiamondcity01
+GuardMaleDiamondCity02,J.P. Giuliotti,000F61BB,maleguarddiamondcity02
+InstituteCourserMaleVoice,James Konicek,0015BE1F,institutecoursermale
+MaleBoston,Brian Frates,00023323,maleboston
+MaleEvenToned,Brandon Keener,00013AD2,maleeventoned
+MaleGhoul,Keith Szarabajka,00233321,maleghoul
+MaleGhoulCombatant01,Sean Schemmel,00083ACE,maleghoulcombatant01
+MaleOld,Jim Cummings,000CEAA3,maleold
+MaleTriggerman01,Leo Marks,00083ACD,maletriggerman
+NPCFBeckyFallon,Cindy Robinson,0001F64C,beckyfallon
+NPCFBobbiNoNose,Roberta Farkas,000226AF,bobbinonose
+NPCFBoSKnightLucia,Carla Tassara,000ABE9D,knight_lucia
+NPCFCait,Katy Townsend,0007924A,cait
+NPCFCurie,Sophie Cortina,001647BF,curie
+NPCFDesdemona,Claudia Christian,00045AD2,desdemona
+NPCFDoctorAmari,Meher Tatna,0009A681,doctoramari
+NPCFElliePerkins,Jan Johns,000222A3,ellieperkins
+NPCFGlory,Chelsea Tavares,00045AD0,glory
+NPCFGwenMcNamara,Cindy Robinson,0002A89D,gwen_mcnamara
+NPCFMadisonLi,Jennifer Massey,0006935A,madisonli
+NPCFPiper,Courtney Ford,0001928A,piper
+NPCFProctorIngram,Kari Wahlgren,000642C0,proctoringram
+NPCFRonnieShaw,Elisabeth Noone,0005FD8F,ronnieshaw
+NPCFScribeHaylen,Jan Johns,0005DE52,scribehaylen
+NPCFScribeNeriah,Kat Cressida,000642C4,scribe_neriah
+NPCFTinaDeLuca,Ashly Burch,0002A8A5,tinadeluca
+NPCMBoSInitiateClarke,Christopher Crutchfield Walker,000ABE9F,initiate_clarke
+NPCMBosKnightGavil,Charles Halford,000ABE9E,knight_gavil
+NPCMBoSPaladinBrandis,Alan Oppenheimer,000ABE90,paladin_brandis
+NPCMDeacon,Ryan Alosio,00045ACA,deacon
+NPCMElderMaxson,Derek Phillips,000642BD,eldermaxson
+NPCMHancock,Danny Shorago,00022614,hancock
+NPCMJackCabot,Jonathan Roumie,00047EB8,jackcabot
+NPCMKellogg,Keythe Farley,0009BC6D,kellog
+NPCMKnightCaptainCade,Dwight Schultz,000642BE,knight_captain_cade
+NPCMKnightRhys,Noshir Dalal,0005DE51,knight_rhys
+NPCMLancerCaptainKells,Tim Russ,000642BF,lancercaptainkells
+NPCMMacCready,Matthew Mercer,00027410,maccready
+NPCMMinutemenRadioVoice,Mike Rosson,000AA78D,minutemenradio
+NPCMNickValentine,Stephen Russell,00023338,nick
+NPCMPaladinDanse,Peter Jessop,00027688,danse
+NPCMPrestonGarvey,Jon Gentry,00019FDE,preston
+NPCMProctorQuinlan,Nicholas Guy Smith,000642C1,proctor_quinlan
+NPCMProctorTeagan,Greg Baldwin,000642C2,proctor_teagan
+NPCMShaun10,Aidan Sussman,000570C4,shaun
+NPCMStrong,Sean Schemmel,00027689,strong
+NPCMSturges,Philip Anthony-Rodriguez,00019FDF,sturges
+NPCMTravisMiles,Brendan Hunt,000224DD,travis_normal
+NPCMTVAnchorman,Ron Perlman,000BA50A,newscaster
+NPCMVaultTecScientist01,Greg Chun,000CB1D2,vaulttecscientist
+NPCMVirgil,Matthew Waterson,0006B504,virgil
+NPCMX6-88,David Paluck,000BBEE7,x6-88
+PlayerVoiceFemale01,Courtenay Taylor,00018DF7,nora
+PlayerVoiceMale01,Brian T. Delaney,00018DF4,nate
+RaiderFemale01,Salli Saffioti,000219C7,femaleraider01
+RaiderMale01,Matthew Yang King,0001F5CA,maleraider01
+RaiderMale02,Steve Wilcox,0001F5CB,maleraider02
+RobotAssaultron,Colleen Delany,0006E5A2,robot_assaultron
+RobotCurie,Sophie Cortina,00027687,robotcurie
+RobotIronsides,,0003ADC5,ironsides
+RobotMrGutsy,Dave B. Mitchell,0006E59F,robot_mrgutsy
+RobotMrHandy,Stephen Russell,00019FE3,robot_mrhandy
+RobotPAM,Colleen Delany,00045AD4,PAM
+SynthGen1Male01,,000BBBF0,gen1synth01
+SynthGen1Male02,,00043A2F,gen1synth02
+SynthGen1Male03,,00043A30,gen1synth03
+DLC01RobotCompanionFemaleDefault,Stephanie Lemelin,010124E0,robotcompanionfemaledefault
+DLC01RobotCompanionFemaleProcessed,�,0100B855,robotcompanionfemaleprocessed
+DLC01RobotCompanionMaleDefault,Taliesin Jaffe,010024DF,robotcompanionmaledefault
+DLC01RobotCompanionMaleProcessed,�,0100B854,robotcompanionmaleprocessed
+DLC03FemaleKasumiNakano,Mimi Torres,03003EC8,kasuminakano
+DLC03FemaleMariner,Haviland Stillwell,03005C88,femalemariner
+DLC03MaleDiMA,Stephen Russell,030052B2,dima
+DLC03MaleMaineAccent,,03005CA5,malemaineaccent
+DLC03MaleOldLongfellow,Jim Ward,03008D9E,longfellow
+DLC06FemaleOverseer,Karen Strassman,0600482B,femaleoverseerdlc6
+DLC06MaleClem,,060049D8,clem
+DLC04_Announcer_RaiderRadio_NPCM,Andrew W.K.,0400A5B4,redeye
+DLC04GangDiscipleFemale01,,04007CF6,gangdisciplefemale01
+DLC04GangDiscipleFemale02,Krizia Bajos,04007CF5,gangdisciplefemale02
+DLC04GangDiscipleMale01,,04007CEE,gangdisciplemale01
+DLC04GangOperatorFemale01,,04007CF7,gangoperatorfemale01
+DLC04GangOperatorMale01,,04007CF8,gangoperatormale01
+DLC04GangOperatorMale02,Orion Acaba,04007CF9,gangoperatormale02
+DLC04GangPackFemale01,,04007CFA,gangpackfemale01
+DLC04GangPackMale01,,04007CFB,gangpackmale01
+DLC04GangPackMale02,,04007CFC,gangpackmale02
+DLC04NPCFDaraHubbell,,0400CC93,darahubbell
+DLC04NPCFShelbieChase,Corri English,0401CB67,shelbiechase
+DLC04NPCFSierraPetrovita,Jan Johns,04013A41,sierra
+DLC04NPCMGage,Mark Rolston,04009C8D,gage
+DLC04NPCMMason,,0400F437,mason
+DLC04NPCMShank,Sunil Malhotra,0400DBE1,shank

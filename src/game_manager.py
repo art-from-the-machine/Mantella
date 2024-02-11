@@ -9,10 +9,10 @@ class CharacterDoesNotExist(Exception):
 
 
 class GameStateManager:
-    def __init__(self, game_path):
+    def __init__(self, game_path,game):
         self.game_path = game_path
         self.prev_game_time = ''
-
+        self.game= game
 
     def write_game_info(self, text_file_name, text):
         max_attempts = 2
@@ -268,9 +268,88 @@ class GameStateManager:
 
         return character_info
     
+    def FO4_load_unnamed_npc(self, character_name, character_df, FO4_Voice_folder_and_models_df):
+        """Load generic NPC if character cannot be found in fallout4_characters.csv"""
+        # unknown == I couldn't find the IDs for these voice models
+
+        actor_voice_model = self.load_data_when_available('_mantella_actor_voice', '')
+        actor_voice_model_id = actor_voice_model.split('(')[1].split(')')[0]
+        actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
+
+        #make the substitutions below to bypass non-functional voice models: RobotCompanionMaleDefault, RobotCompanionMaleProcessed,Gen1Synth02 & Gen1Synth03 
+        if actor_voice_model_name in  ("DLC01RobotCompanionMaleDefault", "DLC01RobotCompanionMaleProcessed"):
+            actor_voice_model_name='robot_assaultron'
+            actor_voice_model_id='0006E5A2'
+        if actor_voice_model_name in  ("SynthGen1Male02", "SynthGen1Male03"):
+            actor_voice_model_name='gen1synth01'
+            actor_voice_model_id='000BBBF0'
+
+        actor_race = self.load_data_when_available('_mantella_actor_race', '')
+        actor_race = actor_race.split('<')[1].split(' ')[0]
+
+        actor_sex = self.load_data_when_available('_mantella_actor_sex', '')
+
+        logging.info(f"Current voice actor is voice model {actor_voice_model_name} with ID {actor_voice_model_id} gender {actor_sex} race {actor_race} ")
+
+        voice_model = ''
+        matching_row=''
+        FO4_voice_folder=''
+        # Step 2: Search for the Matching 'voice_ID'
+        matching_row = FO4_Voice_folder_and_models_df[FO4_Voice_folder_and_models_df['voice_ID'] == actor_voice_model_id]
+
+        # Step 3: Return the Matching Row's Values
+        if not matching_row.empty:
+            # Assuming there's only one match, get the value from the 'voice_model' column
+            voice_model = matching_row['voice_model'].iloc[0]
+            FO4_voice_folder = matching_row['voice_file_name'].iloc[0]
+            logging.info(f"Matched voice model with ID to {FO4_voice_folder}")  # Or use the variable as needed
+        else:
+            logging.info("No matching voice ID found. Attenpting voice_file_name match.")
+      
+        if voice_model == '':
+            # If no match by 'voice_ID' and not found in , search by 'voice_model' (actor_voice_model_name)
+            matching_row_by_name = FO4_Voice_folder_and_models_df[FO4_Voice_folder_and_models_df['voice_file_name'].str.lower() == actor_voice_model_name.lower()]
+            if not matching_row_by_name.empty:
+                # If there is a match, set 'voice_model' to 'actor_voice_model_name'
+                voice_model = matching_row_by_name['voice_model'].iloc[0]
+                FO4_voice_folder = matching_row_by_name['voice_file_name'].iloc[0]
+            else:
+                try: # search for voice model in fallout4_characters.csv
+                    voice_model = character_df.loc[character_df['skyrim_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
+                except: 
+                    #except then try to match using gender and race with pre-established dictionaries
+                    if actor_sex == '1':
+                        try:
+                            voice_model = _FO4_female_voice_models[actor_race]
+                        except:
+                            voice_model = 'femaleboston'
+                    else:
+                        try:
+                            voice_model = _FO4_male_voice_models[actor_race]
+                        except:
+                            voice_model = 'maleboston'
+        if FO4_voice_folder == '':
+            try: # search for relevant FO4_Voice_folder_and_models_df for voice_model
+                matching_row_by_voicemodel = FO4_Voice_folder_and_models_df[FO4_Voice_folder_and_models_df['voice_model'].str.lower() == voice_model.lower()]
+                if not matching_row_by_voicemodel.empty:
+                    # FO4_voice_folder becomes the matching row of FO4_Voice_folder_XVASynth_matches.csv
+                    FO4_voice_folder = matching_row_by_voicemodel['voice_file_name'].iloc[0]
+            except: # assume it is simply the voice_model name without spaces
+                FO4_voice_folder = voice_model.replace(' ','')
+        
+        character_info = {
+            'name': character_name,
+            'bio': f'You are a {character_name}',
+            'voice_model': voice_model,
+            'skyrim_voice_folder': FO4_voice_folder,
+        }
+
+        return character_info
     
+
+
     @utils.time_it
-    def load_game_state(self, debug_mode, debug_character_name, character_df, character_name, character_id, location, in_game_time):
+    def load_game_state(self, debug_mode, debug_character_name, character_df, character_name, character_id, location, in_game_time, FO4_Voice_folder_and_models_df):
         """Load game variables from _mantella_ files in Skyrim folder (data passed by the Mantella spell)"""
 
         if debug_mode == '1':
@@ -288,8 +367,12 @@ class GameStateManager:
                 character_info = character_df.loc[(character_df['baseid_int'].astype(str)==character_id) | (character_df['baseid_int'].astype(str)==character_id+'.0')].to_dict('records')[0]
                 is_generic_npc = False
             except IndexError: # load generic NPC
-                logging.info(f"NPC '{character_name}' could not be found in 'skyrim_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
-                character_info = self.load_unnamed_npc(character_name, character_df)
+                if self.game == "Fallout4" or self.game == "Fallout4VR":
+                    logging.info(f"NPC '{character_name}' could not be found in 'fallout4_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
+                    character_info = self.FO4_load_unnamed_npc(character_name, character_df, FO4_Voice_folder_and_models_df)
+                else:
+                    logging.info(f"NPC '{character_name}' could not be found in 'skyrim_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
+                    character_info = self.load_unnamed_npc(character_name, character_df)
                 is_generic_npc = True
 
         location = self.load_data_when_available('_mantella_current_location', location)
@@ -449,4 +532,47 @@ _female_voice_models = {
     'OrcRace': 'Female Orc',
     'RedguardRace': 'Female Sultry',
     'WoodElfRace': 'Female Young Eager',
+}
+
+_FO4_male_voice_models = {
+    'AssaultronRace':	'robot_assaultron',
+    'DLC01RoboBrainRace':	'MrGutsy',
+    'DLC02HandyRace':	'robot_mrhandy',
+    'DLC02FeralGhoulRace':	'maleghoul',
+    'DLC03_SynthGen2RaceDiMa':	'dima',
+    'DLC03RoboBrainRace':	'MrGutsy',
+    'EyeBotRace':	'robot_assaultron',
+    'GhoulRace':	'maleghoul',
+    'FeralGhoulRace':	'maleghoul',
+    'FeralGhoulGlowingRace':	'maleghoul',
+    'HumanRace':	'maleboston',
+    'ProtectronRace':	'robot_assaultron',
+    'SupermutantBehemothRace':	'supermutant03',
+    'SuperMutantRace':	'supermutant',
+    'SynthGen1Race':	'gen1synth01',
+    'SynthGen2Race':	'gen1synth01',
+    'TurretBubbleRace':	'Dima',
+    'TurretTripodRace':	'Dima',
+    'TurretWorkshopRace':	'Dima',
+}
+_FO4_female_voice_models = {
+    'AssaultronRace':	'robotcompanionfemalprocessed',
+    'DLC01RoboBrainRace':	'robotcompanionfemaledefault',
+    'DLC02HandyRace':	'robotcompanionfemaledefault',
+    'DLC02FeralGhoulRace':	'femaleghoul',
+    'DLC03_SynthGen2RaceDiMa':	'robotcompanionfemaledefault',
+    'DLC03RoboBrainRace':	'robotcompanionfemaledefault',
+    'EyeBotRace':	'robotcompanionfemalprocessed',
+    'GhoulRace':	'femaleghoul',
+    'FeralGhoulRace':	'femaleghoul',
+    'FeralGhoulGlowingRace':	'femaleghoul',
+    'HumanRace':	'femaleboston',
+    'ProtectronRace':	'robotcompanionfemalprocessed',
+    'SupermutantBehemothRace':	'supermutant03',
+    'SuperMutantRace':	'supermutant',
+    'SynthGen1Race':	'robotcompanionfemalprocessed',
+    'SynthGen2Race':	'robotcompanionfemalprocessed',
+    'TurretBubbleRace':	'Dima',
+    'TurretTripodRace':	'Dima',
+    'TurretWorkshopRace':	'Dima',
 }

@@ -27,12 +27,13 @@ async def get_response(input_text, messages, synthesizer, characters, radiant_di
     return messages
 
 try:
-    config, character_df, language_info, encoding, token_limit = setup.initialise(
+    config, character_df, language_info, encoding, token_limit, FO4_Voice_folder_and_models_df = setup.initialise(
         config_file='config.ini',
         logging_file='logging.log', 
         secret_key_file='GPT_SECRET_KEY.txt', 
         character_df_files=('data/skyrim_characters.csv', 'data/fallout4_characters.csv'), 
-        language_file='data/language_support.csv'
+        language_file='data/language_support.csv',
+        FO4_XVASynth_file='data\\FO4_data\\FO4_Voice_folder_XVASynth_matches.csv'
     )
     mantella_version = '0.10'
     logging.info(f'\nMantella v{mantella_version}')
@@ -44,7 +45,7 @@ try:
             mcm_mic_enabled = f.readline().strip()
         config.mic_enabled = '1' if mcm_mic_enabled == 'TRUE' else '0'
 
-    game_state_manager = game_manager.GameStateManager(config.game_path)
+    game_state_manager = game_manager.GameStateManager(config.game_path,config.game)
     chat_manager = output_manager.ChatManager(game_state_manager, config, encoding)
     transcriber = stt.Transcriber(game_state_manager, config)
     synthesizer = tts.Synthesizer(config)
@@ -61,7 +62,7 @@ try:
         try:
             # load character when data is available
             character_info, location, in_game_time, is_generic_npc = game_state_manager.load_game_state(
-                config.debug_mode, config.debug_character_name, character_df, character_name, character_id, location, in_game_time
+                config.debug_mode, config.debug_character_name, character_df, character_name, character_id, location, in_game_time, FO4_Voice_folder_and_models_df
             )
         except game_manager.CharacterDoesNotExist:
             game_state_manager.write_game_info('_mantella_end_conversation', 'True')
