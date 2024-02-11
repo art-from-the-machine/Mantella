@@ -106,7 +106,8 @@ def initialise(config_file, logging_file, secret_key_file, character_df_files, l
     
     # Determine which game we're running for and select the appropriate character file
 
-    if "Fallout4" or "Fallout4VR" in config.game.lower().replace(' ', '').replace('_', ''):
+    formatted_game_name = config.game.lower().replace(' ', '').replace('_', '')
+    if formatted_game_name in ("fallout4", "fallout4vr"):
         character_df_file = character_df_files[1] 
     else :
         character_df_file = character_df_files[0]  # if not Fallout assume Skyrim
