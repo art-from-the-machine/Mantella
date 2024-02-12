@@ -120,7 +120,7 @@ try:
                 try:
                     # load character when data is available
                     character_info, location, in_game_time, is_generic_npc = game_state_manager.load_game_state(
-                        config.debug_mode, config.debug_character_name, character_df, character_name, character_id, location, in_game_time
+                        config.debug_mode, config.debug_character_name, character_df, character_name, character_id, location, in_game_time, FO4_Voice_folder_and_models_df
                     )
                 except game_manager.CharacterDoesNotExist:
                     game_state_manager.write_game_info('_mantella_end_conversation', 'True')

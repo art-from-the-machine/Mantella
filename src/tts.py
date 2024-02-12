@@ -312,11 +312,51 @@ class Synthesizer:
             'base_lang': self.language, 
             'pluginsContext': '{}',
         }
-        requests.post(self.loadmodel_url, json=model_change)
+        try:
+            requests.post(self.loadmodel_url, json=model_change)
+        except:
+            logging.info(f'Target model {voice} failed to load. Loading backup voice model...')
+            #If for some reason the model fails to load (for example, because it's an older model) then Mantella will attempt to load a backup model. 
+            #This will allow the older model to load without errors.
+            
+            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                XVASynthAcronym="f4_"
+                XVASynthModNexusLink="https://www.nexusmods.com/fallout4/mods/49340?tab=files"
+                voice='piper'
+            else:
+                XVASynthAcronym="sk_"
+                XVASynthModNexusLink = "https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files"
+                voice='malenord'
+            voice_path = f"{self.model_path}{XVASynthAcronym}{voice.lower().replace(' ', '')}"
+            if not os.path.exists(voice_path+'.json'):
+                logging.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from {XVASynthModNexusLink} (Ctrl+F for '{XVASynthAcronym}{voice.lower().replace(' ', '')}').")
+                raise VoiceModelNotFound()
+
+            with open(voice_path+'.json', 'r', encoding='utf-8') as f:
+                voice_model_json = json.load(f)
+
+            try:
+                base_speaker_emb = voice_model_json['games'][0]['base_speaker_emb']
+                base_speaker_emb = str(base_speaker_emb).replace('[','').replace(']','')
+            except:
+                base_speaker_emb = None
+
+            self.base_speaker_emb = base_speaker_emb
+            self.model_type = voice_model_json.get('modelType')
+            
+            backup_model_change = {
+                'outputs': None,
+                'version': '3.0',
+                'model': voice_path, 
+                'modelType': self.model_type,
+                'base_lang': self.language, 
+                'pluginsContext': '{}',
+            }
+            requests.post(self.loadmodel_url, json=backup_model_change)
 
         self.last_voice = voice
 
-        logging.info('Voice model loaded.')
+        logging.info(f'Voice model {voice} loaded.')
 
 
     def run_command(self, command):
