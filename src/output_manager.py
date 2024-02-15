@@ -1,11 +1,12 @@
-import openai
-from aiohttp import ClientSession
 import asyncio
 import os
 import wave
 import logging
 import time
 import shutil
+from src.characters_manager import Characters
+from src.llm.messages import assistant_message
+from src.llm.message_thread import message_thread
 import src.utils as utils
 import unicodedata
 import re
@@ -190,10 +191,9 @@ class ChatManager:
         return sentence
 
 
-    async def process_response(self, client: openai_client, sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event):
+    async def process_response(self, client: openai_client, sentence_queue, messages : message_thread, synthesizer, characters : Characters, radiant_dialogue, event) -> message_thread:
         """Stream response from LLM one sentence at a time"""
 
-        messages.append({"role": "user", "content": input_text})
         sentence = ''
         remaining_content = ''
         full_reply = ''
@@ -309,7 +309,7 @@ class ChatManager:
         # Mark the end of the response
         await sentence_queue.put(None)
 
-        messages.append({"role": "assistant", "content": full_reply})
+        messages.add_message(assistant_message(full_reply, list(characters.active_characters.keys())))
         logging.info(f"Full response saved ({len(self.encoding.encode(full_reply))} tokens): {full_reply}")
 
         return messages
