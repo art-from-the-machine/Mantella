@@ -1,0 +1,30 @@
+name: Deploy Sphinx documentation to Pages
+
+on:
+  workflow_dispatch:    
+  push:
+    branches: [master] # branch to trigger deployment
+
+# Cancel any in-progress job or run
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#concurrency
+concurrency:
+  group: gh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pages:
+    runs-on: ubuntu-20.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:    
+    - id: deployment
+      uses: sphinx-notes/pages@v3
+      with:
+        documentation_path: ./docs
+        requirements_path: ./docs/gh_pages_requirements.txt
+        cache: true
+        python_version: 3.11
