@@ -12,7 +12,7 @@ class openai_client:
     """Joint setup for sync and async access to the LLMs
     """
     def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
-        if (config.alternative_openai_api_base == 'none') or ("https" in config.alternative_openai_api_base):
+        if (config.alternative_openai_api_base.lower() == 'none') or ("https" in config.alternative_openai_api_base):
             #cloud LLM
             self.__is_local: bool = False
             with open(secret_key_file, 'r') as f:
@@ -24,7 +24,7 @@ class openai_client:
             self.__api_key: str = 'abc123'
             logging.info(f"Running Mantella with local language model")
 
-        self.__base_url:str = config.alternative_openai_api_base
+        self.__base_url: str = config.alternative_openai_api_base if config.alternative_openai_api_base.lower() != 'none' else None
         self.__stop: str | List[str] = config.stop
         self.__temperature: float = config.temperature
         self.__top_p: float = config.top_p
@@ -72,7 +72,10 @@ class openai_client:
         Returns:
             AsyncOpenAI: The new async client object
         """
-        return AsyncOpenAI(api_key=self.__api_key, base_url=self.__base_url, default_headers=self.__header)
+        if self.__base_url:
+            return AsyncOpenAI(api_key=self.__api_key, base_url=self.__base_url, default_headers=self.__header)
+        else:
+            return AsyncOpenAI(api_key=self.__api_key, default_headers=self.__header)
 
     def generate_sync_client(self) -> OpenAI:
         """Generates a new OpenAI client already setup to be used right away.
@@ -83,9 +86,12 @@ class openai_client:
         Returns:
             OpenAI: The new sync client object
         """
-        return OpenAI(api_key=self.__api_key, base_url=self.__base_url, default_headers=self.__header)
+        if self.__base_url:
+            return OpenAI(api_key=self.__api_key, base_url=self.__base_url, default_headers=self.__header)
+        else:
+            return OpenAI(api_key=self.__api_key, default_headers=self.__header)
     
-    async def streaming_call(self, messages: message_thread) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: list[dict[str,str]]) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
 
