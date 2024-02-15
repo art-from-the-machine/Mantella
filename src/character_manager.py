@@ -4,6 +4,7 @@ import json
 import time
 import src.utils as utils
 import src.chat_response as chat_response
+from src.llm.openai_client import openai_client
 
 class Character:
     def __init__(self, info, language, is_generic_npc, memory_prompt, resummarize_prompt):
@@ -170,7 +171,7 @@ class Character:
         return context
         
 
-    def save_conversation(self, encoding, messages, tokens_available, llm, summary=None, summary_limit_pct=0.45):
+    def save_conversation(self, encoding, messages, tokens_available, client: openai_client, summary=None, summary_limit_pct=0.45):
         if self.is_generic_npc:
             logging.info('A summary will not be saved for this generic NPC.')
             return None
@@ -208,7 +209,7 @@ class Character:
         if summary == None:
             while True:
                 try:
-                    new_conversation_summary = self.summarize_conversation(messages, llm)
+                    new_conversation_summary = self.summarize_conversation(messages, client)
                     break
                 except:
                     logging.error('Failed to summarize conversation. Retrying...')
@@ -230,7 +231,7 @@ class Character:
                         name=self.name,
                         language=self.language
                     )
-                    long_conversation_summary = self.summarize_conversation(conversation_summaries, llm, prompt)
+                    long_conversation_summary = self.summarize_conversation(conversation_summaries, client, prompt)
                     break
                 except:
                     logging.error('Failed to summarize conversation. Retrying...')
@@ -250,7 +251,7 @@ class Character:
         return new_conversation_summary
     
 
-    def summarize_conversation(self, conversation, llm, prompt=None):
+    def summarize_conversation(self, conversation, client: openai_client, prompt=None):
         summary = ''
         if len(conversation) > 5:
             conversation = conversation[3:-2] # drop the context (0) hello (1,2) and "Goodbye." (-2, -1) lines
@@ -260,7 +261,7 @@ class Character:
                     language=self.language
                 )
             context = [{"role": "system", "content": prompt}]
-            summary, _ = chat_response.chatgpt_api(f"{conversation}", context, llm)
+            summary, _ = chat_response.chatgpt_api(f"{conversation}", context, client)
 
             summary = summary.replace('The assistant', self.name)
             summary = summary.replace('the assistant', self.name)

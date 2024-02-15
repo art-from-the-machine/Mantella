@@ -1,6 +1,7 @@
 import logging
 import src.utils as utils
 import time
+from src.llm.openai_client import openai_client
 import random
 
 class CharacterDoesNotExist(Exception):
@@ -354,7 +355,7 @@ class GameStateManager:
     
     
     @utils.time_it
-    def end_conversation(self, conversation_ended, config, encoding, synthesizer, chat_manager, messages, active_characters, tokens_available):
+    def end_conversation(self, conversation_ended, config, client: openai_client, encoding, synthesizer, chat_manager, messages, active_characters, tokens_available):
         """Say final goodbye lines and save conversation to memory"""
 
         # say goodbyes
@@ -369,9 +370,9 @@ class GameStateManager:
         for character_name, character in active_characters.items():
             # If summary has already been generated for another character in a multi NPC conversation (multi NPC memory summaries are shared)
             if summary == None:
-                summary = character.save_conversation(encoding, messages, tokens_available, config.llm)
+                summary = character.save_conversation(encoding, messages, tokens_available, client)
             else:
-                _ = character.save_conversation(encoding, messages, tokens_available, config.llm, summary)
+                _ = character.save_conversation(encoding, messages, tokens_available, client, summary)
         logging.info('Conversation ended.')
 
         self.write_game_info('_mantella_in_game_events', '')
@@ -382,7 +383,7 @@ class GameStateManager:
     
     
     @utils.time_it
-    def reload_conversation(self, config, encoding, synthesizer, chat_manager, messages, active_characters, tokens_available, token_limit, location, in_game_time):
+    def reload_conversation(self, config, client: openai_client, encoding, synthesizer, chat_manager, messages, active_characters, tokens_available, token_limit, location, in_game_time):
         """Restart conversation to save conversation to memory when token count is reaching its limit"""
 
         latest_character = list(active_characters.items())[-1][1]
@@ -401,9 +402,9 @@ class GameStateManager:
         summary = None
         for character_name, character in active_characters.items():
             if summary == None:
-                summary = character.save_conversation(encoding, messages, tokens_available, config.llm)
+                summary = character.save_conversation(encoding, messages, tokens_available, client)
             else:
-                _ = character.save_conversation(encoding, messages, tokens_available, config.llm, summary)
+                _ = character.save_conversation(encoding, messages, tokens_available, client, summary)
         # let the new file register on the system
         time.sleep(1)
         # if a new conversation summary file was created, load this latest file

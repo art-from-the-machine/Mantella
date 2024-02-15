@@ -10,6 +10,7 @@ import src.utils as utils
 import unicodedata
 import re
 import sys
+from src.llm.openai_client import openai_client
 
 class ChatManager:
     def __init__(self, game_state_manager, config, encoding):
@@ -189,7 +190,7 @@ class ChatManager:
         return sentence
 
 
-    async def process_response(self, sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event):
+    async def process_response(self, client: openai_client, sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event):
         """Stream response from LLM one sentence at a time"""
 
         messages.append({"role": "user", "content": input_text})
@@ -198,14 +199,10 @@ class ChatManager:
         full_reply = ''
         num_sentences = 0
         action_taken = False
-        if self.alternative_openai_api_base == 'none':
-            openai.aiosession.set(ClientSession()) # https://github.com/openai/openai-python#async-api
         while True:
             try:
                 start_time = time.time()
-                async for chunk in await openai.ChatCompletion.acreate(model=self.llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'}, stream=True, stop=self.stop, temperature=self.temperature, top_p=self.top_p, frequency_penalty=self.frequency_penalty, max_tokens=self.max_tokens):
-                    content = chunk["choices"][0].get("delta", {}).get("content")
-
+                async for content in client.streaming_call(messages= messages):
                     if content is not None:
                         sentence += content
                         # Check for the last occurrence of sentence-ending punctuation
@@ -300,8 +297,6 @@ class ChatManager:
                                     break
                             else:
                                 action_taken = False
-                if self.alternative_openai_api_base == 'none':
-                    await openai.aiosession.get().close()
                 break
             except Exception as e:
                 logging.error(f"LLM API Error: {e}")

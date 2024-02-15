@@ -1,32 +1,19 @@
-import openai
 import tiktoken
-import logging
 import src.utils as utils
-import time
+from src.llm.openai_client import openai_client
 
 @utils.time_it
-def chatgpt_api(input_text, messages, llm):
+def chatgpt_api(input_text, messages, client: openai_client):
     if input_text:
         messages.append(
             {"role": "user", "content": input_text},
         )
-        logging.info('Getting LLM response...')
-        try:
-            chat_completion = openai.ChatCompletion.create(
-                model=llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'}, max_tokens=1_000
-            )
-        except openai.error.RateLimitError:
-            logging.warning('Could not connect to LLM API, retrying in 5 seconds...')
-            time.sleep(5)
-    
-    reply = chat_completion.choices[0].message.content
-    messages.append(
-        {"role": "assistant", "content": chat_completion.choices[0].message.content},
-    )
-    logging.info(f"LLM Response: {reply}")
-
-    return reply, messages
-
+        reply = client.request_call(messages)
+        if reply:
+            messages.append({"role": "assistant", "content": reply})
+            return reply, messages
+        else:
+            return "", messages
 
 def num_tokens_from_messages(messages, model="gpt-3.5-turbo"):
     """Returns the number of tokens used by a list of messages"""
