@@ -75,7 +75,10 @@ class ChatManager:
 
             # copy voicelines from one voice folder to this new voice folder
             # this step is needed for Skyrim to acknowledge the folder
-            example_folder = f"{self.mod_folder}/MaleNord/"
+            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                example_folder = f"{self.mod_folder}/maleboston/"
+            else:
+                example_folder = f"{self.mod_folder}/MaleNord/"
             for file_name in os.listdir(example_folder):
                 source_file_path = os.path.join(example_folder, file_name)
 
@@ -157,11 +160,26 @@ class ChatManager:
 
     def play_adjusted_volume(self, wav_file_path):
         volume_scale = self.FO4Volume / 100.0  # Normalize to 0.0-1.0
-        logging.info("Waiting for _mantella_audio_ready.txt to be set to true in Fallout 4 directory")
+        logging.info("Waiting for _mantella_audio_ready.txt to be set to a float value in Fallout 4 directory")
+        #function with dynamic sound
+        npc_distance=0
         while True:
             with open(f'{self.root_mod_folder}/_mantella_audio_ready.txt', 'r', encoding='utf-8') as f:
                 audioReadyToPlay = f.read().strip()
-                if audioReadyToPlay.lower() == 'true':
+                if audioReadyToPlay.lower() != 'false' and audioReadyToPlay :
+                    logging.info(f"audioReadyToPlay  is {audioReadyToPlay}")
+                    try:
+                        # Try to read npc_distance from the file, assume 0 if unsuccessful
+                        npc_distance = float(audioReadyToPlay)
+                        npc_distance = max(0, npc_distance)  # Ensure npc_distance is not negative
+                    except ValueError:
+                        # If reading the number fails, assume npc_distance is 0
+                        npc_distance = 0
+                    # Adjust volume scale based on npc_distance, from full volume at 0 to near zero at 4000+
+                    if npc_distance > 0:
+                        distance_factor = max(0, 1 - (npc_distance / 4000))
+                        logging.info(f"distance factor is {distance_factor}")
+                        volume_scale *= distance_factor
                     wave_obj = sa.WaveObject.from_wave_file(wav_file_path)
                     
                     # Adjust volume
@@ -173,8 +191,6 @@ class ChatManager:
                     play_obj.wait_done()
                     self.game_state_manager.write_game_info('_mantella_audio_ready', 'false')
                     break
-
-
 
     @utils.time_it
     def remove_files_from_voice_folders(self):

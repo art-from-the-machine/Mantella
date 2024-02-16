@@ -169,7 +169,7 @@ class GameStateManager:
         return character_name, character_id, location, in_game_time
     
     
-    def load_unnamed_npc(self, character_name, character_df):
+    def skyrim_load_unnamed_npc(self, character_name, character_df):
         """Load generic NPC if character cannot be found in skyrim_characters.csv"""
         # unknown == I couldn't find the IDs for these voice models
         voice_model_ids = {
@@ -315,7 +315,7 @@ class GameStateManager:
                 FO4_voice_folder = matching_row_by_name['voice_file_name'].iloc[0]
             else:
                 try: # search for voice model in fallout4_characters.csv
-                    voice_model = character_df.loc[character_df['skyrim_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
+                    voice_model = character_df.loc[character_df['fallout4_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
                 except: 
                     #except then try to match using gender and race with pre-established dictionaries
                     if actor_sex == '1':
@@ -341,7 +341,7 @@ class GameStateManager:
             'name': character_name,
             'bio': f'You are a {character_name}',
             'voice_model': voice_model,
-            'skyrim_voice_folder': FO4_voice_folder,
+            'fallout4_voice_folder': FO4_voice_folder,
         }
 
         return character_info
@@ -372,7 +372,7 @@ class GameStateManager:
                     character_info = self.FO4_load_unnamed_npc(character_name, character_df, FO4_Voice_folder_and_models_df)
                 else:
                     logging.info(f"NPC '{character_name}' could not be found in 'skyrim_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
-                    character_info = self.load_unnamed_npc(character_name, character_df)
+                    character_info = self.skyrim_load_unnamed_npc(character_name, character_df)
                 is_generic_npc = True
 
         location = self.load_data_when_available('_mantella_current_location', location)
@@ -444,7 +444,11 @@ class GameStateManager:
         # say goodbyes
         if conversation_ended.lower() != 'true': # say line if NPC is not already deactivated
             latest_character = list(active_characters.items())[-1][1]
-            audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
+            if self.game =="Fallout4" or self.game == "Fallout4VR":
+                latest_character_voice_folder = latest_character.info['fallout4_voice_folder']
+            else:
+                latest_character_voice_folder = latest_character.info['skyrim_voice_folder']
+            audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character_voice_folder, config.goodbye_npc_response)
             chat_manager.save_files_to_voice_folders([audio_file, config.goodbye_npc_response])
 
         messages.append({"role": "user", "content": config.end_conversation_keyword+'.'})
@@ -472,7 +476,11 @@ class GameStateManager:
 
         latest_character = list(active_characters.items())[-1][1]
         # let the player know that the conversation is reloading
-        audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.collecting_thoughts_npc_response)
+        if self.game =="Fallout4" or self.game == "Fallout4VR":
+            latest_character_voice_folder = latest_character.info['fallout4_voice_folder']
+        else:
+            latest_character_voice_folder = latest_character.info['skyrim_voice_folder']
+        audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character_voice_folder, config.collecting_thoughts_npc_response)
         chat_manager.save_files_to_voice_folders([audio_file, config.collecting_thoughts_npc_response])
 
         messages.append({"role": "user", "content": latest_character.info['name']+'?'})
