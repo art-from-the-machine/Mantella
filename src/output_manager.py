@@ -1,15 +1,17 @@
-import openai
-from aiohttp import ClientSession
 import asyncio
 import os
 import wave
 import logging
 import time
 import shutil
+from src.characters_manager import Characters
+from src.llm.messages import assistant_message
+from src.llm.message_thread import message_thread
 import src.utils as utils
 import unicodedata
 import re
 import sys
+from src.llm.openai_client import openai_client
 
 class ChatManager:
     def __init__(self, game_state_manager, config, encoding):
@@ -190,22 +192,18 @@ class ChatManager:
         return sentence
 
 
-    async def process_response(self, sentence_queue, input_text, messages, synthesizer, characters, radiant_dialogue, event):
+    async def process_response(self, client: openai_client, sentence_queue, messages : message_thread, synthesizer, characters : Characters, radiant_dialogue, event) -> message_thread:
         """Stream response from LLM one sentence at a time"""
 
-        messages.append({"role": "user", "content": input_text})
         sentence = ''
+        remaining_content = ''
         full_reply = ''
         num_sentences = 0
         action_taken = False
-        if self.alternative_openai_api_base == 'none':
-            openai.aiosession.set(ClientSession()) # https://github.com/openai/openai-python#async-api
         while True:
             try:
                 start_time = time.time()
-                async for chunk in await openai.ChatCompletion.acreate(model=self.llm, messages=messages, headers={"HTTP-Referer": 'https://github.com/art-from-the-machine/Mantella', "X-Title": 'mantella'}, stream=True, stop=self.stop, temperature=self.temperature, top_p=self.top_p, frequency_penalty=self.frequency_penalty, max_tokens=self.max_tokens):
-                    content = chunk["choices"][0].get("delta", {}).get("content")
-
+                async for content in client.streaming_call(messages= messages):
                     if content is not None:
                         sentence += content
                         # Check for the last occurrence of sentence-ending punctuation
@@ -230,7 +228,7 @@ class ChatManager:
 
                             logging.log(self.loglevel, f"LLM returned sentence took {time.time() - start_time} seconds to execute")
 
-                            if content_edit == ':':
+                            if ':' in content_edit:
                                 keyword_extraction = sentence.strip()[:-1] #.lower()
                                 # if LLM is switching character
                                 # Find the first character whose name starts with keyword_extraction
@@ -244,7 +242,7 @@ class ChatManager:
                                     self.character_num = list(characters.active_characters.keys()).index(matching_character_key)
 
                                     full_reply += sentence
-                                    sentence = ''
+                                    sentence = remaining_content
                                     action_taken = True
                                 elif keyword_extraction == 'Player':
                                     logging.info(f"Stopped LLM from speaking on behalf of the player")
@@ -254,20 +252,20 @@ class ChatManager:
                                     self.game_state_manager.write_game_info('_mantella_aggro', '1')
                                     self.active_character.is_in_combat = 1
                                     full_reply += sentence
-                                    sentence = ''
+                                    sentence = remaining_content
                                     action_taken = True
                                 elif keyword_extraction.lower() == self.forgiven_npc_response.lower():
                                     logging.info(f"The player made up with the NPC")
                                     self.game_state_manager.write_game_info('_mantella_aggro', '0')
                                     self.active_character.is_in_combat = 0
                                     full_reply += sentence
-                                    sentence = ''
+                                    sentence = remaining_content
                                     action_taken = True
                                 elif keyword_extraction.lower() == self.follow_npc_response.lower():
                                     logging.info(f"The NPC is willing to follow the player")
                                     self.game_state_manager.write_game_info('_mantella_aggro', '2')
                                     full_reply += sentence
-                                    sentence = ''
+                                    sentence = remaining_content
                                     action_taken = True
 
                             if action_taken == False:
@@ -282,7 +280,6 @@ class ChatManager:
 
                                 full_reply += sentence
                                 num_sentences += 1
-                                sentence = ''
                                 sentence = remaining_content
                                 remaining_content = ''
 
@@ -301,8 +298,6 @@ class ChatManager:
                                     break
                             else:
                                 action_taken = False
-                if self.alternative_openai_api_base == 'none':
-                    await openai.aiosession.get().close()
                 break
             except Exception as e:
                 logging.error(f"LLM API Error: {e}")
@@ -315,7 +310,7 @@ class ChatManager:
         # Mark the end of the response
         await sentence_queue.put(None)
 
-        messages.append({"role": "assistant", "content": full_reply})
+        messages.add_message(assistant_message(full_reply, list(characters.active_characters.keys())))
         logging.log(23, f"Full response saved ({len(self.encoding.encode(full_reply))} tokens): {full_reply}")
 
         return messages
