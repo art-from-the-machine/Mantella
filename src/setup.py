@@ -1,5 +1,6 @@
 import logging
 from typing import Hashable
+import src.color_formatter as cf
 import src.utils as utils
 import pandas as pd
 
@@ -9,10 +10,51 @@ from src.llm.openai_client import openai_client
 def initialise(config_file, logging_file, secret_key_file, character_df_file, language_file) -> tuple[config_loader.ConfigLoader, pd.DataFrame, dict[Hashable, str], openai_client]:
     
     def setup_logging(file_name):
-        logging.basicConfig(filename=file_name, format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
-        console = logging.StreamHandler()
-        console.setLevel(logging.INFO)
-        logging.getLogger('').addHandler(console)
+        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[])
+
+        # create custom formatter
+        formatter = cf.CustomFormatter()
+
+        # add formatter to ch
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
+
+        # Create a formatter for file output
+        file_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+
+        # Create a file handler and set the formatter
+        file_handler = logging.FileHandler(file_name)
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(file_formatter)
+
+        # Add the handlers to the logger
+        logging.getLogger().addHandler(console_handler)
+        logging.getLogger().addHandler(file_handler)
+
+        logging.debug("debug message")
+        logging.info("info message")
+        logging.warning("warning message")
+        logging.error("error message")
+        logging.critical("critical message")
+
+        # custom levels
+        logging.addLevelName(21, "INFO")
+        logging.addLevelName(22, "INFO")
+        logging.addLevelName(23, "INFO")
+
+        logging.log(21, "Player transcription")
+        logging.log(22, "NPC voiceline")
+        logging.log(23, "NPC info")
+
+
+        logging.addLevelName(27, "INFO STT")
+        logging.addLevelName(28, "INFO LLM")
+        logging.addLevelName(29, "INFO TTS")
+
+        logging.log(27, "Speech-To-Text related")
+        logging.log(28, "Large Language Model related")
+        logging.log(29, "Text-To-Speech related")
 
     def get_character_df(file_name) -> pd.DataFrame:
         encoding = utils.get_file_encoding(file_name)

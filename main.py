@@ -24,9 +24,10 @@ try:
         character_df_file='data/skyrim_characters.csv', 
         language_file='data/language_support.csv'
     )
+
     token_limit = client.token_limit
     token_limit_percent: float = 0.45
-    mantella_version = '0.10'
+    mantella_version = '0.11'
     logging.info(f'\nMantella v{mantella_version}')
 
     # Check if the mic setting has been configured in MCM

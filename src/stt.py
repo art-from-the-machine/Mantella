@@ -7,6 +7,7 @@ import json
 
 class Transcriber:
     def __init__(self, game_state_manager, config, api_key: str):
+        self.loglevel = 27
         self.game_state_manager = game_state_manager
         self.mic_enabled = config.mic_enabled
         self.language = config.stt_language
@@ -38,14 +39,14 @@ class Transcriber:
             self.microphone = sr.Microphone()
 
             if self.audio_threshold == 'auto':
-                logging.info(f"Audio threshold set to 'auto'. Adjusting microphone for ambient noise...")
-                logging.info("If the mic is not picking up your voice, try setting this audio_threshold value manually in MantellaSoftware/config.ini.\n")
+                logging.log(self.loglevel, f"Audio threshold set to 'auto'. Adjusting microphone for ambient noise...")
+                logging.log(self.loglevel, "If the mic is not picking up your voice, try setting this audio_threshold value manually in MantellaSoftware/config.ini.\n")
                 with self.microphone as source:
                     self.recognizer.adjust_for_ambient_noise(source, duration=5)
             else:
                 self.recognizer.dynamic_energy_threshold = False
                 self.recognizer.energy_threshold = int(self.audio_threshold)
-                logging.info(f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this value in MantellaSoftware/config.ini. If the mic is picking up too much background noise, try increasing this value.\n")
+                logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this value in MantellaSoftware/config.ini. If the mic is picking up too much background noise, try increasing this value.\n")
 
             # if using faster_whisper, load model selected by player, otherwise skip this step
             if self.whisper_type == 'faster_whisper':
@@ -65,7 +66,7 @@ class Transcriber:
                 # text input through console
                 if (self.debug_mode == '1') & (self.debug_use_mic == '1'):
                     transcribed_text = input('\nWrite player\'s response: ')
-                    logging.info(f'Player wrote: {transcribed_text}')
+                    logging.log(self.loglevel, f'Player wrote "{transcribed_text}"')
                 # await text input from the game
                 else:
                     self.game_state_manager.write_game_info('_mantella_text_input', '')
@@ -130,7 +131,7 @@ class Transcriber:
         """
         while True:
             self.game_state_manager.write_game_info('_mantella_status', 'Listening...')
-            logging.info('Listening...')
+            logging.log(self.loglevel, 'Listening...')
             transcript = self._recognize_speech_from_mic(prompt)
             transcript_cleaned = utils.clean_text(transcript)
 
@@ -185,7 +186,7 @@ class Transcriber:
             file.write(audio.get_wav_data(convert_rate=16000))
         
         transcript = whisper_transcribe(audio_file, prompt)
-        logging.info(transcript)
+        logging.log(self.loglevel, transcript)
 
         return transcript
 

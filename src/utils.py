@@ -13,7 +13,7 @@ def time_it(func):
         start = time.time()
         result = func(*args, **kwargs)
         end = time.time()
-        logging.info(f"Function {func.__name__} took {round(end - start, 5)} seconds to execute")
+        logging.debug(f"Function {func.__name__} took {round(end - start, 5)} seconds to execute")
         return result
     return wrapper
 
