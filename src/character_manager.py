@@ -167,7 +167,7 @@ class Character:
                         bios='NPC backgrounds not available.',
                         conversation_summaries='NPC memories not available.')
         
-        logging.info(character_desc)
+        logging.log(23, character_desc)
         return character_desc
 
     def save_conversation(self, encoding, messages: message_thread, tokens_available, client: openai_client, summary=None, summary_limit_pct=0.45):

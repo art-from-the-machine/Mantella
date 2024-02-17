@@ -97,6 +97,7 @@ try:
             # initiate conversation with character
             messages.add_message(user_message(f"{language_info['hello']} {character.name}.", player_name, True))
             try:
+                logging.log(21, f"{language_info['hello']} {character.name}.")
                 messages = asyncio.run(get_response(client, messages, synthesizer, characters, radiant_dialogue))
             except tts.VoiceModelNotFound:
                 game_state_manager.write_game_info('_mantella_end_conversation', 'True')
@@ -173,7 +174,7 @@ try:
                     new_user_message.is_multi_npc_message = characters.active_character_count() > 1 and not radiant_dialogue == "true"
                     new_user_message = game_state_manager.update_game_events(new_user_message) # add in-game events to player's response
                     messages.add_message(new_user_message)
-                    logging.info(f"Text passed to NPC: {transcribed_text}")
+                    logging.log(21, f"Text passed to NPC: {transcribed_text}")
 
                 # check if conversation has ended again after player input
                 with open(f'{config.game_path}/_mantella_end_conversation.txt', 'r', encoding='utf-8') as f:

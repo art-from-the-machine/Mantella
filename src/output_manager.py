@@ -15,6 +15,7 @@ from src.llm.openai_client import openai_client
 
 class ChatManager:
     def __init__(self, game_state_manager, config, encoding):
+        self.loglevel = 28
         self.game_state_manager = game_state_manager
         self.mod_folder = config.mod_path
         self.max_response_sentences = config.max_response_sentences
@@ -113,7 +114,7 @@ class ChatManager:
 
 
     async def send_audio_to_external_software(self, queue_output):
-        logging.info(f"Dialogue to play: {queue_output[0]}")
+        logging.debug(f"Dialogue to play: {queue_output[0]}")
         self.save_files_to_voice_folders(queue_output)
         
         
@@ -225,7 +226,7 @@ class ChatManager:
                                 logging.info(f'Skipping voiceline that is too short: {sentence}')
                                 break
 
-                            logging.info(f"LLM returned sentence took {time.time() - start_time} seconds to execute")
+                            logging.log(self.loglevel, f"LLM returned sentence took {time.time() - start_time} seconds to execute")
 
                             if ':' in content_edit:
                                 keyword_extraction = sentence.strip()[:-1] #.lower()
@@ -303,13 +304,13 @@ class ChatManager:
                 error_response = "I can't find the right words at the moment."
                 audio_file = synthesizer.synthesize(self.active_character.voice_model, None, error_response)
                 self.save_files_to_voice_folders([audio_file, error_response])
-                logging.info('Retrying connection to API...')
+                logging.log(self.loglevel, 'Retrying connection to API...')
                 time.sleep(5)
 
         # Mark the end of the response
         await sentence_queue.put(None)
 
         messages.add_message(assistant_message(full_reply, list(characters.active_characters.keys())))
-        logging.info(f"Full response saved ({len(self.encoding.encode(full_reply))} tokens): {full_reply}")
+        logging.log(23, f"Full response saved ({len(self.encoding.encode(full_reply))} tokens): {full_reply}")
 
         return messages
