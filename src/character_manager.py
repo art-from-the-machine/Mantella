@@ -6,7 +6,7 @@ import src.utils as utils
 import src.chat_response as chat_response
 
 class Character:
-    def __init__(self, info, language, is_generic_npc):
+    def __init__(self, info, language, is_generic_npc, config):
         self.info = info
         self.name = info['name']
         self.bio = info['bio']
@@ -19,6 +19,7 @@ class Character:
         self.conversation_history_file = f"data/conversations/{self.name}/{self.name}.json"
         self.conversation_summary_file = self.get_latest_conversation_summary_file_path()
         self.conversation_summary = ''
+        self.game=config.game
 
 
     def get_latest_conversation_summary_file_path(self):
@@ -66,7 +67,12 @@ class Character:
         return context
     
 
-    def create_context(self, prompt, location='Skyrim', time='12', active_characters=None, token_limit=4096, radiant_dialogue='false', trust_level=0, conversation_summary='', prompt_limit_pct=0.75):
+    def create_context(self, prompt, location=None, time='12', active_characters=None, token_limit=4096, radiant_dialogue='false', trust_level=0, conversation_summary='', prompt_limit_pct=0.75):
+        if location is None:
+            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                location = 'the Commonwealth'
+            else:
+                location = 'Skyrim'
         if self.relationship_rank == 0:
             if trust_level < 1:
                 trust = 'a stranger'
@@ -251,7 +257,12 @@ class Character:
         if len(conversation) > 5:
             conversation = conversation[3:-2] # drop the context (0) hello (1,2) and "Goodbye." (-2, -1) lines
             if prompt == None:
-                prompt = f"You are tasked with summarizing the conversation between {self.name} (the assistant) and the player (the user) / other characters. These conversations take place in Skyrim. It is not necessary to comment on any mixups in communication such as mishearings. Text contained within asterisks state in-game events. Please summarize the conversation into a single paragraph in {self.language}."
+                if self.game == "Fallout4" or self.game == "Fallout4VR":
+                    location = 'the Commonwealth'
+                else:
+                    location = 'Skyrim'
+                prompt = f"You are tasked with summarizing the conversation between {self.name} (the assistant) and the player (the user) / other characters. These conversations take place in {location}. It is not necessary to comment on any mixups in communication such as mishearings. Text contained within asterisks state in-game events. Please summarize the conversation into a single paragraph in {self.language}."
+                logging.info(f'prompt is {prompt}')
             context = [{"role": "system", "content": prompt}]
             summary, _ = chat_response.chatgpt_api(f"{conversation}", context, llm)
 

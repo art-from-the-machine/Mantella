@@ -14,15 +14,21 @@ class ConfigLoader:
             sys.exit(0)
 
         def check_missing_mantella_file(set_path):
+            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                txtPrefix='fallout4'
+                modnameSufix='gun'
+            else:
+                txtPrefix='skyrim'
+                modnameSufix='Spell'
             try:
-                with open(set_path+'/_mantella__skyrim_folder.txt') as f:
+                with open(set_path+'/_mantella__'+txtPrefix+'_folder.txt') as f:
                     check = f.readline().strip()
             except:
                 logging.warn(f'''
-Warning: Could not find _mantella__skyrim_folder.txt in {set_path}. 
-If you have not yet casted the Mantella spell in-game you can safely ignore this message. 
-If you have casted the Mantella spell please check that your 
-MantellaSoftware/config.ini "skyrim_folder" has been set correctly 
+Warning: Could not find _mantella__{txtPrefix}_folder.txt in {set_path}. 
+If you have not yet used the Mantella {modnameSufix} in-game you can safely ignore this message. 
+If you have used the Mantella {modnameSufix} please check that your 
+MantellaSoftware/config.ini "{txtPrefix}_folder" has been set correctly 
 (instructions on how to set this up are in the config file itself).
 If you are still having issues, a list of solutions can be found here: 
 https://github.com/art-from-the-machine/Mantella#issues-qa

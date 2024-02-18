@@ -51,7 +51,7 @@ try:
     synthesizer = tts.Synthesizer(config)
 
     while True:
-        # clear _mantella_ files in Skyrim folder
+        # clear _mantella_ files in Skyrim or Fallout4 folder
         character_name, character_id, location, in_game_time = game_state_manager.reset_game_info()
 
         characters = characters_manager.Characters()
@@ -69,7 +69,7 @@ try:
             logging.info('Restarting...')
             continue
 
-        character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+        character = character_manager.Character(character_info, language_info['language'], is_generic_npc, config)
         synthesizer.change_voice(character.voice_model)
         chat_manager.active_character = character
         chat_manager.character_num = 0

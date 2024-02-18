@@ -4,7 +4,7 @@ import time
 import random
 
 class CharacterDoesNotExist(Exception):
-    """Exception raised when NPC name cannot be found in skyrim_characters.csv"""
+    """Exception raised when NPC name cannot be found in skyrim_characters.csv/fallout4_characters.csv"""
     pass
 
 
@@ -106,7 +106,7 @@ class GameStateManager:
         self.write_game_info('_mantella_actor_race', f'<{actor_race}')
         self.write_game_info('_mantella_actor_sex', actor_sex)
         voice_model = random.choice(['Female Nord', 'Male Nord'])
-        try: # search for voice model in skyrim_characters.csv
+        try: # search for voice model in skyrim_characters.csv/fallout4_characters.csv"
             voice_model = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'voice_model'].values[0]
         except: # guess voice model based on sex and race
             if actor_sex == 'Female':
@@ -128,13 +128,16 @@ class GameStateManager:
         self.write_game_info('_mantella_current_actor', character_name)
 
         character_id = '0'
-        try: # search for voice model in skyrim_characters.csv
+        try: # search for voice model in skyrim_characters.csv/fallout4_characters.csv"
             voice_model = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'base_id_int'].values[0]
         except:
             pass
         self.write_game_info('_mantella_current_actor_id', str(character_id))
 
-        location = 'Skyrim'
+        if self.game == "Fallout4" or self.game == "Fallout4VR":
+            location = 'the Commonwealth'
+        else:
+            location = 'Skyrim'
         self.write_game_info('_mantella_current_location', location)
         
         in_game_time = '12'
@@ -350,20 +353,25 @@ class GameStateManager:
 
     @utils.time_it
     def load_game_state(self, debug_mode, debug_character_name, character_df, character_name, character_id, location, in_game_time, FO4_Voice_folder_and_models_df):
-        """Load game variables from _mantella_ files in Skyrim folder (data passed by the Mantella spell)"""
+        """Load game variables from _mantella_ files in Skyrim/Fallout4 folder (data passed by the Mantella spell)"""
 
         if debug_mode == '1':
             character_name, character_id, location, in_game_time = self.debugging_setup(debug_character_name, character_df)
         
-        # tell Skyrim papyrus script to start waiting for voiceline input
+        # tell Skyrim/Fallout4 papyrus script to start waiting for voiceline input
         self.write_game_info('_mantella_end_conversation', 'False')
         character_id, character_name = self.load_character_name_id()
-        try: # load character from skyrim_characters.csv
+        try: # load character from skyrim_characters.csv/fallout4_characters.csv
             character_info = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower()].to_dict('records')[0]
             is_generic_npc = False
         except IndexError: # character not found
             try: # try searching by ID
-                logging.info(f"Could not find {character_name} in skyrim_characters.csv. Searching by ID {character_id}...")
+                if self.game == "Fallout4" or self.game == "Fallout4VR":
+                    csvprefix='fallout4'
+                else:
+                    csvprefix='skyrim'
+                logging.info(f"Could not find {character_name} in {csvprefix}_characters.csv. Searching by ID {character_id}...")
+
                 character_info = character_df.loc[(character_df['baseid_int'].astype(str)==character_id) | (character_df['baseid_int'].astype(str)==character_id+'.0')].to_dict('records')[0]
                 is_generic_npc = False
             except IndexError: # load generic NPC
@@ -377,7 +385,10 @@ class GameStateManager:
 
         location = self.load_data_when_available('_mantella_current_location', location)
         if location.lower() == 'none': # location returns none when out in the wild
-            location = 'Skyrim'
+            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                location='Boston area'
+            else:
+                location='Skyrim'
 
         in_game_time = self.load_data_when_available('_mantella_in_game_time', in_game_time)
 

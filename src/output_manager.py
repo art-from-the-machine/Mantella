@@ -12,6 +12,7 @@ import re
 import numpy as np
 import simpleaudio as sa
 import sys
+import math
 
 class ChatManager:
     def __init__(self, game_state_manager, config, encoding):
@@ -74,7 +75,7 @@ class ChatManager:
             os.mkdir(in_game_voice_folder_path)
 
             # copy voicelines from one voice folder to this new voice folder
-            # this step is needed for Skyrim to acknowledge the folder
+            # this step is needed for Skyrim/Fallout4 to acknowledge the folder
             if self.game == "Fallout4" or self.game == "Fallout4VR":
                 example_folder = f"{self.mod_folder}/maleboston/"
             else:
@@ -86,7 +87,7 @@ class ChatManager:
                     shutil.copy(source_file_path, in_game_voice_folder_path)
 
             self.game_state_manager.write_game_info('_mantella_status', 'Error with Mantella.exe. Please check MantellaSoftware/logging.log')
-            logging.warn("Unknown NPC detected. This NPC will be able to speak once you restart Skyrim. To learn how to add memory, a background, and a voice model of your choosing to this NPC, see here: https://github.com/art-from-the-machine/Mantella#adding-modded-npcs")
+            logging.warn(f"Unknown NPC detected. This NPC will be able to speak once you restart {self.game}. To learn how to add memory, a background, and a voice model of your choosing to this NPC, see here: https://github.com/art-from-the-machine/Mantella#adding-modded-npcs")
             time.sleep(5)
             return True
         return False
@@ -139,25 +140,85 @@ class ChatManager:
             self.game_state_manager.write_game_info('_mantella_say_line', subtitle.strip())
             if self.game =="Fallout4" or self.game =="Fallout4VR":
                 self.play_adjusted_volume(wav_file_path)
-                '''
-                print("starting while loop for Fallout 4")
-                while True:
-                    
-                    with open(f'{self.root_mod_folder}/_mantella_audio_ready.txt', 'r', encoding='utf-8') as f:
-                            audioReadyToPlay = f.read().strip() 
-                            if audioReadyToPlay.lower() =='true':
-                                wave_obj = sa.WaveObject.from_wave_file(wav_file_path)
-                                play_obj = wave_obj.play()
-                                play_obj.wait_done()
-                                self.game_state_manager.write_game_info('_mantella_audio_ready', 'false')
-                                break
-                '''
+
         else:
             say_line_file = '_mantella_say_line_'+str(self.character_num+1)
             self.game_state_manager.write_game_info(say_line_file, subtitle.strip())
             if self.game =="Fallout4" or self.game =="Fallout4VR":
                 self.play_adjusted_volume(wav_file_path)
 
+    def play_adjusted_volume(self, wav_file_path):
+        FO4Volume_scale = self.FO4Volume / 100.0  # Normalize to 0.0-1.0
+        logging.info("Waiting for _mantella_audio_ready.txt to be set with the audio array in Fallout 4 directory")
+        while True:
+            with open(f'{self.root_mod_folder}/_mantella_audio_ready.txt', 'r', encoding='utf-8') as f:
+                audio_array_str = f.read().strip()
+                if audio_array_str.lower() != 'false' and audio_array_str:
+                    try:
+                        # Parse the data
+                        npc_distance, playerPosX, playerPosY, game_angle_z, targetPosX, targetPosY = map(float, audio_array_str.split(','))
+                        player_pos = (playerPosX, playerPosY)
+                        target_pos = (targetPosX, targetPosY)
+                        
+                        # Calculate the relative angle
+                        relative_angle = self.calculate_relative_angle(player_pos, target_pos, game_angle_z)
+
+                        # Normalize the relative angle between -180 and 180
+                        normalized_angle = relative_angle % 360
+                        if normalized_angle > 180:
+                            normalized_angle -= 360  # Adjust angles to be within [-180, 180]
+
+                        # Calculate volume scale based on the normalized angle
+                        if normalized_angle >= -90 and normalized_angle <= 90:  # Front half
+                            # Linear scaling: Full volume at 0 degrees, decreasing to 50% volume at 90 degrees to either side
+                            volume_scale_left = 0.5 + normalized_angle / 90 * 0.5
+                            volume_scale_right = 0.5 - normalized_angle / 90 * 0.5
+                        elif normalized_angle > 90 and normalized_angle < 180:
+                            volume_scale_left = 90 / normalized_angle
+                            volume_scale_right = 1- 90 / normalized_angle
+                        elif normalized_angle > -180 and normalized_angle < -90:
+                            volume_scale_left = 1- 90 / abs(normalized_angle)
+                            volume_scale_right = 90 / abs(normalized_angle)
+                        else:  # failsafe if for some reason an unmanaged number is entered
+                            volume_scale_left = 0.5
+                            volume_scale_right = 0.5
+
+                        # Apply the calculated scale differently to left and right channels based on angle direction
+                        #if normalized_angle >= 0:  # Turning right
+                        #    volume_scale_left = volume_scale
+                        #    volume_scale_right = 1 - abs(normalized_angle) / 90 * 0.5  # Decrease right volume as angle increases
+                        #else:  # Turning left
+                        #    volume_scale_right = volume_scale
+                    #    volume_scale_left = 1 - abs(normalized_angle) / 90 * 0.5  # Decrease left volume as angle decreases
+
+                        # Ensure volumes don't drop below a threshold, for example, 0.1, if you want to keep a minimum volume level
+                        min_volume_threshold = 0.1
+                        volume_scale_left = max(volume_scale_left, min_volume_threshold)
+                        volume_scale_right = max(volume_scale_right, min_volume_threshold)
+
+                        if npc_distance > 0:
+                            distance_factor = max(0, 1 - (npc_distance / 4000))
+                        else:
+                            distance_factor=1
+                            
+                        # Load mono audio and duplicate it to create stereo effect
+                        wave_obj = sa.WaveObject.from_wave_file(wav_file_path)
+                        audio_data_mono = np.frombuffer(wave_obj.audio_data, dtype=np.int16)
+                        # Duplicate the mono data into two channels
+                        audio_data_stereo = np.stack((audio_data_mono, audio_data_mono), axis=-1)
+                        # Adjust volume for each channel according to angle, distance and config volume
+                        audio_data_stereo[:, 0] = (audio_data_stereo[:, 0] * volume_scale_left).astype(np.int16) * distance_factor * FO4Volume_scale # Adjust left channel
+                        audio_data_stereo[:, 1] = (audio_data_stereo[:, 1] * volume_scale_right).astype(np.int16) * distance_factor * FO4Volume_scale  # Adjust right channel
+                        # Play the adjusted stereo audio
+                        wave_obj = sa.WaveObject(audio_data_stereo.tobytes(), 2, wave_obj.bytes_per_sample, wave_obj.sample_rate)
+                        play_obj = wave_obj.play()
+                        play_obj.wait_done()
+                        self.game_state_manager.write_game_info('_mantella_audio_ready', 'false')
+                        break
+                    except ValueError:
+                        logging.error("Error processing audio array from _mantella_audio_ready.txt")
+                        break
+    '''
     def play_adjusted_volume(self, wav_file_path):
         volume_scale = self.FO4Volume / 100.0  # Normalize to 0.0-1.0
         logging.info("Waiting for _mantella_audio_ready.txt to be set to a float value in Fallout 4 directory")
@@ -191,6 +252,59 @@ class ChatManager:
                     play_obj.wait_done()
                     self.game_state_manager.write_game_info('_mantella_audio_ready', 'false')
                     break
+    '''
+    def convert_game_angle_to_trig_angle(self, game_angle):
+        """
+        Convert the game's angle to a trigonometric angle.
+        
+        Parameters:
+        - game_angle: The angle in degrees as used in the game.
+        
+        Returns:
+        - A float representing the angle in degrees, adjusted for standard trigonometry.
+        """
+        if game_angle < 90:
+            return 90 - game_angle
+        else:
+            return 450 - game_angle
+
+    def calculate_relative_angle(self, player_pos, target_pos, game_angle_z):
+        """
+        Calculate the direction the player is facing relative to the target, taking into account
+        the game's unique angle system.
+        
+        Parameters:
+        - player_pos: A tuple (x, y) representing the player's position.
+        - target_pos: A tuple (x, y) representing the target's position.
+        - game_angle_z: The angle (in degrees) the player is facing, according to the game's system.
+        
+        Returns:
+        - The angle (in degrees) from the player's perspective to the target, where:
+            0 = facing towards the target,
+            90 = facing left of the target,
+            270 = facing right of the target,
+            180 = facing away from the target.
+        """
+        # Convert game angle to trigonometric angle
+        trig_angle_z = self.convert_game_angle_to_trig_angle(game_angle_z)
+        
+        # Calculate vector from player to target
+        vector_to_target = (target_pos[0] - player_pos[0], target_pos[1] - player_pos[1])
+        
+        # Calculate absolute angle of the vector in degrees
+        absolute_angle_to_target = math.degrees(math.atan2(vector_to_target[1], vector_to_target[0]))
+        
+        # Normalize the trigonometric angle
+        normalized_trig_angle = trig_angle_z % 360
+        
+        # Calculate relative angle
+        relative_angle = (absolute_angle_to_target - normalized_trig_angle) % 360
+        
+        # Adjust relative angle to follow the given convention
+        if relative_angle > 180:
+            relative_angle -= 360  # Adjust for angles greater than 180 to get the shortest rotation direction
+        
+        return relative_angle
 
     @utils.time_it
     def remove_files_from_voice_folders(self):
@@ -259,19 +373,6 @@ class ChatManager:
                     # Wait for a short period before checking the files again
                     await asyncio.sleep(0.1)  # Adjust the sleep duration as needed
 
-
-                #with open(f'{self.root_mod_folder}/_mantella_actor_count.txt', 'r', encoding='utf-8') as f:
-                #        mantellaactorcount = f.read().strip() 
-                # Loop to check if _mantella_say_line_ is set to false
-                #while True:
-                #    with open(f'{self.root_mod_folder}/_mantella_say_line.txt', 'r', encoding='utf-8') as f:
-                #        content = f.read().strip()                              
-                #    with open(f'{self.root_mod_folder}/_mantella_say_line_2.txt', 'r', encoding='utf-8') as f:
-                #        content2 = f.read().strip()
-                #        if content.lower() == 'false' and content2.lower() == 'false' :
-                #            break
-                    # Wait for a short period before checking the file again
-                #    await asyncio.sleep(0.1)  # adjust the sleep duration as needed
             #if Skyrim's running then estimate audio duration to sync lip files
             else:
                 audio_duration = await self.get_audio_duration(queue_output[0])
