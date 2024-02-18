@@ -555,11 +555,11 @@ _female_voice_models = {
 
 _FO4_male_voice_models = {
     'AssaultronRace':	'robot_assaultron',
-    'DLC01RoboBrainRace':	'MrGutsy',
+    'DLC01RoboBrainRace':	'robot_mrgutsy',
     'DLC02HandyRace':	'robot_mrhandy',
     'DLC02FeralGhoulRace':	'maleghoul',
     'DLC03_SynthGen2RaceDiMa':	'dima',
-    'DLC03RoboBrainRace':	'MrGutsy',
+    'DLC03RoboBrainRace':	'robot_mrgutsy',
     'EyeBotRace':	'robot_assaultron',
     'GhoulRace':	'maleghoul',
     'FeralGhoulRace':	'maleghoul',
