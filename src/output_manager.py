@@ -455,9 +455,11 @@ class ChatManager:
                             remaining_content = sentence[last_punctuation + 1:]
                             sentence = sentence[:last_punctuation + 1]
 
-                        if ('assist' in content) and (num_sentences>0):
-                            logging.info(f"'assist' keyword found. Ignoring sentence which begins with: {sentence}")
-                            break
+                        #Don't ban the word assist for Fallout because they're are way too many NPC characters that are portraying some kind of AI so most LLMs will tend to use that word.
+                        if self.game !="Fallout4" and self.game != "Fallout4VR":
+                            if ('assist' in content) and (num_sentences>0):
+                                logging.info(f"'assist' keyword found. Ignoring sentence which begins with: {sentence}")
+                                break
 
                         content_edit = unicodedata.normalize('NFKC', content)
                         # check if content marks the end of a sentence

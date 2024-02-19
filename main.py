@@ -136,7 +136,7 @@ try:
                         if characters.active_character_count() == 1:
                             message['content'] = character.name+': '+message['content']
 
-                character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+                character = character_manager.Character(character_info, language_info['language'], is_generic_npc, config)
                 characters.active_characters[character.name] = character
                 # if the NPC is from a mod, create the NPC's voice folder and exit Mantella
                 chat_manager.setup_voiceline_save_location(character_info['in_game_voice_model'])

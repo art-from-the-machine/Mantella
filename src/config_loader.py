@@ -131,8 +131,12 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
             self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
 
-            self.prompt = config['Prompt']['prompt']
-            self.multi_npc_prompt = config['Prompt']['multi_npc_prompt']
+            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                self.prompt = config['Prompt']['fallout4_prompt']
+                self.multi_npc_prompt = config['Prompt']['fallout4_multi_npc_prompt']
+            else:
+                self.prompt = config['Prompt']['skyrim_prompt']
+                self.multi_npc_prompt = config['Prompt']['skyrim_multi_npc_prompt']
             self.radiant_start_prompt = config['Prompt']['radiant_start_prompt']
             self.radiant_end_prompt = config['Prompt']['radiant_end_prompt']
             pass
