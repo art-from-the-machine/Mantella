@@ -17,6 +17,9 @@ See [art-from-the-machine.github.io/Mantella](https://art-from-the-machine.githu
 # Issues Q&A
 See [art-from-the-machine.github.io/Mantella/pages/issues_qna.html](https://art-from-the-machine.github.io/Mantella/pages/issues_qna.html)
 
+# Skyrim
+See [art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim](https://art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim)
+
 # Contribute
 The source code for Mantella is included in this repo. Here are the quick steps to get set up:
 
