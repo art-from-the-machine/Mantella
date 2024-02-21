@@ -330,6 +330,6 @@ class ChatManager:
         await sentence_queue.put(None)
 
         messages.add_message(assistant_message(full_reply, characters.get_all_names()))
-        logging.log(23, f"Full response saved ({len(self.encoding.encode(full_reply))} tokens): {full_reply}")
+        logging.log(23, f"Full response saved ({self.__client.calculate_tokens_from_text(full_reply)} tokens): {full_reply}")
 
         return messages
