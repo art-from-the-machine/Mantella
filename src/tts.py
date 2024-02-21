@@ -111,10 +111,6 @@ class Synthesizer:
     def synthesize(self, voice, voiceline, aggro=0):
         if voice != self.last_voice:
             self.change_voice(voice)
-        if self.use_external_xtts == 1:
-            self.plugins_path = self.xtts_server_path + "/plugins/lip_fuz"
-        else:
-            self.plugins_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
 
         logging.log(22, f'Synthesizing voiceline: {voiceline}')
         phrases = self._split_voiceline(voiceline)
