@@ -35,6 +35,7 @@ class Synthesizer:
         self.synthesize_url_xtts = config.xtts_synthesize_url
         self.switch_model_url = config.xtts_switch_model
         self.xtts_get_models_list = config.xtts_get_models_list
+        self.xtts_set_output = config.xtts_set_output
         self.official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
 
         # check if xvasynth is running; otherwise try to run it
@@ -131,8 +132,9 @@ class Synthesizer:
                 voiceline_file = f"{self.output_path}/voicelines/{self.last_voice}/{utils.clean_text(phrase)[:150]}.wav"
                 voiceline_files.append(voiceline_file)
 
-        final_voiceline_file_name = 'voiceline'
-        final_voiceline_file =  f"{self.output_path}/voicelines/{self.last_voice}/{final_voiceline_file_name}.wav"
+        final_voiceline_file_name = 'out' # "out" is the file name used by XTTS
+        final_voiceline_folder = f"{self.output_path}/voicelines/{self.last_voice}"
+        final_voiceline_file =  f"{final_voiceline_folder}/{final_voiceline_file_name}.wav"
 
         try:
             if os.path.exists(final_voiceline_file):
@@ -144,6 +146,7 @@ class Synthesizer:
     
         # Synthesize voicelines
         if self.use_external_xtts == 1:
+            requests.post(self.xtts_set_output, json={'output_folder': final_voiceline_folder})
             self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, aggro)
         else:
             if len(phrases) == 1:
