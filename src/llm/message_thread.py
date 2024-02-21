@@ -6,10 +6,12 @@ class message_thread():
     """A thread of messages consisting of system-, user- and assistant-messages.
     Central place for adding new messages to the thread and manipulating the existing ones
     """
-    def __init__(self, initial_system_message: str | system_message) -> None:
+    def __init__(self, initial_system_message: str | system_message | None) -> None:
         self.__messages: list[message] = []
+        if not initial_system_message:
+            return
         if isinstance(initial_system_message, str):
-            initial_system_message = system_message(initial_system_message)
+            initial_system_message = system_message(initial_system_message)        
         self.__messages.append(initial_system_message)
     
     def __len__(self) -> int:
@@ -36,10 +38,10 @@ class message_thread():
     def transform_to_dict_representation(messages: list[message]) -> str:
         result = ""
         for m in messages:
-            original_is_multi = m.is_multi_npc_message
-            m.is_multi_npc_message = True
+            # original_is_multi = m.is_multi_npc_message
+            # m.is_multi_npc_message = True
             result += m.get_dict_formatted_string()
-            m.is_multi_npc_message = original_is_multi
+            # m.is_multi_npc_message = original_is_multi
         return result
 
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
@@ -88,6 +90,9 @@ class message_thread():
                     result.append(deepcopy(message))
         return result
     
+    def get_last_message(self) -> message:
+        return self.__messages[len(self.__messages) -1]
+
     def get_last_assistant_message(self) -> assistant_message | None:
         for message in reversed(self.__messages):
             if isinstance(message, assistant_message):
@@ -104,13 +109,18 @@ class message_thread():
         if last_assistant_message:
             last_assistant_message.text += text_to_append
     
-    def turn_into_multi_npc_conversation(self, multi_NPC_prompt: str):
+    def turn_into_multi_npc_conversation(self, multi_NPC_prompt: str, remove_system_flagged_messages: bool = False):
         """Turns a PC2NPC conversation into a Multi-NPC conversation by changing the prompt and activating the is_multi_npc_message flag for all prior assistant messages
 
         Args:
             multi_NPC_prompt (str): the new already filled out prompt for the multi-npc conversation
         """
         if len(self.__messages) > 0 and isinstance(self.__messages[0], system_message):
+            messages_to_remove: list[message] = []
             self.__messages[0].text = multi_NPC_prompt
             for m in self.__messages:
-                m.is_multi_npc_message = True    
+                if m.is_system_generated_message and remove_system_flagged_messages and not isinstance(m, system_message):
+                    messages_to_remove.append(m)
+                m.is_multi_npc_message = True
+            for m in messages_to_remove:
+                self.__messages.remove(m)

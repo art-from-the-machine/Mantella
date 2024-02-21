@@ -35,6 +35,18 @@ class openai_client:
         referer = "https://github.com/art-from-the-machine/Mantella"
         xtitle = "mantella"
         self.__header: dict[str, str] = {"HTTP-Referer": referer, "X-Title": xtitle, }
+
+        chosenmodel = config.llm
+        # if using an alternative API, use encoding for GPT-3.5 by default
+        # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
+        #       this can lead to the token limit of the given model being overrun
+        if config.alternative_openai_api_base != 'none':
+            chosenmodel = 'gpt-3.5-turbo'
+        try:
+            self.__encoding = tiktoken.encoding_for_model(chosenmodel)
+        except:
+            logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `alternative_openai_api_base` in MantellaSoftware/config.ini and follow the instructions to change this setting')
+            raise
     
     @property
     def token_limit(self) -> int:
@@ -182,8 +194,33 @@ class openai_client:
         num_tokens += 2  # every reply is primed with <im_start>assistant
         return num_tokens
     
+    @staticmethod
+    def num_tokens_from_message(message_to_measure: message | str, encoding: tiktoken.Encoding | None, model="gpt-3.5-turbo") -> int:
+        if not encoding:
+            try:
+                encoding = tiktoken.encoding_for_model(model)
+            except KeyError:
+                encoding = tiktoken.get_encoding("cl100k_base")
+        
+        text: str = ""
+        if isinstance(message_to_measure, message):
+            text = message_to_measure.get_formatted_content()
+        else:
+            text = message_to_measure
+
+        num_tokens = 4 # every message follows <im_start>{role/name}\n{content}<im_end>\n
+        num_tokens += len(text)
+        if isinstance(message_to_measure, message) and message_to_measure.get_openai_message().__contains__("name"):# if there's a name, the role is omitted
+            num_tokens += -1# role is always required and always 1 token
+        
+        return num_tokens
+
+    
     def calculate_tokens_from_messages(self, messages: message_thread) -> int:
         return openai_client.num_tokens_from_messages(messages, self.__model_name)
+    
+    def calculate_tokens_from_text(self, text: str) -> int:
+        return len(self.__encoding.encode(text))
     
     # --- Private methods ---    
     def __get_token_limit(self, llm, custom_token_count, is_local):
