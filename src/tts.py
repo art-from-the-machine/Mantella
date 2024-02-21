@@ -119,7 +119,6 @@ class Synthesizer:
         if not os.path.exists(f"{self.output_path}/voicelines/{self.last_voice}"):
             os.makedirs(f"{self.output_path}/voicelines/{self.last_voice}")
             
-        logging.info(f'Synthesizing voiceline: {voiceline}')
         if self.use_external_xtts == 0:
             phrases = self._split_voiceline(voiceline)
 			
@@ -360,7 +359,7 @@ class Synthesizer:
     def _set_tts_settings_and_test_if_serv_running(self):
         try:
             # Sending a POST request to the API endpoint
-            logging.info(f'Attempting to connect to xTTS...')
+            logging.log(self.loglevel, f'Attempting to connect to xTTS...')
             tts_data_dict = json.loads(self.xTTS_tts_data.replace('\n', ''))
             response = requests.post(self.xtts_set_tts_settings, json=tts_data_dict)
             response.raise_for_status() 
@@ -374,14 +373,14 @@ class Synthesizer:
             
     @utils.time_it
     def change_voice(self, voice):
-        logging.info('Loading voice model...')
+        logging.log(self.loglevel, 'Loading voice model...')
         if self.use_external_xtts == 1:
             # Format the voice string to match the model naming convention
             voice_path = f"{voice.lower().replace(' ', '')}"
             model_voice = voice_path
             # Check if the specified voice is available
             if voice_path not in self.available_models and voice != self.last_voice:
-                logging.info(f'Voice "{voice}" not in available models. Available models: {self.available_models}')
+                logging.log(self.loglevel, f'Voice "{voice}" not in available models. Available models: {self.available_models}')
                 # Use the first available official model as a fallback
                 model_voice = self.get_first_available_official_model()
                 if model_voice is None:
