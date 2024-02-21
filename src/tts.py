@@ -24,6 +24,8 @@ class Synthesizer:
         self.xvasynth_path = config.xvasynth_path
         self.process_device = config.xvasynth_process_device
         self.times_checked_xvasynth = 0
+        # to print output to console
+        self.tts_print = config.tts_print
         
         #Added from xTTS implementation
         self.use_external_xtts = int(config.use_external_xtts)
@@ -43,8 +45,6 @@ class Synthesizer:
         else:
             self.check_if_xvasynth_is_running()
             self.plugins_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
-        # to print output to console
-        self.tts_print = config.tts_print
 
         # voice models path
         self.model_path = f"{self.xvasynth_path}/resources/app/models/skyrim/"
