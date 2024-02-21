@@ -27,8 +27,6 @@ class ChatManager:
         self.forgiven_npc_response = config.forgiven_npc_response
         self.follow_npc_response = config.follow_npc_response
         self.wait_time_buffer = config.wait_time_buffer
-        #Added from xTTS implementation
-        self.use_external_xtts = config.use_external_xtts
         self.__tts: Synthesizer = tts
         self.__client: openai_client = client
 
