@@ -13,7 +13,7 @@ def time_it(func):
         start = time.time()
         result = func(*args, **kwargs)
         end = time.time()
-        logging.info(f"Function {func.__name__} took {round(end - start, 5)} seconds to execute")
+        logging.debug(f"Function {func.__name__} took {round(end - start, 5)} seconds to execute")
         return result
     return wrapper
 
@@ -37,11 +37,14 @@ def resolve_path(path):
     return resolved_path
 
 
-def get_file_encoding(file_path):
+def get_file_encoding(file_path) -> str | None:
     with open(file_path,'rb') as f:
         data = f.read()
     encoding = detect(data).get("encoding")
-    return encoding
+    if isinstance(encoding, str):
+        return encoding
+    else:
+        return None
 
 
 def cleanup_mei(remove_mei_folders):

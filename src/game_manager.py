@@ -1,4 +1,5 @@
 import logging
+from src.llm.messages import user_message
 import src.utils as utils
 import time
 import random
@@ -40,6 +41,8 @@ class GameStateManager:
             time.sleep(0.01)
         return text
     
+    def wait_for_conversation_init(self):
+        self.load_data_when_available('_mantella_current_actor_id', '')
 
     @utils.time_it
     def reset_game_info(self):
@@ -316,24 +319,21 @@ class GameStateManager:
     
     
     @utils.time_it
-    def update_game_events(self, message):
+    def update_game_events(self, message: user_message) -> user_message:
         """Add in-game events to player's response"""
 
         # append in-game events to player's response
         with open(f'{self.game_path}/_mantella_in_game_events.txt', 'r', encoding='utf-8') as f:
             in_game_events_lines = f.readlines()[-5:] # read latest 5 events
 
-        # encapsulate events in {}
-        formatted_in_game_events_lines = ['*{}*'.format(line.strip()) for line in in_game_events_lines]
-        in_game_events = '\n'.join(formatted_in_game_events_lines)
+        message.add_event(in_game_events_lines)
 
         is_in_combat = self.load_data_when_available('_mantella_actor_is_enemy', '')
         if is_in_combat.lower() == 'true':
-            in_game_events = in_game_events + '\n*You are attacking the player. This is either because you are an enemy or the player has attacked you first.*'
+            message.add_event(['\n*You are attacking the player. This is either because you are an enemy or the player has attacked you first.*'])
 
-        if len(in_game_events) > 0:
-            logging.info(f'In-game events since previous exchange:\n{in_game_events}')
-        message = in_game_events + '\n' + message
+        if message.count_ingame_events() > 0:            
+            logging.info(f'In-game events since previous exchange:\n{message.get_ingame_events_text()}')
 
         # once the events are shared with the NPC, clear the file
         self.write_game_info('_mantella_in_game_events', '')
@@ -345,33 +345,13 @@ class GameStateManager:
         # only pass the in-game time if it has changed
         if (in_game_time != self.prev_game_time) and (in_game_time != ''):
             time_group = utils.get_time_group(in_game_time)
-
-            formatted_in_game_time = f"*The time is {in_game_time} {time_group}.*\n"
-            message = formatted_in_game_time + message
+            message.set_ingame_time(in_game_time, time_group)
             self.prev_game_time = in_game_time
 
         return message
     
-    
     @utils.time_it
-    def end_conversation(self, conversation_ended, config, encoding, synthesizer, chat_manager, messages, active_characters, tokens_available):
-        """Say final goodbye lines and save conversation to memory"""
-
-        # say goodbyes
-        if conversation_ended.lower() != 'true': # say line if NPC is not already deactivated
-            audio_file = synthesizer.synthesize(chat_manager.active_character.info['voice_model'], chat_manager.active_character.info['skyrim_voice_folder'], config.goodbye_npc_response)
-            chat_manager.save_files_to_voice_folders([audio_file, config.goodbye_npc_response])
-
-        messages.append({"role": "user", "content": config.end_conversation_keyword+'.'})
-        messages.append({"role": "assistant", "content": config.end_conversation_keyword+'.'})
-
-        summary = None
-        for character_name, character in active_characters.items():
-            # If summary has already been generated for another character in a multi NPC conversation (multi NPC memory summaries are shared)
-            if summary == None:
-                summary = character.save_conversation(encoding, messages, tokens_available, config.llm)
-            else:
-                _ = character.save_conversation(encoding, messages, tokens_available, config.llm, summary)
+    def end_conversation(self):
         logging.info('Conversation ended.')
 
         self.write_game_info('_mantella_in_game_events', '')
@@ -379,51 +359,7 @@ class GameStateManager:
         time.sleep(5) # wait a few seconds for everything to register
 
         return None
-    
-    
-    @utils.time_it
-    def reload_conversation(self, config, encoding, synthesizer, chat_manager, messages, active_characters, tokens_available, token_limit, location, in_game_time):
-        """Restart conversation to save conversation to memory when token count is reaching its limit"""
-
-        latest_character = list(active_characters.items())[-1][1]
-        # let the player know that the conversation is reloading
-        audio_file = synthesizer.synthesize(latest_character.info['voice_model'], latest_character.info['skyrim_voice_folder'], config.collecting_thoughts_npc_response)
-        chat_manager.save_files_to_voice_folders([audio_file, config.collecting_thoughts_npc_response])
-
-        messages.append({"role": "user", "content": latest_character.info['name']+'?'})
-        if len(list(active_characters.items())) > 1:
-            collecting_thoughts_response = latest_character.info['name']+': '+config.collecting_thoughts_npc_response+'.'
-        else:
-            collecting_thoughts_response = config.collecting_thoughts_npc_response+'.'
-        messages.append({"role": "assistant", "content": collecting_thoughts_response})
-
-        # save the conversation so far
-        summary = None
-        for character_name, character in active_characters.items():
-            if summary == None:
-                summary = character.save_conversation(encoding, messages, tokens_available, config.llm)
-            else:
-                _ = character.save_conversation(encoding, messages, tokens_available, config.llm, summary)
-        # let the new file register on the system
-        time.sleep(1)
-        # if a new conversation summary file was created, load this latest file
-        for character_name, character in active_characters.items():
-            conversation_summary_file = character.get_latest_conversation_summary_file_path()
-
-        # reload context
-        keys = list(active_characters.keys())
-        prompt = config.prompt
-        if len(keys) > 1:
-            prompt = config.multi_npc_prompt
-        context = latest_character.set_context(prompt, location, in_game_time, active_characters, token_limit, 'false')
-
-        # add previous few back and forths from last conversation
-        messages_wo_system_prompt = messages[1:]
-        messages_last_entries = messages_wo_system_prompt[-8:]
-        context.extend(messages_last_entries)
-
-        return conversation_summary_file, context, messages
-    
+        
 _male_voice_models = {
     'ArgonianRace': 'Male Argonian',
     'BretonRace': 'Male Even Toned',

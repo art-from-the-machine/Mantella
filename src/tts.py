@@ -10,13 +10,17 @@ import pandas as pd
 import sys
 from pathlib import Path
 import json
-import subprocess
+from subprocess import Popen, PIPE, STDOUT, DEVNULL, STARTUPINFO,STARTF_USESHOWWINDOW
+
+class TTSServiceFailure(Exception):
+    pass
 
 class VoiceModelNotFound(Exception):
     pass
 
 class Synthesizer:
     def __init__(self, config):
+        self.loglevel = 29
         self.xvasynth_path = config.xvasynth_path
         self.process_device = config.xvasynth_process_device
         self.times_checked_xvasynth = 0
@@ -39,6 +43,8 @@ class Synthesizer:
         else:
             self.check_if_xvasynth_is_running()
             self.plugins_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
+        # to print output to console
+        self.tts_print = config.tts_print
 
         # voice models path
         self.model_path = f"{self.xvasynth_path}/resources/app/models/skyrim/"
@@ -100,8 +106,8 @@ class Synthesizer:
 
         # Write the 16-bit audio data back to a file
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
-      
-    def synthesize(self, voice, voice_folder, voiceline, aggro=0):
+
+    def synthesize(self, voice, voiceline, aggro=0):
         if voice != self.last_voice:
             self.change_voice(voice)
         if self.use_external_xtts == 1:
@@ -109,7 +115,10 @@ class Synthesizer:
         else:
             self.plugins_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
 
-		# make voice model folder if it doesn't already exist
+        logging.log(22, f'Synthesizing voiceline: {voiceline}')
+        phrases = self._split_voiceline(voiceline)
+
+        # make voice model folder if it doesn't already exist
         if not os.path.exists(f"{self.output_path}/voicelines/{self.last_voice}"):
             os.makedirs(f"{self.output_path}/voicelines/{self.last_voice}")
             
@@ -175,7 +184,6 @@ class Synthesizer:
             winsound.PlaySound(final_voiceline_file, winsound.SND_FILENAME)
         return final_voiceline_file
 
-    @utils.time_it
     def _group_sentences(self, voiceline_sentences, max_length=150):
         """
         Splits sentences into separate voicelines based on their length (max=max_length)
@@ -197,7 +205,6 @@ class Synthesizer:
         return grouped_sentences
     
 
-    @utils.time_it
     def _split_voiceline(self, voiceline, max_length=150):
         """Split voiceline into phrases by commas, 'and', and 'or'"""
 
@@ -237,7 +244,7 @@ class Synthesizer:
                 result.append(current_line.strip())
 
         result = self._group_sentences(result, max_length)
-        logging.info(f'Split sentence into : {result}')
+        logging.debug(f'Split sentence into : {result}')
 
         return result
     
@@ -250,7 +257,7 @@ class Synthesizer:
                 audio, samplerate = sf.read(audio_file)
                 merged_audio = np.concatenate((merged_audio, audio))
             except:
-                logging.info(f'Could not find voiceline file: {audio_file}')
+                logging.error(f'Could not find voiceline file: {audio_file}')
 
         sf.write(voiceline_file_name, merged_audio, samplerate)
     
@@ -320,16 +327,19 @@ class Synthesizer:
             if (self.times_checked_xvasynth > 10):
                 # break loop
                 logging.error('Could not connect to xVASynth multiple times. Ensure that xVASynth is running and restart Mantella.')
-                input('\nPress any key to stop Mantella...')
-                sys.exit(0)
+                raise TTSServiceFailure()
 
             # contact local xVASynth server; ~2 second timeout
-            logging.info(f'Attempting to connect to xVASynth... ({self.times_checked_xvasynth})')
+            logging.log(self.loglevel, f'Attempting to connect to xVASynth... ({self.times_checked_xvasynth})')
             response = requests.get('http://127.0.0.1:8008/')
             response.raise_for_status()  # If the response contains an HTTP error status code, raise an exception
         except requests.exceptions.RequestException as err:
+            if ('Connection aborted' in err.__str__()):
+                # So it is alive
+                return
+
             if (self.times_checked_xvasynth == 1):
-                logging.info('Could not connect to xVASynth. Attempting to run headless server...')
+                logging.log(self.loglevel, 'Could not connect to xVASynth. Attempting to run headless server...')
                 self.run_xvasynth_server()
 
             # do the web request again; LOOP!!!
@@ -338,12 +348,15 @@ class Synthesizer:
     def run_xvasynth_server(self):
         try:
             # start the process without waiting for a response
-            subprocess.Popen(f'{self.xvasynth_path}/resources/app/cpython_{self.process_device}/server.exe', cwd=self.xvasynth_path)
-
+            if (self.tts_print == 1):
+                # print subprocess output
+                Popen(f'{self.xvasynth_path}/resources/app/cpython_{self.process_device}/server.exe', cwd=self.xvasynth_path, stdout=None, stderr=None)
+            else:
+                # ignore output
+                Popen(f'{self.xvasynth_path}/resources/app/cpython_{self.process_device}/server.exe', cwd=self.xvasynth_path, stdout=DEVNULL, stderr=DEVNULL)
         except:
             logging.error(f'Could not run xVASynth. Ensure that the path "{self.xvasynth_path}" is correct.')
-            input('\nPress any key to stop Mantella...')
-            sys.exit(0)
+            raise TTSServiceFailure()
  
     def _set_tts_settings_and_test_if_serv_running(self):
         try:
@@ -411,13 +424,17 @@ class Synthesizer:
 
         self.last_voice = voice
 
-        logging.info('Voice model loaded.')
+        logging.log(self.loglevel, 'Voice model loaded.')
 
     def run_command(self, command):
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo = STARTUPINFO()
+        startupinfo.dwFlags |= STARTF_USESHOWWINDOW
 
-        sp = subprocess.Popen(command, startupinfo=startupinfo, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        sp = Popen(command, startupinfo=startupinfo, stdout=PIPE, stderr=PIPE)
 
         stdout, stderr = sp.communicate()
         stderr = stderr.decode("utf-8")
+
+    def log_subprocess_output(self, pipe):
+        for line in iter(pipe.readline, b''): # b'\n'-separated lines
+            logging.log(self.loglevel, '%r', line)

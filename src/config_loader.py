@@ -117,9 +117,10 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.pace = float(config['Speech']['pace'])
             self.use_cleanup = int(config['Speech']['use_cleanup'])
             self.use_sr = int(config['Speech']['use_sr'])
+            self.tts_print = int(config['Speech']['tts_print'])
 
             self.remove_mei_folders = config['Cleanup']['remove_mei_folders']
-
+            #Debugging
             self.debug_mode = config['Debugging']['debugging']
             self.play_audio_from_script = config['Debugging']['play_audio_from_script']
             self.debug_character_name = config['Debugging']['debugging_npc']
@@ -127,7 +128,10 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.default_player_response = config['Debugging']['default_player_response']
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
             self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
-
+            #Conversation
+            self.player_name = config['Conversation']['player_name']
+            self.automatic_greeting = config['Conversation']['automatic_greeting']
+            #Prompt
             self.prompt = config['Prompt']['prompt']
             self.multi_npc_prompt = config['Prompt']['multi_npc_prompt']
             self.radiant_start_prompt = config['Prompt']['radiant_start_prompt']
