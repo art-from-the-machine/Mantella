@@ -239,15 +239,12 @@ class ChatManager:
                             
                             # New logic to handle conditions based on the presence of a colon and the state of `accumulated_sentence`
                             content_edit = unicodedata.normalize('NFKC', current_sentence)
-                            logging.info(f"'here's what's inside content_edit: {content_edit}")
                             if ':' in content_edit:
                                 if accumulated_sentence:  # accumulated_sentence is not empty
                                     cumulative_sentence_bool = True
-                                    logging.info("Colon found in sentence and accumulated_sentence is not empty.")
                                     
                                 else:  # accumulated_sentence is empty
                                     # Split the sentence at the colon
-                                    logging.info("Colon found in sentence but accumulated_sentence is empty.")
                                     parts = content_edit.split(':', 1)
                                     keyword_extraction = parts[0].strip()
                                     current_sentence = parts[1].strip() if len(parts) > 1 else ''
@@ -346,7 +343,6 @@ class ChatManager:
         #Added from xTTS implementation
         # Check if there is any accumulated sentence at the end
         if accumulated_sentence:
-            logging.info(f"accumulated_sentence at the end !!!!! {accumulated_sentence}")
             # Generate the audio and return the audio file path
             try:
                 #Added from xTTS implementation
