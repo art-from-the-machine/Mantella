@@ -311,7 +311,7 @@ class ChatManager:
                                     full_reply += sentence
                                     num_sentences += 1
                                     if cumulative_sentence_bool == True :
-                                        sentence = current_sentence
+                                        sentence = current_sentence + remaining_content
                                         cumulative_sentence_bool = False
                                     else :
                                         sentence = remaining_content
