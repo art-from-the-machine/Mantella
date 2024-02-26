@@ -68,6 +68,8 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.xvasynth_path = config['Paths']['xvasynth_folder']
             self.mod_path = config['Paths']['mod_folder']
             self.facefx_path = config['Paths']['facefx_folder']
+            #Added from xTTS implementation
+            self.xtts_server_path = config['Paths']['xtts_server_folder']
 
             self.mic_enabled = config['Microphone']['microphone_enabled']
             self.whisper_model = config['Microphone']['model_size']
@@ -104,13 +106,22 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.frequency_penalty = float(config['LanguageModel']['frequency_penalty'])
             self.max_tokens = int(config['LanguageModel']['max_tokens'])
 
+            #Added from xTTS implementation
+            self.use_external_xtts = int(config['Speech']['use_external_xtts'])
+            self.xtts_synthesize_url = config['Speech']['xtts_synthesize_url']
+            self.xtts_switch_model = config['Speech']['xtts_switch_model']
+            self.xtts_set_tts_settings = config['Speech']['xtts_set_tts_settings']
+            self.xTTS_tts_data = config['Speech']['xTTS_tts_data']
+            self.xtts_get_models_list = config['Speech']['xtts_get_models_list']
+            self.xtts_set_output = config['Speech']['xtts_set_output']
             self.xvasynth_process_device = config['Speech']['tts_process_device']
             self.pace = float(config['Speech']['pace'])
             self.use_cleanup = int(config['Speech']['use_cleanup'])
             self.use_sr = int(config['Speech']['use_sr'])
+            self.tts_print = int(config['Speech']['tts_print'])
 
             self.remove_mei_folders = config['Cleanup']['remove_mei_folders']
-
+            #Debugging
             self.debug_mode = config['Debugging']['debugging']
             self.play_audio_from_script = config['Debugging']['play_audio_from_script']
             self.debug_character_name = config['Debugging']['debugging_npc']
@@ -118,7 +129,10 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.default_player_response = config['Debugging']['default_player_response']
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
             self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
-
+            #Conversation
+            self.player_name = config['Conversation']['player_name']
+            self.automatic_greeting = config['Conversation']['automatic_greeting']
+            #Prompt
             self.prompt = config['Prompt']['prompt']
             self.multi_npc_prompt = config['Prompt']['multi_npc_prompt']
             self.radiant_start_prompt = config['Prompt']['radiant_start_prompt']

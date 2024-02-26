@@ -14,3 +14,4 @@ dist/
 main.exe
 /.obsidian/
 /.vs
+/docs/build/
