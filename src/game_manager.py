@@ -279,7 +279,7 @@ class GameStateManager:
         actor_voice_model_id = actor_voice_model.split('(')[1].split(')')[0]
         actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
 
-        #make the substitutions below to bypass non-functional voice models: RobotCompanionMaleDefault, RobotCompanionMaleProcessed,Gen1Synth02 & Gen1Synth03 
+        #make the substitutions below to bypass non-functional XVASynth voice models: RobotCompanionMaleDefault, RobotCompanionMaleProcessed,Gen1Synth02 & Gen1Synth03 
         if actor_voice_model_name in  ("DLC01RobotCompanionMaleDefault", "DLC01RobotCompanionMaleProcessed"):
             actor_voice_model_name='robot_assaultron'
             actor_voice_model_id='robot_assaultron'
@@ -297,10 +297,10 @@ class GameStateManager:
         voice_model = ''
         matching_row=''
         FO4_voice_folder=''
-        # Step 2: Search for the Matching 'voice_ID'
+        # Search for the Matching 'voice_ID'
         matching_row = FO4_Voice_folder_and_models_df[FO4_Voice_folder_and_models_df['voice_ID'] == actor_voice_model_id]
 
-        # Step 3: Return the Matching Row's Values
+        # Return the Matching Row's Values
         if not matching_row.empty:
             # Assuming there's only one match, get the value from the 'voice_model' column
             voice_model = matching_row['voice_model'].iloc[0]
@@ -361,33 +361,48 @@ class GameStateManager:
         # tell Skyrim/Fallout4 papyrus script to start waiting for voiceline input
         self.write_game_info('_mantella_end_conversation', 'False')
         character_id, character_name = self.load_character_name_id()
-        try: # first try to load character by matching both name and baseid_int, necessary for characters like FO4 Shaun
+        
+        try: # first try to load character by matching name and race AND character_ID, necessary for characters like FO4 Curie
+            character_currentrace = self.load_data_when_available('_mantella_actor_race', '')
+            character_currentrace = character_currentrace.split('<')[1].split('Race ')[0]
             character_info = character_df.loc[(character_df['name'].astype(str).str.lower() == character_name.lower()) & 
                                             ((character_df['baseid_int'].astype(str) == character_id) | 
-                                            (character_df['baseid_int'].astype(str) == character_id + '.0'))].to_dict('records')[0]
+                                            (character_df['baseid_int'].astype(str) == character_id + '.0')) & 
+                                            (character_df['race'].astype(str).str.lower() == character_currentrace.lower())].to_dict('records')[0]
+            
+            
+                                
+            logging.info(f"Current character_info is '{character_info}' ")
+                                
             is_generic_npc = False
-        except IndexError: # if no match, proceed to individual matches
-                try: # load character from skyrim_characters.csv/fallout4_characters.csv
-                    character_info = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower()].to_dict('records')[0]
-                    is_generic_npc = False
-                except IndexError: # character not found
-                    try: # try searching by ID
-                        if self.game == "Fallout4" or self.game == "Fallout4VR":
-                            csvprefix='fallout4'
-                        else:
-                            csvprefix='skyrim'
-                        logging.info(f"Could not find {character_name} in {csvprefix}_characters.csv. Searching by ID {character_id}...")
-
-                        character_info = character_df.loc[(character_df['baseid_int'].astype(str)==character_id) | (character_df['baseid_int'].astype(str)==character_id+'.0')].to_dict('records')[0]
+        except:
+            try: # first try to load character by matching both name and baseid_int, necessary for characters like FO4 Shaun
+                character_info = character_df.loc[(character_df['name'].astype(str).str.lower() == character_name.lower()) & 
+                                                ((character_df['baseid_int'].astype(str) == character_id) | 
+                                                (character_df['baseid_int'].astype(str) == character_id + '.0'))].to_dict('records')[0]
+                is_generic_npc = False
+            except IndexError: # if no match, proceed to individual matches
+                    try: # load character from skyrim_characters.csv/fallout4_characters.csv
+                        character_info = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower()].to_dict('records')[0]
                         is_generic_npc = False
-                    except IndexError: # load generic NPC
-                        if self.game == "Fallout4" or self.game == "Fallout4VR":
-                            logging.info(f"NPC '{character_name}' could not be found in 'fallout4_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
-                            character_info = self.FO4_load_unnamed_npc(character_name, character_df, FO4_Voice_folder_and_models_df)
-                        else:
-                            logging.info(f"NPC '{character_name}' could not be found in 'skyrim_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
-                            character_info = self.skyrim_load_unnamed_npc(character_name, character_df)
-                        is_generic_npc = True
+                    except IndexError: # character not found
+                        try: # try searching by ID
+                            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                                csvprefix='fallout4'
+                            else:
+                                csvprefix='skyrim'
+                            logging.info(f"Could not find {character_name} in {csvprefix}_characters.csv. Searching by ID {character_id}...")
+
+                            character_info = character_df.loc[(character_df['baseid_int'].astype(str)==character_id) | (character_df['baseid_int'].astype(str)==character_id+'.0')].to_dict('records')[0]
+                            is_generic_npc = False
+                        except IndexError: # load generic NPC
+                            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                                logging.info(f"NPC '{character_name}' could not be found in 'fallout4_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
+                                character_info = self.FO4_load_unnamed_npc(character_name, character_df, FO4_Voice_folder_and_models_df)
+                            else:
+                                logging.info(f"NPC '{character_name}' could not be found in 'skyrim_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
+                                character_info = self.skyrim_load_unnamed_npc(character_name, character_df)
+                            is_generic_npc = True
 
         location = self.load_data_when_available('_mantella_current_location', location)
         if location.lower() == 'none': # location returns none when out in the wild

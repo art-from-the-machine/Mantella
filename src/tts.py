@@ -21,15 +21,16 @@ class Synthesizer:
         self.process_device = config.xvasynth_process_device
         self.times_checked_xvasynth = 0
 
-        # check if xvasynth is running; otherwise try to run it
-        self.check_if_xvasynth_is_running()
-
         # voice models path (renaming Fallout4VR to Fallout4 to allow for filepath completion)
         if config.game == "Fallout4" or config.game == "Fallout4VR":
             self.game = "Fallout4"
         #(renaming SkyrimVR to Skyrim to allow for filepath completion)
         else: 
             self.game = "Skyrim"
+        # check if xvasynth is running; otherwise try to run it
+        self.check_if_xvasynth_is_running()
+
+
         self.model_path = f"{self.xvasynth_path}/resources/app/models/{self.game}/"
         # output wav / lip files path
         self.output_path = utils.resolve_path('data')+'/data'
@@ -263,7 +264,6 @@ class Synthesizer:
             if (self.times_checked_xvasynth == 1):
                 logging.info('Could not connect to xVASynth. Attempting to run headless server...')
                 self.run_xvasynth_server()
-
             # do the web request again; LOOP!!!
             return self.check_if_xvasynth_is_running()
 
@@ -312,9 +312,46 @@ class Synthesizer:
             'base_lang': self.language, 
             'pluginsContext': '{}',
         }
+        #For some reason older 1.0 model will load in a way where they only emit high pitched static noise about 20-30% of the time, this series of run_backupmodel calls below 
+        #are here to prevent the static issues by loading the model by following a sequence of model versions of 
+        # 3.0 -> 1.1  (will fail to load) -> 3.0 -> 1.1 -> make a dummy voice sample with _synthesize_line -> 1.0 (will fail to load) -> 3.0 -> 1.0 again
+        if voice_model_json.get('modelVersion') == 1.0:
+            logging.info('1.0 model detected running following sequence to bypass voice model issues : 3.0 -> 1.1  (will fail to load) -> 3.0 -> 1.1 -> make a dummy voice sample with _synthesize_line -> 1.0 (will fail to load) -> 3.0 -> 1.0 again')
+            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                backup_voice='piper'
+                self.run_backup_model(backup_voice)
+                backup_voice='maleeventoned'
+                self.run_backup_model(backup_voice)
+                backup_voice='piper'
+                self.run_backup_model(backup_voice)
+                backup_voice='maleeventoned'
+                self.run_backup_model(backup_voice)
+                self._synthesize_line("test phrase", f"{self.output_path}/FO4_data/temp.wav")
+            else:
+                backup_voice='malenord'
+                self.run_backup_model(backup_voice)
         try:
             requests.post(self.loadmodel_url, json=model_change)
+            self.last_voice = voice
+            logging.info(f'Target model {voice} loaded.')
         except:
+            logging.error(f'Target model {voice} failed to load.')
+            #This step is vital to get older voice models (1,1 and lower) to run
+            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                backup_voice='piper'
+            else:
+                backup_voice='malenord'
+            self.run_backup_model(backup_voice)
+            try:
+                requests.post(self.loadmodel_url, json=model_change)
+                self.last_voice = voice
+                logging.info(f'Voice model {voice} loaded.')
+            except:
+                logging.error(f'model {voice} failed to load try restarting Mantella')
+                input('\nPress any key to stop Mantella...')
+                sys.exit(0)
+
+            '''
             logging.info(f'Target model {voice} failed to load. Loading backup voice model...')
             #If for some reason the model fails to load (for example, because it's an older model) then Mantella will attempt to load a backup model. 
             #This will allow the older model to load without errors.
@@ -353,11 +390,52 @@ class Synthesizer:
                 'pluginsContext': '{}',
             }
             requests.post(self.loadmodel_url, json=backup_model_change)
+            '''
 
-        self.last_voice = voice
+    def run_backup_model(self, voice):
+        logging.info(f'Attempting to load backup model {voice}.')
+        #This function exists only to force XVASynth to play older models properly by resetting them by loading models in sequence
+        
+        #If for some reason the model fails to load (for example, because it's an older model) then Mantella will attempt to load a backup model. 
+        #This will allow the older model to load without errors 
+            
+        if self.game == "Fallout4" or self.game == "Fallout4VR":
+            XVASynthAcronym="f4_"
+            XVASynthModNexusLink="https://www.nexusmods.com/fallout4/mods/49340?tab=files"
+            #voice='maleeventoned'
+        else:
+            XVASynthAcronym="sk_"
+            XVASynthModNexusLink = "https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files"
+            #voice='malenord'
+        voice_path = f"{self.model_path}{XVASynthAcronym}{voice.lower().replace(' ', '')}"
+        if not os.path.exists(voice_path+'.json'):
+            logging.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from {XVASynthModNexusLink} (Ctrl+F for '{XVASynthAcronym}{voice.lower().replace(' ', '')}').")
+            raise VoiceModelNotFound()
 
-        logging.info(f'Voice model {voice} loaded.')
+        with open(voice_path+'.json', 'r', encoding='utf-8') as f:
+            voice_model_json = json.load(f)
 
+        try:
+            base_speaker_emb = voice_model_json['games'][0]['base_speaker_emb']
+            base_speaker_emb = str(base_speaker_emb).replace('[','').replace(']','')
+        except:
+            base_speaker_emb = None
+
+        backup_model_type = voice_model_json.get('modelType')
+        
+        backup_model_change = {
+            'outputs': None,
+            'version': '3.0',
+            'model': voice_path, 
+            'modelType': backup_model_type,
+            'base_lang': self.language, 
+            'pluginsContext': '{}',
+        }
+        try:
+            requests.post(self.loadmodel_url, json=backup_model_change)
+            logging.info(f'Backup model {voice} loaded.')
+        except:
+            logging.error(f"Backup model {voice} failed to load")
 
     def run_command(self, command):
         startupinfo = subprocess.STARTUPINFO()

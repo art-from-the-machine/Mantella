@@ -31,11 +31,12 @@ try:
         config_file='config.ini',
         logging_file='logging.log', 
         secret_key_file='GPT_SECRET_KEY.txt', 
+        #Additional df_file added to support Fallout 4 data/fallout4_characters.csv, keep in mind there's also a new file in data\FO4_data\FO4_Voice_folder_XVASynth_matches.csv
         character_df_files=('data/skyrim_characters.csv', 'data/fallout4_characters.csv'), 
         language_file='data/language_support.csv',
         FO4_XVASynth_file='data\\FO4_data\\FO4_Voice_folder_XVASynth_matches.csv'
     )
-    mantella_version = '0.10'
+    mantella_version = '0.10-Fallout Fork version'
     logging.info(f'\nMantella v{mantella_version}')
 
     # Check if the mic setting has been configured in MCM
@@ -45,6 +46,7 @@ try:
             mcm_mic_enabled = f.readline().strip()
         config.mic_enabled = '1' if mcm_mic_enabled == 'TRUE' else '0'
 
+    #Passing the argument config.game as well to allow the actual game selection to be taken in consideration by game_manager.GameStateManager()
     game_state_manager = game_manager.GameStateManager(config.game_path,config.game)
     chat_manager = output_manager.ChatManager(game_state_manager, config, encoding)
     transcriber = stt.Transcriber(game_state_manager, config)
@@ -69,6 +71,7 @@ try:
             logging.info('Restarting...')
             continue
 
+        #Passing the argument config to allow the type of game being ran to be taken into consideration
         character = character_manager.Character(character_info, language_info['language'], is_generic_npc, config)
         synthesizer.change_voice(character.voice_model)
         chat_manager.active_character = character
@@ -136,6 +139,7 @@ try:
                         if characters.active_character_count() == 1:
                             message['content'] = character.name+': '+message['content']
 
+                #Passing the argument config to allow the type of game being ran to be taken into consideration
                 character = character_manager.Character(character_info, language_info['language'], is_generic_npc, config)
                 characters.active_characters[character.name] = character
                 # if the NPC is from a mod, create the NPC's voice folder and exit Mantella

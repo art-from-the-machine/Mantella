@@ -24,6 +24,7 @@ class ConfigLoader:
                 with open(set_path+'/_mantella__'+txtPrefix+'_folder.txt') as f:
                     check = f.readline().strip()
             except:
+                #Reworked the warning to include correct names depending on the game being ran.
                 logging.warn(f'''
 Warning: Could not find _mantella__{txtPrefix}_folder.txt in {set_path}. 
 If you have not yet used the Mantella {modnameSufix} in-game you can safely ignore this message. 
@@ -52,6 +53,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             if int(config['Startup']['open_config_editor']) == 1:
                 run_config_editor()
 
+            #Adjusting game and mod paths according to the game being ran
             self.game = config['Game']['game']
             self.game = str(self.game).lower().replace(' ', '').replace('_', '')
             if self.game =="fallout4":
@@ -66,6 +68,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
                 self.game ="SkyrimVR"
                 self.game_path = config['Paths']['skyrimVR_folder']
                 self.mod_path = config['Paths']['skyrimVR_mod_folder']
+            #if the game is not recognized Mantella will assume it's Skyrim since that's the most frequent one.
             else:
                 self.game ="Skyrim"
                 self.game_path = config['Paths']['skyrim_folder']
@@ -131,6 +134,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
             self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
 
+            #new separate prompts for Fallout 4 have been added 
             if self.game == "Fallout4" or self.game == "Fallout4VR":
                 self.prompt = config['Prompt']['fallout4_prompt']
                 self.multi_npc_prompt = config['Prompt']['fallout4_multi_npc_prompt']

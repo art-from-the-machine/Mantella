@@ -99,22 +99,6 @@ class ChatManager:
 
         audio_file, subtitle = queue_output
 
-        # The if block below checks if it's Fallout 4, if that's the case it will add the wav file in the mod_folder\Sound\Voice\Mantella.esp\ 
-        # and alternate between two wavs to prevent access denied issues if Mantella.exe is trying to access a wav currently loaded in Fallout4
-        if self.game == "Fallout4" or self.game == "Fallout4VR":
-            if self.f4_use_wav_file1:
-                wav_file_to_use = self.f4_wav_file1
-                subtitle += " Mutantella1"
-                self.f4_use_wav_file1 = False
-            else:
-                wav_file_to_use = self.f4_wav_file2
-                subtitle += " Mutantella2"
-                self.f4_use_wav_file1 = True
-            wav_file_path = f"{self.mod_folder}/{wav_file_to_use}"
-            if os.path.exists(wav_file_path):
-                os.remove(wav_file_path)
-            shutil.copyfile(audio_file, wav_file_path)
-
         if self.add_voicelines_to_all_voice_folders == '1':
             for sub_folder in os.scandir(self.mod_folder):
                 if sub_folder.is_dir():
@@ -139,13 +123,13 @@ class ChatManager:
         if self.character_num == 0:
             self.game_state_manager.write_game_info('_mantella_say_line', subtitle.strip())
             if self.game =="Fallout4" or self.game =="Fallout4VR":
-                self.play_adjusted_volume(wav_file_path)
+                self.play_adjusted_volume(audio_file)
 
         else:
             say_line_file = '_mantella_say_line_'+str(self.character_num+1)
             self.game_state_manager.write_game_info(say_line_file, subtitle.strip())
             if self.game =="Fallout4" or self.game =="Fallout4VR":
-                self.play_adjusted_volume(wav_file_path)
+                self.play_adjusted_volume(audio_file)
 
     def play_adjusted_volume(self, wav_file_path):
         FO4Volume_scale = self.FO4Volume / 100.0  # Normalize to 0.0-1.0
@@ -153,6 +137,7 @@ class ChatManager:
         while True:
             with open(f'{self.root_mod_folder}/_mantella_audio_ready.txt', 'r', encoding='utf-8') as f:
                 audio_array_str = f.read().strip()
+                #check if a value is entered in the audio array (necessary to prevent Mantella trying to read an empty file)
                 if audio_array_str.lower() != 'false' and audio_array_str:
                     try:
                         # Parse the data
@@ -218,42 +203,9 @@ class ChatManager:
                     except ValueError:
                         logging.error("Error processing audio array from _mantella_audio_ready.txt")
                         break
-    '''
-    def play_adjusted_volume(self, wav_file_path):
-        volume_scale = self.FO4Volume / 100.0  # Normalize to 0.0-1.0
-        logging.info("Waiting for _mantella_audio_ready.txt to be set to a float value in Fallout 4 directory")
-        #function with dynamic sound
-        npc_distance=0
-        while True:
-            with open(f'{self.root_mod_folder}/_mantella_audio_ready.txt', 'r', encoding='utf-8') as f:
-                audioReadyToPlay = f.read().strip()
-                if audioReadyToPlay.lower() != 'false' and audioReadyToPlay :
-                    logging.info(f"audioReadyToPlay  is {audioReadyToPlay}")
-                    try:
-                        # Try to read npc_distance from the file, assume 0 if unsuccessful
-                        npc_distance = float(audioReadyToPlay)
-                        npc_distance = max(0, npc_distance)  # Ensure npc_distance is not negative
-                    except ValueError:
-                        # If reading the number fails, assume npc_distance is 0
-                        npc_distance = 0
-                    # Adjust volume scale based on npc_distance, from full volume at 0 to near zero at 4000+
-                    if npc_distance > 0:
-                        distance_factor = max(0, 1 - (npc_distance / 4000))
-                        logging.info(f"distance factor is {distance_factor}")
-                        volume_scale *= distance_factor
-                    wave_obj = sa.WaveObject.from_wave_file(wav_file_path)
-                    
-                    # Adjust volume
-                    audio_data = np.frombuffer(wave_obj.audio_data, dtype=np.int16)
-                    adjusted_audio_data = (audio_data * volume_scale).astype(np.int16)
-                    wave_obj = sa.WaveObject(adjusted_audio_data.tobytes(), wave_obj.num_channels, wave_obj.bytes_per_sample, wave_obj.sample_rate)
-                    
-                    play_obj = wave_obj.play()
-                    play_obj.wait_done()
-                    self.game_state_manager.write_game_info('_mantella_audio_ready', 'false')
-                    break
-    '''
+
     def convert_game_angle_to_trig_angle(self, game_angle):
+        #Used for Mantella Fallout to play directional audio
         """
         Convert the game's angle to a trigonometric angle.
         
@@ -269,6 +221,7 @@ class ChatManager:
             return 450 - game_angle
 
     def calculate_relative_angle(self, player_pos, target_pos, game_angle_z):
+         #Used for Mantella Fallout to play directional audio
         """
         Calculate the direction the player is facing relative to the target, taking into account
         the game's unique angle system.
@@ -346,7 +299,7 @@ class ChatManager:
             await self.send_audio_to_external_software(queue_output)
             event.set()
 
-            #if Fallout4 is running the audio will be sync by checking if say line is set to false because the game can internally check if an audio file has finished playing
+            #if Fallout4 is running the audio will be sync by checking if say line is set to false because the Mantella can internally check if an audio file has finished playing
             if self.game =="Fallout4" or self.game == "Fallout4VR":
                 with open(f'{self.root_mod_folder}/_mantella_actor_count.txt', 'r', encoding='utf-8') as f:
                         mantellaactorcount = f.read().strip() 
@@ -455,7 +408,7 @@ class ChatManager:
                             remaining_content = sentence[last_punctuation + 1:]
                             sentence = sentence[:last_punctuation + 1]
 
-                        #Don't ban the word assist for Fallout because they're are way too many NPC characters that are portraying some kind of AI so most LLMs will tend to use that word.
+                        #Don't ban the word assist for Fallout because they're are too many NPC characters that are portraying some kind of AI/robot so most LLMs will tend to use that word.
                         if self.game !="Fallout4" and self.game != "Fallout4VR":
                             if ('assist' in content) and (num_sentences>0):
                                 logging.info(f"'assist' keyword found. Ignoring sentence which begins with: {sentence}")
