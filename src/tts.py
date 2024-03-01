@@ -51,7 +51,7 @@ class Synthesizer:
         # voice models path
         self.model_path = f"{self.xvasynth_path}/resources/app/models/skyrim/"
         # output wav / lip files path
-        self.output_path = utils.resolve_path('data')+'/data'
+        self.output_path = utils.resolve_path()+'/data'
 
         self.language = config.language
 

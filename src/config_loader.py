@@ -2,6 +2,8 @@ import configparser
 import logging
 import os
 import sys
+import src.utils as utils
+from pathlib import Path
 
 class ConfigLoader:
     def __init__(self, file_name='config.ini'):
@@ -143,6 +145,11 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
         except Exception as e:
             logging.error('Parameter missing/invalid in config.ini file!')
             raise e
+        
+        # if the exe is being run by another process, replace config.ini paths with relative paths
+        if "--integrated" in sys.argv:
+            self.game_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)
+            self.mod_path = str(Path(utils.resolve_path()).parent.parent.parent)
 
         # don't trust; verify; test subfolders
         if not os.path.exists(f"{self.game_path}"):
@@ -153,7 +160,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
 
         if not os.path.exists(f"{self.xvasynth_path}\\resources\\"):
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")
+        
         if not os.path.exists(f"{self.mod_path}\\Sound\\Voice\\Mantella.esp"):
             invalid_path(self.mod_path, f"{self.mod_path}\\Sound\\Voice\\Mantella.esp")
-
         self.mod_path += "\\Sound\\Voice\\Mantella.esp"
