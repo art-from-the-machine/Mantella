@@ -51,6 +51,7 @@ try:
     chat_manager = output_manager.ChatManager(game_state_manager, config, encoding)
     transcriber = stt.Transcriber(game_state_manager, config)
     synthesizer = tts.Synthesizer(config)
+    chat_manager.pygame_initialize()
 
     while True:
         # clear _mantella_ files in Skyrim or Fallout4 folder

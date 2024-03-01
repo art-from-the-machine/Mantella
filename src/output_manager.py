@@ -10,9 +10,10 @@ import src.utils as utils
 import unicodedata
 import re
 import numpy as np
-import simpleaudio as sa
+import pygame
 import sys
 import math
+from scipy.io import wavfile
 
 class ChatManager:
     def __init__(self, game_state_manager, config, encoding):
@@ -52,6 +53,18 @@ class ChatManager:
         self.end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.end_of_sentence_chars]
 
         self.sentence_queue = asyncio.Queue()
+
+    def pygame_initialize(self):
+        if self.game == "Fallout4" or self.game == "Fallout4VR":
+            # Ensure pygame is initialized
+            if not pygame.get_init():
+                pygame.init()
+
+            # Explicitly initialize the pygame mixer
+            if not pygame.mixer.get_init():
+                pygame.mixer.init(frequency=22050, size=-16, channels=2)  # Adjust these values as necessary
+            logging.info('pygame is ')
+            logging.info(pygame.__version__)
 
 
     async def get_audio_duration(self, audio_file):
@@ -185,21 +198,33 @@ class ChatManager:
                             distance_factor = max(0, 1 - (npc_distance / 4000))
                         else:
                             distance_factor=1
-                            
-                        # Load mono audio and duplicate it to create stereo effect
-                        wave_obj = sa.WaveObject.from_wave_file(wav_file_path)
-                        audio_data_mono = np.frombuffer(wave_obj.audio_data, dtype=np.int16)
-                        # Duplicate the mono data into two channels
-                        audio_data_stereo = np.stack((audio_data_mono, audio_data_mono), axis=-1)
-                        # Adjust volume for each channel according to angle, distance and config volume
-                        audio_data_stereo[:, 0] = (audio_data_stereo[:, 0] * volume_scale_left).astype(np.int16) * distance_factor * FO4Volume_scale # Adjust left channel
-                        audio_data_stereo[:, 1] = (audio_data_stereo[:, 1] * volume_scale_right).astype(np.int16) * distance_factor * FO4Volume_scale  # Adjust right channel
+
+                        # Load the WAV file
+                        sound = pygame.mixer.Sound(wav_file_path)
+                        original_audio_array = pygame.sndarray.array(sound)
+                        
+                        if original_audio_array.ndim == 1:  # Mono sound
+                            # Duplicate the mono data to create a stereo effect
+                            audio_data_stereo = np.stack((original_audio_array, original_audio_array), axis=-1)
+                        else:
+                            audio_data_stereo = original_audio_array
+                        
+                        # Adjust volume for each channel according to angle, distance, and config volume
+                        audio_data_stereo[:, 0] = (audio_data_stereo[:, 0] * volume_scale_left * distance_factor * FO4Volume_scale).astype(np.int16)  # Left channel
+                        audio_data_stereo[:, 1] = (audio_data_stereo[:, 1] * volume_scale_right * distance_factor * FO4Volume_scale).astype(np.int16)  # Right channel
+                        
+                        # Convert back to pygame sound object
+                        adjusted_sound = pygame.sndarray.make_sound(audio_data_stereo)
+                        
                         # Play the adjusted stereo audio
-                        wave_obj = sa.WaveObject(audio_data_stereo.tobytes(), 2, wave_obj.bytes_per_sample, wave_obj.sample_rate)
-                        play_obj = wave_obj.play()
-                        play_obj.wait_done()
+                        play_obj = adjusted_sound.play()
+                        
+                        while play_obj.get_busy():  # Wait until playback is done
+                            pygame.time.delay(100)
+                        del play_obj
                         self.game_state_manager.write_game_info('_mantella_audio_ready', 'false')
                         break
+
                     except ValueError:
                         logging.error("Error processing audio array from _mantella_audio_ready.txt")
                         break
