@@ -3,11 +3,18 @@ from typing import Hashable
 import src.color_formatter as cf
 import src.utils as utils
 import pandas as pd
+import sys
+import os
 
 import src.config_loader as config_loader
 from src.llm.openai_client import openai_client
 
 def initialise(config_file, logging_file, secret_key_file, character_df_file, language_file) -> tuple[config_loader.ConfigLoader, pd.DataFrame, dict[Hashable, str], openai_client]:
+    
+    def set_cwd_to_exe_dir():
+        if getattr(sys, 'frozen', False): # if exe and not Python script
+            # change the current working directory to the executable's directory
+            os.chdir(os.path.dirname(sys.executable))
     
     def setup_logging(file_name):
         logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[])
@@ -72,6 +79,7 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
             logging.error(f"Could not load language '{config.language}'. Please set a valid language in config.ini\n")
             return {}
 
+    set_cwd_to_exe_dir()
     setup_logging(logging_file)
     config = config_loader.ConfigLoader(config_file)
 
