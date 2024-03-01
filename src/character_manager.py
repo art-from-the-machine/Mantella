@@ -1,6 +1,9 @@
 import json
 import os
 import logging
+import src.utils as utils
+from pathlib import Path
+import sys
 
 from src.llm.message_thread import message_thread
 
@@ -15,30 +18,37 @@ class Character:
         self.is_generic_npc = is_generic_npc
         self.in_game_voice_model = info['in_game_voice_model']
         self.voice_model = info['voice_model']
-        self.conversation_history_file = f"data/conversations/{self.name}/{self.name}.json"
+
+        # if the exe is being run by another process, store conversation data in MantellaData rather than the local data folder
+        if "--integrated" in sys.argv:
+            self.conversation_folder = str(Path(utils.resolve_path()).parent.parent.parent.parent)+'/MantellaData/conversations'
+        else:
+            self.conversation_folder = 'data/conversations'
+        
+        self.conversation_history_file = f"{self.conversation_folder}/{self.name}/{self.name}.json"
         self.conversation_summary_file = self.get_latest_conversation_summary_file_path()
         self.conversation_summary = ''
 
     def get_latest_conversation_summary_file_path(self):
         """Get latest conversation summary by file name suffix"""
 
-        if os.path.exists(f"data/conversations/{self.name}"):
+        if os.path.exists(f"{self.conversation_folder}/{self.name}"):
             # get all files from the directory
-            files = os.listdir(f"data/conversations/{self.name}")
+            files = os.listdir(f"{self.conversation_folder}/{self.name}")
             # filter only .txt files
             txt_files = [f for f in files if f.endswith('.txt')]
             if len(txt_files) > 0:
                 file_numbers = [int(os.path.splitext(f)[0].split('_')[-1]) for f in txt_files]
                 latest_file_number = max(file_numbers)
-                logging.info(f"Loaded latest summary file: data/conversations/{self.name}_summary_{latest_file_number}.txt")
+                logging.info(f"Loaded latest summary file: {self.conversation_folder}/{self.name}_summary_{latest_file_number}.txt")
             else:
-                logging.info(f"data/conversations/{self.name} does not exist. A new summary file will be created.")
+                logging.info(f"{self.conversation_folder}/{self.name} does not exist. A new summary file will be created.")
                 latest_file_number = 1
         else:
-            logging.info(f"data/conversations/{self.name} does not exist. A new summary file will be created.")
+            logging.info(f"{self.conversation_folder}/{self.name} does not exist. A new summary file will be created.")
             latest_file_number = 1
         
-        conversation_summary_file = f"data/conversations/{self.name}/{self.name}_summary_{latest_file_number}.txt"
+        conversation_summary_file = f"{self.conversation_folder}/{self.name}/{self.name}_summary_{latest_file_number}.txt"
         return conversation_summary_file
     
     def save_conversation_log(self, messages: message_thread):
