@@ -60,7 +60,7 @@ class Character:
                 conversation_history = json.load(f)
 
             # add new conversation to conversation history
-            conversation_history.append(transformed_messages) # append everything except the initial system prompt
+            conversation_history += transformed_messages # append everything except the initial system prompt
         # if this is the first conversation
         else:
             directory = os.path.dirname(self.conversation_history_file)
