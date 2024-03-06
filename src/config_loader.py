@@ -151,6 +151,11 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.game_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)
             self.mod_path = str(Path(utils.resolve_path()).parent.parent.parent)
 
+            self.facefx_path = str(Path(utils.resolve_path()).parent.parent.parent)
+            self.facefx_path += "\\Sound\\Voice\\Processing\\"
+            
+            self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
+
         # don't trust; verify; test subfolders
         if not os.path.exists(f"{self.game_path}"):
             invalid_path(self.game_path, f"{self.game_path}")
