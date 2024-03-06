@@ -64,4 +64,4 @@ See the latest update in action:
 <iframe width="560" height="315" src="https://www.youtube.com/embed/UtvVn1TvNnA?si=SyGwwmgWXVjj9AK_" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 <br>
 
-Mantella Docs built by [Leidtier](https://github.com/Leidtier/MantellaDocs).
+Mantella docs built by [Leidtier](https://github.com/Leidtier/MantellaDocs).
