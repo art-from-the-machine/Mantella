@@ -108,6 +108,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
 
             #Added from xTTS implementation
             self.use_external_xtts = int(config['Speech']['use_external_xtts'])
+            self.number_words_tts = int(config['Speech']['number_words_tts'])
             self.xtts_synthesize_url = config['Speech']['xtts_synthesize_url']
             self.xtts_switch_model = config['Speech']['xtts_switch_model']
             self.xtts_set_tts_settings = config['Speech']['xtts_set_tts_settings']
