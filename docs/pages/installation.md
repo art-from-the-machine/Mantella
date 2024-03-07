@@ -2,10 +2,19 @@
 If you get stuck anywhere in the installation process, please see {doc}`/pages/issues_qna` or reach out on [Discord](https://discord.gg/Q4BJAdtGUE).
 
 ## Video Tutorial
-For a visual reference to help install Mantella, see this video from MrHaurrus (the video is in French with English subtitles):
+For visual guides to help install Mantella, see either of these tutorial videos below:
 
+### Dead Pixel Gaming
+<iframe width="560" height="315" src="https://www.youtube.com/embed/g5q2Pm8jaOQ?si=6MoeSJ-78X5GMENi" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+```{admonition} Note
+:class: seealso
+
+xVASynth models do not have to be downloaded manually, see [here](#xvasynth) for more details.
+```
+
+### MrHaurrus (French with English subtitles)
 <iframe width="560" height="315" src="https://www.youtube.com/embed/-zRj2zFvGo0?si=yvhmMaZFCpgMYyhg" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
 
 ```{admonition} Note
 :class: seealso
@@ -25,9 +34,6 @@ xVASynth runs in CPU mode by default, using a single CPU core/thread. Generally,
 NVIDIA cards that have CUDA can run xVASynth in GPU mode. Using the same GPU for both xVASynth and Skyrim may cause stutter.
 </details>
 
-#### Mantella
-There has been one report of Mantella crashing when running a modlist of 2,000+ mods. Mantella needs a certain amount of hardware allocation to run successfully, and if this is being soaked up by other hardware intensive mods there is a chance it will crash.
-
 ### Storage Requirements
 This mod requires ~29GB of space when xVASynth and all voice models are installed. Temporarily another ~17GB is needed to unpack the voice models, unless the torrent is used which does not have the voice files archived.
 
@@ -36,7 +42,7 @@ This mod requires ~29GB of space when xVASynth and all voice models are installe
 - Some users have reported that Skyrim crashes when Mantella is used with **Fuz Ro D'oh**. A possible fix is to disable and re-enable Fuz Ro D'oh
 - The mod **VR Keyboard** conflicts with Mantella
 - Mantella requires **Windows 10 / 11** (it is yet unconfirmed whether it works on Windows 7)
-- Mantella has been confirmed to work with the **FUS** (by pointing `skyrim_folder` to Skyrim), **Librum** (by pointing `skyrim_folder` to overwrite/root), and **Wildlands** (by pointing `skyrim_folder` to Wildlander/SKSE), and **Nolvus** Wabbajack modlists.
+- Mantella has been confirmed to work with the **FUS** (by pointing `skyrim_folder` to Skyrim), **Librum** (by pointing `skyrim_folder` to overwrite/root), and **Wildlands** (by pointing `skyrim_folder` to Wildlander/SKSE), and **Nolvus** Wabbajack modlists
 - Mantella needs to be loaded after the Unofficial Skyrim Special Edition Patch (**USSEP**) mod in your load order
 
 ### Skyrim
