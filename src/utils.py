@@ -13,7 +13,7 @@ def time_it(func):
         start = time.time()
         result = func(*args, **kwargs)
         end = time.time()
-        logging.info(f"Function {func.__name__} took {round(end - start, 5)} seconds to execute")
+        logging.debug(f"Function {func.__name__} took {round(end - start, 5)} seconds to execute")
         return result
     return wrapper
 
@@ -28,7 +28,7 @@ def clean_text(text):
     return text_cleaned
 
 
-def resolve_path(path):
+def resolve_path():
     if getattr(sys, 'frozen', False):
         resolved_path = os.path.dirname(sys.executable)
     else:
@@ -37,11 +37,14 @@ def resolve_path(path):
     return resolved_path
 
 
-def get_file_encoding(file_path):
+def get_file_encoding(file_path) -> str | None:
     with open(file_path,'rb') as f:
         data = f.read()
     encoding = detect(data).get("encoding")
-    return encoding
+    if isinstance(encoding, str):
+        return encoding
+    else:
+        return None
 
 
 def cleanup_mei(remove_mei_folders):
@@ -66,9 +69,9 @@ def cleanup_mei(remove_mei_folders):
                         file_removed += 1
                     except PermissionError:  # mainly to allow simultaneous pyinstaller instances
                         pass
-                logging.info(f'{file_removed} previous runtime folder(s) cleaned up from MantellaSoftware/data/tmp')
+                logging.info(f'{file_removed} previous runtime folder(s) cleaned up from {dir_mei}')
             else:
-                logging.warn(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in MantellaSoftware/data/tmp. See MantellaSoftware/config.ini's remove_mei_folders setting for more information.")
+                logging.warn(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in {dir_mei}. See MantellaSoftware/config.ini's remove_mei_folders setting for more information.")
         
 
 
