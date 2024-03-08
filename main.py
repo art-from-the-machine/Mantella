@@ -40,7 +40,7 @@ try:
         config.mic_enabled = '1' if mcm_mic_enabled == 'TRUE' else '0'
 
     synthesizer = tts.Synthesizer(config)
-    game_state_manager = game_manager.GameStateManager(config.game_path)
+    game_state_manager = game_manager.GameStateManager(config.game_path, config.game)
     chat_manager = output_manager.ChatManager(game_state_manager, config, synthesizer, client)
     transcriber = stt.Transcriber(game_state_manager, config, client.api_key)    
     rememberer: remembering = summaries(config.memory_prompt, config.resummarize_prompt, client, language_info['language'])

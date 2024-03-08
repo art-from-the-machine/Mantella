@@ -86,6 +86,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
                 self.game ="Skyrim"
                 self.game_path = config['Paths']['skyrim_folder']
                 self.mod_path = config['Paths']['skyrim_mod_folder']
+            
             logging.info(f'Mantella currently running for {self.game} located in {self.game_path}. Mantella esp located in {self.mod_path}.  \n')
             self.language = config['Language']['language']
             self.end_conversation_keyword = config['Language']['end_conversation_keyword']
@@ -95,9 +96,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.forgiven_npc_response = config['Language']['forgiven_npc_response']
             self.follow_npc_response = config['Language']['follow_npc_response']
 
-            self.game_path = config['Paths']['skyrim_folder']
             self.xvasynth_path = config['Paths']['xvasynth_folder']
-            self.mod_path = config['Paths']['mod_folder']
             self.facefx_path = config['Paths']['facefx_folder']
             #Added from xTTS implementation
             self.xtts_server_path = config['Paths']['xtts_server_folder']
@@ -199,7 +198,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             invalid_path(self.game_path, f"{self.game_path}")
         else:
             skyrim_in_program_files = check_program_files(self.game_path)
-            check_missing_mantella_file(self.game_path, skyrim_in_program_files)
+            check_missing_mantella_file(self.game_path)
 
         if not os.path.exists(f"{self.xvasynth_path}\\resources\\"):
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")

@@ -8,7 +8,7 @@ import sys
 from src.llm.message_thread import message_thread
 
 class Character:
-    def __init__(self, info, language, is_generic_npc, config):
+    def __init__(self, info, language, is_generic_npc):
         self.info = info
         self.name = info['name']
         self.bio = info['bio']
@@ -28,7 +28,6 @@ class Character:
         self.conversation_history_file = f"{self.conversation_folder}/{self.name}/{self.name}.json"
         self.conversation_summary_file = self.get_latest_conversation_summary_file_path()
         self.conversation_summary = ''
-        self.game=config.game
 
     def get_latest_conversation_summary_file_path(self):
         """Get latest conversation summary by file name suffix"""

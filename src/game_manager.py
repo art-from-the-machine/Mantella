@@ -10,7 +10,7 @@ class CharacterDoesNotExist(Exception):
 
 
 class GameStateManager:
-    def __init__(self, game_path,game):
+    def __init__(self, game_path, game):
         self.game_path = game_path
         self.prev_game_time = ''
         self.game= game
