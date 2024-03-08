@@ -2,6 +2,8 @@ import configparser
 import logging
 import os
 import sys
+import src.utils as utils
+from pathlib import Path
 
 class ConfigLoader:
     def __init__(self, file_name='config.ini'):
@@ -67,9 +69,9 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.game_path = config['Paths']['skyrim_folder']
             self.xvasynth_path = config['Paths']['xvasynth_folder']
             self.mod_path = config['Paths']['mod_folder']
+            self.facefx_path = config['Paths']['facefx_folder']
             #Added from xTTS implementation
-            self.xtts_server_path = config['Paths']['xtts_server_folder']          
-
+            self.xtts_server_path = config['Paths']['xtts_server_folder']
 
             self.mic_enabled = config['Microphone']['microphone_enabled']
             self.whisper_model = config['Microphone']['model_size']
@@ -144,6 +146,16 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
         except Exception as e:
             logging.error('Parameter missing/invalid in config.ini file!')
             raise e
+        
+        # if the exe is being run by another process, replace config.ini paths with relative paths
+        if "--integrated" in sys.argv:
+            self.game_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)
+            self.mod_path = str(Path(utils.resolve_path()).parent.parent.parent)
+
+            self.facefx_path = str(Path(utils.resolve_path()).parent.parent.parent)
+            self.facefx_path += "\\Sound\\Voice\\Processing\\"
+            
+            self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
 
         # don't trust; verify; test subfolders
         if not os.path.exists(f"{self.game_path}"):
@@ -154,7 +166,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
 
         if not os.path.exists(f"{self.xvasynth_path}\\resources\\"):
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")
+        
         if not os.path.exists(f"{self.mod_path}\\Sound\\Voice\\Mantella.esp"):
             invalid_path(self.mod_path, f"{self.mod_path}\\Sound\\Voice\\Mantella.esp")
-
         self.mod_path += "\\Sound\\Voice\\Mantella.esp"

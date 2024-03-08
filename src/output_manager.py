@@ -109,12 +109,27 @@ class ChatManager:
         audio_file, subtitle = queue_output
         if self.add_voicelines_to_all_voice_folders == '1':
             for sub_folder in os.scandir(self.mod_folder):
-                if sub_folder.is_dir():
-                    shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
+                if not sub_folder.is_dir():
+                    continue
+
+                shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
+
+                # Copy FaceFX generated LIP file
+                try:
                     shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.lip_file}")
+                except Exception as e:
+                    # only warn on failure
+                    logging.warning(e)
         else:
             shutil.copyfile(audio_file, f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.wav_file}")
-            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.lip_file}")
+
+            # Copy FaceFX generated LIP file
+            try:
+                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.lip_file}")
+            except Exception as e:
+                # only warn on failure
+                logging.warning(e)
+
 
         logging.info(f"{self.active_character.name} (character {self.character_num}) should speak")
         if self.character_num == 0:
