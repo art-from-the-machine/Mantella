@@ -429,52 +429,52 @@ class Synthesizer:
             self.base_speaker_emb = base_speaker_emb
             self.model_type = voice_model_json.get('modelType')
         
-        model_change = {
-            'outputs': None,
-            'version': '3.0',
-            'model': voice_path, 
-            'modelType': self.model_type,
-            'base_lang': self.language, 
-            'pluginsContext': '{}',
-        }
-        #For some reason older 1.0 model will load in a way where they only emit high pitched static noise about 20-30% of the time, this series of run_backupmodel calls below 
-        #are here to prevent the static issues by loading the model by following a sequence of model versions of 
-        # 3.0 -> 1.1  (will fail to load) -> 3.0 -> 1.1 -> make a dummy voice sample with _synthesize_line -> 1.0 (will fail to load) -> 3.0 -> 1.0 again
-        if voice_model_json.get('modelVersion') == 1.0:
-            logging.info('1.0 model detected running following sequence to bypass voice model issues : 3.0 -> 1.1  (will fail to load) -> 3.0 -> 1.1 -> make a dummy voice sample with _synthesize_line -> 1.0 (will fail to load) -> 3.0 -> 1.0 again')
-            if self.game == "Fallout4" or self.game == "Fallout4VR":
-                backup_voice='piper'
-                self.run_backup_model(backup_voice)
-                backup_voice='maleeventoned'
-                self.run_backup_model(backup_voice)
-                backup_voice='piper'
-                self.run_backup_model(backup_voice)
-                backup_voice='maleeventoned'
-                self.run_backup_model(backup_voice)
-                self._synthesize_line("test phrase", f"{self.output_path}/FO4_data/temp.wav")
-            else:
-                backup_voice='malenord'
-                self.run_backup_model(backup_voice)
-        try:
-            requests.post(self.loadmodel_url, json=model_change)
-            self.last_voice = voice
-            logging.info(f'Target model {voice} loaded.')
-        except:
-            logging.error(f'Target model {voice} failed to load.')
-            #This step is vital to get older voice models (1,1 and lower) to run
-            if self.game == "Fallout4" or self.game == "Fallout4VR":
-                backup_voice='piper'
-            else:
-                backup_voice='malenord'
-            self.run_backup_model(backup_voice)
+            model_change = {
+                'outputs': None,
+                'version': '3.0',
+                'model': voice_path, 
+                'modelType': self.model_type,
+                'base_lang': self.language, 
+                'pluginsContext': '{}',
+            }
+            #For some reason older 1.0 model will load in a way where they only emit high pitched static noise about 20-30% of the time, this series of run_backupmodel calls below 
+            #are here to prevent the static issues by loading the model by following a sequence of model versions of 
+            # 3.0 -> 1.1  (will fail to load) -> 3.0 -> 1.1 -> make a dummy voice sample with _synthesize_line -> 1.0 (will fail to load) -> 3.0 -> 1.0 again
+            if voice_model_json.get('modelVersion') == 1.0:
+                logging.log(self.loglevel, '1.0 model detected running following sequence to bypass voice model issues : 3.0 -> 1.1  (will fail to load) -> 3.0 -> 1.1 -> make a dummy voice sample with _synthesize_line -> 1.0 (will fail to load) -> 3.0 -> 1.0 again')
+                if self.game == "Fallout4" or self.game == "Fallout4VR":
+                    backup_voice='piper'
+                    self.run_backup_model(backup_voice)
+                    backup_voice='maleeventoned'
+                    self.run_backup_model(backup_voice)
+                    backup_voice='piper'
+                    self.run_backup_model(backup_voice)
+                    backup_voice='maleeventoned'
+                    self.run_backup_model(backup_voice)
+                    self._synthesize_line("test phrase", f"{self.output_path}/FO4_data/temp.wav")
+                else:
+                    backup_voice='malenord'
+                    self.run_backup_model(backup_voice)
             try:
                 requests.post(self.loadmodel_url, json=model_change)
                 self.last_voice = voice
-                logging.info(f'Voice model {voice} loaded.')
+                logging.log(self.loglevel, f'Target model {voice} loaded.')
             except:
-                logging.error(f'model {voice} failed to load try restarting Mantella')
-                input('\nPress any key to stop Mantella...')
-                sys.exit(0)
+                logging.error(f'Target model {voice} failed to load.')
+                #This step is vital to get older voice models (1,1 and lower) to run
+                if self.game == "Fallout4" or self.game == "Fallout4VR":
+                    backup_voice='piper'
+                else:
+                    backup_voice='malenord'
+                self.run_backup_model(backup_voice)
+                try:
+                    requests.post(self.loadmodel_url, json=model_change)
+                    self.last_voice = voice
+                    logging.log(self.loglevel, f'Voice model {voice} loaded.')
+                except:
+                    logging.error(f'model {voice} failed to load try restarting Mantella')
+                    input('\nPress any key to stop Mantella...')
+                    sys.exit(0)
 
             '''
             logging.info(f'Target model {voice} failed to load. Loading backup voice model...')
