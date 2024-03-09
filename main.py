@@ -17,12 +17,14 @@ from src.remember.summaries import summaries
 game_state_manager = None
 
 try:
-    config, character_df, language_info, client = setup.initialise(
+    config, character_df, language_info, client, FO4_Voice_folder_and_models_df = setup.initialise(
         config_file='config.ini',
         logging_file='logging.log', 
         secret_key_file='GPT_SECRET_KEY.txt', 
-        character_df_file='data/skyrim_characters.csv', 
-        language_file='data/language_support.csv'
+        #Additional df_file added to support Fallout 4 data/fallout4_characters.csv, keep in mind there's also a new file in data\FO4_data\FO4_Voice_folder_XVASynth_matches.csv
+        character_df_files=('data/skyrim_characters.csv', 'data/fallout4_characters.csv'), 
+        language_file='data/language_support.csv',
+        FO4_XVASynth_file='data\\FO4_data\\FO4_Voice_folder_XVASynth_matches.csv'
     )
 
     token_limit = client.token_limit
@@ -38,13 +40,14 @@ try:
         config.mic_enabled = '1' if mcm_mic_enabled == 'TRUE' else '0'
 
     synthesizer = tts.Synthesizer(config)
-    game_state_manager = game_manager.GameStateManager(config.game_path)
+    game_state_manager = game_manager.GameStateManager(config.game_path, config.game)
     chat_manager = output_manager.ChatManager(game_state_manager, config, synthesizer, client)
     transcriber = stt.Transcriber(game_state_manager, config, client.api_key)    
     rememberer: remembering = summaries(config.memory_prompt, config.resummarize_prompt, client, language_info['language'])
+    chat_manager.pygame_initialize()
     
     while True:
-        # clear _mantella_ files in Skyrim folder
+        # clear _mantella_ files in Skyrim or Fallout4 folder
         character_name, character_id, location, in_game_time = game_state_manager.reset_game_info()
 
         logging.info('\nConversations not starting when you select an NPC? See here:\nhttps://github.com/art-from-the-machine/Mantella#issues-qa')
@@ -72,7 +75,7 @@ try:
                 try:
                     # load character when data is available
                     character_info, location, in_game_time, is_generic_npc = game_state_manager.load_game_state(
-                        config.debug_mode, config.debug_character_name, character_df, character_name, character_id, location, in_game_time
+                        config.debug_mode, config.debug_character_name, character_df, character_name, character_id, location, in_game_time, FO4_Voice_folder_and_models_df
                     )
                 except game_manager.CharacterDoesNotExist:
                     game_state_manager.write_game_info('_mantella_end_conversation', 'True')
