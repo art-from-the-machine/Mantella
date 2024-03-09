@@ -52,7 +52,7 @@ try:
         if config.debug_mode == "1":        
             character_name, character_id, location, in_game_time = game_state_manager.debugging_setup(config.debug_character_name, character_df)
             character_info, location, in_game_time, is_generic_npc = game_state_manager.load_game_state(
-                config.debug_mode, config.debug_character_name, character_df, character_name, character_id, location, in_game_time
+                config.debug_mode, config.debug_character_name, character_df, character_name, character_id, location, in_game_time, FO4_Voice_folder_and_models_df
             )
             
         
