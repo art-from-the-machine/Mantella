@@ -310,7 +310,7 @@ class GameStateManager:
             FO4_voice_folder = matching_row['voice_file_name'].iloc[0]
             logging.info(f"Matched voice model with ID to {FO4_voice_folder}")  # Or use the variable as needed
         else:
-            logging.info("No matching voice ID found. Attenpting voice_file_name match.")
+            logging.info("No matching voice ID found. Attempting voice_file_name match.")
       
         if voice_model == '':
             # If no match by 'voice_ID' and not found in , search by 'voice_model' (actor_voice_model_name)
