@@ -17,10 +17,14 @@ class context:
         self.__rememberer: remembering = rememberer
         self.__language: dict[Hashable, str] = language
         self.__client: openai_client = client #Just passed in for the moment to measure the length of the system message, maybe better solution in the future?
-        self.__location: str = "Skyrim"
         self.__ingame_time: int = 12
         self.__token_limit_percent = token_limit_percent
         self.__should_switch_to_multi_npc_conversation: bool = False
+
+        if config.game == "Fallout4" or config.game == "Fallout4VR":
+            self.__location: str = 'the Commonwealth'
+        else:
+            self.__location: str = "Skyrim"
 
     @property
     def npcs_in_conversation(self) -> Characters:
