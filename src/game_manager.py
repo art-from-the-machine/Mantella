@@ -145,7 +145,7 @@ class GameStateManager:
         
         in_game_time = '12'
         self.write_game_info('_mantella_in_game_time', in_game_time)
-
+        self.write_game_info('_mantella_actor_count', '1')
         return character_name, character_id, location, in_game_time
     
 

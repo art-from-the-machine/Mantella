@@ -6,11 +6,11 @@ import os
 import soundfile as sf
 import numpy as np
 import re
-import pandas as pd
 import sys
 from pathlib import Path
 import json
 from subprocess import Popen, PIPE, STDOUT, DEVNULL, STARTUPINFO,STARTF_USESHOWWINDOW
+import subprocess
 
 class TTSServiceFailure(Exception):
     pass
@@ -168,19 +168,33 @@ class Synthesizer:
         # FaceFX for creating a LIP file
         try:
             # check if FonixData.cdf file is besides FaceFXWrapper.exe
-            cdf_path = f'{self.facefx_path}FonixData.cdf'
-            if not os.path.exists(Path(cdf_path)):
-                logging.error(f'Could not find FonixData.cdf in "{Path(cdf_path).parent}" required by FaceFXWrapper. Look for the Lip Fuz plugin of xVASynth.')
+            cdf_path = Path(self.facefx_path) / 'FonixData.cdf' 
+            if not cdf_path.exists():
+                logging.error(f'Could not find FonixData.cdf in "{cdf_path.parent}" required by FaceFXWrapper. Look for the Lip Fuz plugin of xVASynth.')
                 raise FileNotFoundError()
 
             # generate .lip file from the .wav file with FaceFXWrapper
-            face_wrapper_executable = f'{self.facefx_path}FaceFXWrapper.exe';
-            if os.path.exists(face_wrapper_executable):
-                # Run FaceFXWrapper.exe
-                self.run_command(f'{face_wrapper_executable} {self.game} "USEnglish" "{self.facefx_path}FonixData.cdf" "{final_voiceline_file}" "{final_voiceline_file.replace(".wav", "_r.wav")}" "{final_voiceline_file.replace(".wav", ".lip")}" "{voiceline}"')
-            else:
-                logging.error(f'Could not find FaceFXWrapper.exe in "{Path(face_wrapper_executable).parent}" with which to create a Lip Sync file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
+            face_wrapper_executable = Path(self.facefx_path) / "FaceFXWrapper.exe"
+            if not face_wrapper_executable.exists():
+                logging.error(f'Could not find FaceFXWrapper.exe in "{face_wrapper_executable.parent}" with which to create a Lip Sync file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
                 raise FileNotFoundError()
+        
+            # Run FaceFXWrapper.exe
+            r_wav = final_voiceline_file.replace(".wav", "_r.wav")
+            lip = final_voiceline_file.replace(".wav", ".lip")
+            commands = [
+                face_wrapper_executable.name,
+                "Skyrim",
+                "USEnglish",
+                cdf_path.name,
+                f'"{final_voiceline_file}"',
+                f'"{r_wav}"',
+                f'"{lip}"',
+                f'"{voiceline}"'
+            ]
+            command = " ".join(commands)
+            self.run_facefx_command(command)
+
 
             # remove file created by FaceFXWrapper
             if os.path.exists(final_voiceline_file.replace(".wav", "_r.wav")):
@@ -562,15 +576,12 @@ class Synthesizer:
         except:
             logging.error(f"Backup model {voice} failed to load")
 
-    def run_command(self, command):
+    def run_facefx_command(self, command):
         startupinfo = STARTUPINFO()
         startupinfo.dwFlags |= STARTF_USESHOWWINDOW
+        
+        batch_file_path = Path(self.facefx_path) / "run_mantella_command.bat"
+        with open(batch_file_path, 'w') as file:
+            file.write(f"@echo off\n{command} >nul 2>&1")
 
-        sp = Popen(command, startupinfo=startupinfo, stdout=PIPE, stderr=PIPE)
-
-        stdout, stderr = sp.communicate()
-        stderr = stderr.decode("utf-8")
-
-    def log_subprocess_output(self, pipe):
-        for line in iter(pipe.readline, b''): # b'\n'-separated lines
-            logging.log(self.loglevel, '%r', line)
+        subprocess.run(batch_file_path, cwd=self.facefx_path, creationflags=subprocess.CREATE_NO_WINDOW)

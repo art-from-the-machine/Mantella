@@ -49,7 +49,13 @@ try:
     while True:
         # clear _mantella_ files in Skyrim or Fallout4 folder
         character_name, character_id, location, in_game_time = game_state_manager.reset_game_info()
-
+        if config.debug_mode == "1":        
+            character_name, character_id, location, in_game_time = game_state_manager.debugging_setup(config.debug_character_name, character_df)
+            character_info, location, in_game_time, is_generic_npc = game_state_manager.load_game_state(
+                config.debug_mode, config.debug_character_name, character_df, character_name, character_id, location, in_game_time
+            )
+            
+        
         logging.info('\nConversations not starting when you select an NPC? See here:\nhttps://github.com/art-from-the-machine/Mantella#issues-qa')
         logging.info('\nWaiting for player to select an NPC...')
         game_state_manager.wait_for_conversation_init() #<- wait for init here
