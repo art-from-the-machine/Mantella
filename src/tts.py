@@ -1,3 +1,4 @@
+import datetime
 import requests
 import winsound
 import logging
@@ -108,7 +109,7 @@ class Synthesizer:
         # Write the 16-bit audio data back to a file
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
 
-    def synthesize(self, voice, voiceline, aggro=0):
+    def synthesize(self, voice, voiceline, aggro: bool = False):
         if voice != self.last_voice:
             self.change_voice(voice)
 
@@ -176,6 +177,18 @@ class Synthesizer:
         # remove file created by FaceFXWrapper
         if os.path.exists(final_voiceline_file.replace(".wav", "_r.wav")):
             os.remove(final_voiceline_file.replace(".wav", "_r.wav"))
+
+        #rename to unique name        
+        if(os.path.exists(final_voiceline_file)):
+            try:
+                timestamp: str = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f_")
+                new_wav_file_name = f"{final_voiceline_folder}/{timestamp + final_voiceline_file_name}.wav" 
+                new_lip_file_name = new_wav_file_name.replace(".wav", ".lip")
+                os.rename(final_voiceline_file, new_wav_file_name)
+                os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
+                final_voiceline_file = new_wav_file_name
+            except:
+                logging.error(f'Could not rename {final_voiceline_file} or {final_voiceline_file.replace(".wav", ".lip")}')
 
         # if Debug Mode is on, play the audio file
         if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):
@@ -261,10 +274,10 @@ class Synthesizer:
     
 
     @utils.time_it
-    def _synthesize_line(self, line, save_path, aggro=0):
+    def _synthesize_line(self, line, save_path, aggro: bool = False):
         pluginsContext = {}
         # in combat
-        if (aggro == 1):
+        if aggro:
             pluginsContext["mantella_settings"] = {
                 "emAngry": 0.6
             }
@@ -283,7 +296,7 @@ class Synthesizer:
         requests.post(self.synthesize_url, json=data)
 
     @utils.time_it
-    def _synthesize_line_xtts(self, line, save_path, voice, aggro=0):
+    def _synthesize_line_xtts(self, line, save_path, voice, aggro: bool):
         voice_path = f"{voice.lower().replace(' ', '')}"
         data = {
             'text': line,

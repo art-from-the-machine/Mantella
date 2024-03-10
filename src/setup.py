@@ -1,4 +1,6 @@
 import logging
+import os
+import shutil
 from typing import Hashable
 import src.color_formatter as cf
 import src.utils as utils
@@ -31,6 +33,7 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         # Add the handlers to the logger
         logging.getLogger().addHandler(console_handler)
         logging.getLogger().addHandler(file_handler)
+        # logging.getLogger().addHandler(jsonHandler)
 
         logging.debug("debug message")
         logging.info("info message")
@@ -47,7 +50,6 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         logging.log(22, "NPC voiceline")
         logging.log(23, "NPC info")
 
-
         logging.addLevelName(27, "INFO STT")
         logging.addLevelName(28, "INFO LLM")
         logging.addLevelName(29, "INFO TTS")
@@ -56,12 +58,37 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
         logging.log(28, "Large Language Model related")
         logging.log(29, "Text-To-Speech related")
 
+        logging.addLevelName(40, "HTTP-in")
+        logging.addLevelName(41, "HTTP-out")
+        logging.addLevelName(42, "Queue")
+        logging.log(40, "JSON coming from game")
+        logging.log(41, "JSON sent back to game")
+        logging.log(42, "Sentence queue access")
+
     def get_character_df(file_name) -> pd.DataFrame:
         encoding = utils.get_file_encoding(file_name)
         character_df = pd.read_csv(file_name, engine='python', encoding=encoding)
         character_df = character_df.loc[character_df['voice_model'].notna()]
 
         return character_df
+    
+    def create_all_voice_folders(config, character_df: pd.DataFrame):
+        all_voice_folders = character_df["skyrim_voice_folder"]
+        all_voice_folders = all_voice_folders.loc[all_voice_folders.notna()]
+        set_of_voice_folders = set()
+        for voice_folder in all_voice_folders:
+            voice_folder = str.strip(voice_folder)
+            if voice_folder and not set_of_voice_folders.__contains__(voice_folder):
+                set_of_voice_folders.add(voice_folder)
+                in_game_voice_folder_path = f"{config.mod_path}/{voice_folder}/"
+                if not os.path.exists(in_game_voice_folder_path):
+                    os.mkdir(in_game_voice_folder_path)
+                    example_folder = f"{config.mod_path}/MaleNord/"
+                    for file_name in os.listdir(example_folder):
+                        source_file_path = os.path.join(example_folder, file_name)
+
+                        if os.path.isfile(source_file_path):
+                            shutil.copy(source_file_path, in_game_voice_folder_path)
     
     def get_language_info(file_name) -> dict[Hashable, str]:
         language_df = pd.read_csv(file_name)
@@ -79,6 +106,7 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
     utils.cleanup_mei(config.remove_mei_folders)
     
     character_df = get_character_df(character_df_file)
+    create_all_voice_folders(config, character_df)
     language_info = get_language_info(language_file)
 
     

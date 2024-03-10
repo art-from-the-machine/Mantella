@@ -1,8 +1,20 @@
+import os
+import shutil
+import pandas as pd
 import logging
-from src.llm.messages import user_message
+from typing import Any, Hashable
+from src.conversation.action import action
+from src.llm.sentence import sentence
+from src.output_manager import ChatManager
+from src.remember.remembering import remembering
+from src.remember.summaries import summaries
+from src.config_loader import ConfigLoader
+from src.llm.openai_client import openai_client
+from src.conversation.conversation import conversation
+from src.conversation.context import context
+from src.character_manager import Character
 import src.utils as utils
-import time
-import random
+from src.http.communication_constants import communication_constants as comm_consts
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv"""
@@ -10,168 +22,166 @@ class CharacterDoesNotExist(Exception):
 
 
 class GameStateManager:
-    def __init__(self, game_path):
-        self.game_path = game_path
-        self.prev_game_time = ''
+    TOKEN_LIMIT_PERCENT: float = 0.45
+
+    WAV_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
+    LIP_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
 
 
-    def write_game_info(self, text_file_name, text):
-        max_attempts = 2
-        delay_between_attempts = 5
+    MALE_VOICE_MODELS: dict[str, str] = {
+    'ArgonianRace': 'Male Argonian',
+    'BretonRace': 'Male Even Toned',
+    'DarkElfRace': 'Male Dark Elf Commoner',
+    'HighElfRace': 'Male Elf Haughty',
+    'ImperialRace': 'Male Even Toned',
+    'KhajiitRace': 'Male Khajit',
+    'NordRace': 'Male Nord',
+    'OrcRace': 'Male Orc',
+    'RedguardRace': 'Male Even Toned',
+    'WoodElfRace': 'Male Young Eager',
+    }
+    FEMALE_VOICE_MODELS: dict[str, str]  = {
+    'ArgonianRace': 'Female Argonian',
+    'BretonRace': 'Female Even Toned',
+    'DarkElfRace': 'Female Dark Elf Commoner',
+    'HighElfRace': 'Female Elf Haughty',
+    'ImperialRace': 'Female Even Toned',
+    'KhajiitRace': 'Female Khajit',
+    'NordRace': 'Female Nord',
+    'OrcRace': 'Female Orc',
+    'RedguardRace': 'Female Sultry',
+    'WoodElfRace': 'Female Young Eager',
+    }
 
-        for attempt in range(max_attempts):
-            try:
-                with open(f'{self.game_path}/{text_file_name}.txt', 'w', encoding='utf-8') as f:
-                    f.write(text)
-                break
-            except PermissionError:
-                print(f'Permission denied to write to {text_file_name}.txt. Retrying...')
-                if attempt + 1 == max_attempts:
-                    raise
-                else:
-                    time.sleep(delay_between_attempts)
-        return None
+    def __init__(self, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: openai_client, character_df: pd.DataFrame):        
+        self.__config: ConfigLoader = config
+        self.__language_info: dict[Hashable, str] = language_info 
+        self.__client: openai_client = client
+        self.__chat_manager: ChatManager = chat_manager
+        self.__rememberer: remembering = summaries(config.memory_prompt, config.resummarize_prompt, client, language_info['language'])
+        self.__character_df: pd.DataFrame = character_df
+        self.__talk: conversation | None = None
+        self.__actions: list[action] =  [action(comm_consts.ACTION_NPC_OFFENDED, config.offended_npc_response, f"The player offended the NPC"),
+                                                action(comm_consts.ACTION_NPC_FORGIVEN, config.forgiven_npc_response, f"The player made up with the NPC"),
+                                                action(comm_consts.ACTION_NPC_FOLLOW, config.follow_npc_response, f"The NPC is willing to follow the player")]
+
+    ###### react to calls from the game #######
+    def start_conversation(self, json: dict[str, Any]) -> dict[str, Any]:
+        if not self.__talk:            
+            context_for_conversation = context(self.__config, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
+            self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client.are_messages_too_long, self.__actions)
+            self.__update_context(json)
+            self.__talk.start_conversation()
+        else:
+            self.__update_context(json)
+        
+        return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED}
     
+    def continue_conversation(self, input: dict[str, Any]) -> dict[str, Any]:
+        if(not self.__talk ):
+            return self.error_message("No running conversation at this point")
+        
+        if input.__contains__(comm_consts.KEY_REQUEST_EXTRA_ACTIONS):
+            extra_actions: list[str] = input[comm_consts.KEY_REQUEST_EXTRA_ACTIONS]
+            if extra_actions.__contains__(comm_consts.ACTION_RELOADCONVERSATION):
+                self.__talk.reload_conversation()
 
-    def load_data_when_available(self, text_file_name, text):
-        while text == '':
-            with open(f'{self.game_path}/{text_file_name}.txt', 'r', encoding='utf-8') as f:
-                text = f.readline().strip()
-            # decrease stress on CPU while waiting for file to populate
-            time.sleep(0.01)
-        return text
+        replyType, sentence_to_play = self.__talk.continue_conversation()
+        reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
+        if sentence_to_play:
+            self.save_files_to_voice_folders(sentence_to_play)
+            reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play)
+        return reply
+
+    def player_input(self, json: dict[str, Any]) -> dict[str, Any]:
+        if(not self.__talk ):
+            return self.error_message("No running conversation at this point")
+        
+        player_text: str = json[comm_consts.KEY_REQUESTTYPE_PLAYERINPUT]
+        self.__update_context(json)
+        self.__talk.process_player_input(player_text)
+        return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}
+
+    def end_conversation(self, json: dict[str, Any]) -> dict[str, Any]:
+        if(self.__talk):
+            self.__talk.end()
+            self.__talk = None
+        return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_ENDCONVERSATION}
+
+    ####### JSON constructions #########
+
+    def character_to_json(self, character_to_jsonfy: Character) -> dict[str, Any]:
+        return {
+            comm_consts.KEY_ACTOR_ID: character_to_jsonfy.Id,
+            comm_consts.KEY_ACTOR_NAME: character_to_jsonfy.Name,
+        }
     
-    def wait_for_conversation_init(self):
-        self.load_data_when_available('_mantella_current_actor_id', '')
+    def sentence_to_json(self, sentence_to_prepare: sentence) -> dict[str, Any]:
+        return {
+            comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.Speaker.Name, #self.character_to_json(sentence_to_prepare.Speaker),
+            comm_consts.KEY_ACTOR_LINETOSPEAK: sentence_to_prepare.Sentence,
+            comm_consts.KEY_ACTOR_VOICEFILE: self.WAV_FILE,
+            comm_consts.KEY_ACTOR_DURATION: sentence_to_prepare.Voice_line_duration,
+            comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.Actions
+        }
+
+    ##### utils #######
+
+    def __update_context(self,  json: dict[str, Any]):
+        if self.__talk:
+            for actorJson in json[comm_consts.KEY_ACTORS]:
+                actor: Character | None = self.load_character(actorJson)
+                if actor:
+                    self.__talk.add_or_update_character(actor)
+            location: str = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_LOCATION]
+            time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
+            ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
+            self.__talk.update_context(location, time, ingame_events)
 
     @utils.time_it
-    def reset_game_info(self):
-        self.write_game_info('_mantella_current_actor', '')
-        character_name = ''
+    def save_files_to_voice_folders(self, queue_output: sentence):
+        """Save voicelines and subtitles to the correct game folders"""
 
-        self.write_game_info('_mantella_current_actor_id', '')
-        character_id = ''
-
-        self.write_game_info('_mantella_current_location', '')
-        location = ''
-
-        self.write_game_info('_mantella_in_game_time', '')
-        in_game_time = ''
-
-        self.write_game_info('_mantella_active_actors', '')
-
-        self.write_game_info('_mantella_in_game_events', '')
-
-        self.write_game_info('_mantella_status', 'False')
-
-        self.write_game_info('_mantella_actor_is_enemy', 'False')
-        self.write_game_info('_mantella_actor_is_in_combat', 'False')
-
-        self.write_game_info('_mantella_actor_relationship', '')
-
-        self.write_game_info('_mantella_character_selection', 'True')
-
-        self.write_game_info('_mantella_say_line', 'False')
-        self.write_game_info('_mantella_say_line_2', 'False')
-        self.write_game_info('_mantella_say_line_3', 'False')
-        self.write_game_info('_mantella_say_line_4', 'False')
-        self.write_game_info('_mantella_say_line_5', 'False')
-        self.write_game_info('_mantella_say_line_6', 'False')
-        self.write_game_info('_mantella_say_line_7', 'False')
-        self.write_game_info('_mantella_say_line_8', 'False')
-        self.write_game_info('_mantella_say_line_9', 'False')
-        self.write_game_info('_mantella_say_line_10', 'False')
-        self.write_game_info('_mantella_actor_count', '0')
-
-        self.write_game_info('_mantella_player_input', '')
-
-        self.write_game_info('_mantella_aggro', '')
-
-        self.write_game_info('_mantella_radiant_dialogue', 'False')
-
-        return character_name, character_id, location, in_game_time
-    
-    
-    def write_dummy_game_info(self, character_name, character_df):
-        """Write fake data to game files when debugging"""
-        logging.info(f'Writing dummy game status for debugging character {character_name}')
-        actor_sex = random.choice(['Female','Male'])
-        actor_race = random.choice(['ArgonianRace','BretonRace','DarkElfRace','HighElfRace','ImperialRace','KhajiitRace','NordRace','OrcRace','RedguardRace','WoodElfRace'])
-        try:
-            actor_sex = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'gender'].values[0]
-        except:
-            pass
-        try:
-            actor_race = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'race'].values[0]
-        except:
-            pass
-        self.write_game_info('_mantella_actor_race', f'<{actor_race}')
-        self.write_game_info('_mantella_actor_sex', actor_sex)
-        voice_model = random.choice(['Female Nord', 'Male Nord'])
-        try: # search for voice model in skyrim_characters.csv
-            voice_model = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'voice_model'].values[0]
-        except: # guess voice model based on sex and race
-            if actor_sex == 'Female':
-                try:
-                    voice_model = _female_voice_models[actor_race]
-                except:
-                    voice_model = 'Female Nord'
-            else:
-                try:
-                    voice_model = _male_voice_models[actor_race]
-                except:
-                    voice_model = 'Male Nord'
-
-        self.write_game_info('_mantella_actor_voice', f'<{voice_model}')
-
-        relationship = '0'
-        self.write_game_info('_mantella_actor_relationship', relationship)
-
-        self.write_game_info('_mantella_current_actor', character_name)
-
-        character_id = '0'
-        try: # search for voice model in skyrim_characters.csv
-            voice_model = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower(), 'base_id_int'].values[0]
-        except:
-            pass
-        self.write_game_info('_mantella_current_actor_id', str(character_id))
-
-        location = 'Skyrim'
-        self.write_game_info('_mantella_current_location', location)
-        
-        in_game_time = '12'
-        self.write_game_info('_mantella_in_game_time', in_game_time)
-
-        return character_name, character_id, location, in_game_time
-    
-
-    def load_character_name_id(self):
-        """Wait for character ID to populate then load character name"""
-
-        character_id = self.load_data_when_available('_mantella_current_actor_id', '')
-        time.sleep(0.5) # wait for file to register
-        with open(f'{self.game_path}/_mantella_current_actor.txt', 'r') as f:
-            character_name = f.readline().strip()
-        
-        return character_id, character_name
-    
-    
-    def debugging_setup(self, debug_character_name, character_df):
-        """Select character based on debugging parameters"""
-
-        # None == in-game character chosen by spell
-        if debug_character_name == 'None':
-            character_id, character_name = self.load_character_name_id()
+        audio_file = queue_output.Voice_file
+        mod_folder = self.__config.mod_path
+        # subtitle = queue_output.Sentence
+        speaker: Character = queue_output.Speaker
+        if self.__config.add_voicelines_to_all_voice_folders == '1':
+            for sub_folder in os.scandir(self.__config.mod_path):
+                if sub_folder.is_dir():
+                    shutil.copyfile(audio_file, f"{sub_folder.path}/{self.WAV_FILE}")
+                    shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.LIP_FILE}")
         else:
-            character_name = debug_character_name
-            debug_character_name = ''
+            shutil.copyfile(audio_file, f"{mod_folder}/{speaker.In_game_voice_model}/{self.WAV_FILE}")
+            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{mod_folder}/{speaker.In_game_voice_model}/{self.LIP_FILE}")
+        
+        os.remove(audio_file)
+        os.remove(audio_file.replace(".wav", ".lip"))
 
-        character_name, character_id, location, in_game_time = self.write_dummy_game_info(character_name, character_df)
+        logging.info(f"{speaker.Name} (character {speaker.Name}) should speak")
+        # if self.character_num == 0:
+        #     self.game_state_manager.write_game_info('_mantella_say_line', subtitle.strip())
+        # else:
+        #     say_line_file = '_mantella_say_line_'+str(self.character_num+1)
+        #     self.game_state_manager.write_game_info(say_line_file, subtitle.strip())
 
-        return character_name, character_id, location, in_game_time
+
+    # def debugging_setup(self, debug_character_name, character_df):
+    #     """Select character based on debugging parameters"""
+
+    #     # None == in-game character chosen by spell
+    #     if debug_character_name == 'None':
+    #         character_id, character_name = self.load_character_name_id()
+    #     else:
+    #         character_name = debug_character_name
+    #         debug_character_name = ''
+
+    #     character_name, character_id, location, in_game_time = self.write_dummy_game_info(character_name, character_df)
+
+    #     return character_name, character_id, location, in_game_time
     
     
-    def load_unnamed_npc(self, character_name, character_df):
+    def load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str, character_df: pd.DataFrame):
         """Load generic NPC if character cannot be found in skyrim_characters.csv"""
         # unknown == I couldn't find the IDs for these voice models
         voice_model_ids = {
@@ -224,14 +234,14 @@ class GameStateManager:
             '00012AD1':	'Male Young Eager',
         }
 
-        actor_voice_model = self.load_data_when_available('_mantella_actor_voice', '')
+        actor_voice_model = ingame_voice_model
         actor_voice_model_id = actor_voice_model.split('(')[1].split(')')[0]
         actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
 
-        actor_race = self.load_data_when_available('_mantella_actor_race', '')
+        actor_race = race
         actor_race = actor_race.split('<')[1].split(' ')[0]
 
-        actor_sex = self.load_data_when_available('_mantella_actor_sex', '')
+        actor_sex = gender
 
         voice_model = ''
         for key in voice_model_ids:
@@ -247,12 +257,12 @@ class GameStateManager:
             except: # guess voice model based on sex and race
                 if actor_sex == '1':
                     try:
-                        voice_model = _female_voice_models[actor_race]
+                        voice_model = self.FEMALE_VOICE_MODELS[actor_race]
                     except:
                         voice_model = 'Female Nord'
                 else:
                     try:
-                        voice_model = _male_voice_models[actor_race]
+                        voice_model = self.MALE_VOICE_MODELS[actor_race]
                     except:
                         voice_model = 'Male Nord'
 
@@ -262,125 +272,68 @@ class GameStateManager:
             skyrim_voice_folder = voice_model.replace(' ','')
         
         character_info = {
-            'name': character_name,
-            'bio': f'You are a {character_name}',
+            'name': name,
+            'bio': f'You are a {name}',
             'voice_model': voice_model,
             'skyrim_voice_folder': skyrim_voice_folder,
         }
 
         return character_info
     
-    
     @utils.time_it
-    def load_game_state(self, debug_mode, debug_character_name, character_df, character_name, character_id, location, in_game_time):
-        """Load game variables from _mantella_ files in Skyrim folder (data passed by the Mantella spell)"""
-
-        if debug_mode == '1':
-            character_name, character_id, location, in_game_time = self.debugging_setup(debug_character_name, character_df)
-        
-        # tell Skyrim papyrus script to start waiting for voiceline input
-        self.write_game_info('_mantella_end_conversation', 'False')
-        character_id, character_name = self.load_character_name_id()
-        try: # load character from skyrim_characters.csv
-            character_info = character_df.loc[character_df['name'].astype(str).str.lower()==character_name.lower()].to_dict('records')[0]
-            is_generic_npc = False
-        except IndexError: # character not found
-            try: # try searching by ID
-                logging.info(f"Could not find {character_name} in skyrim_characters.csv. Searching by ID {character_id}...")
-                character_info = character_df.loc[(character_df['baseid_int'].astype(str)==character_id) | (character_df['baseid_int'].astype(str)==character_id+'.0')].to_dict('records')[0]
-                is_generic_npc = False
-            except IndexError: # load generic NPC
-                logging.info(f"NPC '{character_name}' could not be found in 'skyrim_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
-                character_info = self.load_unnamed_npc(character_name, character_df)
-                is_generic_npc = True
-
-        location = self.load_data_when_available('_mantella_current_location', location)
-        if location.lower() == 'none': # location returns none when out in the wild
-            location = 'Skyrim'
-
-        in_game_time = self.load_data_when_available('_mantella_in_game_time', in_game_time)
-
-        actor_voice_model = self.load_data_when_available('_mantella_actor_voice', '')
-        actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
-        character_info['in_game_voice_model'] = actor_voice_model_name
-
-        # Is Player in combat with NPC
-        is_in_combat = self.load_data_when_available('_mantella_actor_is_enemy', '')
-        character_info['is_in_combat'] = is_in_combat
-
-        actor_relationship_rank = self.load_data_when_available('_mantella_actor_relationship', '')
+    def load_character(self, json: dict) -> Character | None:
         try:
-            actor_relationship_rank = int(actor_relationship_rank)
-        except:
-            actor_relationship_rank = 0
-        character_info['in_game_relationship_level'] = actor_relationship_rank
+            character_id = json[comm_consts.KEY_ACTOR_ID]
+            character_name: str = json[comm_consts.KEY_ACTOR_NAME]
+            gender: int = json[comm_consts.KEY_ACTOR_GENDER]
+            race: str = json[comm_consts.KEY_ACTOR_RACE]
+            actor_voice_model = json[comm_consts.KEY_ACTOR_VOICETYPE]
+            actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
+            is_in_combat: bool = json[comm_consts.KEY_ACTOR_ISINCOMBAT]
+            is_enemy: bool = json[comm_consts.KEY_ACTOR_ISENEMY]
+            relationship_rank: int = json[comm_consts.KEY_ACTOR_RELATIONSHIPRANK]
+            custom_values: dict[str, Any] = {}
+            if json.__contains__(comm_consts.KEY_ACTOR_CUSTOMVALUES):
+                custom_values = json[comm_consts.KEY_ACTOR_CUSTOMVALUES]
+            is_generic_npc = False
+            bio: str = ""
+            voice_model: str = "MaleNord"
+            is_player_character: bool = json[comm_consts.KEY_ACTOR_ISPLAYER]            
+            if not is_player_character:
+                try: # load character from skyrim_characters.csv
+                    character_info = self.__character_df.loc[self.__character_df['name'].astype(str).str.lower()==character_name.lower()].to_dict('records')[0]
+                    bio = character_info["bio"]
+                    voice_model = character_info['voice_model']
+                except IndexError: # character not found
+                    try: # try searching by ID
+                        logging.info(f"Could not find {character_name} in skyrim_characters.csv. Searching by ID {character_id}...")
+                        character_info = self.__character_df.loc[(self.__character_df['baseid_int'].astype(str)==character_id) | (self.__character_df['baseid_int'].astype(str)==character_id+'.0')].to_dict('records')[0]
+                        is_generic_npc = False
+                    except IndexError: # load generic NPC
+                        logging.info(f"NPC '{character_name}' could not be found in 'skyrim_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
+                        character_info = self.load_unnamed_npc(character_name, race, gender, actor_voice_model_name, self.__character_df)
+                        is_generic_npc = True
+            
 
-        return character_info, location, in_game_time, is_generic_npc
-    
-    
-    @utils.time_it
-    def update_game_events(self, message: user_message) -> user_message:
-        """Add in-game events to player's response"""
-
-        # append in-game events to player's response
-        with open(f'{self.game_path}/_mantella_in_game_events.txt', 'r', encoding='utf-8') as f:
-            in_game_events_lines = f.readlines()[-5:] # read latest 5 events
-
-        message.add_event(in_game_events_lines)
-
-        is_in_combat = self.load_data_when_available('_mantella_actor_is_enemy', '')
-        if is_in_combat.lower() == 'true':
-            message.add_event(['\n*You are attacking the player. This is either because you are an enemy or the player has attacked you first.*'])
-
-        if message.count_ingame_events() > 0:            
-            logging.info(f'In-game events since previous exchange:\n{message.get_ingame_events_text()}')
-
-        # once the events are shared with the NPC, clear the file
-        self.write_game_info('_mantella_in_game_events', '')
-
-        # append the time to player's response
-        with open(f'{self.game_path}/_mantella_in_game_time.txt', 'r') as f:
-            in_game_time = f.readline().strip()
+            return Character(character_id,
+                            character_name,
+                            gender,
+                            race,
+                            is_player_character,
+                            bio,
+                            is_in_combat,
+                            is_enemy,
+                            relationship_rank,
+                            is_generic_npc,
+                            actor_voice_model_name,
+                            voice_model,
+                            custom_values)
+        except CharacterDoesNotExist:                 
+            logging.info('Restarting...')
+            return None 
         
-        # only pass the in-game time if it has changed
-        if (in_game_time != self.prev_game_time) and (in_game_time != ''):
-            time_group = utils.get_time_group(in_game_time)
-            message.set_ingame_time(in_game_time, time_group)
-            self.prev_game_time = in_game_time
-
-        return message
-    
-    @utils.time_it
-    def end_conversation(self):
-        logging.info('Conversation ended.')
-
-        self.write_game_info('_mantella_in_game_events', '')
-        self.write_game_info('_mantella_end_conversation', 'True')
-        time.sleep(5) # wait a few seconds for everything to register
-
-        return None
-        
-_male_voice_models = {
-    'ArgonianRace': 'Male Argonian',
-    'BretonRace': 'Male Even Toned',
-    'DarkElfRace': 'Male Dark Elf Commoner',
-    'HighElfRace': 'Male Elf Haughty',
-    'ImperialRace': 'Male Even Toned',
-    'KhajiitRace': 'Male Khajit',
-    'NordRace': 'Male Nord',
-    'OrcRace': 'Male Orc',
-    'RedguardRace': 'Male Even Toned',
-    'WoodElfRace': 'Male Young Eager',
-}
-_female_voice_models = {
-    'ArgonianRace': 'Female Argonian',
-    'BretonRace': 'Female Even Toned',
-    'DarkElfRace': 'Female Dark Elf Commoner',
-    'HighElfRace': 'Female Elf Haughty',
-    'ImperialRace': 'Female Even Toned',
-    'KhajiitRace': 'Female Khajit',
-    'NordRace': 'Female Nord',
-    'OrcRace': 'Female Orc',
-    'RedguardRace': 'Female Sultry',
-    'WoodElfRace': 'Female Young Eager',
-}
+    def error_message(self, message: str) -> dict[str, Any]:
+        return {
+                comm_consts.KEY_REPLYTYPE: "error",
+                "mantella_message": message
+            }

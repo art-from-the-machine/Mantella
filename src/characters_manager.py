@@ -6,13 +6,14 @@ class Characters:
     def __init__(self):
         self.__active_characters: dict[str, Character] = {}
         self.__last_added_character: Character | None = None
+        self.__player_character: Character | None = None
     
     def __len__(self) -> int:
         return len(self.__active_characters)
     
     def contains_character(self, character_to_check: str | Character) -> bool:
         if isinstance(character_to_check, Character):
-            return self.__active_characters.values().__contains__(character_to_check)
+            return self.__active_characters.__contains__(character_to_check.Name)
         else:
             return self.__active_characters.__contains__(character_to_check)
     
@@ -24,9 +25,12 @@ class Characters:
         return len(self.__active_characters)
     
     def add_character(self, new_character: Character):
-        if not self.__active_characters.__contains__(new_character.name):
-            self.__active_characters[new_character.name] = new_character
-            self.__last_added_character = new_character
+        if not self.__active_characters.__contains__(new_character.Name):
+            self.__active_characters[new_character.Name] = new_character            
+            if new_character.Is_player_character:
+                self.__player_character = new_character
+            else:
+                self.__last_added_character = new_character
 
     def get_character_by_name(self, name: str) -> Character:
         return self.__active_characters[name]
@@ -36,3 +40,9 @@ class Characters:
     
     def get_all_names(self) -> list[str]:
         return list(self.__active_characters.keys())
+    
+    def contains_player_character(self) -> bool:
+        return self.__player_character != None
+    
+    def get_player_character(self) -> Character | None:
+        return self.__player_character

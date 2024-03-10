@@ -1,7 +1,6 @@
 import json
 import os
-from typing import Hashable
-from src.llm.openai_client import openai_client
+from typing import Hashable, Callable
 from src.characters_manager import Characters
 from src.remember.remembering import remembering
 from src.utils import get_time_group
@@ -11,16 +10,17 @@ from src.config_loader import ConfigLoader
 class context:
     """Holds the context of a conversation
     """
-    def __init__(self, config: ConfigLoader, rememberer: remembering, language: dict[Hashable, str], client: openai_client, token_limit_percent: float = 0.45) -> None:
+    def __init__(self, config: ConfigLoader, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str], bool]) -> None:
+        self.__prev_game_time: tuple[str, str] = '', ''
         self.__npcs_in_conversation: Characters = Characters()
         self.__config: ConfigLoader = config
         self.__rememberer: remembering = rememberer
         self.__language: dict[Hashable, str] = language
-        self.__client: openai_client = client #Just passed in for the moment to measure the length of the system message, maybe better solution in the future?
+        self.__is_prompt_too_long: Callable[[str], bool] = is_prompt_too_long
         self.__location: str = "Skyrim"
         self.__ingame_time: int = 12
-        self.__token_limit_percent = token_limit_percent
-        self.__should_switch_to_multi_npc_conversation: bool = False
+        self.__ingame_events: list[str] = []
+        self.__have_actors_changed: bool = False
 
     @property
     def npcs_in_conversation(self) -> Characters:
@@ -35,38 +35,86 @@ class context:
         return self.__config.multi_npc_prompt
     
     @property
-    def location(self) -> str:
+    def Location(self) -> str:
         return self.__location
     
     @property
-    def language(self) -> dict[Hashable, str]:
+    def Language(self) -> dict[Hashable, str]:
         return self.__language
     
-    @location.setter
-    def location(self, value: str):
+    @Location.setter
+    def Location(self, value: str):
         self.__location = value
 
     @property
-    def ingame_time(self) -> int:
+    def Ingame_time(self) -> int:
         return self.__ingame_time
     
-    @ingame_time.setter
-    def ingame_time(self, value: int):
-        self.__ingame_time = value
+    @Ingame_time.setter
+    def Ingame_time(self, value: int):
+        self.__ingame_time = value       
 
     @property
-    def should_switch_to_multi_npc_conversation(self) -> bool:
-        return self.__should_switch_to_multi_npc_conversation
+    def Have_actors_changed(self) -> bool:
+        return self.__have_actors_changed
     
-    @should_switch_to_multi_npc_conversation.setter
-    def should_switch_to_multi_npc_conversation(self, value: bool):
-        self.__should_switch_to_multi_npc_conversation = value
+    @Have_actors_changed.setter
+    def Have_actors_changed(self, value: bool):
+        self.__have_actors_changed = value
 
-    def add_character(self, new_character: Character):
-        self.__npcs_in_conversation.add_character(new_character)
+    def get_context_ingame_events(self) -> list[str]:
+        return self.__ingame_events
+    
+    def clear_context_ingame_events(self):
+        self.__ingame_events.clear()
+
+    def add_or_update_character(self, npc: Character):
+        if not self.__npcs_in_conversation.contains_character(npc):
+            self.__npcs_in_conversation.add_character(npc)
+            self.__have_actors_changed = True
+        else:
+            #check for updates in the transient stats and generate update events
+            self.__update_ingame_events_on_npc_change(npc)
 
     def get_time_group(self) -> str:
         return get_time_group(self.__ingame_time)
+    
+    def update_context(self, location: str, in_game_time: int, custom_ingame_events: list[str]):
+        self.__ingame_events.extend(custom_ingame_events)
+        if location != self.__location:
+            self.__location = location
+            custom_ingame_events.append(f"The location is now {location}.")
+        
+        self.__ingame_time = in_game_time
+        currentTime: tuple[str, str] = str(in_game_time), get_time_group(in_game_time)
+        if currentTime != self.__prev_game_time:
+            self.__prev_game_time = currentTime
+            custom_ingame_events.append(f"*The time is {currentTime[0]} {currentTime[1]}.*\n")
+        self.__ingame_events.extend(custom_ingame_events)
+    
+    def __update_ingame_events_on_npc_change(self, npc: Character):
+        current_stats: Character = self.__npcs_in_conversation.get_character_by_name(npc.Name)
+        #Is in Combat
+        if current_stats.Is_in_combat != npc.Is_in_combat:
+            if npc.Is_in_combat:
+                self.__ingame_events.append(f"{npc.Name} is now in combat!")
+            else:
+                self.__ingame_events.append(f"{npc.Name} is no longer in combat!")
+        if not npc.Is_player_character:
+            player_name = "the player"
+            player = self.__npcs_in_conversation.get_player_character()
+            if player:
+                player_name = player.Name
+            #Is attacking player
+            if current_stats.Is_enemy != npc.Is_enemy:
+                if npc.Is_enemy: 
+                    self.__ingame_events.append(f"*{npc.Name} is attacking {player_name}. This is either because {npc.Personal_pronoun_subject} is an enemy or {player_name} has attacked {npc.Personal_pronoun_object} first.*")
+                else:
+                    self.__ingame_events.append(f"*{npc.Name} is no longer attacking {player_name}.*")
+            #Relationship rank
+            if current_stats.Relationship_rank != npc.Relationship_rank:
+                trust = self.__get_trust(npc)
+                self.__ingame_events.append(f"*{player_name} is now {trust} to {npc.Name}.*")
     
     @staticmethod
     def format_listing(listing: list[str]) -> str:
@@ -96,7 +144,7 @@ class context:
         """
         trust_level = len(npc.load_conversation_log())
         trust = 'a stranger'
-        if npc.relationship_rank == 0:
+        if npc.Relationship_rank == 0:
             if trust_level < 1:
                 trust = 'a stranger'
             elif trust_level < 10:
@@ -105,11 +153,11 @@ class context:
                 trust = 'a friend'
             elif trust_level >= 50:
                 trust = 'a close friend'
-        elif npc.relationship_rank == 4:
+        elif npc.Relationship_rank == 4:
             trust = 'a lover'
-        elif npc.relationship_rank > 0:
+        elif npc.Relationship_rank > 0:
             trust = 'a friend'
-        elif npc.relationship_rank < 0:
+        elif npc.Relationship_rank < 0:
             trust = 'an enemy'
         return trust
     
@@ -126,9 +174,9 @@ class context:
             return ""
         
         relationships = []
-        for npc in self.__npcs_in_conversation.get_all_characters():
+        for npc in self.get_characters_excluding_player().get_all_characters():
             trust = self.__get_trust(npc)
-            relationships.append(f"{trust} to {npc.name}")
+            relationships.append(f"{trust} to {npc.Name}")
         
         return context.format_listing(relationships)
        
@@ -141,7 +189,7 @@ class context:
         Returns:
             str: text containing the names of the NPC concatenated by ',' and 'and'
         """
-        keys = self.__npcs_in_conversation.get_all_names()
+        keys = self.get_characters_excluding_player().get_all_names()
         if len(player_name) > 0:
             keys.append(player_name)
         return context.format_listing(keys)
@@ -153,11 +201,11 @@ class context:
             str: the bios concatenated together into a single string
         """
         bio_descriptions = []
-        for character in self.__npcs_in_conversation.get_all_characters():
+        for character in self.get_characters_excluding_player().get_all_characters():
             if len(self.__npcs_in_conversation) == 1:
-                bio_descriptions.append(character.bio)
+                bio_descriptions.append(character.Bio)
             else:
-                bio_descriptions.append(f"{character.name}: {character.bio}")
+                bio_descriptions.append(f"{character.Name}: {character.Bio}")
         return "\n".join(bio_descriptions)
     
     def generate_system_message(self, prompt: str, include_player: bool = False, include_conversation_summaries: bool = True, include_bios: bool = True) -> str:
@@ -175,7 +223,7 @@ class context:
             player_name = self.__config.player_name
         name = ""
         if self.npcs_in_conversation.last_added_character:
-            name: str = self.npcs_in_conversation.last_added_character.name
+            name: str = self.npcs_in_conversation.last_added_character.Name
         names = self.__get_character_names_as_text()
         names_w_player = self.__get_character_names_as_text(player_name)
         if include_bios:            
@@ -187,7 +235,7 @@ class context:
         time = self.__ingame_time
         time_group = get_time_group(time)
         if include_conversation_summaries:
-            conversation_summaries = self.__rememberer.get_prompt_text(self.__npcs_in_conversation)
+            conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player())
         else:
             conversation_summaries = ""
 
@@ -209,7 +257,14 @@ class context:
                 conversation_summary=content[1],
                 conversation_summaries=content[1]
                 )
-            if self.__client.calculate_tokens_from_text(result) < self.__client.token_limit * self.__token_limit_percent:
+            if not self.__is_prompt_too_long(result): #self.__client.calculate_tokens_from_text(result) < self.__client.token_limit * self.__token_limit_percent:
                 return result
         
         return prompt #This should only trigger, if the default prompt even without bios and conversation_summaries is too long
+    
+    def get_characters_excluding_player(self) -> Characters:
+        new_characters = Characters()
+        for actor in self.__npcs_in_conversation.get_all_characters():
+            if not actor.Is_player_character:
+                new_characters.add_character(actor)
+        return new_characters

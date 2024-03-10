@@ -15,3 +15,4 @@ main.exe
 /.obsidian/
 /.vs
 /docs/build/
+__pycache__/

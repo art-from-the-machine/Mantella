@@ -6,9 +6,8 @@ import requests
 import json
 
 class Transcriber:
-    def __init__(self, game_state_manager, config, api_key: str):
+    def __init__(self, config, api_key: str):
         self.loglevel = 27
-        self.game_state_manager = game_state_manager
         self.mic_enabled = config.mic_enabled
         self.language = config.stt_language
         self.task = "transcribe"
@@ -55,33 +54,33 @@ class Transcriber:
                 else:
                     self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
 
-    def get_player_response(self, say_goodbye, prompt: str):
-        if (self.debug_mode == '1') & (self.debug_use_mic == '0'):
-            transcribed_text = self.default_player_response
-        else:
-            if self.mic_enabled == '1':
-                # listen for response
-                transcribed_text = self.recognize_input(prompt)
-            else:
-                # text input through console
-                if (self.debug_mode == '1') & (self.debug_use_mic == '1'):
-                    transcribed_text = input('\nWrite player\'s response: ')
-                    logging.log(self.loglevel, f'Player wrote "{transcribed_text}"')
-                # await text input from the game
-                else:
-                    self.game_state_manager.write_game_info('_mantella_text_input', '')
-                    self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'True')
-                    transcribed_text = self.game_state_manager.load_data_when_available('_mantella_text_input', '')
-                    self.game_state_manager.write_game_info('_mantella_text_input', '')
-                    self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'False')
+    # def get_player_response(self, say_goodbye, prompt: str):
+    #     if (self.debug_mode == '1') & (self.debug_use_mic == '0'):
+    #         transcribed_text = self.default_player_response
+    #     else:
+    #         if self.mic_enabled == '1':
+    #             # listen for response
+    #             transcribed_text = self.recognize_input(prompt)
+    #         else:
+    #             # text input through console
+    #             if (self.debug_mode == '1') & (self.debug_use_mic == '1'):
+    #                 transcribed_text = input('\nWrite player\'s response: ')
+    #                 logging.log(self.loglevel, f'Player wrote "{transcribed_text}"')
+    #             # await text input from the game
+    #             else:
+    #                 self.game_state_manager.write_game_info('_mantella_text_input', '')
+    #                 self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'True')
+    #                 transcribed_text = self.game_state_manager.load_data_when_available('_mantella_text_input', '')
+    #                 self.game_state_manager.write_game_info('_mantella_text_input', '')
+    #                 self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'False')
 
-        if (self.debug_mode == '1') & (self.debug_exit_on_first_exchange == '1'):
-            if say_goodbye:
-                transcribed_text = self.end_conversation_keyword
-            else:
-                say_goodbye = True
+    #     if (self.debug_mode == '1') & (self.debug_exit_on_first_exchange == '1'):
+    #         if say_goodbye:
+    #             transcribed_text = self.end_conversation_keyword
+    #         else:
+    #             say_goodbye = True
         
-        return transcribed_text, say_goodbye
+    #     return transcribed_text, say_goodbye
     
     # def get_player_response(self, say_goodbye, radiant_dialogue="false"):
     #     if radiant_dialogue == "true":
@@ -130,20 +129,20 @@ class Transcriber:
         Recognize input from mic and return transcript if activation tag (assistant name) exist
         """
         while True:
-            self.game_state_manager.write_game_info('_mantella_status', 'Listening...')
+            # self.game_state_manager.write_game_info('_mantella_status', 'Listening...')
             logging.log(self.loglevel, 'Listening...')
             transcript = self._recognize_speech_from_mic(prompt)
-            transcript_cleaned = utils.clean_text(transcript)
+            # transcript_cleaned = utils.clean_text(transcript)
 
-            conversation_ended = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
-            if conversation_ended.lower() == 'true':
-                return 'goodbye'
+            # conversation_ended = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
+            # if conversation_ended.lower() == 'true':
+            #     return 'goodbye'
 
             # common phrases hallucinated by Whisper
-            if transcript_cleaned in ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much']:
-                continue
+            # if transcript_cleaned in ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much']:
+            #     continue
 
-            self.game_state_manager.write_game_info('_mantella_status', 'Thinking...')
+            # self.game_state_manager.write_game_info('_mantella_status', 'Thinking...')
             return transcript
     
 

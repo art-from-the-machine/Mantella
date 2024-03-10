@@ -1,68 +1,219 @@
+from typing import Any
 import json
 import os
 import logging
 
-from src.llm.message_thread import message_thread
+from openai.types.chat import ChatCompletionMessageParam
 
 class Character:
-    def __init__(self, info, language, is_generic_npc):
-        self.info = info
-        self.name = info['name']
-        self.bio = info['bio']
-        self.is_in_combat = info['is_in_combat']
-        self.relationship_rank = info['in_game_relationship_level']
-        self.language = language
-        self.is_generic_npc = is_generic_npc
-        self.in_game_voice_model = info['in_game_voice_model']
-        self.voice_model = info['voice_model']
-        self.conversation_history_file = f"data/conversations/{self.name}/{self.name}.json"
-        self.conversation_summary_file = self.get_latest_conversation_summary_file_path()
-        self.conversation_summary = ''
+    def __init__(self, character_id:str, name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, custom_character_values: dict[str, Any]):
+        self.__id: str = character_id
+        self.__name: str = name
+        self.__gender: int = gender
+        self.__race: str = race
+        self.__is_player_character: bool = is_player_character
+        self.__bio: str = bio
+        self.__is_in_combat: bool = is_in_combat
+        self.__is_enemy: bool = is_enemy
+        self.__relationship_rank: int = relationship_rank
+        self.__is_generic_npc: bool = is_generic_npc
+        self.__ingame_voice_model: str = ingame_voice_model
+        self.__tts_voice_model: str = tts_voice_model
+        self.__custom_character_values: dict[str, Any] = custom_character_values
+        self.__conversation_history_file = f"data/conversations/{name}/{name}.json"
+        self.__conversation_summary_file = self.get_latest_conversation_summary_file_path()
+        self.__conversation_summary = ''
 
-    def get_latest_conversation_summary_file_path(self):
+    @property
+    def Id(self) -> str:
+        return self.__id
+    
+    @Id.setter
+    def Id(self, value: str):
+        self.__id = value
+
+    @property
+    def Name(self) -> str:
+        return self.__name
+    
+    @Name.setter
+    def Name(self, value: str):
+        self.__name = value
+
+    @property
+    def Gender(self) -> int:
+        return self.__gender
+    
+    @Gender.setter
+    def Gender(self, value: int):
+        self.__gender = value
+    
+    @property
+    def Personal_pronoun_subject(self) -> str:
+        return ["he", "she"][self.__gender]
+    
+    @property
+    def Personal_pronoun_object(self) -> str:
+        return ["him", "her"][self.__gender]
+    
+    @property
+    def Possesive_pronoun(self) -> str:
+        return ["his", "hers"][self.__gender]
+
+    @property
+    def Race(self) -> str:
+        return self.__race
+    
+    @Race.setter
+    def Race(self, value: str):
+        self.__race = value
+
+    @property
+    def Is_player_character(self) -> bool:
+        return self.__is_player_character
+    
+    @Is_player_character.setter
+    def Is_player_character(self, value: bool):
+        self.__is_player_character = value
+
+    @property
+    def Bio(self) -> str:
+        return self.__bio
+    
+    @Bio.setter
+    def Bio(self, value: str):
+        self.__bio = value
+
+    @property
+    def Is_in_combat(self) -> bool:
+        return self.__is_in_combat
+    
+    @Is_in_combat.setter
+    def Is_in_combat(self, value: bool):
+        self.__is_in_combat = value
+    
+    @property
+    def Is_enemy(self) -> bool:
+        return self.__is_enemy
+    
+    @Is_enemy.setter
+    def Is_enemy(self, value: bool):
+        self.__is_enemy = value
+
+    @property
+    def Relationship_rank(self) -> int:
+        return self.__relationship_rank
+    
+    @Relationship_rank.setter
+    def Relationship_rank(self, value: int):
+        self.__relationship_rank = value
+
+    @property
+    def Is_generic_npc(self) -> bool:
+        return self.__is_generic_npc
+    
+    @Is_generic_npc.setter
+    def Is_generic_npc(self, value: bool):
+        self.__is_generic_npc = value
+
+    @property
+    def In_game_voice_model(self) -> str:
+        return self.__ingame_voice_model
+    
+    @In_game_voice_model.setter
+    def In_game_voice_model(self, value: str):
+        self.__ingame_voice_model = value
+
+    @property
+    def TTS_voice_model(self) -> str:
+        return self.__tts_voice_model
+    
+    @TTS_voice_model.setter
+    def TTS_voice_model(self, value: str):
+        self.__tts_voice_model = value
+
+    @property
+    def Conversation_history_file(self) -> str:
+        return self.__conversation_history_file
+    
+    @property
+    def Conversation_summary_file(self) -> str:
+        return self.__conversation_summary_file
+    
+    @Conversation_summary_file.setter
+    def Conversation_summary_file(self, value: str):
+        self.__conversation_summary_file = value
+    
+    @property
+    def Conversation_summary(self) -> str:
+        return self.__conversation_summary
+    
+    @Conversation_summary.setter
+    def Conversation_summary(self, value: str):
+        self.__conversation_summary = value
+
+    def get_custom_character_value(self, key: str) -> Any:
+        if self.__custom_character_values.__contains__(key):
+            return self.__custom_character_values[key]
+        return None
+    
+    def set_custom_character_value(self, key: str, value: Any):
+        self.__custom_character_values[key] = value
+
+    def __eq__(self, other):
+        if isinstance(self, type(other)):
+            return self.Name == other.Name
+        return NotImplemented
+    
+    def __hash__(self):
+        return hash(tuple(sorted(self.__dict__.items())))
+
+
+    def get_latest_conversation_summary_file_path(self) -> str:
         """Get latest conversation summary by file name suffix"""
 
-        if os.path.exists(f"data/conversations/{self.name}"):
+        name: str = self.Name
+        if os.path.exists(f"data/conversations/{name}"):
             # get all files from the directory
-            files = os.listdir(f"data/conversations/{self.name}")
+            files = os.listdir(f"data/conversations/{name}")
             # filter only .txt files
             txt_files = [f for f in files if f.endswith('.txt')]
             if len(txt_files) > 0:
                 file_numbers = [int(os.path.splitext(f)[0].split('_')[-1]) for f in txt_files]
                 latest_file_number = max(file_numbers)
-                logging.info(f"Loaded latest summary file: data/conversations/{self.name}_summary_{latest_file_number}.txt")
+                logging.info(f"Loaded latest summary file: data/conversations/{name}_summary_{latest_file_number}.txt")
             else:
-                logging.info(f"data/conversations/{self.name} does not exist. A new summary file will be created.")
+                logging.info(f"data/conversations/{name} does not exist. A new summary file will be created.")
                 latest_file_number = 1
         else:
-            logging.info(f"data/conversations/{self.name} does not exist. A new summary file will be created.")
+            logging.info(f"data/conversations/{name} does not exist. A new summary file will be created.")
             latest_file_number = 1
         
-        conversation_summary_file = f"data/conversations/{self.name}/{self.name}_summary_{latest_file_number}.txt"
+        conversation_summary_file = f"data/conversations/{name}/{name}_summary_{latest_file_number}.txt"
         return conversation_summary_file
     
-    def save_conversation_log(self, messages: message_thread):
+    def save_conversation_log(self, messages: list[ChatCompletionMessageParam]):
         # save conversation history
         # if this is not the first conversation
-        transformed_messages = messages.transform_to_openai_messages(messages.get_talk_only())
-        if os.path.exists(self.conversation_history_file):
-            with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
+        transformed_messages = messages
+        if os.path.exists(self.__conversation_history_file):
+            with open(self.__conversation_history_file, 'r', encoding='utf-8') as f:
                 conversation_history = json.load(f)
 
             # add new conversation to conversation history
             conversation_history.append(transformed_messages) # append everything except the initial system prompt
         # if this is the first conversation
         else:
-            directory = os.path.dirname(self.conversation_history_file)
+            directory = os.path.dirname(self.__conversation_history_file)
             os.makedirs(directory, exist_ok=True)
             conversation_history = transformed_messages
         
-        with open(self.conversation_history_file, 'w', encoding='utf-8') as f:
+        with open(self.__conversation_history_file, 'w', encoding='utf-8') as f:
             json.dump(conversation_history, f, indent=4) # save everything except the initial system prompt
     
     def load_conversation_log(self) -> list[str]:
-        if os.path.exists(self.conversation_history_file):
-            with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
+        if os.path.exists(self.__conversation_history_file):
+            with open(self.__conversation_history_file, 'r', encoding='utf-8') as f:
                 conversation_history = json.load(f)
             previous_conversations = []
             for conversation in conversation_history:
