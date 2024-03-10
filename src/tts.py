@@ -32,6 +32,7 @@ class Synthesizer:
         
         #Added from xTTS implementation
         self.use_external_xtts = int(config.use_external_xtts)
+        self.xtts_default_model = config.xtts_default_model
         self.xtts_deepspeed = int(config.xtts_deepspeed)
         self.xtts_lowvram = int(config.xtts_lowvram)
         self.xtts_device = config.xtts_device
@@ -385,6 +386,8 @@ class Synthesizer:
             command = f'{self.xtts_server_path}\\xtts-api-server-mantella.exe'
     
             # Check if deepspeed should be enabled
+            if self.xtts_default_model:
+                command += (f" --version {self.xtts_default_model}")
             if self.xtts_deepspeed == 1:
                 command += ' --deepspeed'
             if self.xtts_device == "cpu":
@@ -398,7 +401,7 @@ class Synthesizer:
             tts_data_dict = json.loads(self.xTTS_tts_data.replace('\n', ''))
             # Wait for the server to be up and running
             server_ready = False
-            for _ in range(90):  # try for up to 10 seconds
+            for _ in range(120):  # try for up to 10 seconds
                 try:
                     response = requests.post(self.xtts_set_tts_settings, json=tts_data_dict)
                     if response.status_code == 200:

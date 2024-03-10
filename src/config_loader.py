@@ -110,6 +110,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
 
             #Added from xTTS implementation
             self.use_external_xtts = int(config['Speech']['use_external_xtts'])
+            self.xtts_default_model = config['Speech']['xtts_default_model']
             self.xtts_deepspeed = int(config['Speech']['xtts_deepspeed'])
             self.xtts_lowvram = int(config['Speech']['xtts_lowvram'])
             self.xtts_device = config['Speech']['xtts_device']
