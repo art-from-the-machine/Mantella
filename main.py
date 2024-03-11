@@ -20,19 +20,19 @@ try:
 
     mantella_version = '0.11'
     logging.info(f'\nMantella v{mantella_version}')
+    should_debug_http = False
 
     sync_http_server = Flask(__name__)
     chat_manager = ChatManager(config, Synthesizer(config), llm_client)
     game_state_manager = game_manager.GameStateManager(chat_manager, config, language_info, llm_client, character_df)
     
     #start the http server
-    should_log_http_in_and_output = True
-    routes: list[routeable] = [mantella_route(game_state_manager, should_log_http_in_and_output), 
-                               stt_route(config, llm_client.api_key, should_log_http_in_and_output)]
+    routes: list[routeable] = [mantella_route(game_state_manager, should_debug_http), 
+                               stt_route(config, llm_client.api_key, should_debug_http)]
     for route in routes:
         route.add_route_to_server(sync_http_server)
     
-    sync_http_server.run(debug=True)
+    sync_http_server.run(debug=should_debug_http)
 
 except Exception as e:
     logging.error("".join(traceback.format_exception(e)))

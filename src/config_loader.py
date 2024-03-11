@@ -145,11 +145,11 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             raise e
 
         # don't trust; verify; test subfolders
-        if not os.path.exists(f"{self.game_path}"):
-            invalid_path(self.game_path, f"{self.game_path}")
-        else:
-            skyrim_in_program_files = check_program_files(self.game_path)
-            check_missing_mantella_file(self.game_path, skyrim_in_program_files)
+        # if not os.path.exists(f"{self.game_path}"):
+        #     invalid_path(self.game_path, f"{self.game_path}")
+        # else:
+        #     skyrim_in_program_files = check_program_files(self.game_path)
+        #     check_missing_mantella_file(self.game_path, skyrim_in_program_files)
 
         if not os.path.exists(f"{self.xvasynth_path}\\resources\\"):
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")

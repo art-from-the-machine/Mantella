@@ -258,10 +258,7 @@ class conversation:
         # transcriber = self.__stt
         config = self.__context.config
         transcript_cleaned = utils.clean_text(last_user_text)
-        # check if conversation has ended again after player input
-        with open(f'{config.game_path}/_mantella_end_conversation.txt', 'r', encoding='utf-8') as f:
-            conversation_ended = f.readline().strip()
 
         # check if user is ending conversation
-        return Transcriber.activation_name_exists(transcript_cleaned, config.end_conversation_keyword.lower()) or (Transcriber.activation_name_exists(transcript_cleaned, 'good bye')) or (conversation_ended.lower() == 'true')
+        return Transcriber.activation_name_exists(transcript_cleaned, config.end_conversation_keyword.lower()) or (Transcriber.activation_name_exists(transcript_cleaned, 'good bye'))
             
