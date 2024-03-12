@@ -40,6 +40,7 @@
    :caption: Table of Contents   
 
 pages/installation
+pages/installation_fallout4
 pages/issues_qna
 pages/adding_modded_npcs
 pages/contribute
