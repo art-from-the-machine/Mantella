@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 import json
 from subprocess import Popen, PIPE, STDOUT, DEVNULL, STARTUPINFO,STARTF_USESHOWWINDOW
+import io
 
 class TTSServiceFailure(Exception):
     pass
@@ -42,7 +43,6 @@ class Synthesizer:
         self.synthesize_url_xtts = config.xtts_synthesize_url
         self.switch_model_url = config.xtts_switch_model
         self.xtts_get_models_list = config.xtts_get_models_list
-        self.xtts_set_output = config.xtts_set_output
         self.official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
 
         # check if xvasynth is running; otherwise try to run it
@@ -150,7 +150,6 @@ class Synthesizer:
     
         # Synthesize voicelines
         if self.use_external_xtts == 1:
-            requests.post(self.xtts_set_output, json={'output_folder': final_voiceline_folder})
             self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, aggro)
         else:
             if len(phrases) == 1:
@@ -301,15 +300,14 @@ class Synthesizer:
         data = {
             'text': line,
             'speaker_wav': voice_path,
-            'language': self.language,
-            'save_path': save_path
+            'language': self.language
         }
         response = requests.post(self.synthesize_url_xtts, json=data)
 
         # Check if the response is successful
-        if response.ok:
+        if response.status_code == 200:
             # Convert the audio file to 16-bit format only if the POST request was successful
-            self.convert_to_16bit(save_path)
+            self.convert_to_16bit(io.BytesIO(response.content), save_path)
         else:
             logging.error(f"Failed to synthesize line with xTTS: {response.status_code} - {response.text}")
 
