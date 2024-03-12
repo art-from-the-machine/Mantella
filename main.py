@@ -85,7 +85,7 @@ try:
                 character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
                 if num_characters_selected == 1: 
                     #Only automatically preload the voice model for the first character, can't predict who will talk first/next in multi-npc or radiant
-                    synthesizer.change_voice(character.voice_model)
+                    #synthesizer.change_voice(character.voice_model)
                     chat_manager.character_num = 0
                     chat_manager.active_character = character
                 game_state_manager.write_game_info('_mantella_character_selection', 'True')
