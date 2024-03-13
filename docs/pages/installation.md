@@ -1,4 +1,4 @@
-# Installation
+# Installation Skyrim
 If you get stuck anywhere in the installation process, please see {doc}`/pages/issues_qna` or reach out on [Discord](https://discord.gg/Q4BJAdtGUE).
 
 ## Video Tutorial

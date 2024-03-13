@@ -1,8 +1,5 @@
-# Installation
+# Installation Fallout 4
 If you get stuck anywhere in the installation process, please see {doc}`/pages/issues_qna` or reach out on [Discord](https://discord.gg/Q4BJAdtGUE).
-
-## Video Tutorial
-TBD
 
 ## Requirements
 ### Hardware Requirements
@@ -24,10 +21,10 @@ This mod requires ~16GB of space when xVASynth and all voice models are installe
 
 
 ### Compatibility
-- [WARS - Weapon Addition and Replacement Suite](https://www.nexusmods.com/fallout4/mods/73478) conflicts with Mantella.
+- [WARS - Weapon Addition and Replacement Suite](https://www.nexusmods.com/fallout4/mods/73478) conflicts with the Mantella Mod esp.
 - Mantella requires **Windows 10 / 11** (it is yet unconfirmed whether it works on Windows 7)
 
-### Fallout 4
+### Fallout4
 ```{admonition} Warning
 :class: attention
 
@@ -37,16 +34,16 @@ As Mantella accesses and writes to files within your Fallout 4 folder, it is unl
 Steam does not allow to create a new Steam Game Library on the same disk. You can either move the whole Steam client outside [as described on this Steam Support page](https://help.steampowered.com/en/faqs/view/4BD4-4528-6B2E-8327) or use [LostDragonist/steam-library-setup-tool](https://github.com/LostDragonist/steam-library-setup-tool/wiki/Usage-Guide) to allow multiple Steam Game Libraries on one disk.
 
 ### Mantella Files
-The Mantella files can be downloaded from [Nexus Mods](https://www.nexusmods.com/skyrimspecialedition/mods/98631).
+The Mantella files can be downloaded from [Nexus Mods](https://www.nexusmods.com/fallout4/).
 
 | File | Installation |
 |----------|----------|
 | Mantella Software | Extract this folder somewhere convenient to you (if you need some inspiration, you can store it in Documents). **Do not store this folder in Program Files / (x86), Desktop, or your Fallout 4 folder**. |
-| Mantella MOd | This file can be installed in the same way as other mods with your mod manager. |
+| Mantella Mod | This file can be installed in the same way as other mods with your mod manager. |
 
 ## xVASynth
 xVASynth is used as the text-to-speech engine by Mantella due to it being free open-source software and already having Fallout 4 voice models trained.
-1. Download xVASynth via [Steam](https://store.steampowered.com/app/1765720/xVASynth/) (preferred) or [Nexus](https://www.nexusmods.com/fallout4/mods/49340). Do not store xVASynth in your Fallout 4 folder.
+1. Download xVASynth via [Steam](https://store.steampowered.com/app/1765720/xVASynth/) (preferred) or [Nexus](https://www.nexusmods.com/fallout4/mods/49340). Do not store xVASynth in your Fallout 4 game folder.
 
 2. Download the Fallout 4 voice models. You can either download all models, via the xVASynth UI if you have Nexus Premium, or manually via the Nexus Mods page:  
 
@@ -91,24 +88,25 @@ When installed correctly, it should look like the below:
 ```{admonition} Warning
 :class: attention
 
-Always ensure you are downloading the right version of each mod for your version of Fallout 4. You can check your Fallout 4. version by right-clicking its exe file in your Fallout 4. folder and going to Properties -> Details -> File version. 
+Always ensure you are downloading the right version of each mod for your version of Fallout 4. You can check your Fallout 4 version by right-clicking its exe file in your Fallout 4. folder and going to Properties -> Details -> File version. it should be 1.10.163.0 (for Fallout 4 desktop) or 1.2.72.0 (for Fallout 4 VR).
 ```
 
-<img src="../_static/img/fallout4_file_version.JPG" alt="Fallout 4 Version" width="240" height="auto"/>
+<img src="../_static/img/fallout4_file_version.JPG" alt="Fallout 4 Version" width="640" height="auto"/>
 
 Please follow the installation instructions on each of the linked pages:
-| Fallout 4 Desktop |
-| Mod | Notes |
-|----------|----------|
-| [F4SE](https://f4se.silverlock.org/) | Make sure to get the non VR version. Once installed by following the included readme.txt, run f4se_loader.exe instead of the Fallout4.exe. |
-| [SUP F4SE](https://www.nexusmods.com/fallout4/mods/55419) |  |
-| [Textinputmenu](https://www.nexusmods.com/fallout4/mods/27347) | 
 
-| Fallout 4 VR |
+**Fallout 4 Desktop**
 | Mod | Notes |
 |----------|----------|
-| [F4SE](https://f4se.silverlock.org/) | ake sure to get the VR version. Once installed by following the included readme.txt, run f4se_loader.exe instead of the Fallout4.exe. |
-| [SUP F4SEVR](https://www.nexusmods.com/fallout4/mods/64420) |  |
+| [F4SE](https://f4se.silverlock.org/) | Mandatory : Make sure to get the non VR version. Once installed, run f4se_loader.exe instead of Fallout4.exe. |
+| [SUP F4SE](https://www.nexusmods.com/fallout4/mods/55419) | Mandatory : Needed to generate the files needed for Mantella to communicate with Fallout 4 |
+| [Textinputmenu](https://www.nexusmods.com/fallout4/mods/27347) | Optional : Needed to access text input functions | 
+
+**Fallout 4 VR**
+| Mod | Notes |
+|----------|----------|
+| [F4SE](https://f4se.silverlock.org/) | Mandatory : Make sure to get the VR version. Once installed, run f4se_loader.exe instead of the Fallout4.exe. |
+| [SUP F4SEVR](https://www.nexusmods.com/fallout4/mods/64420) | Mandatory : Needed to generate the files needed for Mantella to communicate with Fallout 4 |
 
 ## Language Models (LLMs)
 LLMs power the creation of responses by NPCs. There are a number of different LLMs to choose from, ranging from free local models to large externally hosted models.
@@ -221,7 +219,7 @@ It is reasonably fast even in CPU mode with the base model. Optionally, to use G
 	<details>
 	<summary>Mod Organizer 2 Users</summary>  
 
-	By default, this is simply the path to your Fallout 4 folder. If you are using a Wabbajack modlist, you may need to try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path and set this as your `fallout4_folder` path. 
+	By default, this is simply the path to your Fallout 4 folder. If you are using a Wabbajack modlist, you may need to try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path and set this as your `fallout4_folder` or `fallout4VR_folder` path. 
 	</details>
 	<details>
 	<summary>Vortex 2 Users</summary>  
@@ -234,7 +232,7 @@ It is reasonably fast even in CPU mode with the base model. Optionally, to use G
 	<summary>Mod Organizer 2 Users</summary>  
 
 	You can find the mod folder by right clicking the mod in the Mod Organizer 2 UI and selecting "Open in Explorer":  
-	<img src="../_static/img/find_mod_path_MO2.JPG" alt="Mod Organizer 2 Fallout 4 Mod Folder" width="240" height="auto" style="padding: 10px;"/>  
+	<img src="../_static/img/find_mod_path_MO2.JPG" alt="Mod Organizer 2 Fallout 4 Mod Folder" width="800" height="auto" style="padding: 10px;"/>  
 	</details>
 	<details>
 	<summary>Vortex 2 Users</summary>  
@@ -244,7 +242,7 @@ It is reasonably fast even in CPU mode with the base model. Optionally, to use G
 	`mod_folder = C:\Steam\steamapps\common\Fallout 4\Data`  
 	</details>
 	<br>
-2. Run Mantella.exe in MantellaSoftware and wait for the message "Waiting for player to select an NPC..." to display. Once it does, it is ready for you to select an NPC in-game via the Mantella spell.  
+2. Run Mantella.exe in MantellaSoftware and wait for the message "Waiting for player to select an NPC..." to display. Once it does, it is ready for you to select an NPC in-game via the Mantella gun.  
 <img src="../_static/img/mantella_exe.png" alt="MCM General Settings" width="500" height="auto" style="padding: 10px;"/>  
 ```{admonition} Warning
 :class: attention
@@ -264,15 +262,18 @@ The Mantella gun and settings holotape will be added to your inventory as soon a
 
 
 ## Other Tips
+### Sound volume
+Sound volume can be set by modifying the value for `FO4_NPC_response_volume` in MantellaSoftware/config.ini
+
 ### Text Input
-Text input can be enabled by either setting `microphone_enabled = 0` in MantellaSoftware/config.ini or via Mantella's MCM in-game. You can respond by text by using the 'Y' hotkey (can be changed in holotape settings by entering the  [DirectX scan code](https://falloutck.uesp.net/wiki/DirectX_Scan_Codes).
+Text input can be enabled by either setting `microphone_enabled = 0` in MantellaSoftware/config.ini. You can respond by text by using the 'Y' hotkey. This can be changed in holotape settings by entering the  [DirectX scan code](https://falloutck.uesp.net/wiki/DirectX_Scan_Codes).
 
 ### Holotape
-Many options can be tweaked in the holotape [Settings] Mantella Settings, such as NPC actions and radiant conversations.  
+Many options can be modified in the holotape [Settings] Mantella Settings, such as NPC actions and radiant conversations.  
 <img src="../_static/img/fallout4_holotape_settings.JPG" alt="Fallout 4 Holotape Settings" width="970" height="auto" style="padding: 10px;"/>  
 
 ### NPCs not Found
-If the NPC is unavailable to Mantella (most likely a modded NPC which you can add yourself via {doc}`/pages/adding_modded_npcs`), the message "Conversation ended." should immediately pop up in the top left corner and the conversation will exit. If the only message you see from the spell is "Conversation ended", please refer to the "Issues Q&A" section for common solutions to this. 
+If the NPC is unavailable to Mantella (most likely a modded NPC which you can add yourself via {doc}`/pages/adding_modded_npcs`), the message "Conversation ended." should immediately pop up in the top left corner and the conversation will exit. If the only message you see from the starting the conversation is "Conversation ended", please refer to the "Issues Q&A" section for common solutions to this. 
 
 ### Caching
 Voicelines are cached in the `MantellaSoftware/data/voicelines/` folder. If this data takes up too much space over time, the contents of voicelines/ can be periodically deleted.

@@ -1,10 +1,11 @@
 (issues-qna)=
 # Issues Q&A
 ## {doc}`/pages/installation`
+## {doc}`/pages/installation_fallout4`
 ### [Discord](https://discord.gg/Q4BJAdtGUE)
 <br>
 
-#### "Warning: Could not find _mantella__skyrim_folder.txt" in Mantella.exe
+#### SKYRIM : "Warning: Could not find _mantella__skyrim_folder.txt" in Mantella.exe
 <details>
 <summary>Details</summary>
 
@@ -18,7 +19,7 @@ If you have the required mods installed, then this issue might instead be caused
 </details>
 <br>
 
-#### "There is an error with your PapyrusUtil installation" when spell is cast
+#### SKYRIM : "There is an error with your PapyrusUtil installation" when spell is cast
 <details>
 <summary>Details</summary>
 
@@ -30,7 +31,7 @@ If you are an SE user, please double check your Skyrim version by right-clicking
 </details>
 <br>
 
-#### "There is an error with your installation of Mantella (or one of its dependent mods)" when spell is cast
+#### SKYRIM : "There is an error with your installation of Mantella (or one of its dependent mods)" when spell is cast
 <details>
 <summary>Details</summary>
 
@@ -38,7 +39,7 @@ Please double check your Skyrim version by right-clicking its exe file in your S
 </details>
 <br>
 
-#### Conversation ends as soon as spell is cast / [Errno 2] No such file or directory: 'path\to\Skyrim Special Edition/some_text_file.txt' 
+#### SKYRIM : Conversation ends as soon as spell is cast / [Errno 2] No such file or directory: 'path\to\Skyrim Special Edition/some_text_file.txt' 
 <details>
 <summary>Details</summary>
 
@@ -52,15 +53,7 @@ If you have the required mods installed, then this issue might instead be caused
 </details>
 <br>
 
-#### ChatGPT API Error: cannot access local variable 'audio_file' where it is not associated with a value
-<details>
-<summary>Details</summary>
-
-This error occurs when something has failed in a previous step (likely an issue with xVASynth / not having FaceFXWrapper installed). Please check your MantellaSoftware/logging.log file to see the error which occurred before this, which should provide more clarification. If you are still ensure, please share your logging.log file to the Discord's issues channel.
-</details>
-<br>
-
-#### NPCs keep repeating the same line of dialogue
+#### SKYRIM : NPCs keep repeating the same line of dialogue
 <details>
 <summary>Details</summary>
 
@@ -68,7 +61,7 @@ This is an issue with `mod_folder` not being set to the correct path in Mantella
 </details>
 <br>
 
-#### No message box displayed to say spell has been added / Mantella spell is not in spell inventory
+#### SKYRIM : No message box displayed to say spell has been added / Mantella spell is not in spell inventory
 <details>
 <summary>Details</summary>
 
@@ -76,27 +69,7 @@ This is an issue with the way the spell mod itself has been installed. Please ch
 </details>
 <br>
 
-#### RuntimeError('PytorchStreamReader failed reading zip archive: failed finding central directory')
-<details>
-<summary>Details</summary>
-
-If an xVASynth voice model is corrupted, this error will display in MantellaSoftware/logging.log. Please re-download the voice model in this case. You may alternatively need to redownload xVASynth.
-
-A way to check for other corrupted voice models, is to compare the file sizes within /models/skyrim/ folder of xVASynth. If they diverge from the norms, redownload **just** those. The norms for voice model sizes are **~54 MB** and/or **~90 MB** (v2 voice models) & **~220 MB** or **~260 MB** (v3 voice models).
-</details>
-<br>
-
-#### Loading voice model... xVASynth Error: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
-<details>
-<summary>Details</summary>
-
-If this xVASynth Error occurs after the "Loading voice model..." message (as can be seen in your MantellaSoftware/logging.log file), this is likely an issue with a corrupted voice model. Please try redownloading the model from [here](https://www.nexusmods.com/skyrimspecialedition/mods/44184). If you have `use_cleanup` enabled, try setting this value to 0 in MantellaSoftware/config.ini.
-
-If this does not resolve your issue, please share the text found in your xVASynth/server.log file on the [Discord's #issues channel](https://discord.gg/Q4BJAdtGUE) for further support.
-</details>
-<br>
-
-#### Voicelines are being displayed in Mantella.exe but are not being said in-game
+#### SKYRIM : Voicelines are being displayed in Mantella.exe but are not being said in-game
 <details>
 <summary>Details</summary>
 
@@ -106,7 +79,7 @@ If the above fails, a more unlikely reason for voicelines not playing is if you 
 </details>
 <br>
 
-#### 'Starting conversation with' without the NPC name is displayed ingame and nothing happens after
+#### SKYRIM : 'Starting conversation with' without the NPC name is displayed ingame and nothing happens after
 <details>
 <summary>Details</summary>
 
@@ -115,15 +88,139 @@ Make sure Skyrim Script Extender (SKSE) is started before Skyrim itself.
 </details>
 <br>
 
-#### NPC 'XYZ' could not be found in skyrim_characters.csv
+#### FALLOUT 4 : "Warning: Could not find _mantella__fallout4_folder.txt" in Mantella.exe
 <details>
 <summary>Details</summary>
 
-This means that the NPC's name exactly as written in the error message could not be found in skyrim_characters.csv. If you are running Skyrim in another language, sometimes the NPC's name in this language does not match up to the English name, causing this error. It might also mean that the character is missing from skyrim_characters.csv. Please reach out on the Discord's issues channel if this is the case
+This is either an issue with the path set for `fallout4_folder` or `fallout4VR_folder` in MantellaSoftware/config.ini, an issue with the installation of SUP_F4SE, or sonmething is wrong with the install of F4SE (make sure you have the correct version : desktop or VR). If it is either of the latter two issues an error should display in Fallout 4 when you load a savegame. This might also be cause by the wrong game being set in the config.ini for `game = ` .
+
+Please double check your Fallout 4 version by right-clicking its exe file in your Fallout 4 folder and going to Properties -> Details. The "File version" should be listed here and it should be 1.10.163.0 (for Fallout 4 desktop) or 1.2.72.0 (for Fallout 4 VR).
+
+If you have the required mods installed, then this issue might instead be caused by the `fallout4_folder` or `fallout4VR_folder` being set incorrectly. This only seems to be an issue for Mod Organizer 2 / Wabbajack modlist users. Some Mod Organizer 2 setups move the text files created by the Mantella spell to another folder. Try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path to try to find these Mantella text files, specifically a file called `_mantella__fallout4_folder.txt`. If you find this file, then please set its folder as your `fallout4_folder` or `fallout4VR_folder` path.
 </details>
 <br>
 
-#### NPCs only respond with "I can't find the right words at the moment."
+#### FALLOUT 4 : On game load the following message is displayed : "F4SE or SUP_F4SE not properly installed, Mantella will not work correctly"
+<details>
+<summary>Details</summary>
+
+Multiples reasons can cause this issue:
+
+1: Invalid or absent F4SE install, make sure to download the one from this link : [F4SE](https://f4se.silverlock.org/). Make sure to download the appropriate version (desktop or VR).
+
+2: Incorrect FO4 version number. Mantella is supposed to run with version 1.10.163.0 (for Fallout 4 desktop) or 1.2.72.0 (for Fallout 4 VR).
+
+3: [SUP F4SE](https://www.nexusmods.com/fallout4/mods/55419) or [SUP F4SEVR](https://www.nexusmods.com/fallout4/mods/64420) (whichever is appropriate for your game) isn't correctly installed.
+
+4: Make sure you're actually launching the game with : f4se_loader.exe
+
+5: If you are running the mod via the GOG version of Fallout 4, you might encounter issue getting F4SE to load, see [this workaround](https://github.com/ModOrganizer2/modorganizer/issues/1856#issuecomment-1685925528)
+
+</details>
+<br>
+
+#### FALLOUT 4 : Lip sync isn't working at all after adding a new NPC
+<details>
+<summary>Details</summary>
+
+Lip files need to be present at launch for the game to register it. Restarting Fallout 4 should correct the issue. The Mantella Mod on the Mod Nexus will cover all the base game and all the main DLCs but any other NPC will need to have a lip file named 00001ED2_1.lip present at launch in its voice type folder in data\Sound\Voice\Mantella.esp
+</details>
+<br>
+
+#### FALLOUT 4 : The NPC is lip syncing a different line than the one said in game
+<details>
+<summary>Details</summary>
+
+This might be caused by an invalid mod file path (ex: a file path pointing to for another game's data folder). Double check the file paths. Please note that there is a known issue in Fallout 4 that causes lip sync to be cut short for longer lines.
+</details>
+<br>
+
+#### FALLOUT 4 : Everytime a conversation is started the notification is : "NPC not added. Please try again after your next response."
+<details>
+<summary>Details</summary>
+
+Multiples reasons can cause this issue:
+
+1: Invalid game file path in the config.ini. Double check your filepath for `fallout4_folder` or `fallout4VR_folder`.
+
+2: Wrong game set in the config.ini, double check the value for `game = ` 
+
+3: If you're running a modlist that uses Root builder, there might be a sync issue between Mantella and your game. Make sure you load the game first then load Mantella after to avoid the _Mantella text files getting out of sync.
+
+</details>
+<br>
+
+#### FALLOUT 4 : After trying to start a conversation, the notification says "Starting a conversation with NPCNAME", but nothing happens in Fallout 4 or the Mantella console
+<details>
+<summary>Details</summary>
+
+Multiples reasons can cause this issue:
+
+1: Invalid game file path in the config.ini. Double check your filepath for `fallout4_folder` or `fallout4VR_folder`.
+
+2: Wrong game set in the config.ini. Double check the value for `game = ` 
+
+</details>
+<br>
+
+#### FALLOUT 4 : The text input menu isn't showing up when the hotkey is pressed after the notification "Awaiting user input for X seconds"
+<details>
+<summary>Details</summary>
+
+Multiples reasons can cause this issue:
+
+1: Double check that the install for [Textinputmenu](https://www.nexusmods.com/fallout4/mods/27347) is correct.
+
+2: Try resetting the text input hotkey in the settings holotape under `Main settings = `. You will need to enter a [DirectX scan code](https://falloutck.uesp.net/wiki/DirectX_Scan_Codes)
+
+</details>
+<br>
+
+#### FALLOUT 4 : The Mantella gun & holotape do not get added on load and are not available at the Chem Station in UTILITY
+<details>
+<summary>Details</summary>
+
+This is an issue with the way the Mantella esp mod itself has been installed. Please check your Fallout 4 version by right-clicking its exe file in your Fallout 4 folder and going to Properties -> Details . The "File version" should be listed here and it should be 1.10.163.0 (for Fallout 4 desktop) or 1.2.72.0 (for Fallout 4 VR). If you are using VR, there are separate versions of the required mods for SUP_F4SE : [SUP F4SEVR](https://www.nexusmods.com/fallout4/mods/64420). If you are running the mod via the GOG version of Fallout 4, you might encounter issue getting F4Se to load, see [this workaround](https://github.com/ModOrganizer2/modorganizer/issues/1856#issuecomment-1685925528).
+</details>
+<br>
+
+#### ALL GAMES : ChatGPT API Error: cannot access local variable 'audio_file' where it is not associated with a value
+<details>
+<summary>Details</summary>
+
+This error occurs when something has failed in a previous step (likely an issue with xVASynth / not having FaceFXWrapper installed). Please check your MantellaSoftware/logging.log file to see the error which occurred before this, which should provide more clarification. If you are still ensure, please share your logging.log file to the Discord's issues channel.
+</details>
+<br>
+
+#### ALL GAMES : RuntimeError('PytorchStreamReader failed reading zip archive: failed finding central directory')
+<details>
+<summary>Details</summary>
+
+If an xVASynth voice model is corrupted, this error will display in MantellaSoftware/logging.log. Please re-download the voice model in this case. You may alternatively need to redownload xVASynth.
+
+A way to check for other corrupted voice models, is to compare the file sizes within /models/skyrim/ folder of xVASynth. If they diverge from the norms, redownload **just** those. The norms for voice model sizes are **~54 MB** and/or **~90 MB** (v2 voice models) & **~220 MB** or **~260 MB** (v3 voice models).
+</details>
+<br>
+
+#### ALL GAMES : Loading voice model... xVASynth Error: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+<details>
+<summary>Details</summary>
+
+If this xVASynth Error occurs after the "Loading voice model..." message (as can be seen in your MantellaSoftware/logging.log file), this is likely an issue with a corrupted voice model. Please try redownloading the model from [here](https://www.nexusmods.com/skyrimspecialedition/mods/44184) for Skyrim or [here](https://www.nexusmods.com/fallout4/mods/49340) for Fallout 4. If you have `use_cleanup` enabled, try setting this value to 0 in MantellaSoftware/config.ini.
+
+If this does not resolve your issue, please share the text found in your xVASynth/server.log file on the [Discord's #issues channel](https://discord.gg/Q4BJAdtGUE) for further support.
+</details>
+<br>
+
+#### ALL GAMES : NPC 'XYZ' could not be found in skyrim_characters.csv or fallout4_characters.csv
+<details>
+<summary>Details</summary>
+
+This means that the NPC's name exactly as written in the error message could not be found in the characters.csv. If you are running your game in another language, sometimes the NPC's name in this language does not match up to the English name, causing this error. It might also mean that the character is missing from characters.csv. Please reach out on the Discord's issues channel if this is the case
+</details>
+<br>
+
+#### ALL GAMES : NPCs only respond with "I can't find the right words at the moment."
 <details>
 <summary>Details</summary>
 
@@ -131,7 +228,7 @@ This either means the ChatGPT servers are currently down or the API key has not 
 </details>
 <br>
 
-#### Microphone is not picking up sound / exe stuck on "Listening..."
+#### ALL GAMES : Microphone is not picking up sound / exe stuck on "Listening..."
 <details>
 <summary>Details</summary>
 
@@ -139,7 +236,7 @@ Make sure that your mic is picking up correctly on other software and that it is
 </details>
 <br>
 
-#### 'NoneType' object has no attribute 'close'
+#### ALL GAMES : 'NoneType' object has no attribute 'close'
 <details>
 <summary>Details</summary>
 
@@ -147,15 +244,15 @@ This error means that Whisper is unable to find a connected microphone. Please e
 </details>
 <br>
 
-#### "Invalid start byte" error
+#### ALL GAMES : "Invalid start byte" error
 <details>
 <summary>Details</summary>
 
-This error occurs when you introduce character symbols that can't be recognised either in MantellaSoftware/config.ini or skyrim_characters.csv. Please try re-downloading these files. Note that if you are using Excel to edit the CSV, Excel often likes to corrupt CSVs when saving these files. If you are experiencing issues with Excel, there are free CSV editors available such as [LibreOffice](https://www.libreoffice.org/). 
+This error occurs when you introduce character symbols that can't be recognised either in MantellaSoftware/config.ini, skyrim_characters.csv or fallout4_characters.csv. Please try re-downloading these files. Note that if you are using Excel to edit the CSV, Excel often likes to corrupt CSVs when saving these files. If you are experiencing issues with Excel, there are free CSV editors available such as [LibreOffice](https://www.libreoffice.org/). 
 </details>
 <br>
 
-#### Mantella.exe closes after "VAD filter removed 00:00.000 of audio" statement
+#### ALL GAMES : Mantella.exe closes after "VAD filter removed 00:00.000 of audio" statement
 <details>
 <summary>Details</summary>
 
@@ -163,7 +260,7 @@ This is an issue related to CUDA. Please try setting `process_device` to "cpu".
 </details>
 <br>
 
-#### Mantella.exe opens, but does not display any text
+#### ALL GAMES : Mantella.exe opens, but does not display any text
 <details>
 <summary>Details</summary>
 
@@ -171,7 +268,7 @@ Ensure that you are not running Mantella.exe via a Vortex / Mod Organizer 2 shor
 </details>
 <br>
 
-#### ERROR: xVASynth Error: [WinError 5] Access is denied
+#### ALL GAMES : ERROR: xVASynth Error: [WinError 5] Access is denied
 <details>
 <summary>Details</summary>
 
@@ -179,7 +276,7 @@ This happens when your antivirus is blocking Mantella.exe from working. Please a
 </details>
 <br>
 
-#### Cannot start new conversation after ending previous conversation (conversation ended message)
+#### ALL GAMES :Cannot start new conversation after ending previous conversation (conversation ended message)
 <details>
 <summary>Details</summary>
 
@@ -187,10 +284,18 @@ You might need to say something in the mic for Mantella.exe to realise that the 
 </details>
 <br>
 
-#### RuntimeWarning: Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work
+#### ALL GAMES : RuntimeWarning: Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work
 <details>
 <summary>Details</summary>
 
 xVASynth related warning when started by Mantella. Thus far has not impacted Mantella so it can be safely ignored.
+</details>
+<br>
+
+#### ALL GAMES : Error: [Errno 2] No such file or directory: 'data/skyrim_characters.csv' or 'data/fallout4_characters.csv'
+<details>
+<summary>Details</summary>
+
+This may be caused by `Mantella.exe` being ran through MO2 or Vortex. `Mantella.exe` must be started through Windows explorer like any other executable file.
 </details>
 <br>

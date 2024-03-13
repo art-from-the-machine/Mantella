@@ -1,6 +1,6 @@
 <img src="./img/mantella_logo_github.png" align="right"
      alt="Mantella logo" width="150" height="auto">
-# Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank"><img src="./img/nexus_mods_link.png" alt="Mantella Nexus Mods link" width="auto" height="28"/></a>
+# Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank"><img src="./img/nexus_mods_link.png" alt="Mantella Skyrim SE Nexus Mods link" width="auto" height="28"/></a> <a href="https://www.nexusmods.com/fallout4" target="_blank"><img src="./img/nexus_mods_fallout4_link.png" alt="Mantella Fallout 4 Nexus Mods link" width="auto" height="28"/></a>
 > Bring Skyrim and Fallout 4 NPCs to life with AI
 
 Mantella is a Skyrim and Fallout 4 mod which allows you to naturally speak to NPCs using [Whisper](https://github.com/openai/whisper) (speech-to-text), LLMs (text generation), and [xVASynth](https://github.com/DanRuta/xVA-Synth) (text-to-speech).  
@@ -20,6 +20,9 @@ See [art-from-the-machine.github.io/Mantella/pages/issues_qna.html](https://art-
 # Skyrim
 See [art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim](https://art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim)
 
+# Fallout 4
+See [art-from-the-machine.github.io/Mantella/pages/installation_fallout4.html#Fallout4](https://art-from-the-machine.github.io/Mantella/pages/installation_fallout4.html#Fallout4)
+
 # Contribute
 The source code for Mantella is included in this repo. Here are the quick steps to get set up:
 
@@ -33,7 +36,7 @@ The source code for Mantella is included in this repo. Here are the quick steps 
 
 If you have any trouble in getting the repo set up, please reach out on [Discord](https://discord.gg/Q4BJAdtGUE)!
 
-The source code for the Mantella spell mod can be found [here](https://github.com/art-from-the-machine/Mantella-Spell). Updates made on one repo are often intertwined with the other, so it is best to ensure you have the latest versions of each when developing.
+The source code for the Mantella spell mod can be found [here](https://github.com/art-from-the-machine/Mantella-Spell) for Skyrim, [here](https://github.com/YetAnotherModder/Fallout-4-Mantella-Mod) for Fallout 4 & [here](https://github.com/YetAnotherModder/Fallout-4-VR-Mantella-Mod) for Fallout 4 VR. Updates made on one repo are often intertwined with the other, so it is best to ensure you have the latest versions of each when developing.
 
 # Attributions
-Mantella uses material from the "[Skyrim: Characters](https://elderscrolls.fandom.com/wiki/Category:Skyrim:_Characters)" articles on the [Elder Scrolls wiki](https://elderscrolls.fandom.com/wiki/The_Elder_Scrolls_Wiki) at [Fandom](https://www.fandom.com/) and is licensed under the [Creative Commons Attribution-Share Alike License](https://creativecommons.org/licenses/by-sa/3.0/).
+Mantella uses material from the "[Skyrim: Characters](https://elderscrolls.fandom.com/wiki/Category:Skyrim:_Characters)" articles on the [Elder Scrolls wiki](https://elderscrolls.fandom.com/wiki/The_Elder_Scrolls_Wiki) as well as the "[Fallout 4 characters](https://fallout.fandom.com/wiki/Fallout_4_characters)" at [Fandom](https://www.fandom.com/) and is licensed under the [Creative Commons Attribution-Share Alike License](https://creativecommons.org/licenses/by-sa/3.0/).
