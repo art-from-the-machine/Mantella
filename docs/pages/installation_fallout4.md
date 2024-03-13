@@ -114,7 +114,7 @@ LLMs power the creation of responses by NPCs. There are a number of different LL
 ```{admonition} Note
 :class: seealso
 
-Some smaller models may struggle to handle long term conversations and memory summarising.
+Some smaller models may struggle to handle long term conversations and memory summarizing.
 ```
 
 If you just want to get started without thinking too much about it / explore alternative options later, follow the OpenAI setup instructions below.

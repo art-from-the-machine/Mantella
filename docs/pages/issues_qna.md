@@ -11,7 +11,7 @@
 
 This is either an issue with the path set for `skyrim_folder` in MantellaSoftware/config.ini, an issue with the installation of PapyrusUtil, or you are not running Skyrim via SKSE (please see the included readme.txt file in SKSE's downloaded folder for instructions on how to use it). If it is either of the latter two issues an error should display in-game when you cast the spell. 
 
-Some VR users miss that there is a separate VR version of PapyrusUtil, double check that you have downloaded this version of the mod if you are a VR user (it should be under the Miscallaneous Files section of the Nexus download page). To put it another way, if you have `PapyrusUtil AE SE - Scripting Utility Function` in your modlist, you have the wrong version. 
+Some VR users miss that there is a separate VR version of PapyrusUtil, double check that you have downloaded this version of the mod if you are a VR user (it should be under the Miscellaneous Files section of the Nexus download page). To put it another way, if you have `PapyrusUtil AE SE - Scripting Utility Function` in your modlist, you have the wrong version. 
 
 If you are an SE user, please double check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details. The "File version" should be listed here. If it is 1.6 or above, you actually have Skyrim AE, not SE (its confusing I know), so please download the AE versions of the required mods. You can tell if PapyrusUtil is working by checking if you have a file called `_mantella__skyrim_folder.txt` in your `skyrim_folder` path.
 
@@ -25,7 +25,7 @@ If you have the required mods installed, then this issue might instead be caused
 
 This is either an issue with the installation of PapyrusUtil, or you are not running Skyrim via SKSE (please see the included readme.txt file in SKSE's downloaded folder for instructions on how to use it).  
 
-Some VR users miss that there is a separate VR version of PapyrusUtil, double check that you have downloaded this version of the mod if you are a VR user (it should be under the Miscallaneous Files section of the Nexus download page). To put it another way, if you have `PapyrusUtil AE SE - Scripting Utility Function` in your modlist, you have the wrong version. 
+Some VR users miss that there is a separate VR version of PapyrusUtil, double check that you have downloaded this version of the mod if you are a VR user (it should be under the Miscellaneous Files section of the Nexus download page). To put it another way, if you have `PapyrusUtil AE SE - Scripting Utility Function` in your modlist, you have the wrong version. 
 
 If you are an SE user, please double check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details. The "File version" should be listed here. If it is 1.6 or above, you actually have Skyrim AE, not SE (its confusing I know), so please download the AE versions of the required mods. You can tell if PapyrusUtil is working by checking if you have a file called `_mantella__skyrim_folder.txt` in your `skyrim_folder` path. 
 </details>
@@ -45,7 +45,7 @@ Please double check your Skyrim version by right-clicking its exe file in your S
 
 This is either an issue with the path set for `skyrim_folder` in MantellaSoftware/config.ini, an issue with your Skyrim folder being in Program Files, an issue with the installation of PapyrusUtil, or you are not running Skyrim via SKSE (please see the included readme.txt file in SKSE's downloaded folder for instructions on how to use it). 
 
-Some VR users miss that there is a separate VR version of PapyrusUtil, double check that you have downloaded this version of the mod if you are a VR user (it should be under the Miscallaneous Files section of the Nexus download page). To put it another way, if you have `PapyrusUtil AE SE - Scripting Utility Function` in your modlist, you have the wrong version. 
+Some VR users miss that there is a separate VR version of PapyrusUtil, double check that you have downloaded this version of the mod if you are a VR user (it should be under the Miscellaneous Files section of the Nexus download page). To put it another way, if you have `PapyrusUtil AE SE - Scripting Utility Function` in your modlist, you have the wrong version. 
 
 If you are an SE user, please double check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details. The "File version" should be listed here. If it is 1.6 or above, you actually have Skyrim AE, not SE (its confusing I know), so please download the AE versions of the required mods. You can tell if PapyrusUtil is working by checking if you have a file called `_mantella__skyrim_folder.txt` in your `skyrim_folder` path.
 
@@ -79,7 +79,7 @@ If the above fails, a more unlikely reason for voicelines not playing is if you 
 </details>
 <br>
 
-#### SKYRIM : 'Starting conversation with' without the NPC name is displayed ingame and nothing happens after
+#### SKYRIM : 'Starting conversation with' without the NPC name is displayed in game and nothing happens after
 <details>
 <summary>Details</summary>
 
@@ -92,9 +92,9 @@ Make sure Skyrim Script Extender (SKSE) is started before Skyrim itself.
 <details>
 <summary>Details</summary>
 
-This is either an issue with the path set for `fallout4_folder` or `fallout4VR_folder` in MantellaSoftware/config.ini, an issue with the installation of SUP_F4SE, or sonmething is wrong with the install of F4SE (make sure you have the correct version : desktop or VR). If it is either of the latter two issues an error should display in Fallout 4 when you load a savegame. This might also be cause by the wrong game being set in the config.ini for `game = ` .
+This is either an issue with the path set for `fallout4_folder` or `fallout4VR_folder` in MantellaSoftware/config.ini, an issue with the installation of SUP_F4SE, or something is wrong with the install of F4SE (make sure you have the correct version : desktop or VR). If it is either of the latter two issues an error should display in Fallout 4 when you load a save game. This might also be caused by the wrong game being set in the config.ini for `game = ` .
 
-Please double check your Fallout 4 version by right-clicking its exe file in your Fallout 4 folder and going to Properties -> Details. The "File version" should be listed here and it should be 1.10.163.0 (for Fallout 4 desktop) or 1.2.72.0 (for Fallout 4 VR).
+Double check your Fallout 4 version by right-clicking its exe file in your Fallout 4 folder and going to Properties -> Details. The "File version" should be listed here and it should be 1.10.163.0 (for Fallout 4 desktop) or 1.2.72.0 (for Fallout 4 VR).
 
 If you have the required mods installed, then this issue might instead be caused by the `fallout4_folder` or `fallout4VR_folder` being set incorrectly. This only seems to be an issue for Mod Organizer 2 / Wabbajack modlist users. Some Mod Organizer 2 setups move the text files created by the Mantella spell to another folder. Try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path to try to find these Mantella text files, specifically a file called `_mantella__fallout4_folder.txt`. If you find this file, then please set its folder as your `fallout4_folder` or `fallout4VR_folder` path.
 </details>
@@ -135,7 +135,7 @@ This might be caused by an invalid mod file path (ex: a file path pointing to fo
 </details>
 <br>
 
-#### FALLOUT 4 : Everytime a conversation is started the notification is : "NPC not added. Please try again after your next response."
+#### FALLOUT 4 : Every time a conversation is started the notification is : "NPC not added. Please try again after your next response."
 <details>
 <summary>Details</summary>
 
@@ -232,7 +232,7 @@ This either means the ChatGPT servers are currently down or the API key has not 
 <details>
 <summary>Details</summary>
 
-Make sure that your mic is picking up correctly on other software and that it is set as your default. For example, you can go to User Settings -> Voice & Video on Discord to test your mic. Otherwise, try adjusting the `audio_threshold` setting in MantellaSoftware/config.ini (instructions on how to do so are inluded in config.ini). If all else fails, make sure that no other microphones are plugged in except the one you want to use. There may be a rogue microphone such as a webcam picking up as your default!
+Make sure that your mic is picking up correctly on other software and that it is set as your default. For example, you can go to User Settings -> Voice & Video on Discord to test your mic. Otherwise, try adjusting the `audio_threshold` setting in MantellaSoftware/config.ini (instructions on how to do so are included in config.ini). If all else fails, make sure that no other microphones are plugged in except the one you want to use. There may be a rogue microphone such as a webcam picking up as your default!
 </details>
 <br>
 
@@ -248,7 +248,7 @@ This error means that Whisper is unable to find a connected microphone. Please e
 <details>
 <summary>Details</summary>
 
-This error occurs when you introduce character symbols that can't be recognised either in MantellaSoftware/config.ini, skyrim_characters.csv or fallout4_characters.csv. Please try re-downloading these files. Note that if you are using Excel to edit the CSV, Excel often likes to corrupt CSVs when saving these files. If you are experiencing issues with Excel, there are free CSV editors available such as [LibreOffice](https://www.libreoffice.org/). 
+This error occurs when you introduce character symbols that can't be recognized either in MantellaSoftware/config.ini, skyrim_characters.csv or fallout4_characters.csv. Please try re-downloading these files. Note that if you are using Excel to edit the CSV, Excel often likes to corrupt CSVs when saving these files. If you are experiencing issues with Excel, there are free CSV editors available such as [LibreOffice](https://www.libreoffice.org/). 
 </details>
 <br>
 
@@ -280,7 +280,7 @@ This happens when your antivirus is blocking Mantella.exe from working. Please a
 <details>
 <summary>Details</summary>
 
-You might need to say something in the mic for Mantella.exe to realise that the conversation has ended (while it is on "Listening..." it does not look out for the conversation ending). The exe will check if the conversation has ended after 30 seconds by default. You can change this via the `listen_timeout`` setting in MantellaSoftware/config.ini, but just keep in mind if it is too short this will effect conversations as the exe will occasionally stop listening for mic input to check if the conversation has ended
+You might need to say something in the mic for Mantella.exe to realize that the conversation has ended (while it is on "Listening..." it does not look out for the conversation ending). The exe will check if the conversation has ended after 30 seconds by default. You can change this via the `listen_timeout`` setting in MantellaSoftware/config.ini, but just keep in mind if it is too short this will effect conversations as the exe will occasionally stop listening for mic input to check if the conversation has ended
 </details>
 <br>
 
