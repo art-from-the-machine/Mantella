@@ -114,7 +114,7 @@ Multiples reasons can cause this issue:
 
 4: Make sure you're actually launching the game with : f4se_loader.exe
 
-5: If you are running the mod via the GOG version of Fallout 4, you might encounter issue getting F4SE to load, see [this workaround](https://github.com/ModOrganizer2/modorganizer/issues/1856#issuecomment-1685925528)
+5: If you are running the mod via the GOG version of Fallout 4, you might encounter issues getting F4SE to load, see [this workaround](https://github.com/ModOrganizer2/modorganizer/issues/1856#issuecomment-1685925528)
 
 </details>
 <br>
