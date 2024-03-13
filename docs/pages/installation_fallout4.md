@@ -214,7 +214,7 @@ It is reasonably fast even in CPU mode with the base model. Optionally, to use G
 </details>
 
 ## Setup & Configuration
-1. Set up the MantellaSoftware/config.ini file with your paths to Fallout (`fallout4_folder` or `fallout4VR_folder`), xVASynth (`xvasynth_folder`), and the Mantella Fallout 4 mod (`fallout4_mod_folder` or `fallout4VR_mod_folder`). Optional : (`xtts_server_folder`). IMPORTANT : ** You do not need to set the path for every game or mantella_mod, just the ones you plan to use. ** 
+1. Set up the MantellaSoftware/config.ini file with your paths to Fallout (`fallout4_folder` or `fallout4VR_folder`), xVASynth (`xvasynth_folder`), and the Mantella Fallout 4 mod (`fallout4_mod_folder` or `fallout4VR_mod_folder`). Optional : (`xtts_server_folder`). You will need to set the `game =` to `Fallout4` or `Fallout4VR` (be mindful of typing it as per the config.ini options). IMPORTANT : ** You do not need to set the path for every game or mantella_mod, just the ones you plan to use. ** 
 	- **fallout4_folder**  
 	<details>
 	<summary>Mod Organizer 2 Users</summary>  
@@ -237,8 +237,6 @@ It is reasonably fast even in CPU mode with the base model. Optionally, to use G
 	<details>
 	<summary>Vortex 2 Users</summary>  
  
-	You will need to set the `game =` to `Fallout4` or `Fallout4VR` (be mindful of typing it as per the config.ini options)
-
 	You need to point `mod_folder` to your Fallout 4/Data folder. So essentially, you need to take the Fallout 4 folder set in `fallout4_folder` or `fallout4VR_folder` and add "\Data" to the end of it. For example:  
 	
 	`mod_folder = C:\Steam\steamapps\common\Fallout 4\Data`  
