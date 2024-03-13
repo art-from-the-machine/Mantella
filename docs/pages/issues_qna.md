@@ -171,7 +171,7 @@ Multiples reasons can cause this issue:
 
 1: Double check that the install for [Textinputmenu](https://www.nexusmods.com/fallout4/mods/27347) is correct.
 
-2: Try resetting the text input hotkey in the settings holotape under `Main settings = `. You will need to enter a [DirectX scan code](https://falloutck.uesp.net/wiki/DirectX_Scan_Codes)
+2: Try resetting the text input hotkey in the settings holotape under `Main settings`. You will need to enter a [DirectX scan code](https://falloutck.uesp.net/wiki/DirectX_Scan_Codes)
 
 </details>
 <br>
@@ -181,6 +181,14 @@ Multiples reasons can cause this issue:
 <summary>Details</summary>
 
 This is an issue with the way the Mantella esp mod itself has been installed. Please check your Fallout 4 version by right-clicking its exe file in your Fallout 4 folder and going to Properties -> Details . The "File version" should be listed here and it should be 1.10.163.0 (for Fallout 4 desktop) or 1.2.72.0 (for Fallout 4 VR). If you are using VR, there are separate versions of the required mods for SUP_F4SE : [SUP F4SEVR](https://www.nexusmods.com/fallout4/mods/64420). If you are running the mod via the GOG version of Fallout 4, you might encounter issue getting F4Se to load, see [this workaround](https://github.com/ModOrganizer2/modorganizer/issues/1856#issuecomment-1685925528).
+</details>
+<br>
+
+#### FALLOUT 4 : The NPC subtitles play in-game but no audio can be heard.
+<details>
+<summary>Details</summary>
+
+Double check the config ini to make sure that the value of `FO4_NPC_response_volume = ` is high enough to be audible. Make sure that the volume of python in Windows Volume mixer is set to an audible level. 
 </details>
 <br>
 

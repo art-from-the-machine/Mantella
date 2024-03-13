@@ -237,12 +237,14 @@ It is reasonably fast even in CPU mode with the base model. Optionally, to use G
 	<details>
 	<summary>Vortex 2 Users</summary>  
  
+	You will need to set the `game =` to `Fallout4` or `Fallout4VR` (be mindful of typing it as per the config.ini options)
+
 	You need to point `mod_folder` to your Fallout 4/Data folder. So essentially, you need to take the Fallout 4 folder set in `fallout4_folder` or `fallout4VR_folder` and add "\Data" to the end of it. For example:  
 	
 	`mod_folder = C:\Steam\steamapps\common\Fallout 4\Data`  
 	</details>
 	<br>
-2. Run Mantella.exe in MantellaSoftware and wait for the message "Waiting for player to select an NPC..." to display. Once it does, it is ready for you to select an NPC in-game via the Mantella gun.  
+2. Run Mantella.exe in MantellaSoftware. Once it does, it is ready for you to select an NPC in-game via the Mantella gun.  
 <img src="../_static/img/mantella_exe.png" alt="MCM General Settings" width="500" height="auto" style="padding: 10px;"/>  
 ```{admonition} Warning
 :class: attention

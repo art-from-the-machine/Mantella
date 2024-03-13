@@ -242,7 +242,7 @@ It is reasonably fast even in CPU mode with the base model. Optionally, to use G
 </details>
 
 ## Setup & Configuration
-1. Set up the MantellaSoftware/config.ini file with your paths to Skyrim (`skyrim_folder`), xVASynth (`xvasynth_folder`), and the Mantella Skyrim mod (`mod_folder`).  
+1. Set up the MantellaSoftware/config.ini file with your paths to Skyrim (`skyrim_folder`), xVASynth (`xvasynth_folder`), and the Mantella Skyrim mod (`mod_folder`). Optional : (`xtts_server_folder`). You will need to set the `game =` to `Skyrim` or `SkyrimVR` (be mindful of typing it as per the config.ini options)
 	- **skyrim_folder**  
 	<details>
 	<summary>Mod Organizer 2 Users</summary>  
