@@ -25,7 +25,7 @@ class openai_client:
             logging.info(f"Running Mantella with local language model")
 
         self.TOKEN_LIMIT_PERCENT = 0.45
-        self.__base_url: str = config.alternative_openai_api_base if config.alternative_openai_api_base.lower() != 'none' else None
+        self.__base_url: str | None = config.alternative_openai_api_base if config.alternative_openai_api_base.lower() != 'none' else None
         self.__stop: str | List[str] = config.stop
         self.__temperature: float = config.temperature
         self.__top_p: float = config.top_p
@@ -223,11 +223,13 @@ class openai_client:
     def calculate_tokens_from_text(self, text: str) -> int:
         return len(self.__encoding.encode(text))
     
-    def is_text_too_long(self, text: str) -> bool:
-        return self.calculate_tokens_from_text(text) > self.token_limit * self.TOKEN_LIMIT_PERCENT
+    def is_text_too_long(self, text: str, token_limit_percent: float) -> bool:
+        countTokens: int = self.calculate_tokens_from_text(text)
+        return  countTokens > self.token_limit * token_limit_percent
         
-    def are_messages_too_long(self, messages: message_thread) -> bool:
-        return self.calculate_tokens_from_messages(messages) > self.token_limit * self.TOKEN_LIMIT_PERCENT
+    def are_messages_too_long(self, messages: message_thread, token_limit_percent: float) -> bool:
+        countTokens: int = self.calculate_tokens_from_messages(messages)
+        return countTokens > self.token_limit * token_limit_percent
             
     
     # --- Private methods ---    

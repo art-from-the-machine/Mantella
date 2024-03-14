@@ -23,8 +23,9 @@ class conversation_continue_type(Enum):
     END_CONVERSATION = 3
 
 class conversation:
+    TOKEN_LIMIT_PERCENT: float = 0.6
     """Controls the flow of a conversation."""
-    def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, is_conversation_too_long: Callable[[message_thread], bool], actions: list[action]) -> None:
+    def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, is_conversation_too_long: Callable[[message_thread, float], bool], actions: list[action]) -> None:
         self.__context: context = context_for_conversation
         if not self.__context.npcs_in_conversation.contains_player_character():
             self.__conversation_type: conversation_type = radiant(context_for_conversation)
@@ -33,7 +34,7 @@ class conversation:
         self.__messages: message_thread = message_thread(None)
         self.__output_manager: ChatManager = output_manager
         self.__rememberer: remembering = rememberer
-        self.__is_conversation_too_long: Callable[[message_thread], bool] = is_conversation_too_long
+        self.__is_conversation_too_long: Callable[[message_thread, float], bool] = is_conversation_too_long
         self.__has_already_ended: bool = False        
         self.__sentences: sentence_queue = sentence_queue()
         self.__generation_thread: Thread | None = None
@@ -83,7 +84,7 @@ class conversation:
     def continue_conversation(self) -> tuple[str, sentence | None]:
         if self.Has_already_ended:
             return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None        
-        if self.__is_conversation_too_long(self.__messages):
+        if self.__is_conversation_too_long(self.__messages, self.TOKEN_LIMIT_PERCENT):
             # Check if conversation too long and if yes initiate intermittent reload
             self.__initiate_reload_conversation()
 
