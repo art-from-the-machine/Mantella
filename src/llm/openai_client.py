@@ -32,8 +32,8 @@ class openai_client:
         self.__max_tokens: int = config.max_tokens
         self.__model_name: str = config.llm
         self.__token_limit: int = self.__get_token_limit(config.llm, config.custom_token_count, self.__is_local)
-        referer = "https://github.com/art-from-the-machine/Mantella"
-        xtitle = "mantella"
+        referer = "https://art-from-the-machine.github.io/Mantella/"
+        xtitle = "Mantella"
         self.__header: dict[str, str] = {"HTTP-Referer": referer, "X-Title": xtitle, }
 
         chosenmodel = config.llm
