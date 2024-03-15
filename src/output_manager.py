@@ -462,6 +462,11 @@ class ChatManager:
                             # Split the sentence at the last punctuation mark
                             remaining_content = sentence[last_punctuation + 1:]
                             current_sentence = sentence[:last_punctuation + 1]
+
+                            current_sentence = self.clean_sentence(current_sentence)
+                            if not current_sentence:
+                                sentence = remaining_content
+                                continue
                             
                             # New logic to handle conditions based on the presence of a colon and the state of `accumulated_sentence`
                             content_edit = unicodedata.normalize('NFKC', current_sentence)
