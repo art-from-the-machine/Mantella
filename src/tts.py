@@ -30,14 +30,21 @@ class Synthesizer:
         
         #Added from xTTS implementation
         self.use_external_xtts = int(config.use_external_xtts)
-        self.xtts_set_tts_settings = config.xtts_set_tts_settings
-        self.xTTS_tts_data = config.xTTS_tts_data
+        self.xtts_url = config.xtts_url
+        self.xtts_data = config.xtts_data
         self.xtts_server_path = config.xtts_server_path
-        self.synthesize_url_xtts = config.xtts_synthesize_url
-        self.switch_model_url = config.xtts_switch_model
-        self.xtts_get_models_list = config.xtts_get_models_list
-        self.xtts_set_output = config.xtts_set_output
         self.official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
+
+        self.synthesize_url = 'http://127.0.0.1:8008/synthesize'
+        self.synthesize_batch_url = 'http://127.0.0.1:8008/synthesize_batch'
+        self.loadmodel_url = 'http://127.0.0.1:8008/loadModel'
+        self.setvocoder_url = 'http://127.0.0.1:8008/setVocoder'
+
+        self.xtts_synthesize_url = f'{self.xtts_url}/tts_to_audio/'
+        self.xtts_switch_model = f'{self.xtts_url}/switch_model'
+        self.xtts_set_tts_settings = f'{self.xtts_url}/set_tts_settings'
+        self.xtts_get_models_list = f'{self.xtts_url}/get_models_list'
+        self.xtts_set_output = f'{self.xtts_url}/set_output'
 
         # voice models path (renaming Fallout4VR to Fallout4 to allow for filepath completion)
         if config.game == "Fallout4" or config.game == "Fallout4VR":
@@ -74,11 +81,6 @@ class Synthesizer:
 
         self.model_type = ''
         self.base_speaker_emb = ''
-
-        self.synthesize_url = 'http://127.0.0.1:8008/synthesize'
-        self.synthesize_batch_url = 'http://127.0.0.1:8008/synthesize_batch'
-        self.loadmodel_url = 'http://127.0.0.1:8008/loadModel'
-        self.setvocoder_url = 'http://127.0.0.1:8008/setVocoder'
        
 
     def _get_available_models(self):
@@ -148,7 +150,6 @@ class Synthesizer:
     
         # Synthesize voicelines
         if self.use_external_xtts == 1:
-            requests.post(self.xtts_set_output, json={'output_folder': final_voiceline_folder})
             self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, aggro)
         else:
             if len(phrases) == 1:
@@ -309,17 +310,18 @@ class Synthesizer:
 
     @utils.time_it
     def _synthesize_line_xtts(self, line, save_path, voice, aggro=0):
-        voice_path = f"{voice.lower().replace(' ', '')}"
+        voice_path = f"{voice.replace(' ', '')}"
         data = {
             'text': line,
             'speaker_wav': voice_path,
             'language': self.language,
-            'save_path': save_path
         }
-        response = requests.post(self.synthesize_url_xtts, json=data)
+        response = requests.post(self.xtts_synthesize_url, json=data)
 
         # Check if the response is successful
         if response.ok:
+            with open(save_path, 'wb') as file:
+                file.write(response.content)
             # Convert the audio file to 16-bit format only if the POST request was successful
             self.convert_to_16bit(save_path)
         else:
@@ -384,9 +386,9 @@ class Synthesizer:
         try:
             # Sending a POST request to the API endpoint
             logging.log(self.loglevel, f'Attempting to connect to xTTS...')
-            tts_data_dict = json.loads(self.xTTS_tts_data.replace('\n', ''))
+            tts_data_dict = json.loads(self.xtts_data.replace('\n', ''))
             response = requests.post(self.xtts_set_tts_settings, json=tts_data_dict)
-            response.raise_for_status() 
+            response.raise_for_status()
         except requests.exceptions.RequestException as e:
             # Log the error
             logging.error(f'Could not reach the API at "{self.xtts_set_tts_settings}". Error: {e}')
@@ -415,7 +417,7 @@ class Synthesizer:
                 model_voice = f"{model_voice.lower().replace(' ', '')}"
 
             # Request to switch the voice model
-            requests.post(self.switch_model_url, json={"model_name": model_voice})
+            requests.post(self.xtts_switch_model, json={"model_name": model_voice})
             
         else :
             #this is a game check for Fallout4/Skyrim to correctly search the XVASynth voice models for the right game.
