@@ -1,4 +1,6 @@
 import requests
+from requests.exceptions import ConnectionError
+import time
 import winsound
 import logging
 import src.utils as utils
@@ -10,6 +12,7 @@ import sys
 from pathlib import Path
 import json
 from subprocess import Popen, PIPE, STDOUT, DEVNULL, STARTUPINFO,STARTF_USESHOWWINDOW
+import io
 import subprocess
 
 class TTSServiceFailure(Exception):
@@ -22,14 +25,18 @@ class Synthesizer:
     def __init__(self, config):
         self.loglevel = 29
         self.xvasynth_path = config.xvasynth_path
-        self.facefx_path = config.facefx_path if config.facefx_path else (config.xvasynth_path + '/resources/app/plugins/lip_fuz/')
+        self.facefx_path = config.facefx_path
         self.process_device = config.xvasynth_process_device
-        self.times_checked_xvasynth = 0
+        self.times_checked = 0
         # to print output to console
         self.tts_print = config.tts_print
         
-        #Added from xTTS implementation
+        #Added from XTTS implementation
         self.use_external_xtts = int(config.use_external_xtts)
+        self.xtts_default_model = config.xtts_default_model
+        self.xtts_deepspeed = int(config.xtts_deepspeed)
+        self.xtts_lowvram = int(config.xtts_lowvram)
+        self.xtts_device = config.xtts_device
         self.xtts_url = config.xtts_url
         self.xtts_data = config.xtts_data
         self.xtts_server_path = config.xtts_server_path
@@ -54,12 +61,14 @@ class Synthesizer:
             self.game = "Skyrim"
         # check if xvasynth is running; otherwise try to run it
         if self.use_external_xtts == 1:
-            self._set_tts_settings_and_test_if_serv_running()
+            self.check_if_xtts_is_running()
             self.available_models = self._get_available_models()
-            self.plugins_path = self.xtts_server_path + "/plugins/lip_fuz"
+            if not self.facefx_path :
+                self.facefx_path = self.xtts_server_path + "/plugins/lip_fuz"
         else:
             self.check_if_xvasynth_is_running()
-            self.plugins_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
+            if not self.facefx_path :
+                self.facefx_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
 
 
         self.model_path = f"{self.xvasynth_path}/resources/app/models/{self.game}/"
@@ -319,13 +328,11 @@ class Synthesizer:
         response = requests.post(self.xtts_synthesize_url, json=data)
 
         # Check if the response is successful
-        if response.ok:
-            with open(save_path, 'wb') as file:
-                file.write(response.content)
+        if response.status_code == 200:
             # Convert the audio file to 16-bit format only if the POST request was successful
-            self.convert_to_16bit(save_path)
+            self.convert_to_16bit(io.BytesIO(response.content), save_path)
         else:
-            logging.error(f"Failed to synthesize line with xTTS: {response.status_code} - {response.text}")
+            logging.error(f"Failed to synthesize line with XTTS: {response.status_code} - {response.text}")
 
 
     @utils.time_it
@@ -346,16 +353,16 @@ class Synthesizer:
         requests.post(self.synthesize_batch_url, json=data)
 
     def check_if_xvasynth_is_running(self):
-        self.times_checked_xvasynth += 1
+        self.times_checked += 1
 
         try:
-            if (self.times_checked_xvasynth > 10):
+            if (self.times_checked > 10):
                 # break loop
                 logging.error('Could not connect to xVASynth multiple times. Ensure that xVASynth is running and restart Mantella.')
                 raise TTSServiceFailure()
 
             # contact local xVASynth server; ~2 second timeout
-            logging.log(self.loglevel, f'Attempting to connect to xVASynth... ({self.times_checked_xvasynth})')
+            logging.log(self.loglevel, f'Attempting to connect to xVASynth... ({self.times_checked})')
             response = requests.get('http://127.0.0.1:8008/')
             response.raise_for_status()  # If the response contains an HTTP error status code, raise an exception
         except requests.exceptions.RequestException as err:
@@ -363,11 +370,74 @@ class Synthesizer:
                 # So it is alive
                 return
 
-            if (self.times_checked_xvasynth == 1):
+            if (self.times_checked == 1):
                 logging.log(self.loglevel, 'Could not connect to xVASynth. Attempting to run headless server...')
                 self.run_xvasynth_server()
             # do the web request again; LOOP!!!
             return self.check_if_xvasynth_is_running()
+        
+    def check_if_xtts_is_running(self):
+        self.times_checked += 1
+        tts_data_dict = json.loads(self.xtts_data.replace('\n', ''))
+        
+        try:
+            if (self.times_checked > 10):
+                # break loop
+                logging.error('Could not connect to XTTS multiple times. Ensure that xtts-api-server is running and restart Mantella.')
+                raise TTSServiceFailure()
+
+            # contact local xVASynth server; ~2 second timeout
+            logging.log(self.loglevel, f'Attempting to connect to XTTS... ({self.times_checked})')
+            response = requests.post(self.xtts_set_tts_settings, json=tts_data_dict)
+            response.raise_for_status() 
+            
+        except requests.exceptions.RequestException as err:
+            if ('Connection aborted' in err.__str__()):
+                # So it is alive
+                return
+
+            if (self.times_checked == 1):
+                logging.log(self.loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
+                self.run_xtts_server()
+      
+    def run_xtts_server(self):
+        try:
+            # Start the server
+            command = f'{self.xtts_server_path}\\xtts-api-server-mantella.exe'
+    
+            # Check if deepspeed should be enabled
+            if self.xtts_default_model:
+                command += (f" --version {self.xtts_default_model}")
+            if self.xtts_deepspeed == 1:
+                command += ' --deepspeed'
+            if self.xtts_device == "cpu":
+                command += ' --device cpu'
+            if self.xtts_device == "cuda":
+                command += ' --device cuda'
+            if self.xtts_lowvram == 1 :
+                command += ' --lowvram'
+
+            Popen(command, cwd=self.xtts_server_path, stdout=None, stderr=None, shell=True)
+            tts_data_dict = json.loads(self.xtts_data.replace('\n', ''))
+            # Wait for the server to be up and running
+            server_ready = False
+            for _ in range(120):  # try for up to 10 seconds
+                try:
+                    response = requests.post(self.xtts_set_tts_settings, json=tts_data_dict)
+                    if response.status_code == 200:
+                        server_ready = True
+                        break
+                except ConnectionError:
+                    pass  # Server not up yet
+                time.sleep(1)
+        
+            if not server_ready:
+                logging.error("XTTS server did not start within the expected time.")
+                raise TTSServiceFailure()
+        
+        except Exception as e:
+            logging.error(f'Could not run XTTS. Ensure that the path "{self.xtts_server_path}" is correct. Error: {e}')
+            raise TTSServiceFailure()
 
     def run_xvasynth_server(self):
         try:

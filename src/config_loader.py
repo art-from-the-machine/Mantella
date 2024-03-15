@@ -138,9 +138,14 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
 
             #Added from xTTS implementation
             self.use_external_xtts = int(config['Speech']['use_external_xtts'])
+            self.xtts_default_model = config['Speech']['xtts_default_model']
+            self.xtts_deepspeed = int(config['Speech']['xtts_deepspeed'])
+            self.xtts_lowvram = int(config['Speech']['xtts_lowvram'])
+            self.xtts_device = config['Speech']['xtts_device']
             self.number_words_tts = int(config['Speech']['number_words_tts'])
             self.xtts_url = config['Speech']['xtts_url']
             self.xtts_data = config['Speech']['xtts_data']
+            
             self.xvasynth_process_device = config['Speech']['tts_process_device']
             self.pace = float(config['Speech']['pace'])
             self.use_cleanup = int(config['Speech']['use_cleanup'])

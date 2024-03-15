@@ -509,7 +509,7 @@ class ChatManager:
                                     break
                             
                             # Accumulate sentences if less than X words
-                            if len(accumulated_sentence.split()) < self.number_words_tts and cumulative_sentence_bool == False:
+                            if len(accumulated_sentence.split()) + len(current_sentence.split()) < self.number_words_tts and cumulative_sentence_bool == False:
                                 accumulated_sentence += current_sentence
                                 sentence = remaining_content
                                 continue
