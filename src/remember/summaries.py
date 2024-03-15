@@ -32,7 +32,7 @@ class summaries(remembering):
         """
         result = ""
         for character in npcs_in_conversation.get_all_characters():
-            if os.path.exists(character.conversation_history_file):
+            if os.path.exists(character.conversation_history_file) and os.path.exists(character.conversation_summary_file):
                 with open(character.conversation_summary_file, 'r', encoding='utf-8') as f:
                     previous_conversation_summaries = f.read()
                     character.conversation_summary = previous_conversation_summaries
