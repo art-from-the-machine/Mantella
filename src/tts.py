@@ -315,7 +315,20 @@ class Synthesizer:
             'useSR': self.use_sr,
             'useCleanup': self.use_cleanup,
         }
-        requests.post(self.synthesize_url, json=data)
+
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                requests.post(self.synthesize_url, json=data)
+                break  # Exit the loop if the request is successful
+            except ConnectionError as e:
+                if attempt < max_attempts - 1:  # Not the last attempt
+                    logging.warning(f"Connection error while synthesizing voiceline. Restarting xVASynth server... ({attempt})")
+                    self.run_xvasynth_server()
+                    self.change_voice(self.last_voice)
+                else:
+                    logging.error(f"Failed to synthesize line after {max_attempts} attempts. Skipping voiceline: {line}")
+                    break
 
     @utils.time_it
     def _synthesize_line_xtts(self, line, save_path, voice, aggro=0):
@@ -350,7 +363,20 @@ class Synthesizer:
             'useSR': None,
             'useCleanup': None,
         }
-        requests.post(self.synthesize_batch_url, json=data)
+
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                requests.post(self.synthesize_batch_url, json=data)
+                break  # Exit the loop if the request is successful
+            except ConnectionError as e:
+                if attempt < max_attempts - 1:  # Not the last attempt
+                    logging.warning(f"Connection error while synthesizing voiceline. Restarting xVASynth server... ({attempt})")
+                    self.run_xvasynth_server()
+                    self.change_voice(self.last_voice)
+                else:
+                    logging.error(f"Failed to synthesize line after {max_attempts} attempts. Skipping voiceline: {linesBatch}")
+                    break
 
     def check_if_xvasynth_is_running(self):
         self.times_checked += 1
@@ -448,6 +474,8 @@ class Synthesizer:
             else:
                 # ignore output
                 Popen(f'{self.xvasynth_path}/resources/app/cpython_{self.process_device}/server.exe', cwd=self.xvasynth_path, stdout=DEVNULL, stderr=DEVNULL)
+
+            time.sleep(1)
         except:
             logging.error(f'Could not run xVASynth. Ensure that the path "{self.xvasynth_path}" is correct.')
             raise TTSServiceFailure()
