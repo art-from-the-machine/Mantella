@@ -467,6 +467,11 @@ class ChatManager:
                             if not current_sentence:
                                 sentence = remaining_content
                                 continue
+
+                            if self.game !="Fallout4" and self.game != "Fallout4VR":
+                                if ('assist' in current_sentence) and (num_sentences>0):
+                                    logging.info(f"'assist' keyword found. Ignoring sentence: {sentence}")
+                                    continue
                             
                             # New logic to handle conditions based on the presence of a colon and the state of `accumulated_sentence`
                             content_edit = unicodedata.normalize('NFKC', current_sentence)
@@ -508,10 +513,6 @@ class ChatManager:
                                         logging.info(f"The NPC is willing to follow the player")
                                         self.game_state_manager.write_game_info('_mantella_aggro', '2')
              
-                            if self.game !="Fallout4" and self.game != "Fallout4VR":
-                                if ('assist' in content) and (num_sentences>0):
-                                    logging.info(f"'assist' keyword found. Ignoring sentence which begins with: {sentence}")
-                                    break
                             
                             # Accumulate sentences if less than X words
                             if len(accumulated_sentence.split()) + len(current_sentence.split()) < self.number_words_tts and cumulative_sentence_bool == False:
