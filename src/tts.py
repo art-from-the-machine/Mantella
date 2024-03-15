@@ -31,7 +31,7 @@ class Synthesizer:
         # to print output to console
         self.tts_print = config.tts_print
         
-        #Added from xTTS implementation
+        #Added from XTTS implementation
         self.use_external_xtts = int(config.use_external_xtts)
         self.xtts_default_model = config.xtts_default_model
         self.xtts_deepspeed = int(config.xtts_deepspeed)
@@ -332,7 +332,7 @@ class Synthesizer:
             # Convert the audio file to 16-bit format only if the POST request was successful
             self.convert_to_16bit(io.BytesIO(response.content), save_path)
         else:
-            logging.error(f"Failed to synthesize line with xTTS: {response.status_code} - {response.text}")
+            logging.error(f"Failed to synthesize line with XTTS: {response.status_code} - {response.text}")
 
 
     @utils.time_it
@@ -378,16 +378,16 @@ class Synthesizer:
         
     def check_if_xtts_is_running(self):
         self.times_checked += 1
-        tts_data_dict = json.loads(self.xTTS_tts_data.replace('\n', ''))
+        tts_data_dict = json.loads(self.xtts_data.replace('\n', ''))
         
         try:
             if (self.times_checked > 10):
                 # break loop
-                logging.error('Could not connect to xTTS multiple times. Ensure that xtts-api-server is running and restart Mantella.')
+                logging.error('Could not connect to XTTS multiple times. Ensure that xtts-api-server is running and restart Mantella.')
                 raise TTSServiceFailure()
 
             # contact local xVASynth server; ~2 second timeout
-            logging.log(self.loglevel, f'Attempting to connect to xTTS... ({self.times_checked})')
+            logging.log(self.loglevel, f'Attempting to connect to XTTS... ({self.times_checked})')
             response = requests.post(self.xtts_set_tts_settings, json=tts_data_dict)
             response.raise_for_status() 
             
@@ -418,7 +418,7 @@ class Synthesizer:
                 command += ' --lowvram'
 
             Popen(command, cwd=self.xtts_server_path, stdout=None, stderr=None, shell=True)
-            tts_data_dict = json.loads(self.xTTS_tts_data.replace('\n', ''))
+            tts_data_dict = json.loads(self.xtts_data.replace('\n', ''))
             # Wait for the server to be up and running
             server_ready = False
             for _ in range(120):  # try for up to 10 seconds
