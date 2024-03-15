@@ -105,6 +105,13 @@ class pc_to_npc(conversation_type):
     
     def can_proceed(self, settings: context) -> bool:
         return len(settings.npcs_in_conversation) == 1
+    
+    def should_end(self, context_for_conversation: context, messages: message_thread, game_state: GameStateManager) -> bool:
+        conversation_ended = game_state.load_data_when_available('_mantella_end_conversation', '').lower()
+        if conversation_ended == 'true':
+            return True
+        else:
+            return False
 
 class multi_npc(conversation_type):
     """Group conversation between the PC and multiple NPCs"""
@@ -124,6 +131,13 @@ class multi_npc(conversation_type):
     
     def can_proceed(self, context_for_conversation: context) -> bool:
         return len(context_for_conversation.npcs_in_conversation) > 1
+    
+    def should_end(self, context_for_conversation: context, messages: message_thread, game_state: GameStateManager) -> bool:
+        conversation_ended = game_state.load_data_when_available('_mantella_end_conversation', '').lower()
+        if conversation_ended == 'true':
+            return True
+        else:
+            return False
 
 class radiant(conversation_type):
     """ Conversation between two NPCs without the player"""
