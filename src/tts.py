@@ -397,7 +397,7 @@ class Synthesizer:
                 return
 
             if (self.times_checked == 1):
-                logging.log(self.loglevel, 'Could not connect to xVASynth. Attempting to run headless server...')
+                logging.log(self.loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
                 self.run_xtts_server()
       
     def run_xtts_server(self):
