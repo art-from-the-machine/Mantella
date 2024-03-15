@@ -194,7 +194,7 @@ class Synthesizer:
             lip = final_voiceline_file.replace(".wav", ".lip")
             commands = [
                 face_wrapper_executable.name,
-                "Skyrim",
+                self.game,
                 "USEnglish",
                 cdf_path.name,
                 f'"{final_voiceline_file}"',
