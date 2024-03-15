@@ -46,3 +46,6 @@ class Characters:
     
     def get_player_character(self) -> Character | None:
         return self.__player_character
+    
+    def contains_multiple_npcs(self) -> bool:
+        return self.active_character_count() > 2 or (self.active_character_count() == 2 and not self.contains_player_character())

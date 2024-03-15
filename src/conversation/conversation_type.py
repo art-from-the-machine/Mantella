@@ -22,6 +22,15 @@ class conversation_type(ABC):
             str: the prompt as a text
         """
         pass
+
+    @abstractmethod
+    def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread):
+        """Adjusts a given message_thread to one needed for the conversation type
+
+        Args:
+            message_thread_to_adjust (message_thread): The message_thread to adjust
+        """
+        pass
     
     def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:
         """Gets the next user message for the conversation. Default implementation gets the input from the player
@@ -55,13 +64,18 @@ class pc_to_npc(conversation_type):
         super().__init__(prompt)
 
     def generate_prompt(self, context_for_conversation: context) -> str:
-        return context_for_conversation.generate_system_message(self._prompt, True)
+        return context_for_conversation.generate_system_message(self._prompt)
+    
+    def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
+        message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), False, True)
     
     def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:
         if len(messages) == 1 and context_for_conversation.config.automatic_greeting == '1':
             for actor in context_for_conversation.npcs_in_conversation.get_all_characters():
                 if not actor.Is_player_character:
-                    return user_message(f"{context_for_conversation.Language['hello']} {actor.Name}.", context_for_conversation.config.player_name, True)
+                    message = user_message(f"{context_for_conversation.Language['hello']} {actor.Name}.", context_for_conversation.config.player_name, True)
+                    message.Is_multi_npc_message = False
+                    return message
             return None
         else:
             return super().get_user_message(context_for_conversation, messages)
@@ -72,7 +86,10 @@ class multi_npc(conversation_type):
         super().__init__(prompt)
 
     def generate_prompt(self, context_for_conversation: context) -> str:
-        return context_for_conversation.generate_system_message(self._prompt, True)
+        return context_for_conversation.generate_system_message(self._prompt)
+    
+    def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
+        message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), True, True)
 
 class radiant(conversation_type):
     """ Conversation between two NPCs without the player"""
@@ -82,7 +99,10 @@ class radiant(conversation_type):
         self.__user_end_prompt = context_for_conversation.config.radiant_end_prompt
 
     def generate_prompt(self, context_for_conversation: context) -> str:
-        return context_for_conversation.generate_system_message(self._prompt, False)
+        return context_for_conversation.generate_system_message(self._prompt)
+    
+    def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
+        message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), True, True)
     
     def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:
         text = ""
@@ -93,7 +113,7 @@ class radiant(conversation_type):
         else:
             return None
         reply = user_message(text, context_for_conversation.config.player_name, True)
-        reply.is_multi_npc_message = False # Don't flag these as multi-npc messages. Don't want a 'Player:' in front of the instruction messages
+        reply.Is_multi_npc_message = False # Don't flag these as multi-npc messages. Don't want a 'Player:' in front of the instruction messages
         return reply
     
     def should_end(self, context_for_conversation: context, messages: message_thread) -> bool:

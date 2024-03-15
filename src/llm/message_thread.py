@@ -28,10 +28,10 @@ class message_thread():
     def transform_to_text(messages: list[message]) -> str:
         result = ""
         for m in messages:
-            original_is_multi = m.is_multi_npc_message
-            m.is_multi_npc_message = True
+            original_is_multi = m.Is_multi_npc_message
+            m.Is_multi_npc_message = True
             result += f"{m.get_formatted_content()}\n"
-            m.is_multi_npc_message = original_is_multi
+            m.Is_multi_npc_message = original_is_multi
         return result
     
     @staticmethod
@@ -86,7 +86,7 @@ class message_thread():
             if isinstance(message, (assistant_message, user_message)):
                 if include_system_generated_messages:
                     result.append(deepcopy(message)) #ToDo: Once assistant_message uses Character instead of str, this needs to be improved, don't want deepcopies of Character
-                elif not message.is_system_generated_message:
+                elif not message.Is_system_generated_message:
                     result.append(deepcopy(message))
         return result
     
@@ -107,20 +107,31 @@ class message_thread():
         """
         last_assistant_message = self.get_last_assistant_message()
         if last_assistant_message:
-            last_assistant_message.text += text_to_append
-    
-    def turn_into_multi_npc_conversation(self, multi_NPC_prompt: str, remove_system_flagged_messages: bool = False):
-        """Turns a PC2NPC conversation into a Multi-NPC conversation by changing the prompt and activating the is_multi_npc_message flag for all prior assistant messages
+            last_assistant_message.Text += text_to_append
 
-        Args:
-            multi_NPC_prompt (str): the new already filled out prompt for the multi-npc conversation
-        """
+    def modify_messages(self, new_prompt: str, multi_npc_conversation: bool, remove_system_flagged_messages: bool = False):
         if len(self.__messages) > 0 and isinstance(self.__messages[0], system_message):
             messages_to_remove: list[message] = []
-            self.__messages[0].text = multi_NPC_prompt
+            self.__messages[0].Text = new_prompt
             for m in self.__messages:
-                if m.is_system_generated_message and remove_system_flagged_messages and not isinstance(m, system_message):
+                if m.Is_system_generated_message and remove_system_flagged_messages and not isinstance(m, system_message):
                     messages_to_remove.append(m)
-                m.is_multi_npc_message = True
+                m.Is_multi_npc_message = multi_npc_conversation
             for m in messages_to_remove:
                 self.__messages.remove(m)
+    
+    # def turn_into_multi_npc_conversation(self, multi_NPC_prompt: str, remove_system_flagged_messages: bool = False):
+    #     """Turns a PC2NPC conversation into a Multi-NPC conversation by changing the prompt and activating the is_multi_npc_message flag for all prior assistant messages
+
+    #     Args:
+    #         multi_NPC_prompt (str): the new already filled out prompt for the multi-npc conversation
+    #     """
+    #     if len(self.__messages) > 0 and isinstance(self.__messages[0], system_message):
+    #         messages_to_remove: list[message] = []
+    #         self.__messages[0].text = multi_NPC_prompt
+    #         for m in self.__messages:
+    #             if m.is_system_generated_message and remove_system_flagged_messages and not isinstance(m, system_message):
+    #                 messages_to_remove.append(m)
+    #             m.is_multi_npc_message = True
+    #         for m in messages_to_remove:
+    #             self.__messages.remove(m)

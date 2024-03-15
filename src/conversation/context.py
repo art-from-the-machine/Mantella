@@ -162,7 +162,7 @@ class context:
             trust = 'an enemy'
         return trust
     
-    def __get_trusts(self, player_name: str = "") -> str:
+    def __get_trusts(self) -> str:
         """Calculates the trust towards the player for all NPCs in the conversation
 
         Args:
@@ -171,8 +171,8 @@ class context:
         Returns:
             str: A combined natural text describing their relationship towards the player, empty if there is no player 
         """
-        if player_name == "" or len(self.__npcs_in_conversation) < 1:
-            return ""
+        # if player_name == "" or len(self.__npcs_in_conversation) < 1:
+        #     return ""
         
         relationships = []
         for npc in self.get_characters_excluding_player().get_all_characters():
@@ -181,7 +181,7 @@ class context:
         
         return context.format_listing(relationships)
        
-    def __get_character_names_as_text(self, player_name: str = "") -> str:
+    def __get_character_names_as_text(self, should_include_player: bool) -> str:
         """Gets the names of the NPCs in the conversation as a natural language list
 
         Args:
@@ -190,9 +190,11 @@ class context:
         Returns:
             str: text containing the names of the NPC concatenated by ',' and 'and'
         """
-        keys = self.get_characters_excluding_player().get_all_names()
-        if len(player_name) > 0:
-            keys.append(player_name)
+        keys: list[str] = []
+        if should_include_player:
+            keys = self.npcs_in_conversation.get_all_names()
+        else:
+            keys = self.get_characters_excluding_player().get_all_names()
         return context.format_listing(keys)
     
     def __get_bios_text(self) -> str:
@@ -209,7 +211,7 @@ class context:
                 bio_descriptions.append(f"{character.Name}: {character.Bio}")
         return "\n".join(bio_descriptions)
     
-    def generate_system_message(self, prompt: str, include_player: bool = False, include_conversation_summaries: bool = True, include_bios: bool = True) -> str:
+    def generate_system_message(self, prompt: str) -> str:
         """Fills the variables in the prompt with the values calculated from the context
 
         Args:
@@ -219,26 +221,20 @@ class context:
         Returns:
             str: the filled prompt
         """
+        player: Character | None = self.__npcs_in_conversation.get_player_character()
         player_name = ""
-        if include_player:
-            player_name = self.__config.player_name
-        name = ""
+        if player:
+            player_name = player.Name
         if self.npcs_in_conversation.last_added_character:
             name: str = self.npcs_in_conversation.last_added_character.Name
-        names = self.__get_character_names_as_text()
-        names_w_player = self.__get_character_names_as_text(player_name)
-        if include_bios:            
-            bios = self.__get_bios_text()
-        else:
-            bios = "" 
-        trusts = self.__get_trusts(player_name)
+        names = self.__get_character_names_as_text(False)
+        names_w_player = self.__get_character_names_as_text(True)
+        bios = self.__get_bios_text()
+        trusts = self.__get_trusts()
         location = self.__location
         time = self.__ingame_time
         time_group = get_time_group(time)
-        if include_conversation_summaries:
-            conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player())
-        else:
-            conversation_summaries = ""
+        conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player())
 
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
         

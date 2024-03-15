@@ -66,23 +66,25 @@ class GameStateManager:
                                                 action(comm_consts.ACTION_NPC_FOLLOW, config.follow_npc_response, f"The NPC is willing to follow the player")]
 
     ###### react to calls from the game #######
-    def start_conversation(self, json: dict[str, Any]) -> dict[str, Any]:
-        if not self.__talk:            
-            context_for_conversation = context(self.__config, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
-            self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client.are_messages_too_long, self.__actions)
-            self.__update_context(json)
-            self.__talk.start_conversation()
-        else:
-            self.__update_context(json)
+    def start_conversation(self, inputJson: dict[str, Any]) -> dict[str, Any]:
+        if self.__talk: #This should only happen if game and server are out of sync due to some previous error -> close conversation and start a new one
+            self.__talk.end()
+            self.__talk = None
+        context_for_conversation = context(self.__config, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
+        self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client.are_messages_too_long, self.__actions)
+        self.__update_context(inputJson)
+        self.__talk.start_conversation()
         
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED}
     
-    def continue_conversation(self, input: dict[str, Any]) -> dict[str, Any]:
+    def continue_conversation(self, inputJson: dict[str, Any]) -> dict[str, Any]:
         if(not self.__talk ):
             return self.error_message("No running conversation at this point")
         
-        if input.__contains__(comm_consts.KEY_REQUEST_EXTRA_ACTIONS):
-            extra_actions: list[str] = input[comm_consts.KEY_REQUEST_EXTRA_ACTIONS]
+        self.__update_context(inputJson)
+        
+        if inputJson.__contains__(comm_consts.KEY_REQUEST_EXTRA_ACTIONS):
+            extra_actions: list[str] = inputJson[comm_consts.KEY_REQUEST_EXTRA_ACTIONS]
             if extra_actions.__contains__(comm_consts.ACTION_RELOADCONVERSATION):
                 self.__talk.reload_conversation()
 
@@ -93,16 +95,16 @@ class GameStateManager:
             reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play)
         return reply
 
-    def player_input(self, json: dict[str, Any]) -> dict[str, Any]:
+    def player_input(self, inputJson: dict[str, Any]) -> dict[str, Any]:
         if(not self.__talk ):
             return self.error_message("No running conversation at this point")
         
-        player_text: str = json[comm_consts.KEY_REQUESTTYPE_PLAYERINPUT]
-        self.__update_context(json)
+        player_text: str = inputJson[comm_consts.KEY_REQUESTTYPE_PLAYERINPUT]
+        self.__update_context(inputJson)
         self.__talk.process_player_input(player_text)
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}
 
-    def end_conversation(self, json: dict[str, Any]) -> dict[str, Any]:
+    def end_conversation(self, inputJson: dict[str, Any]) -> dict[str, Any]:
         if(self.__talk):
             self.__talk.end()
             self.__talk = None
@@ -299,7 +301,7 @@ class GameStateManager:
             bio: str = ""
             voice_model: str = "MaleNord"
             is_player_character: bool = json[comm_consts.KEY_ACTOR_ISPLAYER]            
-            if not is_player_character:
+            if not is_player_character and self.__talk and not self.__talk.contains_character(character_id):#If this is not the player and the character has not already been loaded
                 try: # load character from skyrim_characters.csv
                     character_info = self.__character_df.loc[self.__character_df['name'].astype(str).str.lower()==character_name.lower()].to_dict('records')[0]
                     bio = character_info["bio"]

@@ -112,18 +112,16 @@ class conversation:
         with self.__generation_start_lock:
             self.__stop_generation() # Stop generation of additional sentences right now
             self.__sentences.clear() # Clear any remaining sentences from the list
-
-            # New spot for checking if a conversation needs to reload: right before a new player input is added
-            # This makes sure, there is no more generation running at this point and thanks to the lock we are sure that no new generation is started while doing this
             
-            new_message: user_message = user_message(player_text, player_character.Name )
+            new_message: user_message = user_message(player_text, player_character.Name, False)
+            new_message.Is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
             self.update_game_events(new_message)
             self.__messages.add_message(new_message)
-            text = new_message.text
+            text = new_message.Text
             logging.info(f"Text passed to NPC: {text}")
 
         if self.__has_conversation_ended(text):
-            new_message.is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
+            new_message.Is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
             self.initiate_end_sequence()
         else:
             self.__start_generating_npc_sentences()
@@ -131,10 +129,10 @@ class conversation:
     def update_context(self, location: str, time: int, custom_ingame_events: list[str]):
         self.__context.update_context(location, time, custom_ingame_events)
         if self.__context.Have_actors_changed:
-            self.__update_system_message()
+            self.__update_conversation_type()
             self.__context.Have_actors_changed = False
 
-    def __update_system_message(self):
+    def __update_conversation_type(self):
         # If the conversation can proceed for the first time, it starts and we add the system_message with the prompt
         if not self.__context.npcs_in_conversation.contains_player_character():
             self.__conversation_type = radiant(self.__context)
@@ -147,6 +145,7 @@ class conversation:
         if len(self.__messages) == 0:
             self.__messages: message_thread = message_thread(new_prompt)
         else:
+            self.__conversation_type.adjust_existing_message_thread(self.__messages, self.__context)
             self.__messages.reload_message_thread(new_prompt, 8)
 
     @utils.time_it
@@ -169,7 +168,8 @@ class conversation:
         if not next_sentence.Is_system_generated_sentence:
             last_message = self.__messages.get_last_message()
             if not isinstance(last_message, assistant_message):
-                last_message = assistant_message("")
+                last_message = assistant_message()
+                last_message.Is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
                 self.__messages.add_message(last_message)
             last_message.add_sentence(next_sentence)
         return next_sentence
@@ -198,6 +198,12 @@ class conversation:
             
             
             # self.__game_manager.end_conversation()
+                    
+    def contains_character(self, character_id: str) -> bool:
+        for actor in self.__context.npcs_in_conversation.get_all_characters():
+            if actor.Id == character_id:
+                return True
+        return False
 
     def end(self):
         self.__has_already_ended = True
@@ -216,7 +222,8 @@ class conversation:
         if self.__generation_thread and self.__generation_thread.is_alive():
             self.__output_manager.stop_generation()
             while self.__generation_thread and self.__generation_thread.is_alive():
-                time.sleep(0.1)                
+                time.sleep(0.1)
+            self.__generation_thread = None         
 
     def __save_conversation(self):
         """Saves conversation log and state for each NPC in the conversation"""

@@ -13,27 +13,27 @@ class message(ABC):
         self.__is_system_generated_message = is_system_generated_message
 
     @property
-    def text(self) -> str:
+    def Text(self) -> str:
         return self.__text
     
-    @text.setter
-    def text(self, text: str):
+    @Text.setter
+    def Text(self, text: str):
         self.__text = text
 
     @property
-    def is_multi_npc_message(self) -> bool:
+    def Is_multi_npc_message(self) -> bool:
         return self.__is_multi_npc_message
     
-    @is_multi_npc_message.setter
-    def is_multi_npc_message(self, is_multi_npc_message: bool):
+    @Is_multi_npc_message.setter
+    def Is_multi_npc_message(self, is_multi_npc_message: bool):
         self.__is_multi_npc_message = is_multi_npc_message
 
     @property
-    def is_system_generated_message(self) -> bool:
+    def Is_system_generated_message(self) -> bool:
         return self.__is_system_generated_message
     
-    @is_system_generated_message.setter
-    def is_system_generated_message(self, is_system_generated_message: bool):
+    @Is_system_generated_message.setter
+    def Is_system_generated_message(self, is_system_generated_message: bool):
         self.__is_system_generated_message = is_system_generated_message
 
     @abstractmethod
@@ -61,7 +61,7 @@ class system_message(message):
         super().__init__(prompt, True)
 
     def get_formatted_content(self) -> str:
-        return self.text
+        return self.Text
 
     def get_openai_message(self) -> ChatCompletionMessageParam:
         return {"role":"system", "content": self.get_formatted_content(),}
@@ -74,11 +74,11 @@ class assistant_message(message):
     """An assitant message containing the response of an LLM to a request.
     Automatically appends the character name in front of the text if provided and if there is only one active_assistant_character
     """
-    def __init__(self, text: str, active_assistant_characters: list[str] = [], is_system_generated_message: bool = False):
-        super().__init__(text, is_system_generated_message)
+    def __init__(self, is_system_generated_message: bool = False):
+        super().__init__("", is_system_generated_message)
         self.__sentences: list[sentence] = []
-        self.__active_assistant_characters: list[str] = active_assistant_characters#Todo: Change str to Character once the circle dependcy with character_manager has been solved = active_assistant_characters
-        self.is_multi_npc_message = len(active_assistant_characters) > 1
+        # self.__active_assistant_characters: list[str] = active_assistant_characters#Todo: Change str to Character once the circle dependcy with character_manager has been solved = active_assistant_characters
+        # self.is_multi_npc_message = len(active_assistant_characters) > 1
     
     def add_sentence(self, new_sentence: sentence):
         self.__sentences.append(new_sentence)
@@ -88,10 +88,9 @@ class assistant_message(message):
             return ""
         
         result = ""
-        is_multi_npc = self.__is_multi_npc()
         lastActor: Character | None = None
         for sentence in self.__sentences: 
-            if is_multi_npc and lastActor != sentence.Speaker:
+            if self.Is_multi_npc_message and lastActor != sentence.Speaker:
                 lastActor = sentence.Speaker
                 result += "\n" + lastActor.Name +': '+ sentence.Sentence
             else:
@@ -105,18 +104,18 @@ class assistant_message(message):
         dictionary = {"role":"assistant", "content": self.get_formatted_content(),}
         return f"{dictionary}"
     
-    def add_character(self, character: str):
-        if not self.__active_assistant_characters.__contains__(character):
-            self.__active_assistant_characters.append(character)
+    # def add_character(self, character: str):
+    #     if not self.__active_assistant_characters.__contains__(character):
+    #         self.__active_assistant_characters.append(character)
 
-    def __is_multi_npc(self) -> bool:
-        if len(self.__sentences) < 1:
-            return False
-        firstActor: Character = self.__sentences[0].Speaker
-        for sentence in self.__sentences:
-            if sentence.Speaker != firstActor:
-                return True
-        return False
+    # def __is_multi_npc(self) -> bool:
+    #     if len(self.__sentences) < 1:
+    #         return False
+    #     firstActor: Character = self.__sentences[0].Speaker
+    #     for sentence in self.__sentences:
+    #         if sentence.Speaker != firstActor:
+    #             return True
+    #     return False
 
 class user_message(message):
     """A user message sent to the LLM. Contains the text from the player and optionally it's name.
@@ -133,9 +132,9 @@ class user_message(message):
         result += self.get_ingame_events_text()
         if self.__time:
             result += f"*The time is {self.__time[0]} {self.__time[1]}.*\n"
-        if self.is_multi_npc_message:
+        if self.Is_multi_npc_message:
             result += f"{self.__player_character_name}: "
-        result += f"{self.text}"
+        result += f"{self.Text}"
         return result
     
     def get_openai_message(self) -> ChatCompletionMessageParam:

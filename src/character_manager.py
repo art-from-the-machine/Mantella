@@ -21,8 +21,6 @@ class Character:
         self.__tts_voice_model: str = tts_voice_model
         self.__custom_character_values: dict[str, Any] = custom_character_values
         self.__conversation_history_file = f"data/conversations/{name}/{name}.json"
-        self.__conversation_summary_file = self.get_latest_conversation_summary_file_path()
-        self.__conversation_summary = ''
 
     @property
     def Id(self) -> str:
@@ -135,22 +133,6 @@ class Character:
     @property
     def Conversation_history_file(self) -> str:
         return self.__conversation_history_file
-    
-    @property
-    def Conversation_summary_file(self) -> str:
-        return self.__conversation_summary_file
-    
-    @Conversation_summary_file.setter
-    def Conversation_summary_file(self, value: str):
-        self.__conversation_summary_file = value
-    
-    @property
-    def Conversation_summary(self) -> str:
-        return self.__conversation_summary
-    
-    @Conversation_summary.setter
-    def Conversation_summary(self, value: str):
-        self.__conversation_summary = value
 
     def get_custom_character_value(self, key: str) -> Any:
         if self.__custom_character_values.__contains__(key):
@@ -167,30 +149,6 @@ class Character:
     
     def __hash__(self):
         return hash(tuple(sorted(self.__dict__.items())))
-
-
-    def get_latest_conversation_summary_file_path(self) -> str:
-        """Get latest conversation summary by file name suffix"""
-
-        name: str = self.Name
-        if os.path.exists(f"data/conversations/{name}"):
-            # get all files from the directory
-            files = os.listdir(f"data/conversations/{name}")
-            # filter only .txt files
-            txt_files = [f for f in files if f.endswith('.txt')]
-            if len(txt_files) > 0:
-                file_numbers = [int(os.path.splitext(f)[0].split('_')[-1]) for f in txt_files]
-                latest_file_number = max(file_numbers)
-                logging.info(f"Loaded latest summary file: data/conversations/{name}_summary_{latest_file_number}.txt")
-            else:
-                logging.info(f"data/conversations/{name} does not exist. A new summary file will be created.")
-                latest_file_number = 1
-        else:
-            logging.info(f"data/conversations/{name} does not exist. A new summary file will be created.")
-            latest_file_number = 1
-        
-        conversation_summary_file = f"data/conversations/{name}/{name}_summary_{latest_file_number}.txt"
-        return conversation_summary_file
     
     def save_conversation_log(self, messages: list[ChatCompletionMessageParam]):
         # save conversation history
