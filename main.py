@@ -3,6 +3,7 @@ import src.tts as tts
 import src.stt as stt
 import logging
 import os
+import time
 import src.output_manager as output_manager
 import src.game_manager as game_manager
 import src.character_manager as character_manager
@@ -70,11 +71,14 @@ try:
         talk = conversation(context_for_conversation, transcriber, game_state_manager, chat_manager, rememberer, is_radiant_dialogue, token_limit, token_limit_percent)
 
         while True: # Start conversation loop
-            with open(f'{config.game_path}/_mantella_actor_count.txt', 'r', encoding='utf-8') as f:
-                    try:
-                        num_characters_selected = int(f.readline().strip())
-                    except:
-                        logging.info('Failed to read _mantella_actor_count.txt')
+            try:
+                num_characters_selected = int(game_state_manager.load_data_when_available('_mantella_actor_count', ''))
+
+                while num_characters_selected == 0: # if this is the first character, wait for this character to load
+                    num_characters_selected = int(game_state_manager.load_data_when_available('_mantella_actor_count', ''))
+                    time.sleep(0.1)
+            except:
+                logging.info('Failed to read _mantella_actor_count.txt')
 
             # check if a new character has been added to conversation
             if num_characters_selected > context_for_conversation.npcs_in_conversation.active_character_count():
