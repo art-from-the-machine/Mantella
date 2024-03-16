@@ -46,6 +46,9 @@ try:
     transcriber = stt.Transcriber(game_state_manager, config, client.api_key)    
     rememberer: remembering = summaries(config.memory_prompt, config.resummarize_prompt, client, language_info['language'])
     chat_manager.pygame_initialize()
+
+    # end any lingering conversations from previous run
+    game_state_manager.write_game_info('_mantella_end_conversation', 'True')
     
     while True:
         # clear _mantella_ files in Skyrim or Fallout4 folder
