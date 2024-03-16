@@ -4,6 +4,7 @@ from openai import OpenAI, AsyncOpenAI, RateLimitError
 import logging
 import time
 import tiktoken
+import requests
 from src.llm.message_thread import message_thread
 from src.llm.messages import message
 from src.config_loader import ConfigLoader
@@ -12,7 +13,55 @@ class openai_client:
     """Joint setup for sync and async access to the LLMs
     """
     def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
-        if (config.alternative_openai_api_base.lower() == 'none') or ("https" in config.alternative_openai_api_base):
+        def auto_resolve_endpoint(model_name, endpoints):
+            # attempt connection to Kobold
+            try:
+                response = requests.get(endpoints['kobold'])
+                if response.status_code == 200:
+                    return endpoints['kobold']
+            except requests.RequestException:
+                # attempt connection to textgenwebui
+                try:
+                    response = requests.get(endpoints['textgenwebui'] + '/models')
+                    if response.status_code == 200:
+                        return endpoints['textgenwebui']
+                except requests.RequestException:
+                    pass
+            
+            # OpenRouter model names always have slashes (/), whereas OpenAI model names never have slashes
+            # if this assumption changes, then this code will be inaccurate
+            if '/' in model_name:
+                return endpoints['openrouter']
+            else:
+                return endpoints['openai']
+        
+        endpoints = {
+            'openai': 'none', # don't set an endpoint, just use the OpenAI default
+            'openrouter': 'https://openrouter.ai/api/v1',
+            'kobold': 'http://127.0.0.1:5001/v1',
+            'textgenwebui': 'http://127.0.0.1:5000/v1',
+        }
+        
+        cleaned_llm_api = config.llm_api.strip().lower().replace(' ', '')
+        if cleaned_llm_api == 'auto':
+            endpoint = auto_resolve_endpoint(config.llm, endpoints)
+        elif cleaned_llm_api == 'openai':
+            endpoint = endpoints['openai']
+            logging.info(f"Running LLM with OpenAI")
+        elif cleaned_llm_api == 'openrouter':
+            endpoint = endpoints['openrouter']
+            logging.info(f"Running LLM with OpenRouter")
+        elif cleaned_llm_api in ['kobold','koboldcpp']:
+            endpoint = endpoints['kobold']
+            logging.info(f"Running LLM with koboldcpp")
+        elif cleaned_llm_api in ['textgenwebui','text-gen-web-ui','textgenerationwebui','text-generation-web-ui']:
+            endpoint = endpoints['textgenwebui']
+            logging.info(f"Running LLM with Text generation web UI")
+        else: # if endpoint isn't named, assume it is a direct URL
+            endpoint = config.llm_api
+
+
+        if (endpoint == 'none') or ("https" in endpoint):
             #cloud LLM
             self.__is_local: bool = False
             with open(secret_key_file, 'r') as f:
@@ -24,7 +73,7 @@ class openai_client:
             self.__api_key: str = 'abc123'
             logging.info(f"Running Mantella with local language model")
 
-        self.__base_url: str = config.alternative_openai_api_base if config.alternative_openai_api_base.lower() != 'none' else None
+        self.__base_url: str = endpoint if endpoint != 'none' else None
         self.__stop: str | List[str] = config.stop
         self.__temperature: float = config.temperature
         self.__top_p: float = config.top_p
@@ -40,12 +89,12 @@ class openai_client:
         # if using an alternative API, use encoding for GPT-3.5 by default
         # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
         #       this can lead to the token limit of the given model being overrun
-        if config.alternative_openai_api_base != 'none':
+        if config.llm_api != 'none':
             chosenmodel = 'gpt-3.5-turbo'
         try:
             self.__encoding = tiktoken.encoding_for_model(chosenmodel)
         except:
-            logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `alternative_openai_api_base` in MantellaSoftware/config.ini and follow the instructions to change this setting')
+            logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
             raise
     
     @property
