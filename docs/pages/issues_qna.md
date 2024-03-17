@@ -192,6 +192,19 @@ Double check the config ini to make sure that the value of `FO4_NPC_response_vol
 </details>
 <br>
 
+#### FALLOUT 4 : The mod is enabled but the gun doesn't appear in game at game load
+<details>
+<summary>Details</summary>
+
+This might be caused by multiple reasons:
+1. Make sure you are past the intro and first Vault.
+2. Try to fast travel on the map.
+3. Check that MantellaQuest is running by using the console and typing 'sqv MantellaQuest'. Make sure that the ini files have been modified to allow modding: [Howto: Enable Modding - Archive Invalidation](https://www.nexusmods.com/fallout4/articles/3831).
+4. Double check that [Fallout 4 Version Check Patcher](https://www.nexusmods.com/fallout4/mods/42497?tab=description) has been installed.
+
+</details>
+<br>
+
 #### ALL GAMES : ChatGPT API Error: cannot access local variable 'audio_file' where it is not associated with a value
 <details>
 <summary>Details</summary>
