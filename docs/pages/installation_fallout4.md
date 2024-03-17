@@ -107,6 +107,7 @@ Please follow the installation instructions on each of the linked pages:
 |----------|----------|
 | [F4SE](https://f4se.silverlock.org/) | Mandatory : Make sure to get the VR version. Once installed, run f4se_loader.exe instead of the Fallout4.exe. |
 | [SUP F4SEVR](https://www.nexusmods.com/fallout4/mods/64420) | Mandatory : Needed to generate the files needed for Mantella to communicate with Fallout 4 |
+| [Fallout 4 Version Check Patcher](https://www.nexusmods.com/fallout4/mods/42497?tab=description) | Mandatory : Needed for Fallout 4 VR to accept the mod |
 
 ## Language Models (LLMs)
 LLMs power the creation of responses by NPCs. There are a number of different LLMs to choose from, ranging from free local models to large externally hosted models.
