@@ -89,7 +89,7 @@ class openai_client:
         # if using an alternative API, use encoding for GPT-3.5 by default
         # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
         #       this can lead to the token limit of the given model being overrun
-        if config.endpoint != 'none':
+        if endpoint != 'none':
             chosenmodel = 'gpt-3.5-turbo'
         try:
             self.__encoding = tiktoken.encoding_for_model(chosenmodel)
