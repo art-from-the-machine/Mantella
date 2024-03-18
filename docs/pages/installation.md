@@ -40,7 +40,6 @@ This mod requires ~29GB of space when xVASynth and all voice models are installe
 
 ### Compatibility
 - Some users have reported that Skyrim crashes when Mantella is used with **Fuz Ro D'oh**. A possible fix is to disable and re-enable Fuz Ro D'oh
-- The mod **VR Keyboard** conflicts with Mantella
 - Mantella requires **Windows 10 / 11** (it is yet unconfirmed whether it works on Windows 7)
 - Mantella has been confirmed to work with the **FUS** (by pointing `skyrim_folder` to Skyrim), **Librum** (by pointing `skyrim_folder` to overwrite/root), and **Wildlands** (by pointing `skyrim_folder` to Wildlander/SKSE), and **Nolvus** Wabbajack modlists
 - Mantella needs to be loaded after the Unofficial Skyrim Special Edition Patch (**USSEP**) mod in your load order
