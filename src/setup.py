@@ -102,10 +102,13 @@ def initialise(config_file, logging_file, secret_key_file, character_df_files, l
         character_df_file = character_df_files[0]  # if not Fallout assume Skyrim
         FO4_Voice_folder_and_models_df=''
 
-    character_df = get_character_df(character_df_file)
-    language_info = get_language_info(language_file)
+    try:
+        character_df = get_character_df(character_df_file)
+    except:
+        logging.error(f'Unable to read / open {character_df_file}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
+        input("Press Enter to exit.")
 
-    
+    language_info = get_language_info(language_file)
     
     client = openai_client(config, secret_key_file)
 
