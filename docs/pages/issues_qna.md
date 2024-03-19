@@ -147,6 +147,8 @@ Multiples reasons can cause this issue:
 
 3: If you're running a modlist that uses Root builder, there might be a sync issue between Mantella and your game. Make sure you load the game first then load Mantella after to avoid the _Mantella text files getting out of sync.
 
+4: Double check that you installed the correct version of the Mantella Mod : desktop or VR.
+
 </details>
 <br>
 

@@ -43,9 +43,9 @@ The Mantella files can be downloaded from [Nexus Mods](https://www.nexusmods.com
 
 ## xVASynth
 xVASynth is used as the text-to-speech engine by Mantella due to it being free open-source software and already having Fallout 4 voice models trained.
-1. Download xVASynth via [Steam](https://store.steampowered.com/app/1765720/xVASynth/) (preferred) or [Nexus](https://www.nexusmods.com/fallout4/mods/49340). Do not store xVASynth in your Fallout 4 game folder.
+1. Download xVASynth via [Steam](https://store.steampowered.com/app/1765720/xVASynth/) (preferred) or [Nexus](https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files). Do not store xVASynth in your Fallout 4 game folder.
 
-2. Download the Fallout 4 voice models. You can either download all models, via the xVASynth UI if you have Nexus Premium, or manually via the Nexus Mods page:  
+2. Download the Fallout 4 voice models. You can either download all models, via the xVASynth UI if you have Nexus Premium, or manually via the [Nexus mods page](https://www.nexusmods.com/fallout4/mods/49340) :  
 
 	<br>
 	<details>
