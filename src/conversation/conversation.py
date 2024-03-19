@@ -38,8 +38,8 @@ class conversation:
         """
         self.__context.npcs_in_conversation.add_character(new_character)
 
-        #switch to multi-npc dialog
-        if isinstance(self.__conversation_type, pc_to_npc) and len(self.__context.npcs_in_conversation) > 1:
+        #switch to or continue multi-npc dialog
+        if (isinstance(self.__conversation_type, pc_to_npc) and len(self.__context.npcs_in_conversation) > 1) or (isinstance(self.__conversation_type, multi_npc)):
             self.__switch_to_multi_npc()
             # add greeting from newly added NPC to help the LLM understand that this NPC has joined the conversation
             for npc in self.__context.npcs_in_conversation.get_all_characters():
