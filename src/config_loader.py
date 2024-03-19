@@ -158,7 +158,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.debug_mode = config['Debugging']['debugging']
             self.play_audio_from_script = config['Debugging']['play_audio_from_script']
             self.debug_character_name = config['Debugging']['debugging_npc']
-            self.debug_use_mic = config['Debugging']['use_mic']
+            self.debug_use_default_player_response = config['Debugging']['use_default_player_response']
             self.default_player_response = config['Debugging']['default_player_response']
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
             self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
