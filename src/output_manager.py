@@ -561,7 +561,7 @@ class ChatManager:
                                     # max_response_sentences reached (and the conversation isn't radiant)
                                     # conversation has switched from radiant to multi NPC (this allows the player to "interrupt" radiant dialogue and include themselves in the conversation)
                                     # the conversation has ended
-                                    if ((num_sentences >= self.max_response_sentences) and (radiant_dialogue == 'false')) or ((radiant_dialogue == 'true') and (radiant_dialogue_update.lower() == 'false')) or (end_conversation.lower() == 'true'):
+                                    if ((num_sentences >= self.max_response_sentences) and (radiant_dialogue == False)) or ((radiant_dialogue == True) and (radiant_dialogue_update.lower() == 'false')) or (end_conversation.lower() == 'true'):
                                         break
                 break
             except Exception as e:
