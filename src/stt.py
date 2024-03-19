@@ -134,6 +134,9 @@ class Transcriber:
             self.game_state_manager.write_game_info('_mantella_status', 'Listening...')
             logging.log(self.loglevel, 'Listening...')
             transcript = self._recognize_speech_from_mic(prompt)
+            if transcript == None:
+                continue
+
             transcript_cleaned = utils.clean_text(transcript)
 
             conversation_ended = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
@@ -168,9 +171,8 @@ class Transcriber:
                     headers = {"Authorization": f"Bearer {self.api_key}",}
                 else:
                     headers = {"Authorization": "Bearer apikey",}
-                data = {'model': self.model}
-                files = {'file': ('audio.wav', audio, 'audio/wav'),
-                         "prompt": prompt}
+                data = {'model': self.model, 'prompt': prompt}
+                files = {'file': ('audio.wav', audio, 'audio/wav')}
                 response = requests.post(url, headers=headers, files=files, data=data)
                 response_data = json.loads(response.text)
                 if 'text' in response_data:
