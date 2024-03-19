@@ -4,6 +4,7 @@ import logging
 import src.utils as utils
 import requests
 import json
+import io
 
 class Transcriber:
     def __init__(self, game_state_manager, config, api_key: str):
@@ -168,7 +169,7 @@ class Transcriber:
                 else:
                     headers = {"Authorization": "Bearer apikey",}
                 data = {'model': self.model}
-                files = {'file': open(audio, 'rb'),
+                files = {'file': ('audio.wav', audio, 'audio/wav'),
                          "prompt": prompt}
                 response = requests.post(url, headers=headers, files=files, data=data)
                 response_data = json.loads(response.text)
@@ -180,11 +181,9 @@ class Transcriber:
                 audio = self.recognizer.listen(source, timeout=self.listen_timeout)
             except sr.WaitTimeoutError:
                 return ''
-
-        audio_file = 'player_recording.wav'
-        with open(audio_file, 'wb') as file:
-            file.write(audio.get_wav_data(convert_rate=16000))
         
+        audio_data = audio.get_wav_data(convert_rate=16000)
+        audio_file = io.BytesIO(audio_data)
         transcript = whisper_transcribe(audio_file, prompt)
         logging.log(self.loglevel, transcript)
 
