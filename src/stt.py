@@ -24,7 +24,7 @@ class Transcriber:
         self.whisper_url = config.whisper_url
 
         self.debug_mode = config.debug_mode
-        self.debug_use_mic = config.debug_use_mic
+        self.debug_use_default_player_response = config.debug_use_default_player_response
         self.default_player_response = config.default_player_response
         self.debug_exit_on_first_exchange = config.debug_exit_on_first_exchange
         self.end_conversation_keyword = config.end_conversation_keyword
@@ -57,7 +57,7 @@ class Transcriber:
                     self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
 
     def get_player_response(self, say_goodbye, prompt: str):
-        if (self.debug_mode == '1') & (self.debug_use_mic == '0'):
+        if (self.debug_mode == '1') & (self.debug_use_default_player_response == '1'):
             transcribed_text = self.default_player_response
         else:
             if self.mic_enabled == '1':
@@ -65,7 +65,7 @@ class Transcriber:
                 transcribed_text = self.recognize_input(prompt)
             else:
                 # text input through console
-                if (self.debug_mode == '1') & (self.debug_use_mic == '1'):
+                if (self.debug_mode == '1') & (self.debug_use_default_player_response == '0'):
                     transcribed_text = input('\nWrite player\'s response: ')
                     logging.log(self.loglevel, f'Player wrote "{transcribed_text}"')
                 # await text input from the game
@@ -83,48 +83,6 @@ class Transcriber:
                 say_goodbye = True
         
         return transcribed_text, say_goodbye
-    
-    # def get_player_response(self, say_goodbye, radiant_dialogue="false"):
-    #     if radiant_dialogue == "true":
-    #         if self.call_count < 1:
-    #             logging.info('Running radiant dialogue')
-    #             transcribed_text = '*Please begin / continue a conversation topic (greetings are not needed). Ensure to change the topic if the current one is losing steam. The conversation should steer towards topics which reveal information about the characters and who they are, or instead drive forward conversations previously discussed in their memory.*'
-    #             self.call_count += 1
-    #         elif self.call_count <= 1:
-    #             logging.info('Ending radiant dialogue')
-    #             transcribed_text = '*Please wrap up the current topic between the NPCs in a natural way. Nobody is leaving, so no formal goodbyes.*'
-    #             self.call_count += 1
-    #         else:
-    #             logging.info('Radiant dialogue ended')
-    #             transcribed_text = self.end_conversation_keyword
-    #             self.call_count = 0
-    #     elif (self.debug_mode == '1') & (self.debug_use_mic == '0'):
-    #         transcribed_text = self.default_player_response
-    #     else:
-    #         if self.mic_enabled == '1':
-    #             # listen for response
-    #             transcribed_text = self.recognize_input()
-    #         else:
-    #             # text input through console
-    #             if (self.debug_mode == '1') & (self.debug_use_mic == '1'):
-    #                 transcribed_text = input('\nWrite player\'s response: ')
-    #                 logging.info(f'Player wrote: {transcribed_text}')
-    #             # await text input from the game
-    #             else:
-    #                 self.game_state_manager.write_game_info('_mantella_text_input', '')
-    #                 self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'True')
-    #                 transcribed_text = self.game_state_manager.load_data_when_available('_mantella_text_input', '')
-    #                 self.game_state_manager.write_game_info('_mantella_text_input', '')
-    #                 self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'False')
-
-    #     if (self.debug_mode == '1') & (self.debug_exit_on_first_exchange == '1'):
-    #         if say_goodbye:
-    #             transcribed_text = self.end_conversation_keyword
-    #         else:
-    #             say_goodbye = True
-        
-    #     return transcribed_text, say_goodbye
-
 
     def recognize_input(self, prompt: str):
         """
