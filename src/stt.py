@@ -4,6 +4,7 @@ import logging
 import src.utils as utils
 import requests
 import json
+import io
 
 class Transcriber:
     def __init__(self, game_state_manager, config, api_key: str):
@@ -133,6 +134,9 @@ class Transcriber:
             self.game_state_manager.write_game_info('_mantella_status', 'Listening...')
             logging.log(self.loglevel, 'Listening...')
             transcript = self._recognize_speech_from_mic(prompt)
+            if transcript == None:
+                continue
+
             transcript_cleaned = utils.clean_text(transcript)
 
             conversation_ended = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
@@ -167,9 +171,8 @@ class Transcriber:
                     headers = {"Authorization": f"Bearer {self.api_key}",}
                 else:
                     headers = {"Authorization": "Bearer apikey",}
-                data = {'model': self.model}
-                files = {'file': open(audio, 'rb'),
-                         "prompt": prompt}
+                data = {'model': self.model, 'prompt': prompt}
+                files = {'file': ('audio.wav', audio, 'audio/wav')}
                 response = requests.post(url, headers=headers, files=files, data=data)
                 response_data = json.loads(response.text)
                 if 'text' in response_data:
@@ -180,11 +183,9 @@ class Transcriber:
                 audio = self.recognizer.listen(source, timeout=self.listen_timeout)
             except sr.WaitTimeoutError:
                 return ''
-
-        audio_file = 'player_recording.wav'
-        with open(audio_file, 'wb') as file:
-            file.write(audio.get_wav_data(convert_rate=16000))
         
+        audio_data = audio.get_wav_data(convert_rate=16000)
+        audio_file = io.BytesIO(audio_data)
         transcript = whisper_transcribe(audio_file, prompt)
         logging.log(self.loglevel, transcript)
 
