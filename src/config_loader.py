@@ -8,7 +8,11 @@ from pathlib import Path
 class ConfigLoader:
     def __init__(self, file_name='config.ini'):
         config = configparser.ConfigParser()
-        config.read(file_name, encoding='utf-8')
+        try:
+            config.read(file_name, encoding='utf-8')
+        except:
+            logging.error(f'Unable to read / open config.ini. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters.')
+            input("Press Enter to exit.")
 
         def invalid_path(set_path, tested_path):
             logging.error(f"\"{tested_path}\" does not exist!\n\nThe path set in config.ini: \"{set_path}\"")
