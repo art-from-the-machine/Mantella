@@ -461,6 +461,13 @@ class GameStateManager:
         # only pass the in-game time if it has changed
         if (in_game_time != self.prev_game_time) and (in_game_time != ''):
             time_group = utils.get_time_group(in_game_time)
+            try: # convert to 12hr clock
+                in_game_time = int(in_game_time)
+                in_game_time = in_game_time - 12 if in_game_time > 12 else in_game_time
+                in_game_time = str(in_game_time)
+            except:
+                pass
+
             message.set_ingame_time(in_game_time, time_group)
             self.prev_game_time = in_game_time
 
