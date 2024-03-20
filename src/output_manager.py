@@ -7,6 +7,11 @@ import logging
 import time
 import shutil
 import re
+import numpy as np
+import pygame
+import sys
+import math
+from scipy.io import wavfile     
 import unicodedata
 from src.conversation.action import action
 from src.llm.sentence_queue import sentence_queue
@@ -36,21 +41,46 @@ class Extract:
 class ChatManager:
     def __init__(self, config: ConfigLoader, tts: Synthesizer, client: openai_client):
         self.loglevel = 28
+        self.game = config.game
         self.mod_folder = config.mod_path
         self.max_response_sentences = config.max_response_sentences
         self.language = config.language
         self.wait_time_buffer = config.wait_time_buffer
+        self.root_mod_folder = config.game_path
         self.__tts: Synthesizer = tts
         self.__client: openai_client = client
         self.__is_generating: bool = False
         self.__stop_generation: bool = False
         self.__tts_access_lock = Lock()
+        self.player_name = config.player_name
+        self.number_words_tts = config.number_words_tts
 
         self.wav_file = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
-        self.lip_file = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
+
+        self.f4_use_wav_file1 = True
+        self.f4_wav_file1 = f'MutantellaOutput1.wav'
+        self.f4_wav_file2 = f'MutantellaOutput2.wav'
+        self.FO4Volume = config.FO4Volume
+
+        if self.game == "Fallout4" or self.game == "Fallout4VR":
+            self.lip_file = f'00001ED2_1.lip'
+        else:
+            self.lip_file = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
 
         self.end_of_sentence_chars = ['.', '?', '!', ':', ';']
         self.end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.end_of_sentence_chars]
+
+    def pygame_initialize(self):
+        if self.game == "Fallout4" or self.game == "Fallout4VR":
+            # Ensure pygame is initialized
+            if not pygame.get_init():
+                pygame.init()
+
+            # Explicitly initialize the pygame mixer
+            if not pygame.mixer.get_init():
+                pygame.mixer.init(frequency=22050, size=-16, channels=2)  # Adjust these values as necessary
+            logging.info('pygame is ')
+            logging.info(pygame.__version__)
 
     def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> sentence | None:
         with self.__tts_access_lock:
@@ -106,8 +136,11 @@ class ChatManager:
             os.mkdir(in_game_voice_folder_path)
 
             # copy voicelines from one voice folder to this new voice folder
-            # this step is needed for Skyrim to acknowledge the folder
-            example_folder = f"{self.mod_folder}/MaleNord/"
+            # this step is needed for Skyrim/Fallout4 to acknowledge the folder
+            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                example_folder = f"{self.mod_folder}/maleboston/"
+            else:
+                example_folder = f"{self.mod_folder}/MaleNord/"
             for file_name in os.listdir(example_folder):
                 source_file_path = os.path.join(example_folder, file_name)
 
@@ -120,12 +153,201 @@ class ChatManager:
             return True
         return False    
 
+
+    @utils.time_it
+    def save_files_to_voice_folders(self, queue_output):
+        """Save voicelines and subtitles to the correct game folders"""
+
+        audio_file, subtitle = queue_output
+
+        if self.add_voicelines_to_all_voice_folders == '1':
+            for sub_folder in os.scandir(self.mod_folder):
+                if not sub_folder.is_dir():
+                    continue
+
+                if self.game != "Fallout4" and self.game != "Fallout4VR":
+                    shutil.copyfile(audio_file, f"{sub_folder.path}/{self.wav_file}")
+
+                # Copy FaceFX generated LIP file
+                try:
+                    shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.lip_file}")
+                except Exception as e:
+                    # only warn on failure
+                    logging.warning(e)
+        else:
+            if self.game != "Fallout4" and self.game != "Fallout4VR":
+                shutil.copyfile(audio_file, f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.wav_file}")
+
+            # Copy FaceFX generated LIP file
+            try:
+                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{self.mod_folder}/{self.active_character.in_game_voice_model}/{self.lip_file}")
+            except Exception as e:
+                # only warn on failure
+                logging.warning(e)
+
+
+        logging.info(f"{self.active_character.name} (character {self.character_num}) should speak")
+        if self.character_num == 0:
+            self.game_state_manager.write_game_info('_mantella_say_line', subtitle.strip())
+            if self.game =="Fallout4" or self.game =="Fallout4VR":
+                self.play_adjusted_volume(audio_file)
+
+        else:
+            say_line_file = '_mantella_say_line_'+str(self.character_num+1)
+            self.game_state_manager.write_game_info(say_line_file, subtitle.strip())
+            if self.game =="Fallout4" or self.game =="Fallout4VR":
+                self.play_adjusted_volume(audio_file)
+
+    def play_adjusted_volume(self, wav_file_path):
+        FO4Volume_scale = self.FO4Volume / 100.0  # Normalize to 0.0-1.0
+        logging.info("Waiting for _mantella_audio_ready.txt to be set with the audio array in Fallout 4 directory")
+        while True:
+            with open(f'{self.root_mod_folder}/_mantella_audio_ready.txt', 'r', encoding='utf-8') as f:
+                audio_array_str = f.read().strip()
+                #check if a value is entered in the audio array (necessary to prevent Mantella trying to read an empty file)
+                if audio_array_str.lower() != 'false' and audio_array_str:
+                    try:
+                        # Parse the data
+                        npc_distance, playerPosX, playerPosY, game_angle_z, targetPosX, targetPosY = map(float, audio_array_str.split(','))
+                        player_pos = (playerPosX, playerPosY)
+                        target_pos = (targetPosX, targetPosY)
+                        
+                        # Calculate the relative angle
+                        relative_angle = self.calculate_relative_angle(player_pos, target_pos, game_angle_z)
+
+                        # Normalize the relative angle between -180 and 180
+                        normalized_angle = relative_angle % 360
+                        if normalized_angle > 180:
+                            normalized_angle -= 360  # Adjust angles to be within [-180, 180]
+
+                        # Calculate volume scale based on the normalized angle
+                        if normalized_angle >= -90 and normalized_angle <= 90:  # Front half
+                            # Linear scaling: Full volume at 0 degrees, decreasing to 50% volume at 90 degrees to either side
+                            volume_scale_left = 0.5 + normalized_angle / 90 * 0.5
+                            volume_scale_right = 0.5 - normalized_angle / 90 * 0.5
+                        elif normalized_angle > 90 and normalized_angle < 180:
+                            volume_scale_left = 90 / normalized_angle
+                            volume_scale_right = 1- 90 / normalized_angle
+                        elif normalized_angle > -180 and normalized_angle < -90:
+                            volume_scale_left = 1- 90 / abs(normalized_angle)
+                            volume_scale_right = 90 / abs(normalized_angle)
+                        else:  # failsafe if for some reason an unmanaged number is entered
+                            volume_scale_left = 0.5
+                            volume_scale_right = 0.5
+
+                        # Apply the calculated scale differently to left and right channels based on angle direction
+                        #if normalized_angle >= 0:  # Turning right
+                        #    volume_scale_left = volume_scale
+                        #    volume_scale_right = 1 - abs(normalized_angle) / 90 * 0.5  # Decrease right volume as angle increases
+                        #else:  # Turning left
+                        #    volume_scale_right = volume_scale
+                    #    volume_scale_left = 1 - abs(normalized_angle) / 90 * 0.5  # Decrease left volume as angle decreases
+
+                        # Ensure volumes don't drop below a threshold, for example, 0.1, if you want to keep a minimum volume level
+                        min_volume_threshold = 0.1
+                        volume_scale_left = max(volume_scale_left, min_volume_threshold)
+                        volume_scale_right = max(volume_scale_right, min_volume_threshold)
+
+                        if npc_distance > 0:
+                            distance_factor = max(0, 1 - (npc_distance / 4000))
+                        else:
+                            distance_factor=1
+
+                        # Load the WAV file
+                        sound = pygame.mixer.Sound(wav_file_path)
+                        original_audio_array = pygame.sndarray.array(sound)
+                        
+                        if original_audio_array.ndim == 1:  # Mono sound
+                            # Duplicate the mono data to create a stereo effect
+                            audio_data_stereo = np.stack((original_audio_array, original_audio_array), axis=-1)
+                        else:
+                            audio_data_stereo = original_audio_array
+                        
+                        # Adjust volume for each channel according to angle, distance, and config volume
+                        audio_data_stereo[:, 0] = (audio_data_stereo[:, 0] * volume_scale_left * distance_factor * FO4Volume_scale).astype(np.int16)  # Left channel
+                        audio_data_stereo[:, 1] = (audio_data_stereo[:, 1] * volume_scale_right * distance_factor * FO4Volume_scale).astype(np.int16)  # Right channel
+                        
+                        # Convert back to pygame sound object
+                        adjusted_sound = pygame.sndarray.make_sound(audio_data_stereo)
+                        
+                        # Play the adjusted stereo audio
+                        play_obj = adjusted_sound.play()
+                        
+                        while play_obj.get_busy():  # Wait until playback is done
+                            pygame.time.delay(100)
+                        del play_obj
+                        self.game_state_manager.write_game_info('_mantella_audio_ready', 'false')
+                        break
+
+                    except ValueError:
+                        logging.error("Error processing audio array from _mantella_audio_ready.txt")
+                        break
+
+    def convert_game_angle_to_trig_angle(self, game_angle):
+        #Used for Mantella Fallout to play directional audio
+        """
+        Convert the game's angle to a trigonometric angle.
+        
+        Parameters:
+        - game_angle: The angle in degrees as used in the game.
+        
+        Returns:
+        - A float representing the angle in degrees, adjusted for standard trigonometry.
+        """
+        if game_angle < 90:
+            return 90 - game_angle
+        else:
+            return 450 - game_angle
+
+    def calculate_relative_angle(self, player_pos, target_pos, game_angle_z):
+         #Used for Mantella Fallout to play directional audio
+        """
+        Calculate the direction the player is facing relative to the target, taking into account
+        the game's unique angle system.
+        
+        Parameters:
+        - player_pos: A tuple (x, y) representing the player's position.
+        - target_pos: A tuple (x, y) representing the target's position.
+        - game_angle_z: The angle (in degrees) the player is facing, according to the game's system.
+        
+        Returns:
+        - The angle (in degrees) from the player's perspective to the target, where:
+            0 = facing towards the target,
+            90 = facing left of the target,
+            270 = facing right of the target,
+            180 = facing away from the target.
+        """
+        # Convert game angle to trigonometric angle
+        trig_angle_z = self.convert_game_angle_to_trig_angle(game_angle_z)
+        
+        # Calculate vector from player to target
+        vector_to_target = (target_pos[0] - player_pos[0], target_pos[1] - player_pos[1])
+        
+        # Calculate absolute angle of the vector in degrees
+        absolute_angle_to_target = math.degrees(math.atan2(vector_to_target[1], vector_to_target[0]))
+        
+        # Normalize the trigonometric angle
+        normalized_trig_angle = trig_angle_z % 360
+        
+        # Calculate relative angle
+        relative_angle = (absolute_angle_to_target - normalized_trig_angle) % 360
+        
+        # Adjust relative angle to follow the given convention
+        if relative_angle > 180:
+            relative_angle -= 360  # Adjust for angles greater than 180 to get the shortest rotation direction
+        
+        return relative_angle
+
     @utils.time_it
     def remove_files_from_voice_folders(self):
         for sub_folder in os.listdir(self.mod_folder):
             try:
-                os.remove(f"{self.mod_folder}/{sub_folder}/{self.wav_file}")
+               #if the game is Fallout 4 only delete the lip file
+                if self.game != "Fallout4" and self.game != "Fallout4VR": 
+                    os.remove(f"{self.mod_folder}/{sub_folder}/{self.wav_file}")
+
                 os.remove(f"{self.mod_folder}/{sub_folder}/{self.lip_file}")
+
             except:
                 continue
 
@@ -139,14 +361,40 @@ class ChatManager:
                 break
             blocking_queue.put_nowait(queue_output)
             event.set()
-            # # send the audio file to the external software and wait for it to finish playing
-            # await self.send_audio_to_external_software(queue_output)
-            # event.set()
 
-            # audio_duration = self.get_audio_duration(queue_output.Voice_file)
-            # # wait for the audio playback to complete before getting the next file
-            # logging.info(f"Waiting {int(round(audio_duration,4))} seconds...")
-            # await asyncio.sleep(audio_duration)
+            #if Fallout4 is running the audio will be sync by checking if say line is set to false because the Mantella can internally check if an audio file has finished playing
+            if self.game =="Fallout4" or self.game == "Fallout4VR":
+                with open(f'{self.root_mod_folder}/_mantella_actor_count.txt', 'r', encoding='utf-8') as f:
+                        mantellaactorcount = f.read().strip() 
+                # Outer loop to continuously check the files
+                while True:
+                    all_false = True  # Flag to check if all files have 'false'
+
+                    # Iterate through the number of files indicated by mantellaactorcount
+                    for i in range(1, int(mantellaactorcount) + 1):
+                        file_name = f'{self.root_mod_folder}/_mantella_say_line'
+                        if i != 1:
+                            file_name += f'_{i}'  # Append the file number for files 2 and above
+                        file_name += '.txt'
+
+                        with open(file_name, 'r', encoding='utf-8') as f:
+                            content = f.read().strip()
+                            if content.lower() != 'false':
+                                all_false = False  # Set the flag to False if any file is not 'false'
+                                break  # Break the for loop and continue the while loop
+
+                    if all_false:
+                        break  # Break the outer loop if all files are 'false'
+
+                    # Wait for a short period before checking the files again
+                    await asyncio.sleep(0.1)  # Adjust the sleep duration as needed
+
+            #if Skyrim's running then estimate audio duration to sync lip files
+            else:
+                audio_duration = await self.get_audio_duration(queue_output[0])
+                # wait for the audio playback to complete before getting the next file
+                logging.info(f"Waiting {int(round(audio_duration,4))} seconds...")
+                await asyncio.sleep(audio_duration)
 
     def clean_sentence(self, sentence: str) -> str:
         def remove_as_a(sentence: str) -> str:

@@ -23,6 +23,11 @@ class context:
         self.__ingame_events: list[str] = []
         self.__have_actors_changed: bool = False
 
+        if config.game == "Fallout4" or config.game == "Fallout4VR":
+            self.__location: str = 'the Commonwealth'
+        else:
+            self.__location: str = "Skyrim"
+
     @property
     def npcs_in_conversation(self) -> Characters:
         return self.__npcs_in_conversation

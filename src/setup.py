@@ -5,11 +5,18 @@ from typing import Hashable
 import src.color_formatter as cf
 import src.utils as utils
 import pandas as pd
+import sys
+import os
 
 import src.config_loader as config_loader
 from src.llm.openai_client import openai_client
 
-def initialise(config_file, logging_file, secret_key_file, character_df_file, language_file) -> tuple[config_loader.ConfigLoader, pd.DataFrame, dict[Hashable, str], openai_client]:
+def initialise(config_file, logging_file, secret_key_file, character_df_files, language_file, FO4_XVASynth_file) -> tuple[config_loader.ConfigLoader, pd.DataFrame, dict[Hashable, str], openai_client]:
+    
+    def set_cwd_to_exe_dir():
+        if getattr(sys, 'frozen', False): # if exe and not Python script
+            # change the current working directory to the executable's directory
+            os.chdir(os.path.dirname(sys.executable))
     
     def setup_logging(file_name):
         logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[])
@@ -72,6 +79,12 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
 
         return character_df
     
+    def get_voice_folders_and_models(file_name):
+        encoding = utils.get_file_encoding(file_name)
+        FO4_Voice_folder_and_models_df = pd.read_csv(file_name, engine='python', encoding=encoding)
+
+        return FO4_Voice_folder_and_models_df
+    
     def create_all_voice_folders(config, character_df: pd.DataFrame):
         all_voice_folders = character_df["skyrim_voice_folder"]
         all_voice_folders = all_voice_folders.loc[all_voice_folders.notna()]
@@ -99,18 +112,32 @@ def initialise(config_file, logging_file, secret_key_file, character_df_file, la
             logging.error(f"Could not load language '{config.language}'. Please set a valid language in config.ini\n")
             return {}
 
+    set_cwd_to_exe_dir()
     setup_logging(logging_file)
     config = config_loader.ConfigLoader(config_file)
 
     # clean up old instances of exe runtime files
     utils.cleanup_mei(config.remove_mei_folders)
     
-    character_df = get_character_df(character_df_file)
+    # Determine which game we're running for and select the appropriate character file
+
+    formatted_game_name = config.game.lower().replace(' ', '').replace('_', '')
+    if formatted_game_name in ("fallout4", "fallout4vr"):
+        character_df_file = character_df_files[1] 
+        FO4_Voice_folder_and_models_df = get_voice_folders_and_models(FO4_XVASynth_file)
+    else :
+        character_df_file = character_df_files[0]  # if not Fallout assume Skyrim
+        FO4_Voice_folder_and_models_df=''
+
+    try:
+        character_df = get_character_df(character_df_file)
+    except:
+        logging.error(f'Unable to read / open {character_df_file}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
+        input("Press Enter to exit.")
+
     create_all_voice_folders(config, character_df)
     language_info = get_language_info(language_file)
-
-    
     
     client = openai_client(config, secret_key_file)
 
-    return config, character_df, language_info, client
+    return config, character_df, language_info, client, FO4_Voice_folder_and_models_df

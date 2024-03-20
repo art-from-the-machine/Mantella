@@ -2,11 +2,17 @@ import configparser
 import logging
 import os
 import sys
+import src.utils as utils
+from pathlib import Path
 
 class ConfigLoader:
     def __init__(self, file_name='config.ini'):
         config = configparser.ConfigParser()
-        config.read(file_name, encoding='utf-8')
+        try:
+            config.read(file_name, encoding='utf-8')
+        except:
+            logging.error(f'Unable to read / open config.ini. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters.')
+            input("Press Enter to exit.")
 
         def invalid_path(set_path, tested_path):
             logging.error(f"\"{tested_path}\" does not exist!\n\nThe path set in config.ini: \"{set_path}\"")
@@ -17,21 +23,29 @@ class ConfigLoader:
             skyrim_in_program_files = False
             if 'Program Files' in set_path:
                 logging.warn(f'''
-Skyrim is installed in Program Files. Mantella is unlikely to work. 
-See here to learn how to move your Skyrim installation folder: https://github.com/art-from-the-machine/Mantella#skyrim''')
+{self.game} is installed in Program Files. Mantella is unlikely to work. 
+See here to learn how to move your game's installation folder: https://art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim''')
                 skyrim_in_program_files = True
-            return skyrim_in_program_files
+            return skyrim_in_program_files 
 
-        def check_missing_mantella_file(set_path, skyrim_in_program_files):
+        def check_missing_mantella_file(set_path):
+            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                txtPrefix='fallout4'
+                modnameSufix='gun'
+            else:
+                txtPrefix='skyrim'
+                modnameSufix='Spell'
+            
             try:
-                with open(set_path+'/_mantella__skyrim_folder.txt') as f:
+                with open(set_path+'/_mantella__'+txtPrefix+'_folder.txt') as f:
                     check = f.readline().strip()
             except:
+                #Reworked the warning to include correct names depending on the game being ran.
                 logging.warn(f'''
-Warning: Could not find _mantella__skyrim_folder.txt in {set_path}. 
-If you have not yet casted the Mantella spell in-game you can safely ignore this message. 
-If you have casted the Mantella spell please check that your 
-MantellaSoftware/config.ini "skyrim_folder" has been set correctly 
+Warning: Could not find _mantella__{txtPrefix}_folder.txt in {set_path}. 
+If you have not yet used the Mantella {modnameSufix} in-game you can safely ignore this message. 
+If you have used the Mantella {modnameSufix} please check that your 
+MantellaSoftware/config.ini "{txtPrefix}_folder" has been set correctly 
 (instructions on how to set this up are in the config file itself).
 If you are still having issues, a list of solutions can be found here: 
 https://github.com/art-from-the-machine/Mantella#issues-qa
@@ -56,6 +70,28 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             if int(config['Startup']['open_config_editor']) == 1:
                 run_config_editor()
 
+            #Adjusting game and mod paths according to the game being ran
+            self.game = config['Game']['game']
+            self.game = str(self.game).lower().replace(' ', '').replace('_', '')
+            if self.game =="fallout4":
+                self.game ="Fallout4"
+                self.game_path = config['Paths']['fallout4_folder']
+                self.mod_path = config['Paths']['fallout4_mod_folder']
+            elif self.game =="fallout4vr":
+                self.game ="Fallout4VR"
+                self.game_path = config['Paths']['fallout4VR_folder'] 
+                self.mod_path = config['Paths']['fallout4VR_mod_folder']
+            elif self.game =="skyrimvr":
+                self.game ="SkyrimVR"
+                self.game_path = config['Paths']['skyrimVR_folder']
+                self.mod_path = config['Paths']['skyrimVR_mod_folder']
+            #if the game is not recognized Mantella will assume it's Skyrim since that's the most frequent one.
+            else:
+                self.game ="Skyrim"
+                self.game_path = config['Paths']['skyrim_folder']
+                self.mod_path = config['Paths']['skyrim_mod_folder']
+            
+            logging.info(f'Mantella currently running for {self.game} located in {self.game_path}. Mantella esp located in {self.mod_path}.  \n')
             self.language = config['Language']['language']
             self.end_conversation_keyword = config['Language']['end_conversation_keyword']
             self.goodbye_npc_response = config['Language']['goodbye_npc_response']
@@ -64,12 +100,10 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.forgiven_npc_response = config['Language']['forgiven_npc_response']
             self.follow_npc_response = config['Language']['follow_npc_response']
 
-            self.game_path = config['Paths']['skyrim_folder']
             self.xvasynth_path = config['Paths']['xvasynth_folder']
-            self.mod_path = config['Paths']['mod_folder']
+            self.facefx_path = config['Paths']['facefx_folder']
             #Added from xTTS implementation
-            self.xtts_server_path = config['Paths']['xtts_server_folder']          
-
+            self.xtts_server_path = config['Paths']['xtts_server_folder']
 
             self.mic_enabled = config['Microphone']['microphone_enabled']
             self.whisper_model = config['Microphone']['model_size']
@@ -90,7 +124,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.max_response_sentences = int(config['LanguageModel']['max_response_sentences'])
             self.llm = config['LanguageModel']['model']
             self.wait_time_buffer = float(config['LanguageModel']['wait_time_buffer'])
-            self.alternative_openai_api_base = config['LanguageModel']['alternative_openai_api_base']
+            self.llm_api = config['LanguageModel']['llm_api']
             self.custom_token_count = config['LanguageModel']['custom_token_count']
             self.temperature = float(config['LanguageModel']['temperature'])
             self.top_p = float(config['LanguageModel']['top_p'])
@@ -108,16 +142,19 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
 
             #Added from xTTS implementation
             self.use_external_xtts = int(config['Speech']['use_external_xtts'])
-            self.xtts_synthesize_url = config['Speech']['xtts_synthesize_url']
-            self.xtts_switch_model = config['Speech']['xtts_switch_model']
-            self.xtts_set_tts_settings = config['Speech']['xtts_set_tts_settings']
-            self.xTTS_tts_data = config['Speech']['xTTS_tts_data']
-            self.xtts_get_models_list = config['Speech']['xtts_get_models_list']
-            self.xtts_set_output = config['Speech']['xtts_set_output']
+            self.xtts_default_model = config['Speech']['xtts_default_model']
+            self.xtts_deepspeed = int(config['Speech']['xtts_deepspeed'])
+            self.xtts_lowvram = int(config['Speech']['xtts_lowvram'])
+            self.xtts_device = config['Speech']['xtts_device']
+            self.number_words_tts = int(config['Speech']['number_words_tts'])
+            self.xtts_url = config['Speech']['xtts_url']
+            self.xtts_data = config['Speech']['xtts_data']
+            
             self.xvasynth_process_device = config['Speech']['tts_process_device']
             self.pace = float(config['Speech']['pace'])
             self.use_cleanup = int(config['Speech']['use_cleanup'])
             self.use_sr = int(config['Speech']['use_sr'])
+            self.FO4Volume = int(config['Speech']['FO4_NPC_response_volume'])
             self.tts_print = int(config['Speech']['tts_print'])
 
             self.remove_mei_folders = config['Cleanup']['remove_mei_folders']
@@ -125,16 +162,23 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.debug_mode = config['Debugging']['debugging']
             self.play_audio_from_script = config['Debugging']['play_audio_from_script']
             self.debug_character_name = config['Debugging']['debugging_npc']
-            self.debug_use_mic = config['Debugging']['use_mic']
+            self.debug_use_default_player_response = config['Debugging']['use_default_player_response']
             self.default_player_response = config['Debugging']['default_player_response']
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
             self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
+
             #Conversation
             self.player_name = config['Conversation']['player_name']
             self.automatic_greeting = config['Conversation']['automatic_greeting']
-            #Prompt
-            self.prompt = config['Prompt']['prompt']
-            self.multi_npc_prompt = config['Prompt']['multi_npc_prompt']
+
+            #new separate prompts for Fallout 4 have been added 
+            if self.game == "Fallout4" or self.game == "Fallout4VR":
+                self.prompt = config['Prompt']['fallout4_prompt']
+                self.multi_npc_prompt = config['Prompt']['fallout4_multi_npc_prompt']
+            else:
+                self.prompt = config['Prompt']['skyrim_prompt']
+                self.multi_npc_prompt = config['Prompt']['skyrim_multi_npc_prompt']
+
             self.radiant_start_prompt = config['Prompt']['radiant_start_prompt']
             self.radiant_end_prompt = config['Prompt']['radiant_end_prompt']
             self.memory_prompt = config['Prompt']['memory_prompt']
@@ -143,6 +187,16 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
         except Exception as e:
             logging.error('Parameter missing/invalid in config.ini file!')
             raise e
+        
+        # if the exe is being run by another process, replace config.ini paths with relative paths
+        if "--integrated" in sys.argv:
+            self.game_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)
+            self.mod_path = str(Path(utils.resolve_path()).parent.parent.parent)
+
+            self.facefx_path = str(Path(utils.resolve_path()).parent.parent.parent)
+            self.facefx_path += "\\Sound\\Voice\\Processing\\"
+            
+            self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
 
         # don't trust; verify; test subfolders
         # if not os.path.exists(f"{self.game_path}"):
@@ -153,7 +207,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
 
         if not os.path.exists(f"{self.xvasynth_path}\\resources\\"):
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")
+        
         if not os.path.exists(f"{self.mod_path}\\Sound\\Voice\\Mantella.esp"):
             invalid_path(self.mod_path, f"{self.mod_path}\\Sound\\Voice\\Mantella.esp")
-
         self.mod_path += "\\Sound\\Voice\\Mantella.esp"
