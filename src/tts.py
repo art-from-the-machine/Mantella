@@ -225,18 +225,6 @@ class Synthesizer:
             except:
                 logging.error(f'Could not rename {final_voiceline_file} or {final_voiceline_file.replace(".wav", ".lip")}')
 
-        #rename to unique name        
-        if(os.path.exists(final_voiceline_file)):
-            try:
-                timestamp: str = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f_")
-                new_wav_file_name = f"{final_voiceline_folder}/{timestamp + final_voiceline_file_name}.wav" 
-                new_lip_file_name = new_wav_file_name.replace(".wav", ".lip")
-                os.rename(final_voiceline_file, new_wav_file_name)
-                os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
-                final_voiceline_file = new_wav_file_name
-            except:
-                logging.error(f'Could not rename {final_voiceline_file} or {final_voiceline_file.replace(".wav", ".lip")}')
-
         # if Debug Mode is on, play the audio file
         if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):
             winsound.PlaySound(final_voiceline_file, winsound.SND_FILENAME)
