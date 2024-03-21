@@ -71,7 +71,7 @@ class ChatManager:
             logging.info(pygame.__version__)
 
     def play_sentence_ingame(self, sentence: str, character_to_talk: Character):
-        audio_file = self.__tts.synthesize(character_to_talk.voice_model, sentence)
+        audio_file = self.__tts.synthesize(character_to_talk.voice_model, sentence, character_to_talk.in_game_voice_model)
         self.save_files_to_voice_folders([audio_file, sentence])
 
     def num_tokens(self, content_to_measure: message | str | message_thread | list[message]) -> int:
@@ -534,7 +534,7 @@ class ChatManager:
                                 if self.active_character :
                                     # Generate the audio and return the audio file path
                                     try:
-                                        audio_file = self.__tts.synthesize(self.active_character.voice_model, ' ' + sentence + ' ', self.active_character.is_in_combat)
+                                        audio_file = self.__tts.synthesize(self.active_character.voice_model, ' ' + sentence + ' ', self.active_character.in_game_voice_model, self.active_character.is_in_combat)
                                     except Exception as e:
                                         logging.error(f"xVASynth Error: {e}")
 
@@ -579,7 +579,7 @@ class ChatManager:
             # Generate the audio and return the audio file path
             try:
                 #Added from xTTS implementation
-                audio_file = self.__tts.synthesize(self.active_character.voice_model, ' ' + accumulated_sentence + ' ', self.active_character.is_in_combat)
+                audio_file = self.__tts.synthesize(self.active_character.voice_model, ' ' + accumulated_sentence + ' ', self.active_character.in_game_voice_model, self.active_character.is_in_combat)
                 await sentence_queue.put([audio_file, accumulated_sentence])
                 full_reply += accumulated_sentence
                 accumulated_sentence = ''
