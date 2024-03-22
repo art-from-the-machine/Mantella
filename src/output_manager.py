@@ -6,6 +6,8 @@ import time
 import shutil
 import re
 import numpy as np
+from os import environ
+environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 import sys
 import math
@@ -67,8 +69,6 @@ class ChatManager:
             # Explicitly initialize the pygame mixer
             if not pygame.mixer.get_init():
                 pygame.mixer.init(frequency=22050, size=-16, channels=2)  # Adjust these values as necessary
-            logging.info('pygame is ')
-            logging.info(pygame.__version__)
 
     def play_sentence_ingame(self, sentence: str, character_to_talk: Character):
         audio_file = self.__tts.synthesize(character_to_talk.voice_model, sentence, character_to_talk.in_game_voice_model)
