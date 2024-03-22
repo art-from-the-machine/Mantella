@@ -1,12 +1,4 @@
 from typing import Any
-import json
-import os
-import logging
-import src.utils as utils
-from pathlib import Path
-import sys
-
-from openai.types.chat import ChatCompletionMessageParam
 
 class Character:
     def __init__(self, character_id:str, name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, custom_character_values: dict[str, Any]):
@@ -23,7 +15,6 @@ class Character:
         self.__ingame_voice_model: str = ingame_voice_model
         self.__tts_voice_model: str = tts_voice_model
         self.__custom_character_values: dict[str, Any] = custom_character_values
-        self.__conversation_history_file = f"data/conversations/{name}/{name}.json"
 
     @property
     def Id(self) -> str:
@@ -133,10 +124,6 @@ class Character:
     def TTS_voice_model(self, value: str):
         self.__tts_voice_model = value
 
-    @property
-    def Conversation_history_file(self) -> str:
-        return self.__conversation_history_file
-
     def get_custom_character_value(self, key: str) -> Any:
         if self.__custom_character_values.__contains__(key):
             return self.__custom_character_values[key]
@@ -153,36 +140,4 @@ class Character:
     def __hash__(self):
         return hash(tuple(sorted(self.__dict__.items())))
     
-    def save_conversation_log(self, messages: list[ChatCompletionMessageParam]):
-        # save conversation history
-
-        if not self.__is_generic_npc:
-            # if this is not the first conversation
-            transformed_messages = messages.transform_to_openai_messages(messages.get_talk_only())
-            if os.path.exists(self.__conversation_history_file):
-                with open(self.conversation_history_file, 'r', encoding='utf-8') as f:
-                    conversation_history = json.load(f)
-
-                # add new conversation to conversation history
-                conversation_history.append(transformed_messages) # append everything except the initial system prompt
-            # if this is the first conversation
-            else:
-                directory = os.path.dirname(self.conversation_history_file)
-                os.makedirs(directory, exist_ok=True)
-                conversation_history = transformed_messages
-            
-            with open(self.conversation_history_file, 'w', encoding='utf-8') as f:
-                json.dump(conversation_history, f, indent=4) # save everything except the initial system prompt
-        else:
-            logging.info('Conversation history will not be saved for this generic NPC.')
     
-    def load_conversation_log(self) -> list[str]:
-        if os.path.exists(self.__conversation_history_file):
-            with open(self.__conversation_history_file, 'r', encoding='utf-8') as f:
-                conversation_history = json.load(f)
-            previous_conversations = []
-            for conversation in conversation_history:
-                previous_conversations.extend(conversation)
-            return previous_conversations
-        else:
-            return []

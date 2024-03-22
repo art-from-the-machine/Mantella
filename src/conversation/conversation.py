@@ -3,6 +3,7 @@ import logging
 from threading import Thread, Lock
 import time
 from typing import Any, Callable
+from conversation.conversation_log import conversation_log
 from src.conversation.action import action
 from src.llm.sentence_queue import sentence_queue
 from src.llm.sentence import sentence
@@ -204,6 +205,12 @@ class conversation:
             if actor.Id == character_id:
                 return True
         return False
+    
+    def get_character(self, character_id: str) -> Character | None:
+        for actor in self.__context.npcs_in_conversation.get_all_characters():
+            if actor.Id == character_id:
+                return actor
+        return None
 
     def end(self):
         self.__has_already_ended = True
@@ -229,7 +236,7 @@ class conversation:
         """Saves conversation log and state for each NPC in the conversation"""
         if self.__context.npcs_in_conversation.contains_player_character():
             for npc in self.__context.npcs_in_conversation.get_all_characters():
-                npc.save_conversation_log(self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()))
+                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()))
             self.__rememberer.save_conversation_state(self.__messages, self.__context.npcs_in_conversation)
         # self.__remember_thread = Thread(None, self.__rememberer.save_conversation_state, None, [self.__messages, self.__context.npcs_in_conversation]).start()
 

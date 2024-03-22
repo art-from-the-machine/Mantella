@@ -13,7 +13,7 @@ import src.setup as setup
 from src.tts import Synthesizer
 
 try:
-    config, character_df, language_info, client, FO4_Voice_folder_and_models_df = setup.initialise(
+    config, character_df, language_info, llm_client, FO4_Voice_folder_and_models_df = setup.initialise(
         config_file='config.ini',
         logging_file='logging.log', 
         secret_key_file='GPT_SECRET_KEY.txt', 
