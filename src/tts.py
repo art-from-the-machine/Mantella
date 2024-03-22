@@ -127,7 +127,7 @@ class Synthesizer:
         # Write the 16-bit audio data back to a file
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
 
-    def synthesize(self, voice, voiceline, aggro: bool = False):
+    def synthesize(self, voice, voiceline, in_game_voice, aggro: bool = False):
         if voice != self.last_voice:
             self.change_voice(voice)
 
@@ -160,7 +160,7 @@ class Synthesizer:
     
         # Synthesize voicelines
         if self.use_external_xtts == 1:
-            self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, aggro)
+            self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, in_game_voice, aggro)
         else:
             if len(phrases) == 1:
                 self._synthesize_line(phrases[0], final_voiceline_file, aggro)
@@ -344,14 +344,24 @@ class Synthesizer:
                     break
 
     @utils.time_it
-    def _synthesize_line_xtts(self, line, save_path, voice, aggro: bool):
-        voice_path = f"{voice.lower().replace(' ', '')}"
-        data = {
-            'text': line,
-            'speaker_wav': voice_path,
-            'language': self.language,
-        }
-        response = requests.post(self.xtts_synthesize_url, json=data)
+    def _synthesize_line_xtts(self, line, save_path, voice, in_game_voice, aggro: bool):
+        def get_voiceline(voice_model_name):
+            voice_path = f"{voice_model_name.replace(' ', '')}"
+            data = {
+                'text': line,
+                'speaker_wav': voice_path,
+                'language': self.language,
+            }
+            return requests.post(self.xtts_synthesize_url, json=data)
+
+        try:
+            response = get_voiceline(in_game_voice.lower())
+        except:
+            try:
+                response = get_voiceline('fo4_'+in_game_voice.lower())
+            except:
+                logging.log(self.loglevel, f'Could not find voice model {in_game_voice.lower()}. Searching for {voice}')
+                response = get_voiceline(voice)
 
         # Check if the response is successful
         if response.status_code == 200:
@@ -529,6 +539,7 @@ class Synthesizer:
 
             # Request to switch the voice model
             requests.post(self.xtts_switch_model, json={"model_name": model_voice})
+            self.last_voice
             
         else :
             #this is a game check for Fallout4/Skyrim to correctly search the XVASynth voice models for the right game.
