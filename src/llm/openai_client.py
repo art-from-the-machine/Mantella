@@ -74,7 +74,7 @@ class openai_client:
             logging.info(f"Running Mantella with local language model")
 
         self.TOKEN_LIMIT_PERCENT = 0.45
-        self.__base_url: str = endpoint if endpoint != 'none' else None
+        self.__base_url: str | None = endpoint if endpoint != 'none' else None
         self.__stop: str | List[str] = config.stop
         self.__temperature: float = config.temperature
         self.__top_p: float = config.top_p

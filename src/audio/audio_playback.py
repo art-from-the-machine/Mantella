@@ -1,9 +1,8 @@
 import logging
 import math
-
 import numpy as np
 import pygame
-from llm.sentence import sentence
+from src.llm.sentence import sentence
 from src.config_loader import ConfigLoader
 from src.character_manager import Character
 

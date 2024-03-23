@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from src.llm.message_thread import message_thread
 from src.conversation.context import context
 from src.llm.messages import user_message
-from src.stt import Transcriber
 
 class conversation_type(ABC):
     """Base class for different forms of conversations.

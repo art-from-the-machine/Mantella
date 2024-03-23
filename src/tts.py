@@ -127,7 +127,7 @@ class Synthesizer:
         # Write the 16-bit audio data back to a file
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
 
-    def synthesize(self, voice, voiceline, in_game_voice, aggro: bool = False):
+    def synthesize(self, voice: str, voiceline: str, in_game_voice: str, aggro: bool = False):
         if voice != self.last_voice:
             self.change_voice(voice)
 

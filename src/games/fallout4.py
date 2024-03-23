@@ -15,7 +15,9 @@ import src.utils as utils
 class fallout4(gameable):
     FO4_XVASynth_file='data\\FO4_data\\FO4_Voice_folder_XVASynth_matches.csv'
     WAV_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
-    LIP_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
+    LIP_FILE = f'00001ED2_1.lip'
+    # f4_wav_file1 = f'MutantellaOutput1.wav'
+    # f4_wav_file2 = f'MutantellaOutput2.wav'
 
     def __init__(self, config: ConfigLoader):
         super().__init__('data/fallout4_characters.csv', "Fallout4")
@@ -23,6 +25,25 @@ class fallout4(gameable):
         encoding = utils.get_file_encoding(fallout4.FO4_XVASynth_file)
         self.__FO4_Voice_folder_and_models_df = pd.read_csv(fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)
         self.__playback: audio_playback = audio_playback(config)
+        self.create_all_voice_folders(self.__config)
+
+    def create_all_voice_folders(self, config: ConfigLoader):
+        all_voice_folders = self.Character_df["fallout4_voice_folder"]
+        all_voice_folders = all_voice_folders.loc[all_voice_folders.notna()]
+        set_of_voice_folders = set()
+        for voice_folder in all_voice_folders:
+            voice_folder = str.strip(voice_folder)
+            if voice_folder and not set_of_voice_folders.__contains__(voice_folder):
+                set_of_voice_folders.add(voice_folder)
+                in_game_voice_folder_path = f"{config.mod_path}/{voice_folder}/"
+                if not os.path.exists(in_game_voice_folder_path):
+                    os.mkdir(in_game_voice_folder_path)
+                    example_folder = f"{config.mod_path}/maleboston/"
+                    for file_name in os.listdir(example_folder):
+                        source_file_path = os.path.join(example_folder, file_name)
+
+                        if os.path.isfile(source_file_path):
+                            shutil.copy(source_file_path, in_game_voice_folder_path)
 
     def load_external_character_info(self, character_id: str, name: str, race: str, gender: int, ingame_voice_model: str)-> external_character_info:
         character_df = self.Character_df

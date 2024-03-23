@@ -28,29 +28,29 @@ See here to learn how to move your game's installation folder: https://art-from-
                 skyrim_in_program_files = True
             return skyrim_in_program_files 
 
-        def check_missing_mantella_file(set_path):
-            if self.game == "Fallout4" or self.game == "Fallout4VR":
-                txtPrefix='fallout4'
-                modnameSufix='gun'
-            else:
-                txtPrefix='skyrim'
-                modnameSufix='Spell'
+#         def check_missing_mantella_file(set_path):
+#             if self.game == "Fallout4" or self.game == "Fallout4VR":
+#                 txtPrefix='fallout4'
+#                 modnameSufix='gun'
+#             else:
+#                 txtPrefix='skyrim'
+#                 modnameSufix='Spell'
             
-            try:
-                with open(set_path+'/_mantella__'+txtPrefix+'_folder.txt') as f:
-                    check = f.readline().strip()
-            except:
-                #Reworked the warning to include correct names depending on the game being ran.
-                logging.warn(f'''
-Warning: Could not find _mantella__{txtPrefix}_folder.txt in {set_path}. 
-If you have not yet used the Mantella {modnameSufix} in-game you can safely ignore this message. 
-If you have used the Mantella {modnameSufix} please check that your 
-MantellaSoftware/config.ini "{txtPrefix}_folder" has been set correctly 
-(instructions on how to set this up are in the config file itself).
-If you are still having issues, a list of solutions can be found here: 
-https://github.com/art-from-the-machine/Mantella#issues-qa
-''')
-                input("Press Enter to confirm these warnings...")
+#             try:
+#                 with open(set_path+'/_mantella__'+txtPrefix+'_folder.txt') as f:
+#                     check = f.readline().strip()
+#             except:
+#                 #Reworked the warning to include correct names depending on the game being ran.
+#                 logging.warn(f'''
+# Warning: Could not find _mantella__{txtPrefix}_folder.txt in {set_path}. 
+# If you have not yet used the Mantella {modnameSufix} in-game you can safely ignore this message. 
+# If you have used the Mantella {modnameSufix} please check that your 
+# MantellaSoftware/config.ini "{txtPrefix}_folder" has been set correctly 
+# (instructions on how to set this up are in the config file itself).
+# If you are still having issues, a list of solutions can be found here: 
+# https://github.com/art-from-the-machine/Mantella#issues-qa
+# ''')
+#                 input("Press Enter to confirm these warnings...")
 
         def run_config_editor():
             try:
@@ -202,8 +202,8 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
         # if not os.path.exists(f"{self.game_path}"):
         #     invalid_path(self.game_path, f"{self.game_path}")
         # else:
-        #     skyrim_in_program_files = check_program_files(self.game_path)
-        #     check_missing_mantella_file(self.game_path, skyrim_in_program_files)
+        check_program_files(self.mod_path)
+        # check_missing_mantella_file(self.game_path)
 
         if not os.path.exists(f"{self.xvasynth_path}\\resources\\"):
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")

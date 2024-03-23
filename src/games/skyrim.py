@@ -2,9 +2,9 @@ import logging
 import os
 import shutil
 from typing import Any
-from character_manager import Character
-from config_loader import ConfigLoader
-from llm.sentence import sentence
+from src.character_manager import Character
+from src.config_loader import ConfigLoader
+from src.llm.sentence import sentence
 from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
 import src.utils as utils
@@ -14,17 +14,36 @@ class skyrim(gameable):
     WAV_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
     LIP_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
 
-    def __init__(self):
+    def __init__(self, config: ConfigLoader):
         super().__init__('data/skyrim_characters.csv', "Skyrim")
+        self.__create_all_voice_folders(config)
+
+    def __create_all_voice_folders(self, config: ConfigLoader):
+        all_voice_folders = self.Character_df["skyrim_voice_folder"]
+        all_voice_folders = all_voice_folders.loc[all_voice_folders.notna()]
+        set_of_voice_folders = set()
+        for voice_folder in all_voice_folders:
+            voice_folder = str.strip(voice_folder)
+            if voice_folder and not set_of_voice_folders.__contains__(voice_folder):
+                set_of_voice_folders.add(voice_folder)
+                in_game_voice_folder_path = f"{config.mod_path}/{voice_folder}/"
+                if not os.path.exists(in_game_voice_folder_path):
+                    os.mkdir(in_game_voice_folder_path)
+                    example_folder = f"{config.mod_path}/MaleNord/"
+                    for file_name in os.listdir(example_folder):
+                        source_file_path = os.path.join(example_folder, file_name)
+
+                        if os.path.isfile(source_file_path):
+                            shutil.copy(source_file_path, in_game_voice_folder_path)
 
     def load_external_character_info(self, id: str, name: str, race: str, gender: int, ingame_voice_model: str)-> external_character_info:
         try: # load character from skyrim_characters.csv
-            character_info = self.__character_df.loc[self.__character_df['name'].astype(str).str.lower()==name.lower()].to_dict('records')[0]
+            character_info = self.Character_df.loc[self.Character_df['name'].astype(str).str.lower()==name.lower()].to_dict('records')[0]
             return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
         except IndexError: # character not found
             try: # try searching by ID
                 logging.info(f"Could not find {name} in skyrim_characters.csv. Searching by ID {id}...")
-                character_info = self.__character_df.loc[(self.__character_df['baseid_int'].astype(str)==id) | (self.__character_df['baseid_int'].astype(str)==id+'.0')].to_dict('records')[0]
+                character_info = self.Character_df.loc[(self.Character_df['baseid_int'].astype(str)==id) | (self.Character_df['baseid_int'].astype(str)==id+'.0')].to_dict('records')[0]
                 return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
             except IndexError: # load generic NPC
                 logging.info(f"NPC '{name}' could not be found in 'skyrim_characters.csv'. If this is not a generic NPC, please ensure '{name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")

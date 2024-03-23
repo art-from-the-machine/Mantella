@@ -3,7 +3,7 @@ import logging
 from threading import Thread, Lock
 import time
 from typing import Any, Callable
-from conversation.conversation_log import conversation_log
+from src.conversation.conversation_log import conversation_log
 from src.conversation.action import action
 from src.llm.sentence_queue import sentence_queue
 from src.llm.sentence import sentence

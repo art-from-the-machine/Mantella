@@ -1,14 +1,20 @@
 from abc import ABC, abstractmethod
+import logging
 from typing import Any
 import pandas as pd
-from config_loader import ConfigLoader
-from llm.sentence import sentence
+from src.config_loader import ConfigLoader
+from src.llm.sentence import sentence
 from src.games.external_character_info import external_character_info
 import src.utils as utils
 
 class gameable(ABC):
     def __init__(self, path_to_character_df: str, mantella_software_game_folder_name: str):
-        self.__character_df: pd.DataFrame = self.__get_character_df(path_to_character_df)
+        try:
+            self.__character_df: pd.DataFrame = self.__get_character_df(path_to_character_df)
+        except:
+            logging.error(f'Unable to read / open {path_to_character_df}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
+            input("Press Enter to exit.")
+        
         self.__mantella_software_game_folder_name: str = mantella_software_game_folder_name
     
     @property
@@ -32,8 +38,4 @@ class gameable(ABC):
 
     @abstractmethod
     def prepare_sentence_for_game(self, queue_output: sentence, config: ConfigLoader):
-        pass
-
-    @abstractmethod
-    def __load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
         pass

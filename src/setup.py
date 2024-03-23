@@ -1,9 +1,8 @@
 import logging
 import os
-import shutil
 from typing import Hashable
-from games.fallout4 import fallout4
-from games.skyrim import skyrim
+from src.games.fallout4 import fallout4
+from src.games.skyrim import skyrim
 from src.games.gameable import gameable
 import src.color_formatter as cf
 import src.utils as utils
@@ -14,7 +13,7 @@ import os
 import src.config_loader as config_loader
 from src.llm.openai_client import openai_client
 
-def initialise(config_file, logging_file, secret_key_file, character_df_files, language_file, FO4_XVASynth_file) -> tuple[gameable, config_loader.ConfigLoader, pd.DataFrame, dict[Hashable, str], openai_client]:
+def initialise(config_file, logging_file, secret_key_file, language_file) -> tuple[gameable, config_loader.ConfigLoader, dict[Hashable, str], openai_client]:
     
     def set_cwd_to_exe_dir():
         if getattr(sys, 'frozen', False): # if exe and not Python script
@@ -74,36 +73,6 @@ def initialise(config_file, logging_file, secret_key_file, character_df_files, l
         logging.log(40, "JSON coming from game")
         logging.log(41, "JSON sent back to game")
         logging.log(42, "Sentence queue access")
-
-    
-    
-    def get_voice_folders_and_models(file_name):
-        encoding = utils.get_file_encoding(file_name)
-        FO4_Voice_folder_and_models_df = pd.read_csv(file_name, engine='python', encoding=encoding)
-
-        return FO4_Voice_folder_and_models_df
-    
-    def create_all_voice_folders(config, character_df: pd.DataFrame):
-        all_voice_folders = character_df["skyrim_voice_folder"]
-        all_voice_folders = all_voice_folders.loc[all_voice_folders.notna()]
-        set_of_voice_folders = set()
-        for voice_folder in all_voice_folders:
-            voice_folder = str.strip(voice_folder)
-            if voice_folder and not set_of_voice_folders.__contains__(voice_folder):
-                set_of_voice_folders.add(voice_folder)
-                in_game_voice_folder_path = f"{config.mod_path}/{voice_folder}/"
-                if not os.path.exists(in_game_voice_folder_path):
-                    os.mkdir(in_game_voice_folder_path)
-                    example_folder = f"{config.mod_path}/MaleNord/"
-                    for file_name in os.listdir(example_folder):
-                        source_file_path = os.path.join(example_folder, file_name)
-
-                        if os.path.isfile(source_file_path):
-                            shutil.copy(source_file_path, in_game_voice_folder_path)
-    #    if self.game == "Fallout4" or self.game == "Fallout4VR":
-    #             example_folder = f"{self.mod_folder}/maleboston/"
-    #         else:
-    #             example_folder = f"{self.mod_folder}/MaleNord/"
     
     def get_language_info(file_name) -> dict[Hashable, str]:
         language_df = pd.read_csv(file_name)
@@ -122,27 +91,15 @@ def initialise(config_file, logging_file, secret_key_file, character_df_files, l
     utils.cleanup_mei(config.remove_mei_folders)
     
     # Determine which game we're running for and select the appropriate character file
-
     game: gameable 
     formatted_game_name = config.game.lower().replace(' ', '').replace('_', '')
     if formatted_game_name in ("fallout4", "fallout4vr"):
-        game = fallout4()
-        # character_df_file = character_df_files[1] 
-        # FO4_Voice_folder_and_models_df = get_voice_folders_and_models(FO4_XVASynth_file)
-    else :
-        game = skyrim()
-        # character_df_file = character_df_files[0]  # if not Fallout assume Skyrim
-        # FO4_Voice_folder_and_models_df=''
+        game = fallout4(config)
+    else:
+        game = skyrim(config)
 
-    try:
-        character_df = get_character_df(character_df_file)
-    except:
-        logging.error(f'Unable to read / open {character_df_file}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
-        input("Press Enter to exit.")
-
-    create_all_voice_folders(config, character_df)
     language_info = get_language_info(language_file)
     
     client = openai_client(config, secret_key_file)
 
-    return game, config, character_df, language_info, client
+    return game, config, language_info, client

@@ -1,22 +1,14 @@
 import asyncio
-import os
-import queue
 from threading import Lock
 import wave
 import logging
 import time
-import shutil
 import re
-import numpy as np
-# import pygame
-import sys
-import math
-from scipy.io import wavfile     
 import unicodedata
 from src.conversation.action import action
 from src.llm.sentence_queue import sentence_queue
 from src.config_loader import ConfigLoader
-from src.llm.sentence import sentence
+from src.llm.sentence import sentence as mantella_sentence #<- Do not collide with frequent and logical use of "sentence" when generating text from the LLM
 import src.utils as utils
 from src.characters_manager import Characters
 from src.character_manager import Character
@@ -25,59 +17,46 @@ from src.llm.message_thread import message_thread
 from src.llm.openai_client import openai_client
 from src.tts import Synthesizer
 
-class Extract:
-    def __init__(self, extract: str, whole: str) -> None:
-        self.__extract: str = extract
-        self.__rest: str = str.replace(whole, extract, "")
+# class Extract:
+#     def __init__(self, extract: str, whole: str) -> None:
+#         self.__extract: str = extract
+#         self.__rest: str = str.replace(whole, extract, "")
     
-    @property
-    def Extract(self) -> str:
-        return self.__extract
+#     @property
+#     def Extract(self) -> str:
+#         return self.__extract
     
-    @property
-    def Rest(self) -> str:
-        return self.__rest
+#     @property
+#     def Rest(self) -> str:
+#         return self.__rest
 
 class ChatManager:
     def __init__(self, config: ConfigLoader, tts: Synthesizer, client: openai_client):
         self.loglevel = 28
         self.game = config.game
-        self.mod_folder = config.mod_path
+        # self.mod_folder = config.mod_path
         self.max_response_sentences = config.max_response_sentences
         self.language = config.language
         self.wait_time_buffer = config.wait_time_buffer
-        self.root_mod_folder = config.game_path
+        # self.root_mod_folder = config.game_path
         self.__tts: Synthesizer = tts
         self.__client: openai_client = client
         self.__is_generating: bool = False
         self.__stop_generation: bool = False
         self.__tts_access_lock = Lock()
-        self.player_name = config.player_name
-        self.number_words_tts = config.number_words_tts
+        # self.player_name = config.player_name
+        self.__number_words_tts: int = config.number_words_tts
+        self.__end_of_sentence_chars = ['.', '?', '!', ':', ';']
+        self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
-        self.wav_file = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
-
-        self.f4_use_wav_file1 = True
-        self.f4_wav_file1 = f'MutantellaOutput1.wav'
-        self.f4_wav_file2 = f'MutantellaOutput2.wav'
-        self.FO4Volume = config.FO4Volume
-
-        if self.game == "Fallout4" or self.game == "Fallout4VR":
-            self.lip_file = f'00001ED2_1.lip'
-        else:
-            self.lip_file = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
-
-        self.end_of_sentence_chars = ['.', '?', '!', ':', ';']
-        self.end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.end_of_sentence_chars]
-
-    def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> sentence | None:
+    def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> mantella_sentence | None:
         with self.__tts_access_lock:
             try:
-                audio_file = self.__tts.synthesize(character_to_talk.TTS_voice_model, text, character_to_talk.Is_in_combat)
+                audio_file = self.__tts.synthesize(character_to_talk.TTS_voice_model, text, character_to_talk.In_game_voice_model, character_to_talk.Is_in_combat)
             except Exception as e:            
                 logging.error(f"Text-to-Speech Error: {e}")
                 return None
-            return sentence(character_to_talk, text, audio_file, self.get_audio_duration(audio_file), is_system_generated_sentence)
+            return mantella_sentence(character_to_talk, text, audio_file, self.get_audio_duration(audio_file), is_system_generated_sentence)
 
     def num_tokens(self, content_to_measure: message | str | message_thread | list[message]) -> int:
         if isinstance(content_to_measure, message_thread) or isinstance(content_to_measure, list):
@@ -218,6 +197,8 @@ class ChatManager:
             if keyword.lower() == a.Keyword.lower():
                 return a
         return None
+    
+    
 
     async def process_response(self, active_character: Character, blocking_queue: sentence_queue, messages : message_thread, characters: Characters, actions: list[action]):
         """Stream response from LLM one sentence at a time"""
@@ -239,25 +220,26 @@ class ChatManager:
                     async for content in self.__client.streaming_call(messages= messages):
                         if self.__stop_generation:
                             break
-                        if content is not None:
-                            sentence += content
-                            # Check for the last occurrence of sentence-ending punctuation
-                            punctuations = ['.', '!', ':', '?']
-                            last_punctuation = max(sentence.rfind(p) for p in punctuations)
-                            if last_punctuation != -1:
-                                # Split the sentence at the last punctuation mark
-                                remaining_content = sentence[last_punctuation + 1:]
-                                current_sentence = sentence[:last_punctuation + 1]
+                        if not content:
+                            continue
 
-                                current_sentence = self.clean_sentence(current_sentence)
-                                if not current_sentence:
-                                    sentence = remaining_content
+                        sentence += content
+                        # Check for the last occurrence of sentence-ending punctuation
+                        last_punctuation = max(sentence.rfind(p) for p in self.__end_of_sentence_chars)
+                        if last_punctuation != -1:
+                            # Split the sentence at the last punctuation mark
+                            remaining_content = sentence[last_punctuation + 1:]
+                            current_sentence = sentence[:last_punctuation + 1]
+
+                            current_sentence = self.clean_sentence(current_sentence)
+                            if not current_sentence:
+                                sentence = remaining_content
+                                continue
+
+                            if self.game !="Fallout4" and self.game != "Fallout4VR":
+                                if ('assist' in current_sentence) and (num_sentences>0):
+                                    logging.info(f"'assist' keyword found. Ignoring sentence: {sentence}")
                                     continue
-
-                                if self.game !="Fallout4" and self.game != "Fallout4VR":
-                                    if ('assist' in current_sentence) and (num_sentences>0):
-                                        logging.info(f"'assist' keyword found. Ignoring sentence: {sentence}")
-                                        continue
 
                             # New logic to handle conditions based on the presence of a colon and the state of `accumulated_sentence`
                             content_edit = unicodedata.normalize('NFKC', current_sentence)
@@ -296,7 +278,7 @@ class ChatManager:
                                             # action_taken = True
 
                             # Accumulate sentences if less than X words
-                            if len(accumulated_sentence.split()) + len(current_sentence.split()) < self.number_words_tts and cumulative_sentence_bool == False:
+                            if len(accumulated_sentence.split()) + len(current_sentence.split()) < self.__number_words_tts and cumulative_sentence_bool == False:
                                 accumulated_sentence += current_sentence
                                 sentence = remaining_content
                                 continue
@@ -333,14 +315,11 @@ class ChatManager:
                                 actions_in_sentence = []
 
                                 # stop processing LLM response if:
-                                    # max_response_sentences reached (and the conversation isn't radiant)
-                                    # conversation has switched from radiant to multi NPC (this allows the player to "interrupt" radiant dialogue and include themselves in the conversation)
-                                    # the conversation has ended
-                                if (num_sentences >= self.max_response_sentences):
-                                    #ToDo Leidtier: removed the additional condiditions for the moment
-                                    # and (radiant_dialogue == False)) or 
-                                    # ((radiant_dialogue == True) and (radiant_dialogue_update.lower() == 'false')) or 
-                                    # (end_conversation.lower() == 'true'):
+                                # max_response_sentences reached (and the conversation isn't radiant)
+                                # conversation has switched from radiant to multi NPC (this allows the player to "interrupt" radiant dialogue and include themselves in the conversation)
+                                # the conversation has ended
+                                # contains_player_character() == not radiant
+                                if (num_sentences >= self.max_response_sentences and characters.contains_player_character()):
                                     break
 
 
@@ -354,6 +333,23 @@ class ChatManager:
                     logging.log(self.loglevel, 'Retrying connection to API...')
                     time.sleep(5)
 
+            #Added from xTTS implementation
+            # Check if there is any accumulated sentence at the end
+            if accumulated_sentence:
+                # Generate the audio and return the audio file path
+                try:
+                    #Added from xTTS implementation
+                    new_sentence = self.generate_sentence(' ' + accumulated_sentence + ' ', active_character)
+                    if new_sentence:
+                        blocking_queue.put(new_sentence)
+                    full_reply += accumulated_sentence
+                    accumulated_sentence = ''
+                except Exception as e:
+                    accumulated_sentence = ''
+                    logging.error(f"xVASynth Error: {e}")
+            else:
+                logging.info(f"accumulated_sentence at the end is None")
+
             # Mark the end of the response
             # await sentence_queue.put(None)
         except Exception as e:
@@ -363,5 +359,5 @@ class ChatManager:
             blocking_queue.Is_more_to_come = False
             # This sentence is required to make sure there is one in case the game is already waiting for it
             # before the ChatManager realises there is not another message coming from the LLM
-            blocking_queue.put(sentence(active_character,"","",0, True))
+            blocking_queue.put(mantella_sentence(active_character,"","",0, True))
             self.__is_generating = False

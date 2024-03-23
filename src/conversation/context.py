@@ -1,6 +1,7 @@
 import json
 import os
 from typing import Hashable, Callable
+from src.conversation.conversation_log import conversation_log
 from src.characters_manager import Characters
 from src.remember.remembering import remembering
 from src.utils import get_time_group
@@ -148,7 +149,7 @@ class context:
         Returns:
             str: a natural text representing the trust
         """
-        trust_level = len(npc.load_conversation_log())
+        trust_level = len(conversation_log.load_conversation_log(npc))
         trust = 'a stranger'
         if npc.Relationship_rank == 0:
             if trust_level < 1:
