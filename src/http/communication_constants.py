@@ -41,6 +41,7 @@ class communication_constants:
     KEY_CONTEXT_LOCATION: str = PREFIX + "location"
     KEY_CONTEXT_TIME: str = PREFIX + "time"
     KEY_CONTEXT_INGAMEEVENTS: str = PREFIX + "ingame_events"
+    KEY_CONTEXT_CUSTOMVALUES: str = PREFIX + "custom_context_values"
 
     # Actions
     ACTION_RELOADCONVERSATION: str = PREFIX + "reload_conversation"

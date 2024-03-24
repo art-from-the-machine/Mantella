@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Hashable, Callable
+from typing import Any, Hashable, Callable
 from src.conversation.conversation_log import conversation_log
 from src.characters_manager import Characters
 from src.remember.remembering import remembering
@@ -20,6 +20,7 @@ class context:
         self.__language: dict[Hashable, str] = language
         self.__is_prompt_too_long: Callable[[str, float], bool] = is_prompt_too_long
         self.__location: str = "Skyrim"
+        self.__custom_context_values: dict[str, Any] = {}
         self.__ingame_time: int = 12
         self.__ingame_events: list[str] = []
         self.__have_actors_changed: bool = False
@@ -69,6 +70,11 @@ class context:
     def Have_actors_changed(self, value: bool):
         self.__have_actors_changed = value
 
+    def get_custom_context_value(self, key: str) -> Any:
+        if self.__custom_context_values.__contains__(key):
+            return self.__custom_context_values[key]
+        return None
+
     def get_context_ingame_events(self) -> list[str]:
         return self.__ingame_events
     
@@ -86,8 +92,9 @@ class context:
     def get_time_group(self) -> str:
         return get_time_group(self.__ingame_time)
     
-    def update_context(self, location: str, in_game_time: int, custom_ingame_events: list[str]):
+    def update_context(self, location: str, in_game_time: int, custom_ingame_events: list[str], custom_context_values: dict[str, Any]):
         self.__ingame_events.extend(custom_ingame_events)
+        self.__custom_context_values = custom_context_values
         if location != self.__location:
             self.__location = location
             custom_ingame_events.append(f"The location is now {location}.")
@@ -97,7 +104,6 @@ class context:
         if currentTime != self.__prev_game_time:
             self.__prev_game_time = currentTime
             custom_ingame_events.append(f"*The time is {currentTime[0]} {currentTime[1]}.*\n")
-        self.__ingame_events.extend(custom_ingame_events)
     
     def __update_ingame_events_on_npc_change(self, npc: Character):
         current_stats: Character = self.__npcs_in_conversation.get_character_by_name(npc.Name)

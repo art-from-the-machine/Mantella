@@ -127,8 +127,8 @@ class conversation:
         else:
             self.__start_generating_npc_sentences()
 
-    def update_context(self, location: str, time: int, custom_ingame_events: list[str]):
-        self.__context.update_context(location, time, custom_ingame_events)
+    def update_context(self, location: str, time: int, custom_ingame_events: list[str], custom_context_values: dict[str, Any]):
+        self.__context.update_context(location, time, custom_ingame_events, custom_context_values)
         if self.__context.Have_actors_changed:
             self.__update_conversation_type()
             self.__context.Have_actors_changed = False

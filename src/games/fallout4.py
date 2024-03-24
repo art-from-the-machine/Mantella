@@ -3,6 +3,7 @@ import os
 import shutil
 from typing import Any
 import pandas as pd
+from src.conversation.context import context
 from src.audio.audio_playback import audio_playback
 from src.character_manager import Character
 from src.config_loader import ConfigLoader
@@ -157,7 +158,7 @@ class fallout4(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, config: ConfigLoader):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file = queue_output.Voice_file
@@ -189,10 +190,15 @@ class fallout4(gameable):
 
 
         logging.info(f"{speaker.Name} should speak")
-        #ToDo: Find way to get the player position here, even if they are not part of the conversation
-        player_pos: tuple[float, float] = (0,0)
-        player_rot: float = 0
-        self.__playback.play_adjusted_volume(queue_output, player_pos, player_rot)
+
+        player_pos_x = context_of_conversation.get_custom_context_value("player_pos_x")
+        player_pos_y = context_of_conversation.get_custom_context_value("player_pos_y")
+        player_rot = context_of_conversation.get_custom_context_value("player_rot")
+        if player_pos_x and player_pos_y and player_rot:
+            if isinstance(player_pos_x, float) and isinstance(player_pos_y, float) and isinstance(player_rot, float):
+                player_pos: tuple[float, float] = (player_pos_x, player_pos_y)
+        
+                self.__playback.play_adjusted_volume(queue_output, player_pos, player_rot)
 
     MALE_VOICE_MODELS: dict[str, str] = {
         'AssaultronRace':	'robot_assaultron',

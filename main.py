@@ -1,4 +1,5 @@
 from flask import Flask
+import click
 from src.output_manager import ChatManager
 import traceback
 from src.http.routes.routeable import routeable
@@ -24,6 +25,20 @@ try:
     sync_http_server = Flask(__name__)
     chat_manager = ChatManager(config, Synthesizer(config), llm_client)
     game_state_manager = game_manager.GameStateManager(game, chat_manager, config, language_info, llm_client)
+
+    ### Deactivate the logging to console by Flask
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
+
+    def secho(text, file=None, nl=None, err=None, color=None, **styles):
+        pass
+
+    def echo(text, file=None, nl=None, err=None, color=None, **styles):
+        pass
+
+    click.echo = echo
+    click.secho = secho
+    ### End of deactivate logging
     
     #start the http server
     routes: list[routeable] = [mantella_route(game_state_manager, should_debug_http), 
