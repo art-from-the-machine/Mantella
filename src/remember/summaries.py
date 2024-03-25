@@ -15,6 +15,7 @@ class summaries(remembering):
     """
     def __init__(self, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.45) -> None:
         super().__init__()
+        self.loglevel = 28
         self.__summary_limit_pct: float = summary_limit_pct
         self.__client: openai_client = client
         self.__language_name: str = language_name
@@ -138,7 +139,8 @@ class summaries(remembering):
             summary = summary.replace('the user', 'the player')
             summary += '\n\n'
 
-            logging.info(f"Conversation summary saved.")
+            logging.log(self.loglevel, f'Conversation summary: {summary.strip()}')
+            logging.info(f"Conversation summary saved")
         else:
             logging.info(f"Conversation summary not saved. Not enough dialogue spoken.")
 

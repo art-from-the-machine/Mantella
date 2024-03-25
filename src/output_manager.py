@@ -164,7 +164,7 @@ class ChatManager:
                 logging.warning(e)
 
 
-        logging.info(f"{self.active_character.name} (character {self.character_num}) should speak")
+        logging.info(f"{self.active_character.name} should speak")
         if self.character_num == 0:
             self.game_state_manager.write_game_info('_mantella_say_line', subtitle.strip())
             if self.game =="Fallout4" or self.game =="Fallout4VR":
@@ -592,8 +592,6 @@ class ChatManager:
             except Exception as e:
                 accumulated_sentence = ''
                 logging.error(f"xVASynth Error: {e}")
-        else:
-            logging.info(f"accumulated_sentence at the end is None")
         # Mark the end of the response
         await sentence_queue.put(None)
 

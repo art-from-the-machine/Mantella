@@ -91,7 +91,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
                 self.game_path = config['Paths']['skyrim_folder']
                 self.mod_path = config['Paths']['skyrim_mod_folder']
             
-            logging.info(f'Mantella currently running for {self.game} located in {self.game_path}. Mantella esp located in {self.mod_path}.  \n')
+            logging.log(23, f'Mantella currently running for {self.game} ({self.game_path}). Mantella mod located in {self.mod_path}')
             self.language = config['Language']['language']
             self.end_conversation_keyword = config['Language']['end_conversation_keyword']
             self.goodbye_npc_response = config['Language']['goodbye_npc_response']

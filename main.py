@@ -31,7 +31,7 @@ try:
     token_limit = client.token_limit
     token_limit_percent: float = 0.45
     mantella_version = '0.11'
-    logging.info(f'\nMantella v{mantella_version}')
+    logging.log(24, f'\nMantella v{mantella_version}')
 
     # Check if the mic setting has been configured in MCM
     # If it has, use this instead of the config.ini setting, otherwise take the config.ini value
@@ -60,8 +60,8 @@ try:
             )
             
         
-        logging.info('\nConversations not starting when you select an NPC? See here:\nhttps://github.com/art-from-the-machine/Mantella#issues-qa')
-        logging.info('\nWaiting for player to select an NPC...')
+        logging.log(24, '\nConversations not starting when you select an NPC? See here:\nhttps://art-from-the-machine.github.io/Mantella/pages/issues_qna')
+        logging.log(24, '\nWaiting for player to select an NPC...')
         game_state_manager.wait_for_conversation_init() #<- wait for init here
 
         #base setup for conversation
