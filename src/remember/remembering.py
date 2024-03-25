@@ -18,7 +18,7 @@ class remembering(ABC):
         pass
 
     @abstractmethod
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters):
+    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, is_reload=False):
         """Saves the current state of the conversation.
 
         Args:

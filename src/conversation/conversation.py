@@ -112,7 +112,7 @@ class conversation:
             self.__messages.add_message(assistant_message(config.end_conversation_keyword+'.', self.__context.npcs_in_conversation.get_all_names(), is_system_generated_message=True))
             
             # save conversation
-            self.__save_conversation()
+            self.__save_conversation(is_reload=False)
             
             self.__has_already_ended = True
             self.__game_manager.end_conversation()
@@ -141,11 +141,11 @@ class conversation:
             new_message.is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
             self.end()
 
-    def __save_conversation(self):
+    def __save_conversation(self, is_reload):
         """Saves conversation log and state for each NPC in the conversation"""
         for npc in self.__context.npcs_in_conversation.get_all_characters():
             npc.save_conversation_log(self.__messages)
-        self.__rememberer.save_conversation_state(self.__messages, self.__context.npcs_in_conversation)
+        self.__rememberer.save_conversation_state(self.__messages, self.__context.npcs_in_conversation, is_reload)
 
     @utils.time_it
     def __reload_conversation(self):
@@ -166,7 +166,7 @@ class conversation:
             collecting_thoughts_response = collecting_thoughts_text+'.'
         self.__messages.add_message(assistant_message(collecting_thoughts_response, self.__context.npcs_in_conversation.get_all_names(), is_system_generated_message=True))
         # Save conversation
-        self.__save_conversation()
+        self.__save_conversation(is_reload=True)
         # Reload
         new_prompt = self.__conversation_type.generate_prompt(self.__context)
         self.__messages.reload_message_thread(new_prompt, 8)
