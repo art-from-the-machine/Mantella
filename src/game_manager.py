@@ -111,7 +111,9 @@ class GameStateManager:
             location: str = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_LOCATION]
             time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
             ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
-            custom_context_values: dict[str, Any] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
+            custom_context_values: dict[str, Any] = {}
+            if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
+                custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
             self.__talk.update_context(location, time, ingame_events, custom_context_values)
 
 
