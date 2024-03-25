@@ -61,11 +61,13 @@ class Synthesizer:
             self.game = "Skyrim"
         # check if xvasynth is running; otherwise try to run it
         if self.use_external_xtts == 1:
+            logging.log(self.loglevel, f'Connecting to XTTS...')
             self.check_if_xtts_is_running()
             self.available_models = self._get_available_models()
             if not self.facefx_path :
                 self.facefx_path = self.xtts_server_path + "/plugins/lip_fuz"
         else:
+            logging.log(self.loglevel, f'Connecting to xVASynth...')
             self.check_if_xvasynth_is_running()
             if not self.facefx_path :
                 self.facefx_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
@@ -130,7 +132,7 @@ class Synthesizer:
         if voice != self.last_voice:
             self.change_voice(voice)
 
-        logging.log(22, f'Synthesizing voiceline: {voiceline}')
+        logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
         phrases = self._split_voiceline(voiceline)
 
         # make voice model folder if it doesn't already exist
@@ -390,15 +392,13 @@ class Synthesizer:
 
     def check_if_xvasynth_is_running(self):
         self.times_checked += 1
-
         try:
             if (self.times_checked > 10):
                 # break loop
-                logging.error('Could not connect to xVASynth multiple times. Ensure that xVASynth is running and restart Mantella.')
+                logging.error(f'Could not connect to xVASynth after {self.times_checked} attempts. Ensure that xVASynth is running and restart Mantella.')
                 raise TTSServiceFailure()
 
             # contact local xVASynth server; ~2 second timeout
-            logging.log(self.loglevel, f'Attempting to connect to xVASynth... ({self.times_checked})')
             response = requests.get('http://127.0.0.1:8008/')
             response.raise_for_status()  # If the response contains an HTTP error status code, raise an exception
         except requests.exceptions.RequestException as err:
@@ -407,7 +407,6 @@ class Synthesizer:
                 return
 
             if (self.times_checked == 1):
-                logging.log(self.loglevel, 'Could not connect to xVASynth. Attempting to run headless server...')
                 self.run_xvasynth_server()
             # do the web request again; LOOP!!!
             return self.check_if_xvasynth_is_running()
@@ -419,11 +418,10 @@ class Synthesizer:
         try:
             if (self.times_checked > 10):
                 # break loop
-                logging.error('Could not connect to XTTS multiple times. Ensure that xtts-api-server is running and restart Mantella.')
+                logging.error(f'Could not connect to XTTS after {self.times_checked} attempts. Ensure that xtts-api-server is running and restart Mantella.')
                 raise TTSServiceFailure()
 
             # contact local xVASynth server; ~2 second timeout
-            logging.log(self.loglevel, f'Attempting to connect to XTTS... ({self.times_checked})')
             response = requests.post(self.xtts_set_tts_settings, json=tts_data_dict)
             response.raise_for_status() 
             
@@ -526,7 +524,7 @@ class Synthesizer:
 
             # Request to switch the voice model
             requests.post(self.xtts_switch_model, json={"model_name": model_voice})
-            self.last_voice
+            self.last_voice = voice
             
         else :
             #this is a game check for Fallout4/Skyrim to correctly search the XVASynth voice models for the right game.

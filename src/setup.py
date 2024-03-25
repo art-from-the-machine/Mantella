@@ -39,29 +39,29 @@ def initialise(config_file, logging_file, secret_key_file, character_df_files, l
         logging.getLogger().addHandler(console_handler)
         logging.getLogger().addHandler(file_handler)
 
-        logging.debug("debug message")
-        logging.info("info message")
-        logging.warning("warning message")
-        logging.error("error message")
-        logging.critical("critical message")
+        #logging.debug("debug message")
+        #logging.info("info message")
+        #logging.warning("warning message")
+        #logging.error("error message")
+        #logging.critical("critical message")
 
         # custom levels
-        logging.addLevelName(21, "INFO")
-        logging.addLevelName(22, "INFO")
-        logging.addLevelName(23, "INFO")
+        #logging.addLevelName(21, "INFO")
+        #logging.addLevelName(22, "INFO")
+        #logging.addLevelName(23, "INFO")
 
-        logging.log(21, "Player transcription")
-        logging.log(22, "NPC voiceline")
-        logging.log(23, "NPC info")
+        #logging.log(21, "Player transcription")
+        #logging.log(22, "NPC voiceline")
+        #logging.log(23, "NPC info")
 
 
-        logging.addLevelName(27, "INFO STT")
-        logging.addLevelName(28, "INFO LLM")
-        logging.addLevelName(29, "INFO TTS")
+        #logging.addLevelName(27, "INFO STT")
+        #logging.addLevelName(28, "INFO LLM")
+        #logging.addLevelName(29, "INFO TTS")
 
-        logging.log(27, "Speech-To-Text related")
-        logging.log(28, "Large Language Model related")
-        logging.log(29, "Text-To-Speech related")
+        #logging.log(27, "Speech-To-Text related")
+        #logging.log(28, "Large Language Model related")
+        #logging.log(29, "Text-To-Speech related")
 
     def get_character_df(file_name) -> pd.DataFrame:
         encoding = utils.get_file_encoding(file_name)

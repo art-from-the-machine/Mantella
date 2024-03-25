@@ -375,7 +375,6 @@ class GameStateManager:
             
             
                                 
-            logging.info(f"Current character_info is '{character_info}' ")
                                 
             is_generic_npc = False
         except:

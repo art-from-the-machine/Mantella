@@ -66,7 +66,7 @@ class openai_client:
             self.__is_local: bool = False
             with open(secret_key_file, 'r') as f:
                 self.__api_key: str = f.readline().strip()
-            logging.info(f"Running Mantella with '{config.llm}'. The language model chosen can be changed via config.ini")
+            logging.log(23, f"Running Mantella with '{config.llm}'. The language model can be changed in MantellaSoftware/config.ini")
         else:
             #local LLM
             self.__is_local: bool = True
@@ -212,7 +212,6 @@ class openai_client:
             return None
         
         reply = chat_completion.choices[0].message.content
-        logging.info(f"LLM Response: {reply}")
         return reply
     
     @staticmethod
@@ -313,7 +312,7 @@ class openai_client:
         elif llm == 'gpt-4-1106-preview':
             token_limit = 128_000
         else:
-            logging.info(f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count} (this number can be changed via the `custom_token_count` setting in config.ini)")
+            logging.log(23, f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count} (this number can be changed via the `custom_token_count` setting in config.ini)")
             try:
                 token_limit = int(custom_token_count)
             except ValueError:
@@ -322,6 +321,6 @@ class openai_client:
         if token_limit <= 4096:
             if is_local:
                 llm = 'Local language model'
-            logging.info(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
+            logging.warning(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
         
         return token_limit
