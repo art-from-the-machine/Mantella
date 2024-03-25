@@ -43,7 +43,7 @@ class summaries(remembering):
                         result += f"{character.name}: {previous_conversation_summaries}"
         return result
 
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters):
+    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, is_reload=False):
         summary = ''
         non_generic_npc = []
         for npc in npcs_in_conversation.get_all_characters():
@@ -52,9 +52,9 @@ class summaries(remembering):
             else:
                 non_generic_npc.append(npc)
         for npc in non_generic_npc:            
-            if len(summary) < 1:
+            if len(summary) < 1: # if a summary has not already been generated, make one
                 summary = self.__create_new_conversation_summary(messages, npc.name)
-            if len(summary) > 0:# Should for what ever reason the first summary to fail, don't even try to continue here
+            if len(summary) > 0 or is_reload: # if a summary has been generated, give the same summary to all NPCs
                 self.__append_new_conversation_summary(summary, npc)
 
     def __create_new_conversation_summary(self, messages: message_thread, npc_name: str) -> str:
@@ -86,9 +86,10 @@ class summaries(remembering):
             os.makedirs(directory, exist_ok=True)
             previous_conversation_summaries = ''
        
-        conversation_summaries = previous_conversation_summaries + new_summary
-        with open(npc.conversation_summary_file, 'w', encoding='utf-8') as f:
-            f.write(conversation_summaries)
+        if len(new_summary) > 0:
+            conversation_summaries = previous_conversation_summaries + new_summary
+            with open(npc.conversation_summary_file, 'w', encoding='utf-8') as f:
+                f.write(conversation_summaries)
 
         summary_limit = round(self.__client.token_limit*self.__summary_limit_pct,0)
 
