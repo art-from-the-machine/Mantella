@@ -32,7 +32,7 @@ class Synthesizer:
         self.tts_print = config.tts_print
         
         #Added from XTTS implementation
-        self.use_external_xtts = int(config.use_external_xtts)
+        self.tts_service = config.tts_service
         self.xtts_default_model = config.xtts_default_model
         self.xtts_deepspeed = int(config.xtts_deepspeed)
         self.xtts_lowvram = int(config.xtts_lowvram)
@@ -60,7 +60,7 @@ class Synthesizer:
         else: 
             self.game = "Skyrim"
         # check if xvasynth is running; otherwise try to run it
-        if self.use_external_xtts == 1:
+        if self.tts_service == 'xtts':
             logging.log(self.loglevel, f'Connecting to XTTS...')
             self.check_if_xtts_is_running()
             self.available_models = self._get_available_models()
@@ -139,7 +139,7 @@ class Synthesizer:
         if not os.path.exists(f"{self.output_path}/voicelines/{self.last_voice}"):
             os.makedirs(f"{self.output_path}/voicelines/{self.last_voice}")
             
-        if self.use_external_xtts == 0:
+        if self.tts_service == 'xvasynth':
             phrases = self._split_voiceline(voiceline)
 			
             voiceline_files = []
@@ -160,7 +160,7 @@ class Synthesizer:
             logging.warning("Failed to remove spoken voicelines")
     
         # Synthesize voicelines
-        if self.use_external_xtts == 1:
+        if self.tts_service == 'xtts':
             self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, in_game_voice, aggro)
         else:
             if len(phrases) == 1:
@@ -507,7 +507,7 @@ class Synthesizer:
     def change_voice(self, voice):
         logging.log(self.loglevel, 'Loading voice model...')
         
-        if self.use_external_xtts == 1:
+        if self.tts_service == 'xtts':
             # Format the voice string to match the model naming convention
             voice_path = f"{voice.lower().replace(' ', '')}"
             model_voice = voice_path
