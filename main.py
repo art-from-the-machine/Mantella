@@ -71,7 +71,7 @@ try:
         with open(f'{config.game_path}/_mantella_radiant_dialogue.txt', 'r', encoding='utf-8') as f:
             is_radiant_dialogue = f.readline().strip().lower() == 'true'
 
-        talk = conversation(context_for_conversation, transcriber, game_state_manager, chat_manager, rememberer, is_radiant_dialogue, token_limit, token_limit_percent)
+        talk = conversation(context_for_conversation, transcriber, synthesizer, game_state_manager, chat_manager, rememberer, is_radiant_dialogue, token_limit, token_limit_percent)
 
         while True: # Start conversation loop
             try:
