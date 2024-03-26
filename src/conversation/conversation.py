@@ -138,7 +138,7 @@ class conversation:
         self.__messages.add_message(new_message)
         text = new_message.text
         self.__game_manager.write_game_info('_mantella_player_input', text)
-        logging.info(f"Text passed to NPC: {text}")
+        logging.info(f"Text passed to NPC: {text.strip()}")
         if self.__has_conversation_ended(text):
             new_message.is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
             self.end()
