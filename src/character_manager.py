@@ -8,7 +8,7 @@ import sys
 from src.llm.message_thread import message_thread
 
 class Character:
-    def __init__(self, info, language, is_generic_npc):
+    def __init__(self, info, language, is_generic_npc, game):
         self.info = info
         self.name = info['name']
         self.bio = info['bio']
@@ -23,7 +23,7 @@ class Character:
         if "--integrated" in sys.argv:
             self.conversation_folder = str(Path(utils.resolve_path()).parent.parent.parent.parent)+'/MantellaData/conversations'
         else:
-            self.conversation_folder = 'data/conversations'
+            self.conversation_folder = f"data/{game.replace('VR','')}/conversations"
         
         self.conversation_history_file = f"{self.conversation_folder}/{self.name}/{self.name}.json"
         self.conversation_summary_file = self.get_latest_conversation_summary_file_path()

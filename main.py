@@ -22,10 +22,10 @@ try:
         config_file='config.ini',
         logging_file='logging.log', 
         secret_key_file='GPT_SECRET_KEY.txt', 
-        #Additional df_file added to support Fallout 4 data/fallout4_characters.csv, keep in mind there's also a new file in data\FO4_data\FO4_Voice_folder_XVASynth_matches.csv
-        character_df_files=('data/skyrim_characters.csv', 'data/fallout4_characters.csv'), 
+        #Additional df_file added to support Fallout 4 data/fallout4_characters.csv, keep in mind there's also a new file in data\Fallout4\FO4_Voice_folder_XVASynth_matches.csv
+        character_df_files=('data/Skyrim/skyrim_characters.csv', 'data/Fallout4/fallout4_characters.csv'), 
         language_file='data/language_support.csv',
-        FO4_XVASynth_file='data\\FO4_data\\FO4_Voice_folder_XVASynth_matches.csv'
+        FO4_XVASynth_file='data\\Fallout4\\FO4_Voice_folder_XVASynth_matches.csv'
     )
 
     token_limit = client.token_limit
@@ -98,7 +98,7 @@ try:
                 context_for_conversation.location = location
                 context_for_conversation.ingame_time = int(in_game_time)
 
-                character = character_manager.Character(character_info, language_info['language'], is_generic_npc)
+                character = character_manager.Character(character_info, language_info['language'], is_generic_npc, config.game)
                 if num_characters_selected == 1: 
                     #Only automatically preload the voice model for the first character, can't predict who will talk first/next in multi-npc or radiant
                     #synthesizer.change_voice(character.voice_model)
