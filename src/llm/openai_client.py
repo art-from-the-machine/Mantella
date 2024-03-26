@@ -272,45 +272,13 @@ class openai_client:
     
     # --- Private methods ---    
     def __get_token_limit(self, llm, custom_token_count, is_local):
+        token_limit_dict = utils.get_model_token_limits()
+
         if '/' in llm:
             llm = llm.split('/')[-1]
 
-        if llm == 'gpt-3.5-turbo':
-            token_limit = 4096
-        elif llm == 'gpt-3.5-turbo-16k':
-            token_limit = 16384
-        elif llm == 'gpt-4':
-            token_limit = 8192
-        elif llm == 'gpt-4-32k':
-            token_limit = 32768
-        elif llm == 'claude-2':
-            token_limit = 100_000
-        elif llm == 'claude-instant-v1':
-            token_limit = 100_000
-        elif llm == 'palm-2-chat-bison':
-            token_limit = 8000
-        elif llm == 'palm-2-codechat-bison':
-            token_limit = 8000
-        elif llm == 'llama-2-7b-chat':
-            token_limit = 4096
-        elif llm == 'llama-2-13b-chat':
-            token_limit = 4096
-        elif llm == 'llama-2-70b-chat':
-            token_limit = 4096
-        elif llm == 'codellama-34b-instruct':
-            token_limit = 16000
-        elif llm == 'nous-hermes-llama2-13b':
-            token_limit = 4096
-        elif llm == 'weaver':
-            token_limit = 8000
-        elif llm == 'mythomax-L2-13b':
-            token_limit = 8192
-        elif llm == 'airoboros-l2-70b-2.1':
-            token_limit = 4096
-        elif llm == 'gpt-3.5-turbo-1106':
-            token_limit = 16_385
-        elif llm == 'gpt-4-1106-preview':
-            token_limit = 128_000
+        if llm in token_limit_dict:
+            token_limit = token_limit_dict[llm]
         else:
             logging.log(23, f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count} (this number can be changed via the `custom_token_count` setting in config.ini)")
             try:
