@@ -10,12 +10,13 @@ from src.llm.message_thread import message_thread
 from src.conversation.conversation_type import conversation_type, multi_npc, pc_to_npc, radiant
 from src.character_manager import Character
 from src.stt import Transcriber
+from src.tts import Synthesizer
 from src.tts import VoiceModelNotFound
 import src.utils as utils
 
 class conversation:
     """Controls the flow of a conversation."""
-    def __init__(self, context_for_conversation: context, stt :Transcriber, game_manager: GameStateManager, output_manager: ChatManager, rememberer: remembering, is_radiant: bool, context_length: int = 4096, token_limit_percent: float = 0.45) -> None:
+    def __init__(self, context_for_conversation: context, stt :Transcriber, tts: Synthesizer, game_manager: GameStateManager, output_manager: ChatManager, rememberer: remembering, is_radiant: bool, context_length: int = 4096, token_limit_percent: float = 0.45) -> None:
         self.__context: context = context_for_conversation
         if is_radiant:
             self.__conversation_type: conversation_type = radiant(context_for_conversation)
@@ -23,6 +24,7 @@ class conversation:
             self.__conversation_type: conversation_type = pc_to_npc(context_for_conversation.config.prompt)        
         self.__messages: message_thread = message_thread(None)
         self.__stt = stt
+        self.__tts = tts
         self.__game_manager: GameStateManager = game_manager
         self.__output_manager: ChatManager = output_manager
         self.__rememberer: remembering = rememberer
@@ -154,6 +156,7 @@ class conversation:
         if not latest_npc: 
             self.end()
             return
+        self.__tts.change_voice(latest_npc.voice_model)
         
         # Play gather thoughts
         collecting_thoughts_text = self.__context.config.collecting_thoughts_npc_response
