@@ -399,10 +399,10 @@ class GameStateManager:
                             is_generic_npc = False
                         except IndexError: # load generic NPC
                             if self.game == "Fallout4" or self.game == "Fallout4VR":
-                                logging.info(f"NPC '{character_name}' could not be found in 'fallout4_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
+                                logging.info(f"NPC '{character_name}' could not be found in 'data/Fallout4/fallout4_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
                                 character_info = self.FO4_load_unnamed_npc(character_name, character_df, FO4_Voice_folder_and_models_df)
                             else:
-                                logging.info(f"NPC '{character_name}' could not be found in 'skyrim_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
+                                logging.info(f"NPC '{character_name}' could not be found in 'data/Skyrim/skyrim_characters.csv'. If this is not a generic NPC, please ensure '{character_name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
                                 character_info = self.skyrim_load_unnamed_npc(character_name, character_df)
                             is_generic_npc = True
 
