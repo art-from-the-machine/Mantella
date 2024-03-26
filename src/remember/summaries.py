@@ -90,6 +90,9 @@ class summaries(remembering):
             conversation_summaries = previous_conversation_summaries + new_summary
             with open(npc.conversation_summary_file, 'w', encoding='utf-8') as f:
                 f.write(conversation_summaries)
+        else:
+            conversation_summaries = previous_conversation_summaries
+            
 
         summary_limit = round(self.__client.token_limit*self.__summary_limit_pct,0)
 
