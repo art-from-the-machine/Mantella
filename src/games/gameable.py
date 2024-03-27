@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import logging
 from typing import Any
 import pandas as pd
+from src.conversation.context import context
 from src.config_loader import ConfigLoader
 from src.llm.sentence import sentence
 from src.games.external_character_info import external_character_info
@@ -37,5 +38,5 @@ class gameable(ABC):
         pass    
 
     @abstractmethod
-    def prepare_sentence_for_game(self, queue_output: sentence, config: ConfigLoader):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
         pass

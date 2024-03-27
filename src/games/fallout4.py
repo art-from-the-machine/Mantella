@@ -14,9 +14,14 @@ import src.utils as utils
 
 
 class fallout4(gameable):
-    FO4_XVASynth_file='data\\FO4_data\\FO4_Voice_folder_XVASynth_matches.csv'
-    WAV_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
-    LIP_FILE = f'00001ED2_1.lip'
+    FO4_XVASynth_file: str ='data\\FO4_data\\FO4_Voice_folder_XVASynth_matches.csv'
+    WAV_FILE: str  = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
+    LIP_FILE: str  = f'00001ED2_1.lip'
+    KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSX: str  = "mantella_player_pos_x"
+    KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSY: str  = "mantella_player_pos_y"
+    KEY_CONTEXT_CUSTOMVALUES_PLAYERROT: str  = "mantella_player_rot"
+    KEY_ACTOR_CUSTOMVALUES_POSX: str  = "mantella_actor_pos_x"
+    KEY_ACTOR_CUSTOMVALUES_POSY: str  = "mantella_actor_pos_y"
     # f4_wav_file1 = f'MutantellaOutput1.wav'
     # f4_wav_file2 = f'MutantellaOutput2.wav'
 
@@ -191,14 +196,15 @@ class fallout4(gameable):
 
         logging.info(f"{speaker.Name} should speak")
 
-        player_pos_x = context_of_conversation.get_custom_context_value("player_pos_x")
-        player_pos_y = context_of_conversation.get_custom_context_value("player_pos_y")
-        player_rot = context_of_conversation.get_custom_context_value("player_rot")
-        if player_pos_x and player_pos_y and player_rot:
-            if isinstance(player_pos_x, float) and isinstance(player_pos_y, float) and isinstance(player_rot, float):
-                player_pos: tuple[float, float] = (player_pos_x, player_pos_y)
-        
-                self.__playback.play_adjusted_volume(queue_output, player_pos, player_rot)
+        player_pos_x: float | None = context_of_conversation.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSX)
+        player_pos_y: float | None = context_of_conversation.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSY)
+        player_rot: float | None = context_of_conversation.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_PLAYERROT)
+        speaker_pos_x: float | None =  speaker.get_custom_character_value(self.KEY_ACTOR_CUSTOMVALUES_POSX)
+        speaker_pos_y: float | None = speaker.get_custom_character_value(self.KEY_ACTOR_CUSTOMVALUES_POSY)
+        if player_pos_x and player_pos_y and player_rot and speaker_pos_x and speaker_pos_y:
+            player_pos: tuple[float, float] = (float(player_pos_x), float(player_pos_y))
+            speaker_pos: tuple[float,float] = (float(speaker_pos_x), float(speaker_pos_y))
+            self.__playback.play_adjusted_volume(queue_output, speaker_pos, player_pos, float(player_rot))
 
     MALE_VOICE_MODELS: dict[str, str] = {
         'AssaultronRace':	'robot_assaultron',

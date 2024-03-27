@@ -70,7 +70,7 @@ class context:
     def Have_actors_changed(self, value: bool):
         self.__have_actors_changed = value
 
-    def get_custom_context_value(self, key: str) -> Any:
+    def get_custom_context_value(self, key: str) -> Any | None:
         if self.__custom_context_values.__contains__(key):
             return self.__custom_context_values[key]
         return None

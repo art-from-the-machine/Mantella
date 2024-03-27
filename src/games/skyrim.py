@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 from typing import Any
+from src.conversation.context import context
 from src.character_manager import Character
 from src.config_loader import ConfigLoader
 from src.llm.sentence import sentence
@@ -101,7 +102,7 @@ class skyrim(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, config: ConfigLoader):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file = queue_output.Voice_file

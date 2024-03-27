@@ -23,18 +23,16 @@ class audio_playback:
         # logging.info(f'pygame is {pygame)}')
         # logging.info(pygame.__version__)
 
-    def play_adjusted_volume(self, sentence_to_play: sentence, player_position: tuple[float, float], player_rotation: float):
+    def play_adjusted_volume(self, sentence_to_play: sentence, sound_origin_position: tuple[float, float], player_position: tuple[float, float], player_rotation: float):
         if self.__playback_channel:
             while self.__playback_channel.get_busy():  # Wait until playback is done
                 pygame.time.delay(100)
             del self.__playback_channel
 
-        speaker: Character = sentence_to_play.Speaker
-        speaker_pos: tuple[float,float] = (speaker.get_custom_character_value("pos_x"), speaker.get_custom_character_value("pos_y"))        
-        distance: float = math.sqrt(math.pow(speaker_pos[0] - player_position[0], 2) + math.pow(speaker_pos[1] - player_position[1], 2))
+        distance: float = math.sqrt(math.pow(sound_origin_position[0] - player_position[0], 2) + math.pow(sound_origin_position[1] - player_position[1], 2))
             
         # Calculate the relative angle
-        relative_angle = self.__calculate_relative_angle(speaker_pos, player_position, player_rotation)
+        relative_angle = self.__calculate_relative_angle(sound_origin_position, player_position, player_rotation)
 
         # Normalize the relative angle between -180 and 180
         normalized_angle = relative_angle % 360
@@ -75,7 +73,7 @@ class audio_playback:
             distance_factor=1
 
         # Load the WAV file
-        sound = pygame.mixer.Sound(sentence.Voice_file)
+        sound = pygame.mixer.Sound(sentence_to_play.Voice_file)
         original_audio_array = pygame.sndarray.array(sound)
         
         if original_audio_array.ndim == 1:  # Mono sound

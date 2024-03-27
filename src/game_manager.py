@@ -64,7 +64,7 @@ class GameStateManager:
         replyType, sentence_to_play = self.__talk.continue_conversation()
         reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
         if sentence_to_play:
-            self.__game.prepare_sentence_for_game(sentence_to_play, self.__config)
+            self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.Context, self.__config)
             reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play)
         return reply
 
@@ -132,24 +132,24 @@ class GameStateManager:
     #     return character_name, character_id, location, in_game_time
     
     @utils.time_it
-    def load_character(self, json: dict) -> Character | None:
+    def load_character(self, json: dict[str, Any]) -> Character | None:
         try:
-            character_id: str = json[comm_consts.KEY_ACTOR_ID]
-            character_name: str = json[comm_consts.KEY_ACTOR_NAME]
-            gender: int = json[comm_consts.KEY_ACTOR_GENDER]
-            race: str = json[comm_consts.KEY_ACTOR_RACE]
-            actor_voice_model = json[comm_consts.KEY_ACTOR_VOICETYPE]
-            ingame_voice_model = actor_voice_model.split('<')[1].split(' ')[0]
-            is_in_combat: bool = json[comm_consts.KEY_ACTOR_ISINCOMBAT]
-            is_enemy: bool = json[comm_consts.KEY_ACTOR_ISENEMY]
-            relationship_rank: int = json[comm_consts.KEY_ACTOR_RELATIONSHIPRANK]
+            character_id: str = str(json[comm_consts.KEY_ACTOR_ID])
+            character_name: str = str(json[comm_consts.KEY_ACTOR_NAME])
+            gender: int = int(json[comm_consts.KEY_ACTOR_GENDER])
+            race: str = str(json[comm_consts.KEY_ACTOR_RACE])
+            actor_voice_model: str = str(json[comm_consts.KEY_ACTOR_VOICETYPE])
+            ingame_voice_model: str = actor_voice_model.split('<')[1].split(' ')[0]
+            is_in_combat: bool = bool(json[comm_consts.KEY_ACTOR_ISINCOMBAT])
+            is_enemy: bool = bool(json[comm_consts.KEY_ACTOR_ISENEMY])
+            relationship_rank: int = int(json[comm_consts.KEY_ACTOR_RELATIONSHIPRANK])
             custom_values: dict[str, Any] = {}
             if json.__contains__(comm_consts.KEY_ACTOR_CUSTOMVALUES):
                 custom_values = json[comm_consts.KEY_ACTOR_CUSTOMVALUES]
-            is_generic_npc = False
+            is_generic_npc: bool = False
             bio: str = ""
             tts_voice_model: str = ""
-            is_player_character: bool = json[comm_consts.KEY_ACTOR_ISPLAYER]
+            is_player_character: bool = bool(json[comm_consts.KEY_ACTOR_ISPLAYER])
             if self.__talk and self.__talk.contains_character(character_id):
                 already_loaded_character: Character | None = self.__talk.get_character(character_id)
                 if already_loaded_character:

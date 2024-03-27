@@ -46,6 +46,10 @@ class conversation:
     def Has_already_ended(self) -> bool:
         return self.__has_already_ended
     
+    @property
+    def Context(self) -> context:
+        return self.__context
+    
     def add_or_update_character(self, new_character: Character):
         """Adds a NPC character to the conversation. Turns the conversation into a multi-NPC conversation if applicable 
 
