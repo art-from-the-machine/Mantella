@@ -1,6 +1,5 @@
 from src.character_manager import Character
 
-
 class sentence:
     """Collection of all the things that make up a sentence said by a character"""
     def __init__(self, speaker: Character, sentence: str, voice_file: str, voice_line_duration: float, is_system_generated_sentence: bool = False) -> None:
@@ -15,25 +14,13 @@ class sentence:
     def Speaker(self) -> Character:
         return self.__speaker
     
-    # @Speaker.setter
-    # def Speaker(self, speaker: Character):
-    #     self.__speaker = speaker
-
     @property
     def Sentence(self) -> str:
         return self.__sentence
     
-    # @Sentence.setter
-    # def Sentence(self, text: str):
-    #     self.__sentence = text
-
     @property
     def Voice_file(self) -> str:
         return self.__voice_file
-    
-    # @Voice_file.setter
-    # def Voice_file(self, text: str):
-    #     self.__voice_file = text
 
     @property
     def Voice_line_duration(self) -> float:
@@ -46,6 +33,3 @@ class sentence:
     @property
     def Is_system_generated_sentence(self) -> bool:
         return self.__is_system_generated_sentence
-
-
-    

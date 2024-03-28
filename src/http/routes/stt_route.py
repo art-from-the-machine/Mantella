@@ -7,6 +7,14 @@ from src.http.routes.routeable import routeable
 from src.stt import Transcriber
 
 class stt_route(routeable):
+    """Route that can be called to get a transcribe from the mic
+
+    Args:
+        routeable (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     PREFIX: str = "mantella_" 
     KEY_REQUESTTYPE: str = PREFIX + "request_type"
     KEY_REQUESTTYPE_TTS: str = PREFIX + "tts"

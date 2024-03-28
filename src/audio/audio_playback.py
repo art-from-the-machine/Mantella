@@ -10,7 +10,7 @@ class audio_playback:
     def __init__(self, config: ConfigLoader) -> None:
         self.__FO4Volume_scale: float = config.FO4Volume / 100.0  # Normalize to 0.0-1.0
         self.__playback_channel: pygame.mixer.Channel | None = None
-        self.pygame_initialize()
+        self.pygame_initialize()        
 
     def pygame_initialize(self):
         # Ensure pygame is initialized
@@ -26,7 +26,7 @@ class audio_playback:
     def play_adjusted_volume(self, sentence_to_play: sentence, sound_origin_position: tuple[float, float], player_position: tuple[float, float], player_rotation: float):
         if self.__playback_channel:
             while self.__playback_channel.get_busy():  # Wait until playback is done
-                pygame.time.delay(100)
+                pygame.time.delay(100)            
             del self.__playback_channel
 
         distance: float = math.sqrt(math.pow(sound_origin_position[0] - player_position[0], 2) + math.pow(sound_origin_position[1] - player_position[1], 2))

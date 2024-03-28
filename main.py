@@ -1,5 +1,4 @@
-from flask import Flask
-import click
+from src.http.http_server import http_server
 from src.output_manager import ChatManager
 import traceback
 from src.http.routes.routeable import routeable
@@ -22,31 +21,15 @@ try:
     logging.info(f'\nMantella v{mantella_version}')
     should_debug_http = False
 
-    sync_http_server = Flask(__name__)
-    chat_manager = ChatManager(config, Synthesizer(config), llm_client)
+    mantella_http_server = http_server()
+    chat_manager = ChatManager(game, config, Synthesizer(config), llm_client)
     game_state_manager = game_manager.GameStateManager(game, chat_manager, config, language_info, llm_client)
-
-    ### Deactivate the logging to console by Flask
-    log = logging.getLogger('werkzeug')
-    log.setLevel(logging.ERROR)
-
-    def secho(text, file=None, nl=None, err=None, color=None, **styles):
-        pass
-
-    def echo(text, file=None, nl=None, err=None, color=None, **styles):
-        pass
-
-    click.echo = echo
-    click.secho = secho
-    ### End of deactivate logging
     
     #start the http server
     routes: list[routeable] = [mantella_route(game_state_manager, should_debug_http), 
                                stt_route(config, llm_client.api_key, should_debug_http)]
-    for route in routes:
-        route.add_route_to_server(sync_http_server)
     
-    sync_http_server.run(debug=should_debug_http)
+    mantella_http_server.start(int(config.port), routes, config.show_http_debug_messages == "1")
 
 except Exception as e:
     logging.error("".join(traceback.format_exception(e)))

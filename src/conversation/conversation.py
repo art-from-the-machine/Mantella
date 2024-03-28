@@ -51,10 +51,10 @@ class conversation:
         return self.__context
     
     def add_or_update_character(self, new_character: Character):
-        """Adds a NPC character to the conversation. Turns the conversation into a multi-NPC conversation if applicable 
+        """Adds or updates a character in the conversation.
 
         Args:
-            new_character (Character): the new character to add
+            new_character (Character): the character to add or update
         """
         self.__context.add_or_update_character(new_character)
 
@@ -69,15 +69,13 @@ class conversation:
         #         else: 
         #             # new NPC greets the existing NPCs
         #             self.__messages.append_text_to_last_assitant_message(f"\n{npc.Name}: {self.__context.language['hello']}.")
-  
-    # def __switch_to_multi_npc(self):
-    #     """Switches the conversation to multi-npc
-    #     """
-    #     self.__conversation_type = multi_npc(self.__context.prompt_multinpc)
-    #     self.__messages.turn_into_multi_npc_conversation(self.__conversation_type.generate_prompt(self.__context), True)
-    #     self.__context.Have_actors_changed = False
 
     def start_conversation(self) -> tuple[str, sentence | None]:
+        """Starts a new conversation.
+
+        Returns:
+            tuple[str, sentence | None]: Returns a tuple consisting of a reply type and an optional sentence
+        """
         greeting: user_message | None = self.__conversation_type.get_user_message(self.__context, self.__messages)
         if greeting:
             self.__messages.add_message(greeting)
@@ -87,20 +85,29 @@ class conversation:
             return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
 
     def continue_conversation(self) -> tuple[str, sentence | None]:
+        """Main workhorse of the conversation. Decides what happens next based on the state of the conversation
+
+        Returns:
+            tuple[str, sentence | None]: Returns a tuple consisting of a reply type and an optional sentence
+        """
         if self.Has_already_ended:
             return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None        
         if self.__is_conversation_too_long(self.__messages, self.TOKEN_LIMIT_PERCENT):
             # Check if conversation too long and if yes initiate intermittent reload
             self.__initiate_reload_conversation()
 
+        #Grab the next sentence from the queue
         next_sentence: sentence | None = self.retrieve_sentence_from_queue()
         if next_sentence and len(next_sentence.Sentence) > 0:
+            #if there is a next sentence and it actually has content, return it as something for an NPC to say 
             return comm_consts.KEY_REPLYTYPE_NPCTALK, next_sentence
         else:
+            #Ask the conversation type here, if we should end the conversation
             if self.__conversation_type.should_end(self.__context, self.__messages):
                 self.initiate_end_sequence()
                 return comm_consts.KEY_REPLYTYPE_NPCTALK, None
-            else:    
+            else:
+                #If not ended, ask the conversation type for an automatic user message. If there is None, signal the game that the player must provide it 
                 new_user_message = self.__conversation_type.get_user_message(self.__context, self.__messages)
                 if new_user_message:
                     self.__messages.add_message(new_user_message)
@@ -110,11 +117,16 @@ class conversation:
                     return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
 
     def process_player_input(self, player_text: str):
+        """Submit the input of the player to the conversation
+
+        Args:
+            player_text (str): The input text / voice transcribe of what the player character is supposed to say
+        """
         player_character = self.__context.npcs_in_conversation.get_player_character()
         if not player_character:
-            return
+            return #If there is no player in the conversation, exit here
 
-        with self.__generation_start_lock:
+        with self.__generation_start_lock: #This lock makes sure no new generation by the LLM is started while we clear this
             self.__stop_generation() # Stop generation of additional sentences right now
             self.__sentences.clear() # Clear any remaining sentences from the list
             
@@ -132,12 +144,22 @@ class conversation:
             self.__start_generating_npc_sentences()
 
     def update_context(self, location: str, time: int, custom_ingame_events: list[str], custom_context_values: dict[str, Any]):
+        """Updates the context with a new set of values
+
+        Args:
+            location (str): the location the characters are currently in
+            time (int): the current ingame time
+            custom_ingame_events (list[str]): a list of events that happend since the last update
+            custom_context_values (dict[str, Any]): the current set of context values
+        """
         self.__context.update_context(location, time, custom_ingame_events, custom_context_values)
         if self.__context.Have_actors_changed:
             self.__update_conversation_type()
             self.__context.Have_actors_changed = False
 
     def __update_conversation_type(self):
+        """This changes between pc_to_npc, multi_npc and radiant conversation_types based on the current state of the context
+        """
         # If the conversation can proceed for the first time, it starts and we add the system_message with the prompt
         if not self.__context.npcs_in_conversation.contains_player_character():
             self.__conversation_type = radiant(self.__context)
@@ -166,6 +188,13 @@ class conversation:
         return message
 
     def retrieve_sentence_from_queue(self) -> sentence | None:
+        """Retrieves the next sentence from the queue.
+        If there is a sentence, adds the sentence to the last assistant_message of the message_thread.
+        If the last message is not an assistant_message, a new one will be added.
+
+        Returns:
+            sentence | None: The next sentence from the queue or None if the queue is empty
+        """
         next_sentence: sentence | None = self.__sentences.get_next_sentence() #This is a blocking call. Execution will wait here until queue is filled again
         if not next_sentence:
             return None
@@ -181,7 +210,8 @@ class conversation:
    
     @utils.time_it
     def initiate_end_sequence(self):
-        """Sends last messages, saves the conversation, ends the conversation."""
+        """Replaces all remaining sentences with a "goodbye" sentence that also prompts the game to request a stop to the conversation using an action
+        """
         if not self.__has_already_ended:
             config = self.__context.config            
             self.__stop_generation()
@@ -193,16 +223,6 @@ class conversation:
                 if goodbye_sentence:
                     goodbye_sentence.Actions.append(comm_consts.ACTION_ENDCONVERSATION)
                     self.__sentences.put(goodbye_sentence)
-            # self.__has_already_ended = True
-
-            # self.__messages.add_message(user_message(config.end_conversation_keyword+'.', config.player_name, is_system_generated_message=True))
-            # self.__messages.add_message(assistant_message(config.end_conversation_keyword+'.', self.__context.npcs_in_conversation.get_all_names(), is_system_generated_message=True))
-            
-            # save conversation
-            
-            
-            
-            # self.__game_manager.end_conversation()
                     
     def contains_character(self, character_id: str) -> bool:
         for actor in self.__context.npcs_in_conversation.get_all_characters():
@@ -217,19 +237,23 @@ class conversation:
         return None
 
     def end(self):
+        """Ends a conversation
+        """
         self.__has_already_ended = True
         self.__stop_generation()
         self.__sentences.clear()        
         self.__save_conversation()
     
     def __start_generating_npc_sentences(self):
-        """Private method to get a reply from the LLM"""    
+        """Starts a background Thread to generate sentences into the sentence_queue"""    
         with self.__generation_start_lock:
             if not self.__generation_thread:
                 self.__sentences.Is_more_to_come = True
                 self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.__actions]).start()   
 
     def __stop_generation(self):
+        """Stops the current generation of sentences if there is one
+        """
         if self.__generation_thread and self.__generation_thread.is_alive():
             self.__output_manager.stop_generation()
             while self.__generation_thread and self.__generation_thread.is_alive():
@@ -246,7 +270,7 @@ class conversation:
 
     @utils.time_it
     def __initiate_reload_conversation(self):
-        """Saves conversation and reloads it afterwards with reduced messages to reduce context length"""
+        """Places a "gather thoughs" sentence add the front of the queue that also prompts the game to request a reload of the conversation using an action"""
         latest_npc = self.__context.npcs_in_conversation.last_added_character
         if not latest_npc: 
             self.initiate_end_sequence()
@@ -260,6 +284,8 @@ class conversation:
             self.__sentences.put_at_front(collecting_thoughts_sentence)
     
     def reload_conversation(self):
+        """Reloads the conversation
+        """
         self.__save_conversation()
         # Reload
         new_prompt = self.__conversation_type.generate_prompt(self.__context)

@@ -77,8 +77,6 @@ class assistant_message(message):
     def __init__(self, is_system_generated_message: bool = False):
         super().__init__("", is_system_generated_message)
         self.__sentences: list[sentence] = []
-        # self.__active_assistant_characters: list[str] = active_assistant_characters#Todo: Change str to Character once the circle dependcy with character_manager has been solved = active_assistant_characters
-        # self.is_multi_npc_message = len(active_assistant_characters) > 1
     
     def add_sentence(self, new_sentence: sentence):
         self.__sentences.append(new_sentence)
@@ -103,19 +101,6 @@ class assistant_message(message):
     def get_dict_formatted_string(self) -> str:
         dictionary = {"role":"assistant", "content": self.get_formatted_content(),}
         return f"{dictionary}"
-    
-    # def add_character(self, character: str):
-    #     if not self.__active_assistant_characters.__contains__(character):
-    #         self.__active_assistant_characters.append(character)
-
-    # def __is_multi_npc(self) -> bool:
-    #     if len(self.__sentences) < 1:
-    #         return False
-    #     firstActor: Character = self.__sentences[0].Speaker
-    #     for sentence in self.__sentences:
-    #         if sentence.Speaker != firstActor:
-    #             return True
-    #     return False
 
 class user_message(message):
     """A user message sent to the LLM. Contains the text from the player and optionally it's name.

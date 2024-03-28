@@ -5,6 +5,7 @@ import logging
 import time
 import re
 import unicodedata
+from src.games.gameable import gameable
 from src.conversation.action import action
 from src.llm.sentence_queue import sentence_queue
 from src.config_loader import ConfigLoader
@@ -17,39 +18,33 @@ from src.llm.message_thread import message_thread
 from src.llm.openai_client import openai_client
 from src.tts import Synthesizer
 
-# class Extract:
-#     def __init__(self, extract: str, whole: str) -> None:
-#         self.__extract: str = extract
-#         self.__rest: str = str.replace(whole, extract, "")
-    
-#     @property
-#     def Extract(self) -> str:
-#         return self.__extract
-    
-#     @property
-#     def Rest(self) -> str:
-#         return self.__rest
-
 class ChatManager:
-    def __init__(self, config: ConfigLoader, tts: Synthesizer, client: openai_client):
+    def __init__(self, game: gameable, config: ConfigLoader, tts: Synthesizer, client: openai_client):
         self.loglevel = 28
-        self.game = config.game
-        # self.mod_folder = config.mod_path
+        self.__game: gameable = game
         self.max_response_sentences = config.max_response_sentences
         self.language = config.language
         self.wait_time_buffer = config.wait_time_buffer
-        # self.root_mod_folder = config.game_path
         self.__tts: Synthesizer = tts
         self.__client: openai_client = client
         self.__is_generating: bool = False
         self.__stop_generation: bool = False
         self.__tts_access_lock = Lock()
-        # self.player_name = config.player_name
         self.__number_words_tts: int = config.number_words_tts
         self.__end_of_sentence_chars = ['.', '?', '!', ':', ';']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
     def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> mantella_sentence | None:
+        """Generates the audio for a text and returns the corresponding sentence
+
+        Args:
+            text (str): the text to be voices
+            character_to_talk (Character): the character to say the sentence
+            is_system_generated_sentence (bool, optional): Is this sentence system generated? Defaults to False.
+
+        Returns:
+            mantella_sentence | None: _description_
+        """
         with self.__tts_access_lock:
             try:
                 audio_file = self.__tts.synthesize(character_to_talk.TTS_voice_model, text, character_to_talk.In_game_voice_model, character_to_talk.Is_in_combat)
@@ -59,20 +54,37 @@ class ChatManager:
             return mantella_sentence(character_to_talk, text, audio_file, self.get_audio_duration(audio_file), is_system_generated_sentence)
 
     def num_tokens(self, content_to_measure: message | str | message_thread | list[message]) -> int:
+        """Measures the length of an input in tokens
+
+        Args:
+            content_to_measure (message | str | message_thread | list[message]): the input to measure the tokens of
+
+        Returns:
+            int: count tokens in the input
+        """
         if isinstance(content_to_measure, message_thread) or isinstance(content_to_measure, list):
             return openai_client.num_tokens_from_messages(content_to_measure)
         else:
             return openai_client.num_tokens_from_message(content_to_measure, None)
 
     def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: sentence_queue, actions: list[action]):
+        """Starts generating responses by the LLM for the current state of the input messages
+
+        Args:
+            messages (message_thread): _description_
+            characters (Characters): _description_
+            blocking_queue (sentence_queue): _description_
+            actions (list[action]): _description_
+        """
         if(not characters.last_added_character):
             return
-        # blocking_queue.Is_more_to_come = True
         self.__is_generating = True
         
         asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions))
     
     def stop_generation(self):
+        """Stops the current generation and only returns once this stop has been succesful
+        """
         if not self.__is_generating:
             return
         
@@ -93,21 +105,6 @@ class ChatManager:
         duration = frames / float(rate) + self.wait_time_buffer
         return duration
  
-    # @utils.time_it
-    # def remove_files_from_voice_folders(self):
-    #     for sub_folder in os.listdir(self.mod_folder):
-    #         try:
-    #             wav_file = f"{self.mod_folder}/{sub_folder}/{self.wav_file}"
-    #             lip_file = f"{self.mod_folder}/{sub_folder}/{self.lip_file}"
-
-    #             if os.path.exists(wav_file):
-    #                 os.remove(wav_file)
-    #             if os.path.exists(lip_file):
-    #                 os.remove(lip_file)
-
-    #         except:
-    #             continue
-
     def clean_sentence(self, sentence: str) -> str:
         def remove_as_a(sentence: str) -> str:
             """Remove 'As an XYZ,' from beginning of sentence"""
@@ -158,47 +155,17 @@ class ChatManager:
         sentence = sentence.strip() + " "
         return sentence
 
-    # def find_last_sentence_terminator(self, sentence_to_check: str) -> Extract:
-    #     last_punctuation_index: int = -1
-    #     for stop_char in self.end_of_sentence_chars:
-    #         last_punctuation_index = max(last_punctuation_index, sentence_to_check.rfind(stop_char))
-    #     if last_punctuation_index != -1:
-    #         sentence = sentence_to_check[:last_punctuation_index + 1]
-    #         return Extract(sentence, sentence_to_check)
-    #     return Extract(sentence_to_check, sentence_to_check)
-
-    # async def generate_sentence(self, messages : message_thread) -> AsyncGenerator[str | None, None]:
-    #     sentence = ''
-    #     async for content in self.__client.streaming_call(messages):
-    #         if content is not None:
-    #             sentence += content
-    #             # Check for the last occurrence of sentence-ending punctuation
-    #             sentence_and_rest: Extract = self.find_last_sentence_terminator(sentence)
-
-    #             if ('assist' in content) and (num_sentences>0):
-    #                 logging.info(f"'assist' keyword found. Ignoring sentence which begins with: {sentence}")
-    #                 break
-
-    #             content_edit = unicodedata.normalize('NFKC', content)
-    #             # check if content marks the end of a sentence
-    #             if (any(char in content_edit for char in self.end_of_sentence_chars)):
-    #                 yield self.clean_sentence(sentence)
-    #         else:
-    #             break
-
-    # def keyword_extraction(self, sentence: str, characters_in_conversation: Characters, possible_keywords: list[str]) -> list[str]:
-
-    def __does_try_to_speak_for_player(self, keyword: str, actors_in_conversation: Characters) -> bool:
-        pc: Character | None = actors_in_conversation.get_player_character()
-        return keyword == "Player" or (pc != None and pc.Name.__contains__(keyword))
-    
     def __matching_action_keyword(self, keyword: str, actions: list[action]) -> action | None:
         for a in actions:
             if keyword.lower() == a.Keyword.lower():
                 return a
         return None
     
-    
+    def __character_switched_to(self, extracted_keyword: str, charaters_in_conversation: Characters) -> Character | None:
+        for actor in charaters_in_conversation.get_all_characters():
+            if actor.Name.startswith(extracted_keyword):
+                return actor
+        return None
 
     async def process_response(self, active_character: Character, blocking_queue: sentence_queue, messages : message_thread, characters: Characters, actions: list[action]):
         """Stream response from LLM one sentence at a time"""
@@ -208,11 +175,11 @@ class ChatManager:
             remaining_content = ''
             full_reply = ''
             num_sentences = 0
+            count_generated_sentences: int = 0
             #Added from xTTS implementation
             accumulated_sentence = ''
             cumulative_sentence_bool = False
             current_sentence: str = ""
-            # action_taken = False
             actions_in_sentence: list[action] = []
             while True:
                 try:
@@ -235,12 +202,10 @@ class ChatManager:
                             if not current_sentence:
                                 sentence = remaining_content
                                 continue
-
-                            if self.game !="Fallout4" and self.game != "Fallout4VR":
-                                if ('assist' in current_sentence) and (num_sentences>0):
-                                    logging.info(f"'assist' keyword found. Ignoring sentence: {sentence}")
-                                    continue
-
+                            
+                            if not self.__game.is_sentence_allowed(current_sentence, num_sentences):
+                                continue
+                            
                             # New logic to handle conditions based on the presence of a colon and the state of `accumulated_sentence`
                             content_edit = unicodedata.normalize('NFKC', current_sentence)
                             if ':' in content_edit:
@@ -253,21 +218,18 @@ class ChatManager:
                                     current_sentence = parts[1].strip() if len(parts) > 1 else ''
                                     # if LLM is switching character
                                     # Find the first character whose name starts with keyword_extraction
-                                    matching_character_key = next((key for key in characters.get_all_names() if key.startswith(keyword_extraction)), None)
-                                    if matching_character_key:
-                                        logging.info(f"Switched to {matching_character_key}")
-                                        active_character = characters.get_character_by_name(matching_character_key)
-                                        self.__tts.change_voice(active_character.TTS_voice_model)
-
-                                        # Find the index of the matching character
-                                        # self.character_num = characters.get_all_names().index(matching_character_key)
-
-                                        # full_reply += complete_sentence
-                                        # complete_sentence = remaining_content
-                                        # action_taken = True
-                                    elif self.__does_try_to_speak_for_player(keyword_extraction, characters):
+                                    if keyword_extraction == "Player":
                                         logging.info(f"Stopped LLM from speaking on behalf of the player")
                                         break
+                                    character_switched_to: Character | None = self.__character_switched_to(keyword_extraction, characters)
+                                    if character_switched_to:
+                                        if character_switched_to.Is_player_character:
+                                            logging.info(f"Stopped LLM from speaking on behalf of the player")
+                                            break
+                                        else:
+                                            logging.info(f"Switched to {character_switched_to.Name}")
+                                            active_character = character_switched_to
+                                            self.__tts.change_voice(active_character.TTS_voice_model)
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:
@@ -275,7 +237,6 @@ class ChatManager:
                                             actions_in_sentence.append(action_to_take)
                                             full_reply += sentence
                                             sentence = remaining_content
-                                            # action_taken = True
 
                             # Accumulate sentences if less than X words
                             if len(accumulated_sentence.split()) + len(current_sentence.split()) < self.__number_words_tts and cumulative_sentence_bool == False:
@@ -298,6 +259,7 @@ class ChatManager:
                                 new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character)
                                 
                                 if new_sentence:
+                                    count_generated_sentences += 1
                                     for a in actions_in_sentence:
                                         new_sentence.Actions.append(a.Game_action_identifier)
                                     blocking_queue.put(new_sentence)
@@ -322,10 +284,11 @@ class ChatManager:
                                 if (num_sentences >= self.max_response_sentences and characters.contains_player_character()):
                                     break
 
-
                     break
                 except Exception as e:
-                    logging.error(f"LLM API Error: {e}")
+                    if count_generated_sentences > 0:
+                        break
+                    logging.error(f"LLM API Error: {e}")                    
                     error_response = "I can't find the right words at the moment."
                     new_sentence = self.generate_sentence(error_response, active_character)
                     if new_sentence:

@@ -8,7 +8,11 @@ from src.http.routes.routeable import routeable
 from src.http.communication_constants import communication_constants as comm_consts
 
 class mantella_route(routeable):
+    """Main route for mantella conversations
 
+    Args:
+        routeable (_type_): _description_
+    """
     def __init__(self, game: GameStateManager, show_debug_messages: bool = False) -> None:
         super().__init__(show_debug_messages)
         self.__game = game        
@@ -39,49 +43,3 @@ class mantella_route(routeable):
             if self._show_debug_messages:
                 logging.log(self._log_level_http_out, reply)
             return json.dumps(reply)
-    
-
-            # #time.sleep(10)
-            # if request.json:
-            #     request_type: str = request.json["requesttype"]
-            #     npcs: list[dict] = request.json["npcs"]
-            #     test_float: float = request.json["testfloat"]
-            #     test_string_array: list[str] = request.json["teststringarray"]
-            #     test_int_array: list[int] = request.json["testintarray"]
-            #     test_float_array: list[float] = request.json["testfloatarray"]
-            #     test_bool_array: list[bool] = request.json["testboolarray"]
-            #     location: str = request.json["context"]["location"]
-            #     skyrim_time: int = request.json["context"]["time"]
-
-            #     modifiedNPCs: list[dict] = []
-            #     for npc in npcs:
-            #         modifiedNPCs.append({
-            #             "name": f"{npc['name']} the housecarl",
-            #             "gender": f"I guess {npc['gender']}",
-            #             "npclikesplayer":  not npc['isincombatwithplayer']
-            #         })
-
-            #     if request_type == "startConversation":
-            #         test_string_array.append("dumdideldei")
-            #         test_int_array.append(24)
-            #         test_float_array.append(0.789)
-            #         test_bool_array.append(False)
-            #         reply = {
-            #             "replytype": "conversationResponse",
-            #             "npcs": modifiedNPCs,
-            #             "testFloat": test_float * 3,
-            #             "teststringarray": test_string_array,
-            #             "testintarray": test_int_array,
-            #             "testfloatarray": test_float_array,
-            #             "testboolarray": test_bool_array,
-            #             "context": {
-            #                 "location": f"Still {location}",
-            #                 "time": skyrim_time + 2
-            #             }
-            #         }
-
-            #         return json.dumps(reply)
-            
-            # reply = {}
-            # reply["error"] = "Received request without json"
-            # return json.dumps(reply)

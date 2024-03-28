@@ -1,4 +1,6 @@
 class external_character_info:
+    """_summary_
+    """
     def __init__(self, name: str, is_generic_npc: bool, bio: str, ingame_voice_model: str, tts_voice_model: str) -> None:
         self.__name: str = name
         self.__is_generic_npc: bool = is_generic_npc

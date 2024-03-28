@@ -122,6 +122,12 @@ class skyrim(gameable):
         os.remove(audio_file.replace(".wav", ".lip"))
 
         logging.info(f"{speaker.Name} (character {speaker.Name}) should speak")
+
+    def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:
+        if ('assist' in text) and (count_sentence_in_text > 0):
+            logging.info(f"'assist' keyword found. Ignoring sentence: {sentence}")
+            return False
+        return True
  
     MALE_VOICE_MODELS: dict[str, str] = {
         'ArgonianRace': 'Male Argonian',

@@ -1,6 +1,8 @@
 from typing import Any
 
 class Character:
+    """Representation of a character in the game
+    """
     def __init__(self, character_id:str, name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, custom_character_values: dict[str, Any]):
         self.__id: str = character_id
         self.__name: str = name

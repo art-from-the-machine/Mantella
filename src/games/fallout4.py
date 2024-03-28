@@ -32,6 +32,7 @@ class fallout4(gameable):
         self.__FO4_Voice_folder_and_models_df = pd.read_csv(fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)
         self.__playback: audio_playback = audio_playback(config)
         self.create_all_voice_folders(self.__config)
+        self.__last_played_voiceline: str | None = None
 
     def create_all_voice_folders(self, config: ConfigLoader):
         all_voice_folders = self.Character_df["fallout4_voice_folder"]
@@ -164,7 +165,7 @@ class fallout4(gameable):
     
     @utils.time_it
     def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
-        """Save voicelines and subtitles to the correct game folders"""
+        self.__delete_last_played_voiceline()
 
         audio_file = queue_output.Voice_file
         mod_folder = config.mod_path
@@ -205,6 +206,16 @@ class fallout4(gameable):
             player_pos: tuple[float, float] = (float(player_pos_x), float(player_pos_y))
             speaker_pos: tuple[float,float] = (float(speaker_pos_x), float(speaker_pos_y))
             self.__playback.play_adjusted_volume(queue_output, speaker_pos, player_pos, float(player_rot))
+            self.__last_played_voiceline = queue_output.Voice_file
+
+    def __delete_last_played_voiceline(self):
+        if self.__last_played_voiceline:
+            if os.path.exists(self.__last_played_voiceline):
+                os.remove(self.__last_played_voiceline)
+                self.__last_played_voiceline = None
+
+    def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:
+        return True
 
     MALE_VOICE_MODELS: dict[str, str] = {
         'AssaultronRace':	'robot_assaultron',

@@ -75,23 +75,19 @@ See here to learn how to move your game's installation folder: https://art-from-
             self.game = str(self.game).lower().replace(' ', '').replace('_', '')
             if self.game =="fallout4":
                 self.game ="Fallout4"
-                self.game_path = config['Paths']['fallout4_folder']
                 self.mod_path = config['Paths']['fallout4_mod_folder']
             elif self.game =="fallout4vr":
                 self.game ="Fallout4VR"
-                self.game_path = config['Paths']['fallout4VR_folder'] 
                 self.mod_path = config['Paths']['fallout4VR_mod_folder']
             elif self.game =="skyrimvr":
                 self.game ="SkyrimVR"
-                self.game_path = config['Paths']['skyrimVR_folder']
                 self.mod_path = config['Paths']['skyrimVR_mod_folder']
             #if the game is not recognized Mantella will assume it's Skyrim since that's the most frequent one.
             else:
                 self.game ="Skyrim"
-                self.game_path = config['Paths']['skyrim_folder']
                 self.mod_path = config['Paths']['skyrim_mod_folder']
             
-            logging.info(f'Mantella currently running for {self.game} located in {self.game_path}. Mantella esp located in {self.mod_path}.  \n')
+            logging.info(f'Mantella currently running for {self.game}. Mantella esp located in {self.mod_path}.  \n')
             self.language = config['Language']['language']
             self.end_conversation_keyword = config['Language']['end_conversation_keyword']
             self.goodbye_npc_response = config['Language']['goodbye_npc_response']
@@ -167,8 +163,11 @@ See here to learn how to move your game's installation folder: https://art-from-
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
             self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
 
+            #HTTP
+            self.port = config['HTTP']['port']
+            self.show_http_debug_messages = config['HTTP']['show_http_debug_messages']
+
             #Conversation
-            self.player_name = config['Conversation']['player_name']
             self.automatic_greeting = config['Conversation']['automatic_greeting']
 
             #new separate prompts for Fallout 4 have been added 
@@ -198,12 +197,7 @@ See here to learn how to move your game's installation folder: https://art-from-
             
             self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
 
-        # don't trust; verify; test subfolders
-        # if not os.path.exists(f"{self.game_path}"):
-        #     invalid_path(self.game_path, f"{self.game_path}")
-        # else:
         check_program_files(self.mod_path)
-        # check_missing_mantella_file(self.game_path)
 
         if not os.path.exists(f"{self.xvasynth_path}\\resources\\"):
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")

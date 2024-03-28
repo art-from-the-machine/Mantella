@@ -119,19 +119,3 @@ class message_thread():
                 m.Is_multi_npc_message = multi_npc_conversation
             for m in messages_to_remove:
                 self.__messages.remove(m)
-    
-    # def turn_into_multi_npc_conversation(self, multi_NPC_prompt: str, remove_system_flagged_messages: bool = False):
-    #     """Turns a PC2NPC conversation into a Multi-NPC conversation by changing the prompt and activating the is_multi_npc_message flag for all prior assistant messages
-
-    #     Args:
-    #         multi_NPC_prompt (str): the new already filled out prompt for the multi-npc conversation
-    #     """
-    #     if len(self.__messages) > 0 and isinstance(self.__messages[0], system_message):
-    #         messages_to_remove: list[message] = []
-    #         self.__messages[0].text = multi_NPC_prompt
-    #         for m in self.__messages:
-    #             if m.is_system_generated_message and remove_system_flagged_messages and not isinstance(m, system_message):
-    #                 messages_to_remove.append(m)
-    #             m.is_multi_npc_message = True
-    #         for m in messages_to_remove:
-    #             self.__messages.remove(m)

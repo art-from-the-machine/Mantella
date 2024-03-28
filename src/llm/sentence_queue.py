@@ -5,7 +5,7 @@ from src.llm.sentence import sentence
 
 class sentence_queue:
     __logging_level = 42
-    __should_log_http_in_and_output = False
+    __should_log = False
 
     def __init__(self) -> None:
         self.__queue: queue.Queue[sentence] = queue.Queue[sentence]()
@@ -19,8 +19,6 @@ class sentence_queue:
     
     @Is_more_to_come.setter
     def Is_more_to_come(self, value: bool):
-        # logging.log(self.__logging_level, f"Trying to aquire get_lock to set Is_more_to_come to '{value}'")
-        # with self.__get_lock:
         self.__is_more_to_come = value
 
     def get_next_sentence(self) -> sentence | None:
@@ -68,5 +66,5 @@ class sentence_queue:
                     pass
     
     def log(self, text: str):
-        if(self.__should_log_http_in_and_output):
-            logging.log(self.__logging_level, f"Trying to aquire put_lock to clear()")
+        if(self.__should_log):
+            logging.log(self.__logging_level, text)
