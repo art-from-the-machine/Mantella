@@ -12,8 +12,9 @@ class summaries(remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.45) -> None:
+    def __init__(self, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.35) -> None:
         super().__init__()
+        self.loglevel = 28
         self.__summary_limit_pct: float = summary_limit_pct
         self.__client: openai_client = client
         self.__language_name: str = language_name
@@ -43,7 +44,7 @@ class summaries(remembering):
                             result += f"{character.Name}: {previous_conversation_summaries}"
         return result
 
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters):
+    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, is_reload=False):
         summary = ''
         non_generic_npc: list[Character] = []
         for npc in npcs_in_conversation.get_all_characters():
@@ -52,9 +53,9 @@ class summaries(remembering):
             elif not npc.Is_player_character:
                 non_generic_npc.append(npc)
         for npc in non_generic_npc:            
-            if len(summary) < 1:
+            if len(summary) < 1: # if a summary has not already been generated, make one
                 summary = self.__create_new_conversation_summary(messages, npc.Name)
-            if len(summary) > 0:# Should for what ever reason the first summary to fail, don't even try to continue here
+            if len(summary) > 0 or is_reload: # if a summary has been generated, give the same summary to all NPCs
                 self.__append_new_conversation_summary(summary, npc)
 
     def __get_latest_conversation_summary_file_path(self, character: Character) -> str:
@@ -112,9 +113,13 @@ class summaries(remembering):
             os.makedirs(directory, exist_ok=True)
             previous_conversation_summaries = ''
        
-        conversation_summaries = previous_conversation_summaries + new_summary
-        with open(conversation_summary_file, 'w', encoding='utf-8') as f:
-            f.write(conversation_summaries)
+        if len(new_summary) > 0:
+            conversation_summaries = previous_conversation_summaries + new_summary
+            with open(conversation_summary_file, 'w', encoding='utf-8') as f:
+                f.write(conversation_summaries)
+        else:
+            conversation_summaries = previous_conversation_summaries
+            
 
         summary_limit = round(self.__client.token_limit*self.__summary_limit_pct,0)
 
@@ -165,7 +170,8 @@ class summaries(remembering):
             summary = summary.replace('the user', 'the player')
             summary += '\n\n'
 
-            logging.info(f"Conversation summary saved.")
+            logging.log(self.loglevel, f'Conversation summary: {summary.strip()}')
+            logging.info(f"Conversation summary saved")
         else:
             logging.info(f"Conversation summary not saved. Not enough dialogue spoken.")
 

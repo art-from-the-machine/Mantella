@@ -33,7 +33,7 @@ class Synthesizer:
         self.tts_print = config.tts_print
         
         #Added from XTTS implementation
-        self.use_external_xtts = int(config.use_external_xtts)
+        self.tts_service = config.tts_service
         self.xtts_default_model = config.xtts_default_model
         self.xtts_deepspeed = int(config.xtts_deepspeed)
         self.xtts_lowvram = int(config.xtts_lowvram)
@@ -61,12 +61,14 @@ class Synthesizer:
         else: 
             self.game = "Skyrim"
         # check if xvasynth is running; otherwise try to run it
-        if self.use_external_xtts == 1:
+        if self.tts_service == 'xtts':
+            logging.log(self.loglevel, f'Connecting to XTTS...')
             self.check_if_xtts_is_running()
             self.available_models = self._get_available_models()
             if not self.facefx_path :
                 self.facefx_path = self.xtts_server_path + "/plugins/lip_fuz"
         else:
+            logging.log(self.loglevel, f'Connecting to xVASynth...')
             self.check_if_xvasynth_is_running()
             if not self.facefx_path :
                 self.facefx_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
@@ -131,23 +133,19 @@ class Synthesizer:
         if voice != self.last_voice:
             self.change_voice(voice)
 
-        logging.log(22, f'Synthesizing voiceline: {voiceline}')
+        logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
         phrases = self._split_voiceline(voiceline)
 
-        # make voice model folder if it doesn't already exist
-        if not os.path.exists(f"{self.output_path}/voicelines/{self.last_voice}"):
-            os.makedirs(f"{self.output_path}/voicelines/{self.last_voice}")
-            
-        if self.use_external_xtts == 0:
+        if self.tts_service == 'xvasynth':
             phrases = self._split_voiceline(voiceline)
 			
             voiceline_files = []
             for phrase in phrases:
-                voiceline_file = f"{self.output_path}/voicelines/{self.last_voice}/{utils.clean_text(phrase)[:150]}.wav"
+                voiceline_file = f"{self.output_path}/voicelines/{utils.clean_text(phrase)[:150]}.wav"
                 voiceline_files.append(voiceline_file)
 
         final_voiceline_file_name = 'out' # "out" is the file name used by XTTS
-        final_voiceline_folder = f"{self.output_path}/voicelines/{self.last_voice}"
+        final_voiceline_folder = f"{self.output_path}/voicelines"
         final_voiceline_file =  f"{final_voiceline_folder}/{final_voiceline_file_name}.wav"
 
         try:
@@ -159,7 +157,7 @@ class Synthesizer:
             logging.warning("Failed to remove spoken voicelines")
     
         # Synthesize voicelines
-        if self.use_external_xtts == 1:
+        if self.tts_service == 'xtts':
             self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, in_game_voice, aggro)
         else:
             if len(phrases) == 1:
@@ -403,15 +401,13 @@ class Synthesizer:
 
     def check_if_xvasynth_is_running(self):
         self.times_checked += 1
-
         try:
             if (self.times_checked > 10):
                 # break loop
-                logging.error('Could not connect to xVASynth multiple times. Ensure that xVASynth is running and restart Mantella.')
+                logging.error(f'Could not connect to xVASynth after {self.times_checked} attempts. Ensure that xVASynth is running and restart Mantella.')
                 raise TTSServiceFailure()
 
             # contact local xVASynth server; ~2 second timeout
-            logging.log(self.loglevel, f'Attempting to connect to xVASynth... ({self.times_checked})')
             response = requests.get('http://127.0.0.1:8008/')
             response.raise_for_status()  # If the response contains an HTTP error status code, raise an exception
         except requests.exceptions.RequestException as err:
@@ -420,7 +416,6 @@ class Synthesizer:
                 return
 
             if (self.times_checked == 1):
-                logging.log(self.loglevel, 'Could not connect to xVASynth. Attempting to run headless server...')
                 self.run_xvasynth_server()
             # do the web request again; LOOP!!!
             return self.check_if_xvasynth_is_running()
@@ -432,11 +427,10 @@ class Synthesizer:
         try:
             if (self.times_checked > 10):
                 # break loop
-                logging.error('Could not connect to XTTS multiple times. Ensure that xtts-api-server is running and restart Mantella.')
+                logging.error(f'Could not connect to XTTS after {self.times_checked} attempts. Ensure that xtts-api-server is running and restart Mantella.')
                 raise TTSServiceFailure()
 
             # contact local xVASynth server; ~2 second timeout
-            logging.log(self.loglevel, f'Attempting to connect to XTTS... ({self.times_checked})')
             response = requests.post(self.xtts_set_tts_settings, json=tts_data_dict)
             response.raise_for_status() 
             
@@ -522,7 +516,7 @@ class Synthesizer:
     def change_voice(self, voice):
         logging.log(self.loglevel, 'Loading voice model...')
         
-        if self.use_external_xtts == 1:
+        if self.tts_service == 'xtts':
             # Format the voice string to match the model naming convention
             voice_path = f"{voice.lower().replace(' ', '')}"
             model_voice = voice_path
@@ -539,7 +533,7 @@ class Synthesizer:
 
             # Request to switch the voice model
             requests.post(self.xtts_switch_model, json={"model_name": model_voice})
-            self.last_voice
+            self.last_voice = voice
             
         else :
             #this is a game check for Fallout4/Skyrim to correctly search the XVASynth voice models for the right game.
@@ -614,46 +608,6 @@ class Synthesizer:
                     input('\nPress any key to stop Mantella...')
                     sys.exit(0)
 
-            '''
-            logging.info(f'Target model {voice} failed to load. Loading backup voice model...')
-            #If for some reason the model fails to load (for example, because it's an older model) then Mantella will attempt to load a backup model. 
-            #This will allow the older model to load without errors.
-            
-            if self.game == "Fallout4" or self.game == "Fallout4VR":
-                XVASynthAcronym="f4_"
-                XVASynthModNexusLink="https://www.nexusmods.com/fallout4/mods/49340?tab=files"
-                voice='piper'
-            else:
-                XVASynthAcronym="sk_"
-                XVASynthModNexusLink = "https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files"
-                voice='malenord'
-            voice_path = f"{self.model_path}{XVASynthAcronym}{voice.lower().replace(' ', '')}"
-            if not os.path.exists(voice_path+'.json'):
-                logging.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from {XVASynthModNexusLink} (Ctrl+F for '{XVASynthAcronym}{voice.lower().replace(' ', '')}').")
-                raise VoiceModelNotFound()
-
-            with open(voice_path+'.json', 'r', encoding='utf-8') as f:
-                voice_model_json = json.load(f)
-
-            try:
-                base_speaker_emb = voice_model_json['games'][0]['base_speaker_emb']
-                base_speaker_emb = str(base_speaker_emb).replace('[','').replace(']','')
-            except:
-                base_speaker_emb = None
-
-            self.base_speaker_emb = base_speaker_emb
-            self.model_type = voice_model_json.get('modelType')
-            
-            backup_model_change = {
-                'outputs': None,
-                'version': '3.0',
-                'model': voice_path, 
-                'modelType': self.model_type,
-                'base_lang': self.language, 
-                'pluginsContext': '{}',
-            }
-            requests.post(self.loadmodel_url, json=backup_model_change)
-            '''
 
     def run_backup_model(self, voice):
         logging.log(self.loglevel, f'Attempting to load backup model {voice}.')

@@ -1,5 +1,6 @@
 import json
 import os
+import logging
 from typing import Any, Hashable, Callable
 from src.conversation.conversation_log import conversation_log
 from src.characters_manager import Characters
@@ -267,8 +268,11 @@ class context:
                 conversation_summaries=content[1]
                 )
             if not self.__is_prompt_too_long(result, self.TOKEN_LIMIT_PERCENT): #self.__client.calculate_tokens_from_text(result) < self.__client.token_limit * self.__token_limit_percent:
+                logging.log(23, f'Prompt sent to LLM: {result.strip()}')
                 return result
-        
+            
+
+        logging.log(23, f'Prompt sent to LLM: {prompt.strip()}')
         return prompt #This should only trigger, if the default prompt even without bios and conversation_summaries is too long
     
     def get_characters_excluding_player(self) -> Characters:

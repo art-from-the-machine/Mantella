@@ -260,7 +260,7 @@ class conversation:
                 time.sleep(0.1)
             self.__generation_thread = None         
 
-    def __save_conversation(self):
+    def __save_conversation(self, is_reload):
         """Saves conversation log and state for each NPC in the conversation"""
         if self.__context.npcs_in_conversation.contains_player_character():
             for npc in self.__context.npcs_in_conversation.get_all_characters():
@@ -275,6 +275,7 @@ class conversation:
         if not latest_npc: 
             self.initiate_end_sequence()
             return
+        self.__tts.change_voice(latest_npc.voice_model)
         
         # Play gather thoughts
         collecting_thoughts_text = self.__context.config.collecting_thoughts_npc_response

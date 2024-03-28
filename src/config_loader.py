@@ -67,8 +67,9 @@ See here to learn how to move your game's installation folder: https://art-from-
 
         try:
             # run config editor if config.ini has the parameter
-            if int(config['Startup']['open_config_editor']) == 1:
-                run_config_editor()
+            # temporarily removed for Mantella v0.11
+            #if int(config['Startup']['open_config_editor']) == 1:
+            #    run_config_editor()
 
             #Adjusting game and mod paths according to the game being ran
             self.game = config['Game']['game']
@@ -78,23 +79,23 @@ See here to learn how to move your game's installation folder: https://art-from-
                 self.mod_path = config['Paths']['fallout4_mod_folder']
             elif self.game =="fallout4vr":
                 self.game ="Fallout4VR"
-                self.mod_path = config['Paths']['fallout4VR_mod_folder']
+                self.mod_path = config['Paths']['fallout4vr_mod_folder']
             elif self.game =="skyrimvr":
                 self.game ="SkyrimVR"
-                self.mod_path = config['Paths']['skyrimVR_mod_folder']
+                self.mod_path = config['Paths']['skyrimvr_mod_folder']
             #if the game is not recognized Mantella will assume it's Skyrim since that's the most frequent one.
             else:
                 self.game ="Skyrim"
                 self.mod_path = config['Paths']['skyrim_mod_folder']
             
-            logging.info(f'Mantella currently running for {self.game}. Mantella esp located in {self.mod_path}.  \n')
+            logging.info(23, f'Mantella currently running for {self.game}. Mantella esp located in {self.mod_path}.  \n')
             self.language = config['Language']['language']
             self.end_conversation_keyword = config['Language']['end_conversation_keyword']
-            self.goodbye_npc_response = config['Language']['goodbye_npc_response']
-            self.collecting_thoughts_npc_response = config['Language']['collecting_thoughts_npc_response']
-            self.offended_npc_response = config['Language']['offended_npc_response']
-            self.forgiven_npc_response = config['Language']['forgiven_npc_response']
-            self.follow_npc_response = config['Language']['follow_npc_response']
+            self.goodbye_npc_response = config['Language.Advanced']['goodbye_npc_response']
+            self.collecting_thoughts_npc_response = config['Language.Advanced']['collecting_thoughts_npc_response']
+            self.offended_npc_response = config['Language.Advanced']['offended_npc_response']
+            self.forgiven_npc_response = config['Language.Advanced']['forgiven_npc_response']
+            self.follow_npc_response = config['Language.Advanced']['follow_npc_response']
 
             self.xvasynth_path = config['Paths']['xvasynth_folder']
             self.facefx_path = config['Paths']['facefx_folder']
@@ -102,30 +103,30 @@ See here to learn how to move your game's installation folder: https://art-from-
             self.xtts_server_path = config['Paths']['xtts_server_folder']
 
             self.mic_enabled = config['Microphone']['microphone_enabled']
-            self.whisper_model = config['Microphone']['model_size']
-            self.whisper_process_device = config['Microphone']['process_device']
-            self.stt_language = config['Microphone']['stt_language']
+            self.whisper_model = config['Microphone.Advanced']['model_size']
+            self.whisper_process_device = config['Microphone.Advanced']['process_device']
+            self.stt_language = config['Microphone.Advanced']['stt_language']
             if (self.stt_language == 'default'):
                 self.stt_language = self.language
-            self.stt_translate = int(config['Microphone']['stt_translate'])
+            self.stt_translate = int(config['Microphone.Advanced']['stt_translate'])
             self.audio_threshold = config['Microphone']['audio_threshold']
-            self.pause_threshold = float(config['Microphone']['pause_threshold'])
-            self.listen_timeout = int(config['Microphone']['listen_timeout'])
-            self.whisper_type = config['Microphone']['whisper_type']
-            self.whisper_url = config['Microphone']['whisper_url']
+            self.pause_threshold = float(config['Microphone.Advanced']['pause_threshold'])
+            self.listen_timeout = int(config['Microphone.Advanced']['listen_timeout'])
+            self.whisper_type = config['Microphone.Advanced']['whisper_type']
+            self.whisper_url = config['Microphone.Advanced']['whisper_url']
 
             #self.hotkey = config['Hotkey']['hotkey']
             #self.textbox_timer = config['Hotkey']['textbox_timer']
 
             self.max_response_sentences = int(config['LanguageModel']['max_response_sentences'])
             self.llm = config['LanguageModel']['model']
-            self.wait_time_buffer = float(config['LanguageModel']['wait_time_buffer'])
-            self.llm_api = config['LanguageModel']['llm_api']
-            self.custom_token_count = config['LanguageModel']['custom_token_count']
-            self.temperature = float(config['LanguageModel']['temperature'])
-            self.top_p = float(config['LanguageModel']['top_p'])
+            self.wait_time_buffer = float(config['LanguageModel.Advanced']['wait_time_buffer'])
+            self.llm_api = config['LanguageModel.Advanced']['llm_api']
+            self.custom_token_count = config['LanguageModel.Advanced']['custom_token_count']
+            self.temperature = float(config['LanguageModel.Advanced']['temperature'])
+            self.top_p = float(config['LanguageModel.Advanced']['top_p'])
 
-            stop_value = config['LanguageModel']['stop']
+            stop_value = config['LanguageModel.Advanced']['stop']
             if ',' in stop_value:
                 # If there are commas in the stop value, split the string by commas and store the values in a list
                 self.stop = stop_value.split(',')
@@ -133,25 +134,25 @@ See here to learn how to move your game's installation folder: https://art-from-
                 # If there are no commas, put the single value into a list
                 self.stop = [stop_value]
 
-            self.frequency_penalty = float(config['LanguageModel']['frequency_penalty'])
-            self.max_tokens = int(config['LanguageModel']['max_tokens'])
+            self.frequency_penalty = float(config['LanguageModel.Advanced']['frequency_penalty'])
+            self.max_tokens = int(config['LanguageModel.Advanced']['max_tokens'])
 
             #Added from xTTS implementation
-            self.use_external_xtts = int(config['Speech']['use_external_xtts'])
-            self.xtts_default_model = config['Speech']['xtts_default_model']
-            self.xtts_deepspeed = int(config['Speech']['xtts_deepspeed'])
-            self.xtts_lowvram = int(config['Speech']['xtts_lowvram'])
-            self.xtts_device = config['Speech']['xtts_device']
-            self.number_words_tts = int(config['Speech']['number_words_tts'])
-            self.xtts_url = config['Speech']['xtts_url']
-            self.xtts_data = config['Speech']['xtts_data']
+            self.tts_service = config['Speech']['tts_service'].strip().lower()
+            self.xtts_default_model = config['Speech.Advanced']['xtts_default_model']
+            self.xtts_deepspeed = int(config['Speech.Advanced']['xtts_deepspeed'])
+            self.xtts_lowvram = int(config['Speech.Advanced']['xtts_lowvram'])
+            self.xtts_device = config['Speech.Advanced']['xtts_device']
+            self.number_words_tts = int(config['Speech.Advanced']['number_words_tts'])
+            self.xtts_url = config['Speech.Advanced']['xtts_url']
+            self.xtts_data = config['Speech.Advanced']['xtts_data']
             
-            self.xvasynth_process_device = config['Speech']['tts_process_device']
-            self.pace = float(config['Speech']['pace'])
-            self.use_cleanup = int(config['Speech']['use_cleanup'])
-            self.use_sr = int(config['Speech']['use_sr'])
-            self.FO4Volume = int(config['Speech']['FO4_NPC_response_volume'])
-            self.tts_print = int(config['Speech']['tts_print'])
+            self.xvasynth_process_device = config['Speech.Advanced']['tts_process_device']
+            self.pace = float(config['Speech.Advanced']['pace'])
+            self.use_cleanup = int(config['Speech.Advanced']['use_cleanup'])
+            self.use_sr = int(config['Speech.Advanced']['use_sr'])
+            self.FO4Volume = int(config['Speech.Advanced']['FO4_NPC_response_volume'])
+            self.tts_print = int(config['Speech.Advanced']['tts_print'])
 
             self.remove_mei_folders = config['Cleanup']['remove_mei_folders']
             #Debugging

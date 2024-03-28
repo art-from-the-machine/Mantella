@@ -47,6 +47,8 @@ class CustomFormatter(logging.Formatter):
         22: yellow + "%(message)s" + reset,
         # NPC info
         23: dim + "%(message)s" + reset,
+        # Startup
+        24: white + "%(message)s" + reset,
 
         # STT
         27: blue + format + reset,

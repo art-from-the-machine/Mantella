@@ -18,7 +18,7 @@ try:
     )
 
     mantella_version = '0.11'
-    logging.info(f'\nMantella v{mantella_version}')
+    logging.info(24, f'\nMantella v{mantella_version}')
     should_debug_http = False
 
     mantella_http_server = http_server()
