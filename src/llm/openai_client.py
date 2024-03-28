@@ -68,7 +68,7 @@ class openai_client:
                 self.__api_key: str = f.readline().strip()
 
             if config.llm == 'undi95/toppy-m-7b:free':
-                logging.log(24, "Running Mantella with default LLM 'undi95/toppy-m-7b:free'. For higher quality responses, better NPC memories, and more performant multi-NPC conversations, consider changing this model via the `model` setting in MantellaSoftware/config.ini")
+                logging.log(24, "Running Mantella with default LLM 'undi95/toppy-m-7b:free' (OpenRouter). For higher quality responses, better NPC memories, and more performant multi-NPC conversations, consider changing this model via the `model` setting in MantellaSoftware/config.ini")
             else:
                 logging.log(23, f"Running Mantella with '{config.llm}'. The language model can be changed in MantellaSoftware/config.ini")
         else:
