@@ -67,8 +67,9 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
 
         try:
             # run config editor if config.ini has the parameter
-            if int(config['Startup']['open_config_editor']) == 1:
-                run_config_editor()
+            # temporarily removed for Mantella v0.11
+            #if int(config['Startup']['open_config_editor']) == 1:
+            #    run_config_editor()
 
             #Adjusting game and mod paths according to the game being ran
             self.game = config['Game']['game']
