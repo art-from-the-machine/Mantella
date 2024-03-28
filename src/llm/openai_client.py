@@ -67,6 +67,13 @@ class openai_client:
             with open(secret_key_file, 'r') as f:
                 self.__api_key: str = f.readline().strip()
 
+            if not self.__api_key:
+                logging.error(f'''No secret key found in MantellaSoftware/GPT_SECRET_KEY.txt. Please create a secret key and paste it in GPT_SECRET_KEY.txt
+If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
+If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
+If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running''')
+                input("Press Enter to exit.")
+
             if config.llm == 'undi95/toppy-m-7b:free':
                 logging.log(24, "Running Mantella with default LLM 'undi95/toppy-m-7b:free' (OpenRouter). For higher quality responses, better NPC memories, and more performant multi-NPC conversations, consider changing this model via the `model` setting in MantellaSoftware/config.ini")
             else:
