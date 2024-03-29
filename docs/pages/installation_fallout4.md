@@ -28,6 +28,12 @@ This mod requires ~16GB of space when xVASynth and all voice models are installe
 ```{admonition} Warning
 :class: attention
 
+For Mantella to work properly you have to **enable archive invalidation** in your Fallout 4 ini file if you haven't already done so. See [here](https://www.nexusmods.com/fallout4/articles/3831) for instructions.
+```
+
+```{admonition} Warning
+:class: attention
+
 As Mantella accesses and writes to files within your Fallout 4 folder, it is unlikely to work correctly **if you have Fallout 4 stored in Program Files / (x86)**. Please ensure that you have Fallout 4 stored outside of this folder (eg `C:\Games\Steam`).
 ```
 
