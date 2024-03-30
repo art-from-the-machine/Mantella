@@ -51,26 +51,27 @@ def initialise(config_file, logging_file, secret_key_file, language_file) -> tup
         #logging.critical("critical message")
 
         # custom levels
-        #logging.addLevelName(21, "INFO")
-        #logging.addLevelName(22, "INFO")
-        #logging.addLevelName(23, "INFO")
+        logging.addLevelName(21, "INFO")
+        logging.addLevelName(22, "INFO")
+        logging.addLevelName(23, "INFO")
+        logging.addLevelName(24, "Startup")
 
         #logging.log(21, "Player transcription")
         #logging.log(22, "NPC voiceline")
         #logging.log(23, "NPC info")
 
 
-        #logging.addLevelName(27, "INFO STT")
-        #logging.addLevelName(28, "INFO LLM")
-        #logging.addLevelName(29, "INFO TTS")
+        logging.addLevelName(27, "INFO STT")
+        logging.addLevelName(28, "INFO LLM")
+        logging.addLevelName(29, "INFO TTS")
 
         #logging.log(27, "Speech-To-Text related")
         #logging.log(28, "Large Language Model related")
         #logging.log(29, "Text-To-Speech related")
 
-        # logging.addLevelName(40, "HTTP-in")
-        # logging.addLevelName(41, "HTTP-out")
-        # logging.addLevelName(42, "Queue")
+        logging.addLevelName(40, "HTTP-in")
+        logging.addLevelName(41, "HTTP-out")
+        logging.addLevelName(42, "Queue")
         # logging.log(40, "JSON coming from game")
         # logging.log(41, "JSON sent back to game")
         # logging.log(42, "Sentence queue access")

@@ -25,11 +25,15 @@ class stt_route(routeable):
 
     def __init__(self, config: ConfigLoader, api_key: str, show_debug_messages: bool = False) -> None:
         super().__init__(show_debug_messages)
-        self.__stt: Transcriber = Transcriber(config, api_key)
+        self.__stt: Transcriber | None = None
+        self.__config = config
+        self.__api_key = api_key
 
     def add_route_to_server(self, app: Flask):
         @app.route("/stt", methods=['POST'])
         def stt():
+            if not self.__stt:
+                self.__stt = Transcriber(self.__config, self.__api_key)
             receivedJson: dict[str, Any] | None = request.json
             if receivedJson and receivedJson[self.KEY_REQUESTTYPE] == self.KEY_REQUESTTYPE_TTS:
                 if self._show_debug_messages:

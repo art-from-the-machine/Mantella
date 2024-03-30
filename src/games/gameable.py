@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 import logging
+from pathlib import Path
+import sys
 from typing import Any
 import pandas as pd
+from src.conversation.conversation_log import conversation_log
 from src.conversation.context import context
 from src.config_loader import ConfigLoader
 from src.llm.sentence import sentence
@@ -17,22 +20,28 @@ class gameable(ABC):
     Args:
         ABC (_type_): _description_
     """
-    def __init__(self, path_to_character_df: str, mantella_software_game_folder_name: str):
+    def __init__(self, path_to_character_df: str, mantella_game_folder_path: str):
         try:
             self.__character_df: pd.DataFrame = self.__get_character_df(path_to_character_df)
         except:
             logging.error(f'Unable to read / open {path_to_character_df}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
+
+        # if the exe is being run by another process, store conversation data in MantellaData rather than the local data folder
+        if "--integrated" in sys.argv:
+            self.__conversation_folder_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)+'/MantellaData/conversations'
+        else:
+            self.__conversation_folder_path = f"data/{mantella_game_folder_path}/conversations"
         
-        self.__mantella_software_game_folder_name: str = mantella_software_game_folder_name
+        conversation_log.game_path = self.__conversation_folder_path
     
     @property
     def Character_df(self) -> pd.DataFrame:
         return self.__character_df
     
     @property
-    def Mantella_software_game_folder_name(self) -> str:
-        return self.__mantella_software_game_folder_name
+    def Conversation_folder_path(self) -> str:
+        return self.__conversation_folder_path
     
     def __get_character_df(self, file_name: str) -> pd.DataFrame:
         encoding = utils.get_file_encoding(file_name)

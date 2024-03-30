@@ -85,6 +85,7 @@ class context:
     def add_or_update_character(self, npc: Character):
         if not self.__npcs_in_conversation.contains_character(npc):
             self.__npcs_in_conversation.add_character(npc)
+            self.__ingame_events.append(f"{npc.Name} has joinded the conversation")
             self.__have_actors_changed = True
         else:
             #check for updates in the transient stats and generate update events
@@ -104,7 +105,7 @@ class context:
         currentTime: tuple[str, str] = str(in_game_time), get_time_group(in_game_time)
         if currentTime != self.__prev_game_time:
             self.__prev_game_time = currentTime
-            custom_ingame_events.append(f"*The time is {currentTime[0]} {currentTime[1]}.*\n")
+            custom_ingame_events.append(f"The time is {currentTime[0]} {currentTime[1]}.")
     
     def __update_ingame_events_on_npc_change(self, npc: Character):
         current_stats: Character = self.__npcs_in_conversation.get_character_by_name(npc.Name)
@@ -122,13 +123,13 @@ class context:
             #Is attacking player
             if current_stats.Is_enemy != npc.Is_enemy:
                 if npc.Is_enemy: 
-                    self.__ingame_events.append(f"*{npc.Name} is attacking {player_name}. This is either because {npc.Personal_pronoun_subject} is an enemy or {player_name} has attacked {npc.Personal_pronoun_object} first.*")
+                    self.__ingame_events.append(f"{npc.Name} is attacking {player_name}. This is either because {npc.Personal_pronoun_subject} is an enemy or {player_name} has attacked {npc.Personal_pronoun_object} first.")
                 else:
-                    self.__ingame_events.append(f"*{npc.Name} is no longer attacking {player_name}.*")
+                    self.__ingame_events.append(f"{npc.Name} is no longer attacking {player_name}.")
             #Relationship rank
             if current_stats.Relationship_rank != npc.Relationship_rank:
                 trust = self.__get_trust(npc)
-                self.__ingame_events.append(f"*{player_name} is now {trust} to {npc.Name}.*")
+                self.__ingame_events.append(f"{player_name} is now {trust} to {npc.Name}.")
     
     @staticmethod
     def format_listing(listing: list[str]) -> str:

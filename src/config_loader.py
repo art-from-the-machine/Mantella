@@ -88,7 +88,7 @@ See here to learn how to move your game's installation folder: https://art-from-
                 self.game ="Skyrim"
                 self.mod_path = config['Paths']['skyrim_mod_folder']
             
-            logging.info(23, f'Mantella currently running for {self.game}. Mantella esp located in {self.mod_path}.  \n')
+            logging.log(24, f'Mantella currently running for {self.game}. Mantella esp located in {self.mod_path}.  \n')
             self.language = config['Language']['language']
             self.end_conversation_keyword = config['Language']['end_conversation_keyword']
             self.goodbye_npc_response = config['Language.Advanced']['goodbye_npc_response']
@@ -102,7 +102,6 @@ See here to learn how to move your game's installation folder: https://art-from-
             #Added from xTTS implementation
             self.xtts_server_path = config['Paths']['xtts_server_folder']
 
-            self.mic_enabled = config['Microphone']['microphone_enabled']
             self.whisper_model = config['Microphone.Advanced']['model_size']
             self.whisper_process_device = config['Microphone.Advanced']['process_device']
             self.stt_language = config['Microphone.Advanced']['stt_language']

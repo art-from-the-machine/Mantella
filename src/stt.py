@@ -9,7 +9,7 @@ import io
 class Transcriber:
     def __init__(self, config, api_key: str):
         self.loglevel = 27
-        self.mic_enabled = config.mic_enabled
+        # self.mic_enabled = config.mic_enabled
         self.language = config.stt_language
         self.task = "transcribe"
         if config.stt_translate == 1:
@@ -33,27 +33,27 @@ class Transcriber:
         self.call_count = 0
         self.api_key = api_key
 
-        if self.mic_enabled == '1':
-            self.recognizer = sr.Recognizer()
-            self.recognizer.pause_threshold = config.pause_threshold
-            self.microphone = sr.Microphone()
+        # if self.mic_enabled == '1':
+        self.recognizer = sr.Recognizer()
+        self.recognizer.pause_threshold = config.pause_threshold
+        self.microphone = sr.Microphone()
 
-            if self.audio_threshold == 'auto':
-                logging.log(self.loglevel, f"Audio threshold set to 'auto'. Adjusting microphone for ambient noise...")
-                logging.log(self.loglevel, "If the mic is not picking up your voice, try setting this audio_threshold value manually in MantellaSoftware/config.ini.\n")
-                with self.microphone as source:
-                    self.recognizer.adjust_for_ambient_noise(source, duration=5)
+        if self.audio_threshold == 'auto':
+            logging.log(self.loglevel, f"Audio threshold set to 'auto'. Adjusting microphone for ambient noise...")
+            logging.log(self.loglevel, "If the mic is not picking up your voice, try setting this audio_threshold value manually in MantellaSoftware/config.ini.\n")
+            with self.microphone as source:
+                self.recognizer.adjust_for_ambient_noise(source, duration=5)
+        else:
+            self.recognizer.dynamic_energy_threshold = False
+            self.recognizer.energy_threshold = int(self.audio_threshold)
+            logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this value in MantellaSoftware/config.ini. If the mic is picking up too much background noise, try increasing this value.\n")
+
+        # if using faster_whisper, load model selected by player, otherwise skip this step
+        if self.whisper_type == 'faster_whisper':
+            if self.process_device == 'cuda':
+                self.transcribe_model = WhisperModel(self.model, device=self.process_device)
             else:
-                self.recognizer.dynamic_energy_threshold = False
-                self.recognizer.energy_threshold = int(self.audio_threshold)
-                logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this value in MantellaSoftware/config.ini. If the mic is picking up too much background noise, try increasing this value.\n")
-
-            # if using faster_whisper, load model selected by player, otherwise skip this step
-            if self.whisper_type == 'faster_whisper':
-                if self.process_device == 'cuda':
-                    self.transcribe_model = WhisperModel(self.model, device=self.process_device)
-                else:
-                    self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
+                self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
 
     # def get_player_response(self, say_goodbye, prompt: str):
     #     if (self.debug_mode == '1') & (self.debug_use_default_player_response == '1'):

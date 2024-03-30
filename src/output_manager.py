@@ -34,7 +34,7 @@ class ChatManager:
         self.__end_of_sentence_chars = ['.', '?', '!', ':', ';']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
-    def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> mantella_sentence | None:
+    def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> mantella_sentence:
         """Generates the audio for a text and returns the corresponding sentence
 
         Args:
@@ -48,9 +48,10 @@ class ChatManager:
         with self.__tts_access_lock:
             try:
                 audio_file = self.__tts.synthesize(character_to_talk.TTS_voice_model, text, character_to_talk.In_game_voice_model, character_to_talk.Is_in_combat)
-            except Exception as e:            
-                logging.error(f"Text-to-Speech Error: {e}")
-                return None
+            except Exception as e:
+                error_text = f"Text-to-Speech Error: {e}"
+                logging.log(29, error_text)
+                return mantella_sentence(character_to_talk, text, "", 0, True, error_text)
             return mantella_sentence(character_to_talk, text, audio_file, self.get_audio_duration(audio_file), is_system_generated_sentence)
 
     def num_tokens(self, content_to_measure: message | str | message_thread | list[message]) -> int:
@@ -110,7 +111,7 @@ class ChatManager:
             """Remove 'As an XYZ,' from beginning of sentence"""
             if sentence.startswith('As a'):
                 if ', ' in sentence:
-                    logging.info(f"Removed '{sentence.split(', ')[0]} from response")
+                    logging.log(28, f"Removed '{sentence.split(', ')[0]} from response")
                     sentence = sentence.replace(sentence.split(', ')[0]+', ', '')
             return sentence
         
@@ -119,22 +120,22 @@ class ChatManager:
                 # Check if sentence contains two asterisks
                 asterisk_check = re.search(r"(?<!\*)\*(?!\*)[^*]*\*(?!\*)", sentence)
                 if asterisk_check:
-                    logging.info(f"Removed asterisks text from response: {sentence}")
+                    logging.log(28, f"Removed asterisks text from response: {sentence}")
                     # Remove text between two asterisks
                     sentence = re.sub(r"(?<!\*)\*(?!\*)[^*]*\*(?!\*)", "", sentence)
                 else:
-                    logging.info(f"Removed response containing single asterisks: {sentence}")
+                    logging.log(28, f"Removed response containing single asterisks: {sentence}")
                     sentence = ''
 
             if ('(' in sentence) or (')' in sentence):
                 # Check if sentence contains two brackets
                 bracket_check = re.search(r"\(.*\)", sentence)
                 if bracket_check:
-                    logging.info(f"Removed brackets text from response: {sentence}")
+                    logging.log(28, f"Removed brackets text from response: {sentence}")
                     # Remove text between brackets
                     sentence = re.sub(r"\(.*?\)", "", sentence)
                 else:
-                    logging.info(f"Removed response containing single bracket: {sentence}")
+                    logging.log(28, f"Removed response containing single bracket: {sentence}")
                     sentence = ''
 
             return sentence
@@ -175,7 +176,6 @@ class ChatManager:
             remaining_content = ''
             full_reply = ''
             num_sentences = 0
-            count_generated_sentences: int = 0
             #Added from xTTS implementation
             accumulated_sentence = ''
             cumulative_sentence_bool = False
@@ -219,21 +219,21 @@ class ChatManager:
                                     # if LLM is switching character
                                     # Find the first character whose name starts with keyword_extraction
                                     if keyword_extraction == "Player":
-                                        logging.info(f"Stopped LLM from speaking on behalf of the player")
+                                        logging.log(28, f"Stopped LLM from speaking on behalf of the player")
                                         break
                                     character_switched_to: Character | None = self.__character_switched_to(keyword_extraction, characters)
                                     if character_switched_to:
                                         if character_switched_to.Is_player_character:
-                                            logging.info(f"Stopped LLM from speaking on behalf of the player")
+                                            logging.log(28, f"Stopped LLM from speaking on behalf of the player")
                                             break
                                         else:
-                                            logging.info(f"Switched to {character_switched_to.Name}")
+                                            logging.log(28, f"Switched to {character_switched_to.Name}")
                                             active_character = character_switched_to
                                             self.__tts.change_voice(active_character.TTS_voice_model)
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:
-                                            logging.info(action_to_take.Info_text)
+                                            logging.log(28, action_to_take.Info_text)
                                             actions_in_sentence.append(action_to_take)
                                             full_reply += sentence
                                             sentence = remaining_content
@@ -250,19 +250,18 @@ class ChatManager:
                                     sentence = accumulated_sentence + current_sentence
                                 accumulated_sentence = ''
                                 if len(sentence.strip()) < 3:
-                                    logging.info(f'Skipping voiceline that is too short: {sentence}')
+                                    logging.log(28, f'Skipping voiceline that is too short: {sentence}')
                                     break
 
                                 logging.log(self.loglevel, f"LLM returned sentence took {time.time() - start_time} seconds to execute")
                                 # Generate the audio and return the audio file path
                                 # Put the audio file path in the sentence_queue
                                 new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character)
-                                
-                                if new_sentence:
-                                    count_generated_sentences += 1
+                                blocking_queue.put(new_sentence)
+
+                                if not new_sentence.Error_message:
                                     for a in actions_in_sentence:
                                         new_sentence.Actions.append(a.Game_action_identifier)
-                                    blocking_queue.put(new_sentence)
                                 else:
                                     break
                                 
@@ -286,13 +285,12 @@ class ChatManager:
 
                     break
                 except Exception as e:
-                    if count_generated_sentences > 0:
-                        break
                     logging.error(f"LLM API Error: {e}")                    
                     error_response = "I can't find the right words at the moment."
                     new_sentence = self.generate_sentence(error_response, active_character)
-                    if new_sentence:
-                        blocking_queue.put(new_sentence)                
+                    blocking_queue.put(new_sentence)
+                    if new_sentence.Error_message:
+                        break     
                     logging.log(self.loglevel, 'Retrying connection to API...')
                     time.sleep(5)
 
@@ -303,15 +301,14 @@ class ChatManager:
                 try:
                     #Added from xTTS implementation
                     new_sentence = self.generate_sentence(' ' + accumulated_sentence + ' ', active_character)
-                    if new_sentence:
-                        blocking_queue.put(new_sentence)
+                    blocking_queue.put(new_sentence)
                     full_reply += accumulated_sentence
                     accumulated_sentence = ''
                 except Exception as e:
                     accumulated_sentence = ''
                     logging.error(f"xVASynth Error: {e}")
             else:
-                logging.info(f"accumulated_sentence at the end is None")
+                logging.log(28, f"accumulated_sentence at the end is None")
 
             # Mark the end of the response
             # await sentence_queue.put(None)

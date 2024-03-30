@@ -14,7 +14,7 @@ import src.utils as utils
 
 
 class fallout4(gameable):
-    FO4_XVASynth_file: str ='data\\FO4_data\\FO4_Voice_folder_XVASynth_matches.csv'
+    FO4_XVASynth_file: str =f"data/Fallout4/FO4_Voice_folder_XVASynth_matches.csv"
     WAV_FILE: str  = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
     LIP_FILE: str  = f'00001ED2_1.lip'
     KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSX: str  = "mantella_player_pos_x"
@@ -26,7 +26,7 @@ class fallout4(gameable):
     # f4_wav_file2 = f'MutantellaOutput2.wav'
 
     def __init__(self, config: ConfigLoader):
-        super().__init__('data/fallout4_characters.csv', "Fallout4")
+        super().__init__('data/Fallout4/fallout4_characters.csv', "Fallout4")
         self.__config: ConfigLoader = config
         encoding = utils.get_file_encoding(fallout4.FO4_XVASynth_file)
         self.__FO4_Voice_folder_and_models_df = pd.read_csv(fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)
@@ -62,7 +62,7 @@ class fallout4(gameable):
                                             (character_df['baseid_int'].astype(str) == character_id + '.0')) & 
                                             (character_df['race'].astype(str).str.lower() == character_currentrace.lower())].to_dict('records')[0]
                                 
-            logging.info(f"Current character_info is '{character_info}' ")
+            logging.log(23, f"Current character_info is '{character_info}' ")
             return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
         except:
             try: # first try to load character by matching both name and baseid_int, necessary for characters like FO4 Shaun
@@ -76,12 +76,12 @@ class fallout4(gameable):
                     return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
                 except IndexError: # character not found
                     try: # try searching by ID
-                        logging.info(f"Could not find {name} in fallout4_characters.csv. Searching by ID {character_id}...")
+                        logging.log(23, f"Could not find {name} in fallout4_characters.csv. Searching by ID {character_id}...")
 
                         character_info = character_df.loc[(character_df['baseid_int'].astype(str)==character_id) | (character_df['baseid_int'].astype(str)==character_id+'.0')].to_dict('records')[0]
                         return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
                     except IndexError: # load generic NPC
-                        logging.info(f"NPC '{name}' could not be found in 'fallout4_characters.csv'. If this is not a generic NPC, please ensure '{name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
+                        logging.log(23, f"NPC '{name}' could not be found in 'fallout4_characters.csv'. If this is not a generic NPC, please ensure '{name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
                         character_info = self.__load_unnamed_npc(name, race, gender, ingame_voice_model)
                         return external_character_info(name, True, character_info["bio"], character_info['ingame_voice_model'], character_info['tts_voice_model'])  
     
@@ -106,7 +106,7 @@ class fallout4(gameable):
 
         actor_sex = gender
 
-        logging.info(f"Current voice actor is voice model {actor_voice_model_name} with ID {actor_voice_model_id} gender {actor_sex} race {actor_race} ")
+        logging.log(23, f"Current voice actor is voice model {actor_voice_model_name} with ID {actor_voice_model_id} gender {actor_sex} race {actor_race} ")
 
         voice_model = ''
         matching_row=''
@@ -119,9 +119,9 @@ class fallout4(gameable):
             # Assuming there's only one match, get the value from the 'voice_model' column
             voice_model = matching_row['voice_model'].iloc[0]
             FO4_voice_folder = matching_row['voice_file_name'].iloc[0]
-            logging.info(f"Matched voice model with ID to {FO4_voice_folder}")  # Or use the variable as needed
+            logging.log(23, f"Matched voice model with ID to {FO4_voice_folder}")  # Or use the variable as needed
         else:
-            logging.info("No matching voice ID found. Attempting voice_file_name match.")
+            logging.log(23, "No matching voice ID found. Attempting voice_file_name match.")
       
         if voice_model == '':
             # If no match by 'voice_ID' and not found in , search by 'voice_model' (actor_voice_model_name)
@@ -195,7 +195,7 @@ class fallout4(gameable):
                 logging.warning(e)
 
 
-        logging.info(f"{speaker.Name} should speak")
+        logging.log(23, f"{speaker.Name} should speak")
 
         player_pos_x: float | None = context_of_conversation.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSX)
         player_pos_y: float | None = context_of_conversation.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSY)

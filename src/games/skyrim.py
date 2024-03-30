@@ -16,7 +16,7 @@ class skyrim(gameable):
     LIP_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
 
     def __init__(self, config: ConfigLoader):
-        super().__init__('data/skyrim_characters.csv', "Skyrim")
+        super().__init__('data/Skyrim/skyrim_characters.csv', "Skyrim")
         self.__create_all_voice_folders(config)
 
     def __create_all_voice_folders(self, config: ConfigLoader):
@@ -43,11 +43,11 @@ class skyrim(gameable):
             return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
         except IndexError: # character not found
             try: # try searching by ID
-                logging.info(f"Could not find {name} in skyrim_characters.csv. Searching by ID {id}...")
+                logging.log(23, f"Could not find {name} in skyrim_characters.csv. Searching by ID {id}...")
                 character_info = self.Character_df.loc[(self.Character_df['baseid_int'].astype(str)==id) | (self.Character_df['baseid_int'].astype(str)==id+'.0')].to_dict('records')[0]
                 return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
             except IndexError: # load generic NPC
-                logging.info(f"NPC '{name}' could not be found in 'skyrim_characters.csv'. If this is not a generic NPC, please ensure '{name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
+                logging.log(23, f"NPC '{name}' could not be found in 'skyrim_characters.csv'. If this is not a generic NPC, please ensure '{name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
                 character_info = self.__load_unnamed_npc(name, race, gender, ingame_voice_model)
                 return external_character_info(name, True, character_info["bio"], character_info['ingame_voice_model'], character_info['tts_voice_model'])
 
@@ -121,11 +121,11 @@ class skyrim(gameable):
         os.remove(audio_file)
         os.remove(audio_file.replace(".wav", ".lip"))
 
-        logging.info(f"{speaker.Name} (character {speaker.Name}) should speak")
+        logging.log(23, f"{speaker.Name} should speak")
 
     def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:
         if ('assist' in text) and (count_sentence_in_text > 0):
-            logging.info(f"'assist' keyword found. Ignoring sentence: {sentence}")
+            logging.log(23, f"'assist' keyword found. Ignoring sentence: {sentence}")
             return False
         return True
  

@@ -1,6 +1,7 @@
-import logging
 import math
 import numpy as np
+from os import environ
+environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 from src.llm.sentence import sentence
 from src.config_loader import ConfigLoader
@@ -20,8 +21,6 @@ class audio_playback:
         # Explicitly initialize the pygame mixer
         if not pygame.mixer.get_init():
             pygame.mixer.init(frequency=22050, size=-16, channels=2)  # Adjust these values as necessary
-        # logging.info(f'pygame is {pygame)}')
-        # logging.info(pygame.__version__)
 
     def play_adjusted_volume(self, sentence_to_play: sentence, sound_origin_position: tuple[float, float], player_position: tuple[float, float], player_rotation: float):
         if self.__playback_channel:

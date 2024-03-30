@@ -135,7 +135,7 @@ class conversation:
             self.update_game_events(new_message)
             self.__messages.add_message(new_message)
             text = new_message.Text
-            logging.info(f"Text passed to NPC: {text}")
+            logging.log(23, f"Text passed to NPC: {text}")
 
         if self.__has_conversation_ended(text):
             new_message.Is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
@@ -183,7 +183,7 @@ class conversation:
         self.__context.clear_context_ingame_events()        
 
         if message.count_ingame_events() > 0:            
-            logging.info(f'In-game events since previous exchange:\n{message.get_ingame_events_text()}')
+            logging.log(28, f'In-game events since previous exchange:\n{message.get_ingame_events_text()}')
 
         return message
 
@@ -242,7 +242,7 @@ class conversation:
         self.__has_already_ended = True
         self.__stop_generation()
         self.__sentences.clear()        
-        self.__save_conversation()
+        self.__save_conversation(is_reload=False)
     
     def __start_generating_npc_sentences(self):
         """Starts a background Thread to generate sentences into the sentence_queue"""    
@@ -260,12 +260,12 @@ class conversation:
                 time.sleep(0.1)
             self.__generation_thread = None         
 
-    def __save_conversation(self, is_reload):
+    def __save_conversation(self, is_reload: bool):
         """Saves conversation log and state for each NPC in the conversation"""
         if self.__context.npcs_in_conversation.contains_player_character():
             for npc in self.__context.npcs_in_conversation.get_all_characters():
                 conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()))
-            self.__rememberer.save_conversation_state(self.__messages, self.__context.npcs_in_conversation)
+            self.__rememberer.save_conversation_state(self.__messages, self.__context.npcs_in_conversation, is_reload)
         # self.__remember_thread = Thread(None, self.__rememberer.save_conversation_state, None, [self.__messages, self.__context.npcs_in_conversation]).start()
 
     @utils.time_it
@@ -275,7 +275,6 @@ class conversation:
         if not latest_npc: 
             self.initiate_end_sequence()
             return
-        self.__tts.change_voice(latest_npc.voice_model)
         
         # Play gather thoughts
         collecting_thoughts_text = self.__context.config.collecting_thoughts_npc_response
@@ -287,7 +286,7 @@ class conversation:
     def reload_conversation(self):
         """Reloads the conversation
         """
-        self.__save_conversation()
+        self.__save_conversation(is_reload=True)
         # Reload
         new_prompt = self.__conversation_type.generate_prompt(self.__context)
         self.__messages.reload_message_thread(new_prompt, 8)

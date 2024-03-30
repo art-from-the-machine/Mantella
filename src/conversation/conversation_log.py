@@ -8,6 +8,8 @@ from src.character_manager import Character
 from openai.types.chat import ChatCompletionMessageParam
 
 class conversation_log:
+    game_path: str = "" # <- This gets set in the __init__ of gameable. Not clean but cleaner than other options
+
     @staticmethod
     def save_conversation_log(character: Character, messages: list[ChatCompletionMessageParam]):
         # save conversation history
@@ -31,7 +33,7 @@ class conversation_log:
             with open(conversation_history_file, 'w', encoding='utf-8') as f:
                 json.dump(conversation_history, f, indent=4) # save everything except the initial system prompt
         else:
-            logging.info('Conversation history will not be saved for this generic NPC.')
+            logging.log(23, 'Conversation history will not be saved for this generic NPC.')
 
     @staticmethod    
     def load_conversation_log(character: Character) -> list[str]:
@@ -48,9 +50,4 @@ class conversation_log:
 
     @staticmethod    
     def __get_path_to_conversation_historyFile(character: Character) -> str:
-        # if the exe is being run by another process, store conversation data in MantellaData rather than the local data folder
-        if "--integrated" in sys.argv:
-            conversation_folder = str(Path(utils.resolve_path()).parent.parent.parent.parent)+'/MantellaData/conversations'
-        else:
-            conversation_folder = 'data/conversations'
-        return f"{conversation_folder}/{character.Name}/{character.Name}.json"
+        return f"{conversation_log.game_path}/{character.Name}/{character.Name}.json"

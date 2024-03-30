@@ -29,7 +29,7 @@ class GameStateManager:
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: openai_client = client
         self.__chat_manager: ChatManager = chat_manager
-        self.__rememberer: remembering = summaries(config.memory_prompt, config.resummarize_prompt, client, language_info['language'])
+        self.__rememberer: remembering = summaries(game, config.memory_prompt, config.resummarize_prompt, client, language_info['language'])
         self.__talk: conversation | None = None
         self.__actions: list[action] =  [action(comm_consts.ACTION_NPC_OFFENDED, config.offended_npc_response, f"The player offended the NPC"),
                                                 action(comm_consts.ACTION_NPC_FORGIVEN, config.forgiven_npc_response, f"The player made up with the NPC"),
@@ -61,8 +61,12 @@ class GameStateManager:
         replyType, sentence_to_play = self.__talk.continue_conversation()
         reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
         if sentence_to_play:
-            self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.Context, self.__config)
-            reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play)
+            if not sentence_to_play.Error_message:
+                self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.Context, self.__config)            
+                reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play)
+            else:
+                self.__talk.end()
+                return self.error_message(sentence_to_play.Error_message)
         return reply
 
     def player_input(self, inputJson: dict[str, Any]) -> dict[str, Any]:
@@ -177,7 +181,7 @@ class GameStateManager:
                             tts_voice_model,
                             custom_values)
         except CharacterDoesNotExist:                 
-            logging.info('Restarting...')
+            logging.log(23, 'Restarting...')
             return None 
         
     def error_message(self, message: str) -> dict[str, Any]:

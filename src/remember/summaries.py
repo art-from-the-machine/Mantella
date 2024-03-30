@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from src.games.gameable import gameable
 from src.llm.openai_client import openai_client
 from src.llm.message_thread import message_thread
 from src.llm.messages import user_message
@@ -12,9 +13,10 @@ class summaries(remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.35) -> None:
+    def __init__(self, game: gameable, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.35) -> None:
         super().__init__()
         self.loglevel = 28
+        self.__game: gameable = game
         self.__summary_limit_pct: float = summary_limit_pct
         self.__client: openai_client = client
         self.__language_name: str = language_name
@@ -62,26 +64,25 @@ class summaries(remembering):
         """Get latest conversation summary by file name suffix"""
 
         name: str = character.Name
-        if os.path.exists(f"data/conversations/{name}"):
+        character_conversation_folder_path = f"{self.__game.Conversation_folder_path}/{name}"
+        if os.path.exists(character_conversation_folder_path):
             # get all files from the directory
-            files = os.listdir(f"data/conversations/{name}")
+            files = os.listdir(character_conversation_folder_path)
             # filter only .txt files
             txt_files = [f for f in files if f.endswith('.txt')]
             if len(txt_files) > 0:
                 file_numbers = [int(os.path.splitext(f)[0].split('_')[-1]) for f in txt_files]
                 latest_file_number = max(file_numbers)
-                logging.info(f"Loaded latest summary file: data/conversations/{name}_summary_{latest_file_number}.txt")
+                logging.info(f"Loaded latest summary file: {character_conversation_folder_path}/{name}_summary_{latest_file_number}.txt")
             else:
-                logging.info(f"data/conversations/{name} does not exist. A new summary file will be created.")
+                logging.info(f"{character_conversation_folder_path} does not exist. A new summary file will be created.")
                 latest_file_number = 1
         else:
-            logging.info(f"data/conversations/{name} does not exist. A new summary file will be created.")
+            logging.info(f"{character_conversation_folder_path} does not exist. A new summary file will be created.")
             latest_file_number = 1
         
-        conversation_summary_file = f"data/conversations/{name}/{name}_summary_{latest_file_number}.txt"
+        conversation_summary_file = f"{character_conversation_folder_path}/{name}_summary_{latest_file_number}.txt"
         return conversation_summary_file
-    
-    
 
     def __create_new_conversation_summary(self, messages: message_thread, npc_name: str) -> str:
         prompt = self.__memory_prompt.format(
