@@ -69,7 +69,7 @@ xVASynth is used as the text-to-speech engine by Mantella due to it being free o
 	#### 🌊 Torrent (Slowest, Easiest)  
    	Voice models can be downloaded via a single torrent. Torrents can be downloaded via Bittorent clients such as [qBittorent](https://www.qbittorrent.org/download). Note that download speeds vary depending on the time of day. Paste the below magnet link in your browser to receive a popup to open it via your Bittorent client, and set the download location to your_xVASynth_folder/resources/app/models/fallout4:  
 
-   	`magnet:?xt=urn:btih:fede8606fcaa6c753362392201d3f0ae1ad3b377&dn=Fallout_4_XVASynth_Voices`  
+   	`magnet:?xt=urn:btih:2ad8819bab72d25e5332baeae45d23412c04620a&dn=Fallout_4_XVASynth_Voices`  
 
 	#### 🛠️ Manual  
    	If you do not have Nexus Premium, you can also download the voice models directly from Nexus [here](https://www.nexusmods.com/fallout4/mods/49340?tab=files) (under "Optional", not "Old"). Once you have manually downloaded each voice model into a folder, unzip the models manually into the correct xVASynth folder (`xVASynth\resources\app\models\fallout4`). Once the extraction is complete, you can delete the zipped voice model files.  
