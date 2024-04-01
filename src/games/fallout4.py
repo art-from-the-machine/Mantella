@@ -3,6 +3,7 @@ import os
 import shutil
 from typing import Any
 import pandas as pd
+from src.http.file_communication_compatibility import file_communication_compatibility
 from src.conversation.context import context
 from src.audio.audio_playback import audio_playback
 from src.character_manager import Character
@@ -27,6 +28,8 @@ class fallout4(gameable):
 
     def __init__(self, config: ConfigLoader):
         super().__init__('data/Fallout4/fallout4_characters.csv', "Fallout4")
+        if config.game == "Fallout4VR":
+            self.__compatibility = file_communication_compatibility(config.game_path, int(config.port))# <- creating an object of this starts the listen thread
         self.__config: ConfigLoader = config
         encoding = utils.get_file_encoding(fallout4.FO4_XVASynth_file)
         self.__FO4_Voice_folder_and_models_df = pd.read_csv(fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)

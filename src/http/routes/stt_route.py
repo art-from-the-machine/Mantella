@@ -37,7 +37,7 @@ class stt_route(routeable):
             receivedJson: dict[str, Any] | None = request.json
             if receivedJson and receivedJson[self.KEY_REQUESTTYPE] == self.KEY_REQUESTTYPE_TTS:
                 if self._show_debug_messages:
-                    logging.log(self._log_level_http_in, receivedJson)
+                    logging.log(self._log_level_http_in, json.dumps(receivedJson, indent=4))
                 names: list[str] = receivedJson[self.KEY_INPUT_NAMESINCONVERSATION]
                 names_in_conversation = ', '.join(names)
                 transcribed_text = self.__stt.recognize_input(names_in_conversation)
@@ -52,5 +52,5 @@ class stt_route(routeable):
             self.KEY_TRANSCRIBE: transcribe,
         }
         if self._show_debug_messages:
-            logging.log(self._log_level_http_out, reply)
+            logging.log(self._log_level_http_out, json.dumps(reply, indent=4))
         return reply

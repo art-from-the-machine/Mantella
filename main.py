@@ -19,7 +19,7 @@ try:
 
     mantella_version = '0.11'
     logging.log(24, f'\nMantella v{mantella_version}')
-    should_debug_http = False
+    should_debug_http = bool(config.show_http_debug_messages)
 
     mantella_http_server = http_server()
     chat_manager = ChatManager(game, config, Synthesizer(config), llm_client)

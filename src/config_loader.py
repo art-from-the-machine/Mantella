@@ -79,6 +79,7 @@ See here to learn how to move your game's installation folder: https://art-from-
                 self.mod_path = config['Paths']['fallout4_mod_folder']
             elif self.game =="fallout4vr":
                 self.game ="Fallout4VR"
+                self.game_path = config['Paths']['fallout4vr_folder']
                 self.mod_path = config['Paths']['fallout4vr_mod_folder']
             elif self.game =="skyrimvr":
                 self.game ="SkyrimVR"

@@ -24,7 +24,7 @@ class mantella_route(routeable):
             receivedJson: dict[str, Any] | None = request.json
             if receivedJson:
                 if self._show_debug_messages:
-                    logging.log(self._log_level_http_in, receivedJson)
+                    logging.log(self._log_level_http_in, json.dumps(receivedJson, indent=4))
                 request_type: str = receivedJson[comm_consts.KEY_REQUESTTYPE]
                 match request_type:
                     case comm_consts.KEY_REQUESTTYPE_STARTCONVERSATION:
@@ -41,5 +41,5 @@ class mantella_route(routeable):
                 reply = self.__game.error_message(f"Request did not contain properly formatted json!")
 
             if self._show_debug_messages:
-                logging.log(self._log_level_http_out, reply)
+                logging.log(self._log_level_http_out, json.dumps(reply, indent=4))
             return json.dumps(reply)
