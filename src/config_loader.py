@@ -166,7 +166,7 @@ See here to learn how to move your game's installation folder: https://art-from-
 
             #HTTP
             self.port = config['HTTP']['port']
-            self.show_http_debug_messages = config['HTTP']['show_http_debug_messages']
+            self.show_http_debug_messages: bool = config['HTTP']['show_http_debug_messages'] == "1"
 
             #Conversation
             self.automatic_greeting = config['Conversation']['automatic_greeting']

@@ -8,14 +8,18 @@ from typing import Any
 import requests
 
 class file_communication_compatibility:
+    """Every instance of this class monitors a single file and once certain JSON is written to it, it forwards this to Mantella's HTTP server
+
+    Returns:
+        _type_: _description_
+    """
     COMMUNICATION_FILE_NAME: str = "_mantella_communication.txt"
     BASE_URL: str = "http://localhost:"
     KEY_ROUTE: str = "mantella_route"
 
     def __init__(self, path_to_file: str, port: int) -> None:
         self.__file: str = os.path.join(path_to_file, self.COMMUNICATION_FILE_NAME)
-        if not Path.exists(Path(self.__file)):
-            self.__write_response("")
+        self.__write_response("") #Create or clear file
         self.__url: str = self.BASE_URL + str(port) + "/"
         self.__monitor_thread = Thread(None, self.__monitor, None, []).start()
 
@@ -23,11 +27,13 @@ class file_communication_compatibility:
         reply: str = ""
         while True:
             json_text = self.__load_request_when_available(reply)
-            # json_text_single_quotes_fixed = ast.literal_eval(json_text)
             json_request = json.loads(json_text)
+            json_request = self.__lower_keys(json_request)
             if not json_request.__contains__(self.KEY_ROUTE):
                 continue
             route: str = json_request[self.KEY_ROUTE]
+            route = route.lower()
+            json_request[self.KEY_ROUTE] = route
             reply = self.__send_request_to_mantella(route, json_request)
             self.__write_response(reply)
     
@@ -65,3 +71,11 @@ class file_communication_compatibility:
                 else:
                     time.sleep(delay_between_attempts)
         return None
+    
+    def __lower_keys(self, json_object: Any) -> Any:
+        if isinstance(json_object, list):
+            return [self.__lower_keys(v) for v in json_object]
+        elif isinstance(json_object, dict):
+            return dict((k.lower(), self.__lower_keys(v)) for k, v in json_object.items())
+        else:
+            return json_object  
