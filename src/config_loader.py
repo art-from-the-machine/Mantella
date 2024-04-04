@@ -206,7 +206,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             skyrim_in_program_files = check_program_files(self.game_path)
             check_missing_mantella_file(self.game_path)
 
-        if not os.path.exists(f"{self.xvasynth_path}\\resources\\"):
+        if (self.tts_service == 'xvasynth') and (not os.path.exists(f"{self.xvasynth_path}\\resources\\")):
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")
         
         if not os.path.exists(f"{self.mod_path}\\Sound\\Voice\\Mantella.esp"):
