@@ -1,106 +1,82 @@
-# Skyrim Installation
+# Fallout 4 Installation
 If you get stuck anywhere in the installation process, please see {doc}`/pages/issues_qna` or reach out on [Discord](https://discord.gg/Q4BJAdtGUE).
-
-## Video Tutorial
-For visual guides to help install Mantella, see either of these tutorial videos below:
-
-### Dead Pixel Gaming
-<iframe width="560" height="315" src="https://www.youtube.com/embed/g5q2Pm8jaOQ?si=6MoeSJ-78X5GMENi" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
-```{admonition} Note
-:class: seealso
-
-xVASynth models do not have to be downloaded manually, see [here](#xvasynth) for more details.
-```
-
-### MrHaurrus (French with English subtitles)
-<iframe width="560" height="315" src="https://www.youtube.com/embed/-zRj2zFvGo0?si=yvhmMaZFCpgMYyhg" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
-```{admonition} Note
-:class: seealso
-
-xVASynth does not need to be run before Mantella.exe, and the bugs mentioned in the video have since been fixed.
-```
 
 ## Requirements
 ### Hardware Requirements
 #### xVASynth
 **CPU**  
-xVASynth runs in CPU mode by default, using a single CPU core/thread. Generally, if you can already run Skyrim, xVASynth should work with most CPU setups. 
+xVASynth runs in CPU mode by default, using a single CPU core/thread. Generally, if you can already run Fallout 4, xVASynth should work with most CPU setups. 
 
 <details>
 <summary><b>GPU (Optional)</b></summary>  
 
-NVIDIA cards that have CUDA can run xVASynth in GPU mode. Using the same GPU for both xVASynth and Skyrim may cause stutter.
+NVIDIA cards that have CUDA can run xVASynth in GPU mode. Using the same GPU for both xVASynth and Fallout 4 may cause stutter.
 </details>
 
 ### Storage Requirements
-This mod requires ~29GB of space when xVASynth and all voice models are installed. Temporarily another ~17GB is needed to unpack the voice models, unless the torrent is used which does not have the voice files archived.
+This mod requires ~16GB of space when xVASynth and all voice models are installed. 
 
 
 ### Compatibility
-- Some users have reported that Skyrim crashes when Mantella is used with **Fuz Ro D'oh**. A possible fix is to disable and re-enable Fuz Ro D'oh
+- [WARS - Weapon Addition and Replacement Suite](https://www.nexusmods.com/fallout4/mods/73478) conflicts with the Mantella Mod esp.
 - Mantella requires **Windows 10 / 11** (it is yet unconfirmed whether it works on Windows 7)
-- Mantella has been confirmed to work with the **FUS** (by pointing `skyrim_folder` to Skyrim), **Librum** (by pointing `skyrim_folder` to overwrite/root), and **Wildlands** (by pointing `skyrim_folder` to Wildlander/SKSE), and **Nolvus** Wabbajack modlists
-- Mantella needs to be loaded after the Unofficial Skyrim Special Edition Patch (**USSEP**) mod in your load order
 
-### Skyrim
+### Fallout4
 ```{admonition} Warning
 :class: attention
 
-As Mantella accesses and writes to files within your Skyrim folder, it is unlikely to work correctly **if you have Skyrim stored in Program Files / (x86)**. Please ensure that you have Skyrim stored outside of this folder (eg `C:\Games\Steam`).
+For Mantella to work properly you have to **enable archive invalidation** in your Fallout 4 ini file if you haven't already done so. See [here](https://www.nexusmods.com/fallout4/articles/3831) for instructions.
+```
+
+```{admonition} Warning
+:class: attention
+
+As Mantella accesses and writes to files within your Fallout 4 folder, it is unlikely to work correctly **if you have Fallout 4 stored in Program Files / (x86)**. Please ensure that you have Fallout 4 stored outside of this folder (eg `C:\Games\Steam`).
 ```
 
 Steam does not allow to create a new Steam Game Library on the same disk. You can either move the whole Steam client outside [as described on this Steam Support page](https://help.steampowered.com/en/faqs/view/4BD4-4528-6B2E-8327) or use [LostDragonist/steam-library-setup-tool](https://github.com/LostDragonist/steam-library-setup-tool/wiki/Usage-Guide) to allow multiple Steam Game Libraries on one disk.
 
 ### Mantella Files
-The Mantella files can be downloaded from [Nexus Mods](https://www.nexusmods.com/skyrimspecialedition/mods/98631).
+The Mantella files can be downloaded from [Nexus Mods](https://www.nexusmods.com/fallout4/).
 
 | File | Installation |
 |----------|----------|
-| Mantella Software | Extract this folder somewhere convenient to you (if you need some inspiration, you can store it in Documents). **Do not store this folder in Program Files / (x86), Desktop, or your Skyrim folder**. |
-| Mantella Spell | This file can be installed in the same way as other mods with your mod manager. |
+| Mantella Software | Extract this folder somewhere convenient to you (if you need some inspiration, you can store it in Documents). **Do not store this folder in Program Files / (x86), Desktop, or your Fallout 4 folder**. |
+| Mantella Mod | This file can be installed in the same way as other mods with your mod manager. |
 
 ## xVASynth
-xVASynth is used as the text-to-speech engine by Mantella due to it being free open-source software and already having Skyrim voice models trained.
-1. Download xVASynth via [Steam](https://store.steampowered.com/app/1765720/xVASynth/) (preferred) or [Nexus](https://www.nexusmods.com/skyrimspecialedition/mods/44184). Do not store xVASynth in your Skyrim folder.
+xVASynth is used as the text-to-speech engine by Mantella due to it being free open-source software and already having Fallout 4 voice models trained.
+1. Download xVASynth via [Steam](https://store.steampowered.com/app/1765720/xVASynth/) (preferred) or [Nexus](https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files). Do not store xVASynth in your Fallout 4 game folder.
 
-2. Download the Skyrim voice models. You can either download all models via a torrent, via the xVASynth UI if you have Nexus Premium, or manually via the Nexus Mods page:  
+2. Download the Fallout 4 voice models. You can either download all models via the xVASynth UI if you have Nexus Premium, or manually via the [Nexus mods page](https://www.nexusmods.com/fallout4/mods/49340):  
 
 	<br>
 	<details>
 	<summary><b>xVASynth Model Installation Options</b></summary>  
 
    	#### 💎 Nexus Premium (Quickest)  
-   	If you are subscribed to Nexus Premium, (1.) open the xVASynth UI and select "Get More Voices" from the bottom left corner. (2.) Unselect all games except for Skyrim, (3.) click "Check now" (you will be prompted to login to Nexus), then (4.) "Download All".
-	<img src="../_static/img/nexus_premium.png" alt="xVASynth Voice Models via Nexus Premium" width="800" height="auto" style="padding: 10px;"/>  
+   	If you are subscribed to Nexus Premium, (1.) open the xVASynth UI and select "Get More Voices" from the bottom left corner. (2.) Unselect all games except for Fallout 4, (3.) click "Check now" (you will be prompted to login to Nexus), then (4.) "Download All".
+	<img src="../_static/img/Nexus_Premium_Fallout4.jpg" alt="xVASynth Voice Models via Nexus Premium" width="800" height="auto" style="padding: 10px;"/>  
 
 	```{admonition} Note
 	:class: seealso
 
 	You may need to restart the download a few times for all voice models to properly download.  
 	```
+	#### 🌊 Torrent (Slowest, Easiest)  
+   	Voice models can be downloaded via a single torrent. Torrents can be downloaded via Bittorent clients such as [qBittorent](https://www.qbittorrent.org/download). Note that download speeds vary depending on the time of day. Paste the below magnet link in your browser to receive a popup to open it via your Bittorent client, and set the download location to your_xVASynth_folder/resources/app/models/fallout4:  
 
-   	#### 🌊 Torrent (Slowest, Easiest)  
-   	Voice models can be downloaded via a single torrent. Torrents can be downloaded via Bittorent clients such as [qBittorent](https://www.qbittorrent.org/download). Note that download speeds vary depending on the time of day. Paste the below magnet link in your browser to receive a popup to open it via your Bittorent client, and set the download location to your_xVASynth_folder/resources/app/models/skyrim:  
+   	`magnet:?xt=urn:btih:2ad8819bab72d25e5332baeae45d23412c04620a&dn=Fallout_4_XVASynth_Voices`  
 
-   	`magnet:?xt=urn:btih:798BB3190E776BFDCF590910C0805656420F45BC&dn=skyrim&tr=udp%3a%2f%2ftracker.opentrackr.org%3a1337&tr=udp%3a%2f%2fexplodie.org%3a6969&tr=wss%3a%2f%2ftracker.btorrent.xyz&tr=wss%3a%2f%2ftracker.openwebtorrent.com`  
-
-	```{admonition} Note
-	:class: seealso
-
-	This magnet URI may be removed from this page if any voice model becomes unavailable on Nexus Mods.  
-	```
-   
-	#### 🛠️ Manual (Hardest)  
-   	If you do not have Nexus Premium, or if the torrent is not available, you can also download the voice models directly from Nexus [here](https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files) (under "Optional", not "Old"). Once you have manually downloaded each voice model into a folder, unzip the models manually into the correct xVASynth folder (`xVASynth\resources\app\models\skyrim`). Once the extraction is complete, you can delete the zipped voice model files.  
-	The contents of `xVASynth\resources\app\models\skyrim` should look like the below:  
-	<img src="../_static/img/xvasynth_models_folder.png" alt="Lip Plugin Folder" width="800" height="auto" style="padding: 10px;"/>
+	#### 🛠️ Manual  
+   	If you do not have Nexus Premium, you can also download the voice models directly from Nexus [here](https://www.nexusmods.com/fallout4/mods/49340?tab=files) (under "Optional", not "Old"). Once you have manually downloaded each voice model into a folder, unzip the models manually into the correct xVASynth folder (`xVASynth\resources\app\models\fallout4`). Once the extraction is complete, you can delete the zipped voice model files.  
+	The contents of `xVASynth\resources\app\models\fallout4` should look like the below:  
+	<img src="../_static/img/xvasynth_models_folder_fallout4.JPG" alt="Fallout 4 XVASynth models folder" width="800" height="auto" style="padding: 10px;"/>
 
 	```{admonition} Note
 	:class: seealso
 
-	If downloading all models sounds a bit daunting, you can start with the "Male Nord" and "Male Soldier" voice models to at least allow talking to Skyrim guards.
+	If downloading all models sounds a bit daunting, you can start with the "Piper", "MaleEvenToned", "MaleBoston", "FemaleBoston" voice models to allow you to talk to most generic human NPCs.
 	```
 	  
 	</details>
@@ -111,35 +87,34 @@ xVASynth is used as the text-to-speech engine by Mantella due to it being free o
 When installed correctly, it should look like the below:  
 <img src="../_static/img/lip_fuz_plugin_folder.png" alt="Lip Plugin Folder" width="800" height="auto" style="padding: 10px;"/>
 
-5. (Optional) Download the xVASynth DeepMoji Plugin [here](https://www.nexusmods.com/skyrimspecialedition/mods/107142). It boosts the emotionality of xVASynth voice models to make them sound less robotic (only available in English).
+5. (Optional) Download the xVASynth DeepMoji Plugin [here](https://www.nexusmods.com/skyrimspecialedition/mods/107142). It boosts the emotionality of xVASynth voice models to make them sound less robotic (only available in English). Note that some Fallout 4 XVASynth voice models are older (<3.0) and for those the output will not be improved by use of the DeepMoji plugin.
 
-## Required Skyrim Mods
+6. (Optional) Download the xVASynth Punctuation Pitch Adjuster Plugin [here](https://bunglepaws.neocities.org/downloads/punctuation_pitch_adjuster_for_xvasynth.zip). It will add a high pitch tone at the final syllable for sentences that contain a question mark.
+
+## Required Fallout 4 mods
 ```{admonition} Warning
 :class: attention
 
-Always ensure you are downloading the right version of each mod for your version of Skyrim. **This is the #1 reason for installation problems.** You can check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details -> File version. VR users can just download the VR version of each mod if available, or SE if not.
+Always ensure you are downloading the right version of each mod for your version of Fallout 4. You can check your Fallout 4 version by right-clicking its exe file in your Fallout 4. folder and going to Properties -> Details -> File version. it should be 1.10.163.0 (for Fallout 4 desktop) or 1.2.72.0 (for Fallout 4 VR).
 ```
 
-<img src="../_static/img/skyrim_version.png" alt="Skyrim Version" width="240" height="auto"/>
+<img src="../_static/img/fallout4_file_version.JPG" alt="Fallout 4 Version" width="640" height="auto"/>
 
 Please follow the installation instructions on each of the linked pages:
 
+**Fallout 4 Desktop**
 | Mod | Notes |
 |----------|----------|
-| [SKSE](http://skse.silverlock.org/) | Once installed by following the included readme.txt, run SKSE instead of the Skyrim exe. Note that there is a separate VR version of SKSE |
-| [VR Address Library for SKSEVR](https://www.nexusmods.com/skyrimspecialedition/mods/58101) or [Address Library for SKSE Plugins](https://www.nexusmods.com/skyrimspecialedition/mods/32444) |  |
-| [PapyrusUtil SE]( https://www.nexusmods.com/skyrimspecialedition/mods/13048) | **The VR version can be found under "Miscellaneous Files"** |
-| [UIExtensions](https://www.nexusmods.com/skyrimspecialedition/mods/17561) | If using text input instead of mic |
-| [SkyUI](https://www.nexusmods.com/skyrimspecialedition/mods/12604) | To access Mantella's MCM |
+| [F4SE](https://f4se.silverlock.org/) | Mandatory: Make sure to get the non VR version. Once installed, run f4se_loader.exe instead of Fallout4.exe. |
+| [SUP F4SE](https://www.nexusmods.com/fallout4/mods/55419) | Mandatory: Needed to generate the files needed for Mantella to communicate with Fallout 4 |
+| [Textinputmenu](https://www.nexusmods.com/fallout4/mods/27347) | Optional: Needed to access text input functions | 
 
-
-## Optional Skyrim Mods
-These mods aren't strictly necessary for Mantella to work, but they do greatly improve the experience.
-
+**Fallout 4 VR**
 | Mod | Notes |
 |----------|----------|
-| [No NPC Greetings](https://www.nexusmods.com/skyrim/mods/746) | Recommended so that Mantella voicelines are not interrupted by vanilla voicelines. |
-| [World Encounter Hostility Fix - Performance Version](https://www.nexusmods.com/skyrimspecialedition/mods/91403) | Stops certain NPCs from turning hostile when you cast the Mantella spell on them. This mod requires the [Unofficial Skyrim Special Edition Patch (USSEP)](https://www.nexusmods.com/skyrimspecialedition/mods/266). Mantella needs to be loaded after USSEP in your load order. |
+| [F4SE](https://f4se.silverlock.org/) | Mandatory: Make sure to get the VR version. Once installed, run f4se_loader.exe instead of the Fallout4.exe. |
+| [SUP F4SEVR](https://www.nexusmods.com/fallout4/mods/64420) | Mandatory: Needed to generate the files needed for Mantella to communicate with Fallout 4 |
+| [Fallout 4 Version Check Patcher](https://www.nexusmods.com/fallout4/mods/42497?tab=description) | Mandatory: Needed for Fallout 4 VR to accept the mod |
 
 ## Language Models (LLMs)
 LLMs power the creation of responses by NPCs. There are a number of different LLMs to choose from, ranging from free local models to large externally hosted models.
@@ -147,7 +122,7 @@ LLMs power the creation of responses by NPCs. There are a number of different LL
 ```{admonition} Note
 :class: seealso
 
-Some smaller models may struggle to handle long term conversations and memory summarising.
+Some smaller models may struggle to handle long term conversations and memory summarizing.
 ```
 
 If you just want to get started without thinking too much about it / explore alternative options later, follow the OpenAI setup instructions below.
@@ -247,17 +222,17 @@ It is reasonably fast even in CPU mode with the base model. Optionally, to use G
 </details>
 
 ## Setup & Configuration
-1. Set up the MantellaSoftware/config.ini file with your paths to Skyrim (`skyrim_folder`), xVASynth (`xvasynth_folder`) / XTTS (`xtts_server_folder`), and the Mantella Skyrim mod (`mod_folder`). Change `game` to "Skyrim" if you are not running Mantella in VR.
-	- **skyrim_folder**  
+1. Set up the MantellaSoftware/config.ini file with your paths to Fallout (`fallout4_folder` or `fallout4VR_folder`), xVASynth (`xvasynth_folder`) / XTTS (`xtts_server_folder`), and the Mantella Fallout 4 mod (`fallout4_mod_folder` or `fallout4VR_mod_folder`). You will need to set `game` to `Fallout4` or `Fallout4VR` (be mindful of typing it as per the config.ini options). IMPORTANT: **You do not need to set the path for every game or mantella_mod, just the ones you plan to use.** 
+	- **fallout4_folder**  
 	<details>
 	<summary>Mod Organizer 2 Users</summary>  
 
-	By default, this is simply the path to your Skyrim folder. If you are using a Wabbajack modlist, you may need to try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path and set this as your `skyrim_folder` path. For FUS users, once you set this path and cast the spell once, you then need to set your `skyrim_folder` path back to your actual Skyrim folder.
+	By default, this is simply the path to your Fallout 4 folder. If you are using a Wabbajack modlist, you may need to try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path and set this as your `fallout4_folder` or `fallout4VR_folder` path. 
 	</details>
 	<details>
 	<summary>Vortex 2 Users</summary>  
  
-	This is simply the path to your Skyrim folder.
+	This is simply the path to your Fallout 4 folder.
 	</details>
 
 	- **mod_folder**  
@@ -265,17 +240,17 @@ It is reasonably fast even in CPU mode with the base model. Optionally, to use G
 	<summary>Mod Organizer 2 Users</summary>  
 
 	You can find the mod folder by right clicking the mod in the Mod Organizer 2 UI and selecting "Open in Explorer":  
-	<img src="../_static/img/mo2_mod_folder.png" alt="Mod Organizer 2 Mod Folder" width="240" height="auto" style="padding: 10px;"/>  
+	<img src="../_static/img/find_mod_path_MO2.JPG" alt="Mod Organizer 2 Fallout 4 Mod Folder" width="800" height="auto" style="padding: 10px;"/>  
 	</details>
 	<details>
 	<summary>Vortex 2 Users</summary>  
  
-	You need to point `mod_folder` to your Skyrim/Data folder. So essentially, you need to take the Skyrim folder set in `skyrim_folder` and add "\Data" to the end of it. For example:  
+	You need to point `mod_folder` to your Fallout 4/Data folder. So essentially, you need to take the Fallout 4 folder set in `fallout4_folder` or `fallout4VR_folder` and add "\Data" to the end of it. For example:  
 	
-	`mod_folder = C:\Games\Steam\steamapps\common\Skyrim Special Edition\Data`  
+	`mod_folder = C:\Steam\steamapps\common\Fallout 4\Data`  
 	</details>
 	<br>
-2. Run Mantella.exe in MantellaSoftware and wait for the message "Waiting for player to select an NPC..." to display. Once it does, it is ready for you to select an NPC in-game via the Mantella spell.  
+2. Run Mantella.exe in MantellaSoftware. Once it does, it is ready for you to select an NPC in-game via the Mantella gun.  
 <img src="../_static/img/mantella_exe.png" alt="MCM General Settings" width="500" height="auto" style="padding: 10px;"/>  
 ```{admonition} Warning
 :class: attention
@@ -283,7 +258,7 @@ It is reasonably fast even in CPU mode with the base model. Optionally, to use G
 Do not try to run Mantella.exe through Mod Organizer 2 / Vortex as it will not work correctly.
 ```
 
-3. When you first load the mod, MAKE SURE TO CREATE A SAVE AND RELOAD THAT SAVE. The voicelines will not play otherwise! You do not have to start a new game to do this, you can also create a new save in an existing game. 
+3. If you add a new unlisted NPC and for some reason the lip sync isn't happening in game you may need to close and reopen Fallout 4.
 
 ```{admonition} Note
 :class: seealso
@@ -291,23 +266,22 @@ Do not try to run Mantella.exe through Mod Organizer 2 / Vortex as it will not w
 While there have not been issues reported with using Mantella in an existing save so far, please be aware that adding mods mid-game can cause problems.
 ```
 
-The Mantella spell & power should be added to your inventory under the Illusion category in the Magic menu once you install the mod. Conversations can be started by selecting an NPC with the spell, power, or hotkey (default is H). You can end a conversation by casting the Mantella End Conversation spell, or by simply saying / typing "goodbye". If the NPC responds with "safe travels" then the conversation has ended correctly via this latter method.  
+The Mantella gun and settings holotape will be added to your inventory as soon as the exit from Vault 111 is complete. If you install the mod mid-game they should be dropped in your inventory as well (might require a cell change for the trigger to happen). The items can also be crafted at the Chem Station under UTILITY. You can end a conversation by simply saying / typing "goodbye". If the NPC responds with "safe travels" then the conversation has ended correctly via this latter method.  
 
 
 ## Other Tips
+### Sound volume
+Sound volume can be set by modifying the value for `FO4_NPC_response_volume` in MantellaSoftware/config.ini
+
 ### Text Input
-Text input can be enabled by either setting `microphone_enabled = 0` in MantellaSoftware/config.ini or via Mantella's MCM in-game.
+Text input can be enabled by either setting `microphone_enabled = 0` in MantellaSoftware/config.ini. You can respond by text by using the 'Y' hotkey. This can be changed in holotape settings by entering the  [DirectX scan code](https://falloutck.uesp.net/wiki/DirectX_Scan_Codes).
 
-### Group Conversations
-Once a conversation has started, you can add more NPCs to the conversation between each of your responses:  
-`Cast Mantella on NPC1 -> Say hi to NPC1 -> Cast Mantella on NPC2 -> Say hi to NPC1 & NPC2 etc`
-
-### MCM
-Many options can be tweaked in the Mantella MCM, such as NPC actions and radiant conversations.  
-<img src="../_static/img/mcm_general.png" alt="MCM General Settings" width="970" height="auto" style="padding: 10px;"/>  
+### Holotape
+Many options can be modified in the holotape [Settings] Mantella Settings, such as NPC actions and radiant conversations.  
+<img src="../_static/img/fallout4_holotape_settings.JPG" alt="Fallout 4 Holotape Settings" width="970" height="auto" style="padding: 10px;"/>  
 
 ### NPCs not Found
-If the NPC is unavailable to Mantella (most likely a modded NPC which you can add yourself via {doc}`/pages/adding_modded_npcs`), the message "Conversation ended." should immediately pop up in the top left corner and the conversation will exit. If the only message you see from the spell is "Conversation ended", please refer to the "Issues Q&A" section for common solutions to this.
+If the NPC is unavailable to Mantella (most likely a modded NPC which you can add yourself via {doc}`/pages/adding_modded_npcs`), the message "Conversation ended." should immediately pop up in the top left corner and the conversation will exit. If the only message you see from the starting the conversation is "Conversation ended", please refer to the "Issues Q&A" section for common solutions to this. 
 
 ### Caching
 Voicelines are cached in the `MantellaSoftware/data/voicelines/` folder. If this data takes up too much space over time, the contents of voicelines/ can be periodically deleted.
