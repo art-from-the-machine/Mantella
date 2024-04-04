@@ -10,7 +10,7 @@ For visual guides to help install Mantella, see either of these tutorial videos 
 ```{admonition} Note
 :class: seealso
 
-xVASynth models do not have to be downloaded manually, see [here](#xvasynth) for more details.
+xVASynth models do not have to be downloaded manually, see [here](#text-to-speech) for more details.
 ```
 
 ### MrHaurrus (French with English subtitles)
@@ -61,8 +61,12 @@ The Mantella files can be downloaded from [Nexus Mods](https://www.nexusmods.com
 | Mantella Software | Extract this folder somewhere convenient to you (if you need some inspiration, you can store it in Documents). **Do not store this folder in Program Files / (x86), Desktop, or your Skyrim folder**. |
 | Mantella Spell | This file can be installed in the same way as other mods with your mod manager. |
 
-## xVASynth
-xVASynth is used as the text-to-speech engine by Mantella due to it being free open-source software and already having Skyrim voice models trained.
+## Text-to-Speech
+Mantella can either be run with xVASynth or XTTS to generate the voicelines for NPCs. It is recommended to start with xVASynth because it is has lower hardware requirements than XTTS, but if you either have a powerful GPU / don't mind paying to run XTTS externally you can choose this option below.
+
+<details>
+	<summary><b>xVASynth</b></summary>  
+
 1. Download xVASynth via [Steam](https://store.steampowered.com/app/1765720/xVASynth/) (preferred) or [Nexus](https://www.nexusmods.com/skyrimspecialedition/mods/44184). Do not store xVASynth in your Skyrim folder.
 
 2. Download the Skyrim voice models. You can either download all models via a torrent, via the xVASynth UI if you have Nexus Premium, or manually via the Nexus Mods page:  
@@ -112,6 +116,33 @@ When installed correctly, it should look like the below:
 <img src="../_static/img/lip_fuz_plugin_folder.png" alt="Lip Plugin Folder" width="800" height="auto" style="padding: 10px;"/>
 
 5. (Optional) Download the xVASynth DeepMoji Plugin [here](https://www.nexusmods.com/skyrimspecialedition/mods/107142). It boosts the emotionality of xVASynth voice models to make them sound less robotic (only available in English).
+</details>
+<br>
+
+<details>
+	<summary><b>XTTS</b></summary>  
+	<details>
+		<summary><b>Local</b></summary> 
+
+</details>  
+	<details>
+	<summary><b>External ($0.14/hr)</b></summary>  
+
+1. Make a RunPod account ([https://www.runpod.io/](https://www.runpod.io/)) and add some credits ($10 minimum).
+
+2. Follow [this link](https://runpod.io/console/gpu-cloud?template=x9ddee271u&ref=szjabwfp) to open the Mantella XTTS Pod. Choose a GPU to run the Pod with (if in doubt, choose the cheapest). Note that cheaper GPUs are available if you change the "Secure Cloud" setting to "Community Cloud".  
+<img src="../_static/img/xtts_runpod_cloud_type.png" alt="XTTS RunPod Cloud Type" width="400" height="auto" style="padding: 10px;"/>
+
+3. On the following two pages just click "Continue" and "Deploy" (you don't need to change any settings here).
+
+4. Once the Pod is running, in your MantellaSoftware/config.ini set `tts_service` to "XTTS" and `xtts_url` to `https://{pod_id}-8020.proxy.runpod.net/`, with {POD-ID} being the ID of the running Pod. Eg `https://a1b2c3d4qwerty-8020.proxy.runpod.net/`.  
+<img src="../_static/img/xtts_runpod_id.png" alt="XTTS RunPod ID" width="800" height="auto" style="padding: 10px;"/>
+
+5. It takes a few minutes for the Pod to start up, you can check the progress in Logs -> Container Logs from the Pod's dropdown menu. It will say "Uvicorn running" when it is ready.
+
+6. When you are finished using Mantella, make sure to delete the Pod so that you are no longer charged! It only takes a few clicks to set up a new Pod so don't feel guilty about deleting it.
+</details>  
+</details>  
 
 ## Required Skyrim Mods
 ```{admonition} Warning
