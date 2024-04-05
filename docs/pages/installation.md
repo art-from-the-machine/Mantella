@@ -126,7 +126,7 @@ When installed correctly, it should look like the below:
 	<details>
 		<summary><b>Local</b></summary> 
 
-1. Download MrHaurrus's XTTS API server from [here](https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files) and unzip it.
+1. Download MrHaurrus's XTTS API server from [here](https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files) and unzip it. If the latest file is under quarantine you can download the previous version of the file at the bottom of the page (which is only compatible with NVIDIA GPUs).
 
 2. Download the [voice models (latents) folder](https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files) for your desired language. Extract this folder into the same folder as `xtts-api-server-mantella.exe` above. In other words, you should have a folder called `latent_speaker_folder` in your XTTS folder.
 
