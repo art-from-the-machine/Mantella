@@ -44,8 +44,12 @@ The Mantella files can be downloaded from [Nexus Mods](https://www.nexusmods.com
 | Mantella Software | Extract this folder somewhere convenient to you (if you need some inspiration, you can store it in Documents). **Do not store this folder in Program Files / (x86), Desktop, or your Fallout 4 folder**. |
 | Mantella Mod | This file can be installed in the same way as other mods with your mod manager. |
 
-## xVASynth
-xVASynth is used as the text-to-speech engine by Mantella due to it being free open-source software and already having Fallout 4 voice models trained.
+## Text-to-Speech
+Mantella can either be run with xVASynth or XTTS to generate the voicelines for NPCs. It is recommended to start with xVASynth because it is has lower hardware requirements than XTTS, but if you either have a powerful GPU / don't mind paying to run XTTS externally you can choose this option below.
+
+<details>
+	<summary><b>xVASynth</b></summary>  
+
 1. Download xVASynth via [Steam](https://store.steampowered.com/app/1765720/xVASynth/) (preferred) or [Nexus](https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files). Do not store xVASynth in your Fallout 4 game folder.
 
 2. Download the Fallout 4 voice models. You can either download all models via the xVASynth UI if you have Nexus Premium, or manually via the [Nexus mods page](https://www.nexusmods.com/fallout4/mods/49340):  
@@ -90,6 +94,46 @@ When installed correctly, it should look like the below:
 5. (Optional) Download the xVASynth DeepMoji Plugin [here](https://www.nexusmods.com/skyrimspecialedition/mods/107142). It boosts the emotionality of xVASynth voice models to make them sound less robotic (only available in English). Note that some Fallout 4 XVASynth voice models are older (<3.0) and for those the output will not be improved by use of the DeepMoji plugin.
 
 6. (Optional) Download the xVASynth Punctuation Pitch Adjuster Plugin [here](https://bunglepaws.neocities.org/downloads/punctuation_pitch_adjuster_for_xvasynth.zip). It will add a high pitch tone at the final syllable for sentences that contain a question mark.
+</details>
+<br>
+
+<details>
+	<summary><b>XTTS</b></summary>  
+	See here for MrHaurrus's tutorial on setting up XTTS, or read the instructions below:  
+	<iframe width="560" height="315" src="https://www.youtube.com/embed/gvT0t87JVjo?si=Pvh3tSixieccuTwj" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>  
+	<details>
+		<summary><b>Local</b></summary> 
+
+1. Download MrHaurrus's XTTS API server from [here](https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files) and unzip it.
+
+2. Download the [voice models (latents) folder](https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files) called "english latent speaker for Fallout 4". Extract this folder into the same folder as `xtts-api-server-mantella.exe` above. In other words, you should have a folder called `latent_speaker_folder` in your XTTS folder.
+
+3. Download the .lip plugin [here](https://www.nexusmods.com/skyrimspecialedition/mods/55605) and download FaceFXWrapper from [here](https://www.nexusmods.com/skyrimspecialedition/mods/20061) (you do not need to download CK64Fixes). Instructions on how to install these are on the .lip plugin Nexus page. Make sure to place FaceFXWrapper in the plugins folder as stated on the .lip plugin page.  
+
+4. Set `xtts_server_folder` in MantellaSoftware/config.ini to the path of your new exe, and `tts_service` to "XTTS".
+
+5. (Optional) Configure XTTS settings in the [Speech.Advanced] section of MantellaSoftware/config.ini. Note that if you are using an NVIDIA GPU, the `xtts_deepspeed` setting can improve response times by 2-4x if you also have `xtts_device` set to "cuda".
+
+</details>  
+<br>  
+	<details>
+	<summary><b>External (from $0.14/hr)</b></summary>  
+
+1. Make a RunPod account ([https://www.runpod.io/](https://www.runpod.io/)) and add some credits ($10 minimum).
+
+2. Follow [this link](https://runpod.io/console/gpu-cloud?template=x9ddee271u&ref=szjabwfp) to open the Mantella XTTS Pod. Choose a GPU to run the Pod with (if in doubt, choose the cheapest). Note that cheaper GPUs are available if you change the "Secure Cloud" setting to "Community Cloud".  
+<img src="../_static/img/xtts_runpod_cloud_type.png" alt="XTTS RunPod Cloud Type" width="400" height="auto" style="padding: 10px;"/>
+
+3. On the following two pages just click "Continue" and "Deploy" (you don't need to change any settings here).
+
+4. Once the Pod is running, in your MantellaSoftware/config.ini set `tts_service` to "XTTS" and `xtts_url` to `https://{pod_id}-8020.proxy.runpod.net/`, with {pod-id} being the ID of the running Pod. Eg `https://a1b2c3d4qwerty-8020.proxy.runpod.net/`.  
+<img src="../_static/img/xtts_runpod_id.png" alt="XTTS RunPod ID" width="800" height="auto" style="padding: 10px;"/>
+
+5. It takes a few minutes for the Pod to start up, you can check the progress in Logs -> Container Logs from the Pod's dropdown menu. It will say "Uvicorn running" when it is ready.
+
+6. When you are finished using Mantella, make sure to delete the Pod so that you are no longer charged! It only takes a few clicks to set up a new Pod so don't feel guilty about deleting it.
+</details>  
+</details>  
 
 ## Required Fallout 4 mods
 ```{admonition} Warning
@@ -122,22 +166,25 @@ LLMs power the creation of responses by NPCs. There are a number of different LL
 ```{admonition} Note
 :class: seealso
 
-Some smaller models may struggle to handle long term conversations and memory summarizing.
+Some smaller models may struggle to handle long term conversations and memory summarising.
 ```
 
-If you just want to get started without thinking too much about it / explore alternative options later, follow the OpenAI setup instructions below.
+By default Mantella is set up to run with Toppy, a free and easy to use model hosted on OpenRouter. It is recommended to start with this model. To learn how to get started, see the OpenRouter section below.
 
 ### API Models
 <details>
-<summary><b>OpenAI (First $5 Free)</b></summary>  
+<summary><b>OpenRouter (Free Models Available)</b></summary>  
 
-Copy your OpenAI secret API key (see [here](https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key) if you need help finding it (you will need to set up an account if you haven't already)) and paste into `MantellaSoftware/GPT_SECRET_KEY.txt`. Do not share this key with anyone. While there is a free trial, you will need to set up your payment details for the API to work.
+Create an account with OpenRouter. Go to the "Keys" tab and generate a new key, saving its value to `MantellaSoftware/GPT_SECRET_KEY.txt` (do not share this secret key with anyone). This is all you need to do to get started with Toppy, Mantella's default model.
+
+While Toppy is a good model to get started with, it can fall short when trying to handle complex conversations, in-game lore, or long term memories. To try out a different model, in MantellaSoftware/config.ini set `model` to a model from the list [here](https://openrouter.ai/docs#models) (eg `undi95/toppy-m-7b`). Note that the majority of other models are not free, and you will need to add credits to your account to use them.
 </details>
 <br>
-<details>
-<summary><b>OpenRouter (First $1 Free, Free Models Often Available)</b></summary>  
 
-Create an account with OpenRouter. Go to the "Keys" tab and generate a new key, saving its value to `MantellaSoftware/GPT_SECRET_KEY.txt`. Do not share this secret key with anyone. In MantellaSoftware/config.ini, set `model` to a model from the list [here](https://openrouter.ai/docs#models) (eg `undi95/toppy-m-7b`). Set `alternative_openai_api_base` to "https://openrouter.ai/api/v1" (without quotes).
+<details>
+<summary><b>OpenAI</b></summary>  
+
+Copy your OpenAI secret API key (see [here](https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key) if you need help finding it (you will need to set up an account if you haven't already)) and paste into `MantellaSoftware/GPT_SECRET_KEY.txt`. Do not share this key with anyone. Note that you will need to set up your payment details for the API to work.
 </details>
 <br>
 
@@ -156,8 +203,6 @@ Create an account with OpenRouter. Go to the "Keys" tab and generate a new key, 
 
 4. Start text-generation-webui and wait for the UI to open in your web browser. Navigate to the "Model" tab, select your model from the drop-down list, and click "Load".  
 <img src="../_static/img/ooba_load_model.png" alt="text-generation-webui Load Model" width="400" height="auto" style="padding: 10px;"/>  
-
-5. In your `MantellaSoftware/config.ini` file, set `alternative_openai_api_base` to "http://127.0.0.1:5000/v1" (without quotes). Don't worry about the `model` setting in `MantellaSoftware/config.ini`, it will be overriden by the model selected in text-generation-webui. 
 
 ```{admonition} Note
 :class: seealso
@@ -183,28 +228,11 @@ Make sure text-generation-webui is running when Mantella is running!
 
 Under the "Presets" drop down at the top, choose either Use CLBlast, or Use CuBlas (if using Cuda). You will then see a field for GPU Layers. If you want to use CPU only leave it at 0. If you want to use your GPU, you can experiment with how many "layers" to offload to your GPU based on your system.
 ```
-4. In your `MantellaSoftware/config.ini` file, set `alternative_openai_api_base` to "http://localhost:5001/v1" (without quotes). Don't worry about the `model` setting in `MantellaSoftware/config.ini`, it will be overriden by the model selected in the previous step. 
 
 ```{admonition} Note
 :class: seealso
 
 Make sure koboldcpp is running when Mantella is running! 
-```
-</details>
-<br>
-<details>
-<summary><b>koboldcpp Google Colab Notebook (Free Cloud Service, Potentially Spotty Access / Availablity)</b></summary> 
-
-This option does not require a powerful computer to run a large language model, because it runs in the Google cloud. It is free and easy to use, and can handle most .gguf models that are up to 13B parameters with Q4_K_M quantization all on the free T4 GPU you get with Google Colab. The downside is Google controls dynamically when the GPUs are available and could throttle your access at any time, so it may not always work / be available.
-
-To use this method, go to [this web page](https://colab.research.google.com/github/LostRuins/koboldcpp/blob/concedo/colab.ipynb). Click the play button that appears below the text "Enter your model below and then click this to start Koboldcpp."  Wait until text stops generating (probably will take a minute or two).  You should see a URL link near the end of the text after a statement like "Connect to the link below," with a silly name, in a format like `https://its-taking-time-indeed.trycloudflare.com`. You may want to click on the link just to ensure koboldcpp pops up to ensure it is ready before proceeding. 
-
-Select that link and copy it with CTRL+C.  In your `MantellaSoftware/config.ini` file, set `alternative_openai_api_base` to that URL by pasting it, and then add /v1 at the end. So it will look something like `alternative_openai_api_base = https://its-taking-time-indeed.trycloudflare.com/v1`.  Make sure to keep your browser open to the koboldcpp Colab notebook while using Mantella so it does not turn off. If you want to choose a different model to use with this method, make sure it is a .gguf model and follow the instructions on the Colab to do so.
-
-```{admonition} Note
-:class: seealso
-
-Be sure to close your browser tab once you've finished your Mantella session to free up the GPU and help avoid hitting Google's usage limits.
 ```
 </details>
 <br>
