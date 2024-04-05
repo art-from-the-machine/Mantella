@@ -258,8 +258,86 @@ class ChatManager:
                         break
 
                     except ValueError:
-                        logging.error("Error processing audio array from _mantella_audio_ready.txt")
-                        break
+                        asyncio.sleep(0.1)
+                        with open(f'{self.root_mod_folder}/_mantella_audio_ready.txt', 'r', encoding='utf-8') as f:
+                            audio_array_str = f.read().strip()
+                            #check if a value is entered in the audio array (necessary to prevent Mantella trying to read an empty file)
+                            if audio_array_str.lower() != 'false' and audio_array_str:
+                                try:
+                                    # Parse the data
+                                    npc_distance, playerPosX, playerPosY, game_angle_z, targetPosX, targetPosY = map(float, audio_array_str.split(','))
+                                    player_pos = (playerPosX, playerPosY)
+                                    target_pos = (targetPosX, targetPosY)
+                                    
+                                    # Calculate the relative angle
+                                    relative_angle = self.calculate_relative_angle(player_pos, target_pos, game_angle_z)
+
+                                    # Normalize the relative angle between -180 and 180
+                                    normalized_angle = relative_angle % 360
+                                    if normalized_angle > 180:
+                                        normalized_angle -= 360  # Adjust angles to be within [-180, 180]
+
+                                    # Calculate volume scale based on the normalized angle
+                                    if normalized_angle >= -90 and normalized_angle <= 90:  # Front half
+                                        # Linear scaling: Full volume at 0 degrees, decreasing to 50% volume at 90 degrees to either side
+                                        volume_scale_left = 0.5 + normalized_angle / 90 * 0.5
+                                        volume_scale_right = 0.5 - normalized_angle / 90 * 0.5
+                                    elif normalized_angle > 90 and normalized_angle < 180:
+                                        volume_scale_left = 90 / normalized_angle
+                                        volume_scale_right = 1- 90 / normalized_angle
+                                    elif normalized_angle > -180 and normalized_angle < -90:
+                                        volume_scale_left = 1- 90 / abs(normalized_angle)
+                                        volume_scale_right = 90 / abs(normalized_angle)
+                                    else:  # failsafe if for some reason an unmanaged number is entered
+                                        volume_scale_left = 0.5
+                                        volume_scale_right = 0.5
+
+                                    # Apply the calculated scale differently to left and right channels based on angle direction
+                                    #if normalized_angle >= 0:  # Turning right
+                                    #    volume_scale_left = volume_scale
+                                    #    volume_scale_right = 1 - abs(normalized_angle) / 90 * 0.5  # Decrease right volume as angle increases
+                                    #else:  # Turning left
+                                    #    volume_scale_right = volume_scale
+                                    #    volume_scale_left = 1 - abs(normalized_angle) / 90 * 0.5  # Decrease left volume as angle decreases
+
+                                    # Ensure volumes don't drop below a threshold, for example, 0.1, if you want to keep a minimum volume level
+                                    min_volume_threshold = 0.1
+                                    volume_scale_left = max(volume_scale_left, min_volume_threshold)
+                                    volume_scale_right = max(volume_scale_right, min_volume_threshold)
+
+                                    if npc_distance > 0:
+                                        distance_factor = max(0, 1 - (npc_distance / 4000))
+                                    else:
+                                        distance_factor=1
+
+                                    # Load the WAV file
+                                    sound = pygame.mixer.Sound(wav_file_path)
+                                    original_audio_array = pygame.sndarray.array(sound)
+                                    
+                                    if original_audio_array.ndim == 1:  # Mono sound
+                                        # Duplicate the mono data to create a stereo effect
+                                        audio_data_stereo = np.stack((original_audio_array, original_audio_array), axis=-1)
+                                    else:
+                                        audio_data_stereo = original_audio_array
+                                    
+                                    # Adjust volume for each channel according to angle, distance, and config volume
+                                    audio_data_stereo[:, 0] = (audio_data_stereo[:, 0] * volume_scale_left * distance_factor * FO4Volume_scale).astype(np.int16)  # Left channel
+                                    audio_data_stereo[:, 1] = (audio_data_stereo[:, 1] * volume_scale_right * distance_factor * FO4Volume_scale).astype(np.int16)  # Right channel
+                                    
+                                    # Convert back to pygame sound object
+                                    adjusted_sound = pygame.sndarray.make_sound(audio_data_stereo)
+                                    
+                                    # Play the adjusted stereo audio
+                                    play_obj = adjusted_sound.play()
+                                    
+                                    while play_obj.get_busy():  # Wait until playback is done
+                                        pygame.time.delay(100)
+                                    del play_obj
+                                    self.game_state_manager.write_game_info('_mantella_audio_ready', 'false')
+                                    break
+                                except ValueError:
+                                    logging.error("Error processing audio array from _mantella_audio_ready.txt")
+                                    break
 
     def convert_game_angle_to_trig_angle(self, game_angle):
         #Used for Mantella Fallout to play directional audio
