@@ -40,6 +40,7 @@ class Synthesizer:
         self.xtts_url = config.xtts_url
         self.xtts_data = config.xtts_data
         self.xtts_server_path = config.xtts_server_path
+        self.xtts_accent = config.xtts_accent
         self.official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
 
         self.synthesize_url = 'http://127.0.0.1:8008/synthesize'
@@ -128,9 +129,9 @@ class Synthesizer:
         # Write the 16-bit audio data back to a file
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
 
-    def synthesize(self, voice, voiceline, in_game_voice, aggro=0):
+    def synthesize(self, voice, voiceline, in_game_voice, voice_accent, aggro=0):
         if voice != self.last_voice:
-            self.change_voice(voice)
+            self.change_voice(voice, voice_accent)
 
         logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
         phrases = self._split_voiceline(voiceline)
@@ -500,7 +501,7 @@ class Synthesizer:
             sys.exit(0)
             
     @utils.time_it
-    def change_voice(self, voice):
+    def change_voice(self, voice, voice_accent=None):
         logging.log(self.loglevel, 'Loading voice model...')
         
         if self.tts_service == 'xtts':
@@ -520,6 +521,8 @@ class Synthesizer:
 
             # Request to switch the voice model
             requests.post(self.xtts_switch_model, json={"model_name": model_voice})
+            if (self.xtts_accent == 1) and (voice_accent != None):
+                self.language = voice_accent
             self.last_voice = voice
             
         else :
