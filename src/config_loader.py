@@ -148,7 +148,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.xtts_lowvram = int(config['Speech.Advanced']['xtts_lowvram'])
             self.xtts_device = config['Speech.Advanced']['xtts_device']
             self.number_words_tts = int(config['Speech.Advanced']['number_words_tts'])
-            self.xtts_url = config['Speech.Advanced']['xtts_url']
+            self.xtts_url = config['Speech.Advanced']['xtts_url'].rstrip('/')
             self.xtts_data = config['Speech.Advanced']['xtts_data']
             
             self.xvasynth_process_device = config['Speech.Advanced']['tts_process_device']
