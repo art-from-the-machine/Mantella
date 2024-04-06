@@ -302,7 +302,7 @@ The Mantella gun and settings holotape will be added to your inventory as soon a
 Sound volume can be set by modifying the value for `FO4_NPC_response_volume` in MantellaSoftware/config.ini
 
 ### Text Input
-Text input can be enabled by either setting `microphone_enabled = 0` in MantellaSoftware/config.ini. You can respond by text by using the 'Y' hotkey. This can be changed in holotape settings by entering the  [DirectX scan code](https://falloutck.uesp.net/wiki/DirectX_Scan_Codes).
+Text input can be enabled by either setting `microphone_enabled = 0` in MantellaSoftware/config.ini. You can respond by text by using the 'H' hotkey. This can be changed in holotape settings by entering the  [DirectX scan code](https://falloutck.uesp.net/wiki/DirectX_Scan_Codes).
 
 ### Holotape
 Many options can be modified in the holotape [Settings] Mantella Settings, such as NPC actions and radiant conversations.  
