@@ -104,7 +104,7 @@ When installed correctly, it should look like the below:
 	<details>
 		<summary><b>Local</b></summary> 
 
-1. Download MrHaurrus's XTTS API server from [here](https://github.com/Haurrus/xtts-api-server-mantella/releases/tag/v0.1.2) (all 4 parts) and unzip it.
+1. Download MrHaurrus's XTTS API server from [here](https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files) and unzip it.
 
 2. Download the [voice models (latents) folder](https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files) called "english latent speaker for Fallout 4". Extract this folder into the same folder as `xtts-api-server-mantella.exe` above. In other words, you should have a folder called `latent_speaker_folder` in your XTTS folder.
 
