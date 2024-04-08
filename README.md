@@ -22,7 +22,9 @@ See [art-from-the-machine.github.io/Mantella/pages/issues_qna.html](https://art-
 See [art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim](https://art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim)
 
 # Contribute
-The source code for Mantella is included in this repo. Here are the quick steps to get set up:
+The source code for Mantella is included in this repo. Please note that this development version of Mantella is prone to error and is not recommended for general use.
+
+Here are the quick steps to get set up:
 
 1. Clone the repo to your machine
 2. Create a virtual environment via `py -3.11 -m venv MantellaEnv` in your console (Mantella requires Python 3.11)
