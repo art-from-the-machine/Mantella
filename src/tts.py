@@ -52,7 +52,7 @@ class Synthesizer:
         self.xtts_switch_model = f'{self.xtts_url}/switch_model'
         self.xtts_set_tts_settings = f'{self.xtts_url}/set_tts_settings'
         self.xtts_get_models_list = f'{self.xtts_url}/get_models_list'
-        self.xtts_set_output = f'{self.xtts_url}/set_output'
+        self.xtts_sspeakers_list = f'{self.xtts_url}/speakers_list'
 
         # voice models path (renaming Fallout4VR to Fallout4 to allow for filepath completion)
         if config.game == "Fallout4" or config.game == "Fallout4VR":
@@ -90,6 +90,7 @@ class Synthesizer:
 
         # last active voice model
         self.last_voice = ''
+        self.last_model = self.get_first_available_official_model()
 
         self.model_type = ''
         self.base_speaker_emb = ''
@@ -507,23 +508,17 @@ class Synthesizer:
         if self.tts_service == 'xtts':
             # Format the voice string to match the model naming convention
             voice_path = f"{voice.lower().replace(' ', '')}"
-            model_voice = voice_path
-            # Check if the specified voice is available
-            if voice_path not in self.available_models and voice != self.last_voice:
-                logging.log(self.loglevel, f'Voice "{voice}" not in available models. Available models: {self.available_models}')
-                # Use the first available official model as a fallback
-                model_voice = self.get_first_available_official_model()
-                if model_voice is None:
-                    # Handle the case where no official model is available
-                    raise ValueError("No available voice model found.")
-                # Update the voice_path with the fallback model
-                model_voice = f"{model_voice.lower().replace(' ', '')}"
+            if voice_path in self.available_models :
+                requests.post(self.xtts_switch_model, json={"model_name": voice_path})
+            elif self.last_model not in self.official_model_list :
+                voice_path = self.get_first_available_official_model()
+                voice_path = f"{voice_path.lower().replace(' ', '')}"
+                requests.post(self.xtts_switch_model, json={"model_name": voice_path})
 
-            # Request to switch the voice model
-            requests.post(self.xtts_switch_model, json={"model_name": model_voice})
             if (self.xtts_accent == 1) and (voice_accent != None):
                 self.language = voice_accent
             self.last_voice = voice
+            self.last_model = voice_path
             
         else :
             #this is a game check for Fallout4/Skyrim to correctly search the XVASynth voice models for the right game.
