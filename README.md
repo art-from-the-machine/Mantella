@@ -22,7 +22,7 @@ See [art-from-the-machine.github.io/Mantella/pages/issues_qna.html](https://art-
 See [art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim](https://art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim)
 
 # Contribute
-The source code for Mantella is included in this repo. Please note that this development version of Mantella is prone to error and is not recommended for general use.
+The source code for Mantella is included in this repo. Please note that this development version of Mantella is prone to error and is not recommended for general use. See [here](https://www.nexusmods.com/skyrimspecialedition/mods/98631) for the latest stable release.
 
 Here are the quick steps to get set up:
 
