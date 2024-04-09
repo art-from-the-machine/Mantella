@@ -38,5 +38,7 @@ If you have any trouble in getting the repo set up, please reach out on [Discord
 
 The source code for the Mantella spell mod can be found [here](https://github.com/art-from-the-machine/Mantella-Spell). Updates made on one repo are often intertwined with the other, so it is best to ensure you have the latest versions of each when developing.
 
+The source files for the [Mantella docs](https://art-from-the-machine.github.io/Mantella) are stored in the [gh-pages branch](https://github.com/art-from-the-machine/Mantella/tree/gh-pages).
+
 # Attributions
 Mantella uses material from the "[Skyrim: Characters](https://elderscrolls.fandom.com/wiki/Category:Skyrim:_Characters)" articles on the [Elder Scrolls wiki](https://elderscrolls.fandom.com/wiki/The_Elder_Scrolls_Wiki) at [Fandom](https://www.fandom.com/) and is licensed under the [Creative Commons Attribution-Share Alike License](https://creativecommons.org/licenses/by-sa/3.0/).
