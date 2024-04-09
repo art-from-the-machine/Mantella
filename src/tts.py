@@ -52,7 +52,7 @@ class Synthesizer:
         self.xtts_switch_model = f'{self.xtts_url}/switch_model'
         self.xtts_set_tts_settings = f'{self.xtts_url}/set_tts_settings'
         self.xtts_get_models_list = f'{self.xtts_url}/get_models_list'
-        self.xtts_sspeakers_list = f'{self.xtts_url}/speakers_list'
+        self.xtts_speakers_list = f'{self.xtts_url}/speakers_list'
 
         # voice models path (renaming Fallout4VR to Fallout4 to allow for filepath completion)
         if config.game == "Fallout4" or config.game == "Fallout4VR":
