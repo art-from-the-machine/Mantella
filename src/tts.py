@@ -65,6 +65,7 @@ class Synthesizer:
             logging.log(self.loglevel, f'Connecting to XTTS...')
             self.check_if_xtts_is_running()
             self.available_models = self._get_available_models()
+            self.last_model = self.get_first_available_official_model()
             if not self.facefx_path :
                 self.facefx_path = self.xtts_server_path + "/plugins/lip_fuz"
         else:
@@ -90,7 +91,6 @@ class Synthesizer:
 
         # last active voice model
         self.last_voice = ''
-        self.last_model = self.get_first_available_official_model()
 
         self.model_type = ''
         self.base_speaker_emb = ''
