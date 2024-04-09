@@ -276,30 +276,27 @@ It is reasonably fast even in CPU mode with the base model. Optionally, to use G
 
 ## Setup & Configuration
 1. Set up the MantellaSoftware/config.ini file with your paths to Skyrim (`skyrim_folder`), xVASynth (`xvasynth_folder`) / XTTS (`xtts_server_folder`), and the Mantella Skyrim mod (`mod_folder`). Change `game` to "Skyrim" if you are not running Mantella in VR.
-	- **skyrim_folder**  
-	<details>
-	<summary>Mod Organizer 2 Users</summary>  
 
-	By default, this is simply the path to your Skyrim folder. If you are using a Wabbajack modlist, you may need to try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path and set this as your `skyrim_folder` path. For FUS users, once you set this path and cast the spell once, you then need to set your `skyrim_folder` path back to your actual Skyrim folder.
-	</details>
+	<br>
 	<details>
-	<summary>Vortex 2 Users</summary>  
- 
-	This is simply the path to your Skyrim folder.
-	</details>
+	<summary><b>Mod Organizer 2 Users</b></summary>  
+
+	- **skyrim_folder**  
+	By default, this is simply the path to your Skyrim folder. If you are using a Wabbajack modlist, you may need to try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path and set this as your `skyrim_folder` path. For FUS users, once you set this path and cast the spell once, you then need to set your `skyrim_folder` path back to your actual Skyrim folder.
 
 	- **mod_folder**  
-	<details>
-	<summary>Mod Organizer 2 Users</summary>  
-
 	You can find the mod folder by right clicking the mod in the Mod Organizer 2 UI and selecting "Open in Explorer":  
 	<img src="../_static/img/mo2_mod_folder.png" alt="Mod Organizer 2 Mod Folder" width="240" height="auto" style="padding: 10px;"/>  
 	</details>
+	<br>
 	<details>
-	<summary>Vortex 2 Users</summary>  
+	<summary><b>Vortex Users</b></summary>  
  
+	- **skyrim_folder**  
+	This is simply the path to your Skyrim folder.  
+
+	- **mod_folder**  
 	You need to point `mod_folder` to your Skyrim/Data folder. So essentially, you need to take the Skyrim folder set in `skyrim_folder` and add "\Data" to the end of it. For example:  
-	
 	`mod_folder = C:\Games\Steam\steamapps\common\Skyrim Special Edition\Data`  
 	</details>
 	<br>

@@ -37,12 +37,12 @@ As Mantella accesses and writes to files within your Fallout 4 folder, it is unl
 Steam does not allow to create a new Steam Game Library on the same disk. You can either move the whole Steam client outside [as described on this Steam Support page](https://help.steampowered.com/en/faqs/view/4BD4-4528-6B2E-8327) or use [LostDragonist/steam-library-setup-tool](https://github.com/LostDragonist/steam-library-setup-tool/wiki/Usage-Guide) to allow multiple Steam Game Libraries on one disk.
 
 ### Mantella Files
-The Mantella files can be downloaded from [Nexus Mods](https://www.nexusmods.com/fallout4/).
+The Mantella files can be downloaded from [Nexus Mods](https://www.nexusmods.com/fallout4/mods/79747).
 
 | File | Installation |
 |----------|----------|
-| Mantella Software | Extract this folder somewhere convenient to you (if you need some inspiration, you can store it in Documents). **Do not store this folder in Program Files / (x86), Desktop, or your Fallout 4 folder**. |
-| Mantella Mod | This file can be installed in the same way as other mods with your mod manager. |
+| [Mantella Software](https://www.nexusmods.com/skyrimspecialedition/mods/98631?tab=files) | Extract this folder somewhere convenient to you (if you need some inspiration, you can store it in Documents). **Do not store this folder in Program Files / (x86), Desktop, or your Fallout 4 folder**. |
+| [Mantella Mod](https://www.nexusmods.com/fallout4/mods/79747?tab=files) | This file can be installed in the same way as other mods with your mod manager. |
 
 ## Text-to-Speech
 Mantella can either be run with xVASynth or XTTS to generate the voicelines for NPCs. It is recommended to start with xVASynth because it is has lower hardware requirements than XTTS, but if you either have a powerful GPU / don't mind paying to run XTTS externally you can choose this option below.
@@ -251,30 +251,27 @@ It is reasonably fast even in CPU mode with the base model. Optionally, to use G
 
 ## Setup & Configuration
 1. Set up the MantellaSoftware/config.ini file with your paths to Fallout (`fallout4_folder` or `fallout4VR_folder`), xVASynth (`xvasynth_folder`) / XTTS (`xtts_server_folder`), and the Mantella Fallout 4 mod (`fallout4_mod_folder` or `fallout4VR_mod_folder`). You will need to set `game` to `Fallout4` or `Fallout4VR` (be mindful of typing it as per the config.ini options). IMPORTANT: **You do not need to set the path for every game or mantella_mod, just the ones you plan to use.** 
-	- **fallout4_folder**  
+	
+	<br>
 	<details>
-	<summary>Mod Organizer 2 Users</summary>  
+	<summary><b>Mod Organizer 2 Users</b></summary>  
 
-	By default, this is simply the path to your Fallout 4 folder. If you are using a Wabbajack modlist, you may need to try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path and set this as your `fallout4_folder` or `fallout4VR_folder` path. 
-	</details>
-	<details>
-	<summary>Vortex 2 Users</summary>  
- 
-	This is simply the path to your Fallout 4 folder.
-	</details>
+	- **fallout4_folder**  
+	By default, this is simply the path to your Fallout 4 folder. If you are using a Wabbajack modlist, you may need to try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path and set this as your `fallout4_folder` or `fallout4VR_folder` path.  
 
 	- **mod_folder**  
-	<details>
-	<summary>Mod Organizer 2 Users</summary>  
-
 	You can find the mod folder by right clicking the mod in the Mod Organizer 2 UI and selecting "Open in Explorer":  
 	<img src="../_static/img/find_mod_path_MO2.JPG" alt="Mod Organizer 2 Fallout 4 Mod Folder" width="800" height="auto" style="padding: 10px;"/>  
 	</details>
+	<br>
 	<details>
-	<summary>Vortex 2 Users</summary>  
- 
+	<summary><b>Vortex Users</b></summary>  
+
+	- **fallout4_folder**  
+	This is simply the path to your Fallout 4 folder.  
+
+	- **mod_folder**  
 	You need to point `mod_folder` to your Fallout 4/Data folder. So essentially, you need to take the Fallout 4 folder set in `fallout4_folder` or `fallout4VR_folder` and add "\Data" to the end of it. For example:  
-	
 	`mod_folder = C:\Steam\steamapps\common\Fallout 4\Data`  
 	</details>
 	<br>
