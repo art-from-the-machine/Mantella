@@ -18,7 +18,7 @@ class Character:
         self.is_generic_npc = is_generic_npc
         self.in_game_voice_model = info['in_game_voice_model']
         self.voice_model = info['voice_model']
-        self.voice_accent = info.get('lang_override', None)
+        self.voice_accent = info.get('voice_accent', None)
 
         # if the exe is being run by another process, store conversation data in MantellaData rather than the local data folder
         if "--integrated" in sys.argv:
