@@ -110,7 +110,7 @@ try:
                 talk.add_character(character)
 
             with open(f'{config.game_path}/_mantella_end_conversation.txt', 'r', encoding='utf-8') as f:
-                if f.readline().strip() == 'true':
+                if f.readline().strip().lower() == 'true':
                     talk.end()
 
             # proceed the conversation
