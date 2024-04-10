@@ -108,8 +108,12 @@ class Synthesizer:
     def _get_available_models(self):
         # Code to request and return the list of available models
         response = requests.get(self.xtts_get_models_list)
-        return response.json() if response.status_code == 200 else []
-    
+        if response.status_code == 200:
+            # Convert each element in the response to lowercase and remove spaces
+            return [model.lower().replace(' ', '') for model in response.json()]
+        else:
+            return []
+            
     def _get_available_speakers(self):
         # Code to request and return the list of available models
         response = requests.get(self.xtts_get_speakers_list)
