@@ -3,6 +3,9 @@ from src.llm.messages import user_message
 import src.utils as utils
 import time
 import random
+from src.config_loader import ConfigLoader
+
+
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv/fallout4_characters.csv"""
@@ -436,10 +439,9 @@ class GameStateManager:
     @utils.time_it
     def update_game_events(self, message: user_message) -> user_message:
         """Add in-game events to player's response"""
-
-        # append in-game events to player's response
+        in_game_events_limit = ConfigLoader.config.getint('Gameplay', 'in_game_events_limit', fallback=5)
         with open(f'{self.game_path}/_mantella_in_game_events.txt', 'r', encoding='utf-8') as f:
-            in_game_events_lines = f.readlines()[-5:] # read latest 5 events
+            in_game_events_lines = f.readlines()[-in_game_events_limit:]
 
         message.add_event(in_game_events_lines)
 
