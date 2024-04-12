@@ -388,23 +388,29 @@ class GameStateManager:
                 try: # match name and full ID
                     character_info = character_df.loc[name_match & id_match].to_dict('records')[0]
                 except IndexError:
-                    try: # match name and partial ID
-                         character_info = character_df.loc[name_match & partial_id_match].to_dict('records')[0]
+                    try: # match name, partial ID, and race
+                         character_info = character_df.loc[name_match & partial_id_match & race_match].to_dict('records')[0]
                     except IndexError:
-                        try: # match just name
-                            character_info = character_df.loc[name_match].to_dict('records')[0]
+                        try: # match name and partial ID
+                            character_info = character_df.loc[name_match & partial_id_match].to_dict('records')[0]
                         except IndexError:
-                            try: # match just ID
-                                character_info = character_df.loc[id_match].to_dict('records')[0]
-                            except IndexError: # treat as generic NPC
-                                csvprefix = 'fallout4' if self.game in ["Fallout4", "Fallout4VR"] else 'skyrim'
-                                logging.info(f"Could not find {character_name} in {csvprefix}_characters.csv. Loading as a generic NPC.")
+                            try: # match name and race
+                                character_info = character_df.loc[name_match & race_match].to_dict('records')[0]
+                            except IndexError:
+                                try: # match just name
+                                    character_info = character_df.loc[name_match].to_dict('records')[0]
+                                except IndexError:
+                                    try: # match just ID
+                                        character_info = character_df.loc[id_match].to_dict('records')[0]
+                                    except IndexError: # treat as generic NPC
+                                        csvprefix = 'fallout4' if self.game in ["Fallout4", "Fallout4VR"] else 'skyrim'
+                                        logging.info(f"Could not find {character_name} in {csvprefix}_characters.csv. Loading as a generic NPC.")
 
-                                if self.game in ["Fallout4", "Fallout4VR"]:
-                                    character_info = self.FO4_load_unnamed_npc(character_name, character_df, FO4_Voice_folder_and_models_df)
-                                else:
-                                    character_info = self.skyrim_load_unnamed_npc(character_name, character_df)
-                                is_generic_npc = True
+                                        if self.game in ["Fallout4", "Fallout4VR"]:
+                                            character_info = self.FO4_load_unnamed_npc(character_name, character_df, FO4_Voice_folder_and_models_df)
+                                        else:
+                                            character_info = self.skyrim_load_unnamed_npc(character_name, character_df)
+                                        is_generic_npc = True
 
             return character_info, is_generic_npc
         
