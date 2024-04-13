@@ -44,7 +44,7 @@ try:
     game_state_manager = game_manager.GameStateManager(config.game_path, config.game)
     chat_manager = output_manager.ChatManager(game_state_manager, config, synthesizer, client)
     transcriber = stt.Transcriber(game_state_manager, config, client.api_key)    
-    rememberer: remembering = summaries(config.memory_prompt, config.resummarize_prompt, client, language_info['language'])
+    rememberer: remembering = summaries(config.memory_prompt, config.resummarize_prompt, client, language_info['language'], config.game)
     chat_manager.pygame_initialize()
 
     # end any lingering conversations from previous run

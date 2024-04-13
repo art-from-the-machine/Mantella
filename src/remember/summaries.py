@@ -13,7 +13,7 @@ class summaries(remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.35) -> None:
+    def __init__(self, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, game: str, summary_limit_pct: float = 0.35) -> None:
         super().__init__()
         self.loglevel = 28
         self.__summary_limit_pct: float = summary_limit_pct
@@ -21,6 +21,7 @@ class summaries(remembering):
         self.__language_name: str = language_name
         self.__memory_prompt: str = memory_prompt
         self.__resummarize_prompt:str = resummarize_prompt
+        self.__game:str = game.replace('VR','')
 
     def get_prompt_text(self, npcs_in_conversation: Characters) -> str:
         """Load the conversation summaries for all NPCs in the conversation and returns them as one string
@@ -60,7 +61,8 @@ class summaries(remembering):
     def __create_new_conversation_summary(self, messages: message_thread, npc_name: str) -> str:
         prompt = self.__memory_prompt.format(
                     name=npc_name,
-                    language=self.__language_name
+                    language=self.__language_name,
+                    game=self.__game
                 )
         while True:
             try:
@@ -104,7 +106,8 @@ class summaries(remembering):
                 try:
                     prompt = self.__resummarize_prompt.format(
                         name=npc.name,
-                        language=self.__language_name
+                        language=self.__language_name,
+                        game=self.__game
                     )
                     long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt, npc.name)
                     break
