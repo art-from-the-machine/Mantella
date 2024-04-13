@@ -162,7 +162,7 @@ class Synthesizer:
                 speaker_type = 'voice_model'
             elif in_game_voice and self._voice_exists(in_game_voice, 'regular'):
                 selected_voice = in_game_voice
-                speaker_type = 'skyrim_voice_folder'
+                speaker_type = 'game_voice_folder'
             voice = selected_voice
                 
         if voice != self.last_voice:
