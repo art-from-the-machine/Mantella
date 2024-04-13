@@ -442,13 +442,6 @@ class Synthesizer:
 
         return filtered_speakers
 
-        # Write to CSV file
-        with open(f"{log_file_name}_xtts.csv", 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerows(log_data)
-
-        return filtered_speakers
-
     def generate_filtered_speaker_dicts(self):
         # Filter and log advanced voice models
         self.advanced_filtered_speakers = self.filter_and_log_speakers(self.advanced_voice_model_data, "advanced_voice_model_data_log")
