@@ -211,5 +211,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")
         
         if not os.path.exists(f"{self.mod_path}\\Sound\\Voice\\Mantella.esp"):
+            if self.game == 'SkyrimVR': # check if "game" hasn't been changed from the default
+                logging.error('The selected game is Skyrim VR. If this is incorrect, please change the "game" setting in MantellaSoftware/config.ini\n')
             invalid_path(self.mod_path, f"{self.mod_path}\\Sound\\Voice\\Mantella.esp")
         self.mod_path += "\\Sound\\Voice\\Mantella.esp"
