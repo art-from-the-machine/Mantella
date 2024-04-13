@@ -1,6 +1,11 @@
 # Fallout 4 Installation
 If you get stuck anywhere in the installation process, please see {doc}`/pages/issues_qna` or reach out on [Discord](https://discord.gg/Q4BJAdtGUE).
 
+## Video Tutorial
+For a visual guide to help install Mantella, see the tutorial video from Dead Pixel Gaming below:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/oVWZY2e4bY8?si=lEjwEc3IHj0Csxaf" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 ## Requirements
 ### Hardware Requirements
 #### xVASynth
