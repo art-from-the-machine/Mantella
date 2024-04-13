@@ -643,7 +643,10 @@ class ChatManager:
                                         break
                 break
             except Exception as e:
-                logging.error(f"LLM API Error: {e}")
+                if e.code in [401, 'invalid_api_key']: # incorrect API key
+                    logging.error(f"Invalid API key. Please ensure you have selected the right model for your service (OpenAI / OpenRouter) via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+                else:
+                    logging.error(f"LLM API Error: {e}")
                 error_response = "I can't find the right words at the moment."
                 self.play_sentence_ingame(error_response, self.active_character)
                 # audio_file = self.__tts.synthesize(self.active_character.voice_model, None, error_response)
