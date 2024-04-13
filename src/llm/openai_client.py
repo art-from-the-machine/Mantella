@@ -192,7 +192,16 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
                 else:
                     break
         except Exception as e:
-            logging.error(f"LLM API Error: {e}")
+            if e.code in [401, 'invalid_api_key']: # incorrect API key
+                if self.__base_url == None: # None = OpenAI
+                    service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
+                else:
+                    service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
+                logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+            else:
+                logging.error(f"LLM API Error: {e}")
+            
+
         finally:
             await async_client.close()
 
