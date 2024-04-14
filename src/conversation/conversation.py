@@ -29,7 +29,7 @@ class conversation:
         self.__output_manager: ChatManager = output_manager
         self.__rememberer: remembering = rememberer
         self.__context_length: int = context_length
-        self.__token_limit_percent: float = 0.45
+        self.__token_limit_percent: float = token_limit_percent
         self.__has_already_ended: bool = False
 
     def add_character(self, new_character: Character):
@@ -90,7 +90,9 @@ class conversation:
         else:
             self.__add_assistant_message()
             # After an assistant_message is generated, check if the current message exchange is about to break the context size of the LLM and if yes, reload the conversation
-            if self.__output_manager.num_tokens(self.__messages) > (round(self.__context_length*self.__token_limit_percent,0)):
+            conversation_token_count = self.__output_manager.num_tokens(self.__messages)
+            conversation_token_limit = round(self.__context_length*self.__token_limit_percent,0)
+            if conversation_token_count > conversation_token_limit:
                 self.__reload_conversation()
 
         # After a message has been added, check if the conversation_type decides to end the conversation 

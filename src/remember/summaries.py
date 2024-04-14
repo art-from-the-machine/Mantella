@@ -13,7 +13,7 @@ class summaries(remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, game: str, summary_limit_pct: float = 0.35) -> None:
+    def __init__(self, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, game: str, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
         self.__summary_limit_pct: float = summary_limit_pct
