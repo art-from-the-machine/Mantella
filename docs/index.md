@@ -63,9 +63,11 @@ pages/attributions
 
 <hr style="border: 1px solid #505050; margin-top: 20px; margin-bottom: 20px;">
 
-See the latest update in action:
+See the latest trailer for Fallout 4 below:
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/UtvVn1TvNnA?si=SyGwwmgWXVjj9AK_" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/cFv8butywng?si=US-JPTPKy5a7sAPv" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 <br>
 
-Mantella Docs built by [Leidtier](https://github.com/Leidtier/MantellaDocs).
+<hr style="border: 1px solid #505050; margin-top: 20px; margin-bottom: 20px;">
+
+Mantella docs built by [Leidtier](https://github.com/Leidtier/MantellaDocs).
