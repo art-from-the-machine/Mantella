@@ -73,7 +73,7 @@ Mantella can either be run with xVASynth or XTTS to generate the voicelines for 
 	You may need to restart the download a few times for all voice models to properly download.  
 	```
 	#### 🌊 Torrent (Slowest, Easiest)  
-   	Voice models can be downloaded via a single torrent. Torrents can be downloaded via Bittorent clients such as [qBittorent](https://www.qbittorrent.org/download). Note that download speeds vary depending on the time of day. Paste the below magnet link in your browser to receive a popup to open it via your Bittorent client, and set the download location to your_xVASynth_folder/resources/app/models/fallout4:  
+   	Voice models can be downloaded via a single torrent. Torrents can be downloaded via Bittorent clients such as [qBittorent](https://www.qbittorrent.org/download). Note that download speeds vary depending on the time of day. Paste the below magnet link in your browser to receive a popup to open it via your Bittorent client, and set the download location to `your_xVASynth_folder/resources/app/models/` without creating an extra subfolder:
 
    	`magnet:?xt=urn:btih:c9cd4a5f766bee3bdb758ff37578440a9ce2dee2&dn=Fallout_4_XVASynth_Voices&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=wss%3A%2F%2Ftracker.btorrent.xyz`  
 
