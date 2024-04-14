@@ -60,7 +60,7 @@ try:
             )
             
         
-        logging.log(24, '\nConversations not starting when you select an NPC? See here:\nhttps://art-from-the-machine.github.io/Mantella/pages/issues_qna')
+        logging.log(24, '\n"NPC not added. Please try again after your next response"? See here:\nhttps://art-from-the-machine.github.io/Mantella/pages/issues_qna')
         logging.log(24, '\nWaiting for player to select an NPC...')
         game_state_manager.wait_for_conversation_init() #<- wait for init here
 
