@@ -526,6 +526,7 @@ class ChatManager:
         cumulative_sentence_bool = False
         #Added from xTTS implementation
         accumulated_sentence = ''
+        current_action = ''
         
         while True:
             try:
@@ -562,7 +563,10 @@ class ChatManager:
                                     parts = content_edit.split(':', 1)
                                     keyword_extraction = parts[0].strip()
                                     current_sentence = parts[1].strip() if len(parts) > 1 else ''
-    
+
+                                    # Store the extracted action or character switch in current_action
+                                    current_action = f" {keyword_extraction}: "
+
                                     # if LLM is switching character
                                     # Find the first character whose name starts with keyword_extraction
                                     matching_character_key = next((key for key in characters.get_all_names() if key.startswith(keyword_extraction)), None)
@@ -598,9 +602,9 @@ class ChatManager:
                                 sentence = remaining_content
                                 continue
                             else:
-                                if cumulative_sentence_bool == True :
+                                if cumulative_sentence_bool == True:
                                     sentence = accumulated_sentence
-                                else :
+                                else:
                                     sentence = accumulated_sentence + current_sentence
                                 accumulated_sentence = ''
                                 if len(sentence.strip()) < 3:
@@ -609,7 +613,7 @@ class ChatManager:
 
                                 logging.log(self.loglevel, f"LLM returned sentence took {time.time() - start_time} seconds to execute")
 
-                                if self.active_character :
+                                if self.active_character:
                                     # Generate the audio and return the audio file path
                                     try:
                                         audio_file = self.__tts.synthesize(self.active_character.voice_model, ' ' + sentence + ' ', self.active_character.in_game_voice_model, self.active_character.voice_accent, self.active_character.is_in_combat)
@@ -619,12 +623,18 @@ class ChatManager:
                                     # Put the audio file path in the sentence_queue
                                     await sentence_queue.put([audio_file, sentence])
 
-                                    full_reply += sentence
+                                    # Append current_action to full_reply before appending the accumulated sentence
+                                    if current_action != '':
+                                        full_reply += current_action + sentence.lstrip()
+                                        current_action = ''  # Clear current_action after appending it to full_reply
+                                    else:
+                                        full_reply += sentence
+                                    
                                     num_sentences += 1
-                                    if cumulative_sentence_bool == True :
+                                    if cumulative_sentence_bool == True:
                                         sentence = current_sentence + remaining_content
                                         cumulative_sentence_bool = False
-                                    else :
+                                    else:
                                         sentence = remaining_content
                                     remaining_content = ''
 
@@ -662,7 +672,14 @@ class ChatManager:
                 #Added from xTTS implementation
                 audio_file = self.__tts.synthesize(self.active_character.voice_model, ' ' + accumulated_sentence + ' ', self.active_character.in_game_voice_model, self.active_character.voice_accent, self.active_character.is_in_combat)
                 await sentence_queue.put([audio_file, accumulated_sentence])
-                full_reply += accumulated_sentence
+                
+                # Append current_action to full_reply before appending the accumulated sentence
+                if current_action != '':
+                    full_reply += current_action + accumulated_sentence.lstrip()
+                    current_action = ''  # Clear current_action after appending it to full_reply
+                else:
+                    full_reply += accumulated_sentence
+                
                 accumulated_sentence = ''
                 # clear the event for the next iteration
                 event.clear()
@@ -676,7 +693,7 @@ class ChatManager:
         # Mark the end of the response
         await sentence_queue.put(None)
 
-        messages.add_message(assistant_message(full_reply, characters.get_all_names()))
+        messages.add_message(assistant_message(full_reply.strip(), characters.get_all_names()))
         logging.log(23, f"Full response saved ({self.__client.calculate_tokens_from_text(full_reply)} tokens): {full_reply.strip()}")
 
         return messages
