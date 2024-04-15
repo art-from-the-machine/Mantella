@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Any
 from flask import Flask, request
-from src.config_loader import ConfigLoader
+from src.config.config_loader import ConfigLoader
 from src.http.routes.routeable import routeable
 from src.stt import Transcriber
 

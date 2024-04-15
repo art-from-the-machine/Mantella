@@ -10,7 +10,7 @@ import pandas as pd
 import sys
 import os
 
-import src.config_loader as config_loader
+import src.config.config_loader as config_loader
 from src.llm.openai_client import openai_client
 
 def initialise(config_file, logging_file, secret_key_file, language_file) -> tuple[gameable, config_loader.ConfigLoader, dict[Hashable, str], openai_client]:

@@ -7,7 +7,7 @@ import tiktoken
 import requests
 from src.llm.message_thread import message_thread
 from src.llm.messages import message
-from src.config_loader import ConfigLoader
+from src.config.config_loader import ConfigLoader
 
 class openai_client:
     """Joint setup for sync and async access to the LLMs

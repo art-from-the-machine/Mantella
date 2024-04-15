@@ -47,7 +47,7 @@ def get_file_encoding(file_path) -> str | None:
         return None
 
 
-def cleanup_mei(remove_mei_folders):
+def cleanup_mei(remove_mei_folders: bool):
     """
     Rudimentary workaround for https://github.com/pyinstaller/pyinstaller/issues/2379
     """
@@ -61,7 +61,7 @@ def cleanup_mei(remove_mei_folders):
                 mei_files.append(file)
         
         if (len(mei_files) > 0):
-            if (remove_mei_folders == '1'):
+            if (remove_mei_folders):
                 file_removed = 0
                 for file in mei_files:
                     try:

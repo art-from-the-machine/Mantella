@@ -7,7 +7,7 @@ from src.characters_manager import Characters
 from src.remember.remembering import remembering
 from src.utils import get_time_group
 from src.character_manager import Character
-from src.config_loader import ConfigLoader
+from src.config.config_loader import ConfigLoader
 
 class context:
     TOKEN_LIMIT_PERCENT: float = 0.45

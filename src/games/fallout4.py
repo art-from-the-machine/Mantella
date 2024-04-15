@@ -7,7 +7,7 @@ from src.http.file_communication_compatibility import file_communication_compati
 from src.conversation.context import context
 from src.audio.audio_playback import audio_playback
 from src.character_manager import Character
-from src.config_loader import ConfigLoader
+from src.config.config_loader import ConfigLoader
 from src.llm.sentence import sentence
 from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
@@ -174,7 +174,7 @@ class fallout4(gameable):
         mod_folder = config.mod_path
         # subtitle = queue_output.Sentence
         speaker: Character = queue_output.Speaker
-        if config.add_voicelines_to_all_voice_folders == '1':
+        if config.add_voicelines_to_all_voice_folders:
             for sub_folder in os.scandir(mod_folder):
                 if not sub_folder.is_dir():
                     continue
