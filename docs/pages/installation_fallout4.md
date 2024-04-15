@@ -182,7 +182,7 @@ By default Mantella is set up to run with Toppy, a free and easy to use model ho
 
 Create an account with OpenRouter. Go to the "Keys" tab and generate a new key, saving its value to `MantellaSoftware/GPT_SECRET_KEY.txt` (do not share this secret key with anyone). This is all you need to do to get started with Toppy, Mantella's default model.
 
-While Toppy is a good model to get started with, it can fall short when trying to handle complex conversations, in-game lore, or long term memories. To try out a different model, in MantellaSoftware/config.ini set `model` to a model from the list [here](https://openrouter.ai/docs#models) (eg `undi95/toppy-m-7b`). Note that the majority of other models are not free, and you will need to add credits to your account to use them.
+While Toppy is a good model to get started with, it can fall short when trying to handle complex conversations, in-game lore, or long term memories. You are also limited to 100 requests a day when using free models. To try out a different model, in MantellaSoftware/config.ini set `model` to a model from the list [here](https://openrouter.ai/docs#models) (eg `undi95/toppy-m-7b`). Note that the majority of other models are not free, and you will need to add credits to your account to use them.
 </details>
 <br>
 
