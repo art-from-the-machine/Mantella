@@ -29,7 +29,7 @@ try:
     )
 
     token_limit = client.token_limit
-    token_limit_percent: float = 0.45
+    starting_prompt_token_limit_percent: float = 0.5
     mantella_version = '0.11'
     logging.log(24, f'\nMantella v{mantella_version}')
 
@@ -66,12 +66,12 @@ try:
 
         #base setup for conversation
         num_characters_selected = 0
-        context_for_conversation = context(config, rememberer, language_info, client, token_limit_percent)
+        context_for_conversation = context(config, rememberer, language_info, client, starting_prompt_token_limit_percent)
 
         with open(f'{config.game_path}/_mantella_radiant_dialogue.txt', 'r', encoding='utf-8') as f:
             is_radiant_dialogue = f.readline().strip().lower() == 'true'
 
-        talk = conversation(context_for_conversation, transcriber, synthesizer, game_state_manager, chat_manager, rememberer, is_radiant_dialogue, token_limit, token_limit_percent)
+        talk = conversation(context_for_conversation, transcriber, synthesizer, game_state_manager, chat_manager, rememberer, is_radiant_dialogue, token_limit, config.max_tokens)
 
         while True: # Start conversation loop
             try:

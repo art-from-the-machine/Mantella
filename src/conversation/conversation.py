@@ -16,7 +16,7 @@ import src.utils as utils
 
 class conversation:
     """Controls the flow of a conversation."""
-    def __init__(self, context_for_conversation: context, stt :Transcriber, tts: Synthesizer, game_manager: GameStateManager, output_manager: ChatManager, rememberer: remembering, is_radiant: bool, context_length: int = 4096, token_limit_percent: float = 0.45) -> None:
+    def __init__(self, context_for_conversation: context, stt :Transcriber, tts: Synthesizer, game_manager: GameStateManager, output_manager: ChatManager, rememberer: remembering, is_radiant: bool, context_length: int, max_response_tokens: int) -> None:
         self.__context: context = context_for_conversation
         if is_radiant:
             self.__conversation_type: conversation_type = radiant(context_for_conversation)
@@ -29,7 +29,7 @@ class conversation:
         self.__output_manager: ChatManager = output_manager
         self.__rememberer: remembering = rememberer
         self.__context_length: int = context_length
-        self.__token_limit_percent: float = token_limit_percent
+        self.__max_response_tokens: int = max_response_tokens
         self.__has_already_ended: bool = False
 
     def add_character(self, new_character: Character):
@@ -90,9 +90,11 @@ class conversation:
         else:
             self.__add_assistant_message()
             # After an assistant_message is generated, check if the current message exchange is about to break the context size of the LLM and if yes, reload the conversation
-            conversation_token_count = self.__output_manager.num_tokens(self.__messages)
-            conversation_token_limit = round(self.__context_length*self.__token_limit_percent,0)
-            if conversation_token_count > conversation_token_limit:
+            # Estimate the token count after the NPC's next response (max_response_tokens)
+            # and add 250 additional tokens to act as a safety buffer for models which don't follow the same token count procedure as the OpenAI format
+            # and to account for the player's response
+            conversation_token_count = self.__output_manager.num_tokens(self.__messages) + self.__max_response_tokens + 250
+            if conversation_token_count > self.__context_length:
                 self.__reload_conversation()
 
         # After a message has been added, check if the conversation_type decides to end the conversation 

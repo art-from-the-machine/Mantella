@@ -12,14 +12,14 @@ from src.config_loader import ConfigLoader
 class context:
     """Holds the context of a conversation
     """
-    def __init__(self, config: ConfigLoader, rememberer: remembering, language: dict[Hashable, str], client: openai_client, token_limit_percent: float = 0.45) -> None:
+    def __init__(self, config: ConfigLoader, rememberer: remembering, language: dict[Hashable, str], client: openai_client, token_limit_percent: float) -> None:
         self.__npcs_in_conversation: Characters = Characters()
         self.__config: ConfigLoader = config
         self.__rememberer: remembering = rememberer
         self.__language: dict[Hashable, str] = language
         self.__client: openai_client = client #Just passed in for the moment to measure the length of the system message, maybe better solution in the future?
         self.__ingame_time: int = 12
-        self.__token_limit_percent = token_limit_percent
+        self.__prompt_token_limit_percent = token_limit_percent
         self.__should_switch_to_multi_npc_conversation: bool = False
 
         if config.game == "Fallout4" or config.game == "Fallout4VR":
@@ -214,7 +214,7 @@ class context:
                 conversation_summary=content[1],
                 conversation_summaries=content[1]
                 )
-            if self.__client.calculate_tokens_from_text(result) < self.__client.token_limit * self.__token_limit_percent:
+            if self.__client.calculate_tokens_from_text(result) < self.__client.token_limit * self.__prompt_token_limit_percent:
                 logging.log(23, f'Prompt sent to LLM ({self.__client.calculate_tokens_from_text(result)} tokens): {result.strip()}')
                 return result
             
