@@ -436,7 +436,7 @@ class Synthesizer:
             log_data.append(row)
 
         # Write log data to CSV file
-        with open(f"{log_file_name}_xtts.csv", 'w', newline='', encoding='utf-8') as csvfile:
+        with open(f"data/{log_file_name}_xtts.csv", 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(log_data)
 
