@@ -5,11 +5,13 @@ import src.utils as utils
 import requests
 import json
 import io
+import time
 
 class Transcriber:
     def __init__(self, game_state_manager, config, api_key: str):
         self.loglevel = 27
         self.game_state_manager = game_state_manager
+        self.game_path = config.game_path
         self.mic_enabled = config.mic_enabled
         self.language = config.stt_language
         self.task = "transcribe"
@@ -64,17 +66,7 @@ class Transcriber:
                 # listen for response
                 transcribed_text = self.recognize_input(prompt)
             else:
-                # text input through console
-                if (self.debug_mode == '1') & (self.debug_use_default_player_response == '0'):
-                    transcribed_text = input('\nWrite player\'s response: ')
-                    logging.log(self.loglevel, f'Player wrote "{transcribed_text}"')
-                # await text input from the game
-                else:
-                    self.game_state_manager.write_game_info('_mantella_text_input', '')
-                    self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'True')
-                    transcribed_text = self.game_state_manager.load_data_when_available('_mantella_text_input', '')
-                    self.game_state_manager.write_game_info('_mantella_text_input', '')
-                    self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'False')
+                transcribed_text = self._get_text_input()
 
         if (self.debug_mode == '1') & (self.debug_exit_on_first_exchange == '1'):
             if say_goodbye:
@@ -149,6 +141,28 @@ class Transcriber:
 
         return transcript
 
+    def _get_text_input(self):
+        # text input through console
+        if (self.debug_mode == '1') & (self.debug_use_default_player_response == '0'):
+            text = input('\nWrite player\'s response: ')
+            logging.log(self.loglevel, f'Player wrote "{text}"')
+        # await text input from the game
+        else:
+            self.game_state_manager.write_game_info('_mantella_text_input', '')
+            self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'True')
+            text = ''
+            while text == '':
+                with open(f'{self.game_path}/_mantella_end_conversation.txt', 'r', encoding='utf-8') as f:
+                    if f.readline().strip().lower() == 'true':
+                        return self.end_conversation_keyword
+                with open(f'{self.game_path}/_mantella_text_input.txt', 'r', encoding='utf-8') as f:
+                    text = f.readline().strip()
+                # decrease stress on CPU while waiting for file to populate
+                time.sleep(0.01)
+            self.game_state_manager.write_game_info('_mantella_text_input', '')
+            self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'False')
+
+        return text
 
     @staticmethod
     def activation_name_exists(transcript_cleaned, activation_name):
