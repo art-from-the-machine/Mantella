@@ -160,7 +160,6 @@ class conversation:
         if not latest_npc: 
             self.end()
             return
-        self.__tts.change_voice(latest_npc.voice_model, latest_npc.voice_accent)
         
         # Play gather thoughts
         collecting_thoughts_text = self.__context.config.collecting_thoughts_npc_response

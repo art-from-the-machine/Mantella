@@ -274,6 +274,7 @@ class GameStateManager:
             'name': character_name,
             'bio': f'You are a {character_name}',
             'voice_model': voice_model,
+            'advanced_voice_model': '',
             'skyrim_voice_folder': skyrim_voice_folder,
         }
 
@@ -352,6 +353,7 @@ class GameStateManager:
             'name': character_name,
             'bio': f'You are a {character_name}',
             'voice_model': voice_model,
+            'advanced_voice_model': '',
             'fallout4_voice_folder': FO4_voice_folder,
         }
 
