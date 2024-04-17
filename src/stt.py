@@ -144,8 +144,8 @@ class Transcriber:
     def _get_text_input(self):
         # text input through console
         if (self.debug_mode == '1') & (self.debug_use_default_player_response == '0'):
-            transcribed_text = input('\nWrite player\'s response: ')
-            logging.log(self.loglevel, f'Player wrote "{transcribed_text}"')
+            text = input('\nWrite player\'s response: ')
+            logging.log(self.loglevel, f'Player wrote "{text}"')
         # await text input from the game
         else:
             self.game_state_manager.write_game_info('_mantella_text_input', '')
@@ -162,7 +162,7 @@ class Transcriber:
             self.game_state_manager.write_game_info('_mantella_text_input', '')
             self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'False')
 
-            return text
+        return text
 
     @staticmethod
     def activation_name_exists(transcript_cleaned, activation_name):
