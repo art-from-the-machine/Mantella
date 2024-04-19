@@ -163,7 +163,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         else:
             return OpenAI(api_key=self.__api_key, default_headers=self.__header)
     
-    async def streaming_call(self, messages: list[dict[str,str]]) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: list[dict[str,str]], num_characters: int) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
 
@@ -178,6 +178,9 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         """
         async_client = self.generate_async_client()
         logging.info('Getting LLM response...')
+        max_tokens = self.__max_tokens
+        if num_characters > 1: # override max_tokens in radiant / multi-NPC conversations
+            max_tokens = 250
         try:
             async for chunk in await async_client.chat.completions.create(model=self.model_name, 
                                                                             messages=messages.get_openai_messages(), 
@@ -186,7 +189,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
                                                                             temperature=self.__temperature,
                                                                             top_p=self.__top_p,
                                                                             frequency_penalty=self.__frequency_penalty, 
-                                                                            max_tokens=self.__max_tokens):
+                                                                            max_tokens=max_tokens):
                 if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
                     yield chunk.choices[0].delta.content
                 else:
