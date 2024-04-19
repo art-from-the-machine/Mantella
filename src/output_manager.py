@@ -531,7 +531,7 @@ class ChatManager:
         while True:
             try:
                 start_time = time.time()
-                async for content in self.__client.streaming_call(messages= messages):
+                async for content in self.__client.streaming_call(messages=messages, num_characters=characters.active_character_count()):
                     if content is not None:
                         sentence += content
                         # Check for the last occurrence of sentence-ending punctuation
@@ -645,10 +645,10 @@ class ChatManager:
                                     end_conversation = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
                                     radiant_dialogue_update = self.game_state_manager.load_data_when_available('_mantella_radiant_dialogue', '')
                                     # stop processing LLM response if:
-                                    # max_response_sentences reached (and the conversation isn't radiant)
+                                    # max_response_sentences reached (and the conversation isn't radiant / multi-NPC)
                                     # conversation has switched from radiant to multi NPC (this allows the player to "interrupt" radiant dialogue and include themselves in the conversation)
                                     # the conversation has ended
-                                    if ((num_sentences >= self.max_response_sentences) and (radiant_dialogue == False)) or ((radiant_dialogue == True) and (radiant_dialogue_update.lower() == 'false')) or (end_conversation.lower() == 'true'):
+                                    if ((num_sentences >= self.max_response_sentences) and (characters.active_character_count() == 1)) or ((radiant_dialogue == True) and (radiant_dialogue_update.lower() == 'false')) or (end_conversation.lower() == 'true'):
                                         break
                 break
             except Exception as e:
