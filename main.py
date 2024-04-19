@@ -30,7 +30,7 @@ try:
 
     token_limit = client.token_limit
     starting_prompt_token_limit_percent: float = 0.5
-    mantella_version = '0.11'
+    mantella_version = '0.11.2'
     logging.log(24, f'\nMantella v{mantella_version}')
 
     # Check if the mic setting has been configured in MCM
