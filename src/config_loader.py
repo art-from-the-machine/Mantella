@@ -118,6 +118,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.listen_timeout = int(config['Microphone.Advanced']['listen_timeout'])
             self.whisper_type = config['Microphone.Advanced']['whisper_type']
             self.whisper_url = config['Microphone.Advanced']['whisper_url']
+            self.mic_index = int(config['Microphone.Advanced']['mic_index'])
 
             #self.hotkey = config['Hotkey']['hotkey']
             #self.textbox_timer = config['Hotkey']['textbox_timer']

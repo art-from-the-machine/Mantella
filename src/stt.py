@@ -13,6 +13,7 @@ class Transcriber:
         self.game_state_manager = game_state_manager
         self.game_path = config.game_path
         self.mic_enabled = config.mic_enabled
+        self.mic_index = config.mic_index 
         self.language = config.stt_language
         self.task = "transcribe"
         if config.stt_translate == 1:
@@ -39,7 +40,10 @@ class Transcriber:
         if self.mic_enabled == '1':
             self.recognizer = sr.Recognizer()
             self.recognizer.pause_threshold = config.pause_threshold
-            self.microphone = sr.Microphone()
+            if self.mic_index != 100:
+                self.microphone = sr.Microphone(device_index=self.mic_index)
+            else:
+                self.microphone = sr.Microphone()
 
             if self.audio_threshold == 'auto':
                 logging.log(self.loglevel, f"Audio threshold set to 'auto'. Adjusting microphone for ambient noise...")
