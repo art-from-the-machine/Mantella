@@ -36,7 +36,12 @@ Here are the quick steps to get set up:
 
 If you have any trouble in getting the repo set up, please reach out on [Discord](https://discord.gg/Q4BJAdtGUE)!
 
-The source code for the Mantella spell mod can be found [here](https://github.com/art-from-the-machine/Mantella-Spell). Updates made on one repo are often intertwined with the other, so it is best to ensure you have the latest versions of each when developing.
+Related repos:
+- Mantella Spell (Skyrim): [https://github.com/art-from-the-machine/Mantella-Spell](https://github.com/art-from-the-machine/Mantella-Spell)
+- Mantella Gun (Fallout 4): [https://github.com/YetAnotherModder/Fallout-4-VR-Mantella-Mod](https://github.com/YetAnotherModder/Fallout-4-Mantella-Mod)
+- Mantella Gun (Fallout 4 VR): [https://github.com/YetAnotherModder/Fallout-4-VR-Mantella-Mod](https://github.com/YetAnotherModder/Fallout-4-VR-Mantella-Mod)
+
+Updates made on one repo are often intertwined with the other, so it is best to ensure you have the latest versions of each when developing.
 
 The source files for the [Mantella docs](https://art-from-the-machine.github.io/Mantella) are stored in the [gh-pages branch](https://github.com/art-from-the-machine/Mantella/tree/gh-pages).
 
