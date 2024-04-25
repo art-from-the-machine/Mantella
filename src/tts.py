@@ -60,6 +60,7 @@ class Synthesizer:
 
         self.advanced_voice_model_data = list(set(character_df['advanced_voice_model'].tolist()))
         self.voice_model_data = list(set(character_df['voice_model'].tolist()))
+        self.csv_voice_folder_data = list(set(character_df['skyrim_voice_folder'].tolist())) if 'skyrim' in config.game.lower() else list(set(character_df['fallout4_voice_folder'].tolist()))
         
         # voice models path (renaming Fallout4VR to Fallout4 to allow for filepath completion)
         if config.game == "Fallout4" or config.game == "Fallout4VR":
@@ -148,7 +149,7 @@ class Synthesizer:
         # Write the 16-bit audio data back to a file
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
 
-    def synthesize(self, voice, voiceline, in_game_voice, voice_accent, aggro=0, advanced_voice_model=None):
+    def synthesize(self, voice, voiceline, in_game_voice, csv_in_game_voice, voice_accent, aggro=0, advanced_voice_model=None):
         if self.tts_service == 'xtts':
             selected_voice = None
             speaker_type = None
@@ -163,6 +164,9 @@ class Synthesizer:
             elif in_game_voice and self._voice_exists(in_game_voice, 'regular'):
                 selected_voice = in_game_voice
                 speaker_type = 'game_voice_folder'
+            elif csv_in_game_voice and self._voice_exists(csv_in_game_voice, 'csv_voice_folder'):
+                selected_voice = csv_in_game_voice
+                speaker_type = 'csv_game_voice_folder'
             voice = selected_voice
                 
         if voice != self.last_voice:
@@ -367,7 +371,10 @@ class Synthesizer:
 
     def _sanitize_voice_name(self, voice_name):
         """Sanitizes the voice name by removing spaces."""
-        return voice_name.replace(" ", "").lower()
+        if isinstance(voice_name, str):
+            return voice_name.replace(" ", "").lower()
+        else:
+            return ''
 
     def _voice_exists(self, voice_name, speaker_type):
         """Checks if the sanitized voice name exists in the specified filtered speakers."""
@@ -378,6 +385,8 @@ class Synthesizer:
             speakers = self.advanced_filtered_speakers.get(self.language, {}).get('speakers', [])
         elif speaker_type == 'regular':
             speakers = self.voice_filtered_speakers.get(self.language, {}).get('speakers', [])
+        elif speaker_type == 'csv_voice_folder':
+            speakers = self.csv_voice_folder_speakers.get(self.language, {}).get('speakers', [])
 
         return sanitized_voice_name in [self._sanitize_voice_name(speaker) for speaker in speakers]
  
@@ -448,6 +457,9 @@ class Synthesizer:
         
         # Filter and log regular voice models
         self.voice_filtered_speakers = self.filter_and_log_speakers(self.voice_model_data, "voice_model_data_log")
+
+        # Filter and log voice folder names according to CSV
+        self.csv_voice_folder_speakers = self.filter_and_log_speakers(self.csv_voice_folder_data, "csv_voice_folder_data_log")
 
     @utils.time_it
     def _batch_synthesize(self, grouped_sentences, voiceline_files):
