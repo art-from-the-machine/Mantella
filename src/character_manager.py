@@ -17,6 +17,7 @@ class Character:
         self.language = language
         self.is_generic_npc = is_generic_npc
         self.in_game_voice_model = info['in_game_voice_model']
+        self.csv_in_game_voice_model = info['skyrim_voice_folder'] if 'skyrim' in game.lower() else info['fallout4_voice_folder']
         self.advanced_voice_model = info['advanced_voice_model']
         self.voice_model = info['voice_model']
         self.voice_accent = info.get('voice_accent', None)

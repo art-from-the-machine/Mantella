@@ -71,7 +71,7 @@ class ChatManager:
                 pygame.mixer.init(frequency=22050, size=-16, channels=2)  # Adjust these values as necessary
 
     def play_sentence_ingame(self, sentence: str, character_to_talk: Character):
-        audio_file = self.__tts.synthesize(character_to_talk.voice_model, sentence, character_to_talk.in_game_voice_model, character_to_talk.voice_accent, character_to_talk.is_in_combat, character_to_talk.advanced_voice_model)
+        audio_file = self.__tts.synthesize(character_to_talk.voice_model, sentence, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, character_to_talk.is_in_combat, character_to_talk.advanced_voice_model)
         self.save_files_to_voice_folders([audio_file, sentence])
 
     def num_tokens(self, content_to_measure: message | str | message_thread | list[message]) -> int:
@@ -615,7 +615,7 @@ class ChatManager:
                                 if self.active_character:
                                     # Generate the audio and return the audio file path
                                     try:
-                                        audio_file = self.__tts.synthesize(self.active_character.voice_model, ' ' + sentence + ' ', self.active_character.in_game_voice_model, self.active_character.voice_accent, self.active_character.is_in_combat, self.active_character.advanced_voice_model)
+                                        audio_file = self.__tts.synthesize(self.active_character.voice_model, ' ' + sentence + ' ', self.active_character.in_game_voice_model, self.active_character.csv_in_game_voice_model, self.active_character.voice_accent, self.active_character.is_in_combat, self.active_character.advanced_voice_model)
                                     except Exception as e:
                                         logging.error(f"xVASynth Error: {e}")
 
@@ -669,7 +669,7 @@ class ChatManager:
             # Generate the audio and return the audio file path
             try:
                 #Added from xTTS implementation
-                audio_file = self.__tts.synthesize(self.active_character.voice_model, ' ' + accumulated_sentence + ' ', self.active_character.in_game_voice_model, self.active_character.voice_accent, self.active_character.is_in_combat, self.active_character.advanced_voice_model)
+                audio_file = self.__tts.synthesize(self.active_character.voice_model, ' ' + accumulated_sentence + ' ', self.active_character.in_game_voice_model, self.active_character.csv_in_game_voice_model, self.active_character.voice_accent, self.active_character.is_in_combat, self.active_character.advanced_voice_model)
                 await sentence_queue.put([audio_file, accumulated_sentence])
                 
                 # Append current_action to full_reply before appending the accumulated sentence

@@ -14,3 +14,6 @@ main.exe
 /.obsidian/
 /.vs
 /docs/build/
+data/advanced_voice_model_data_log_xtts.csv
+data/csv_voice_folder_data_log_xtts.csv
+data/voice_model_data_log_xtts.csv
