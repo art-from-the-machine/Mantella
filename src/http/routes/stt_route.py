@@ -1,7 +1,8 @@
 import json
 import logging
 from typing import Any
-from flask import Flask, request
+
+from fastapi import FastAPI, Request
 from src.config.config_loader import ConfigLoader
 from src.http.routes.routeable import routeable
 from src.stt import Transcriber
@@ -43,9 +44,9 @@ class stt_route(routeable):
                 return False
         return self.__config.Have_all_config_values_loaded_correctly
 
-    def add_route_to_server(self, app: Flask):
-        @app.route("/stt", methods=['POST'])
-        def stt():
+    def add_route_to_server(self, app: FastAPI):
+        @app.post("/stt")
+        async def stt(request: Request):
             if not self.__can_conversation_route_be_used():
                 error_message = "MantellaSoftware settings faulty! Please check MantellaSoftware's window or log!"
                 logging.error(error_message)
@@ -54,7 +55,7 @@ class stt_route(routeable):
                 error_message = "STT/Whisper setup failed! There is most likely an issue with the config.ini!"
                 logging.error(error_message)
                 return json.dumps(self.error_message(error_message))
-            receivedJson: dict[str, Any] | None = request.json
+            receivedJson: dict[str, Any] | None = await request.json()
             if receivedJson and receivedJson[self.KEY_REQUESTTYPE] == self.KEY_REQUESTTYPE_TTS:
                 if self._show_debug_messages:
                     logging.log(self._log_level_http_in, json.dumps(receivedJson, indent=4))

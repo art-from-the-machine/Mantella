@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Any, Hashable
 
-from flask import Flask, request
+from fastapi import FastAPI, Request
 from src.config.config_loader import ConfigLoader
 from src.games.fallout4 import fallout4
 from src.games.gameable import gameable
@@ -56,9 +56,9 @@ class mantella_route(routeable):
                 return False
         return self.__config.Have_all_config_values_loaded_correctly
 
-    def add_route_to_server(self, app: Flask):
-        @app.route("/mantella", methods=['POST'])
-        def mantella():
+    def add_route_to_server(self, app: FastAPI):
+        @app.post("/mantella")
+        async def mantella(request: Request):
             if not self.__can_conversation_route_be_used():
                 error_message = "MantellaSoftware settings faulty! Please check MantellaSoftware's window or log!"
                 logging.error(error_message)
@@ -68,7 +68,7 @@ class mantella_route(routeable):
                 logging.error(error_message)
                 return json.dumps(self.error_message(error_message))
             reply = {}
-            receivedJson: dict[str, Any] | None = request.json
+            receivedJson: dict[str, Any] | None = await request.json()
             if receivedJson:
                 if self._show_debug_messages:
                     logging.log(self._log_level_http_in, json.dumps(receivedJson, indent=4))

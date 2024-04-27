@@ -1,15 +1,16 @@
 import logging
 import click
-from flask import Flask
+from fastapi import FastAPI
+import uvicorn
 from src.http.routes.routeable import routeable
 
 class http_server:
-    """A simple http server using Flask. Can be started using different routes.
+    """A simple http server using FastAPI. Can be started using different routes.
     """
     def __init__(self) -> None:
-        self.__flask = Flask(__name__)
+        self.__app = FastAPI()
 
-        ### Deactivate the logging to console by Flask
+        ### Deactivate the logging to console by FastAPI
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
 
@@ -23,6 +24,10 @@ class http_server:
         click.secho = secho
         ### End of deactivate logging
 
+    @property
+    def App(self) -> FastAPI:
+        return self.__app
+
     def start(self, port: int, routes: list[routeable], show_debug: bool = False):
         """Starts the server and sets up the provided routes
 
@@ -31,6 +36,6 @@ class http_server:
             show_debug (bool, optional): should debug output be shown
         """
         for route in routes:
-            route.add_route_to_server(self.__flask)
+            route.add_route_to_server(self.__app)
     
-        self.__flask.run(port=port, debug=False)
+        uvicorn.run(self.__app, port=port)

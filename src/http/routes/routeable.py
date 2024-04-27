@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from flask import Flask
+from fastapi import FastAPI
 from src.http.communication_constants import communication_constants as comm_consts
 
 class routeable(ABC):
@@ -14,7 +14,7 @@ class routeable(ABC):
         self._log_level_http_out = 41
 
     @abstractmethod
-    def add_route_to_server(self, app: Flask):
+    def add_route_to_server(self, app: FastAPI):
         """Adds the route that is configured within to the supplied FastAPI app
 
         Args:
