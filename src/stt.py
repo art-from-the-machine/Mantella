@@ -1,3 +1,4 @@
+import sys
 from faster_whisper import WhisperModel
 import speech_recognition as sr
 import logging
@@ -7,7 +8,7 @@ import json
 import io
 
 class Transcriber:
-    def __init__(self, config, api_key: str):
+    def __init__(self, config, secret_key_file: str):
         self.loglevel = 27
         # self.mic_enabled = config.mic_enabled
         self.language = config.stt_language
@@ -31,7 +32,8 @@ class Transcriber:
         self.radiant_end_prompt = config.radiant_end_prompt
 
         self.call_count = 0
-        self.api_key = api_key
+        self.__secret_key_file = secret_key_file
+        self.__api_key: str | None = None
 
         # if self.mic_enabled == '1':
         self.recognizer = sr.Recognizer()
@@ -54,6 +56,20 @@ class Transcriber:
                 self.transcribe_model = WhisperModel(self.model, device=self.process_device)
             else:
                 self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
+
+    def __get_api_key(self) -> str:
+        if not self.__api_key:                
+            with open(self.__secret_key_file, 'r') as f:
+                self.__api_key: str | None = f.readline().strip()
+                
+                if not self.__api_key:
+                    logging.error(f'''No secret key found in MantellaSoftware/GPT_SECRET_KEY.txt. Please create a secret key and paste it in GPT_SECRET_KEY.txt
+If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
+If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
+If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running''')
+                    input("Press Enter to exit.")
+                    sys.exit(0)
+        return self.__api_key          
 
     # def get_player_response(self, say_goodbye, prompt: str):
     #     if (self.debug_mode == '1') & (self.debug_use_default_player_response == '1'):
@@ -125,7 +141,7 @@ class Transcriber:
             else:
                 url = self.whisper_url
                 if 'openai' in url:
-                    headers = {"Authorization": f"Bearer {self.api_key}",}
+                    headers = {"Authorization": f"Bearer {self.__get_api_key()}",}
                 else:
                     headers = {"Authorization": "Bearer apikey",}
                 data = {'model': self.model, 'prompt': prompt}

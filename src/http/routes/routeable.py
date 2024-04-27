@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
+from typing import Any
+
 from flask import Flask
+from src.http.communication_constants import communication_constants as comm_consts
 
 class routeable(ABC):
     """Base class for different http server routes
@@ -12,9 +15,15 @@ class routeable(ABC):
 
     @abstractmethod
     def add_route_to_server(self, app: Flask):
-        """Adds the route thast is configured within to the supplied Quart server
+        """Adds the route that is configured within to the supplied FastAPI app
 
         Args:
-            app (Flask): The Flask server to add the route to
+            app (FastAPI): The FastAPI app to add the route to
         """
         pass
+
+    def error_message(self, message: str) -> dict[str, Any]:
+        return {
+                comm_consts.KEY_REPLYTYPE: "error",
+                "mantella_message": message
+            }  

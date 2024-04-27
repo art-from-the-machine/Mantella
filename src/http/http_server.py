@@ -32,8 +32,5 @@ class http_server:
         """
         for route in routes:
             route.add_route_to_server(self.__flask)
-
-        logging.log(24, '\nConversations not starting when you select an NPC? See here:\nhttps://art-from-the-machine.github.io/Mantella/pages/issues_qna')
-        logging.log(24, '\nWaiting for player to select an NPC...')
     
-        self.__flask.run(port=port, debug=show_debug)
+        self.__flask.run(port=port, debug=False)

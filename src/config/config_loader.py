@@ -2,6 +2,7 @@ import configparser
 import logging
 import os
 import sys
+from src.config.config_json_writer import ConfigJsonWriter
 from src.config.config_file_writer import ConfigFileWriter
 from src.config.types.config_value import ConfigValue
 from src.config.mantella_config_value_definitions_classic import MantellaConfigValueDefinitionsClassic
@@ -11,15 +12,13 @@ from pathlib import Path
 
 class ConfigLoader:
     def __init__(self, file_name='config.ini'):
-        definitions: list[ConfigValue] = MantellaConfigValueDefinitionsClassic.get_config_values()
-        if not os.path.exists(file_name):
+        self.__has_any_value_changed: bool = False
+        self.__file_name = file_name
+        self.__definitions: list[ConfigValue] = MantellaConfigValueDefinitionsClassic.get_config_values(self.__on_config_value_change)
+        if not os.path.exists(self.__file_name):
             logging.log(24,"Can't find 'config.ini'. Assuming first time usage of MantellaSoftware and creating it.")
-            try:
-                writer: ConfigFileWriter = ConfigFileWriter()
-                writer.write(file_name, definitions)
-            except Exception as e:
-                logging.error(24, f"Failed to write default 'config.ini'. Possible reason: MantellaSoftware does not have rights to write at its location. Exception: {repr(e)}")    
-        
+            self.__write_config_state(self.__definitions)
+
         config = configparser.ConfigParser()
         try:
             config.read(file_name, encoding='utf-8')
@@ -29,52 +28,41 @@ class ConfigLoader:
             input("Press Enter to exit.")
         
         self.__reader: ConfigFileReader = ConfigFileReader(config)
-        for definition in definitions:
+        for definition in self.__definitions:
             definition.accept_visitor(self.__reader)
-
-#         def check_missing_mantella_file(set_path):
-#             if self.game == "Fallout4" or self.game == "Fallout4VR":
-#                 txtPrefix='fallout4'
-#                 modnameSufix='gun'
-#             else:
-#                 txtPrefix='skyrim'
-#                 modnameSufix='Spell'
-            
-#             try:
-#                 with open(set_path+'/_mantella__'+txtPrefix+'_folder.txt') as f:
-#                     check = f.readline().strip()
-#             except:
-#                 #Reworked the warning to include correct names depending on the game being ran.
-#                 logging.warn(f'''
-# Warning: Could not find _mantella__{txtPrefix}_folder.txt in {set_path}. 
-# If you have not yet used the Mantella {modnameSufix} in-game you can safely ignore this message. 
-# If you have used the Mantella {modnameSufix} please check that your 
-# MantellaSoftware/config.ini "{txtPrefix}_folder" has been set correctly 
-# (instructions on how to set this up are in the config file itself).
-# If you are still having issues, a list of solutions can be found here: 
-# https://github.com/art-from-the-machine/Mantella#issues-qa
-# ''')
-#                 input("Press Enter to confirm these warnings...")
-
-        def run_config_editor():
-            try:
-                import src.config_editor as configeditor
-
-                logging.info('Launching config editor...')
-                configeditor.start()
-                logging.info(f'Config editor closed. Re-reading {file_name} file...')
-
-                config.read(file_name)
-            except Exception as e:
-                logging.error('Unable to run config editor!')
-                raise e
-
+        
+        self.__update_config_values_from_current_state()     
+    
+    @property
+    def Have_all_config_values_loaded_correctly(self) -> bool:
+        return self.__reader.Have_all_loaded_values_succeded
+    
+    @property
+    def Has_any_config_value_changed(self) -> bool:
+        return self.__has_any_value_changed
+    
+    @property
+    def Definitions(self) -> list[ConfigValue]:
+        return self.__definitions
+    
+    def update_config_loader_with_changed_config_values(self):
+        self.__update_config_values_from_current_state()
+        self.__has_any_value_changed = False
+    
+    def __on_config_value_change(self):
+        self.__has_any_value_changed = True
+        self.__write_config_state(self.__definitions)
+    
+    def __write_config_state(self, definitions: list[ConfigValue]):
         try:
-            # run config editor if config.ini has the parameter
-            # temporarily removed for Mantella v0.11
-            #if int(config['Startup']['open_config_editor']) == 1:
-            #    run_config_editor()
+            writer: ConfigFileWriter = ConfigFileWriter()
+            writer.write(self.__file_name, definitions)
+        except Exception as e:
+            logging.error(24, f"Failed to write default 'config.ini'. Possible reason: MantellaSoftware does not have rights to write at its location. Exception: {repr(e)}")    
 
+    def __update_config_values_from_current_state(self):
+        self.__reader.clear_constraint_violations()
+        try:
             #Adjusting game and mod paths according to the game being ran
             self.game: str = self.__reader.get_string_value("game")# config['Game']['game']
             self.game = str(self.game).lower().replace(' ', '').replace('_', '')
@@ -151,6 +139,8 @@ class ConfigLoader:
             self.llm = self.__reader.get_string_value("model")
             self.wait_time_buffer = self.__reader.get_float_value("wait_time_buffer")
             self.llm_api = self.__reader.get_string_value("llm_api")
+            if self.llm_api == "Custom":
+                self.llm_api = self.__reader.get_string_value("llm_custom_service_url")
             self.custom_token_count = self.__reader.get_int_value("custom_token_count")
             self.temperature = self.__reader.get_float_value("temperature")
             self.top_p = self.__reader.get_float_value("top_p")
@@ -211,4 +201,14 @@ class ConfigLoader:
             self.facefx_path += "\\Sound\\Voice\\Processing\\"
             
             self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
+    
+    def get_config_value_json(self) -> str:
+        json_writer = ConfigJsonWriter()
+        for definition in self.__definitions:
+            definition.accept_visitor(json_writer)
+        return json_writer.get_Json()
+
+        
+
+
         

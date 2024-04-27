@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+from typing import Any, Callable, Generic, TypeVar
 from src.config.types.config_value_visitor import ConfigValueVisitor
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 
@@ -15,6 +15,7 @@ class ConfigValue(ABC, Generic[T]):
         self.__defaultValue:T = defaultValue
         self.__constraints: list[ConfigValueConstraint[T]] = constraints
         self.__is_hidden: bool = is_hidden
+        self._on_value_change_callback: Callable[..., Any] | None = None
     
     @property
     def Identifier(self) -> str:
@@ -33,8 +34,10 @@ class ConfigValue(ABC, Generic[T]):
         return self.__value
     
     @Value.setter
-    def Value(self, value:T):
+    def Value(self, value:T):        
         self.__value = value
+        if self._on_value_change_callback:
+            self._on_value_change_callback()
     
     @property
     def DefaultValue(self) -> T:
@@ -47,6 +50,10 @@ class ConfigValue(ABC, Generic[T]):
     @property
     def Is_hidden(self) -> bool:
         return self.__is_hidden
+    
+    def set_on_value_change_callback(self, on_value_change_callback: Callable[..., Any] | None):
+        self._on_value_change_callback = on_value_change_callback
+        test = 1
     
     def does_value_cause_error(self, valueToCheck: T) -> ConfigValueConstraintResult:
         for constraint in self.__constraints:

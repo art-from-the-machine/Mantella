@@ -1,3 +1,4 @@
+from src.config.types.config_value import ConfigValue
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 from src.config.types.config_value_visitor import ConfigValueVisitor
 from src.config.types.config_value_numeric import ConfigValueNumeric
