@@ -95,7 +95,7 @@ class ConfigLoader:
             #TTS
             self.tts_service = self.__reader.get_string_value("tts_service").strip().lower()
             self.facefx_path = self.__reader.get_string_value("facefx_folder")
-            if self.tts_service == "XTTS":
+            if self.tts_service == "xtts":
                 self.xtts_server_path = self.__reader.get_string_value("xtts_server_folder")
                 self.xvasynth_path = ""
             else:

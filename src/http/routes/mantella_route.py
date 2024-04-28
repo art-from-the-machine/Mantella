@@ -62,11 +62,11 @@ class mantella_route(routeable):
             if not self.__can_conversation_route_be_used():
                 error_message = "MantellaSoftware settings faulty! Please check MantellaSoftware's window or log!"
                 logging.error(error_message)
-                return json.dumps(self.error_message(error_message))
+                return self.error_message(error_message)
             if not self.__game:
                 error_message = "Game manager setup failed! There is most likely an issue with the config.ini!"
                 logging.error(error_message)
-                return json.dumps(self.error_message(error_message))
+                return self.error_message(error_message)
             reply = {}
             receivedJson: dict[str, Any] | None = await request.json()
             if receivedJson:
@@ -89,4 +89,4 @@ class mantella_route(routeable):
 
             if self._show_debug_messages:
                 logging.log(self._log_level_http_out, json.dumps(reply, indent=4))
-            return json.dumps(reply)
+            return reply

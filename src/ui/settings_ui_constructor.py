@@ -13,8 +13,6 @@ from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_visitor import ConfigValueVisitor
 
 class SettingsUIConstructor(ConfigValueVisitor):
-    
-
     T = TypeVar('T')
     def __on_change(self, config_value: ConfigValue[T], new_value: T) -> gr.Markdown | None:
         result: ConfigValueConstraintResult = config_value.does_value_cause_error(new_value)
@@ -118,9 +116,15 @@ class SettingsUIConstructor(ConfigValueVisitor):
         def on_change(new_value:str) -> gr.Markdown | None:
             return self.__on_change(config_value, new_value)
         
+        def on_click() -> str | None:
+            return config_value.show_file_or_path_picker_dialog()
+        
         with gr.Blocks(analytics_enabled=False):
             with gr.Group():
                 self.__construct_name_description_constraints(config_value)
-                input_ui = gr.Text(value=config_value.Value, show_label=False)
+                with gr.Row():
+                    input_ui = gr.Text(value=config_value.Value, show_label=False)
+                    select_path_button = gr.Button("Pick", scale=0)
+                    select_path_button.click(on_click, outputs=input_ui)
                 error_message = self.__construct_initial_error_message(config_value)
                 input_ui.change(on_change, input_ui, error_message)                

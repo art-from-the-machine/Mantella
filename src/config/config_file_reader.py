@@ -46,99 +46,77 @@ class ConfigFileReader(ConfigValueVisitor):
 
     def visit_ConfigValueInt(self, config_value: ConfigValueInt):
         self.__int_values[config_value.Identifier] = config_value, self.__category
+        self.__initial_parse(config_value,self.__category)
 
     def visit_ConfigValueFloat(self, config_value: ConfigValueFloat):
         self.__float_values[config_value.Identifier] = config_value, self.__category
+        self.__initial_parse(config_value,self.__category)
 
     def visit_ConfigValueBool(self, config_value: ConfigValueBool):
         self.__bool_values[config_value.Identifier] = config_value, self.__category
+        self.__initial_parse(config_value,self.__category)
 
     def visit_ConfigValueString(self, config_value: ConfigValueString):
         self.__string_values[config_value.Identifier] = config_value, self.__category
+        self.__initial_parse(config_value,self.__category)
 
     def visit_ConfigValueSelection(self, config_value: ConfigValueSelection):
         self.__selection_values[config_value.Identifier] = config_value, self.__category
+        self.__initial_parse(config_value,self.__category)
 
     def visit_ConfigValuePath(self, config_value: ConfigValuePath):
         self.__path_values[config_value.Identifier] = config_value, self.__category
+        self.__initial_parse(config_value,self.__category)
 
     def __add_constraint_violation(self, config_value: ConfigValue, text: str):
         if not self.__contraint_violations.__contains__(config_value.Identifier):
             self.__contraint_violations[config_value.Identifier] = []
         self.__contraint_violations[config_value.Identifier].append(text)
 
-    def __parse(self, config_value: ConfigValue, category: str) -> bool:
+    def __initial_parse(self, config_value: ConfigValue, category: str):
         error_text: str | None = None
         if not self.__config.has_section(category):
             error_text = f"Looking for config value '{config_value.Identifier}' in category '{category}' in 'config.ini', but this category does not exist. 'config.ini' is most likely malformed after a manual edit."
         elif not self.__config.has_option(category, config_value.Identifier):
             error_text = f"Looking for config value '{config_value.Identifier}' in category '{category}' in 'config.ini', but this config value does not exist. 'config.ini' is most likely malformed after a manual edit."
         parse_result: ConfigValueConstraintResult = config_value.parse(self.__config[category][config_value.Identifier])
-        if not parse_result.Is_success:
-            error_text = parse_result.Error_message
-            # input('\nPress any key to exit...')
-            # sys.exit(0)
-        
         if error_text:
             logging.critical(error_text)
-            self.__add_constraint_violation(config_value, error_text)
-            return False
-        else:            
-            return True        
+        # if not parse_result.Is_success:
+        #     error_text = parse_result.Error_message
+        
+        # if error_text:
+        #     logging.critical(error_text)
+        #     self.__add_constraint_violation(config_value, error_text)
+        #     return False
+        # else:            
+        #     return True        
 
     T = TypeVar('T', int, float, bool, str)
-    def __get_value(self, dictionary_to_check: dict[str, tuple[Any, str]], identifier: str, value_on_error: T) -> T:
+    def __get_value(self, dictionary_to_check: dict[str, tuple[Any, str]], identifier: str) -> T:
         if dictionary_to_check.__contains__(identifier):
             config_value, category = dictionary_to_check[identifier]
-            if self.__parse(config_value, category):
-                return config_value.Value
-            else:
-                return value_on_error
+            config_value:ConfigValue = config_value
+            result: ConfigValueConstraintResult = config_value.does_value_cause_error(config_value.Value)
+            if not result.Is_success:
+                self.__add_constraint_violation(config_value, result.Error_message)
+            return config_value.Value
         raise Exception(f"Could not find config value {identifier} in list of definitions" )
 
     def get_int_value(self, identifier: str) -> int:
-        return self.__get_value(self.__int_values, identifier, int(0))
-        # if self.__int_values.__contains__(identifier):
-        #     config_value, category = self.__int_values[identifier]
-        #     if self.__parse(config_value, category):
-        #         return config_value.Value
-        # raise Exception(f"Could not find config value {identifier} in 'config.ini'" )
+        return self.__get_value(self.__int_values, identifier)
         
     def get_float_value(self, identifier: str) -> float:
-        return self.__get_value(self.__float_values, identifier, float(0))
-        # if self.__float_values.__contains__(identifier):
-        #     config_value, category = self.__float_values[identifier]
-        #     if self.__parse(config_value, category):
-        #         return config_value.Value
-        # raise Exception(f"Could not find config value {identifier} in 'config.ini'" )
+        return self.__get_value(self.__float_values, identifier)
         
     def get_bool_value(self, identifier: str) -> bool:
-        return self.__get_value(self.__bool_values, identifier, False)
-        # if self.__bool_values.__contains__(identifier):
-        #     config_value, category = self.__bool_values[identifier]
-        #     if self.__parse(config_value, category):
-        #         return config_value.Value
-        # raise Exception(f"Could not find config value {identifier} in 'config.ini'" )
+        return self.__get_value(self.__bool_values, identifier)
         
     def get_string_value(self, identifier: str) -> str:
         try:
-            return self.__get_value(self.__string_values, identifier, "")
+            return self.__get_value(self.__string_values, identifier)
         except:
             try:
-                return self.__get_value(self.__selection_values, identifier, "")
+                return self.__get_value(self.__selection_values, identifier)
             except:
-                return self.__get_value(self.__path_values, identifier, "")
-
-        # if self.__string_values.__contains__(identifier):
-        #     config_value, category = self.__string_values[identifier]
-        #     if self.__parse(config_value, category):
-        #         return config_value.Value
-        # elif self.__selection_values.__contains__(identifier):
-        #     config_value, category = self.__selection_values[identifier]
-        #     if self.__parse(config_value, category):
-        #         return config_value.Value
-        # elif self.__path_values.__contains__(identifier):
-        #     config_value, category = self.__path_values[identifier]
-        #     if self.__parse(config_value, category):
-        #         return config_value.Value
-        # raise Exception(f"Could not find config value {identifier} in 'config.ini'" )
+                return self.__get_value(self.__path_values, identifier)

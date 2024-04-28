@@ -50,11 +50,11 @@ class stt_route(routeable):
             if not self.__can_conversation_route_be_used():
                 error_message = "MantellaSoftware settings faulty! Please check MantellaSoftware's window or log!"
                 logging.error(error_message)
-                return json.dumps(self.error_message(error_message))
+                return self.error_message(error_message)
             if not self.__stt:
                 error_message = "STT/Whisper setup failed! There is most likely an issue with the config.ini!"
                 logging.error(error_message)
-                return json.dumps(self.error_message(error_message))
+                return self.error_message(error_message)
             receivedJson: dict[str, Any] | None = await request.json()
             if receivedJson and receivedJson[self.KEY_REQUESTTYPE] == self.KEY_REQUESTTYPE_TTS:
                 if self._show_debug_messages:
@@ -63,9 +63,9 @@ class stt_route(routeable):
                 names_in_conversation = ', '.join(names)
                 transcribed_text = self.__stt.recognize_input(names_in_conversation)
                 if isinstance(transcribed_text, str):
-                    return json.dumps(self.construct_return_json(transcribed_text))
+                    return self.construct_return_json(transcribed_text)
             
-            return json.dumps(self.construct_return_json("*Complete gibberish*"))
+            return self.construct_return_json("*Complete gibberish*")
     
     def construct_return_json(self, transcribe: str) -> dict:
         reply = {
