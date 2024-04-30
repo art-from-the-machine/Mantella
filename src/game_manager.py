@@ -10,10 +10,11 @@ class CharacterDoesNotExist(Exception):
 
 
 class GameStateManager:
-    def __init__(self, game_path, game):
+    def __init__(self, game_path, game, synthesizer):
         self.game_path = game_path
         self.prev_game_time = ''
-        self.game= game
+        self.game = game
+        self.synthesizer = synthesizer
 
     def write_game_info(self, text_file_name, text):
         max_attempts = 2
@@ -123,7 +124,7 @@ class GameStateManager:
                 except:
                     voice_model = 'Male Nord'
 
-        self.write_game_info('_mantella_actor_voice', f'<{voice_model}')
+        self.write_game_info('_mantella_actor_voice', f'<{voice_model} (0000)>')
 
         relationship = '0'
         self.write_game_info('_mantella_actor_relationship', relationship)
@@ -178,6 +179,33 @@ class GameStateManager:
         character_name, character_id, location, in_game_time = self.write_dummy_game_info(character_name, character_df)
 
         return character_name, character_id, location, in_game_time
+    
+
+    def select_generic_voice(self, actor_sex, actor_race):
+        if 'skyrim' in self.game.lower():
+            if actor_sex == '1':
+                try:
+                    voice_model = _female_voice_models[actor_race]
+                except:
+                    voice_model = 'Female Nord'
+            else:
+                try:
+                    voice_model = _male_voice_models[actor_race]
+                except:
+                    voice_model = 'Male Nord'
+        else:
+            if actor_sex == '1':
+                try:
+                    voice_model = _FO4_female_voice_models[actor_race]
+                except:
+                    voice_model = 'femaleboston'
+            else:
+                try:
+                    voice_model = _FO4_male_voice_models[actor_race]
+                except:
+                    voice_model = 'maleboston'
+
+        return voice_model
     
     
     def skyrim_load_unnamed_npc(self, character_name, character_df):
@@ -254,18 +282,9 @@ class GameStateManager:
             try: # search for voice model in skyrim_characters.csv
                 voice_model = character_df.loc[character_df['skyrim_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
             except: # guess voice model based on sex and race
-                if actor_sex == '1':
-                    try:
-                        voice_model = _female_voice_models[actor_race]
-                    except:
-                        voice_model = 'Female Nord'
-                else:
-                    try:
-                        voice_model = _male_voice_models[actor_race]
-                    except:
-                        voice_model = 'Male Nord'
+                voice_model = self.select_generic_voice(actor_sex, actor_race)
 
-        try: # search for relavant skyrim_voice_folder for voice_model
+        try: # search for relevant skyrim_voice_folder for voice_model
             skyrim_voice_folder = character_df.loc[character_df['voice_model'].astype(str).str.lower()==voice_model.lower(), 'skyrim_voice_folder'].values[0]
         except: # assume it is simply the voice_model name without spaces
             skyrim_voice_folder = voice_model.replace(' ','')
@@ -330,16 +349,8 @@ class GameStateManager:
                     voice_model = character_df.loc[character_df['fallout4_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
                 except: 
                     #except then try to match using gender and race with pre-established dictionaries
-                    if actor_sex == '1':
-                        try:
-                            voice_model = _FO4_female_voice_models[actor_race]
-                        except:
-                            voice_model = 'femaleboston'
-                    else:
-                        try:
-                            voice_model = _FO4_male_voice_models[actor_race]
-                        except:
-                            voice_model = 'maleboston'
+                    voice_model = self.select_generic_voice(actor_sex, actor_race)
+        
         if FO4_voice_folder == '':
             try: # search for relevant FO4_Voice_folder_and_models_df for voice_model
                 matching_row_by_voicemodel = FO4_Voice_folder_and_models_df[FO4_Voice_folder_and_models_df['voice_model'].str.lower() == voice_model.lower()]
@@ -419,7 +430,21 @@ class GameStateManager:
         character_race = self.load_data_when_available('_mantella_actor_race', '')
         character_race = character_race.split('<')[1].split('Race ')[0]
 
+        character_sex = self.load_data_when_available('_mantella_actor_sex', '')
+
         character_info, is_generic_npc = find_character_info(character_name, character_id, character_race, character_df)
+
+        actor_voice_model = self.load_data_when_available('_mantella_actor_voice', '')
+        actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
+        character_info['in_game_voice_model'] = actor_voice_model_name
+
+        csv_in_game_voice = character_info['skyrim_voice_folder'] if 'skyrim' in self.game.lower() else character_info['fallout4_voice_folder']
+        try: # try loading NPC voice model
+            self.synthesizer.change_voice(character_info['voice_model'], character_info['in_game_voice_model'], csv_in_game_voice, character_info['advanced_voice_model'], character_info.get('voice_accent', None))
+        except: # try loading generic voice model for NPC
+            logging.error('Could not load voice model. Attempting to load a generic voice model...')
+            character_info['voice_model'] = self.select_generic_voice(character_sex, character_race)
+            self.synthesizer.change_voice(character_info['voice_model'], character_info['in_game_voice_model'], csv_in_game_voice, character_info['advanced_voice_model'], character_info.get('voice_accent', None))
         
         location = self.load_data_when_available('_mantella_current_location', location)
         if location.lower() == 'none': # location returns none when out in the wild
@@ -429,10 +454,6 @@ class GameStateManager:
                 location='Skyrim'
 
         in_game_time = self.load_data_when_available('_mantella_in_game_time', in_game_time)
-
-        actor_voice_model = self.load_data_when_available('_mantella_actor_voice', '')
-        actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
-        character_info['in_game_voice_model'] = actor_voice_model_name
 
         # Is Player in combat with NPC
         is_in_combat = self.load_data_when_available('_mantella_actor_is_enemy', '')
