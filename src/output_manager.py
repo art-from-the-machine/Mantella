@@ -617,7 +617,7 @@ class ChatManager:
                                     try:
                                         audio_file = self.__tts.synthesize(self.active_character.voice_model, ' ' + sentence + ' ', self.active_character.in_game_voice_model, self.active_character.csv_in_game_voice_model, self.active_character.voice_accent, self.active_character.is_in_combat, self.active_character.advanced_voice_model)
                                     except Exception as e:
-                                        logging.error(f"xVASynth Error: {e}")
+                                        logging.error(f"TTS Error: {e}")
 
                                     # Put the audio file path in the sentence_queue
                                     await sentence_queue.put([audio_file, sentence])
@@ -652,8 +652,10 @@ class ChatManager:
                                         break
                 break
             except Exception as e:
-                if e.code in [401, 'invalid_api_key']: # incorrect API key
+                if (hasattr(e, 'code')) and (e.code in [401, 'invalid_api_key']): # incorrect API key
                     logging.error(f"Invalid API key. Please ensure you have selected the right model for your service (OpenAI / OpenRouter) via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+                elif isinstance(e, UnboundLocalError):
+                    logging.error('No voice file generated for voice line. Please check your TTS service for errors. The reason for this error is often because a voice model could not be found.')
                 else:
                     logging.error(f"LLM API Error: {e}")
                 error_response = "I can't find the right words at the moment."
