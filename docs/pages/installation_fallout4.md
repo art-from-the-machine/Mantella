@@ -25,6 +25,7 @@ This mod requires ~16GB of space when xVASynth and all voice models are installe
 ### Compatibility
 - [WARS - Weapon Addition and Replacement Suite](https://www.nexusmods.com/fallout4/mods/73478) conflicts with the Mantella Mod esp.
 - Mantella requires **Windows 10 / 11** (it is yet unconfirmed whether it works on Windows 7)
+- [Quick Trade](https://www.nexusmods.com/fallout4/mods/16229) & [What's Your Name](https://www.nexusmods.com/fallout4/mods/25321) will conflict with Mantella's alternate activation hotkey (H). You can remove this hotkey activation in Mantella's holotape [-> Main Settings -> Remove conversation activation option] to resolve the conflict.
 
 ### Fallout4
 ```{admonition} Warning
@@ -302,6 +303,9 @@ The Mantella gun and settings holotape will be added to your inventory as soon a
 ## Other Tips
 ### Sound volume
 Sound volume can be set by modifying the value for `FO4_NPC_response_volume` in MantellaSoftware/config.ini
+
+### Hotkey
+As well as via the Mantella gun, conversations can also be started via a hotkey (H).
 
 ### Text Input
 Text input can be enabled by either setting `microphone_enabled = 0` in MantellaSoftware/config.ini. You can respond by text by using the 'H' hotkey. This can be changed in holotape settings by entering the  [DirectX scan code](https://falloutck.uesp.net/wiki/DirectX_Scan_Codes).
