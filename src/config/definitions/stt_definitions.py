@@ -9,7 +9,7 @@ from src.config.types.config_value_string import ConfigValueString
 class STTDefinitions:
     @staticmethod
     def get_use_automatic_audio_threshold_folder_config_value() -> ConfigValue:
-        return ConfigValueBool("use_automatic_audio_threshold", "Use autoamtic audio threshold","Should the microphone autoamtically try to adjust for background noise?\nIf you get stuck at 'Listening...', deactivate this and manually set the audio_threshold with the option below.", True)
+        return ConfigValueBool("use_automatic_audio_threshold", "Use automatic audio threshold","Should the microphone automatically try to adjust for background noise?\nIf you get stuck at 'Listening...', deactivate this and manually set the audio_threshold with the option below.", True)
     
     @staticmethod
     def get_audio_threshold_folder_config_value() -> ConfigValue:

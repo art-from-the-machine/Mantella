@@ -46,25 +46,25 @@ Please see here to learn where to set this value: https://art-from-the-machine.g
     def get_skyrim_mod_folder_config_value() -> ConfigValue:
         identifier = "skyrim_mod_folder"
         game_folder = "Skyrim Special Edition"
-        return ConfigValuePath(identifier, "Path to MantellaSpell mod", GameDefinitions.MOD_FOLDER_DESCRIPTION.format(game_folder), "C:\\Modding\\MO2\\mods\\Mantella","Sound",[GameDefinitions.ProgramFilesChecker(game_folder), GameDefinitions.ModFolderChecker(identifier)])
+        return ConfigValuePath(identifier, f"{game_folder}: Path to MantellaSpell mod", GameDefinitions.MOD_FOLDER_DESCRIPTION.format(game_folder), "C:\\Modding\\MO2\\mods\\Mantella","Sound",[GameDefinitions.ProgramFilesChecker(game_folder), GameDefinitions.ModFolderChecker(identifier)])
 
     @staticmethod
     def get_skyrimvr_mod_folder_config_value() -> ConfigValue:
         identifier = "skyrimvr_mod_folder"
         game_folder = "SkyrimVR"
-        return ConfigValuePath(identifier, "Path to MantellaSpell mod", GameDefinitions.MOD_FOLDER_DESCRIPTION.format(game_folder), "C:\\Modding\\MO2\\mods\\Mantella","Sound",[GameDefinitions.ProgramFilesChecker(game_folder), GameDefinitions.ModFolderChecker(identifier)])
+        return ConfigValuePath(identifier, f"{game_folder}: Path to MantellaSpell mod", GameDefinitions.MOD_FOLDER_DESCRIPTION.format(game_folder), "C:\\Modding\\MO2\\mods\\Mantella","Sound",[GameDefinitions.ProgramFilesChecker(game_folder), GameDefinitions.ModFolderChecker(identifier)])
 
     @staticmethod
     def get_fallout4_mod_folder_config_value() -> ConfigValue:
         identifier = "fallout4_mod_folder"
         game_folder = "Fallout 4"
-        return ConfigValuePath(identifier, "Path to MantellaGun mod", GameDefinitions.MOD_FOLDER_DESCRIPTION.format(game_folder), "C:\\Modding\\MO2\\mods\\Mantella","Sound",[GameDefinitions.ProgramFilesChecker(game_folder), GameDefinitions.ModFolderChecker(identifier)])
+        return ConfigValuePath(identifier, f"{game_folder}: Path to MantellaGun mod", GameDefinitions.MOD_FOLDER_DESCRIPTION.format(game_folder), "C:\\Modding\\MO2\\mods\\Mantella","Sound",[GameDefinitions.ProgramFilesChecker(game_folder), GameDefinitions.ModFolderChecker(identifier)])
 
     @staticmethod
     def get_fallout4vr_mod_folder_config_value() -> ConfigValue:
         identifier = "fallout4vr_mod_folder"
         game_folder = "Fallout4VR"
-        return ConfigValuePath(identifier, "Path to MantellaGun mod", GameDefinitions.MOD_FOLDER_DESCRIPTION.format(game_folder), "C:\\Modding\\MO2\\mods\\Mantella","Sound",[GameDefinitions.ProgramFilesChecker(game_folder), GameDefinitions.ModFolderChecker(identifier)])
+        return ConfigValuePath(identifier, f"{game_folder}: Path to MantellaGun mod", GameDefinitions.MOD_FOLDER_DESCRIPTION.format(game_folder), "C:\\Modding\\MO2\\mods\\Mantella","Sound",[GameDefinitions.ProgramFilesChecker(game_folder), GameDefinitions.ModFolderChecker(identifier)])
 
     @staticmethod
     def get_fallout4vr_folder_config_value() -> ConfigValue:

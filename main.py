@@ -5,7 +5,7 @@ from src.http.routes.mantella_route import mantella_route
 from src.http.routes.stt_route import stt_route
 import logging
 import src.setup as setup
-from src.ui.settings_ui import SettingsUI
+from src.ui.start_ui import StartUI
 
 def main():
     try:
@@ -23,10 +23,8 @@ def main():
         #start the http server
         conversation = mantella_route(config, 'GPT_SECRET_KEY.txt', language_info, should_debug_http)
         stt = stt_route(config, 'GPT_SECRET_KEY.txt', should_debug_http)
-        routes: list[routeable] = [conversation, stt]
-
-        settings = SettingsUI(config.Definitions, config.port)
-        settings.add_ui(mantella_http_server.App)
+        ui = StartUI(config.Definitions, config.port)
+        routes: list[routeable] = [conversation, stt, ui]
             
         #add the UI
         mantella_http_server.start(int(config.port), routes, config.show_http_debug_messages)
