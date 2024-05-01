@@ -250,7 +250,7 @@ Make sure text-generation-webui is running when Mantella is running!
 2. Open LM Studio and download an LLM model.  
 
 3. Go to the Local Server tab, and in the drop-down at the top of the page select your model. If a Windows Firewall message pops up click Allow. Click the Start Server button.  
-<img src="../_static/img/lm_studio_load_model.png" alt="LM Studio Load Model" width="400" height="auto" style="padding: 10px;"/>  
+<img src="../_static/img/lmstudio_load_model.png" alt="LM Studio Load Model" width="400" height="auto" style="padding: 10px;"/>  
 
 4. In MantellaSoftware/config.ini, set `llm_api = http://localhost:1234/v1/`. This is the URL that LM Studio is running your model on. If everything works correctly you should see a message display in Mantella.exe saying "Running Mantella with local language model" when you start it.  
 
