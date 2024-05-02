@@ -1,4 +1,4 @@
-from src.config.types.config_value import ConfigValue
+from src.config.types.config_value import ConfigValue, ConvigValueTag
 from src.config.types.config_value_float import ConfigValueFloat
 from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_selection import ConfigValueSelection
@@ -27,48 +27,48 @@ class LLMDefinitions:
             Ensure that you have the correct secret key set in GPT_SECRET_KEY.txt for the service you are using (if using OpenRouter or OpenAI)
             Note that for some services, like textgenwebui, you must enable the openai extension and have the model you want to use preloaded before running Mantella
             Choosing 'Custom' will instead use the URL from the 'LLM Custom Service Url' config value"""
-        return ConfigValueSelection("llm_api","LLM service",description, "auto", ["auto", "OpenRouter", "OpenAI", "Kobold", "textgenwebui", "Custom"])
+        return ConfigValueSelection("llm_api","LLM service",description, "auto", ["auto", "OpenRouter", "OpenAI", "Kobold", "textgenwebui", "Custom"],tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_llm_custom_service_url_config_value() -> ConfigValue:
         description = """If selected 'Custom' for 'LLM service', you can enter the url to the custom service here. 
                         A custom LLM service is expected to provide an OpenAI API compatible endpoint"""
-        return ConfigValueString("llm_custom_service_url","LLM custom service url",description, "http://127.0.0.1:5001/v1")
+        return ConfigValueString("llm_custom_service_url","LLM custom service url",description, "http://127.0.0.1:5001/v1",tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_custom_token_count_config_value() -> ConfigValue:
         description = """If the model chosen is not recognised by Mantella, the token count for the given model will default to this number
                     If this is not the correct token count for your chosen model, you can change it here
                     Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit"""
-        return ConfigValueInt("custom_token_count","Custom token count",description, 4096, 4096, 9999999)
+        return ConfigValueInt("custom_token_count","Custom token count",description, 4096, 4096, 9999999,tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_wait_time_buffer_config_value() -> ConfigValue:
         description = """Time to wait (in seconds) before generating the next voiceline
                         Mantella waits for the duration of a given voiceline's .wav file + an extra buffer to account for processing overhead within Skyrim
                         If you are noticing that some voicelines are not being said in-game, try increasing this buffer"""
-        return ConfigValueFloat("wait_time_buffer","Wait time buffer",description, 1.0, 0, 999)
+        return ConfigValueFloat("wait_time_buffer","Wait time buffer",description, 1.0, 0, 999,tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_temperature_config_value() -> ConfigValue:
-        return ConfigValueFloat("temperature","Temperature","", 1.0, 0, 2)
+        return ConfigValueFloat("temperature","Temperature","", 1.0, 0, 2,tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_top_p_config_value() -> ConfigValue:
-        return ConfigValueFloat("top_p","Top p","", 1.0, 0, 1)
+        return ConfigValueFloat("top_p","Top p","", 1.0, 0, 1,tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_stop_config_value() -> ConfigValue:
         description = """A list of up to FOUR strings, by default only # is used
                         If you want more than one stopping string use this format: string1,string2,string3,string4"""
-        return ConfigValueString("stop","Stop",description, "#")
+        return ConfigValueString("stop","Stop",description, "#",tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_frequency_penalty_config_value() -> ConfigValue:
-        return ConfigValueFloat("frequency_penalty","Frequency penalty","", 0, -2, 2)
+        return ConfigValueFloat("frequency_penalty","Frequency penalty","", 0, -2, 2,tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_max_tokens_config_value() -> ConfigValue:
-        return ConfigValueInt("max_tokens","Max tokens","Lowering this value can sometimes result in empty responses", 250, 1, 999999)
+        return ConfigValueInt("max_tokens","Max tokens","Lowering this value can sometimes result in empty responses", 250, 1, 999999,tags=[ConvigValueTag.advanced])
 
     

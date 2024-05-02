@@ -1,4 +1,8 @@
 from io import TextIOWrapper
+import os
+from pathlib import Path
+import shutil
+from src.config.config_values import ConfigValues
 from src.config.types.config_value import ConfigValue
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_float import ConfigValueFloat
@@ -16,10 +20,12 @@ class ConfigFileWriter(ConfigValueVisitor):
     def __init__(self):        
         self.__writer: TextIOWrapper | None = None
 
-    def write(self, config_file_path: str, definitions: list[ConfigValue]):
+    def write(self, config_file_path: str, definitions: ConfigValues, create_back_up_configini: bool = False):
+        if create_back_up_configini:
+            self.__backup_config_ini(config_file_path)
         with open(config_file_path, 'w', encoding='utf-8', newline="\r\n") as self.__writer:
-            for definition in definitions:
-                definition.accept_visitor(self)                
+            for base_group in definitions.Base_groups:
+                base_group.accept_visitor(self)
 
     def visit_ConfigValueGroup(self, config_value: ConfigValueGroup):
         lines_to_write = [f"[{config_value.Identifier}]{self.NEWLINE}"]
@@ -112,3 +118,16 @@ class ConfigFileWriter(ConfigValueVisitor):
         for s in split:
             result.append(prefix + s.strip() + ConfigFileWriter.NEWLINE)
         return result
+    
+    def __backup_config_ini(self, config_file_path: str):
+        if os.path.exists(config_file_path):
+            folder = os.path.dirname(config_file_path)
+            counter = 0
+            while True:
+                backup_file_name = os.path.join(folder, f"config_backup_{counter}.ini")
+                if not os.path.exists(backup_file_name):
+                    shutil.copy(config_file_path, backup_file_name)
+                    return
+                counter += 1
+
+            

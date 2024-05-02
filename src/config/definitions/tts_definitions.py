@@ -1,5 +1,5 @@
 import os
-from src.config.types.config_value import ConfigValue
+from src.config.types.config_value import ConfigValue, ConvigValueTag
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_float import ConfigValueFloat
 from src.config.types.config_value_int import ConfigValueInt
@@ -56,25 +56,25 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
                         Examples:
                         http://127.0.0.1:8020 when running XTTS locally
                         https://{POD_ID}-8020.proxy.runpod.net when running XTTS in a RunPod GPU pod (https://docs.runpod.io/pods/configuration/expose-ports)"""
-        return ConfigValueString("xtts_url","XTTS URL",description, "http://127.0.0.1:8020")
+        return ConfigValueString("xtts_url","XTTS URL",description, "http://127.0.0.1:8020",tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_xtts_default_model_config_value() -> ConfigValue:
-        return ConfigValueSelection("xtts_default_model","XTTS default model","Official base XTTS-V2 model to use", "main",["v2.0.0", "v2.0.1", "v2.0.2", "v2.0.3", "main"])
+        return ConfigValueSelection("xtts_default_model","XTTS default model","Official base XTTS-V2 model to use", "main",["v2.0.0", "v2.0.1", "v2.0.2", "v2.0.3", "main"],tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_xtts_device_config_value() -> ConfigValue:
-        return ConfigValueSelection("xtts_device","XTTS device","Set to cpu or cuda (default is cpu). You can also specify which GPU to use (cuda:0, cuda:1 etc)", "cpu" ,["cpu", "cuda", "cuda:0", "cuda:1", "cuda:2","cuda:3", "cuda:4", "cuda:5", "cuda:6", "cuda:7"])
+        return ConfigValueSelection("xtts_device","XTTS device","Set to cpu or cuda (default is cpu). You can also specify which GPU to use (cuda:0, cuda:1 etc)", "cpu" ,["cpu", "cuda", "cuda:0", "cuda:1", "cuda:2","cuda:3", "cuda:4", "cuda:5", "cuda:6", "cuda:7"],tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_xtts_deepspeed_config_value() -> ConfigValue:
-        return ConfigValueBool("xtts_deepspeed","Use XTTS deepspeed","Allows you to speed up processing by several times, only usable with NVIDIA GPU that supports CUDA 11.8+", False)
+        return ConfigValueBool("xtts_deepspeed","Use XTTS deepspeed","Allows you to speed up processing by several times, only usable with NVIDIA GPU that supports CUDA 11.8+", False,tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_xtts_lowvram_config_value() -> ConfigValue:
         description = """The mode in which the model will be stored in RAM and when the processing occurs it will move to VRAM, the difference in speed is small
                     If you don't want to pre-generate the latents for every speaker set it to 1 or else it will generate the latents at every start"""
-        return ConfigValueBool("xtts_lowvram","Use XTTS lowvram", description, True)
+        return ConfigValueBool("xtts_lowvram","Use XTTS lowvram", description, True,tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_xtts_data_config_value() -> ConfigValue:
@@ -86,41 +86,41 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
                     "speed": 1,
                     "enable_text_splitting": true,
                     "stream_chunk_size": 100}"""
-        return ConfigValueString("xtts_data","XTTS data","Default data for the tts settings of XTTS api server", value)
+        return ConfigValueString("xtts_data","XTTS data","Default data for the tts settings of XTTS api server", value,tags=[ConvigValueTag.advanced])
     
     # xVASynth section
     @staticmethod
     def get_tts_process_device_config_value() -> ConfigValue:
-        return ConfigValueSelection("tts_process_device","xVASynth process device","Whether to run xVASynth server (unless already running) on your CPU or a NVIDIA GPU (with CUDA installed)", "cpu" ,["cpu", "gpu"])
+        return ConfigValueSelection("tts_process_device","xVASynth process device","Whether to run xVASynth server (unless already running) on your CPU or a NVIDIA GPU (with CUDA installed)", "cpu" ,["cpu", "gpu"],tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_pace_config_value() -> ConfigValue:
         description = """The default speed of talking. Also varies between voices
                         0.5 = 2x faster; 2 = 2x slower"""
-        return ConfigValueFloat("pace","Pace",description, 1.0, 0.1, 2.0)
+        return ConfigValueFloat("pace","Pace",description, 1.0, 0.1, 2.0, tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_use_cleanup_config_value() -> ConfigValue:
         description = """Whether to try to reduce noise and the robot-sounding nature of xVASynth generated speech
                         Has only slight impact on processing speed for the CPU
                         Not meant to be used on voices that have post-effects attached to them (echoes, reverbs, etc.)"""
-        return ConfigValueBool("use_cleanup","Use cleanup",description, False)
+        return ConfigValueBool("use_cleanup","Use cleanup",description, False, tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_use_sr_config_value() -> ConfigValue:
         description = """Whenever to improve the quality of your audio through Super-resolution of 22050Hz audio into 48000Hz audio
                         This is a fairly slow process on CPUs, but on some GPUs it can be quick"""
-        return ConfigValueBool("use_sr","Use super resolution",description, False)
+        return ConfigValueBool("use_sr","Use super resolution",description, False, tags=[ConvigValueTag.advanced])
     
     # audio playback by MantellaSoftware
 
     @staticmethod
     def get_FO4_NPC_response_volume_config_value() -> ConfigValue:
-        return ConfigValueInt("FO4_NPC_response_volume","FO4 NPC response volume","Use this to adjust the volume of (Fallout 4) NPC responses", 100, 0, 100)
+        return ConfigValueInt("fo4_npc_response_volume","FO4 NPC response volume","Use this to adjust the volume of (Fallout 4) NPC responses", 100, 0, 100, tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_tts_print_config_value() -> ConfigValue:
-        return ConfigValueBool("tts_print","TTS print","The print output from autostarted TTS service", False)
+        return ConfigValueBool("tts_print","TTS print","The print output from autostarted TTS service", False, tags=[ConvigValueTag.advanced])
 
     
 

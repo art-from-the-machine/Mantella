@@ -1,4 +1,4 @@
-from src.config.types.config_value import ConfigValue
+from src.config.types.config_value import ConfigValue, ConvigValueTag
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_float import ConfigValueFloat
 from src.config.types.config_value_int import ConfigValueInt
@@ -33,29 +33,29 @@ class STTDefinitions:
         description = """How long to wait (in seconds) before converting mic input to text
                     If you feel like you are being cut off before you finish your response, increase this value
                     If you feel like there is too much of a delay between you finishing your response and the text conversion, decrease this value"""
-        return ConfigValueFloat("pause_threshold","Pause threshold", description, 1.0, 1.0,999)
+        return ConfigValueFloat("pause_threshold","Pause threshold", description, 1.0, 1.0,999, tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_listen_timeout_config_value() -> ConfigValue:
         description = """How long to wait (in seconds) for the player to speak before retrying
                     This needs to be set to ensure that Mantella can periodically check if the conversation has ended"""
-        return ConfigValueInt("listen_timeout","Listen timeout",  description,30, 0, 999)
+        return ConfigValueInt("listen_timeout","Listen timeout",  description,30, 0, 999, tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_stt_language_config_value() -> ConfigValue:
         description = """The user's spoken language                    
                         default = The one set in [Language]language above"""
-        return ConfigValueSelection("stt_language","STT Language",description,"default",["default","en", "ar", "da", "de", "el", "es", "fi", "fr", "hu", "it", "ko", "nl", "pl", "pt", "ro", "ru", "sv", "sw", "uk", "ha", "tr", "vi", "yo"])
+        return ConfigValueSelection("stt_language","STT Language",description,"default",["default","en", "ar", "da", "de", "el", "es", "fi", "fr", "hu", "it", "ko", "nl", "pl", "pt", "ro", "ru", "sv", "sw", "uk", "ha", "tr", "vi", "yo"], tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_stt_translate_config_value() -> ConfigValue:
         description = """Translate the transcribed speech to English if supported by the Speech-To-Text engine (only impacts faster_whisper option, no impact on whispercpp, which is controlled by your server)
                         STTs that support this function: Whisper (faster_whisper)"""
-        return ConfigValueBool("stt_translate", "STT translate",description, False)
+        return ConfigValueBool("stt_translate", "STT translate",description, False, tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_process_device_config_value() -> ConfigValue:
-        return ConfigValueSelection("process_device", "Process device", "Whether to run Whisper on your CPU or NVIDIA GPU (with CUDA installed) (only impacts faster_whisper option, no impact on whispercpp, which is controlled by your server)","cpu",["cpu","cuda"])
+        return ConfigValueSelection("process_device", "Process device", "Whether to run Whisper on your CPU or NVIDIA GPU (with CUDA installed) (only impacts faster_whisper option, no impact on whispercpp, which is controlled by your server)","cpu",["cpu","cuda"], tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_whisper_type_config_value() -> ConfigValue:
@@ -68,12 +68,12 @@ class STTDefinitions:
                         If the default works for you, DO NOT change this variable. 
                         To change to whispercpp server mode / OpenAI API instead, enter whispercpp. 
                         Additionally, if using the OpenAI API, ensure your GPT_SECRET_KEY.txt is an OpenAI key, whisper_url is "https://api.openai.com/v1/audio/transcriptions" below, and model_size is "whisper-1" above"""
-        return ConfigValueString("whisper_type","Whisper type", description, "faster_whisper")
+        return ConfigValueString("whisper_type","Whisper type", description, "faster_whisper", tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_whisper_url_config_value() -> ConfigValue:
         description = """Advanced users only. Allows entering a openai-compatible server url. If you use whispercpp above in whisper_type, then enter the whispercpp server URL here.
                         Note that if you are also using the Herika mod, the default 8080 port used by whispercpp server may conflict with Herika. You can change the port to, e.g., 8070 instead to avoid the conflict.
                         Examples: http://127.0.0.1:8080/inference (default) / http://127.0.0.1:8070/inference (if you use the optional --port 8070 comand line argument), https://api.openai.com/v1/audio/transcriptions (if using OpenAI API)"""
-        return ConfigValueString("whisper_url","Whisper URL",description, "http://127.0.0.1:8080/inference")
+        return ConfigValueString("whisper_url","Whisper URL",description, "http://127.0.0.1:8080/inference", tags=[ConvigValueTag.advanced])
     

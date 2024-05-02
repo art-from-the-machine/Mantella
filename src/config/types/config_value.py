@@ -1,12 +1,15 @@
 from abc import ABC, abstractmethod
+from enum import StrEnum
 from typing import Any, Callable, Generic, TypeVar
 from src.config.types.config_value_visitor import ConfigValueVisitor
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 
+class ConvigValueTag(StrEnum):
+    advanced = "advanced"
 
 T = TypeVar('T')
 class ConfigValue(ABC, Generic[T]):
-    def __init__(self, identifier: str, name: str, description: str, defaultValue: T, constraints: list[ConfigValueConstraint[T]], is_hidden: bool) -> None:
+    def __init__(self, identifier: str, name: str, description: str, defaultValue: T, constraints: list[ConfigValueConstraint[T]], is_hidden: bool, tags: list[ConvigValueTag] = []) -> None:
         super().__init__()
         self.__identifier = identifier
         self.__name = name
@@ -15,6 +18,7 @@ class ConfigValue(ABC, Generic[T]):
         self.__defaultValue:T = defaultValue
         self.__constraints: list[ConfigValueConstraint[T]] = constraints
         self.__is_hidden: bool = is_hidden
+        self.__tags: list[ConvigValueTag] = tags
         self._on_value_change_callback: Callable[..., Any] | None = None
     
     @property
@@ -51,9 +55,12 @@ class ConfigValue(ABC, Generic[T]):
     def Is_hidden(self) -> bool:
         return self.__is_hidden
     
+    @property
+    def Tags(self) -> list[ConvigValueTag]:
+        return self.__tags
+    
     def set_on_value_change_callback(self, on_value_change_callback: Callable[..., Any] | None):
         self._on_value_change_callback = on_value_change_callback
-        test = 1
     
     def does_value_cause_error(self, valueToCheck: T) -> ConfigValueConstraintResult:
         for constraint in self.__constraints:

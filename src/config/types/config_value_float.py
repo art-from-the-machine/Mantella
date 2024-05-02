@@ -1,11 +1,12 @@
+from src.config.types.config_value import ConvigValueTag
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 from src.config.types.config_value_visitor import ConfigValueVisitor
 from src.config.types.config_value_numeric import ConfigValueNumeric
 
 
 class ConfigValueFloat(ConfigValueNumeric[float]):
-    def __init__(self, identifier: str, name: str, description: str, defaultValue: float, min_value: float, max_value: float, constraints: list[ConfigValueConstraint[float]] = [], is_hidden: bool = False):
-        super().__init__(identifier, name, description, defaultValue, min_value, max_value, constraints, is_hidden)
+    def __init__(self, identifier: str, name: str, description: str, defaultValue: float, min_value: float, max_value: float, constraints: list[ConfigValueConstraint[float]] = [], is_hidden: bool = False, tags: list[ConvigValueTag] = []):
+        super().__init__(identifier, name, description, defaultValue, min_value, max_value, constraints, is_hidden, tags)
 
     def parse(self, config_value: str) -> ConfigValueConstraintResult:
         try:
