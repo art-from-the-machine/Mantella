@@ -6,10 +6,10 @@
   </div>
   <div>
     <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank">
-      <img src="./_static/img/nexus_mods_link.png" alt="Skyrim SE Nexus banner that links to Mantella" style="max-width:25%;height:auto;">
+      <img src="./_static/img/nexus_mods_link_transparent.png" alt="Skyrim SE Nexus banner that links to Mantella" style="max-width:25%;height:auto;">
     </a>
     <a href="https://www.nexusmods.com/fallout4" target="_blank">
-      <img src="./_static/img/nexus_mods_fallout4_link.png" alt="Fallout 4 Nexus banner that links to Mantella" style="max-width:25%;height:auto;">
+      <img src="./_static/img/nexus_mods_fallout4_link_transparent.png" alt="Fallout 4 Nexus banner that links to Mantella" style="max-width:25%;height:auto;">
     </a>
   </div>
 </div> 
@@ -46,6 +46,7 @@ pages/installation
 pages/installation_fallout4
 pages/issues_qna
 pages/adding_modded_npcs
+pages/fine_tuned_models
 pages/contribute
 pages/attributions
 ```
