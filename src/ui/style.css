@@ -1,0 +1,37 @@
+.multiline-textbox textarea
+{
+    font-size: 16px !important;
+    overflow: scroll !important;
+}
+
+.setting-title
+{
+    background: var(--primary-500) !important;
+    border-radius: var(--radius-xxl) !important;
+    padding: var(--block-title-padding) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.constraint-violation
+{
+    border-width: 3px !important;
+    border-color: red !important;
+}
+
+.badge
+{
+    display: inline-block !important;
+    border-radius: var(--radius-xxl) !important;
+    font-size: 14px !important;
+    padding: var(--spacing-sm) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.badge-advanced
+{
+    background: cornflowerblue !important;
+}

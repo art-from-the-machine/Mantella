@@ -31,11 +31,22 @@ class SettingsUIConstructor(ConfigValueVisitor):
             return self.__construct_error_message_panel(result.Error_message, is_visible=True)
         
     def __construct_error_message_panel(self, message: str, is_visible: bool) -> gr.Column | None:
-        with gr.Column(variant="panel", visible=is_visible, elem_classes="errorbox") as result:
+        with gr.Column(variant="panel", visible=is_visible, elem_classes="constraint-violation") as result:
             gr.Markdown(f"{message}")
+
+    def _construct_badges(self, config_value: ConfigValue):
+        if len(config_value.Tags) > 0:
+            with gr.Row():
+                for tag in config_value.Tags:
+                    gr.HTML(f"<b>{str(tag).upper()}</b>", elem_classes=["badge",f"badge-{tag}"])
+                gr.Column(scale=1)
+
     
-    def __construct_name_description_constraints(self, config_value: ConfigValue):        
-        gr.Markdown(f"## {config_value.Name}")
+    def __construct_name_description_constraints(self, config_value: ConfigValue):
+        with gr.Row():
+            gr.Markdown(f"## {config_value.Name}", elem_classes="setting-title")
+            gr.Column(scale=1)
+        #self._construct_badges(config_value)
         gr.Markdown(value=config_value.Description, line_breaks=True)
         constraints_text = ""
         for constraint in config_value.Constraints:
@@ -122,13 +133,26 @@ class SettingsUIConstructor(ConfigValueVisitor):
         
         with gr.Column(variant="panel") as panel:
             self.__construct_name_description_constraints(config_value)
-            input_ui = gr.Text(value=config_value.Value,
-                    show_label=False, 
-                    container=False)
+            count_rows = self.__count_rows_in_text(config_value.Value)
+            if count_rows == 1:
+                input_ui = gr.Text(value=config_value.Value,
+                        show_label=False, 
+                        container=False)
+            else:
+                input_ui = gr.Text(value=config_value.Value,
+                        show_label=False, 
+                        container=False,
+                        lines= count_rows,
+                        elem_classes="multiline-textbox")
             error_message = self.__construct_initial_error_message(config_value)
             if hasattr(input_ui, "_id"):
                 input_ui.change(on_change, input_ui, error_message)
         self.__all_ui_elements[config_value] = panel
+    
+    def __count_rows_in_text(self, text: str) -> int:
+        count_CRLF = text.count("\r\n")
+        count_newline = text.count("\n")
+        return count_CRLF + (count_newline - count_CRLF) + 1
 
     def visit_ConfigValueSelection(self, config_value: ConfigValueSelection):
         def on_change(new_value:str) -> gr.Column | None:

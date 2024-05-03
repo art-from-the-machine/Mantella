@@ -15,7 +15,7 @@ class StartUI(routeable):
         self.__port = port
 
     def create_main_block(self) -> gr.Blocks:
-        with gr.Blocks(title="Mantella", fill_height=True, analytics_enabled=False, theme= self.__get_theme()) as main_block:
+        with gr.Blocks(title="Mantella", fill_height=True, analytics_enabled=False, theme= self.__get_theme(), css=self.__load_css()) as main_block:
             with gr.Tab("Settings") as tabs:
                 settings_page = self.__generate_settings_page()
             with gr.Tab("Chat with NPCs", interactive=False):
@@ -57,3 +57,10 @@ class StartUI(routeable):
                             favicon_path="docs/_static/img/mantella_favicon.ico")
         
         webbrowser.open(f'http://localhost:{str(self.__port)}/ui?__theme=dark', new=2)
+    
+    def __load_css(self):
+        with open('src/ui/style.css', 'r') as file:
+            css_content = file.read()
+        return css_content
+
+    
