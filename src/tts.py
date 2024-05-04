@@ -102,6 +102,7 @@ class Synthesizer:
         # last active voice model
         self.last_voice = ''
 
+        self.speaker_type = ''
         self.model_type = ''
         self.base_speaker_emb = ''
        
@@ -149,28 +150,9 @@ class Synthesizer:
         # Write the 16-bit audio data back to a file
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
 
-    def synthesize(self, voice, voiceline, in_game_voice, csv_in_game_voice, voice_accent, aggro=0, advanced_voice_model=None):
-        if self.tts_service == 'xtts':
-            selected_voice = None
-            speaker_type = None
-    
-            # Determine the most suitable voice model to use
-            if advanced_voice_model and self._voice_exists(advanced_voice_model, 'advanced'):
-                selected_voice = advanced_voice_model
-                speaker_type = 'advanced_voice_model'
-            elif voice and self._voice_exists(voice, 'regular'):
-                selected_voice = voice
-                speaker_type = 'voice_model'
-            elif in_game_voice and self._voice_exists(in_game_voice, 'regular'):
-                selected_voice = in_game_voice
-                speaker_type = 'game_voice_folder'
-            elif csv_in_game_voice and self._voice_exists(csv_in_game_voice, 'csv_voice_folder'):
-                selected_voice = csv_in_game_voice
-                speaker_type = 'csv_game_voice_folder'
-            voice = selected_voice
-                
+    def synthesize(self, voice, voiceline, in_game_voice, csv_in_game_voice, voice_accent, aggro=0, advanced_voice_model=None): 
         if voice != self.last_voice:
-            self.change_voice(voice, voice_accent)
+            self.change_voice(voice, in_game_voice, csv_in_game_voice, advanced_voice_model, voice_accent)
             self.last_voice = voice
 
         logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
@@ -198,7 +180,7 @@ class Synthesizer:
     
         # Synthesize voicelines
         if self.tts_service == 'xtts':
-            self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, speaker_type, aggro)
+            self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, aggro)
         else:
             if len(phrases) == 1:
                 self._synthesize_line(phrases[0], final_voiceline_file, aggro)
@@ -391,7 +373,7 @@ class Synthesizer:
         return sanitized_voice_name in [self._sanitize_voice_name(speaker) for speaker in speakers]
  
     @utils.time_it
-    def _synthesize_line_xtts(self, line, save_path, voice, speaker_type, aggro=0):
+    def _synthesize_line_xtts(self, line, save_path, voice, aggro=0):
         def get_voiceline(voice_name):
             voice_path = f"{self._sanitize_voice_name(voice_name)}"
             data = {
@@ -404,10 +386,10 @@ class Synthesizer:
         response = get_voiceline(voice.lower())
         if response and response.status_code == 200:
             self.convert_to_16bit(io.BytesIO(response.content), save_path)
-            logging.info(f"Successfully synthesized using {speaker_type}: '{voice}'")
+            logging.info(f"Successfully synthesized using {self.speaker_type}: '{voice}'")
             return  # Exit the function successfully after processing
         elif response:
-            logging.error(f"Failed with {speaker_type}: '{voice}'. HTTP Error: {response.status_code}")
+            logging.error(f"Failed with {self.speaker_type}: '{voice}'. HTTP Error: {response.status_code}")
 
 
     def filter_and_log_speakers(self, voice_model_list, log_file_name):
@@ -605,10 +587,27 @@ class Synthesizer:
             sys.exit(0)
             
     @utils.time_it
-    def change_voice(self, voice, voice_accent=None):
+    def change_voice(self, voice, in_game_voice=None, csv_in_game_voice=None, advanced_voice_model=None, voice_accent=None):
         logging.log(self.loglevel, 'Loading voice model...')
         
         if self.tts_service == 'xtts':
+            selected_voice = None
+    
+            # Determine the most suitable voice model to use
+            if advanced_voice_model and self._voice_exists(advanced_voice_model, 'advanced'):
+                selected_voice = advanced_voice_model
+                self.speaker_type = 'advanced_voice_model'
+            elif voice and self._voice_exists(voice, 'regular'):
+                selected_voice = voice
+                self.speaker_type = 'voice_model'
+            elif in_game_voice and self._voice_exists(in_game_voice, 'regular'):
+                selected_voice = in_game_voice
+                self.speaker_type = 'game_voice_folder'
+            elif csv_in_game_voice and self._voice_exists(csv_in_game_voice, 'csv_voice_folder'):
+                selected_voice = csv_in_game_voice
+                self.speaker_type = 'csv_game_voice_folder'
+            voice = selected_voice
+
             # Format the voice string to match the model naming convention
             voice = f"{voice.lower().replace(' ', '')}"
             if voice in self.available_models and voice != self.last_model :
