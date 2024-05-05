@@ -15,6 +15,7 @@ from subprocess import Popen, PIPE, STDOUT, DEVNULL, STARTUPINFO,STARTF_USESHOWW
 import io
 import subprocess
 import csv
+import silentwav
 
 class TTSServiceFailure(Exception):
     pass
@@ -69,7 +70,14 @@ class Synthesizer:
         else: 
             self.game = "Skyrim"
         # check if xvasynth is running; otherwise try to run it
-        if self.tts_service == 'xtts':
+        if self.tts_service == 'none':
+            logging.log(self.loglevel, f'Not connecting to TTS service.')
+            if not self.facefx_path:
+                if os.path.exists(self.xtts_server_path + "/plugins/lip_fuz"):
+                    self.facefx_path = self.xtts_server_path + "/plugins/lip_fuz"
+                elif os.path.exists(self.xvasynth_path + "/resources/app/plugins/lip_fuz"):
+                    self.facefx_path = self.xvasynth_path + "/resources/app/plugins/lip_fuz"
+        elif self.tts_service == 'xtts':
             logging.log(self.loglevel, f'Connecting to XTTS...')
             self.check_if_xtts_is_running()
             self.available_models = self._get_available_models()
@@ -179,7 +187,9 @@ class Synthesizer:
             logging.warning("Failed to remove spoken voicelines")
     
         # Synthesize voicelines
-        if self.tts_service == 'xtts':
+        if self.tts_service == 'none':
+            self._synthesize_line_silent(voiceline, final_voiceline_file)
+        elif self.tts_service == 'xtts':
             self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, aggro)
         else:
             if len(phrases) == 1:
@@ -371,6 +381,11 @@ class Synthesizer:
             speakers = self.csv_voice_folder_speakers.get(self.language, {}).get('speakers', [])
 
         return sanitized_voice_name in [self._sanitize_voice_name(speaker) for speaker in speakers]
+ 
+    @utils.time_it
+    def _synthesize_line_silent(self, line, save_path):
+        silentwav.create_silent_wav(save_path, duration=len(line.split()) * 0.5)
+        return
  
     @utils.time_it
     def _synthesize_line_xtts(self, line, save_path, voice, aggro=0):
