@@ -50,13 +50,13 @@ class conversation:
     def Context(self) -> context:
         return self.__context
     
-    def add_or_update_character(self, new_character: Character):
+    def add_or_update_character(self, new_character: list[Character]):
         """Adds or updates a character in the conversation.
 
         Args:
             new_character (Character): the character to add or update
         """
-        self.__context.add_or_update_character(new_character)
+        self.__context.add_or_update_characters(new_character)
 
         # #switch to multi-npc dialog
         # if isinstance(self.__conversation_type, pc_to_npc) and len(self.__context.npcs_in_conversation) > 1:
@@ -137,7 +137,10 @@ class conversation:
             text = new_message.Text
             logging.log(23, f"Text passed to NPC: {text}")
 
-        if self.__has_conversation_ended(text):
+        ejected_npc = self.__does_dismiss_npc_from_conversation(text)
+        if ejected_npc:
+            self.__eject_npc_from_conversation(ejected_npc)
+        elif self.__has_conversation_ended(text):
             new_message.Is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
             self.initiate_end_sequence()
         else:
@@ -161,19 +164,24 @@ class conversation:
         """This changes between pc_to_npc, multi_npc and radiant conversation_types based on the current state of the context
         """
         # If the conversation can proceed for the first time, it starts and we add the system_message with the prompt
-        if not self.__context.npcs_in_conversation.contains_player_character():
-            self.__conversation_type = radiant(self.__context)
-        elif self.__context.npcs_in_conversation.active_character_count() >= 3:
-            self.__conversation_type = multi_npc(self.__context.config.multi_npc_prompt)
-        else:
-            self.__conversation_type = pc_to_npc(self.__context.config.prompt)
 
-        new_prompt = self.__conversation_type.generate_prompt(self.__context)        
-        if len(self.__messages) == 0:
-            self.__messages: message_thread = message_thread(new_prompt)
-        else:
-            self.__conversation_type.adjust_existing_message_thread(self.__messages, self.__context)
-            self.__messages.reload_message_thread(new_prompt, 8)
+        if not self.__has_already_ended:
+            self.__stop_generation()
+            self.__sentences.clear()
+
+            if not self.__context.npcs_in_conversation.contains_player_character():
+                self.__conversation_type = radiant(self.__context)
+            elif self.__context.npcs_in_conversation.active_character_count() >= 3:
+                self.__conversation_type = multi_npc(self.__context.config.multi_npc_prompt)
+            else:
+                self.__conversation_type = pc_to_npc(self.__context.config.prompt)
+
+            new_prompt = self.__conversation_type.generate_prompt(self.__context)        
+            if len(self.__messages) == 0:
+                self.__messages: message_thread = message_thread(new_prompt)
+            else:
+                self.__conversation_type.adjust_existing_message_thread(self.__messages, self.__context)
+                self.__messages.reload_message_thread(new_prompt, 8)
 
     @utils.time_it
     def update_game_events(self, message: user_message) -> user_message:
@@ -258,7 +266,18 @@ class conversation:
             self.__output_manager.stop_generation()
             while self.__generation_thread and self.__generation_thread.is_alive():
                 time.sleep(0.1)
-            self.__generation_thread = None         
+            self.__generation_thread = None
+
+    def __eject_npc_from_conversation(self, npc: Character):
+        if not self.__has_already_ended:
+            self.__context.remove_character(npc)
+            self.__stop_generation()
+            self.__sentences.clear()            
+            # say goodbye
+            goodbye_sentence = self.__output_manager.generate_sentence(self.__context.config.goodbye_npc_response, npc, False)
+            if goodbye_sentence:
+                goodbye_sentence.Actions.append(comm_consts.ACTION_REMOVECHARACTER)
+                self.__sentences.put(goodbye_sentence)
 
     def __save_conversation(self, is_reload: bool):
         """Saves conversation log and state for each NPC in the conversation"""
@@ -306,4 +325,28 @@ class conversation:
 
         # check if user is ending conversation
         return Transcriber.activation_name_exists(transcript_cleaned, config.end_conversation_keyword.lower()) or (Transcriber.activation_name_exists(transcript_cleaned, 'good bye'))
-            
+
+    def __does_dismiss_npc_from_conversation(self, last_user_text: str) -> Character | None:
+        """Checks if the last player text dismisses an NPC from the conversation
+
+        Args:
+            last_user_text (str): the text to check
+
+        Returns:
+            bool: true if the conversation has ended, false otherwise
+        """
+        # transcriber = self.__stt
+        config = self.__context.config
+        transcript_cleaned = utils.clean_text(last_user_text)
+
+        # check if user is ending conversation
+
+        goodbye_phrase = config.end_conversation_keyword.lower()
+        words = transcript_cleaned.split()
+        for i in range(len(words)):
+            if words[i] == goodbye_phrase and i < (len(words) - 1):
+                for npc_name in self.__context.npcs_in_conversation.get_all_names():
+                    if words[i+1] in npc_name.lower().split():
+                        return self.__context.npcs_in_conversation.get_character_by_name(npc_name)
+        return None
+               
