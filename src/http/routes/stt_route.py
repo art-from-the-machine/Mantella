@@ -25,29 +25,18 @@ class stt_route(routeable):
     KEY_TRANSCRIBE: str = PREFIX + "transcribe"
 
     def __init__(self, config: ConfigLoader, secret_key_file: str, show_debug_messages: bool = False) -> None:
-        super().__init__(show_debug_messages)
+        super().__init__(config, show_debug_messages)
         self.__stt: Transcriber | None = None
-        self.__config = config
         self.__secret_key_file = secret_key_file
 
-    def __load_current_config_state(self):
+    def _setup_route(self):
         if not self.__stt:
-            self.__stt = Transcriber(self.__config, self.__secret_key_file)
-
-    def __can_conversation_route_be_used(self) -> bool:
-        if self.__config.Has_any_config_value_changed:
-            self.__config.update_config_loader_with_changed_config_values()
-            if self.__config.Have_all_config_values_loaded_correctly:
-                self.__load_current_config_state()
-                return True
-            else:
-                return False
-        return self.__config.Have_all_config_values_loaded_correctly
+            self.__stt = Transcriber(self._config, self.__secret_key_file)
 
     def add_route_to_server(self, app: FastAPI):
         @app.post("/stt")
         async def stt(request: Request):
-            if not self.__can_conversation_route_be_used():
+            if not self._can_route_be_used():
                 error_message = "MantellaSoftware settings faulty! Please check MantellaSoftware's window or log!"
                 logging.error(error_message)
                 return self.error_message(error_message)

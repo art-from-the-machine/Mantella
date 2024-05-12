@@ -12,6 +12,7 @@ from pathlib import Path
 class ConfigLoader:
     def __init__(self, file_name='config.ini'):
         self.__has_any_value_changed: bool = False
+        self.__is_initial_load: bool = True
         self.__file_name = file_name
         self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.__on_config_value_change)
         if not os.path.exists(self.__file_name):
@@ -39,6 +40,7 @@ class ConfigLoader:
         if create_back_up_configini:
             self.__write_config_state(self.__definitions, True)
         
+        __is_initial_load = False
         self.__update_config_values_from_current_state()     
     
     @property
@@ -59,7 +61,8 @@ class ConfigLoader:
     
     def __on_config_value_change(self):
         self.__has_any_value_changed = True
-        self.__write_config_state(self.__definitions)
+        if not self.__is_initial_load:
+            self.__write_config_state(self.__definitions)
     
     def __write_config_state(self, definitions: ConfigValues, create_back_up_configini: bool = False):
         try:

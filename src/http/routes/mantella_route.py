@@ -21,45 +21,35 @@ class mantella_route(routeable):
         routeable (_type_): _description_
     """
     def __init__(self, config: ConfigLoader, secret_key_file: str, language_info: dict[Hashable, str], show_debug_messages: bool = False) -> None:
-        super().__init__(show_debug_messages)
-        self.__config: ConfigLoader = config
+        super().__init__(config, show_debug_messages)
         self.__language_info: dict[Hashable, str] = language_info
         self.__secret_key_file: str = secret_key_file
         self.__game: GameStateManager | None = None
 
-    def __load_current_config_state(self):
-        client = openai_client(self.__config, self.__secret_key_file)
+    def _setup_route(self):
+        if self.__game:
+            self.__game.end_conversation({})
+
+        client = openai_client(self._config, self.__secret_key_file)
 
          # Determine which game we're running for and select the appropriate character file
         game: gameable
-        formatted_game_name = self.__config.game.lower().replace(' ', '').replace('_', '')
+        formatted_game_name = self._config.game.lower().replace(' ', '').replace('_', '')
         if formatted_game_name in ("fallout4", "fallout4vr"):
-            game = fallout4(self.__config)
+            game = fallout4(self._config)
         else:
-            game = skyrim(self.__config)
+            game = skyrim(self._config)
         
-        chat_manager = ChatManager(game, self.__config, Synthesizer(self.__config), client)
-        self.__game = GameStateManager(game, chat_manager, self.__config, self.__language_info, client)
+        chat_manager = ChatManager(game, self._config, Synthesizer(self._config), client)
+        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, client)
         
         logging.log(24, '\nConversations not starting when you select an NPC? See here:\nhttps://art-from-the-machine.github.io/Mantella/pages/issues_qna')
         logging.log(24, '\nWaiting for player to select an NPC...')
 
-    def __can_conversation_route_be_used(self) -> bool:
-        if self.__config.Has_any_config_value_changed:
-            if self.__game:
-                self.__game.end_conversation({})
-            self.__config.update_config_loader_with_changed_config_values()
-            if self.__config.Have_all_config_values_loaded_correctly:
-                self.__load_current_config_state()
-                return True
-            else:
-                return False
-        return self.__config.Have_all_config_values_loaded_correctly
-
     def add_route_to_server(self, app: FastAPI):
         @app.post("/mantella")
         async def mantella(request: Request):
-            if not self.__can_conversation_route_be_used():
+            if not self._can_route_be_used():
                 error_message = "MantellaSoftware settings faulty! Please check MantellaSoftware's window or log!"
                 logging.error(error_message)
                 return self.error_message(error_message)

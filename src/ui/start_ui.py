@@ -1,18 +1,15 @@
 from fastapi import FastAPI
 import webbrowser
 import gradio as gr
-from src.config.types.config_value_bool import ConfigValueBool
-from src.config.config_values import ConfigValues
-from src.config.types.config_value import ConfigValue, ConvigValueTag
+from src.config.config_loader import ConfigLoader
 from src.http.routes.routeable import routeable
 from src.ui.settings_ui_constructor import SettingsUIConstructor
 
 class StartUI(routeable):
     BANNER = "docs/_static/img/mantella_banner.png"
-    def __init__(self,definitions: ConfigValues, port: int) -> None:
+    def __init__(self, config: ConfigLoader) -> None:
+        super().__init__(config, False)
         self.__constructor = SettingsUIConstructor()
-        self.__definitions = definitions
-        self.__port = port
 
     def create_main_block(self) -> gr.Blocks:
         with gr.Blocks(title="Mantella", fill_height=True, analytics_enabled=False, theme= self.__get_theme(), css=self.__load_css()) as main_block:
@@ -26,7 +23,7 @@ class StartUI(routeable):
 
     def __generate_settings_page(self) -> gr.Column:
         with gr.Column() as settings:
-            for cf in self.__definitions.Base_groups:
+            for cf in self._config.Definitions.Base_groups:
                 if not cf.Is_hidden:
                     with gr.Tab(cf.Name):
                         cf.accept_visitor(self.__constructor)
@@ -56,11 +53,14 @@ class StartUI(routeable):
                             path="/ui",
                             favicon_path="docs/_static/img/mantella_favicon.ico")
         
-        webbrowser.open(f'http://localhost:{str(self.__port)}/ui?__theme=dark', new=2)
+        webbrowser.open(f'http://localhost:{str(self._config.port)}/ui?__theme=dark', new=2)
     
     def __load_css(self):
         with open('src/ui/style.css', 'r') as file:
             css_content = file.read()
         return css_content
+    
+    def _setup_route(self):
+        pass
 
     
