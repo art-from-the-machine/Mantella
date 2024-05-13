@@ -3,6 +3,7 @@ from src.llm.messages import user_message
 import src.utils as utils
 import time
 import random
+import pandas as pd
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv/fallout4_characters.csv"""
@@ -155,7 +156,7 @@ class GameStateManager:
 
         character_id = self.load_data_when_available('_mantella_current_actor_id', '')
         try:
-            character_id = hex(int(character_id)).replace('x','')
+            character_id = hex(int(character_id))[2:]
         except:
             logging.warning('Could not find ID for the selected NPC')
         
@@ -382,38 +383,60 @@ class GameStateManager:
         # tell Skyrim/Fallout4 papyrus script to start waiting for voiceline input
         self.write_game_info('_mantella_end_conversation', 'False')
         character_id, character_name = self.load_character_name_id()
+        logging.info(f"ID is {character_id}")
 
         def find_character_info(character_name, character_id, character_race, character_df):
             full_id_len = 6
-            full_id_search = character_id[-full_id_len:]
-            partial_id_len = 3
-            partial_id_search = character_id[-partial_id_len:]
+            full_id_search = character_id[-full_id_len:].lstrip('0')  # Strip leading zeros from the last 6 characters
 
             name_match = character_df['name'].astype(str).str.lower() == character_name.lower()
-            id_match = character_df['base_id'].astype(str).str.lower().str[-full_id_len:] == full_id_search
-            partial_id_match = character_df['base_id'].astype(str).str.lower().str[-partial_id_len:] == partial_id_search
             race_match = character_df['race'].astype(str).str.lower() == character_race.lower()
+
+            # Function to remove leading zeros from hexadecimal ID strings
+            def remove_leading_zeros(hex_str):
+                if pd.isna(hex_str):
+                    return ''
+                return str(hex_str).lstrip('0')
+
+            id_match = character_df['base_id'].apply(remove_leading_zeros).str.lower() == full_id_search.lower()
+
+            # Partial ID match with decreasing lengths
+            partial_id_match = pd.Series(False, index=character_df.index)
+            for length in [5, 4, 3]:
+                if partial_id_match.any():
+                    break
+                partial_id_search = character_id[-length:].lstrip('0')  # Strip leading zeros from partial ID search
+                partial_id_match = character_df['base_id'].apply(
+                    lambda x: remove_leading_zeros(str(x)[-length:]) if pd.notna(x) and len(str(x)) >= length else remove_leading_zeros(str(x))
+                ).str.lower() == partial_id_search.lower()
 
             is_generic_npc = False
             try: # match name, full ID, race (needed for Fallout 4 NPCs like Curie)
+                logging.info(" # match name, full ID, race (needed for Fallout 4 NPCs like Curie)")
                 character_info = character_df.loc[name_match & id_match & race_match].to_dict('records')[0]
             except IndexError:
                 try: # match name and full ID
+                    logging.info(" # match name and full ID")
                     character_info = character_df.loc[name_match & id_match].to_dict('records')[0]
                 except IndexError:
                     try: # match name, partial ID, and race
+                         logging.info(" # match name, partial ID, and race")
                          character_info = character_df.loc[name_match & partial_id_match & race_match].to_dict('records')[0]
                     except IndexError:
                         try: # match name and partial ID
+                            logging.info(" # match name and partial ID")
                             character_info = character_df.loc[name_match & partial_id_match].to_dict('records')[0]
                         except IndexError:
                             try: # match name and race
+                                logging.info(" # match name and race")
                                 character_info = character_df.loc[name_match & race_match].to_dict('records')[0]
                             except IndexError:
                                 try: # match just name
+                                    logging.info(" # match just name")
                                     character_info = character_df.loc[name_match].to_dict('records')[0]
                                 except IndexError:
                                     try: # match just ID
+                                        logging.info(" # match just ID")
                                         character_info = character_df.loc[id_match].to_dict('records')[0]
                                     except IndexError: # treat as generic NPC
                                         csvprefix = 'fallout4' if self.game in ["Fallout4", "Fallout4VR"] else 'skyrim'
