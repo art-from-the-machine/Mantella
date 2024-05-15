@@ -105,8 +105,12 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         try:
             self.__encoding = tiktoken.encoding_for_model(chosenmodel)
         except:
-            logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
-            raise
+            try:
+                chosenmodel = 'gpt-3.5-turbo'
+                self.__encoding = tiktoken.encoding_for_model(chosenmodel)
+            except:
+                logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
+                raise
     
     @property
     def token_limit(self) -> int:
