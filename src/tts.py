@@ -151,9 +151,8 @@ class Synthesizer:
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
 
     def synthesize(self, voice, voiceline, in_game_voice, csv_in_game_voice, voice_accent, aggro=0, advanced_voice_model=None): 
-        if voice != self.last_voice:
+        if self.last_voice not in [voice, in_game_voice, csv_in_game_voice, advanced_voice_model, 'fo4_'+voice]:
             self.change_voice(voice, in_game_voice, csv_in_game_voice, advanced_voice_model, voice_accent)
-            self.last_voice = voice
 
         logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
         phrases = self._split_voiceline(voiceline)
@@ -180,7 +179,7 @@ class Synthesizer:
     
         # Synthesize voicelines
         if self.tts_service == 'xtts':
-            self._synthesize_line_xtts(voiceline, final_voiceline_file, voice, aggro)
+            self._synthesize_line_xtts(voiceline, final_voiceline_file, self.last_voice, aggro)
         else:
             if len(phrases) == 1:
                 self._synthesize_line(phrases[0], final_voiceline_file, aggro)
@@ -606,7 +605,12 @@ class Synthesizer:
             elif csv_in_game_voice and self._voice_exists(csv_in_game_voice, 'csv_voice_folder'):
                 selected_voice = csv_in_game_voice
                 self.speaker_type = 'csv_game_voice_folder'
+
+            if (selected_voice.lower() in ['maleeventoned','femaleeventoned']) and (self.game == 'Fallout4'):
+                selected_voice = 'fo4_'+selected_voice
+            
             voice = selected_voice
+            self.last_voice = selected_voice
 
             # Format the voice string to match the model naming convention
             voice = f"{voice.lower().replace(' ', '')}"
