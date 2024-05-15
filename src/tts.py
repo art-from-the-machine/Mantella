@@ -316,7 +316,7 @@ class Synthesizer:
     
 
     @utils.time_it
-    def _synthesize_line(self, line, save_path, aggro=0):
+    def _synthesize_line(self, line, save_path, aggro=0, voicemodelversion='3.0'):
         pluginsContext = {}
         # in combat
         if (aggro == 1):
@@ -344,8 +344,9 @@ class Synthesizer:
             except ConnectionError as e:
                 if attempt < max_attempts - 1:  # Not the last attempt
                     logging.warning(f"Connection error while synthesizing voiceline. Restarting xVASynth server... ({attempt})")
-                    self.run_xvasynth_server()
-                    self.change_voice(self.last_voice)
+                    if voicemodelversion!='1.0':
+                        self.run_xvasynth_server()
+                        self.change_voice(self.last_voice)
                 else:
                     logging.error(f"Failed to synthesize line after {max_attempts} attempts. Skipping voiceline: {line}")
                     break
@@ -637,7 +638,7 @@ class Synthesizer:
             voice_path = f"{self.model_path}{XVASynthAcronym}{voice.lower().replace(' ', '')}"
 
             if not os.path.exists(voice_path+'.json'):
-                logging.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from https://www.nexusmods.com/skyrimspecialedition/mods/44184?tab=files (Ctrl+F for 'sk_{voice.lower().replace(' ', '')}').")
+                logging.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from {XVASynthModNexusLink} (Ctrl+F for '{XVASynthAcronym}{voice.lower().replace(' ', '')}').")
                 raise VoiceModelNotFound()
 
             with open(voice_path+'.json', 'r', encoding='utf-8') as f:
@@ -674,7 +675,7 @@ class Synthesizer:
                     self.run_backup_model(backup_voice)
                     backup_voice='maleeventoned'
                     self.run_backup_model(backup_voice)
-                    self._synthesize_line("test phrase", f"{self.output_path}/FO4_data/temp.wav")
+                    self._synthesize_line("test phrase", f"{self.output_path}/FO4_data/temp.wav",0,'1.0')
                 else:
                     backup_voice='malenord'
                     self.run_backup_model(backup_voice)
