@@ -6,7 +6,7 @@ import time
 import tiktoken
 import requests
 from src.llm.message_thread import message_thread
-from src.llm.messages import message
+from src.llm.messages import message, assistant_message
 from src.config_loader import ConfigLoader
 
 class openai_client:
@@ -181,6 +181,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
             Iterator[AsyncGenerator[str | None, None]]: Yields the return of the 'client.chat.completions.create' method immediately
         """
         async_client = self.generate_async_client()
+        #messages.add_message(assistant_message('Certainly! '))
         logging.info('Getting LLM response...')
         max_tokens = self.__max_tokens
         if num_characters > 1: # override max_tokens in radiant / multi-NPC conversations
