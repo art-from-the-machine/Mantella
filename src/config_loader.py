@@ -185,6 +185,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.radiant_end_prompt = config['Prompt']['radiant_end_prompt']
             self.memory_prompt = config['Prompt']['memory_prompt']
             self.resummarize_prompt = config['Prompt']['resummarize_prompt']
+            self.allow_action_narration = int(config['Prompt']['allow_action_narration'])
             pass
         except Exception as e:
             logging.error('Parameter missing/invalid in config.ini file!')

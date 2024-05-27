@@ -33,6 +33,7 @@ class ChatManager:
         self.offended_npc_response = config.offended_npc_response
         self.forgiven_npc_response = config.forgiven_npc_response
         self.follow_npc_response = config.follow_npc_response
+        self.allow_action_narration = True if config.allow_action_narration == 1 else False
         self.wait_time_buffer = config.wait_time_buffer
         self.root_mod_folder = config.game_path
         self.__tts: Synthesizer = tts
@@ -479,7 +480,10 @@ class ChatManager:
             if ('*' in sentence):
                 # Check if sentence contains two asterisks
                 asterisk_check = re.search(r"(?<!\*)\*(?!\*)[^*]*\*(?!\*)", sentence)
-                if asterisk_check:
+                if self.allow_action_narration:
+                    logging.info(f"Removed asterisks from text for narration: {sentence}")
+                    sentence = sentence.replace('*', '')
+                elif asterisk_check:
                     logging.info(f"Removed asterisks text from response: {sentence}")
                     # Remove text between two asterisks
                     sentence = re.sub(r"(?<!\*)\*(?!\*)[^*]*\*(?!\*)", "", sentence)
