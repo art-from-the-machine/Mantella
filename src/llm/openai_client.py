@@ -84,7 +84,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
             self.__api_key: str = 'abc123'
             logging.info(f"Running Mantella with local language model")
 
-        self.TOKEN_LIMIT_PERCENT = 0.45
+        self.TOKEN_LIMIT_PERCENT = 0.45 # TODO: review this variable
         self.__base_url: str | None = endpoint if endpoint != 'none' else None
         self.__stop: str | List[str] = config.stop
         self.__temperature: float = config.temperature

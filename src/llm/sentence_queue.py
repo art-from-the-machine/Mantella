@@ -14,11 +14,11 @@ class sentence_queue:
         self.__is_more_to_come: bool = False
     
     @property
-    def Is_more_to_come(self) -> bool:
+    def is_more_to_come(self) -> bool:
         return self.__is_more_to_come
     
-    @Is_more_to_come.setter
-    def Is_more_to_come(self, value: bool):
+    @is_more_to_come.setter
+    def is_more_to_come(self, value: bool):
         self.__is_more_to_come = value
 
     def get_next_sentence(self) -> sentence | None:
@@ -26,23 +26,23 @@ class sentence_queue:
         with self.__get_lock:
             if self.__queue.qsize() > 0 or self.__is_more_to_come:
                 retrieved_sentence = self.__queue.get()
-                self.log(f"Retrieved '{retrieved_sentence.Sentence}'")
+                self.log(f"Retrieved '{retrieved_sentence.sentence}'")
                 return retrieved_sentence
             else:
                 self.log(f"Nothing to get from queue, returning None")
                 return None
     
     def put(self, new_sentence: sentence):
-        self.log(f"Trying to aquire put_lock to put '{new_sentence.Sentence}'")
+        self.log(f"Trying to aquire put_lock to put '{new_sentence.sentence}'")
         with self.__put_lock:
-            self.log(f"Putting '{new_sentence.Sentence}'")
+            self.log(f"Putting '{new_sentence.sentence}'")
             self.__queue.put(new_sentence)
 
 
     def put_at_front(self, new_sentence: sentence):
-        self.log(f"Trying to aquire get_lock to put_at_front '{new_sentence.Sentence}'")
+        self.log(f"Trying to aquire get_lock to put_at_front '{new_sentence.sentence}'")
         with self.__get_lock:
-            self.log(f"Trying to aquire put_lock to put_at_front '{new_sentence.Sentence}'")
+            self.log(f"Trying to aquire put_lock to put_at_front '{new_sentence.sentence}'")
             with self.__put_lock:            
                 sentence_list: list[sentence] = []
                 try:

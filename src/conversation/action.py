@@ -5,13 +5,13 @@ class action:
         self.__info_text = info_text
 
     @property
-    def Game_action_identifier(self) -> str:
+    def game_action_identifier(self) -> str:
         return self.__game_action_identifier
 
     @property
-    def Keyword(self) -> str:
+    def keyword(self) -> str:
         return self.__keyword
     
     @property
-    def Info_text(self) -> str:
+    def info_text(self) -> str:
         return self.__info_text

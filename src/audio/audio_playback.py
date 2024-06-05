@@ -72,7 +72,7 @@ class audio_playback:
             distance_factor=1
 
         # Load the WAV file
-        sound = pygame.mixer.Sound(sentence_to_play.Voice_file)
+        sound = pygame.mixer.Sound(sentence_to_play.voice_file)
         original_audio_array = pygame.sndarray.array(sound)
         
         if original_audio_array.ndim == 1:  # Mono sound

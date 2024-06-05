@@ -12,29 +12,29 @@ class sentence:
         self.__error_message: str | None = error_messsage
 
     @property
-    def Speaker(self) -> Character:
+    def speaker(self) -> Character:
         return self.__speaker
     
     @property
-    def Sentence(self) -> str:
+    def sentence(self) -> str:
         return self.__sentence
     
     @property
-    def Voice_file(self) -> str:
+    def voice_file(self) -> str:
         return self.__voice_file
 
     @property
-    def Voice_line_duration(self) -> float:
+    def voice_line_duration(self) -> float:
         return self.__voice_line_duration
     
     @property
-    def Actions(self) -> list[str]:
+    def actions(self) -> list[str]:
         return self.__actions
     
     @property
-    def Is_system_generated_sentence(self) -> bool:
+    def is_system_generated_sentence(self) -> bool:
         return self.__is_system_generated_sentence
     
     @property
-    def Error_message(self) -> str | None:
+    def error_message(self) -> str | None:
         return self.__error_message

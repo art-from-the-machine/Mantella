@@ -36,11 +36,11 @@ class gameable(ABC):
         conversation_log.game_path = self.__conversation_folder_path
     
     @property
-    def Character_df(self) -> pd.DataFrame:
+    def character_df(self) -> pd.DataFrame:
         return self.__character_df
     
     @property
-    def Conversation_folder_path(self) -> str:
+    def conversation_folder_path(self) -> str:
         return self.__conversation_folder_path
     
     def __get_character_df(self, file_name: str) -> pd.DataFrame:

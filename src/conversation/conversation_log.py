@@ -14,9 +14,9 @@ class conversation_log:
     def save_conversation_log(character: Character, messages: list[ChatCompletionMessageParam]):
         # save conversation history
 
-        if not character.Is_generic_npc:
+        if not character.is_generic_npc:
             # if this is not the first conversation
-            conversation_history_file = conversation_log.__get_path_to_conversation_historyFile(character)
+            conversation_history_file = conversation_log.__get_path_to_conversation_history_file(character)
             # transformed_messages = messages.transform_to_openai_messages(messages.get_talk_only())
             if os.path.exists(conversation_history_file):
                 with open(conversation_history_file, 'r', encoding='utf-8') as f:
@@ -28,7 +28,7 @@ class conversation_log:
             else:
                 directory = os.path.dirname(conversation_history_file)
                 os.makedirs(directory, exist_ok=True)
-                conversation_history = messages
+                conversation_history = [messages] # wrap the first conversation in a list
             
             with open(conversation_history_file, 'w', encoding='utf-8') as f:
                 json.dump(conversation_history, f, indent=4) # save everything except the initial system prompt
@@ -37,7 +37,7 @@ class conversation_log:
 
     @staticmethod    
     def load_conversation_log(character: Character) -> list[str]:
-        conversation_history_file = conversation_log.__get_path_to_conversation_historyFile(character)
+        conversation_history_file = conversation_log.__get_path_to_conversation_history_file(character)
         if os.path.exists(conversation_history_file):
             with open(conversation_history_file, 'r', encoding='utf-8') as f:
                 conversation_history = json.load(f)
@@ -49,5 +49,5 @@ class conversation_log:
             return []
 
     @staticmethod    
-    def __get_path_to_conversation_historyFile(character: Character) -> str:
-        return f"{conversation_log.game_path}/{character.Name}/{character.Name}.json"
+    def __get_path_to_conversation_history_file(character: Character) -> str:
+        return f"{conversation_log.game_path}/{character.name}/{character.name}.json"

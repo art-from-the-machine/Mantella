@@ -13,7 +13,7 @@ class Characters:
     
     def contains_character(self, character_to_check: str | Character) -> bool:
         if isinstance(character_to_check, Character):
-            return self.__active_characters.__contains__(character_to_check.Name)
+            return self.__active_characters.__contains__(character_to_check.name)
         else:
             return self.__active_characters.__contains__(character_to_check)
     
@@ -25,9 +25,9 @@ class Characters:
         return len(self.__active_characters)
     
     def add_character(self, new_character: Character):
-        if not self.__active_characters.__contains__(new_character.Name):
-            self.__active_characters[new_character.Name] = new_character            
-            if new_character.Is_player_character:
+        if not self.__active_characters.__contains__(new_character.name):
+            self.__active_characters[new_character.name] = new_character            
+            if new_character.is_player_character:
                 self.__player_character = new_character
             else:
                 self.__last_added_character = new_character

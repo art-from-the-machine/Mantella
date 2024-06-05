@@ -8,8 +8,6 @@ import src.color_formatter as cf
 import src.utils as utils
 import pandas as pd
 import sys
-import os
-
 import src.config_loader as config_loader
 from src.llm.openai_client import openai_client
 
