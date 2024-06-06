@@ -1,3 +1,4 @@
+import datetime
 import requests
 from requests.exceptions import ConnectionError
 import time
@@ -23,7 +24,7 @@ class VoiceModelNotFound(Exception):
     pass
 
 class Synthesizer:
-    def __init__(self, config, character_df):
+    def __init__(self, config, game):
         self.loglevel = 29
         self.xvasynth_path = config.xvasynth_path
         self.facefx_path = config.facefx_path
@@ -54,13 +55,10 @@ class Synthesizer:
         self.xtts_set_tts_settings = f'{self.xtts_url}/set_tts_settings'
         self.xtts_get_models_list = f'{self.xtts_url}/get_models_list'
         self.xtts_get_speakers_list = f'{self.xtts_url}/speakers_list'
-        
-        character_df['advanced_voice_model'] = character_df['advanced_voice_model'].fillna('').apply(str)
-        character_df['voice_model'] = character_df['voice_model'].fillna('').apply(str)
 
-        self.advanced_voice_model_data = list(set(character_df['advanced_voice_model'].tolist()))
-        self.voice_model_data = list(set(character_df['voice_model'].tolist()))
-        self.csv_voice_folder_data = list(set(character_df['skyrim_voice_folder'].tolist())) if 'skyrim' in config.game.lower() else list(set(character_df['fallout4_voice_folder'].tolist()))
+        self.advanced_voice_model_data = list(set(game.character_df['advanced_voice_model'].fillna('').apply(str).tolist()))
+        self.voice_model_data = list(set(game.character_df['voice_model'].fillna('').apply(str).tolist()))
+        self.csv_voice_folder_data = list(set(game.character_df['skyrim_voice_folder'].tolist())) if 'skyrim' in config.game.lower() else list(set(game.character_df['fallout4_voice_folder'].tolist()))
         
         # voice models path (renaming Fallout4VR to Fallout4 to allow for filepath completion)
         if config.game == "Fallout4" or config.game == "Fallout4VR":
@@ -150,8 +148,8 @@ class Synthesizer:
         # Write the 16-bit audio data back to a file
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
 
-    def synthesize(self, voice, voiceline, in_game_voice, csv_in_game_voice, voice_accent, aggro=0, advanced_voice_model=None): 
-        if self.last_voice not in [voice, in_game_voice, csv_in_game_voice, advanced_voice_model, 'fo4_'+voice]:
+    def synthesize(self, voice: str, voiceline: str, in_game_voice: str, csv_in_game_voice: str, voice_accent: str, aggro: bool = False, advanced_voice_model: str = None):
+        if self.last_voice == '' or self.last_voice not in [voice, in_game_voice, csv_in_game_voice, advanced_voice_model, 'fo4_'+voice]:
             self.change_voice(voice, in_game_voice, csv_in_game_voice, advanced_voice_model, voice_accent)
 
         logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
@@ -231,6 +229,18 @@ class Synthesizer:
                 os.remove(final_voiceline_file.replace(".wav", "_r.wav"))
         except Exception as e:
             logging.warning(e)
+
+        #rename to unique name        
+        if(os.path.exists(final_voiceline_file)):
+            try:
+                timestamp: str = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f_")
+                new_wav_file_name = f"{final_voiceline_folder}/{timestamp + final_voiceline_file_name}.wav" 
+                new_lip_file_name = new_wav_file_name.replace(".wav", ".lip")
+                os.rename(final_voiceline_file, new_wav_file_name)
+                os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
+                final_voiceline_file = new_wav_file_name
+            except:
+                logging.error(f'Could not rename {final_voiceline_file} or {final_voiceline_file.replace(".wav", ".lip")}')
 
         # if Debug Mode is on, play the audio file
         if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):
@@ -316,10 +326,10 @@ class Synthesizer:
     
 
     @utils.time_it
-    def _synthesize_line(self, line, save_path, aggro=0, voicemodelversion='3.0'):
+    def _synthesize_line(self, line, save_path, aggro: bool = False, voicemodelversion='3.0'):
         pluginsContext = {}
         # in combat
-        if (aggro == 1):
+        if aggro:
             pluginsContext["mantella_settings"] = {
                 "emAngry": 0.6
             }
@@ -373,7 +383,7 @@ class Synthesizer:
         return sanitized_voice_name in [self._sanitize_voice_name(speaker) for speaker in speakers]
  
     @utils.time_it
-    def _synthesize_line_xtts(self, line, save_path, voice, aggro=0):
+    def _synthesize_line_xtts(self, line, save_path, voice, in_game_voice, aggro: bool):
         def get_voiceline(voice_name):
             voice_path = f"{self._sanitize_voice_name(voice_name)}"
             data = {

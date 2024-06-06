@@ -84,7 +84,8 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
             self.__api_key: str = 'abc123'
             logging.info(f"Running Mantella with local language model")
 
-        self.__base_url: str = endpoint if endpoint != 'none' else None
+        self.TOKEN_LIMIT_PERCENT = 0.45 # TODO: review this variable
+        self.__base_url: str | None = endpoint if endpoint != 'none' else None
         self.__stop: str | List[str] = config.stop
         self.__temperature: float = config.temperature
         self.__top_p: float = config.top_p
@@ -167,7 +168,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         else:
             return OpenAI(api_key=self.__api_key, default_headers=self.__header)
     
-    async def streaming_call(self, messages: list[dict[str,str]], num_characters: int) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
 
@@ -183,7 +184,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         async_client = self.generate_async_client()
         logging.info('Getting LLM response...')
         max_tokens = self.__max_tokens
-        if num_characters > 1: # override max_tokens in radiant / multi-NPC conversations
+        if is_multi_npc: # override max_tokens in radiant / multi-NPC conversations
             max_tokens = 250
         try:
             async for chunk in await async_client.chat.completions.create(model=self.model_name, 
@@ -296,6 +297,15 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
     
     def calculate_tokens_from_text(self, text: str) -> int:
         return len(self.__encoding.encode(text))
+    
+    def is_text_too_long(self, text: str, token_limit_percent: float) -> bool:
+        countTokens: int = self.calculate_tokens_from_text(text)
+        return  countTokens > self.token_limit * token_limit_percent
+        
+    def are_messages_too_long(self, messages: message_thread, token_limit_percent: float) -> bool:
+        countTokens: int = self.calculate_tokens_from_messages(messages)
+        return countTokens > self.token_limit * token_limit_percent
+            
     
     # --- Private methods ---    
     def __get_token_limit(self, llm, custom_token_count, is_local):

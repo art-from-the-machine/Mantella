@@ -1,7 +1,7 @@
-import json
 import logging
 import os
 import time
+from src.games.gameable import gameable
 from src.llm.openai_client import openai_client
 from src.llm.message_thread import message_thread
 from src.llm.messages import user_message
@@ -13,15 +13,15 @@ class summaries(remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, game: str, summary_limit_pct: float = 0.3) -> None:
+    def __init__(self, game: gameable, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
+        self.__game: gameable = game
         self.__summary_limit_pct: float = summary_limit_pct
         self.__client: openai_client = client
         self.__language_name: str = language_name
         self.__memory_prompt: str = memory_prompt
         self.__resummarize_prompt:str = resummarize_prompt
-        self.__game:str = game.replace('VR','')
 
     def get_prompt_text(self, npcs_in_conversation: Characters) -> str:
         """Load the conversation summaries for all NPCs in the conversation and returns them as one string
@@ -34,29 +34,55 @@ class summaries(remembering):
         """
         result = ""
         for character in npcs_in_conversation.get_all_characters():
-            if os.path.exists(character.conversation_history_file) and os.path.exists(character.conversation_summary_file):
-                with open(character.conversation_summary_file, 'r', encoding='utf-8') as f:
-                    previous_conversation_summaries = f.read()
-                    character.conversation_summary = previous_conversation_summaries
-                    if len(npcs_in_conversation) == 1 and len(previous_conversation_summaries) > 0:
-                        result = f"Below is a summary for each of your previous conversations:\n\n{previous_conversation_summaries}"
-                    elif len(npcs_in_conversation) > 1 and len(previous_conversation_summaries) > 0:
-                        result += f"{character.name}: {previous_conversation_summaries}"
+            if not character.is_player_character:          
+                conversation_summary_file = self.__get_latest_conversation_summary_file_path(character)      
+                if os.path.exists(conversation_summary_file):                    
+                    with open(conversation_summary_file, 'r', encoding='utf-8') as f:
+                        previous_conversation_summaries = f.read()
+                        # character.conversation_summary = previous_conversation_summaries
+                        if len(npcs_in_conversation) == 1 and len(previous_conversation_summaries) > 0:
+                            result = f"Below is a summary for each of your previous conversations:\n\n{previous_conversation_summaries}"
+                        elif len(npcs_in_conversation) > 1 and len(previous_conversation_summaries) > 0:
+                            result += f"{character.name}: {previous_conversation_summaries}"
         return result
 
     def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, is_reload=False):
         summary = ''
-        non_generic_npc = []
+        non_generic_npc: list[Character] = []
         for npc in npcs_in_conversation.get_all_characters():
             if npc.is_generic_npc:
-                logging.info('A summary will not be saved for this generic NPC.')
-            else:
+                logging.info('A summary will not be saved for this generic NPC.')            
+            elif not npc.is_player_character:
                 non_generic_npc.append(npc)
         for npc in non_generic_npc:            
             if len(summary) < 1: # if a summary has not already been generated, make one
                 summary = self.__create_new_conversation_summary(messages, npc.name)
             if len(summary) > 0 or is_reload: # if a summary has been generated, give the same summary to all NPCs
                 self.__append_new_conversation_summary(summary, npc)
+
+    def __get_latest_conversation_summary_file_path(self, character: Character) -> str:
+        """Get latest conversation summary by file name suffix"""
+
+        name: str = character.name
+        character_conversation_folder_path = f"{self.__game.conversation_folder_path}/{name}"
+        if os.path.exists(character_conversation_folder_path):
+            # get all files from the directory
+            files = os.listdir(character_conversation_folder_path)
+            # filter only .txt files
+            txt_files = [f for f in files if f.endswith('.txt')]
+            if len(txt_files) > 0:
+                file_numbers = [int(os.path.splitext(f)[0].split('_')[-1]) for f in txt_files]
+                latest_file_number = max(file_numbers)
+                logging.info(f"Loaded latest summary file: {character_conversation_folder_path}/{name}_summary_{latest_file_number}.txt")
+            else:
+                logging.info(f"{character_conversation_folder_path} does not exist. A new summary file will be created.")
+                latest_file_number = 1
+        else:
+            logging.info(f"{character_conversation_folder_path} does not exist. A new summary file will be created.")
+            latest_file_number = 1
+        
+        conversation_summary_file = f"{character_conversation_folder_path}/{name}_summary_{latest_file_number}.txt"
+        return conversation_summary_file
 
     def __create_new_conversation_summary(self, messages: message_thread, npc_name: str) -> str:
         prompt = self.__memory_prompt.format(
@@ -66,7 +92,7 @@ class summaries(remembering):
                 )
         while True:
             try:
-                if len(messages) > 5:
+                if len(messages) >= 5:
                     return self.summarize_conversation(messages.transform_to_dict_representation(messages.get_talk_only()), prompt, npc_name)
                 else:
                     logging.info(f"Conversation summary not saved. Not enough dialogue spoken.")
@@ -79,18 +105,19 @@ class summaries(remembering):
 
     def __append_new_conversation_summary(self, new_summary: str, npc: Character):
         # if this is not the first conversation
-        if os.path.exists(npc.conversation_summary_file):
-            with open(npc.conversation_summary_file, 'r', encoding='utf-8') as f:
+        conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc)
+        if os.path.exists(conversation_summary_file):
+            with open(conversation_summary_file, 'r', encoding='utf-8') as f:
                 previous_conversation_summaries = f.read()
         # if this is the first conversation
         else:
-            directory = os.path.dirname(npc.conversation_summary_file)
+            directory = os.path.dirname(conversation_summary_file)
             os.makedirs(directory, exist_ok=True)
             previous_conversation_summaries = ''
        
         if len(new_summary) > 0:
             conversation_summaries = previous_conversation_summaries + new_summary
-            with open(npc.conversation_summary_file, 'w', encoding='utf-8') as f:
+            with open(conversation_summary_file, 'w', encoding='utf-8') as f:
                 f.write(conversation_summaries)
         else:
             conversation_summaries = previous_conversation_summaries
@@ -117,7 +144,7 @@ class summaries(remembering):
                     continue
 
             # Split the file path and increment the number by 1
-            base_directory, filename = os.path.split(npc.conversation_summary_file)
+            base_directory, filename = os.path.split(conversation_summary_file)
             file_prefix, old_number = filename.rsplit('_', 1)
             old_number = os.path.splitext(old_number)[0]
             new_number = int(old_number) + 1
@@ -126,7 +153,7 @@ class summaries(remembering):
             with open(new_conversation_summary_file, 'w', encoding='utf-8') as f:
                 f.write(long_conversation_summary)
             
-            npc.conversation_summary_file = npc.get_latest_conversation_summary_file_path()
+            # npc.conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc)
 
     def summarize_conversation(self, text_to_summarize: str, prompt: str, npc_name: str) -> str:
         summary = ''

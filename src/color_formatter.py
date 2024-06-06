@@ -29,6 +29,7 @@ class CustomFormatter(logging.Formatter):
     BGmagenta = "\x1b[45m"
     BGcyan = "\x1b[46m"
     BGwhite = "\x1b[47m"
+    BGLightBlue = "\x1b[104m"
 
     format = "%(asctime)s.%(msecs)03d %(levelname)s: %(message)s"
 
@@ -58,6 +59,13 @@ class CustomFormatter(logging.Formatter):
 
         # WARNING level
         # 30:
+
+        # HTTP in
+        40: orange + format + reset,
+        # HTTP out
+        41: bold_red + format + reset,
+        # sentence queue
+        42: black + BGLightBlue + format + reset,
     }
 
     def format(self, record):

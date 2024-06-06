@@ -28,29 +28,29 @@ See here to learn how to move your game's installation folder: https://art-from-
                 skyrim_in_program_files = True
             return skyrim_in_program_files 
 
-        def check_missing_mantella_file(set_path):
-            if self.game == "Fallout4" or self.game == "Fallout4VR":
-                txtPrefix='fallout4'
-                modnameSufix='gun'
-            else:
-                txtPrefix='skyrim'
-                modnameSufix='Spell'
+#         def check_missing_mantella_file(set_path):
+#             if self.game == "Fallout4" or self.game == "Fallout4VR":
+#                 txtPrefix='fallout4'
+#                 modnameSufix='gun'
+#             else:
+#                 txtPrefix='skyrim'
+#                 modnameSufix='Spell'
             
-            try:
-                with open(set_path+'/_mantella__'+txtPrefix+'_folder.txt') as f:
-                    check = f.readline().strip()
-            except:
-                #Reworked the warning to include correct names depending on the game being ran.
-                logging.warn(f'''
-Warning: Could not find _mantella__{txtPrefix}_folder.txt in {set_path}. 
-If you have not yet used the Mantella {modnameSufix} in-game you can safely ignore this message. 
-If you have used the Mantella {modnameSufix} please check that your 
-MantellaSoftware/config.ini "{txtPrefix}_folder" has been set correctly 
-(instructions on how to set this up are in the config file itself).
-If you are still having issues, a list of solutions can be found here: 
-https://github.com/art-from-the-machine/Mantella#issues-qa
-''')
-                input("Press Enter to confirm these warnings...")
+#             try:
+#                 with open(set_path+'/_mantella__'+txtPrefix+'_folder.txt') as f:
+#                     check = f.readline().strip()
+#             except:
+#                 #Reworked the warning to include correct names depending on the game being ran.
+#                 logging.warn(f'''
+# Warning: Could not find _mantella__{txtPrefix}_folder.txt in {set_path}. 
+# If you have not yet used the Mantella {modnameSufix} in-game you can safely ignore this message. 
+# If you have used the Mantella {modnameSufix} please check that your 
+# MantellaSoftware/config.ini "{txtPrefix}_folder" has been set correctly 
+# (instructions on how to set this up are in the config file itself).
+# If you are still having issues, a list of solutions can be found here: 
+# https://github.com/art-from-the-machine/Mantella#issues-qa
+# ''')
+#                 input("Press Enter to confirm these warnings...")
 
         def run_config_editor():
             try:
@@ -76,23 +76,20 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.game = str(self.game).lower().replace(' ', '').replace('_', '')
             if self.game =="fallout4":
                 self.game ="Fallout4"
-                self.game_path = config['Paths']['fallout4_folder']
                 self.mod_path = config['Paths']['fallout4_mod_folder']
             elif self.game =="fallout4vr":
                 self.game ="Fallout4VR"
-                self.game_path = config['Paths']['fallout4vr_folder'] 
+                self.game_path = config['Paths']['fallout4vr_folder']
                 self.mod_path = config['Paths']['fallout4vr_mod_folder']
             elif self.game =="skyrimvr":
                 self.game ="SkyrimVR"
-                self.game_path = config['Paths']['skyrimvr_folder']
                 self.mod_path = config['Paths']['skyrimvr_mod_folder']
             #if the game is not recognized Mantella will assume it's Skyrim since that's the most frequent one.
             else:
                 self.game ="Skyrim"
-                self.game_path = config['Paths']['skyrim_folder']
                 self.mod_path = config['Paths']['skyrim_mod_folder']
             
-            logging.log(23, f'Mantella currently running for {self.game} ({self.game_path}). Mantella mod located in {self.mod_path}')
+            logging.log(24, f'Mantella currently running for {self.game}. Mantella mod .esp located in {self.mod_path}.  \n')
             self.language = config['Language']['language']
             self.end_conversation_keyword = config['Language']['end_conversation_keyword']
             self.goodbye_npc_response = config['Language.Advanced']['goodbye_npc_response']
@@ -106,7 +103,6 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             #Added from xTTS implementation
             self.xtts_server_path = config['Paths']['xtts_server_folder']
 
-            self.mic_enabled = config['Microphone']['microphone_enabled']
             self.whisper_model = config['Microphone.Advanced']['model_size']
             self.whisper_process_device = config['Microphone.Advanced']['process_device']
             self.stt_language = config['Microphone.Advanced']['stt_language']
@@ -169,8 +165,11 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             self.debug_exit_on_first_exchange = config['Debugging']['exit_on_first_exchange']
             self.add_voicelines_to_all_voice_folders = config['Debugging']['add_voicelines_to_all_voice_folders']
 
+            #HTTP
+            self.port = config['HTTP']['port']
+            self.show_http_debug_messages: bool = config['HTTP']['show_http_debug_messages'] == "1"
+
             #Conversation
-            self.player_name = config['Conversation']['player_name']
             self.automatic_greeting = config['Conversation']['automatic_greeting']
 
             #new separate prompts for Fallout 4 have been added 
@@ -200,12 +199,7 @@ https://github.com/art-from-the-machine/Mantella#issues-qa
             
             self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
 
-        # don't trust; verify; test subfolders
-        if not os.path.exists(f"{self.game_path}"):
-            invalid_path(self.game_path, f"{self.game_path}")
-        else:
-            skyrim_in_program_files = check_program_files(self.game_path)
-            check_missing_mantella_file(self.game_path)
+        check_program_files(self.mod_path)
 
         if (self.tts_service == 'xvasynth') and (not os.path.exists(f"{self.xvasynth_path}\\resources\\")):
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")

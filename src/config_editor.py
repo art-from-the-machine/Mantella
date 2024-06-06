@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, Text, filedialog
 import configparser
-import re
 import sys
 import subprocess
 

@@ -5,14 +5,11 @@ import src.utils as utils
 import requests
 import json
 import io
-import time
 
 class Transcriber:
-    def __init__(self, game_state_manager, config, api_key: str):
+    def __init__(self, config, api_key: str):
         self.loglevel = 27
-        self.game_state_manager = game_state_manager
-        self.game_path = config.game_path
-        self.mic_enabled = config.mic_enabled
+        # self.mic_enabled = config.mic_enabled
         self.language = config.stt_language
         self.task = "transcribe"
         if config.stt_translate == 1:
@@ -36,52 +33,62 @@ class Transcriber:
         self.call_count = 0
         self.api_key = api_key
 
-        if self.mic_enabled == '1':
-            self.recognizer = sr.Recognizer()
-            self.recognizer.pause_threshold = config.pause_threshold
-            self.microphone = sr.Microphone()
+        # if self.mic_enabled == '1':
+        self.recognizer = sr.Recognizer()
+        self.recognizer.pause_threshold = config.pause_threshold
+        self.microphone = sr.Microphone()
 
-            if self.audio_threshold == 'auto':
-                logging.log(self.loglevel, f"Audio threshold set to 'auto'. Adjusting microphone for ambient noise...")
-                logging.log(self.loglevel, "If the mic is not picking up your voice, try setting this audio_threshold value manually in MantellaSoftware/config.ini.\n")
-                with self.microphone as source:
-                    self.recognizer.adjust_for_ambient_noise(source, duration=5)
-            else:
-                self.recognizer.dynamic_energy_threshold = False
-                self.recognizer.energy_threshold = int(self.audio_threshold)
-                logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this value in MantellaSoftware/config.ini. If the mic is picking up too much background noise, try increasing this value.\n")
-
-            # if using faster_whisper, load model selected by player, otherwise skip this step
-            if self.whisper_type == 'faster_whisper':
-                if self.process_device == 'cuda':
-                    self.transcribe_model = WhisperModel(self.model, device=self.process_device)
-                else:
-                    self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
-
-    def get_player_response(self, say_goodbye, prompt: str):
-        if (self.debug_mode == '1') & (self.debug_use_default_player_response == '1'):
-            transcribed_text = self.default_player_response
+        if self.audio_threshold == 'auto':
+            logging.log(self.loglevel, f"Audio threshold set to 'auto'. Adjusting microphone for ambient noise...")
+            logging.log(self.loglevel, "If the mic is not picking up your voice, try setting this audio_threshold value manually in MantellaSoftware/config.ini.\n")
+            with self.microphone as source:
+                self.recognizer.adjust_for_ambient_noise(source, duration=5)
         else:
-            if self.mic_enabled == '1':
-                # listen for response
-                transcribed_text = self.recognize_input(prompt)
-            else:
-                transcribed_text = self._get_text_input()
+            self.recognizer.dynamic_energy_threshold = False
+            self.recognizer.energy_threshold = int(self.audio_threshold)
+            logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this value in MantellaSoftware/config.ini. If the mic is picking up too much background noise, try increasing this value.\n")
 
-        if (self.debug_mode == '1') & (self.debug_exit_on_first_exchange == '1'):
-            if say_goodbye:
-                transcribed_text = self.end_conversation_keyword
+        # if using faster_whisper, load model selected by player, otherwise skip this step
+        if self.whisper_type == 'faster_whisper':
+            if self.process_device == 'cuda':
+                self.transcribe_model = WhisperModel(self.model, device=self.process_device)
             else:
-                say_goodbye = True
+                self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
+
+    # def get_player_response(self, say_goodbye, prompt: str):
+    #     if (self.debug_mode == '1') & (self.debug_use_default_player_response == '1'):
+    #         transcribed_text = self.default_player_response
+    #     else:
+    #         if self.mic_enabled == '1':
+    #             # listen for response
+    #             transcribed_text = self.recognize_input(prompt)
+    #         else:
+    #             # text input through console
+    #             if (self.debug_mode == '1') & (self.debug_use_default_player_response == '0'):
+    #                 transcribed_text = input('\nWrite player\'s response: ')
+    #                 logging.log(self.loglevel, f'Player wrote "{transcribed_text}"')
+    #             # await text input from the game
+    #             else:
+    #                 self.game_state_manager.write_game_info('_mantella_text_input', '')
+    #                 self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'True')
+    #                 transcribed_text = self.game_state_manager.load_data_when_available('_mantella_text_input', '')
+    #                 self.game_state_manager.write_game_info('_mantella_text_input', '')
+    #                 self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'False')
+
+    #     if (self.debug_mode == '1') & (self.debug_exit_on_first_exchange == '1'):
+    #         if say_goodbye:
+    #             transcribed_text = self.end_conversation_keyword
+    #         else:
+    #             say_goodbye = True
         
-        return transcribed_text, say_goodbye
+        # return transcribed_text, say_goodbye
 
     def recognize_input(self, prompt: str):
         """
         Recognize input from mic and return transcript if activation tag (assistant name) exist
         """
         while True:
-            self.game_state_manager.write_game_info('_mantella_status', 'Listening...')
+            # self.game_state_manager.write_game_info('_mantella_status', 'Listening...')
             logging.log(self.loglevel, 'Listening...')
             transcript = self._recognize_speech_from_mic(prompt)
             if transcript == None:
@@ -89,15 +96,15 @@ class Transcriber:
 
             transcript_cleaned = utils.clean_text(transcript)
 
-            conversation_ended = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
-            if conversation_ended.lower() == 'true':
-                return 'goodbye'
+            # conversation_ended = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
+            # if conversation_ended.lower() == 'true':
+            #     return 'goodbye'
 
             # common phrases hallucinated by Whisper
             if transcript_cleaned in ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much']:
                 continue
 
-            self.game_state_manager.write_game_info('_mantella_status', 'Thinking...')
+            # self.game_state_manager.write_game_info('_mantella_status', 'Thinking...')
             return transcript
     
 
@@ -141,28 +148,6 @@ class Transcriber:
 
         return transcript
 
-    def _get_text_input(self):
-        # text input through console
-        if (self.debug_mode == '1') & (self.debug_use_default_player_response == '0'):
-            text = input('\nWrite player\'s response: ')
-            logging.log(self.loglevel, f'Player wrote "{text}"')
-        # await text input from the game
-        else:
-            self.game_state_manager.write_game_info('_mantella_text_input', '')
-            self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'True')
-            text = ''
-            while text == '':
-                with open(f'{self.game_path}/_mantella_end_conversation.txt', 'r', encoding='utf-8') as f:
-                    if f.readline().strip().lower() == 'true':
-                        return self.end_conversation_keyword
-                with open(f'{self.game_path}/_mantella_text_input.txt', 'r', encoding='utf-8') as f:
-                    text = f.readline().strip()
-                # decrease stress on CPU while waiting for file to populate
-                time.sleep(0.01)
-            self.game_state_manager.write_game_info('_mantella_text_input', '')
-            self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'False')
-
-        return text
 
     @staticmethod
     def activation_name_exists(transcript_cleaned, activation_name):
