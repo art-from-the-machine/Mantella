@@ -57,8 +57,9 @@ class fallout4(gameable):
 
     def load_external_character_info(self, id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
         character_info, is_generic_npc = self.find_character_info(id, name, race, gender, ingame_voice_model)
+        actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
-        return external_character_info(name, is_generic_npc, character_info["bio"], character_info['ingame_voice_model'], character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None)) 
+        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None)) 
     
     def load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
         """Load generic NPC if character cannot be found in fallout4_characters.csv"""
