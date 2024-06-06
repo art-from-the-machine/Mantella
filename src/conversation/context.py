@@ -6,16 +6,18 @@ from src.remember.remembering import remembering
 from src.utils import get_time_group
 from src.character_manager import Character
 from src.config_loader import ConfigLoader
+from src.llm.openai_client import openai_client
 
 class context:
     """Holds the context of a conversation
     """
     TOKEN_LIMIT_PERCENT: float = 0.45
 
-    def __init__(self, config: ConfigLoader, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
+    def __init__(self, config: ConfigLoader, client: openai_client, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
         self.__prev_game_time: tuple[str, str] = '', ''
         self.__npcs_in_conversation: Characters = Characters()
         self.__config: ConfigLoader = config
+        self.__client: openai_client = client
         self.__rememberer: remembering = rememberer
         self.__language: dict[Hashable, str] = language
         self.__is_prompt_too_long: Callable[[str, float], bool] = is_prompt_too_long
@@ -270,11 +272,11 @@ class context:
                 conversation_summaries=content[1]
                 )
             if not self.__is_prompt_too_long(result, self.TOKEN_LIMIT_PERCENT): #self.__client.calculate_tokens_from_text(result) < self.__client.token_limit * self.__token_limit_percent:
-                logging.log(23, f'Prompt sent to LLM: {result.strip()}')
+                logging.log(23, f'Prompt sent to LLM ({self.__client.calculate_tokens_from_text(result)} tokens): {result.strip()}')
                 return result
             
 
-        logging.log(23, f'Prompt sent to LLM: {prompt.strip()}')
+        logging.log(23, f'Prompt sent to LLM ({self.__client.calculate_tokens_from_text(result)} tokens): {prompt.strip()}')
         return prompt #This should only trigger, if the default prompt even without bios and conversation_summaries is too long
     
     def get_characters_excluding_player(self) -> Characters:

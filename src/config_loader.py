@@ -144,8 +144,9 @@ See here to learn how to move your game's installation folder: https://art-from-
             self.xtts_lowvram = int(config['Speech.Advanced']['xtts_lowvram'])
             self.xtts_device = config['Speech.Advanced']['xtts_device']
             self.number_words_tts = int(config['Speech.Advanced']['number_words_tts'])
-            self.xtts_url = config['Speech.Advanced']['xtts_url']
+            self.xtts_url = config['Speech.Advanced']['xtts_url'].rstrip('/')
             self.xtts_data = config['Speech.Advanced']['xtts_data']
+            self.xtts_accent = int(config['Speech.Advanced']['xtts_accent'])
             
             self.xvasynth_process_device = config['Speech.Advanced']['tts_process_device']
             self.pace = float(config['Speech.Advanced']['pace'])
@@ -200,9 +201,11 @@ See here to learn how to move your game's installation folder: https://art-from-
 
         check_program_files(self.mod_path)
 
-        if not os.path.exists(f"{self.xvasynth_path}\\resources\\"):
+        if (self.tts_service == 'xvasynth') and (not os.path.exists(f"{self.xvasynth_path}\\resources\\")):
             invalid_path(self.xvasynth_path, f"{self.xvasynth_path}\\resources\\")
         
         if not os.path.exists(f"{self.mod_path}\\Sound\\Voice\\Mantella.esp"):
+            if self.game == 'SkyrimVR': # check if "game" hasn't been changed from the default
+                logging.error('The selected game is Skyrim VR. If this is incorrect, please change the "game" setting in MantellaSoftware/config.ini\n')
             invalid_path(self.mod_path, f"{self.mod_path}\\Sound\\Voice\\Mantella.esp")
         self.mod_path += "\\Sound\\Voice\\Mantella.esp"

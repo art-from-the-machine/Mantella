@@ -47,7 +47,7 @@ class ChatManager:
         """
         with self.__tts_access_lock:
             try:
-                audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.is_in_combat)
+                audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, character_to_talk.is_in_combat, character_to_talk.advanced_voice_model)
             except Exception as e:
                 error_text = f"Text-to-Speech Error: {e}"
                 logging.log(29, error_text)
@@ -184,7 +184,7 @@ class ChatManager:
             while True:
                 try:
                     start_time = time.time()
-                    async for content in self.__client.streaming_call(messages= messages):
+                    async for content in self.__client.streaming_call(messages=messages, is_multi_npc=characters.contains_multiple_npcs):
                         if self.__stop_generation:
                             break
                         if not content:
@@ -229,13 +229,14 @@ class ChatManager:
                                         else:
                                             logging.log(28, f"Switched to {character_switched_to.name}")
                                             active_character = character_switched_to
+                                            full_reply += f"{keyword_extraction}: "
                                             self.__tts.change_voice(active_character.tts_voice_model)
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:
                                             logging.log(28, action_to_take.info_text)
                                             actions_in_sentence.append(action_to_take)
-                                            full_reply += sentence
+                                            full_reply += f"{keyword_extraction}: "
                                             sentence = remaining_content
 
                             # Accumulate sentences if less than X words
@@ -244,7 +245,7 @@ class ChatManager:
                                 sentence = remaining_content
                                 continue
                             else:
-                                if cumulative_sentence_bool == True :
+                                if cumulative_sentence_bool == True:
                                     sentence = accumulated_sentence
                                 else:
                                     sentence = accumulated_sentence + current_sentence
@@ -299,21 +300,26 @@ class ChatManager:
             if accumulated_sentence:
                 # Generate the audio and return the audio file path
                 try:
-                    #Added from xTTS implementation
+                    #Added from XTTS implementation
                     new_sentence = self.generate_sentence(' ' + accumulated_sentence + ' ', active_character)
                     blocking_queue.put(new_sentence)
                     full_reply += accumulated_sentence
                     accumulated_sentence = ''
                 except Exception as e:
                     accumulated_sentence = ''
-                    logging.error(f"xVASynth Error: {e}")
+                    logging.error(f"TTS Error: {e}")
 
             # Mark the end of the response
             # await sentence_queue.put(None)
         except Exception as e:
-            logging.error(f"LLM API Error: {e}")
+            if (hasattr(e, 'code')) and (e.code in [401, 'invalid_api_key']): # incorrect API key
+                logging.error(f"Invalid API key. Please ensure you have selected the right model for your service (OpenAI / OpenRouter) via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+            elif isinstance(e, UnboundLocalError):
+                logging.error('No voice file generated for voice line. Please check your TTS service for errors. The reason for this error is often because a voice model could not be found.')
+            else:
+                logging.error(f"LLM API Error: {e}")
         finally:
-            logging.log(23, f"Full response saved ({self.__client.calculate_tokens_from_text(full_reply)} tokens): {full_reply}")
+            logging.log(23, f"Full response saved ({self.__client.calculate_tokens_from_text(full_reply)} tokens): {full_reply.strip()}")
             blocking_queue.is_more_to_come = False
             # This sentence is required to make sure there is one in case the game is already waiting for it
             # before the ChatManager realises there is not another message coming from the LLM

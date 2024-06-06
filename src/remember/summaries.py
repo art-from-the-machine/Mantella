@@ -13,7 +13,7 @@ class summaries(remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, game: gameable, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.35) -> None:
+    def __init__(self, game: gameable, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
         self.__game: gameable = game
@@ -87,7 +87,8 @@ class summaries(remembering):
     def __create_new_conversation_summary(self, messages: message_thread, npc_name: str) -> str:
         prompt = self.__memory_prompt.format(
                     name=npc_name,
-                    language=self.__language_name
+                    language=self.__language_name,
+                    game=self.__game
                 )
         while True:
             try:
@@ -132,7 +133,8 @@ class summaries(remembering):
                 try:
                     prompt = self.__resummarize_prompt.format(
                         name=npc.name,
-                        language=self.__language_name
+                        language=self.__language_name,
+                        game=self.__game
                     )
                     long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt, npc.name)
                     break

@@ -40,7 +40,7 @@ class GameStateManager:
         if self.__talk: #This should only happen if game and server are out of sync due to some previous error -> close conversation and start a new one
             self.__talk.end()
             self.__talk = None
-        context_for_conversation = context(self.__config, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
+        context_for_conversation = context(self.__config, self.__client, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
         self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client.are_messages_too_long, self.__actions)
         self.__update_context(input_json)
         self.__talk.start_conversation()
@@ -153,18 +153,27 @@ class GameStateManager:
             is_generic_npc: bool = False
             bio: str = ""
             tts_voice_model: str = ""
+            csv_in_game_voice_model: str = ""
+            advanced_voice_model: str = ""
+            voice_accent: str = ""
             is_player_character: bool = bool(json[comm_consts.KEY_ACTOR_ISPLAYER])
             if self.__talk and self.__talk.contains_character(character_id):
                 already_loaded_character: Character | None = self.__talk.get_character(character_id)
                 if already_loaded_character:
                     bio = already_loaded_character.bio
                     tts_voice_model = already_loaded_character.tts_voice_model
+                    csv_in_game_voice_model = already_loaded_character.csv_in_game_voice_model
+                    advanced_voice_model = already_loaded_character.advanced_voice_model
+                    voice_accent = already_loaded_character.voice_accent
                     is_generic_npc = already_loaded_character.is_generic_npc
             elif self.__talk and not is_player_character :#If this is not the player and the character has not already been loaded
                 external_info: external_character_info = self.__game.load_external_character_info(character_id, character_name, race, gender, actor_voice_model)
                 
                 bio = external_info.bio
                 tts_voice_model = external_info.tts_voice_model
+                csv_in_game_voice_model = external_info.csv_in_game_voice_model
+                advanced_voice_model = external_info.advanced_voice_model
+                voice_accent = external_info.voice_accent
                 is_generic_npc = external_info.is_generic_npc
                 if is_generic_npc:
                     character_name = external_info.name
@@ -182,6 +191,9 @@ class GameStateManager:
                             is_generic_npc,
                             ingame_voice_model,
                             tts_voice_model,
+                            csv_in_game_voice_model,
+                            advanced_voice_model,
+                            voice_accent,
                             custom_values)
         except CharacterDoesNotExist:                 
             logging.log(23, 'Restarting...')

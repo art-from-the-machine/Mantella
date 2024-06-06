@@ -55,40 +55,12 @@ class fallout4(gameable):
                         if os.path.isfile(source_file_path):
                             shutil.copy(source_file_path, in_game_voice_folder_path)
 
-    def load_external_character_info(self, character_id: str, name: str, race: str, gender: int, ingame_voice_model: str)-> external_character_info:
-        character_df = self.character_df
-        try: # first try to load character by matching name and race AND character_ID, necessary for characters like FO4 Curie
-            character_currentrace = race
-            character_currentrace = character_currentrace.split('<')[1].split('Race ')[0]
-            character_info = character_df.loc[(character_df['name'].astype(str).str.lower() == name.lower()) & 
-                                            ((character_df['base_id'].astype(str) == character_id) | 
-                                            (character_df['base_id'].astype(str) == character_id + '.0')) & 
-                                            (character_df['race'].astype(str).str.lower() == character_currentrace.lower())].to_dict('records')[0]
-                                
-            logging.log(23, f"Current character_info is '{character_info}' ")
-            return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
-        except:
-            try: # first try to load character by matching both name and base_id, necessary for characters like FO4 Shaun
-                character_info = character_df.loc[(character_df['name'].astype(str).str.lower() == name.lower()) & 
-                                                ((character_df['base_id'].astype(str) == character_id) | 
-                                                (character_df['base_id'].astype(str) == character_id + '.0'))].to_dict('records')[0]
-                return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
-            except IndexError: # if no match, proceed to individual matches
-                try: # load character from skyrim_characters.csv/fallout4_characters.csv
-                    character_info = character_df.loc[character_df['name'].astype(str).str.lower()==name.lower()].to_dict('records')[0]
-                    return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
-                except IndexError: # character not found
-                    try: # try searching by ID
-                        logging.log(23, f"Could not find {name} in fallout4_characters.csv. Searching by ID {character_id}...")
+    def load_external_character_info(self, id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
+        character_info, is_generic_npc = self.find_character_info(id, name, race, gender, ingame_voice_model)
 
-                        character_info = character_df.loc[(character_df['base_id'].astype(str)==character_id) | (character_df['base_id'].astype(str)==character_id+'.0')].to_dict('records')[0]
-                        return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
-                    except IndexError: # load generic NPC
-                        logging.log(23, f"NPC '{name}' could not be found in 'fallout4_characters.csv'. If this is not a generic NPC, please ensure '{name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
-                        character_info = self.__load_unnamed_npc(name, race, gender, ingame_voice_model)
-                        return external_character_info(name, True, character_info["bio"], character_info['ingame_voice_model'], character_info['tts_voice_model'])  
+        return external_character_info(name, is_generic_npc, character_info["bio"], character_info['ingame_voice_model'], character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None)) 
     
-    def __load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
+    def load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
         """Load generic NPC if character cannot be found in fallout4_characters.csv"""
         # unknown == I couldn't find the IDs for these voice models
 
@@ -105,8 +77,6 @@ class fallout4(gameable):
             actor_voice_model_id='000BBBF0'
 
         actor_race = race
-        actor_race = actor_race.split('<')[1].split(' ')[0]
-
         actor_sex = gender
 
         logging.log(23, f"Current voice actor is voice model {actor_voice_model_name} with ID {actor_voice_model_id} gender {actor_sex} race {actor_race} ")
@@ -161,6 +131,7 @@ class fallout4(gameable):
             'name': name,
             'bio': f'You are a {name}',
             'voice_model': voice_model,
+            'advanced_voice_model': '',
             'fallout4_voice_folder': FO4_voice_folder,
         }
 

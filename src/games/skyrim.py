@@ -37,22 +37,13 @@ class skyrim(gameable):
                         if os.path.isfile(source_file_path):
                             shutil.copy(source_file_path, in_game_voice_folder_path)
 
-    def load_external_character_info(self, id: str, name: str, race: str, gender: int, ingame_voice_model: str)-> external_character_info:
-        # TODO: introduce new character search logic
-        try: # load character from skyrim_characters.csv
-            character_info = self.character_df.loc[self.character_df['name'].astype(str).str.lower()==name.lower()].to_dict('records')[0]
-            return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
-        except IndexError: # character not found
-            try: # try searching by ID
-                logging.log(23, f"Could not find {name} in skyrim_characters.csv. Searching by ID {id}...")
-                character_info = self.character_df.loc[(self.character_df['base_id'].astype(str)==id) | (self.character_df['base_id'].astype(str)==id+'.0')].to_dict('records')[0]
-                return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
-            except IndexError: # load generic NPC
-                logging.log(23, f"NPC '{name}' could not be found in 'skyrim_characters.csv'. If this is not a generic NPC, please ensure '{name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
-                character_info = self.__load_unnamed_npc(name, race, gender, ingame_voice_model)
-                return external_character_info(name, True, character_info["bio"], character_info['ingame_voice_model'], character_info['tts_voice_model'])
+    def load_external_character_info(self, id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
+        character_info, is_generic_npc = self.find_character_info(id, name, race, gender, ingame_voice_model)
+        actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
-    def __load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
+        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None))
+
+    def load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
         """Load generic NPC if character cannot be found in skyrim_characters.csv"""
         # unknown == I couldn't find the IDs for these voice models
         
@@ -61,8 +52,6 @@ class skyrim(gameable):
         actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
 
         actor_race = race
-        actor_race = actor_race.split('<')[1].split(' ')[0]
-
         actor_sex = gender
 
         voice_model = ''
@@ -96,8 +85,9 @@ class skyrim(gameable):
         character_info = {
             'name': name,
             'bio': f'You are a {name}',
-            'tts_voice_model': voice_model,
-            'ingame_voice_model': skyrim_voice_folder,
+            'voice_model': voice_model,
+            'advanced_voice_model': '',
+            'skyrim_voice_folder': skyrim_voice_folder,
         }
 
         return character_info

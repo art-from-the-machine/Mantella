@@ -17,14 +17,14 @@ try:
         language_file='data/language_support.csv',
     )
 
-    mantella_version = '0.11'
+    mantella_version = '0.11.4'
     logging.log(24, f'\nMantella v{mantella_version}')
     should_debug_http = config.show_http_debug_messages
 
     mantella_http_server = http_server()
-    chat_manager = ChatManager(game, config, Synthesizer(config), llm_client)
+    chat_manager = ChatManager(game, config, Synthesizer(config, game), llm_client)
     game_state_manager = game_manager.GameStateManager(game, chat_manager, config, language_info, llm_client)
-    
+
     #start the http server
     routes: list[routeable] = [mantella_route(game_state_manager, should_debug_http), 
                                stt_route(config, llm_client.api_key, should_debug_http)]

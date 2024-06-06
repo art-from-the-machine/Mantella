@@ -59,9 +59,9 @@ def initialise(config_file, logging_file, secret_key_file, language_file) -> tup
         #logging.log(23, "NPC info")
 
 
-        logging.addLevelName(27, "INFO STT")
-        logging.addLevelName(28, "INFO LLM")
-        logging.addLevelName(29, "INFO TTS")
+        logging.addLevelName(27, "STT")
+        logging.addLevelName(28, "LLM")
+        logging.addLevelName(29, "TTS")
 
         #logging.log(27, "Speech-To-Text related")
         #logging.log(28, "Large Language Model related")
