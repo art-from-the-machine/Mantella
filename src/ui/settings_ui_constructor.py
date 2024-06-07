@@ -23,16 +23,17 @@ class SettingsUIConstructor(ConfigValueVisitor):
 
 
     T = TypeVar('T')
-    def __on_change(self, config_value: ConfigValue[T], new_value: T) -> gr.Column | None:
+    def __on_change(self, config_value: ConfigValue[T], new_value: T) -> gr.Markdown:
         result: ConfigValueConstraintResult = config_value.does_value_cause_error(new_value)
         if result.Is_success:
             config_value.Value = new_value
+            return self.__construct_error_message_panel('', is_visible=False)
         else:
             return self.__construct_error_message_panel(result.Error_message, is_visible=True)
         
-    def __construct_error_message_panel(self, message: str, is_visible: bool) -> gr.Column | None:
-        with gr.Column(variant="panel", visible=is_visible, elem_classes="constraint-violation") as result:
-            gr.Markdown(f"{message}")
+    def __construct_error_message_panel(self, message: str, is_visible: bool) -> gr.Markdown:
+        markdown = gr.Markdown(value=message, visible=is_visible, elem_classes="constraint-violation")
+        return markdown
 
     def _construct_badges(self, config_value: ConfigValue):
         if len(config_value.Tags) > 0:
@@ -54,7 +55,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
         if len(constraints_text) > 0:
             gr.Markdown(value=constraints_text, line_breaks=True)
         
-    def __construct_initial_error_message(self, config_value: ConfigValue) -> gr.Column | None:
+    def __construct_initial_error_message(self, config_value: ConfigValue) -> gr.Markdown:
         result: ConfigValueConstraintResult = config_value.does_value_cause_error(config_value.Value)
         return self.__construct_error_message_panel(result.Error_message, is_visible=not result.Is_success)
         # return gr.Markdown(result.Error_message, visible=not result.Is_success)
