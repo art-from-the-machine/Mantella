@@ -54,7 +54,7 @@ class ConfigValuePath(ConfigValue[str]):
                 root.destroy()
                 result.append(str(os.path.dirname(filenames)))
             else:
-                filename = "Files not seleceted"
+                filename = "Files not selected"
                 root.destroy()
                 result.append(str(filename))
         else:
@@ -70,7 +70,7 @@ class ConfigValuePath(ConfigValue[str]):
                     root.destroy()
                     result.append(str(filename))
             else:
-                filename = "Folder not seleceted"
+                filename = "Folder not selected"
                 root.destroy()
                 result.append(str(filename))        
     
