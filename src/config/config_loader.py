@@ -40,7 +40,7 @@ class ConfigLoader:
         if create_back_up_configini:
             self.__write_config_state(self.__definitions, True)
         
-        __is_initial_load = False
+        self.__is_initial_load = False
         self.__update_config_values_from_current_state()     
     
     @property
