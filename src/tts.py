@@ -154,7 +154,6 @@ class Synthesizer:
             self.change_voice(voice, in_game_voice, csv_in_game_voice, advanced_voice_model, voice_accent)
 
         logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
-        phrases = self._split_voiceline(voiceline)
 
         if self.tts_service == 'xvasynth':
             phrases = self._split_voiceline(voiceline)
