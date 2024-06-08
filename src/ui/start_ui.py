@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 import webbrowser
 import gradio as gr
 from src.config.config_loader import ConfigLoader
@@ -48,10 +49,13 @@ class StartUI(routeable):
 
     
     def add_route_to_server(self, app: FastAPI):
+        @app.get("/favicon.ico")
+        async def favicon():
+            return FileResponse("Mantella.ico")
+
         gr.mount_gradio_app(app,
                             self.create_main_block(),
-                            path="/ui",
-                            favicon_path="docs/_static/img/mantella_favicon.ico")
+                            path="/ui")
         
         webbrowser.open(f'http://localhost:{str(self._config.port)}/ui?__theme=dark', new=2)
     
