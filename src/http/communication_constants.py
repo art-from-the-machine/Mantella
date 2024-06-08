@@ -46,6 +46,7 @@ class communication_constants:
     # Actions
     ACTION_RELOADCONVERSATION: str = PREFIX + "reload_conversation"
     ACTION_ENDCONVERSATION: str = PREFIX + "end_conversation"
+    ACTION_REMOVECHARACTER: str = PREFIX + "remove_character"
 
     ACTION_NPC_OFFENDED: str = PREFIX + "npc_offended"
     ACTION_NPC_FORGIVEN: str = PREFIX + "npc_forgiven"

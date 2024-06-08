@@ -4,7 +4,7 @@ from os import environ
 environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 from src.llm.sentence import sentence
-from src.config_loader import ConfigLoader
+from src.config.config_loader import ConfigLoader
 from src.character_manager import Character
 
 class audio_playback:

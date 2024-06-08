@@ -8,7 +8,7 @@ import unicodedata
 from src.games.gameable import gameable
 from src.conversation.action import action
 from src.llm.sentence_queue import sentence_queue
-from src.config_loader import ConfigLoader
+from src.config.config_loader import ConfigLoader
 from src.llm.sentence import sentence as mantella_sentence #<- Do not collide with frequent and logical use of "sentence" when generating text from the LLM
 import src.utils as utils
 from src.characters_manager import Characters

@@ -31,6 +31,16 @@ class Characters:
                 self.__player_character = new_character
             else:
                 self.__last_added_character = new_character
+    
+    def remove_character(self, character_to_remove: Character):
+        if self.__active_characters.__contains__(character_to_remove.name):
+            del self.__active_characters[character_to_remove.name]
+            if character_to_remove.is_player_character:
+                self.__player_character = None
+            if character_to_remove == self.__last_added_character:
+                for (name, character) in self.__active_characters.items():
+                    if not character.is_player_character:
+                        self.__last_added_character = character
 
     def get_character_by_name(self, name: str) -> Character:
         return self.__active_characters[name]

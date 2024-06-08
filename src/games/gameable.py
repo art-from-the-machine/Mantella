@@ -6,7 +6,7 @@ from typing import Any
 import pandas as pd
 from src.conversation.conversation_log import conversation_log
 from src.conversation.context import context
-from src.config_loader import ConfigLoader
+from src.config.config_loader import ConfigLoader
 from src.llm.sentence import sentence
 from src.games.external_character_info import external_character_info
 import src.utils as utils

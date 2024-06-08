@@ -8,10 +8,12 @@ import src.color_formatter as cf
 import src.utils as utils
 import pandas as pd
 import sys
-import src.config_loader as config_loader
+import os
+
+import src.config.config_loader as config_loader
 from src.llm.openai_client import openai_client
 
-def initialise(config_file, logging_file, secret_key_file, language_file) -> tuple[gameable, config_loader.ConfigLoader, dict[Hashable, str], openai_client]:
+def initialise(config_file, logging_file, language_file) -> tuple[config_loader.ConfigLoader, dict[Hashable, str]]:
     
     def set_cwd_to_exe_dir():
         if getattr(sys, 'frozen', False): # if exe and not Python script
@@ -86,20 +88,12 @@ def initialise(config_file, logging_file, secret_key_file, language_file) -> tup
     set_cwd_to_exe_dir()
     setup_logging(logging_file)
     config = config_loader.ConfigLoader(config_file)
+    if not config.have_all_config_values_loaded_correctly:
+        logging.error("Cannot start Mantella. Not all settings that are required are set to correct values. Please check the above error messages and correct the corresponding settings!")
 
     # clean up old instances of exe runtime files
     utils.cleanup_mei(config.remove_mei_folders)
-    
-    # Determine which game we're running for and select the appropriate character file
-    game: gameable 
-    formatted_game_name = config.game.lower().replace(' ', '').replace('_', '')
-    if formatted_game_name in ("fallout4", "fallout4vr"):
-        game = fallout4(config)
-    else:
-        game = skyrim(config)
 
     language_info = get_language_info(language_file)
     
-    client = openai_client(config, secret_key_file)
-
-    return game, config, language_info, client
+    return config, language_info

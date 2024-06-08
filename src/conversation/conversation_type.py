@@ -70,7 +70,7 @@ class pc_to_npc(conversation_type):
         message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), multi_npc_conversation=False, remove_system_flagged_messages=True)
     
     def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:
-        if len(messages) == 1 and context_for_conversation.config.automatic_greeting == '1':
+        if len(messages) == 1 and context_for_conversation.config.automatic_greeting:
             player_character: Character | None = context_for_conversation.npcs_in_conversation.get_player_character()
             if player_character:
                 for actor in context_for_conversation.npcs_in_conversation.get_all_characters():

@@ -5,7 +5,7 @@ from src.characters_manager import Characters
 from src.remember.remembering import remembering
 from src.utils import get_time_group
 from src.character_manager import Character
-from src.config_loader import ConfigLoader
+from src.config.config_loader import ConfigLoader
 from src.llm.openai_client import openai_client
 
 class context:
@@ -82,14 +82,27 @@ class context:
     def clear_context_ingame_events(self):
         self.__ingame_events.clear()
 
-    def add_or_update_character(self, npc: Character):
-        if not self.__npcs_in_conversation.contains_character(npc):
-            self.__npcs_in_conversation.add_character(npc)
-            self.__ingame_events.append(f"{npc.name} has joined the conversation")
-            self.__have_actors_changed = True
-        else:
-            #check for updates in the transient stats and generate update events
-            self.__update_ingame_events_on_npc_change(npc)
+    def add_or_update_characters(self, new_list_of_npcs: list[Character]):
+        for npc in new_list_of_npcs:
+            if not self.__npcs_in_conversation.contains_character(npc):
+                self.__npcs_in_conversation.add_character(npc)
+                #self.__ingame_events.append(f"{npc.name} has joined the conversation")
+                self.__have_actors_changed = True
+            else:
+                #check for updates in the transient stats and generate update events
+                self.__update_ingame_events_on_npc_change(npc)
+        for npc in self.__npcs_in_conversation.get_all_characters():
+            if not npc in new_list_of_npcs:
+                self.__remove_character(npc)
+    
+    def remove_character(self, npc: Character):
+        if self.__npcs_in_conversation.contains_character(npc):
+            self.__remove_character(npc)
+    
+    def __remove_character(self, npc: Character):
+        self.__npcs_in_conversation.remove_character(npc)
+        self.__ingame_events.append(f"{npc.name} has left the conversation")
+        self.__have_actors_changed = True
 
     def get_time_group(self) -> str:
         return get_time_group(self.__ingame_time)

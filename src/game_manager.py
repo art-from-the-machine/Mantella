@@ -7,7 +7,7 @@ from src.llm.sentence import sentence
 from src.output_manager import ChatManager
 from src.remember.remembering import remembering
 from src.remember.summaries import summaries
-from src.config_loader import ConfigLoader
+from src.config.config_loader import ConfigLoader
 from src.llm.openai_client import openai_client
 from src.conversation.conversation import conversation
 from src.conversation.context import context
@@ -108,10 +108,13 @@ class GameStateManager:
 
     def __update_context(self,  json: dict[str, Any]):
         if self.__talk:
-            for actor_json in json[comm_consts.KEY_ACTORS]:
-                actor: Character | None = self.load_character(actor_json)
+            actors_in_json = []
+            for actorJson in json[comm_consts.KEY_ACTORS]:
+                actor: Character | None = self.load_character(actorJson)                
                 if actor:
-                    self.__talk.add_or_update_character(actor)
+                    actors_in_json.append(actor)
+            
+            self.__talk.add_or_update_character(actors_in_json)
             location: str = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_LOCATION]
             time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
             ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]

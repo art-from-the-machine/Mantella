@@ -4,7 +4,7 @@ import shutil
 from typing import Any
 from src.conversation.context import context
 from src.character_manager import Character
-from src.config_loader import ConfigLoader
+from src.config.config_loader import ConfigLoader
 from src.llm.sentence import sentence
 from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
@@ -100,7 +100,7 @@ class skyrim(gameable):
         mod_folder = config.mod_path
         # subtitle = queue_output.sentence
         speaker: Character = queue_output.speaker
-        if config.add_voicelines_to_all_voice_folders == '1':
+        if config.add_voicelines_to_all_voice_folders:
             for sub_folder in os.scandir(config.mod_path):
                 if sub_folder.is_dir():
                     shutil.copyfile(audio_file, f"{sub_folder.path}/{self.WAV_FILE}")

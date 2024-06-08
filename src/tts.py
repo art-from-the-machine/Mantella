@@ -4,6 +4,7 @@ from requests.exceptions import ConnectionError
 import time
 import winsound
 import logging
+from src.config.config_loader import ConfigLoader
 import src.utils as utils
 import os
 import soundfile as sf
@@ -24,7 +25,7 @@ class VoiceModelNotFound(Exception):
     pass
 
 class Synthesizer:
-    def __init__(self, config, game):
+    def __init__(self, config: ConfigLoader, game):
         self.loglevel = 29
         self.xvasynth_path = config.xvasynth_path
         self.facefx_path = config.facefx_path
@@ -36,8 +37,8 @@ class Synthesizer:
         #Added from XTTS implementation
         self.tts_service = config.tts_service
         self.xtts_default_model = config.xtts_default_model
-        self.xtts_deepspeed = int(config.xtts_deepspeed)
-        self.xtts_lowvram = int(config.xtts_lowvram)
+        self.xtts_deepspeed = config.xtts_deepspeed
+        self.xtts_lowvram = config.xtts_lowvram
         self.xtts_device = config.xtts_device
         self.xtts_url = config.xtts_url
         self.xtts_data = config.xtts_data
@@ -90,8 +91,8 @@ class Synthesizer:
         self.language = config.language
 
         self.pace = config.pace
-        self.use_sr = bool(config.use_sr)
-        self.use_cleanup = bool(config.use_cleanup)
+        self.use_sr = config.use_sr
+        self.use_cleanup = config.use_cleanup
 
         # determines whether the voiceline should play internally
         self.debug_mode = config.debug_mode
@@ -153,7 +154,6 @@ class Synthesizer:
             self.change_voice(voice, in_game_voice, csv_in_game_voice, advanced_voice_model, voice_accent)
 
         logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
-        phrases = self._split_voiceline(voiceline)
 
         if self.tts_service == 'xvasynth':
             phrases = self._split_voiceline(voiceline)
@@ -535,13 +535,13 @@ class Synthesizer:
             # Check if deepspeed should be enabled
             if self.xtts_default_model:
                 command += (f" --version {self.xtts_default_model}")
-            if self.xtts_deepspeed == 1:
+            if self.xtts_deepspeed:
                 command += ' --deepspeed'
             if self.xtts_device == "cpu":
                 command += ' --device cpu'
             if self.xtts_device == "cuda":
                 command += ' --device cuda'
-            if self.xtts_lowvram == 1 :
+            if self.xtts_lowvram:
                 command += ' --lowvram'
 
             Popen(command, cwd=self.xtts_server_path, stdout=None, stderr=None, shell=True)
@@ -569,7 +569,7 @@ class Synthesizer:
     def run_xvasynth_server(self):
         try:
             # start the process without waiting for a response
-            if (self.tts_print == 1):
+            if (self.tts_print):
                 # print subprocess output
                 Popen(f'{self.xvasynth_path}/resources/app/cpython_{self.process_device}/server.exe', cwd=self.xvasynth_path, stdout=None, stderr=None)
             else:
