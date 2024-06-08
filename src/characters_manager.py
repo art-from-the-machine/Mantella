@@ -13,7 +13,7 @@ class Characters:
     
     def contains_character(self, character_to_check: str | Character) -> bool:
         if isinstance(character_to_check, Character):
-            return self.__active_characters.__contains__(character_to_check.Name)
+            return self.__active_characters.__contains__(character_to_check.name)
         else:
             return self.__active_characters.__contains__(character_to_check)
     
@@ -25,23 +25,22 @@ class Characters:
         return len(self.__active_characters)
     
     def add_character(self, new_character: Character):
-        if not self.__active_characters.__contains__(new_character.Name):
-            self.__active_characters[new_character.Name] = new_character            
-            if new_character.Is_player_character:
+        if not self.__active_characters.__contains__(new_character.name):
+            self.__active_characters[new_character.name] = new_character            
+            if new_character.is_player_character:
                 self.__player_character = new_character
             else:
                 self.__last_added_character = new_character
     
     def remove_character(self, character_to_remove: Character):
-        if self.__active_characters.__contains__(character_to_remove.Name):
-            del self.__active_characters[character_to_remove.Name]
-            if character_to_remove.Is_player_character:
+        if self.__active_characters.__contains__(character_to_remove.name):
+            del self.__active_characters[character_to_remove.name]
+            if character_to_remove.is_player_character:
                 self.__player_character = None
             if character_to_remove == self.__last_added_character:
                 for (name, character) in self.__active_characters.items():
-                    if not character.Is_player_character:
+                    if not character.is_player_character:
                         self.__last_added_character = character
-
 
     def get_character_by_name(self, name: str) -> Character:
         return self.__active_characters[name]

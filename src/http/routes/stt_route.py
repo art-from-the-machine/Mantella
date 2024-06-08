@@ -44,11 +44,11 @@ class stt_route(routeable):
                 error_message = "STT/Whisper setup failed! There is most likely an issue with the config.ini!"
                 logging.error(error_message)
                 return self.error_message(error_message)
-            receivedJson: dict[str, Any] | None = await request.json()
-            if receivedJson and receivedJson[self.KEY_REQUESTTYPE] == self.KEY_REQUESTTYPE_TTS:
+            received_json: dict[str, Any] | None = await request.json()
+            if received_json and received_json[self.KEY_REQUESTTYPE] == self.KEY_REQUESTTYPE_TTS:
                 if self._show_debug_messages:
-                    logging.log(self._log_level_http_in, json.dumps(receivedJson, indent=4))
-                names: list[str] = receivedJson[self.KEY_INPUT_NAMESINCONVERSATION]
+                    logging.log(self._log_level_http_in, json.dumps(received_json, indent=4))
+                names: list[str] = received_json[self.KEY_INPUT_NAMESINCONVERSATION]
                 names_in_conversation = ', '.join(names)
                 transcribed_text = self.__stt.recognize_input(names_in_conversation)
                 if isinstance(transcribed_text, str):

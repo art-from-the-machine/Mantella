@@ -13,7 +13,7 @@ class summaries(remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, game: gameable, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.35) -> None:
+    def __init__(self, game: gameable, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
         self.__game: gameable = game
@@ -34,25 +34,25 @@ class summaries(remembering):
         """
         result = ""
         for character in npcs_in_conversation.get_all_characters():
-            if not character.Is_player_character:          
+            if not character.is_player_character:          
                 conversation_summary_file = self.__get_latest_conversation_summary_file_path(character)      
                 if os.path.exists(conversation_summary_file):                    
                     with open(conversation_summary_file, 'r', encoding='utf-8') as f:
                         previous_conversation_summaries = f.read()
-                        # character.Conversation_summary = previous_conversation_summaries
+                        # character.conversation_summary = previous_conversation_summaries
                         if len(npcs_in_conversation) == 1 and len(previous_conversation_summaries) > 0:
                             result = f"Below is a summary for each of your previous conversations:\n\n{previous_conversation_summaries}"
                         elif len(npcs_in_conversation) > 1 and len(previous_conversation_summaries) > 0:
-                            result += f"{character.Name}: {previous_conversation_summaries}"
+                            result += f"{character.name}: {previous_conversation_summaries}"
         return result
 
     def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, is_reload=False):
         summary = ''
         non_generic_npc: list[Character] = []
         for npc in npcs_in_conversation.get_all_characters():
-            if npc.Is_generic_npc:
+            if npc.is_generic_npc:
                 logging.info('A summary will not be saved for this generic NPC.')            
-            elif not npc.Is_player_character:
+            elif not npc.is_player_character:
                 non_generic_npc.append(npc)
         for npc in non_generic_npc:            
             if len(summary) < 1: # if a summary has not already been generated, make one
@@ -63,8 +63,8 @@ class summaries(remembering):
     def __get_latest_conversation_summary_file_path(self, character: Character) -> str:
         """Get latest conversation summary by file name suffix"""
 
-        name: str = character.Name
-        character_conversation_folder_path = f"{self.__game.Conversation_folder_path}/{name}"
+        name: str = character.name
+        character_conversation_folder_path = f"{self.__game.conversation_folder_path}/{name}"
         if os.path.exists(character_conversation_folder_path):
             # get all files from the directory
             files = os.listdir(character_conversation_folder_path)
@@ -87,11 +87,12 @@ class summaries(remembering):
     def __create_new_conversation_summary(self, messages: message_thread, npc_name: str) -> str:
         prompt = self.__memory_prompt.format(
                     name=npc_name,
-                    language=self.__language_name
+                    language=self.__language_name,
+                    game=self.__game
                 )
         while True:
             try:
-                if len(messages) > 5:
+                if len(messages) >= 5:
                     return self.summarize_conversation(messages.transform_to_dict_representation(messages.get_talk_only()), prompt, npc_name)
                 else:
                     logging.info(f"Conversation summary not saved. Not enough dialogue spoken.")
@@ -131,8 +132,9 @@ class summaries(remembering):
             while True:
                 try:
                     prompt = self.__resummarize_prompt.format(
-                        name=npc.Name,
-                        language=self.__language_name
+                        name=npc.name,
+                        language=self.__language_name,
+                        game=self.__game
                     )
                     long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt, npc.Name)
                     break
@@ -151,7 +153,7 @@ class summaries(remembering):
             with open(new_conversation_summary_file, 'w', encoding='utf-8') as f:
                 f.write(long_conversation_summary)
             
-            # npc.Conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc)
+            # npc.conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc)
 
     def summarize_conversation(self, text_to_summarize: str, prompt: str, npc_name: str) -> str:
         summary = ''

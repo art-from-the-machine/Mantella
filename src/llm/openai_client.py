@@ -84,7 +84,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
             self.__api_key: str = 'abc123'
             logging.info(f"Running Mantella with local language model")
 
-        self.TOKEN_LIMIT_PERCENT = 0.45
+        self.TOKEN_LIMIT_PERCENT = 0.45 # TODO: review this variable
         self.__base_url: str | None = endpoint if endpoint != 'none' else None
         self.__stop: str | List[str] = config.stop
         self.__temperature: float = config.temperature
@@ -106,8 +106,12 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         try:
             self.__encoding = tiktoken.encoding_for_model(chosenmodel)
         except:
-            logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
-            raise
+            try:
+                chosenmodel = 'gpt-3.5-turbo'
+                self.__encoding = tiktoken.encoding_for_model(chosenmodel)
+            except:
+                logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
+                raise
     
     @property
     def token_limit(self) -> int:
@@ -164,7 +168,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         else:
             return OpenAI(api_key=self.__api_key, default_headers=self.__header)
     
-    async def streaming_call(self, messages: message_thread) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
 
@@ -179,6 +183,9 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         """
         async_client = self.generate_async_client()
         logging.info('Getting LLM response...')
+        max_tokens = self.__max_tokens
+        if is_multi_npc: # override max_tokens in radiant / multi-NPC conversations
+            max_tokens = 250
         try:
             async for chunk in await async_client.chat.completions.create(model=self.model_name, 
                                                                             messages=messages.get_openai_messages(), 
@@ -187,13 +194,22 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
                                                                             temperature=self.__temperature,
                                                                             top_p=self.__top_p,
                                                                             frequency_penalty=self.__frequency_penalty, 
-                                                                            max_tokens=self.__max_tokens):
+                                                                            max_tokens=max_tokens):
                 if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
                     yield chunk.choices[0].delta.content
                 else:
                     break
         except Exception as e:
-            logging.error(f"LLM API Error: {e}")
+            if e.code in [401, 'invalid_api_key']: # incorrect API key
+                if self.__base_url == None: # None = OpenAI
+                    service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
+                else:
+                    service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
+                logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+            else:
+                logging.error(f"LLM API Error: {e}")
+            
+
         finally:
             await async_client.close()
 

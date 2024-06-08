@@ -3,7 +3,7 @@ from typing import Any
 class Character:
     """Representation of a character in the game
     """
-    def __init__(self, character_id:str, name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, custom_character_values: dict[str, Any]):
+    def __init__(self, character_id:str, name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, custom_character_values: dict[str, Any]):
         self.__id: str = character_id
         self.__name: str = name
         self.__gender: int = gender
@@ -16,115 +16,142 @@ class Character:
         self.__is_generic_npc: bool = is_generic_npc
         self.__ingame_voice_model: str = ingame_voice_model
         self.__tts_voice_model: str = tts_voice_model
+        self.__csv_in_game_voice_model = csv_in_game_voice_model # info['skyrim_voice_folder'] if 'skyrim' in game.lower() else info['fallout4_voice_folder']
+        self.__advanced_voice_model = advanced_voice_model
+        self.__voice_accent = voice_accent #info.get('voice_accent', None)
         self.__custom_character_values: dict[str, Any] = custom_character_values
 
     @property
-    def Id(self) -> str:
+    def id(self) -> str:
         return self.__id
     
-    @Id.setter
-    def Id(self, value: str):
+    @id.setter
+    def id(self, value: str):
         self.__id = value
 
     @property
-    def Name(self) -> str:
+    def name(self) -> str:
         return self.__name
     
-    @Name.setter
-    def Name(self, value: str):
+    @name.setter
+    def name(self, value: str):
         self.__name = value
 
     @property
-    def Gender(self) -> int:
+    def gender(self) -> int:
         return self.__gender
     
-    @Gender.setter
-    def Gender(self, value: int):
+    @gender.setter
+    def gender(self, value: int):
         self.__gender = value
     
     @property
-    def Personal_pronoun_subject(self) -> str:
+    def personal_pronoun_subject(self) -> str:
         return ["he", "she"][self.__gender]
     
     @property
-    def Personal_pronoun_object(self) -> str:
+    def personal_pronoun_object(self) -> str:
         return ["him", "her"][self.__gender]
     
     @property
-    def Possesive_pronoun(self) -> str:
+    def possesive_pronoun(self) -> str:
         return ["his", "hers"][self.__gender]
 
     @property
-    def Race(self) -> str:
+    def race(self) -> str:
         return self.__race
     
-    @Race.setter
-    def Race(self, value: str):
+    @race.setter
+    def race(self, value: str):
         self.__race = value
 
     @property
-    def Is_player_character(self) -> bool:
+    def is_player_character(self) -> bool:
         return self.__is_player_character
     
-    @Is_player_character.setter
-    def Is_player_character(self, value: bool):
+    @is_player_character.setter
+    def is_player_character(self, value: bool):
         self.__is_player_character = value
 
     @property
-    def Bio(self) -> str:
+    def bio(self) -> str:
         return self.__bio
     
-    @Bio.setter
-    def Bio(self, value: str):
+    @bio.setter
+    def bio(self, value: str):
         self.__bio = value
 
     @property
-    def Is_in_combat(self) -> bool:
+    def is_in_combat(self) -> bool:
         return self.__is_in_combat
     
-    @Is_in_combat.setter
-    def Is_in_combat(self, value: bool):
+    @is_in_combat.setter
+    def is_in_combat(self, value: bool):
         self.__is_in_combat = value
     
     @property
-    def Is_enemy(self) -> bool:
+    def is_enemy(self) -> bool:
         return self.__is_enemy
     
-    @Is_enemy.setter
-    def Is_enemy(self, value: bool):
+    @is_enemy.setter
+    def is_enemy(self, value: bool):
         self.__is_enemy = value
 
     @property
-    def Relationship_rank(self) -> int:
+    def relationship_rank(self) -> int:
         return self.__relationship_rank
     
-    @Relationship_rank.setter
-    def Relationship_rank(self, value: int):
+    @relationship_rank.setter
+    def relationship_rank(self, value: int):
         self.__relationship_rank = value
 
     @property
-    def Is_generic_npc(self) -> bool:
+    def is_generic_npc(self) -> bool:
         return self.__is_generic_npc
     
-    @Is_generic_npc.setter
-    def Is_generic_npc(self, value: bool):
+    @is_generic_npc.setter
+    def is_generic_npc(self, value: bool):
         self.__is_generic_npc = value
 
     @property
-    def In_game_voice_model(self) -> str:
+    def in_game_voice_model(self) -> str:
         return self.__ingame_voice_model
     
-    @In_game_voice_model.setter
-    def In_game_voice_model(self, value: str):
+    @in_game_voice_model.setter
+    def in_game_voice_model(self, value: str):
         self.__ingame_voice_model = value
 
     @property
-    def TTS_voice_model(self) -> str:
+    def tts_voice_model(self) -> str:
         return self.__tts_voice_model
     
-    @TTS_voice_model.setter
-    def TTS_voice_model(self, value: str):
+    @tts_voice_model.setter
+    def tts_voice_model(self, value: str):
         self.__tts_voice_model = value
+
+    @property
+    def csv_in_game_voice_model(self) -> str:
+        return self.__csv_in_game_voice_model
+    
+    @csv_in_game_voice_model.setter
+    def csv_in_game_voice_model(self, value: str):
+        self.__csv_in_game_voice_model = value
+
+    @property
+    def advanced_voice_model(self) -> str:
+        return self.__advanced_voice_model
+    
+    @advanced_voice_model.setter
+    def advanced_voice_model(self, value: str):
+        self.__advanced_voice_model = value
+
+    @property
+    def voice_accent(self) -> str:
+        return self.__voice_accent
+    
+    @voice_accent.setter
+    def voice_accent(self, value: str):
+        self.__voice_accent = value
 
     def get_custom_character_value(self, key: str) -> Any:
         if self.__custom_character_values.__contains__(key):
@@ -136,7 +163,7 @@ class Character:
 
     def __eq__(self, other):
         if isinstance(self, type(other)):
-            return self.Name == other.Name
+            return self.name == other.name
         return NotImplemented
     
     def __hash__(self):

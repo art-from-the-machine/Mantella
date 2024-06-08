@@ -47,7 +47,7 @@ class ChatManager:
         """
         with self.__tts_access_lock:
             try:
-                audio_file = self.__tts.synthesize(character_to_talk.TTS_voice_model, text, character_to_talk.In_game_voice_model, character_to_talk.Is_in_combat)
+                audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, character_to_talk.is_in_combat, character_to_talk.advanced_voice_model)
             except Exception as e:
                 error_text = f"Text-to-Speech Error: {e}"
                 logging.log(29, error_text)
@@ -84,7 +84,7 @@ class ChatManager:
         asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions))
     
     def stop_generation(self):
-        """Stops the current generation and only returns once this stop has been succesful
+        """Stops the current generation and only returns once this stop has been successful
         """
         if not self.__is_generating:
             return
@@ -158,13 +158,13 @@ class ChatManager:
 
     def __matching_action_keyword(self, keyword: str, actions: list[action]) -> action | None:
         for a in actions:
-            if keyword.lower() == a.Keyword.lower():
+            if keyword.lower() == a.keyword.lower():
                 return a
         return None
     
     def __character_switched_to(self, extracted_keyword: str, charaters_in_conversation: Characters) -> Character | None:
         for actor in charaters_in_conversation.get_all_characters():
-            if actor.Name.startswith(extracted_keyword):
+            if actor.name.startswith(extracted_keyword):
                 return actor
         return None
 
@@ -184,7 +184,7 @@ class ChatManager:
             while True:
                 try:
                     start_time = time.time()
-                    async for content in self.__client.streaming_call(messages= messages):
+                    async for content in self.__client.streaming_call(messages=messages, is_multi_npc=characters.contains_multiple_npcs):
                         if self.__stop_generation:
                             break
                         if not content:
@@ -223,19 +223,20 @@ class ChatManager:
                                         break
                                     character_switched_to: Character | None = self.__character_switched_to(keyword_extraction, characters)
                                     if character_switched_to:
-                                        if character_switched_to.Is_player_character:
+                                        if character_switched_to.is_player_character:
                                             logging.log(28, f"Stopped LLM from speaking on behalf of the player")
                                             break
                                         else:
-                                            logging.log(28, f"Switched to {character_switched_to.Name}")
+                                            logging.log(28, f"Switched to {character_switched_to.name}")
                                             active_character = character_switched_to
-                                            self.__tts.change_voice(active_character.TTS_voice_model)
+                                            full_reply += f"{keyword_extraction}: "
+                                            self.__tts.change_voice(active_character.tts_voice_model)
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:
-                                            logging.log(28, action_to_take.Info_text)
+                                            logging.log(28, action_to_take.info_text)
                                             actions_in_sentence.append(action_to_take)
-                                            full_reply += sentence
+                                            full_reply += f"{keyword_extraction}: "
                                             sentence = remaining_content
 
                             # Accumulate sentences if less than X words
@@ -244,7 +245,7 @@ class ChatManager:
                                 sentence = remaining_content
                                 continue
                             else:
-                                if cumulative_sentence_bool == True :
+                                if cumulative_sentence_bool == True:
                                     sentence = accumulated_sentence
                                 else:
                                     sentence = accumulated_sentence + current_sentence
@@ -259,9 +260,9 @@ class ChatManager:
                                 new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character)
                                 blocking_queue.put(new_sentence)
 
-                                if not new_sentence.Error_message:
+                                if not new_sentence.error_message:
                                     for a in actions_in_sentence:
-                                        new_sentence.Actions.append(a.Game_action_identifier)
+                                        new_sentence.actions.append(a.game_action_identifier)
                                 else:
                                     break
                                 
@@ -289,7 +290,7 @@ class ChatManager:
                     error_response = "I can't find the right words at the moment."
                     new_sentence = self.generate_sentence(error_response, active_character)
                     blocking_queue.put(new_sentence)
-                    if new_sentence.Error_message:
+                    if new_sentence.error_message:
                         break     
                     logging.log(self.loglevel, 'Retrying connection to API...')
                     time.sleep(5)
@@ -299,24 +300,27 @@ class ChatManager:
             if accumulated_sentence:
                 # Generate the audio and return the audio file path
                 try:
-                    #Added from xTTS implementation
+                    #Added from XTTS implementation
                     new_sentence = self.generate_sentence(' ' + accumulated_sentence + ' ', active_character)
                     blocking_queue.put(new_sentence)
                     full_reply += accumulated_sentence
                     accumulated_sentence = ''
                 except Exception as e:
                     accumulated_sentence = ''
-                    logging.error(f"xVASynth Error: {e}")
-            else:
-                logging.log(28, f"accumulated_sentence at the end is None")
+                    logging.error(f"TTS Error: {e}")
 
             # Mark the end of the response
             # await sentence_queue.put(None)
         except Exception as e:
-            logging.error(f"LLM API Error: {e}")
+            if (hasattr(e, 'code')) and (e.code in [401, 'invalid_api_key']): # incorrect API key
+                logging.error(f"Invalid API key. Please ensure you have selected the right model for your service (OpenAI / OpenRouter) via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+            elif isinstance(e, UnboundLocalError):
+                logging.error('No voice file generated for voice line. Please check your TTS service for errors. The reason for this error is often because a voice model could not be found.')
+            else:
+                logging.error(f"LLM API Error: {e}")
         finally:
-            logging.log(23, f"Full response saved ({self.__client.calculate_tokens_from_text(full_reply)} tokens): {full_reply}")
-            blocking_queue.Is_more_to_come = False
+            logging.log(23, f"Full response saved ({self.__client.calculate_tokens_from_text(full_reply)} tokens): {full_reply.strip()}")
+            blocking_queue.is_more_to_come = False
             # This sentence is required to make sure there is one in case the game is already waiting for it
             # before the ChatManager realises there is not another message coming from the LLM
             blocking_queue.put(mantella_sentence(active_character,"","",0, True))

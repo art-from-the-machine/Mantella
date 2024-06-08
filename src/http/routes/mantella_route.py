@@ -58,20 +58,20 @@ class mantella_route(routeable):
                 logging.error(error_message)
                 return self.error_message(error_message)
             reply = {}
-            receivedJson: dict[str, Any] | None = await request.json()
-            if receivedJson:
+            received_json: dict[str, Any] | None = await request.json()
+            if received_json:
                 if self._show_debug_messages:
-                    logging.log(self._log_level_http_in, json.dumps(receivedJson, indent=4))
-                request_type: str = receivedJson[comm_consts.KEY_REQUESTTYPE]
+                    logging.log(self._log_level_http_in, json.dumps(received_json, indent=4))
+                request_type: str = received_json[comm_consts.KEY_REQUESTTYPE]
                 match request_type:
                     case comm_consts.KEY_REQUESTTYPE_STARTCONVERSATION:
-                        reply = self.__game.start_conversation(receivedJson)
+                        reply = self.__game.start_conversation(received_json)
                     case comm_consts.KEY_REQUESTTYPE_CONTINUECONVERSATION:
-                        reply = self.__game.continue_conversation(receivedJson)
+                        reply = self.__game.continue_conversation(received_json)
                     case comm_consts.KEY_REQUESTTYPE_PLAYERINPUT:
-                        reply = self.__game.player_input(receivedJson)
+                        reply = self.__game.player_input(received_json)
                     case comm_consts.KEY_REQUESTTYPE_ENDCONVERSATION:
-                        reply = self.__game.end_conversation(receivedJson)
+                        reply = self.__game.end_conversation(received_json)
                     case _:
                         reply = self.error_message(f"Request type '{request_type}' was not recognized")
             else:

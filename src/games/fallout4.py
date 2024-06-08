@@ -38,7 +38,7 @@ class fallout4(gameable):
         self.__last_played_voiceline: str | None = None
 
     def create_all_voice_folders(self, config: ConfigLoader):
-        all_voice_folders = self.Character_df["fallout4_voice_folder"]
+        all_voice_folders = self.character_df["fallout4_voice_folder"]
         all_voice_folders = all_voice_folders.loc[all_voice_folders.notna()]
         set_of_voice_folders = set()
         for voice_folder in all_voice_folders:
@@ -55,40 +55,13 @@ class fallout4(gameable):
                         if os.path.isfile(source_file_path):
                             shutil.copy(source_file_path, in_game_voice_folder_path)
 
-    def load_external_character_info(self, character_id: str, name: str, race: str, gender: int, ingame_voice_model: str)-> external_character_info:
-        character_df = self.Character_df
-        try: # first try to load character by matching name and race AND character_ID, necessary for characters like FO4 Curie
-            character_currentrace = race
-            character_currentrace = character_currentrace.split('<')[1].split('Race ')[0]
-            character_info = character_df.loc[(character_df['name'].astype(str).str.lower() == name.lower()) & 
-                                            ((character_df['baseid_int'].astype(str) == character_id) | 
-                                            (character_df['baseid_int'].astype(str) == character_id + '.0')) & 
-                                            (character_df['race'].astype(str).str.lower() == character_currentrace.lower())].to_dict('records')[0]
-                                
-            logging.log(23, f"Current character_info is '{character_info}' ")
-            return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
-        except:
-            try: # first try to load character by matching both name and baseid_int, necessary for characters like FO4 Shaun
-                character_info = character_df.loc[(character_df['name'].astype(str).str.lower() == name.lower()) & 
-                                                ((character_df['baseid_int'].astype(str) == character_id) | 
-                                                (character_df['baseid_int'].astype(str) == character_id + '.0'))].to_dict('records')[0]
-                return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
-            except IndexError: # if no match, proceed to individual matches
-                try: # load character from skyrim_characters.csv/fallout4_characters.csv
-                    character_info = character_df.loc[character_df['name'].astype(str).str.lower()==name.lower()].to_dict('records')[0]
-                    return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
-                except IndexError: # character not found
-                    try: # try searching by ID
-                        logging.log(23, f"Could not find {name} in fallout4_characters.csv. Searching by ID {character_id}...")
+    def load_external_character_info(self, id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
+        character_info, is_generic_npc = self.find_character_info(id, name, race, gender, ingame_voice_model)
+        actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
-                        character_info = character_df.loc[(character_df['baseid_int'].astype(str)==character_id) | (character_df['baseid_int'].astype(str)==character_id+'.0')].to_dict('records')[0]
-                        return external_character_info(name, False, character_info["bio"], ingame_voice_model, character_info['voice_model'])
-                    except IndexError: # load generic NPC
-                        logging.log(23, f"NPC '{name}' could not be found in 'fallout4_characters.csv'. If this is not a generic NPC, please ensure '{name}' exists in the CSV's 'name' column exactly as written here, and that there is a voice model associated with them.")
-                        character_info = self.__load_unnamed_npc(name, race, gender, ingame_voice_model)
-                        return external_character_info(name, True, character_info["bio"], character_info['ingame_voice_model'], character_info['tts_voice_model'])  
+        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None)) 
     
-    def __load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
+    def load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
         """Load generic NPC if character cannot be found in fallout4_characters.csv"""
         # unknown == I couldn't find the IDs for these voice models
 
@@ -105,8 +78,6 @@ class fallout4(gameable):
             actor_voice_model_id='000BBBF0'
 
         actor_race = race
-        actor_race = actor_race.split('<')[1].split(' ')[0]
-
         actor_sex = gender
 
         logging.log(23, f"Current voice actor is voice model {actor_voice_model_name} with ID {actor_voice_model_id} gender {actor_sex} race {actor_race} ")
@@ -135,7 +106,7 @@ class fallout4(gameable):
                 FO4_voice_folder = matching_row_by_name['voice_file_name'].iloc[0]
             else:
                 try: # search for voice model in fallout4_characters.csv
-                    voice_model = self.Character_df.loc[self.Character_df['fallout4_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
+                    voice_model = self.character_df.loc[self.character_df['fallout4_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
                 except: 
                     #except then try to match using gender and race with pre-established dictionaries
                     if actor_sex == '1':
@@ -161,6 +132,7 @@ class fallout4(gameable):
             'name': name,
             'bio': f'You are a {name}',
             'voice_model': voice_model,
+            'advanced_voice_model': '',
             'fallout4_voice_folder': FO4_voice_folder,
         }
 
@@ -170,10 +142,10 @@ class fallout4(gameable):
     def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
         self.__delete_last_played_voiceline()
 
-        audio_file = queue_output.Voice_file
+        audio_file = queue_output.voice_file
         mod_folder = config.mod_path
-        # subtitle = queue_output.Sentence
-        speaker: Character = queue_output.Speaker
+        # subtitle = queue_output.sentence
+        speaker: Character = queue_output.speaker
         if config.add_voicelines_to_all_voice_folders:
             for sub_folder in os.scandir(mod_folder):
                 if not sub_folder.is_dir():
@@ -188,17 +160,17 @@ class fallout4(gameable):
                     # only warn on failure
                     logging.warning(e)
         else:
-            shutil.copyfile(audio_file, f"{mod_folder}/{speaker.In_game_voice_model}/{self.WAV_FILE}")
+            shutil.copyfile(audio_file, f"{mod_folder}/{speaker.in_game_voice_model}/{self.WAV_FILE}")
 
             # Copy FaceFX generated LIP file
             try:
-                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{mod_folder}/{speaker.In_game_voice_model}/{self.LIP_FILE}")
+                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{mod_folder}/{speaker.in_game_voice_model}/{self.LIP_FILE}")
             except Exception as e:
                 # only warn on failure
                 logging.warning(e)
 
 
-        logging.log(23, f"{speaker.Name} should speak")
+        logging.log(23, f"{speaker.name} should speak")
 
         player_pos_x: float | None = context_of_conversation.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSX)
         player_pos_y: float | None = context_of_conversation.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSY)
@@ -209,7 +181,7 @@ class fallout4(gameable):
             player_pos: tuple[float, float] = (float(player_pos_x), float(player_pos_y))
             speaker_pos: tuple[float,float] = (float(speaker_pos_x), float(speaker_pos_y))
             self.__playback.play_adjusted_volume(queue_output, speaker_pos, player_pos, float(player_rot))
-            self.__last_played_voiceline = queue_output.Voice_file
+            self.__last_played_voiceline = queue_output.voice_file
 
     def __delete_last_played_voiceline(self):
         if self.__last_played_voiceline:

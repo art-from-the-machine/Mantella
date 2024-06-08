@@ -13,27 +13,27 @@ class message(ABC):
         self.__is_system_generated_message = is_system_generated_message
 
     @property
-    def Text(self) -> str:
+    def text(self) -> str:
         return self.__text
     
-    @Text.setter
-    def Text(self, text: str):
+    @text.setter
+    def text(self, text: str):
         self.__text = text
 
     @property
-    def Is_multi_npc_message(self) -> bool:
+    def is_multi_npc_message(self) -> bool:
         return self.__is_multi_npc_message
     
-    @Is_multi_npc_message.setter
-    def Is_multi_npc_message(self, is_multi_npc_message: bool):
+    @is_multi_npc_message.setter
+    def is_multi_npc_message(self, is_multi_npc_message: bool):
         self.__is_multi_npc_message = is_multi_npc_message
 
     @property
-    def Is_system_generated_message(self) -> bool:
+    def is_system_generated_message(self) -> bool:
         return self.__is_system_generated_message
     
-    @Is_system_generated_message.setter
-    def Is_system_generated_message(self, is_system_generated_message: bool):
+    @is_system_generated_message.setter
+    def is_system_generated_message(self, is_system_generated_message: bool):
         self.__is_system_generated_message = is_system_generated_message
 
     @abstractmethod
@@ -71,7 +71,7 @@ class system_message(message):
         return f"{dictionary}"
         
 class assistant_message(message):
-    """An assitant message containing the response of an LLM to a request.
+    """An assistant message containing the response of an LLM to a request.
     Automatically appends the character name in front of the text if provided and if there is only one active_assistant_character
     """
     def __init__(self, is_system_generated_message: bool = False):
@@ -88,11 +88,11 @@ class assistant_message(message):
         result = ""
         lastActor: Character | None = None
         for sentence in self.__sentences: 
-            if self.Is_multi_npc_message and lastActor != sentence.Speaker:
-                lastActor = sentence.Speaker
-                result += "\n" + lastActor.Name +': '+ sentence.Sentence
+            if self.is_multi_npc_message and lastActor != sentence.speaker:
+                lastActor = sentence.speaker
+                result += "\n" + lastActor.name +': '+ sentence.sentence
             else:
-                result += sentence.Sentence
+                result += sentence.sentence
         return result
 
     def get_openai_message(self) -> ChatCompletionMessageParam:
@@ -117,7 +117,7 @@ class user_message(message):
         result += self.get_ingame_events_text()
         if self.__time:
             result += f"*The time is {self.__time[0]} {self.__time[1]}.*\n"
-        if self.Is_multi_npc_message:
+        if self.is_multi_npc_message:
             result += f"{self.__player_character_name}: "
         result += f"{self.Text}"
         return result

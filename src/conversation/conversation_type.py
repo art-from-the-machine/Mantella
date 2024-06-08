@@ -67,16 +67,16 @@ class pc_to_npc(conversation_type):
         return context_for_conversation.generate_system_message(self._prompt)
     
     def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
-        message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), False, True)
+        message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), multi_npc_conversation=False, remove_system_flagged_messages=True)
     
     def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:
         if len(messages) == 1 and context_for_conversation.config.automatic_greeting:
             player_character: Character | None = context_for_conversation.npcs_in_conversation.get_player_character()
             if player_character:
                 for actor in context_for_conversation.npcs_in_conversation.get_all_characters():
-                    if not actor.Is_player_character:
-                        message = user_message(f"{context_for_conversation.Language['hello']} {actor.Name}.", player_character.Name, True)
-                        message.Is_multi_npc_message = False
+                    if not actor.is_player_character:
+                        message = user_message(f"{context_for_conversation.language['hello']} {actor.name}.", player_character.name, True)
+                        message.is_multi_npc_message = False
                         return message
             return None
         else:
@@ -115,7 +115,7 @@ class radiant(conversation_type):
         else:
             return None
         reply = user_message(text, "", True)
-        reply.Is_multi_npc_message = False # Don't flag these as multi-npc messages. Don't want a 'Player:' in front of the instruction messages
+        reply.is_multi_npc_message = False # Don't flag these as multi-npc messages. Don't want a 'Player:' in front of the instruction messages
         return reply
     
     def should_end(self, context_for_conversation: context, messages: message_thread) -> bool:
