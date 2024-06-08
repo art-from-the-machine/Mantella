@@ -86,7 +86,7 @@ class context:
         for npc in new_list_of_npcs:
             if not self.__npcs_in_conversation.contains_character(npc):
                 self.__npcs_in_conversation.add_character(npc)
-                self.__ingame_events.append(f"{npc.name} has joinded the conversation")
+                #self.__ingame_events.append(f"{npc.name} has joined the conversation")
                 self.__have_actors_changed = True
             else:
                 #check for updates in the transient stats and generate update events
