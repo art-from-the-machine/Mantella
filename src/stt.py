@@ -110,15 +110,15 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
             if transcript == None:
                 continue
 
-            # transcript_cleaned = utils.clean_text(transcript)
+            transcript_cleaned = utils.clean_text(transcript)
 
             # conversation_ended = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
             # if conversation_ended.lower() == 'true':
             #     return 'goodbye'
 
             # common phrases hallucinated by Whisper
-            # if transcript_cleaned in ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much']:
-            #     continue
+            if transcript_cleaned in ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much']:
+                continue
 
             # self.game_state_manager.write_game_info('_mantella_status', 'Thinking...')
             return transcript

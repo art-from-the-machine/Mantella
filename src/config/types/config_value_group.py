@@ -10,7 +10,7 @@ class ConfigValueGroup(ConfigValue[list[ConfigValue]]):
         self.set_on_value_change_callback(on_value_change_callback)
 
     def add_config_value(self, new_value: ConfigValue):
-        self.Value.append(new_value)
+        self.value.append(new_value)
         new_value.set_on_value_change_callback(self._on_value_change_callback)
     
     def parse(self, config_value: str) -> ConfigValueConstraintResult:

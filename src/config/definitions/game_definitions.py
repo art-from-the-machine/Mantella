@@ -17,7 +17,7 @@ class GameDefinitions:
             super().__init__(f"{game_name} may not be installed in 'ProgramFiles'!")
             self.__game_name = game_name
 
-        def apply_contraint(self, value_to_apply_to: str) -> ConfigValueConstraintResult:
+        def apply_constraint(self, value_to_apply_to: str) -> ConfigValueConstraintResult:
             if 'Program Files' in value_to_apply_to:
                 return ConfigValueConstraintResult(f'''
 {self.__game_name} is installed in Program Files. Mantella is unlikely to work. 
@@ -27,10 +27,10 @@ See here to learn how to move your game's installation folder: https://art-from-
     
     class ModFolderChecker(ConfigValueConstraint[str]):
         def __init__(self, mod_folder_config_value: str) -> None:
-            super().__init__(f"Targted folder must contain '\\Sound\\Voice\\Mantella.esp\\' subfolders!")
+            super().__init__(f"Mod folder must contain '\\Sound\\Voice\\Mantella.esp\\' subfolders.")
             self.__mod_folder_config_value = mod_folder_config_value
 
-        def apply_contraint(self, value_to_apply_to: str) -> ConfigValueConstraintResult:
+        def apply_constraint(self, value_to_apply_to: str) -> ConfigValueConstraintResult:
             if not os.path.exists(f"{value_to_apply_to}\\Sound\\Voice\\Mantella.esp"):
                 return ConfigValueConstraintResult(f"""Error setting '{self.__mod_folder_config_value} = {value_to_apply_to}' 
 Expected subfolders '{value_to_apply_to}\\Sound\\Voice\\Mantella.esp' do not seem to exist.
@@ -51,7 +51,7 @@ Please see here to learn where to set this value: https://art-from-the-machine.g
     @staticmethod
     def get_skyrimvr_mod_folder_config_value() -> ConfigValue:
         identifier = "skyrimvr_mod_folder"
-        game_folder = "SkyrimVR"
+        game_folder = "Skyrim VR"
         return ConfigValuePath(identifier, f"{game_folder}: Path to MantellaSpell mod", GameDefinitions.MOD_FOLDER_DESCRIPTION.format(game_folder), "C:\\Modding\\MO2\\mods\\Mantella","Sound",[GameDefinitions.ProgramFilesChecker(game_folder), GameDefinitions.ModFolderChecker(identifier)])
 
     @staticmethod
@@ -63,11 +63,11 @@ Please see here to learn where to set this value: https://art-from-the-machine.g
     @staticmethod
     def get_fallout4vr_mod_folder_config_value() -> ConfigValue:
         identifier = "fallout4vr_mod_folder"
-        game_folder = "Fallout4VR"
+        game_folder = "Fallout4 VR"
         return ConfigValuePath(identifier, f"{game_folder}: Path to MantellaGun mod", GameDefinitions.MOD_FOLDER_DESCRIPTION.format(game_folder), "C:\\Modding\\MO2\\mods\\Mantella","Sound",[GameDefinitions.ProgramFilesChecker(game_folder), GameDefinitions.ModFolderChecker(identifier)])
 
     @staticmethod
     def get_fallout4vr_folder_config_value() -> ConfigValue:
         fallout4vr_folder_description = """If your game is Fallout 4 VR, point this to the folder containing the Fallout4VR.exe that is run to start the game
-        Due to compatibility reasons, communication with Fallout 4 VR needs to happen reading and writing a file that is located in your Fallout4VR main game folder"""
+        Due to compatibility reasons, communication with Fallout 4 VR needs to happen via reading and writing to a file that is located in your Fallout4 VR main game folder"""
         return ConfigValuePath("fallout4vr_folder", "Path Fallout 4 VR main folder", fallout4vr_folder_description, "C:\\Games\\Steam\\steamapps\\common\\Fallout4VR","Fallout4VR.exe",[GameDefinitions.ProgramFilesChecker("Fallout4VR")])

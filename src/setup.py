@@ -88,8 +88,8 @@ def initialise(config_file, logging_file, language_file) -> tuple[config_loader.
     set_cwd_to_exe_dir()
     setup_logging(logging_file)
     config = config_loader.ConfigLoader(config_file)
-    if not config.Have_all_config_values_loaded_correctly:
-        logging.error("Can't start Mantella. Not all settings that are required are set to correct values. Please check the above error messages and correct the corresponding settings!")
+    if not config.have_all_config_values_loaded_correctly:
+        logging.error("Cannot start Mantella. Not all settings that are required are set to correct values. Please check the above error messages and correct the corresponding settings!")
 
     # clean up old instances of exe runtime files
     utils.cleanup_mei(config.remove_mei_folders)

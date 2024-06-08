@@ -25,7 +25,7 @@ class VoiceModelNotFound(Exception):
     pass
 
 class Synthesizer:
-    def __init__(self, config: ConfigLoader):
+    def __init__(self, config: ConfigLoader, game):
         self.loglevel = 29
         self.xvasynth_path = config.xvasynth_path
         self.facefx_path = config.facefx_path

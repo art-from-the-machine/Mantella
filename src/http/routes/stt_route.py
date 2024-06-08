@@ -37,11 +37,11 @@ class stt_route(routeable):
         @app.post("/stt")
         async def stt(request: Request):
             if not self._can_route_be_used():
-                error_message = "MantellaSoftware settings faulty! Please check MantellaSoftware's window or log!"
+                error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
                 logging.error(error_message)
                 return self.error_message(error_message)
             if not self.__stt:
-                error_message = "STT/Whisper setup failed! There is most likely an issue with the config.ini!"
+                error_message = "STT/Whisper setup failed. There is most likely an issue with the config.ini."
                 logging.error(error_message)
                 return self.error_message(error_message)
             received_json: dict[str, Any] | None = await request.json()

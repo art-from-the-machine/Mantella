@@ -7,6 +7,7 @@ from src.config.config_value_constraint import ConfigValueConstraint, ConfigValu
 
 class PromptDefinitions:
     ALLOWED_PROMPT_VARIABLES = ["player_name",
+                                "game",
                                 "name",
                                 "names",
                                 "names_w_player",
@@ -23,6 +24,7 @@ class PromptDefinitions:
     BASE_PROMPT_DESCRIPTION = """The starting prompt sent to the LLM when an NPC is selected
                                 If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
                                 name = the NPC's name
+                                game = the selected game
                                 bio = the NPC's background description
                                 trust = how well the NPC knows the player (eg "a stranger", "a friend")
                                 location = the current location
@@ -35,7 +37,7 @@ class PromptDefinitions:
         def __init__(self) -> None:
             super().__init__("Only variables from list of allowed variables may be used!")
 
-        def apply_contraint(self, prompt: str) -> ConfigValueConstraintResult:
+        def apply_constraint(self, prompt: str) -> ConfigValueConstraintResult:
             check_regex = Regex("{(?P<variable>.*?)}")
             matches = check_regex.findall(prompt)
             allowed = PromptDefinitions.ALLOWED_PROMPT_VARIABLES

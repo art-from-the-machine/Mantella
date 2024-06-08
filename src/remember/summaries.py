@@ -56,7 +56,7 @@ class summaries(remembering):
                 non_generic_npc.append(npc)
         for npc in non_generic_npc:            
             if len(summary) < 1: # if a summary has not already been generated, make one
-                summary = self.__create_new_conversation_summary(messages, npc.Name)
+                summary = self.__create_new_conversation_summary(messages, npc.name)
             if len(summary) > 0 or is_reload: # if a summary has been generated, give the same summary to all NPCs
                 self.__append_new_conversation_summary(summary, npc)
 
@@ -136,7 +136,7 @@ class summaries(remembering):
                         language=self.__language_name,
                         game=self.__game
                     )
-                    long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt, npc.Name)
+                    long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt, npc.name)
                     break
                 except:
                     logging.error('Failed to summarize conversation. Retrying...')

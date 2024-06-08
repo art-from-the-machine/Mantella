@@ -15,7 +15,7 @@ from src.http.communication_constants import communication_constants as comm_con
 from src.tts import Synthesizer
 
 class mantella_route(routeable):
-    """Main route for mantella conversations
+    """Main route for Mantella conversations
 
     Args:
         routeable (_type_): _description_
@@ -40,7 +40,7 @@ class mantella_route(routeable):
         else:
             game = skyrim(self._config)
         
-        chat_manager = ChatManager(game, self._config, Synthesizer(self._config), client)
+        chat_manager = ChatManager(game, self._config, Synthesizer(self._config, game), client)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, client)
         
         logging.log(24, '\nConversations not starting when you select an NPC? See here:\nhttps://art-from-the-machine.github.io/Mantella/pages/issues_qna')
@@ -50,11 +50,11 @@ class mantella_route(routeable):
         @app.post("/mantella")
         async def mantella(request: Request):
             if not self._can_route_be_used():
-                error_message = "MantellaSoftware settings faulty! Please check MantellaSoftware's window or log!"
+                error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
                 logging.error(error_message)
                 return self.error_message(error_message)
             if not self.__game:
-                error_message = "Game manager setup failed! There is most likely an issue with the config.ini!"
+                error_message = "Game manager setup failed. There is most likely an issue with the config.ini."
                 logging.error(error_message)
                 return self.error_message(error_message)
             reply = {}

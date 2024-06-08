@@ -47,7 +47,7 @@ class LLMDefinitions:
         description = """Time to wait (in seconds) before generating the next voiceline
                         Mantella waits for the duration of a given voiceline's .wav file + an extra buffer to account for processing overhead within Skyrim
                         If you are noticing that some voicelines are not being said in-game, try increasing this buffer"""
-        return ConfigValueFloat("wait_time_buffer","Wait time buffer",description, 1.0, 0, 999,tags=[ConvigValueTag.advanced])
+        return ConfigValueFloat("wait_time_buffer","Wait time buffer",description, -1.0, -999, 999,tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_temperature_config_value() -> ConfigValue:

@@ -7,11 +7,11 @@ class ConfigValueConstraintResult:
         self.__error_message: str | None = error_message
 
     @property
-    def Is_success(self) -> bool:
+    def is_success(self) -> bool:
         return self.__error_message == None
     
     @property
-    def Error_message(self) -> str:
+    def error_message(self) -> str:
         if self.__error_message:
             return self.__error_message
         else:
@@ -24,9 +24,9 @@ class ConfigValueConstraint(Generic[T], ABC):
         self.__description: str = description
     
     @property
-    def Description(self) -> str:
+    def description(self) -> str:
         return self.__description
     
     @abstractmethod
-    def apply_contraint(self, value_to_apply_to: T) -> ConfigValueConstraintResult:
+    def apply_constraint(self, value_to_apply_to: T) -> ConfigValueConstraintResult:
         pass

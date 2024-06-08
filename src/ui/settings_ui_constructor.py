@@ -1,5 +1,6 @@
 import gradio as gr
 from typing import Awaitable, Callable, Optional, TypeVar, Union
+import logging
 
 from src.config.types.config_value_path import ConfigValuePath
 from src.config.types.config_value_bool import ConfigValueBool
@@ -25,57 +26,58 @@ class SettingsUIConstructor(ConfigValueVisitor):
     T = TypeVar('T')
     def __on_change(self, config_value: ConfigValue[T], new_value: T) -> gr.Markdown:
         result: ConfigValueConstraintResult = config_value.does_value_cause_error(new_value)
-        if result.Is_success:
-            config_value.Value = new_value
+        if result.is_success:
+            config_value.value = new_value
+            logging.info(f'{config_value.name} set to {config_value.value}')
             return self.__construct_error_message_panel('', is_visible=False)
         else:
-            return self.__construct_error_message_panel(result.Error_message, is_visible=True)
+            return self.__construct_error_message_panel(result.error_message, is_visible=True)
         
     def __construct_error_message_panel(self, message: str, is_visible: bool) -> gr.Markdown:
         markdown = gr.Markdown(value=message, visible=is_visible, elem_classes="constraint-violation")
         return markdown
 
     def _construct_badges(self, config_value: ConfigValue):
-        if len(config_value.Tags) > 0:
+        if len(config_value.tags) > 0:
             with gr.Row():
-                for tag in config_value.Tags:
+                for tag in config_value.tags:
                     gr.HTML(f"<b>{str(tag).upper()}</b>", elem_classes=["badge",f"badge-{tag}"])
                 gr.Column(scale=1)
 
     
     def __construct_name_description_constraints(self, config_value: ConfigValue):
         with gr.Row():
-            gr.Markdown(f"## {config_value.Name}", elem_classes="setting-title")
+            gr.Markdown(f"## {config_value.name}", elem_classes="setting-title")
             gr.Column(scale=1)
         #self._construct_badges(config_value)
-        gr.Markdown(value=config_value.Description, line_breaks=True)
+        gr.Markdown(value=config_value.description, line_breaks=True)
         constraints_text = ""
-        for constraint in config_value.Constraints:
-            constraints_text += constraint.Description + "\n"
+        for constraint in config_value.constraints:
+            constraints_text += constraint.description + "\n"
         if len(constraints_text) > 0:
             gr.Markdown(value=constraints_text, line_breaks=True)
         
     def __construct_initial_error_message(self, config_value: ConfigValue) -> gr.Markdown:
-        result: ConfigValueConstraintResult = config_value.does_value_cause_error(config_value.Value)
-        return self.__construct_error_message_panel(result.Error_message, is_visible=not result.Is_success)
-        # return gr.Markdown(result.Error_message, visible=not result.Is_success)
+        result: ConfigValueConstraintResult = config_value.does_value_cause_error(config_value.value)
+        return self.__construct_error_message_panel(result.error_message, is_visible=not result.is_success)
+        # return gr.Markdown(result.error_message, visible=not result.is_success)
 
     def visit_ConfigValueGroup(self, config_value: ConfigValueGroup):
-        if not config_value.Is_hidden:            
-            gr.Markdown(f"# {config_value.Name}")
-            gr.Markdown(value=config_value.Description, line_breaks=True)
+        if not config_value.is_hidden:            
+            gr.Markdown(f"# {config_value.name}")
+            gr.Markdown(value=config_value.description, line_breaks=True)
             has_advanced_values = False
-            for cf in config_value.Value:
-                if not cf.Is_hidden:
-                    if not ConvigValueTag.advanced in cf.Tags:
+            for cf in config_value.value:
+                if not cf.is_hidden:
+                    if not ConvigValueTag.advanced in cf.tags:
                         cf.accept_visitor(self)
                     else:
                         has_advanced_values = True
             if has_advanced_values:
                 with gr.Accordion(label="Advanced", open=False):
-                    for cf in config_value.Value:
-                        if not cf.Is_hidden:
-                            if ConvigValueTag.advanced in cf.Tags:
+                    for cf in config_value.value:
+                        if not cf.is_hidden:
+                            if ConvigValueTag.advanced in cf.tags:
                                 cf.accept_visitor(self)
 
     def visit_ConfigValueInt(self, config_value: ConfigValueInt):
@@ -84,9 +86,9 @@ class SettingsUIConstructor(ConfigValueVisitor):
         
         with gr.Column(variant="panel") as panel:
             self.__construct_name_description_constraints(config_value)
-            input_ui = gr.Number(value=config_value.Value, 
-                    minimum=config_value.MinValue, 
-                    maximum=config_value.MaxValue, 
+            input_ui = gr.Number(value=config_value.value, 
+                    minimum=config_value.min_value, 
+                    maximum=config_value.max_value, 
                     precision=0,
                     show_label=False, 
                     container=False)            
@@ -101,9 +103,9 @@ class SettingsUIConstructor(ConfigValueVisitor):
         
         with gr.Column(variant="panel") as panel:
             self.__construct_name_description_constraints(config_value)
-            input_ui = gr.Number(value=config_value.Value, 
-                    minimum=config_value.MinValue, 
-                    maximum=config_value.MaxValue, 
+            input_ui = gr.Number(value=config_value.value, 
+                    minimum=config_value.min_value, 
+                    maximum=config_value.max_value, 
                     precision=2,
                     show_label=False, 
                     container=False,
@@ -119,8 +121,8 @@ class SettingsUIConstructor(ConfigValueVisitor):
         
         with gr.Column(variant="panel") as panel:
             self.__construct_name_description_constraints(config_value)
-            input_ui = gr.Checkbox(label = config_value.Name,
-                                    value=config_value.Value,
+            input_ui = gr.Checkbox(label = config_value.name,
+                                    value=config_value.value,
                                     show_label=False, 
                                     container=False,elem_classes="checkboxelement")
             error_message = self.__construct_initial_error_message(config_value)
@@ -134,13 +136,13 @@ class SettingsUIConstructor(ConfigValueVisitor):
         
         with gr.Column(variant="panel") as panel:
             self.__construct_name_description_constraints(config_value)
-            count_rows = self.__count_rows_in_text(config_value.Value)
+            count_rows = self.__count_rows_in_text(config_value.value)
             if count_rows == 1:
-                input_ui = gr.Text(value=config_value.Value,
+                input_ui = gr.Text(value=config_value.value,
                         show_label=False, 
                         container=False)
             else:
-                input_ui = gr.Text(value=config_value.Value,
+                input_ui = gr.Text(value=config_value.value,
                         show_label=False, 
                         container=False,
                         lines= count_rows,
@@ -161,7 +163,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
         
         with gr.Column(variant="panel") as panel:
             self.__construct_name_description_constraints(config_value)
-            input_ui = gr.Dropdown(value=config_value.Value,                        
+            input_ui = gr.Dropdown(value=config_value.value,                        
                     choices=config_value.Options, # type: ignore
                     multiselect=False,
                     allow_custom_value=False, 
@@ -182,7 +184,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
         with gr.Column(variant="panel") as panel:
             self.__construct_name_description_constraints(config_value)
             with gr.Row(equal_height=True):
-                input_ui = gr.Text(value=config_value.Value, show_label=False, container=False)
+                input_ui = gr.Text(value=config_value.value, show_label=False, container=False)
                 select_path_button = gr.Button("Pick", scale=0, variant="primary")
                 if hasattr(select_path_button, "_id"):
                     select_path_button.click(on_click, outputs=input_ui)

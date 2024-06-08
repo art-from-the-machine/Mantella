@@ -13,8 +13,8 @@ class FileOrFolder(Enum):
     FOLDER = 2
 
 class ConfigValuePath(ConfigValue[str]):
-    def __init__(self, identifier: str, name: str, description: str, defaultValue: str, file_or_folder_that_must_be_present: str | None, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConvigValueTag] = []):
-        super().__init__(identifier, name, description, defaultValue, constraints, is_hidden, tags)
+    def __init__(self, identifier: str, name: str, description: str, default_value: str, file_or_folder_that_must_be_present: str | None, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConvigValueTag] = []):
+        super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
         self.__file_or_folder_that_must_be_present: str | None = file_or_folder_that_must_be_present
     
     @property
@@ -48,7 +48,7 @@ class ConfigValuePath(ConfigValue[str]):
             filename, extension = os.path.splitext(self.__file_or_folder_that_must_be_present)
             filenames = filedialog.askopenfilename(parent=None,                                                    
                                                     title=f"Select file '{self.__file_or_folder_that_must_be_present}'",
-                                                    initialdir=self.Value,
+                                                    initialdir=self.value,
                                                     filetypes=[(self.__file_or_folder_that_must_be_present,f"*{extension}")])
             if len(filenames) > 0:
                 root.destroy()
@@ -60,8 +60,8 @@ class ConfigValuePath(ConfigValue[str]):
         else:
             filename = filedialog.askdirectory(parent= None,
                                                 mustexist=True,
-                                                title=f"Select folder for '{self.Name}'",
-                                                initialdir=self.Value)
+                                                title=f"Select folder for '{self.name}'",
+                                                initialdir=self.value)
             if filename:
                 if os.path.isdir(filename):
                     root.destroy()
@@ -74,27 +74,27 @@ class ConfigValuePath(ConfigValue[str]):
                 root.destroy()
                 result.append(str(filename))        
     
-    def does_value_cause_error(self, valueToCheck: str) -> ConfigValueConstraintResult:
-        if not os.path.exists(valueToCheck):
-            return ConfigValueConstraintResult(f"The selected folder '{valueToCheck}' for config value '{self.Name}' does not exist!")
+    def does_value_cause_error(self, value_to_check: str) -> ConfigValueConstraintResult:
+        if not os.path.exists(value_to_check):
+            return ConfigValueConstraintResult(f"The selected folder '{value_to_check}' for config value '{self.name}' does not exist!")
 
         if self.__file_or_folder_that_must_be_present:             
             if self.Type_to_look_for == FileOrFolder.FILE:
-                path_plus_file_name = os.path.join(valueToCheck, self.__file_or_folder_that_must_be_present)
+                path_plus_file_name = os.path.join(value_to_check, self.__file_or_folder_that_must_be_present)
                 if not os.path.exists(path_plus_file_name) or not os.path.isfile(path_plus_file_name):
-                    return ConfigValueConstraintResult(f"{valueToCheck} is not a file!")
+                    return ConfigValueConstraintResult(f"{value_to_check} is not a file!")
                 file_name = Path(path_plus_file_name).name
                 if file_name != self.__file_or_folder_that_must_be_present:
-                    return ConfigValueConstraintResult(f"Selected file {valueToCheck} is not '{self.__file_or_folder_that_must_be_present}'!")
+                    return ConfigValueConstraintResult(f"Selected file {value_to_check} is not '{self.__file_or_folder_that_must_be_present}'!")
             elif self.Type_to_look_for == FileOrFolder.FOLDER:
-                if not os.path.isdir(valueToCheck):
-                    return ConfigValueConstraintResult(f"{valueToCheck} is not a folder!")
-                folder_name = os.path.join(valueToCheck, self.__file_or_folder_that_must_be_present)
+                if not os.path.isdir(value_to_check):
+                    return ConfigValueConstraintResult(f"{value_to_check} is not a folder!")
+                folder_name = os.path.join(value_to_check, self.__file_or_folder_that_must_be_present)
                 if not os.path.exists(folder_name) or not os.path.isdir(folder_name):
-                    return ConfigValueConstraintResult(f"Selected folder {valueToCheck} does not contain subfolder '{self.__file_or_folder_that_must_be_present}'!")
+                    return ConfigValueConstraintResult(f"Selected folder {value_to_check} does not contain subfolder '{self.__file_or_folder_that_must_be_present}'! Please ensure your selected folder is correct.")
         
-        result = super().does_value_cause_error(valueToCheck)
-        if not result.Is_success:
+        result = super().does_value_cause_error(value_to_check)
+        if not result.is_success:
             return result
         else:
             return ConfigValueConstraintResult()
@@ -102,13 +102,13 @@ class ConfigValuePath(ConfigValue[str]):
     def parse(self, config_value: str) -> ConfigValueConstraintResult:
         try:
             result = self.does_value_cause_error(config_value)
-            if result.Is_success:
-                self.Value = config_value
+            if result.is_success:
+                self.value = config_value
                 return ConfigValueConstraintResult()
             else:
                 return result
         except ValueError:
-            return ConfigValueConstraintResult(f"Error when reading config value '{self.Identifier}'. {config_value} not valid!")
+            return ConfigValueConstraintResult(f"Error when reading config value '{self.identifier}'. {config_value} not valid!")
         
     def accept_visitor(self, visitor: ConfigValueVisitor):
         visitor.visit_ConfigValuePath(self)

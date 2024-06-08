@@ -61,7 +61,7 @@ class system_message(message):
         super().__init__(prompt, True)
 
     def get_formatted_content(self) -> str:
-        return self.Text
+        return self.text
 
     def get_openai_message(self) -> ChatCompletionMessageParam:
         return {"role":"system", "content": self.get_formatted_content(),}
@@ -119,7 +119,7 @@ class user_message(message):
             result += f"*The time is {self.__time[0]} {self.__time[1]}.*\n"
         if self.is_multi_npc_message:
             result += f"{self.__player_character_name}: "
-        result += f"{self.Text}"
+        result += f"{self.text}"
         return result
     
     def get_openai_message(self) -> ChatCompletionMessageParam:

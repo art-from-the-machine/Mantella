@@ -14,7 +14,7 @@ class TTSDefinitions:
         def __init__(self) -> None:
             super().__init__(f"Selected folder must contain subfolder '\\resources\\'!")
 
-        def apply_contraint(self, value_to_apply_to: str) -> ConfigValueConstraintResult:
+        def apply_constraint(self, value_to_apply_to: str) -> ConfigValueConstraintResult:
             if not os.path.exists(f"{value_to_apply_to}\\resources\\"):
                 return ConfigValueConstraintResult(f'''
 The selected folder for xVASynth is missing the expected subfolder '\\resources\\'. 
@@ -87,6 +87,10 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
                     "enable_text_splitting": true,
                     "stream_chunk_size": 100}"""
         return ConfigValueString("xtts_data","XTTS data","Default data for the tts settings of XTTS api server", value,tags=[ConvigValueTag.advanced])
+    
+    @staticmethod
+    def get_xtts_accent_config_value() -> ConfigValue:
+        return ConfigValueBool("xtts_accent","Use XTTS accents","Changes the 'accent' of NPCs by sending the language value from data/Skyrim/skyrim_characters.csv's lang_override column to XTTS. This helps give NPC's unique-sounding voices, even when they use the same base voice model", False, tags=[ConvigValueTag.advanced])
     
     # xVASynth section
     @staticmethod

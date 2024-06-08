@@ -9,63 +9,63 @@ class ConvigValueTag(StrEnum):
 
 T = TypeVar('T')
 class ConfigValue(ABC, Generic[T]):
-    def __init__(self, identifier: str, name: str, description: str, defaultValue: T, constraints: list[ConfigValueConstraint[T]], is_hidden: bool, tags: list[ConvigValueTag] = []) -> None:
+    def __init__(self, identifier: str, name: str, description: str, default_value: T, constraints: list[ConfigValueConstraint[T]], is_hidden: bool, tags: list[ConvigValueTag] = []) -> None:
         super().__init__()
         self.__identifier = identifier
         self.__name = name
         self.__description = description
-        self.__value: T = defaultValue
-        self.__defaultValue:T = defaultValue
+        self.__value: T = default_value
+        self.__default_value:T = default_value
         self.__constraints: list[ConfigValueConstraint[T]] = constraints
         self.__is_hidden: bool = is_hidden
         self.__tags: list[ConvigValueTag] = tags
         self._on_value_change_callback: Callable[..., Any] | None = None
     
     @property
-    def Identifier(self) -> str:
+    def identifier(self) -> str:
         return self.__identifier
     
     @property
-    def Name(self) -> str:
+    def name(self) -> str:
         return self.__name
     
     @property
-    def Description(self) -> str:
+    def description(self) -> str:
         return self.__description
     
     @property
-    def Value(self) -> T:
+    def value(self) -> T:
         return self.__value
     
-    @Value.setter
-    def Value(self, value:T):        
+    @value.setter
+    def value(self, value:T):        
         self.__value = value
         if self._on_value_change_callback:
             self._on_value_change_callback()
     
     @property
-    def DefaultValue(self) -> T:
-        return self.__defaultValue
+    def default_value(self) -> T:
+        return self.__default_value
     
     @property
-    def Constraints(self) -> list[ConfigValueConstraint[T]]:
+    def constraints(self) -> list[ConfigValueConstraint[T]]:
         return self.__constraints
     
     @property
-    def Is_hidden(self) -> bool:
+    def is_hidden(self) -> bool:
         return self.__is_hidden
     
     @property
-    def Tags(self) -> list[ConvigValueTag]:
+    def tags(self) -> list[ConvigValueTag]:
         return self.__tags
     
     def set_on_value_change_callback(self, on_value_change_callback: Callable[..., Any] | None):
         self._on_value_change_callback = on_value_change_callback
     
-    def does_value_cause_error(self, valueToCheck: T) -> ConfigValueConstraintResult:
+    def does_value_cause_error(self, value_to_check: T) -> ConfigValueConstraintResult:
         for constraint in self.__constraints:
-            result = constraint.apply_contraint(valueToCheck)
-            if not result.Is_success:
+            result = constraint.apply_constraint(value_to_check)
+            if not result.is_success:
                 return result
         return ConfigValueConstraintResult()
 

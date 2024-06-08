@@ -23,9 +23,9 @@ class StartUI(routeable):
 
     def __generate_settings_page(self) -> gr.Column:
         with gr.Column() as settings:
-            for cf in self._config.Definitions.Base_groups:
-                if not cf.Is_hidden:
-                    with gr.Tab(cf.Name):
+            for cf in self._config.definitions.base_groups:
+                if not cf.is_hidden:
+                    with gr.Tab(cf.name):
                         cf.accept_visitor(self.__constructor)
         return settings
     

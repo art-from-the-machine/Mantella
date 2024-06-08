@@ -16,7 +16,7 @@ class ConfigLoader:
         self.__file_name = file_name
         self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.__on_config_value_change)
         if not os.path.exists(self.__file_name):
-            logging.log(24,"Can't find 'config.ini'. Assuming first time usage of MantellaSoftware and creating it.")
+            logging.log(24,"Cannot find 'config.ini'. Assuming first time usage of MantellaSoftware and creating it.")
             self.__write_config_state(self.__definitions)
 
         config = configparser.ConfigParser()
@@ -44,15 +44,15 @@ class ConfigLoader:
         self.__update_config_values_from_current_state()     
     
     @property
-    def Have_all_config_values_loaded_correctly(self) -> bool:
-        return self.__definitions.Have_all_loaded_values_succeded
+    def have_all_config_values_loaded_correctly(self) -> bool:
+        return self.__definitions.have_all_loaded_values_succeded
     
     @property
-    def Has_any_config_value_changed(self) -> bool:
+    def has_any_config_value_changed(self) -> bool:
         return self.__has_any_value_changed
     
     @property
-    def Definitions(self) -> ConfigValues:
+    def definitions(self) -> ConfigValues:
         return self.__definitions
     
     def update_config_loader_with_changed_config_values(self):
@@ -120,6 +120,7 @@ class ConfigLoader:
             self.number_words_tts = self.__definitions.get_int_value("number_words_tts")
             self.xtts_url = self.__definitions.get_string_value("xtts_url")
             self.xtts_data = self.__definitions.get_string_value("xtts_data")
+            self.xtts_accent = self.__definitions.get_bool_value("xtts_accent")
         
             self.xvasynth_process_device = self.__definitions.get_string_value("tts_process_device")
             self.pace = self.__definitions.get_float_value("pace")
@@ -215,7 +216,7 @@ class ConfigLoader:
     
     def get_config_value_json(self) -> str:
         json_writer = ConfigJsonWriter()
-        for definition in self.__definitions.Base_groups:
+        for definition in self.__definitions.base_groups:
             definition.accept_visitor(json_writer)
         return json_writer.get_Json()
 

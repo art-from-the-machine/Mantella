@@ -26,9 +26,9 @@ class routeable(ABC):
         pass
 
     def _can_route_be_used(self) -> bool:        
-        if not self._has_route_been_initialized or self._config.Has_any_config_value_changed:
+        if not self._has_route_been_initialized or self._config.has_any_config_value_changed:
             self._config.update_config_loader_with_changed_config_values()
-            if self._config.Have_all_config_values_loaded_correctly:
+            if self._config.have_all_config_values_loaded_correctly:
                 self._setup_route()
                 self._has_route_been_initialized = True
                 return True
