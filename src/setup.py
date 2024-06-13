@@ -1,9 +1,6 @@
 import logging
 import os
 from typing import Hashable
-from src.games.fallout4 import fallout4
-from src.games.skyrim import skyrim
-from src.games.gameable import gameable
 import src.color_formatter as cf
 import src.utils as utils
 import pandas as pd
@@ -11,7 +8,6 @@ import sys
 import os
 
 import src.config.config_loader as config_loader
-from src.llm.openai_client import openai_client
 
 def initialise(config_file, logging_file, language_file) -> tuple[config_loader.ConfigLoader, dict[Hashable, str]]:
     
