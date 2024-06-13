@@ -88,6 +88,8 @@ def initialise(config_file, logging_file, language_file) -> tuple[config_loader.
     set_cwd_to_exe_dir()
     setup_logging(logging_file)
     config = config_loader.ConfigLoader(config_file)
+    logging.log(24, f'Mantella.exe running in {os.getcwd()}. config.ini available in {os.path.abspath(config_file)}.')
+    logging.log(24, f'Mantella currently running for {config.game}. Mantella mod files located in {config.mod_path}.')
     if not config.have_all_config_values_loaded_correctly:
         logging.error("Cannot start Mantella. Not all settings that are required are set to correct values. Please check the above error messages and correct the corresponding settings!")
 

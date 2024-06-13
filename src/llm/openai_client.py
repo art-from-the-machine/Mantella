@@ -8,6 +8,7 @@ import requests
 from src.llm.message_thread import message_thread
 from src.llm.messages import message
 from src.config.config_loader import ConfigLoader
+import os
 
 class openai_client:
     """Joint setup for sync and async access to the LLMs
@@ -60,7 +61,6 @@ class openai_client:
         else: # if endpoint isn't named, assume it is a direct URL
             endpoint = config.llm_api
 
-
         if (endpoint == 'none') or ("https" in endpoint):
             #cloud LLM
             self.__is_local: bool = False
@@ -68,10 +68,16 @@ class openai_client:
                 self.__api_key: str = f.readline().strip()
 
             if not self.__api_key:
-                logging.error(f'''No secret key found in MantellaSoftware/GPT_SECRET_KEY.txt. Please create a secret key and paste it in GPT_SECRET_KEY.txt
+                game_installation_page = 'https://art-from-the-machine.github.io/Mantella/pages/installation.html#language-models-llms'
+                if 'Fallout4' in config.game:
+                    game_installation_page = 'https://art-from-the-machine.github.io/Mantella/pages/installation_fallout4.html#language-models-llms'
+
+                logging.error(f'''No secret key found in {os.path.abspath(secret_key_file)}.
+Please create a secret key and paste it in GPT_SECRET_KEY.txt.
 If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
-If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running''')
+If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running.
+For more information, see here: {game_installation_page}''')
                 input("Press Enter to exit.")
 
             if config.llm == 'undi95/toppy-m-7b:free':
