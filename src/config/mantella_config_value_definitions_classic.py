@@ -48,6 +48,10 @@ class MantellaConfigValueDefinitionsClassic:
         speech_category = ConfigValueGroup("Speech", "Speech", "Basic settings for the Text-To-Speech service used", on_value_change_callback)
         speech_category.add_config_value(TTSDefinitions.get_tts_service_config_value())
         result.append(speech_category)
+
+        ui_category = ConfigValueGroup("UI", "UI", "Settings about the UI", on_value_change_callback)
+        ui_category.add_config_value(OtherDefinitions.get_auto_launch_ui_config_value())
+        result.append(ui_category)
         
         conversation_category = ConfigValueGroup("Conversation", "Conversation", "Settings about the flow of a conversation", on_value_change_callback)
         conversation_category.add_config_value(OtherDefinitions.get_automatic_greeting_folder_config_value())

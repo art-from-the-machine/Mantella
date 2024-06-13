@@ -98,6 +98,7 @@ class MantellaConfigValueDefinitionsNew:
         result.add_base_group(language_category)
 
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
+        other_category.add_config_value(OtherDefinitions.get_auto_launch_ui_config_value())
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         other_category.add_config_value(OtherDefinitions.get_remove_mei_folders_config_value())

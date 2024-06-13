@@ -5,6 +5,7 @@ import gradio as gr
 from src.config.config_loader import ConfigLoader
 from src.http.routes.routeable import routeable
 from src.ui.settings_ui_constructor import SettingsUIConstructor
+import logging
 
 class StartUI(routeable):
     BANNER = "docs/_static/img/mantella_banner.png"
@@ -57,7 +58,10 @@ class StartUI(routeable):
                             self.create_main_block(),
                             path="/ui")
         
-        webbrowser.open(f'http://localhost:{str(self._config.port)}/ui?__theme=dark', new=2)
+        link = f'http://localhost:{str(self._config.port)}/ui?__theme=dark'
+        logging.info(f'Mantella settings can be changed via this link: {link}')
+        if self._config.auto_launch_ui == True:
+            webbrowser.open(link, new=2)
     
     def __load_css(self):
         with open('src/ui/style.css', 'r') as file:
