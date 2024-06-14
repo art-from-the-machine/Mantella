@@ -15,21 +15,21 @@ class StartUI(routeable):
 
     def create_main_block(self) -> gr.Blocks:
         with gr.Blocks(title="Mantella", fill_height=True, analytics_enabled=False, theme= self.__get_theme(), css=self.__load_css()) as main_block:
-            with gr.Tab("Settings") as tabs:
-                settings_page = self.__generate_settings_page()
-            with gr.Tab("Chat with NPCs", interactive=False):
-                self.__generate_chat_page()
-            with gr.Tab("NPC editor", interactive=False):
-                self.__generate_character_editor_page()
+            # with gr.Tab("Settings") as tabs:
+            settings_page = self.__generate_settings_page()
+            # with gr.Tab("Chat with NPCs", interactive=False):
+            #     self.__generate_chat_page()
+            # with gr.Tab("NPC editor", interactive=False):
+            #     self.__generate_character_editor_page()
         return main_block
 
     def __generate_settings_page(self) -> gr.Column:
-        with gr.Column() as settings:
-            for cf in self._config.definitions.base_groups:
-                if not cf.is_hidden:
-                    with gr.Tab(cf.name):
-                        cf.accept_visitor(self.__constructor)
-        return settings
+        # with gr.Column() as settings:
+        for cf in self._config.definitions.base_groups:
+            if not cf.is_hidden:
+                with gr.Tab(cf.name):
+                    cf.accept_visitor(self.__constructor)
+        return None #settings
     
     def __generate_chat_page(self):
         return gr.Column()

@@ -15,7 +15,7 @@ class MantellaConfigValueDefinitionsClassic:
     def get_config_values(on_value_change_callback: Callable[..., Any] | None = None) -> list[ConfigValue]:
         result: list[ConfigValue] = []
 
-        game_category = ConfigValueGroup("Game", "Game", "Settings for the games Mantella supports", on_value_change_callback)
+        game_category = ConfigValueGroup("Game", "Game", "Settings for the games supported by Mantella.", on_value_change_callback)
         game_category.add_config_value(GameDefinitions.get_game_config_value())
         result.append(game_category)
         
@@ -125,13 +125,13 @@ class MantellaConfigValueDefinitionsClassic:
         http_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         result.append(http_category)
         
-        debugging_category = ConfigValueGroup("Debugging", "Debugging", "Settings that might help debug problems with Mantella", on_value_change_callback)
-        debugging_category.add_config_value(OtherDefinitions.get_debugging_config_value())
-        debugging_category.add_config_value(OtherDefinitions.get_play_audio_from_script_config_value())
-        debugging_category.add_config_value(OtherDefinitions.get_debugging_npc_config_value())
-        debugging_category.add_config_value(OtherDefinitions.get_use_default_player_response_config_value())
-        debugging_category.add_config_value(OtherDefinitions.get_default_player_response_config_value())
-        debugging_category.add_config_value(OtherDefinitions.get_exit_on_first_exchange_config_value())
-        debugging_category.add_config_value(OtherDefinitions.get_add_voicelines_to_all_voice_folders_config_value())
-        result.append(debugging_category)
+        # debugging_category = ConfigValueGroup("Debugging", "Debugging", "Settings that might help debug problems with Mantella", on_value_change_callback)
+        # debugging_category.add_config_value(OtherDefinitions.get_debugging_config_value())
+        # debugging_category.add_config_value(OtherDefinitions.get_play_audio_from_script_config_value())
+        # debugging_category.add_config_value(OtherDefinitions.get_debugging_npc_config_value())
+        # debugging_category.add_config_value(OtherDefinitions.get_use_default_player_response_config_value())
+        # debugging_category.add_config_value(OtherDefinitions.get_default_player_response_config_value())
+        # debugging_category.add_config_value(OtherDefinitions.get_exit_on_first_exchange_config_value())
+        # debugging_category.add_config_value(OtherDefinitions.get_add_voicelines_to_all_voice_folders_config_value())
+        # result.append(debugging_category)
         return result

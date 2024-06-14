@@ -196,12 +196,12 @@ class ConfigLoader:
 
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
             #Debugging
-            self.debug_mode = self.__definitions.get_bool_value("debugging")
-            self.play_audio_from_script = self.__definitions.get_bool_value("play_audio_from_script")
-            self.debug_character_name = self.__definitions.get_string_value("debugging_npc")
-            self.debug_use_default_player_response = self.__definitions.get_bool_value("use_default_player_response")
-            self.default_player_response = self.__definitions.get_string_value("default_player_response")
-            self.debug_exit_on_first_exchange = self.__definitions.get_bool_value("exit_on_first_exchange")
+            # self.debug_mode = self.__definitions.get_bool_value("debugging")
+            # self.play_audio_from_script = self.__definitions.get_bool_value("play_audio_from_script")
+            # self.debug_character_name = self.__definitions.get_string_value("debugging_npc")
+            # self.debug_use_default_player_response = self.__definitions.get_bool_value("use_default_player_response")
+            # self.default_player_response = self.__definitions.get_string_value("default_player_response")
+            # self.debug_exit_on_first_exchange = self.__definitions.get_bool_value("exit_on_first_exchange")
             self.add_voicelines_to_all_voice_folders = self.__definitions.get_bool_value("add_voicelines_to_all_voice_folders")
 
             #HTTP

@@ -1,17 +1,12 @@
 import logging
 import os
 from typing import Hashable
-from src.games.fallout4 import fallout4
-from src.games.skyrim import skyrim
-from src.games.gameable import gameable
 import src.color_formatter as cf
 import src.utils as utils
 import pandas as pd
 import sys
-import os
-
+from pathlib import Path
 import src.config.config_loader as config_loader
-from src.llm.openai_client import openai_client
 
 def initialise(config_file, logging_file, language_file) -> tuple[config_loader.ConfigLoader, dict[Hashable, str]]:
     
@@ -87,6 +82,8 @@ def initialise(config_file, logging_file, language_file) -> tuple[config_loader.
 
     set_cwd_to_exe_dir()
     setup_logging(logging_file)
+    if "--integrated" in sys.argv:
+        config_file = str(Path(utils.resolve_path()).parent.parent.parent.parent)+'/MantellaData/'+config_file
     config = config_loader.ConfigLoader(config_file)
     logging.log(24, f'Mantella.exe running in {os.getcwd()}. config.ini available in {os.path.abspath(config_file)}.')
     logging.log(24, f'Mantella currently running for {config.game}. Mantella mod files located in {config.mod_path}.')

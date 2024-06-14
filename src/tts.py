@@ -95,8 +95,8 @@ class Synthesizer:
         self.use_cleanup = config.use_cleanup
 
         # determines whether the voiceline should play internally
-        self.debug_mode = config.debug_mode
-        self.play_audio_from_script = config.play_audio_from_script
+        #self.debug_mode = config.debug_mode
+        #self.play_audio_from_script = config.play_audio_from_script
 
         # last active voice model
         self.last_voice = ''
@@ -243,8 +243,8 @@ class Synthesizer:
                 logging.error(f'Could not rename {final_voiceline_file} or {final_voiceline_file.replace(".wav", ".lip")}')
 
         # if Debug Mode is on, play the audio file
-        if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):
-            winsound.PlaySound(final_voiceline_file, winsound.SND_FILENAME)
+        # if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):
+        #     winsound.PlaySound(final_voiceline_file, winsound.SND_FILENAME)
         return final_voiceline_file
 
     def _group_sentences(self, voiceline_sentences, max_length=150):

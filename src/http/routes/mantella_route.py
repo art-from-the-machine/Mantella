@@ -29,7 +29,6 @@ class mantella_route(routeable):
         if not self._can_route_be_used():
             error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
             logging.error(error_message)
-            return self.error_message(error_message)
 
     def _setup_route(self):
         if self.__game:
