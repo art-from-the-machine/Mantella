@@ -186,6 +186,8 @@ class ConfigLoader:
 
             #Conversation
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
+            self.use_voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
+            self.player_voice_model: str = self.__definitions.get_string_value("player_voice_model")
 
             #new separate prompts for Fallout 4 have been added 
             if self.game == "Fallout4" or self.game == "Fallout4VR":

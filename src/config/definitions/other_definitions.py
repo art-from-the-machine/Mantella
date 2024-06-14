@@ -20,6 +20,18 @@ class OtherDefinitions:
                                         If False: A conversation is started right away by a message the player can submit"""
         return ConfigValueBool("automatic_greeting","Automatic greeting",automatic_greeting_description,True)
 
+    @staticmethod
+    def get_voice_player_input() -> ConfigValue:
+        voice_player_input_description = """Should the input of the player (both by text or voice) be spoken by the player character ingame?
+                                            Can be used for immersion or to fill the initial gap between input and reply.
+                                            Use the 'Player voice model' setting to select the voice model of the TTS for the player character."""
+        return ConfigValueBool("voice_player_input","Voice player input",voice_player_input_description,False)
+    
+    @staticmethod
+    def get_player_voice_model() -> ConfigValue:
+        player_voice_model_description = """The voice model for the player character to use if 'Voice player input' is activated."""
+        return ConfigValueString("player_voice_model","Player voice model",player_voice_model_description,"")
+
     #MEI
     @staticmethod
     def get_remove_mei_folders_config_value() -> ConfigValue:

@@ -29,6 +29,8 @@ class MantellaConfigValueDefinitionsNew:
         game_category.add_config_value(GameDefinitions.get_fallout4vr_mod_folder_config_value())
         game_category.add_config_value(GameDefinitions.get_fallout4vr_folder_config_value())
         game_category.add_config_value(OtherDefinitions.get_automatic_greeting_folder_config_value())
+        game_category.add_config_value(OtherDefinitions.get_voice_player_input())
+        game_category.add_config_value(OtherDefinitions.get_player_voice_model())
         result.add_base_group(game_category)
         
         llm_category = ConfigValueGroup("LLM", "Large Language Model", "Settings for the LLM providers and the LLMs themselves.", on_value_change_callback)

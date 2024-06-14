@@ -143,6 +143,8 @@ class fallout4(gameable):
         self.__delete_last_played_voiceline()
 
         audio_file = queue_output.voice_file
+        if not os.path.exists(audio_file):
+            return
         mod_folder = config.mod_path
         # subtitle = queue_output.sentence
         speaker: Character = queue_output.speaker
