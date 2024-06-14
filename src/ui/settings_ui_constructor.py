@@ -64,8 +64,8 @@ class SettingsUIConstructor(ConfigValueVisitor):
 
     def visit_ConfigValueGroup(self, config_value: ConfigValueGroup):
         if not config_value.is_hidden:            
-            gr.Markdown(f"# {config_value.name}")
-            gr.Markdown(value=config_value.description, line_breaks=True)
+            #gr.Markdown(f"# {config_value.name}")
+            #gr.Markdown(value=config_value.description, line_breaks=True)
             has_advanced_values = False
             for cf in config_value.value:
                 if not cf.is_hidden:

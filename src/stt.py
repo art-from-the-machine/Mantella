@@ -23,7 +23,7 @@ class Transcriber:
         self.whisper_type = config.whisper_type
         self.whisper_url = config.whisper_url
 
-        self.debug_mode = config.debug_mode
+        #self.debug_mode = config.debug_mode
         self.debug_use_default_player_response = config.debug_use_default_player_response
         self.default_player_response = config.default_player_response
         self.debug_exit_on_first_exchange = config.debug_exit_on_first_exchange
