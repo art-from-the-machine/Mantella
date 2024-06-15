@@ -108,7 +108,7 @@ class GameStateManager:
 
     def __update_context(self,  json: dict[str, Any]):
         if self.__talk:
-            actors_in_json = []
+            actors_in_json: list[Character] = []
             for actorJson in json[comm_consts.KEY_ACTORS]:
                 actor: Character | None = self.load_character(actorJson)                
                 if actor:

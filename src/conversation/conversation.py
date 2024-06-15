@@ -50,7 +50,7 @@ class conversation:
     def context(self) -> context:
         return self.__context
     
-    def add_or_update_character(self, new_character: Character):
+    def add_or_update_character(self, new_character: list[Character]):
         """Adds or updates a character in the conversation.
 
         Args:
