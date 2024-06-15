@@ -29,7 +29,7 @@ class gameable(ABC):
 
         # if the exe is being run by another process, store conversation data in MantellaData rather than the local data folder
         if "--integrated" in sys.argv:
-            self.__conversation_folder_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)+'/MantellaData/conversations'
+            self.__conversation_folder_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)+f'/MantellaData/{mantella_game_folder_path}/conversations'
         else:
             self.__conversation_folder_path = f"data/{mantella_game_folder_path}/conversations"
         

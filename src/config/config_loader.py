@@ -74,27 +74,52 @@ class ConfigLoader:
     def __update_config_values_from_current_state(self):
         self.__definitions.clear_constraint_violations()
         try:
-            #Adjusting game and mod paths according to the game being ran
-            self.game: str = self.__definitions.get_string_value("game")# config['Game']['game']
-            self.game = str(self.game).lower().replace(' ', '').replace('_', '')
-            if self.game =="fallout4":
-                self.game ="Fallout4"
-                self.mod_path: str = self.__definitions.get_string_value("fallout4_mod_folder") #config['Paths']['fallout4_mod_folder']
-            elif self.game =="fallout4vr":
-                self.game ="Fallout4VR"
-                self.game_path: str = self.__definitions.get_string_value("fallout4vr_folder") #config['Paths']['fallout4vr_folder']
-                self.mod_path: str = self.__definitions.get_string_value("fallout4vr_mod_folder") #config['Paths']['fallout4vr_mod_folder']
-            elif self.game =="skyrimvr":
-                self.game ="SkyrimVR"
-                self.mod_path: str = self.__definitions.get_string_value("skyrimvr_mod_folder") #config['Paths']['skyrimvr_mod_folder']
-            #if the game is not recognized Mantella will assume it's Skyrim since that's the most frequent one.
+            # if the exe is being run by another process, replace config.ini paths with relative paths
+            if "--integrated" in sys.argv:
+                self.game_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)
+                self.mod_path = str(Path(utils.resolve_path()).parent.parent.parent)
+
+                game_parent_folder_name = os.path.basename(self.game_path)
+                if 'vr' in game_parent_folder_name:
+                    if 'fallout' in game_parent_folder_name:
+                        self.game = 'Fallout4VR'
+                    elif 'skyrim' in game_parent_folder_name:
+                        self.game = 'SkyrimVR'
+                else:
+                    if 'fallout' in game_parent_folder_name:
+                        self.game = 'Fallout4'
+                    elif 'skyrim' in game_parent_folder_name:
+                        self.game = 'Skyrim'
+                    else: # default to Skyrim
+                        self.game = 'Skyrim'
+
+                self.facefx_path = str(Path(utils.resolve_path()).parent.parent.parent)
+                self.facefx_path += "\\Sound\\Voice\\Processing\\"
+                #self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
+
             else:
-                self.game ="Skyrim"
-                self.mod_path: str = self.__definitions.get_string_value("skyrim_mod_folder") #config['Paths']['skyrim_mod_folder']
-            
+                #Adjusting game and mod paths according to the game being ran
+                self.game: str = self.__definitions.get_string_value("game")# config['Game']['game']
+                self.game = str(self.game).lower().replace(' ', '').replace('_', '')
+                if self.game =="fallout4":
+                    self.game ="Fallout4"
+                    self.mod_path: str = self.__definitions.get_string_value("fallout4_mod_folder") #config['Paths']['fallout4_mod_folder']
+                elif self.game =="fallout4vr":
+                    self.game ="Fallout4VR"
+                    self.game_path: str = self.__definitions.get_string_value("fallout4vr_folder") #config['Paths']['fallout4vr_folder']
+                    self.mod_path: str = self.__definitions.get_string_value("fallout4vr_mod_folder") #config['Paths']['fallout4vr_mod_folder']
+                elif self.game =="skyrimvr":
+                    self.game ="SkyrimVR"
+                    self.mod_path: str = self.__definitions.get_string_value("skyrimvr_mod_folder") #config['Paths']['skyrimvr_mod_folder']
+                #if the game is not recognized Mantella will assume it's Skyrim since that's the most frequent one.
+                else:
+                    self.game ="Skyrim"
+                    self.mod_path: str = self.__definitions.get_string_value("skyrim_mod_folder") #config['Paths']['skyrim_mod_folder']
+
+                self.facefx_path = self.__definitions.get_string_value("facefx_folder")
+
             self.mod_path += "\\Sound\\Voice\\Mantella.esp"
 
-            logging.log(24, f'Mantella currently running for {self.game}. Mantella esp located in {self.mod_path}.  \n')
             self.language = self.__definitions.get_string_value("language")
             self.end_conversation_keyword = self.__definitions.get_string_value("end_conversation_keyword")
             self.goodbye_npc_response = self.__definitions.get_string_value("goodbye_npc_response")
@@ -105,7 +130,6 @@ class ConfigLoader:
 
             #TTS
             self.tts_service = self.__definitions.get_string_value("tts_service").strip().lower()
-            self.facefx_path = self.__definitions.get_string_value("facefx_folder")
             if self.tts_service == "xtts":
                 self.xtts_server_path = self.__definitions.get_string_value("xtts_server_folder")
                 self.xvasynth_path = ""
@@ -172,17 +196,20 @@ class ConfigLoader:
 
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
             #Debugging
-            self.debug_mode = self.__definitions.get_bool_value("debugging")
-            self.play_audio_from_script = self.__definitions.get_bool_value("play_audio_from_script")
-            self.debug_character_name = self.__definitions.get_string_value("debugging_npc")
-            self.debug_use_default_player_response = self.__definitions.get_bool_value("use_default_player_response")
-            self.default_player_response = self.__definitions.get_string_value("default_player_response")
-            self.debug_exit_on_first_exchange = self.__definitions.get_bool_value("exit_on_first_exchange")
+            # self.debug_mode = self.__definitions.get_bool_value("debugging")
+            # self.play_audio_from_script = self.__definitions.get_bool_value("play_audio_from_script")
+            # self.debug_character_name = self.__definitions.get_string_value("debugging_npc")
+            # self.debug_use_default_player_response = self.__definitions.get_bool_value("use_default_player_response")
+            # self.default_player_response = self.__definitions.get_string_value("default_player_response")
+            # self.debug_exit_on_first_exchange = self.__definitions.get_bool_value("exit_on_first_exchange")
             self.add_voicelines_to_all_voice_folders = self.__definitions.get_bool_value("add_voicelines_to_all_voice_folders")
 
             #HTTP
             self.port = self.__definitions.get_int_value("port")
             self.show_http_debug_messages: bool = self.__definitions.get_bool_value("show_http_debug_messages")
+
+            #UI
+            self.auto_launch_ui = self.__definitions.get_bool_value("auto_launch_ui")
 
             #Conversation
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
@@ -205,16 +232,6 @@ class ConfigLoader:
         except Exception as e:
             logging.error('Parameter missing/invalid in config.ini file!')
             raise e
-        
-        # if the exe is being run by another process, replace config.ini paths with relative paths
-        if "--integrated" in sys.argv:
-            self.game_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)
-            self.mod_path = str(Path(utils.resolve_path()).parent.parent.parent)
-
-            self.facefx_path = str(Path(utils.resolve_path()).parent.parent.parent)
-            self.facefx_path += "\\Sound\\Voice\\Processing\\"
-            
-            self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
     
     def get_config_value_json(self) -> str:
         json_writer = ConfigJsonWriter()

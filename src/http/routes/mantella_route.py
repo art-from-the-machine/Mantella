@@ -26,6 +26,10 @@ class mantella_route(routeable):
         self.__secret_key_file: str = secret_key_file
         self.__game: GameStateManager | None = None
 
+        if not self._can_route_be_used():
+            error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
+            logging.error(error_message)
+
     def _setup_route(self):
         if self.__game:
             self.__game.end_conversation({})
@@ -42,9 +46,6 @@ class mantella_route(routeable):
         
         chat_manager = ChatManager(game, self._config, Synthesizer(self._config, game), client)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, client)
-        
-        logging.log(24, '\nConversations not starting when you select an NPC? See here:\nhttps://art-from-the-machine.github.io/Mantella/pages/issues_qna')
-        logging.log(24, '\nWaiting for player to select an NPC...')
 
     def add_route_to_server(self, app: FastAPI):
         @app.post("/mantella")
