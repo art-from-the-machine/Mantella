@@ -104,6 +104,8 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         other_category.add_config_value(OtherDefinitions.get_remove_mei_folders_config_value())
+        other_category.add_config_value(OtherDefinitions.get_voice_player_input())
+        other_category.add_config_value(OtherDefinitions.get_player_voice_model())
         # other_category.add_config_value(OtherDefinitions.get_debugging_config_value())
         # other_category.add_config_value(OtherDefinitions.get_play_audio_from_script_config_value())
         # other_category.add_config_value(OtherDefinitions.get_debugging_npc_config_value())

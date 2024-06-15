@@ -134,6 +134,11 @@ class conversation:
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
             self.update_game_events(new_message)
             self.__messages.add_message(new_message)
+            if self.__context.config.use_voice_player_input:
+                player__character_voiced_sentence = self.__output_manager.generate_sentence(player_text, player_character, False)
+                if player__character_voiced_sentence.error_message:
+                    player__character_voiced_sentence = sentence(player_character, player_text, "" , 2.0, False)
+                self.__sentences.put(player__character_voiced_sentence)
             text = new_message.text
             logging.log(23, f"Text passed to NPC: {text}")
 
@@ -206,7 +211,7 @@ class conversation:
         if not next_sentence:
             return None
         
-        if not next_sentence.is_system_generated_sentence:
+        if not next_sentence.is_system_generated_sentence and not next_sentence.speaker.is_player_character:
             last_message = self.__messages.get_last_message()
             if not isinstance(last_message, assistant_message):
                 last_message = assistant_message()

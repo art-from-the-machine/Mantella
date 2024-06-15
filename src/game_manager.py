@@ -181,6 +181,8 @@ class GameStateManager:
                 if is_generic_npc:
                     character_name = external_info.name
                     ingame_voice_model = external_info.ingame_voice_model
+            elif self.__talk and is_player_character and self.__config.use_voice_player_input:
+                tts_voice_model = self.__config.player_voice_model
 
             return Character(character_id,
                             character_name,
