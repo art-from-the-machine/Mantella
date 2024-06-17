@@ -4,7 +4,7 @@ import logging
 import os
 from pathlib import Path
 import sys
-from typing import Any, LiteralString
+from typing import Any
 import pandas as pd
 from src.conversation.conversation_log import conversation_log
 from src.conversation.context import context
@@ -31,7 +31,7 @@ class gameable(ABC):
 
         #Apply character overrides
         overrides_folder = f"data/{mantella_game_folder_path}/character_overrides"
-        self.__apply_character_overrides(overrides_folder, self.get_character_df_column_headers())            
+        self.__apply_character_overrides(overrides_folder, self.__character_df.columns.values.tolist())            
 
         # if the exe is being run by another process, store conversation data in MantellaData rather than the local data folder
         if "--integrated" in sys.argv:
@@ -55,15 +55,6 @@ class gameable(ABC):
         character_df = character_df.loc[character_df['voice_model'].notna()]
 
         return character_df
-    
-    @abstractmethod
-    def get_character_df_column_headers(self) -> list[LiteralString]:
-        """Provides the columns headers in the pandas DataFrame containing the characters of a game
-
-        Returns:
-            list[LiteralString]: _description_
-        """
-        pass
     
     @abstractmethod
     def load_external_character_info(self, id: str, name: str, race: str, gender: int, actor_voice_model_name: str)-> external_character_info:
@@ -214,7 +205,7 @@ class gameable(ABC):
 
         return character_info, is_generic_npc
     
-    def __apply_character_overrides(self, overrides_folder: str, character_df_column_headers: list[LiteralString]):
+    def __apply_character_overrides(self, overrides_folder: str, character_df_column_headers: list[str]):
         override_files: list[str] = os.listdir(overrides_folder)
         for file in override_files:
             filename, extension = os.path.splitext(file)

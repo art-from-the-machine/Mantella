@@ -1,8 +1,7 @@
-import json
 import logging
 import os
 import shutil
-from typing import Any, LiteralString
+from typing import Any
 from src.conversation.context import context
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
@@ -15,14 +14,10 @@ import src.utils as utils
 class skyrim(gameable):
     WAV_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
     LIP_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
-    CHARACTER_DF_FIELDS = "name,voice_model,bio,bio_url,advanced_voice_model,skyrim_voice_folder,race,gender,species,ref_id,base_id,author,voice_accent,note".split(",")
 
     def __init__(self, config: ConfigLoader):
         super().__init__('data/Skyrim/skyrim_characters.csv', "Skyrim")
         self.__create_all_voice_folders(config)
-
-    def get_character_df_column_headers(self) -> list[LiteralString]:
-        return self.CHARACTER_DF_FIELDS
 
     def __create_all_voice_folders(self, config: ConfigLoader):
         all_voice_folders = self.character_df["skyrim_voice_folder"]
