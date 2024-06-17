@@ -1,7 +1,8 @@
+import json
 import logging
 import os
 import shutil
-from typing import Any
+from typing import Any, LiteralString
 import pandas as pd
 from src.http.file_communication_compatibility import file_communication_compatibility
 from src.conversation.context import context
@@ -25,6 +26,7 @@ class fallout4(gameable):
     KEY_ACTOR_CUSTOMVALUES_POSY: str  = "mantella_actor_pos_y"
     # f4_wav_file1 = f'MutantellaOutput1.wav'
     # f4_wav_file2 = f'MutantellaOutput2.wav'
+    CHARACTER_DF_FIELDS = "bio_url,bio,name,voice_model,advanced_voice_model,fallout4_voice_folder,race,gender,species,refid_int,baseid_int,author and notes,base_id,ref_id".split(",")
 
     def __init__(self, config: ConfigLoader):
         super().__init__('data/Fallout4/fallout4_characters.csv', "Fallout4")
@@ -36,6 +38,9 @@ class fallout4(gameable):
         self.__playback: audio_playback = audio_playback(config)
         self.create_all_voice_folders(self.__config)
         self.__last_played_voiceline: str | None = None
+
+    def get_character_df_column_headers(self) -> list[LiteralString]:
+        return self.CHARACTER_DF_FIELDS
 
     def create_all_voice_folders(self, config: ConfigLoader):
         all_voice_folders = self.character_df["fallout4_voice_folder"]
