@@ -12,7 +12,10 @@ from src.llm.openai_client import openai_client
 from src.game_manager import GameStateManager
 from src.http.routes.routeable import routeable
 from src.http.communication_constants import communication_constants as comm_consts
-from src.tts import Synthesizer
+from src.tts.ttsable import ttsable
+from src.tts.xvasynth import xvasynth
+from src.tts.xtts import xtts
+from src.tts.piper import piper
 
 class mantella_route(routeable):
     """Main route for Mantella conversations
@@ -36,15 +39,23 @@ class mantella_route(routeable):
 
         client = openai_client(self._config, self.__secret_key_file)
 
-         # Determine which game we're running for and select the appropriate character file
+        # Determine which game we're running for and select the appropriate character file
         game: gameable
         formatted_game_name = self._config.game.lower().replace(' ', '').replace('_', '')
         if formatted_game_name in ("fallout4", "fallout4vr"):
             game = fallout4(self._config)
         else:
             game = skyrim(self._config)
+
+        tts: ttsable
+        if self._config.tts_service == 'xvasynth':
+            tts = xvasynth(self._config)
+        elif self._config.tts_service == 'xtts':
+            tts = xtts(self._config)
+        if self._config.tts_service == 'piper':
+            tts = piper(self._config)
         
-        chat_manager = ChatManager(game, self._config, Synthesizer(self._config, game), client)
+        chat_manager = ChatManager(game, self._config, tts, client)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, client)
 
     def add_route_to_server(self, app: FastAPI):

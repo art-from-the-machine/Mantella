@@ -29,6 +29,11 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     @staticmethod
     def get_xtts_folder_config_value() -> ConfigValue:
         return ConfigValuePath("xtts_server_folder", "XTTS Folder", "The folder you have the XTTS server downloaded to (the folder that contains xtts-api-server-mantella.exe).", "C:\\Games\\Steam\\steamapps\\common\\XTTS","xtts-api-server-mantella.exe")
+    
+    @staticmethod
+    def get_piper_folder_config_value() -> ConfigValue:
+        #Note(Leidtier): Because this is a Frankenparameter, I just set it to be a string. It SHOULD be a path, but this would require a different handling of the default empty state
+        return ConfigValueString("piper_folder", "Piper Folder", "The folder where Piper is installed (where piper.exe exists).", "")
 
     @staticmethod
     def get_facefx_folder_config_value() -> ConfigValue:
@@ -39,7 +44,7 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     
     @staticmethod
     def get_tts_service_config_value() -> ConfigValue:
-        return ConfigValueSelection("tts_service","TTS Service","The TTS service used by Mantella.","xVASynth",["xVASynth", "XTTS"])
+        return ConfigValueSelection("tts_service","TTS Service","The TTS service used by Mantella.","Piper",["Piper", "xVASynth", "XTTS"])
     
     @staticmethod
     def get_number_words_tts_config_value() -> ConfigValue:

@@ -96,6 +96,7 @@ class ConfigLoader:
                 self.facefx_path = str(Path(utils.resolve_path()).parent.parent.parent)
                 self.facefx_path += "\\Sound\\Voice\\Processing\\"
                 #self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
+                self.piper_path = str(Path(utils.resolve_path())) + "\\piper"
 
             else:
                 #Adjusting game and mod paths according to the game being ran
@@ -133,9 +134,22 @@ class ConfigLoader:
             if self.tts_service == "xtts":
                 self.xtts_server_path = self.__definitions.get_string_value("xtts_server_folder")
                 self.xvasynth_path = ""
-            else:
+                self.piper_path = ""
+            elif self.tts_service == "xvasynth":
                 self.xvasynth_path = self.__definitions.get_string_value("xvasynth_folder")
                 self.xtts_server_path = ""
+                self.piper_path = ""
+            elif self.tts_service == "piper":
+                if not hasattr(self, 'piper_path'):
+                    self.piper_path = self.__definitions.get_string_value("piper_folder")
+                self.xvasynth_path = ""
+                self.xtts_server_path = ""
+            else: # default to Piper
+                if not hasattr(self, 'piper_path'):
+                    self.piper_path = self.__definitions.get_string_value("piper_folder")
+                self.xvasynth_path = ""
+                self.xtts_server_path = ""
+
             #Added from xTTS implementation
             self.xtts_default_model = self.__definitions.get_string_value("xtts_default_model")
             self.xtts_deepspeed = self.__definitions.get_bool_value("xtts_deepspeed")
