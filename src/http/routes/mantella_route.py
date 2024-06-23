@@ -51,7 +51,7 @@ class mantella_route(routeable):
         if self._config.tts_service == 'xvasynth':
             tts = xvasynth(self._config)
         elif self._config.tts_service == 'xtts':
-            tts = xtts(self._config)
+            tts = xtts(self._config, game)
         if self._config.tts_service == 'piper':
             tts = piper(self._config)
         

@@ -132,7 +132,11 @@ class ConfigLoader:
             #TTS
             self.tts_service = self.__definitions.get_string_value("tts_service").strip().lower()
             if self.tts_service == "xtts":
-                self.xtts_server_path = self.__definitions.get_string_value("xtts_server_folder")
+                self.xtts_url = self.__definitions.get_string_value("xtts_url").rstrip('/')
+                if 'http://127.0.0.1:8020' in self.xtts_url: # if running locally, get the XTTS folder
+                    self.xtts_server_path = self.__definitions.get_string_value("xtts_server_folder")
+                else:
+                    self.xtts_server_path = ""
                 self.xvasynth_path = ""
                 self.piper_path = ""
             elif self.tts_service == "xvasynth":
@@ -156,7 +160,6 @@ class ConfigLoader:
             self.xtts_lowvram = self.__definitions.get_bool_value("xtts_lowvram")
             self.xtts_device = self.__definitions.get_string_value("xtts_device")
             self.number_words_tts = self.__definitions.get_int_value("number_words_tts")
-            self.xtts_url = self.__definitions.get_string_value("xtts_url")
             self.xtts_data = self.__definitions.get_string_value("xtts_data")
             self.xtts_accent = self.__definitions.get_bool_value("xtts_accent")
         
