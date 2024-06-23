@@ -144,6 +144,7 @@ class ChatManager:
             sentence = sentence.replace('Well, well, well', 'Well well well')
 
         sentence = remove_as_a(sentence)
+        sentence = sentence.replace('\n', ' ')
         sentence = sentence.replace('"','')
         sentence = sentence.replace('[', '(')
         sentence = sentence.replace(']', ')')
@@ -230,7 +231,7 @@ class ChatManager:
                                             logging.log(28, f"Switched to {character_switched_to.name}")
                                             active_character = character_switched_to
                                             full_reply += f"{keyword_extraction}: "
-                                            self.__tts.change_voice(active_character.tts_voice_model)
+                                            self.__tts.change_voice(active_character.tts_voice_model, voice_accent=active_character.voice_accent)
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:
