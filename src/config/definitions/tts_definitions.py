@@ -44,7 +44,7 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     
     @staticmethod
     def get_tts_service_config_value() -> ConfigValue:
-        return ConfigValueSelection("tts_service","TTS Service","The TTS service used by Mantella.","Piper",["Piper", "xVASynth", "XTTS"])
+        return ConfigValueSelection("tts_service","TTS Service","The TTS service used by Mantella.","xVASynth",["Piper", "xVASynth", "XTTS"])
     
     @staticmethod
     def get_number_words_tts_config_value() -> ConfigValue:
