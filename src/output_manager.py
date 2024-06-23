@@ -16,16 +16,16 @@ from src.character_manager import Character
 from src.llm.messages import message
 from src.llm.message_thread import message_thread
 from src.llm.openai_client import openai_client
-from src.tts import Synthesizer
+from src.tts.ttsable import ttsable
 
 class ChatManager:
-    def __init__(self, game: gameable, config: ConfigLoader, tts: Synthesizer, client: openai_client):
+    def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: openai_client):
         self.loglevel = 28
         self.__game: gameable = game
         self.max_response_sentences = config.max_response_sentences
         self.language = config.language
         self.wait_time_buffer = config.wait_time_buffer
-        self.__tts: Synthesizer = tts
+        self.__tts: ttsable = tts
         self.__client: openai_client = client
         self.__is_generating: bool = False
         self.__stop_generation: bool = False
@@ -144,6 +144,7 @@ class ChatManager:
             sentence = sentence.replace('Well, well, well', 'Well well well')
 
         sentence = remove_as_a(sentence)
+        sentence = sentence.replace('\n', ' ')
         sentence = sentence.replace('"','')
         sentence = sentence.replace('[', '(')
         sentence = sentence.replace(']', ')')
@@ -230,7 +231,7 @@ class ChatManager:
                                             logging.log(28, f"Switched to {character_switched_to.name}")
                                             active_character = character_switched_to
                                             full_reply += f"{keyword_extraction}: "
-                                            self.__tts.change_voice(active_character.tts_voice_model)
+                                            self.__tts.change_voice(active_character.tts_voice_model, voice_accent=active_character.voice_accent)
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:
