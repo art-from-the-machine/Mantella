@@ -71,7 +71,7 @@ class piper(ttsable):
 
             voice_cleaned = f"{voice.lower().replace(' ', '')}"
 
-            model_path = self.__piper_path + f'/models/skyrim/low/{voice_cleaned}.onnx'
+            model_path = self.__piper_path + f'/models/skyrim/low/{voice_cleaned}.onnx' # TODO: change /skyrim and /low parts of the path to dynamic variables
             self.process.stdin.write(f"load_model {model_path}\n")
             self.process.stdin.flush()
             max_wait_time = 5
