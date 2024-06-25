@@ -1,3 +1,6 @@
+import base64
+import datetime
+import io
 import src.utils as utils
 from typing import AsyncGenerator, List
 from openai import OpenAI, AsyncOpenAI, RateLimitError
@@ -162,13 +165,29 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
             return OpenAI(api_key=self.__api_key, base_url=self.__base_url, default_headers=self.__header)
         else:
             return OpenAI(api_key=self.__api_key, default_headers=self.__header)
+    def save_screenshot_and_get_base64(self, screenshot, window_title):
+        if screenshot is None:
+            return None
+
+        # 生成文件名
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{window_title.replace(' ', '_')}_{timestamp}.png"
+        
+        # 保存为PNG文件
+        screenshot.save(filename, "PNG")
+        print(f"Screenshot saved as {filename}")
+
+        
+        return filename
     
-    async def streaming_call(self, messages: list[dict[str,str]], num_characters: int) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: message_thread, num_characters: int, image_base64: str = None) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
 
         Args:
-            messages (conversation_thread): The message thread of the conversation
+            messages (message_thread): The message thread of the conversation
+            num_characters (int): Number of characters in the conversation
+            image_base64 (str, optional): Base64 encoded image data. Defaults to None.
 
         Returns:
             AsyncGenerator[str | None, None]: Returns an iterable object. Iterate over this using 'async for'
@@ -179,42 +198,61 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         async_client = self.generate_async_client()
         logging.info('Getting LLM response...')
         max_tokens = self.__max_tokens
-        if num_characters > 1: # override max_tokens in radiant / multi-NPC conversations
+        if num_characters > 1:  # override max_tokens in radiant / multi-NPC conversations
             max_tokens = 250
+        
         try:
-            async for chunk in await async_client.chat.completions.create(model=self.model_name, 
-                                                                            messages=messages.get_openai_messages(), 
-                                                                            stream=True,
-                                                                            stop=self.__stop,
-                                                                            temperature=self.__temperature,
-                                                                            top_p=self.__top_p,
-                                                                            frequency_penalty=self.__frequency_penalty, 
-                                                                            max_tokens=max_tokens):
+            # Prepare the messages including the image if provided
+            openai_messages = messages.get_openai_messages()
+            if image_base64:
+                # Add the image to the last user message or create a new message if needed
+                if openai_messages and openai_messages[-1]['role'] == 'user':
+                    openai_messages[-1]['content'] = [
+                        {"type": "text", "text": openai_messages[-1]['content']},
+                        {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image_base64}"}}
+                    ]
+                else:
+                    openai_messages.append({
+                        "role": "user",
+                        "content": [
+                            {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image_base64}"}}
+                        ]
+                    })
+
+            async for chunk in await async_client.chat.completions.create(
+                model=self.model_name, 
+                messages=openai_messages, 
+                stream=True,
+                stop=self.__stop,
+                temperature=self.__temperature,
+                top_p=self.__top_p,
+                frequency_penalty=self.__frequency_penalty, 
+                max_tokens=max_tokens
+            ):
                 if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
                     yield chunk.choices[0].delta.content
                 else:
                     break
         except Exception as e:
-            if e.code in [401, 'invalid_api_key']: # incorrect API key
-                if self.__base_url == None: # None = OpenAI
-                    service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
+            if e.code in [401, 'invalid_api_key']:  # incorrect API key
+                if self.__base_url == None:  # None = OpenAI
+                    service_connection_attempt = 'OpenRouter'  # check if player means to connect to OpenRouter
                 else:
-                    service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
+                    service_connection_attempt = 'OpenAI'  # check if player means to connect to OpenAI
                 logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
             else:
                 logging.error(f"LLM API Error: {e}")
-            
-
         finally:
             await async_client.close()
 
     @utils.time_it
-    def request_call(self, messages: message_thread) -> str | None:
+    def request_call(self, messages: message_thread, image_base64: str = None) -> str | None:
         """A standard sync request call to the LLM. 
         This method generates a new client, calls 'client.chat.completions.create', returns the result and closes when finished
 
         Args:
             messages (conversation_thread): The message thread of the conversation
+            image_base64 (str, optional): Base64 encoded image data. Defaults to None.
 
         Returns:
             str | None: The reply of the LLM
@@ -222,10 +260,32 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         sync_client = self.generate_sync_client()        
         chat_completion = None
         logging.info('Getting LLM response...')
+        
         try:
-            chat_completion = sync_client.chat.completions.create(model=self.model_name, messages=messages.get_openai_messages(), max_tokens=1_000)
+            # Prepare the messages including the image if provided
+            openai_messages = messages.get_openai_messages()
+            if image_base64:
+                # Add the image to the last user message or create a new message if needed
+                if openai_messages and openai_messages[-1]['role'] == 'user':
+                    openai_messages[-1]['content'] = [
+                        {"type": "text", "text": openai_messages[-1]['content']},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                    ]
+                else:
+                    openai_messages.append({
+                        "role": "user",
+                        "content": [
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                        ]
+                    })
+            
+            chat_completion = sync_client.chat.completions.create(
+                model=self.model_name,
+                messages=openai_messages,
+                max_tokens=1_000
+            )
         except RateLimitError:
-            logging.warning('Could not connect to LLM API, retrying in 5 seconds...') #Do we really retry here?
+            logging.warning('Could not connect to LLM API, retrying in 5 seconds...')
             time.sleep(5)
 
         sync_client.close()

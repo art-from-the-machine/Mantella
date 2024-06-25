@@ -152,16 +152,27 @@ class GameStateManager:
 
     def load_character_name_id(self):
         """Wait for character ID to populate then load character name"""
-
         character_id = self.load_data_when_available('_mantella_current_actor_id', '')
         try:
             character_id = hex(int(character_id)).replace('x','')
         except:
             logging.warning('Could not find ID for the selected NPC')
         
-        time.sleep(0.5) # wait for file to register
-        with open(f'{self.game_path}/_mantella_current_actor.txt', 'r') as f:
-            character_name = f.readline().strip()
+        time.sleep(0.5)  # wait for file to register
+        
+        file_path = f'{self.game_path}/_mantella_current_actor.txt'
+        encodings = ['utf-8', 'gbk', 'iso-8859-1']
+        
+        for encoding in encodings:
+            try:
+                with open(file_path, 'r', encoding=encoding) as f:
+                    character_name = f.readline().strip()
+                break  
+            except UnicodeDecodeError:
+                continue  
+        else:
+            logging.error(f"Unable to decode the file {file_path} with any of the attempted encodings")
+            character_name = "Unknown"
         
         return character_id, character_name
     
