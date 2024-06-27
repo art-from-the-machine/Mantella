@@ -79,7 +79,7 @@ class ConfigLoader:
                 self.game_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)
                 self.mod_path = str(Path(utils.resolve_path()).parent.parent.parent)
 
-                game_parent_folder_name = os.path.basename(self.game_path)
+                game_parent_folder_name = os.path.basename(self.game_path).lower()
                 if 'vr' in game_parent_folder_name:
                     if 'fallout' in game_parent_folder_name:
                         self.game = 'Fallout4VR'
