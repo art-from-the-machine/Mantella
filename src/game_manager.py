@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Hashable
+from src.games.equipment import Equipment, EquipmentItem
 from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
 from src.conversation.action import action
@@ -119,9 +120,12 @@ class GameStateManager:
             time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
             ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
             custom_context_values: dict[str, Any] = {}
+            weather = ""
+            if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_WEATHER):
+                weather = self.__game.get_weather_description(json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_WEATHER])
             if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
                 custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
-            self.__talk.update_context(location, time, ingame_events, custom_context_values)
+            self.__talk.update_context(location, time, ingame_events, weather, custom_context_values)
 
 
     # def debugging_setup(self, debug_character_name, character_df):
@@ -153,6 +157,9 @@ class GameStateManager:
             custom_values: dict[str, Any] = {}
             if json.__contains__(comm_consts.KEY_ACTOR_CUSTOMVALUES):
                 custom_values = json[comm_consts.KEY_ACTOR_CUSTOMVALUES]
+            equipment = Equipment({})
+            if json.__contains__(comm_consts.KEY_ACTOR_EQUIPMENT):
+                equipment = Equipment(self.__convert_to_equipment_item_dictionary(json[comm_consts.KEY_ACTOR_EQUIPMENT]))
             is_generic_npc: bool = False
             bio: str = ""
             tts_voice_model: str = ""
@@ -181,8 +188,11 @@ class GameStateManager:
                 if is_generic_npc:
                     character_name = external_info.name
                     ingame_voice_model = external_info.ingame_voice_model
-            elif self.__talk and is_player_character and self.__config.use_voice_player_input:
-                tts_voice_model = self.__config.player_voice_model
+            elif self.__talk and is_player_character and self.__config.voice_player_input:
+                if custom_values.__contains__(comm_consts.KEY_ACTOR_PC_VOICEMODEL):
+                    tts_voice_model = self.__get_player_voice_model(str(custom_values[comm_consts.KEY_ACTOR_PC_VOICEMODEL]))
+                else:
+                    tts_voice_model = self.__get_player_voice_model(None)
 
             return Character(character_id,
                             character_name,
@@ -199,6 +209,7 @@ class GameStateManager:
                             csv_in_game_voice_model,
                             advanced_voice_model,
                             voice_accent,
+                            equipment,
                             custom_values)
         except CharacterDoesNotExist:                 
             logging.log(23, 'Restarting...')
@@ -208,5 +219,16 @@ class GameStateManager:
         return {
                 comm_consts.KEY_REPLYTYPE: "error",
                 "mantella_message": message
-            }    
+            }
+    
+    def __get_player_voice_model(self, game_value: str | None) -> str:
+        if game_value == None:
+            return self.__config.player_voice_model
+        return game_value
+    
+    def __convert_to_equipment_item_dictionary(self, input: dict[str, Any]) -> dict[str, EquipmentItem]:
+        result: dict[str, EquipmentItem] = {}
+        for slot, itemname in input.items():
+            result[slot] = EquipmentItem(itemname)
+        return result
 

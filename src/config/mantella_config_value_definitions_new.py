@@ -53,6 +53,8 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_stop_config_value())
         llm_category.add_config_value(LLMDefinitions.get_frequency_penalty_config_value())
         llm_category.add_config_value(LLMDefinitions.get_max_tokens_config_value())
+        # llm_category.add_config_value(LLMDefinitions.get_stop_llm_generation_on_assist_keyword())
+        llm_category.add_config_value(LLMDefinitions.get_try_filter_narration())
         result.add_base_group(llm_category)
 
         tts_category = ConfigValueGroup("TTS", "Text-to-Speech", "Settings for the TTS methods Mantella supports.", on_value_change_callback)
@@ -104,6 +106,7 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         other_category.add_config_value(OtherDefinitions.get_remove_mei_folders_config_value())
+        other_category.add_config_value(OtherDefinitions.get_player_character_description())
         other_category.add_config_value(OtherDefinitions.get_voice_player_input())
         other_category.add_config_value(OtherDefinitions.get_player_voice_model())
         # other_category.add_config_value(OtherDefinitions.get_debugging_config_value())

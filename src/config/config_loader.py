@@ -192,6 +192,9 @@ class ConfigLoader:
             self.frequency_penalty = self.__definitions.get_float_value("frequency_penalty")
             self.max_tokens = self.__definitions.get_int_value("max_tokens")
 
+            # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
+            self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
+
             
 
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
@@ -213,7 +216,8 @@ class ConfigLoader:
 
             #Conversation
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
-            self.use_voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
+            self.player_character_description: str = self.__definitions.get_string_value("player_character_description")
+            self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
             self.player_voice_model: str = self.__definitions.get_string_value("player_voice_model")
 
             #new separate prompts for Fallout 4 have been added 

@@ -111,6 +111,18 @@ class gameable(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_weather_description(self, weather_attributes: dict[str, Any]) -> str:
+        """Returns a description of the current weather that can be used in the prompts
+
+        Args:
+            weather_attributes (dict[str, Any]): The json of weather attributes as transferred by the respective game
+
+        Returns:
+            str: A prose description of the weather for the LLM
+        """
+        pass
+
     def _get_matching_df_rows_matcher(self, character_id: str, character_name: str, race: str) -> pd.Series | None:
          # TODO: try loading the NPC's voice model as soon as the NPC is found to speed up run time and so that potential errors are raised ASAP
         full_id_len = 6
@@ -246,5 +258,4 @@ class gameable(ABC):
                             value = extra_df.iloc[i].get(entry, None)
                             if value:
                                 self.character_df.loc[matcher, entry] = value
-
-    
+        

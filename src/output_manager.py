@@ -22,15 +22,16 @@ class ChatManager:
     def __init__(self, game: gameable, config: ConfigLoader, tts: Synthesizer, client: openai_client):
         self.loglevel = 28
         self.__game: gameable = game
-        self.max_response_sentences = config.max_response_sentences
-        self.language = config.language
-        self.wait_time_buffer = config.wait_time_buffer
+        self.__config: ConfigLoader = config
+        # self.max_response_sentences = config.max_response_sentences
+        # self.language = config.language
+        # self.wait_time_buffer = config.wait_time_buffer
         self.__tts: Synthesizer = tts
         self.__client: openai_client = client
         self.__is_generating: bool = False
         self.__stop_generation: bool = False
         self.__tts_access_lock = Lock()
-        self.__number_words_tts: int = config.number_words_tts
+        # self.__number_words_tts: int = config.number_words_tts
         self.__end_of_sentence_chars = ['.', '?', '!', ':', ';']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
@@ -103,7 +104,7 @@ class ChatManager:
             rate = wf.getframerate()
 
         # wait `buffer` seconds longer to let processes finish running correctly
-        duration = frames / float(rate) + self.wait_time_buffer
+        duration = frames / float(rate) + self.__config.wait_time_buffer
         return duration
  
     def clean_sentence(self, sentence: str) -> str:
@@ -152,7 +153,8 @@ class ChatManager:
         # local models sometimes get the idea in their head to use double asterisks **like this** in sentences instead of single
         # this converts double asterisks to single so that they can be filtered out appropriately
         sentence = sentence.replace('**','*')
-        sentence = parse_asterisks_brackets(sentence)
+        if self.__config.try_filter_narration:
+            sentence = parse_asterisks_brackets(sentence)
         sentence = sentence.strip() + " "
         return sentence
 
@@ -240,7 +242,7 @@ class ChatManager:
                                             sentence = remaining_content
 
                             # Accumulate sentences if less than X words
-                            if len(accumulated_sentence.split()) + len(current_sentence.split()) < self.__number_words_tts and cumulative_sentence_bool == False:
+                            if len(accumulated_sentence.split()) + len(current_sentence.split()) < self.__config.number_words_tts and cumulative_sentence_bool == False:
                                 accumulated_sentence += current_sentence
                                 sentence = remaining_content
                                 continue
@@ -281,7 +283,7 @@ class ChatManager:
                                 # conversation has switched from radiant to multi NPC (this allows the player to "interrupt" radiant dialogue and include themselves in the conversation)
                                 # the conversation has ended
                                 # contains_player_character() == not radiant
-                                if (num_sentences >= self.max_response_sentences and characters.contains_player_character()):
+                                if (num_sentences >= self.__config.max_response_sentences and characters.contains_player_character()):
                                     break
 
                     break

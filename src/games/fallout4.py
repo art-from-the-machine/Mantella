@@ -193,6 +193,17 @@ class fallout4(gameable):
 
     def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:
         return True
+    
+    def get_weather_description(self, weather_attributes: dict[str, Any]) -> str:
+        """Returns a description of the current weather that can be used in the prompts
+
+        Args:
+            weather_attributes (dict[str, Any]): The json of weather attributes as transferred by the respective game
+
+        Returns:
+            str: A prose description of the weather for the LLM
+        """
+        return ""
 
     MALE_VOICE_MODELS: dict[str, str] = {
         'AssaultronRace':	'robot_assaultron',
