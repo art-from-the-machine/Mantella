@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Hashable, Callable
+from src.http.communication_constants import communication_constants
 from src.conversation.conversation_log import conversation_log
 from src.characters_manager import Characters
 from src.remember.remembering import remembering
@@ -21,6 +22,7 @@ class context:
         self.__rememberer: remembering = rememberer
         self.__language: dict[Hashable, str] = language
         self.__is_prompt_too_long: Callable[[str, float], bool] = is_prompt_too_long
+        self.__weather: str = ""
         self.__custom_context_values: dict[str, Any] = {}
         self.__ingame_time: int = 12
         self.__ingame_events: list[str] = []
@@ -107,8 +109,9 @@ class context:
     def get_time_group(self) -> str:
         return get_time_group(self.__ingame_time)
     
-    def update_context(self, location: str, in_game_time: int, custom_ingame_events: list[str], custom_context_values: dict[str, Any]):
+    def update_context(self, location: str, in_game_time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
         self.__ingame_events.extend(custom_ingame_events)
+        self.__weather = weather
         self.__custom_context_values = custom_context_values
         if location != self.__location:
             self.__location = location
@@ -241,6 +244,17 @@ class context:
                 bio_descriptions.append(f"{character.name}: {character.bio}")
         return "\n".join(bio_descriptions)
     
+    def __get_npc_equipment_text(self) -> str:
+        """Gets the equipment description of all npcs in the conversation
+
+        Returns:
+            str: the equipment descriptions concatenated together into a single string
+        """
+        equipment_descriptions = []
+        for character in self.get_characters_excluding_player().get_all_characters():
+                equipment_descriptions.append(character.equipment.get_equipment_description(character.name))
+        return " ".join(equipment_descriptions)
+    
     def generate_system_message(self, prompt: str) -> str:
         """Fills the variables in the prompt with the values calculated from the context
 
@@ -253,15 +267,23 @@ class context:
         """
         player: Character | None = self.__npcs_in_conversation.get_player_character()
         player_name = ""
+        player_description = self.__config.player_character_description
+        player_equipment = ""
         if player:
             player_name = player.name
+            player_equipment = player.equipment.get_equipment_description(player_name)
+            game_sent_description = player.get_custom_character_value(communication_constants.KEY_ACTOR_PC_DESCRIPTION)
+            if game_sent_description and game_sent_description != "":
+                player_description = game_sent_description
         if self.npcs_in_conversation.last_added_character:
             name: str = self.npcs_in_conversation.last_added_character.name
         names = self.__get_character_names_as_text(False)
         names_w_player = self.__get_character_names_as_text(True)
         bios = self.__get_bios_text()
         trusts = self.__get_trusts()
+        equipment = self.__get_npc_equipment_text()
         location = self.__location
+        weather = self.__weather
         time = self.__ingame_time
         time_group = get_time_group(time)
         conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player())
@@ -271,13 +293,17 @@ class context:
         for content in removal_content:
             result = prompt.format(
                 player_name = player_name,
+                player_description = player_description,
+                player_equipment = player_equipment,
                 name=name,
                 names=names,
                 names_w_player = names_w_player,
                 bio=content[0],
                 bios=content[0], 
-                trust=trusts, 
-                location=location, 
+                trust=trusts,
+                equipment = equipment,
+                location=location,
+                weather = weather,
                 time=time, 
                 time_group=time_group, 
                 language=self.__language['language'], 

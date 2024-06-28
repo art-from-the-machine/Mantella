@@ -7,14 +7,18 @@ from src.config.config_value_constraint import ConfigValueConstraint, ConfigValu
 
 class PromptDefinitions:
     ALLOWED_PROMPT_VARIABLES = ["player_name",
+                                "player_description",
+                                "player_equipment",
                                 "game",
                                 "name",
                                 "names",
                                 "names_w_player",
                                 "bio",
                                 "bios", 
-                                "trust", 
-                                "location", 
+                                "trust",
+                                "equipment",
+                                "location",
+                                "weather",
                                 "time", 
                                 "time_group", 
                                 "language", 
@@ -28,10 +32,15 @@ class PromptDefinitions:
                                 bio = the NPC's background description
                                 trust = how well the NPC knows the player (eg "a stranger", "a friend")
                                 location = the current location
+                                weather = the current weather
                                 time = the time of day as a number (eg 1, 22)
                                 time_group = the time of day in words (eg "in the morning", "at night")
                                 language = the selected language
-                                conversation_summary = reads the latest conversation summaries for the NPC stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt"""
+                                conversation_summary = reads the latest conversation summaries for the NPC stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt
+                                player_name = the name of the player character
+                                player_description = a description of the player character (needs to be added in game or using the config value)
+                                player_equipment = a basic description of the equipment the player character carries
+                                equipment = a basic description of the equipment the the NPCs carry"""
     
     class PromptChecker(ConfigValueConstraint[str]):
         def __init__(self) -> None:

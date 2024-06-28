@@ -79,4 +79,18 @@ class LLMDefinitions:
     def get_max_tokens_config_value() -> ConfigValue:
         return ConfigValueInt("max_tokens","Max Tokens","Lowering this value can sometimes result in empty responses.", 250, 1, 999999,tags=[ConvigValueTag.advanced])
 
+    # @staticmethod
+    # def get_stop_llm_generation_on_assist_keyword() -> ConfigValue:
+    #     stop_llm_generation_on_assist_keyword_description = """Should the generation of the LLM be stopped if the word 'assist' is found?
+    #                                                             A lot of LLMs are trained to be virtual assistants use the word excessively.
+    #                                                             Default: Checked"""
+    #     return ConfigValueBool("stop_llm_generation_on_assist_keyword","Stop LLM generation if 'assist' keyword is found",stop_llm_generation_on_assist_keyword_description,True,tags=[ConvigValueTag.advanced])
+    
+    @staticmethod
+    def get_try_filter_narration() -> ConfigValue:
+        try_filter_narration_description = """Should Mantella try to filter narrations out of the output of the LLM?
+                                            If checked, tries to filter out sentences containing asterisks (*).
+                                            Default: Checked"""
+        return ConfigValueBool("try_filter_narration","Try to filter narrations from LLM output",try_filter_narration_description,True,tags=[ConvigValueTag.advanced])
+
     

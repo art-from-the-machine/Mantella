@@ -133,8 +133,8 @@ class conversation:
             new_message: user_message = user_message(player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
             self.update_game_events(new_message)
-            self.__messages.add_message(new_message)
-            if self.__context.config.use_voice_player_input:
+            self.__messages.add_message(new_message)            
+            if self.__should_voice_player_input(player_character):
                 player__character_voiced_sentence = self.__output_manager.generate_sentence(player_text, player_character, False)
                 if player__character_voiced_sentence.error_message:
                     player__character_voiced_sentence = sentence(player_character, player_text, "" , 2.0, False)
@@ -151,7 +151,7 @@ class conversation:
         else:
             self.__start_generating_npc_sentences()
 
-    def update_context(self, location: str, time: int, custom_ingame_events: list[str], custom_context_values: dict[str, Any]):
+    def update_context(self, location: str, time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
         """Updates the context with a new set of values
 
         Args:
@@ -160,7 +160,7 @@ class conversation:
             custom_ingame_events (list[str]): a list of events that happend since the last update
             custom_context_values (dict[str, Any]): the current set of context values
         """
-        self.__context.update_context(location, time, custom_ingame_events, custom_context_values)
+        self.__context.update_context(location, time, custom_ingame_events, weather, custom_context_values)
         if self.__context.have_actors_changed:
             self.__update_conversation_type()
             self.__context.have_actors_changed = False
@@ -353,4 +353,13 @@ class conversation:
                     if words[i+1] in npc_name.lower().split():
                         return self.__context.npcs_in_conversation.get_character_by_name(npc_name)
         return None
+    
+    def __should_voice_player_input(self, player_character: Character) -> bool:
+        game_value: Any = player_character.get_custom_character_value(comm_consts.KEY_ACTOR_PC_VOICEPLAYERINPUT)
+        if game_value == None:
+            return self.__context.config.voice_player_input
+        return game_value
+
+            
+
                

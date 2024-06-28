@@ -16,6 +16,15 @@ class OtherDefinitions:
         auto_launch_ui_description = """Whether the Mantella UI should launch automatically in your browser."""
         return ConfigValueBool("auto_launch_ui","Auto Launch UI",auto_launch_ui_description,True)
 
+    #Player Character
+    @staticmethod
+    def get_player_character_description() -> ConfigValue:
+        player_character_description_description = """A description of your player character ingame. Is sent to the LLM as part of the prompt using the '{{player_description}}' variable.
+                                                    This is not meant as a bio but rather a description how the NPC(s) perceive the player character when they speak to them.
+                                                    i.e. 'A tall man with long red hair.'
+                                                    If the game offers to set this option the text sent from the game takes precendence over this."""
+        return ConfigValueString("player_character_description","Player character description",player_character_description_description,"")
+
     @staticmethod
     def get_voice_player_input() -> ConfigValue:
         voice_player_input_description = """Should the input of the player (both by text or voice) be spoken by the player character ingame?
