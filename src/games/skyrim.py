@@ -16,7 +16,7 @@ class skyrim(gameable):
     LIP_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
 
     def __init__(self, config: ConfigLoader):
-        super().__init__('data/Skyrim/skyrim_characters.csv', "Skyrim")
+        super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
         self.__create_all_voice_folders(config)
 
     def __create_all_voice_folders(self, config: ConfigLoader):
