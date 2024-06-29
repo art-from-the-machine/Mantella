@@ -46,7 +46,7 @@ class xvasynth(ttsable):
         phrases = self._split_voiceline(voiceline)
         voiceline_files = []
         for phrase in phrases:
-            voiceline_file = f"{self._output_path}/voicelines/{utils.clean_text(phrase)[:150]}.wav"
+            voiceline_file = f"{self._voiceline_folder}/{utils.clean_text(phrase)[:150]}.wav"
             voiceline_files.append(voiceline_file)
 
         if len(phrases) == 1:

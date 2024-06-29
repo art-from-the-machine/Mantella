@@ -27,7 +27,7 @@ class fallout4(gameable):
     # f4_wav_file2 = f'MutantellaOutput2.wav'
 
     def __init__(self, config: ConfigLoader):
-        super().__init__('data/Fallout4/fallout4_characters.csv', "Fallout4")
+        super().__init__(config, 'data/Fallout4/fallout4_characters.csv', "Fallout4")
         if config.game == "Fallout4VR":
             self.__compatibility = file_communication_compatibility(config.game_path, int(config.port))# <- creating an object of this starts the listen thread
         self.__config: ConfigLoader = config

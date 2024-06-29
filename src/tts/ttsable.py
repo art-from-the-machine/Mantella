@@ -20,8 +20,9 @@ class ttsable(ABC):
         self._facefx_path = config.facefx_path
         self._times_checked = 0
         self._tts_print = config.tts_print # to print output to console
-        self._output_path = utils.resolve_path()+'/data'
+        self._output_path = config.save_folder+'data\\tmp'
         self._voiceline_folder = f"{self._output_path}/voicelines"
+        os.makedirs(self._voiceline_folder, exist_ok=True)
         self._language = config.language
         self._last_voice = '' # last active voice model
         # determines whether the voiceline should play internally
