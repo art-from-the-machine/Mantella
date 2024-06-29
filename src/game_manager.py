@@ -226,9 +226,10 @@ class GameStateManager:
             return self.__config.player_voice_model
         return game_value
     
-    def __convert_to_equipment_item_dictionary(self, input: dict[str, Any]) -> dict[str, EquipmentItem]:
+    def __convert_to_equipment_item_dictionary(self, input_dict: dict[str, Any]) -> dict[str, EquipmentItem]:
         result: dict[str, EquipmentItem] = {}
-        for slot, itemname in input.items():
-            result[slot] = EquipmentItem(itemname)
+        if input_dict:
+            for slot, itemname in input_dict.items():
+                result[slot] = EquipmentItem(itemname)
         return result
 
