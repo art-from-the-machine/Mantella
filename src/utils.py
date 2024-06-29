@@ -47,6 +47,21 @@ def get_file_encoding(file_path) -> str | None:
         return None
 
 
+def cleanup_tmp(tmp_folder: str):
+    if os.path.exists(tmp_folder):
+        mei_bundle = getattr(sys, "_MEIPASS", False)
+
+        for filename in os.listdir(tmp_folder):
+            file_path = os.path.join(tmp_folder, filename)
+            try:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                elif (os.path.isdir(file_path)) and (file_path != mei_bundle):
+                    rmtree(file_path)
+            except Exception as e:
+                logging.error(f"Failed to delete tmp folder: {e}")
+
+
 def cleanup_mei(remove_mei_folders: bool):
     """
     Rudimentary workaround for https://github.com/pyinstaller/pyinstaller/issues/2379
