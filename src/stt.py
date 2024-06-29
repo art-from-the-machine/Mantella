@@ -63,11 +63,11 @@ class Transcriber:
                 self.__api_key: str | None = f.readline().strip()
                 
                 if not self.__api_key:
-                    logging.error(f'''No secret key found in MantellaSoftware/GPT_SECRET_KEY.txt. Please create a secret key and paste it in GPT_SECRET_KEY.txt
+                    logging.error(f'''No secret key found in MantellaSoftware/GPT_SECRET_KEY.txt. Please create a secret key and paste it in your Mantella mod folder's SKSE/Plugins/MantellaSoftware/GPT_SECRET_KEY.txt file.
 If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
-If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running''')
-                    input("Press Enter to exit.")
+If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running.''')
+                    input("Press Enter to continue.")
                     sys.exit(0)
         return self.__api_key          
 
