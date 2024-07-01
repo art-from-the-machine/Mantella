@@ -29,9 +29,8 @@ class audio_playback:
             del self.__playback_channel
 
         distance: float = math.sqrt(math.pow(sound_origin_position[0] - player_position[0], 2) + math.pow(sound_origin_position[1] - player_position[1], 2))
-            
         # Calculate the relative angle
-        relative_angle = self.__calculate_relative_angle(sound_origin_position, player_position, player_rotation)
+        relative_angle = self.__calculate_relative_angle(player_position, sound_origin_position, player_rotation)
 
         # Normalize the relative angle between -180 and 180
         normalized_angle = relative_angle % 360
@@ -39,16 +38,17 @@ class audio_playback:
             normalized_angle -= 360  # Adjust angles to be within [-180, 180]
 
         # Calculate volume scale based on the normalized angle
-        if normalized_angle >= -90 and normalized_angle <= 90:  # Front half
-            # Linear scaling: Full volume at 0 degrees, decreasing to 50% volume at 90 degrees to either side
-            volume_scale_left = 0.5 + normalized_angle / 90 * 0.5
-            volume_scale_right = 0.5 - normalized_angle / 90 * 0.5
-        elif normalized_angle > 90 and normalized_angle < 180:
-            volume_scale_left = 90 / normalized_angle
-            volume_scale_right = 1- 90 / normalized_angle
-        elif normalized_angle > -180 and normalized_angle < -90:
-            volume_scale_left = 1- 90 / abs(normalized_angle)
-            volume_scale_right = 90 / abs(normalized_angle)
+        if distance> 0:
+            if normalized_angle >= -90 and normalized_angle <= 90:  # Front half
+                # Linear scaling: Full volume at 0 degrees, decreasing to 50% volume at 90 degrees to either side
+                volume_scale_left = 0.5 + normalized_angle / 90 * 0.5
+                volume_scale_right = 0.5 - normalized_angle / 90 * 0.5
+            elif normalized_angle > 90 and normalized_angle < 180:
+                volume_scale_left = 90 / normalized_angle
+                volume_scale_right = 1- 90 / normalized_angle
+            elif normalized_angle > -180 and normalized_angle < -90:
+                volume_scale_left = 1- 90 / abs(normalized_angle)
+                volume_scale_right = 90 / abs(normalized_angle)
         else:  # failsafe if for some reason an unmanaged number is entered
             volume_scale_left = 0.5
             volume_scale_right = 0.5
