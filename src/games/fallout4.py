@@ -36,6 +36,15 @@ class fallout4(gameable):
         self.__playback: audio_playback = audio_playback(config)
         self.create_all_voice_folders(self.__config)
         self.__last_played_voiceline: str | None = None
+    
+    def get_image_filepath(self):
+        is_vr = self.__config.game == "Fallout4VR"
+        filepath = (
+            self.__config.image_analysis_fallout4_vr_filepath
+            if is_vr
+            else self.__config.image_analysis_fallout4_filepath
+        )
+        return filepath, is_vr
 
     def create_all_voice_folders(self, config: ConfigLoader):
         all_voice_folders = self.character_df["fallout4_voice_folder"]

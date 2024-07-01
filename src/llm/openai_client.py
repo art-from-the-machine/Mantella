@@ -6,70 +6,108 @@ import time
 import tiktoken
 import requests
 from src.llm.message_thread import message_thread
-from src.llm.messages import message
+from src.llm.messages import message, image_message
 from src.config.config_loader import ConfigLoader
 import os
 
 class openai_client:
     """Joint setup for sync and async access to the LLMs
     """
-    def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
-        def auto_resolve_endpoint(model_name, endpoints):
-            # attempt connection to Kobold
-            try:
-                response = requests.get(endpoints['kobold'])
-                if response.status_code == 200:
-                    return endpoints['kobold']
-            except requests.RequestException:
-                # attempt connection to textgenwebui
-                try:
-                    response = requests.get(endpoints['textgenwebui'] + '/models')
-                    if response.status_code == 200:
-                        return endpoints['textgenwebui']
-                except requests.RequestException:
-                    pass
-            
-            # OpenRouter model names always have slashes (/), whereas OpenAI model names never have slashes
-            # if this assumption changes, then this code will be inaccurate
-            if '/' in model_name:
-                return endpoints['openrouter']
-            else:
-                return endpoints['openai']
-        
-        endpoints = {
+    def __init__(self, config: ConfigLoader, secret_key_file: str, skip_api_setup: bool = False) -> None:
+        self._endpoints = {
             'openai': 'none', # don't set an endpoint, just use the OpenAI default
             'openrouter': 'https://openrouter.ai/api/v1',
             'kobold': 'http://127.0.0.1:5001/v1',
             'textgenwebui': 'http://127.0.0.1:5000/v1',
         }
+        self._endpoint = self._endpoints['openai']
+        self._api_key = None
+        self._local = None
+
+        if not skip_api_setup:
+            self._set_llm_api_and_key(config.game,config.llm, config.llm_api, self._endpoints, secret_key_file)
+            self._base_url: str | None = self._endpoint if self._endpoint != 'none' else None
+            self._stop: str | List[str] = config.stop
+            self._temperature: float = config.temperature
+            self._top_p: float = config.top_p
+            self._frequency_penalty: float = config.frequency_penalty
+            self._max_tokens: int = config.max_tokens
+            self._model_name: str = config.llm
+            self._token_limit: int = self._get_token_limit(config.llm, config.custom_token_count, self._is_local)
+            
+        self.TOKEN_LIMIT_PERCENT = 0.45 # TODO: review this variable
+        referer = "https://art-from-the-machine.github.io/Mantella/"
+        xtitle = "Mantella"
+        self._header: dict[str, str] = {"HTTP-Referer": referer, "X-Title": xtitle, }
+
+        chosenmodel = config.llm
+        # if using an alternative API, use encoding for GPT-3.5 by default
+        # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
+        #       this can lead to the token limit of the given model being overrun
+        if self._endpoint != 'none':
+            chosenmodel = 'gpt-3.5-turbo'
+        try:
+            self._encoding = tiktoken.encoding_for_model(chosenmodel)
+        except:
+            try:
+                chosenmodel = 'gpt-3.5-turbo'
+                self._encoding = tiktoken.encoding_for_model(chosenmodel)
+            except:
+                logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
+                raise
+       
+    @staticmethod
+    def _auto_resolve_endpoint(model_name, endpoints):
+        # attempt connection to Kobold
+        try:
+            response = requests.get(endpoints['kobold'])
+            if response.status_code == 200:
+                return endpoints['kobold']
+        except requests.RequestException:
+            # attempt connection to textgenwebui
+            try:
+                response = requests.get(endpoints['textgenwebui'] + '/models')
+                if response.status_code == 200:
+                    return endpoints['textgenwebui']
+            except requests.RequestException:
+                pass
         
-        cleaned_llm_api = config.llm_api.strip().lower().replace(' ', '')
+        # OpenRouter model names always have slashes (/), whereas OpenAI model names never have slashes
+        # if this assumption changes, then this code will be inaccurate
+        if '/' in model_name:
+            return endpoints['openrouter']
+        else:
+            return endpoints['openai']
+        
+        
+    def _set_llm_api_and_key(self, current_game,llm, llm_api, endpoints, secret_key_file):
+        cleaned_llm_api = llm_api.strip().lower().replace(' ', '')
         if cleaned_llm_api == 'auto':
-            endpoint = auto_resolve_endpoint(config.llm, endpoints)
+            self._endpoint = self._auto_resolve_endpoint(llm, endpoints)
         elif cleaned_llm_api == 'openai':
-            endpoint = endpoints['openai']
+            self._endpoint = endpoints['openai']
             logging.info(f"Running LLM with OpenAI")
         elif cleaned_llm_api == 'openrouter':
-            endpoint = endpoints['openrouter']
+            self._endpoint = endpoints['openrouter']
             logging.info(f"Running LLM with OpenRouter")
         elif cleaned_llm_api in ['kobold','koboldcpp']:
-            endpoint = endpoints['kobold']
+            self._endpoint = endpoints['kobold']
             logging.info(f"Running LLM with koboldcpp")
         elif cleaned_llm_api in ['textgenwebui','text-gen-web-ui','textgenerationwebui','text-generation-web-ui']:
-            endpoint = endpoints['textgenwebui']
+            self._endpoint = endpoints['textgenwebui']
             logging.info(f"Running LLM with Text generation web UI")
         else: # if endpoint isn't named, assume it is a direct URL
-            endpoint = config.llm_api
+            self._endpoint = llm_api
 
-        if (endpoint == 'none') or ("https" in endpoint):
+        if (self._endpoint == 'none') or ("https" in self.endpoint):
             #cloud LLM
-            self.__is_local: bool = False
+            self._is_local: bool = False
             with open(secret_key_file, 'r') as f:
-                self.__api_key: str = f.readline().strip()
+                self._api_key: str = f.readline().strip()
 
-            if not self.__api_key:
+            if not self._api_key:
                 game_installation_page = 'https://art-from-the-machine.github.io/Mantella/pages/installation.html#language-models-llms'
-                if 'Fallout4' in config.game:
+                if 'Fallout4' in current_game:
                     game_installation_page = 'https://art-from-the-machine.github.io/Mantella/pages/installation_fallout4.html#language-models-llms'
 
                 logging.error(f'''No secret key found in MantellaSoftware/GPT_SECRET_KEY.txt.
@@ -81,68 +119,49 @@ For more information, see here:
 {game_installation_page}''')
                 input("Press create a secret key and restart your game.")
 
-            if config.llm == 'undi95/toppy-m-7b:free':
+            if llm == 'undi95/toppy-m-7b:free':
                 logging.log(24, "Running Mantella with default LLM 'undi95/toppy-m-7b:free' (OpenRouter). For higher quality responses, better NPC memories, and more performant multi-NPC conversations, consider changing this model via the `model` setting in MantellaSoftware/config.ini")
             else:
-                logging.log(23, f"Running Mantella with '{config.llm}'. The language model can be changed in MantellaSoftware/config.ini")
+                logging.log(23, f"Running Mantella with '{llm}'. The language model can be changed in MantellaSoftware/config.ini")
         else:
             #local LLM
-            self.__is_local: bool = True
-            self.__api_key: str = 'abc123'
+            self._is_local: bool = True
+            self._api_key: str = 'abc123'
             logging.info(f"Running Mantella with local language model")
 
-        self.TOKEN_LIMIT_PERCENT = 0.45 # TODO: review this variable
-        self.__base_url: str | None = endpoint if endpoint != 'none' else None
-        self.__stop: str | List[str] = config.stop
-        self.__temperature: float = config.temperature
-        self.__top_p: float = config.top_p
-        self.__frequency_penalty: float = config.frequency_penalty
-        self.__max_tokens: int = config.max_tokens
-        self.__model_name: str = config.llm
-        self.__token_limit: int = self.__get_token_limit(config.llm, config.custom_token_count, self.__is_local)
-        referer = "https://art-from-the-machine.github.io/Mantella/"
-        xtitle = "Mantella"
-        self.__header: dict[str, str] = {"HTTP-Referer": referer, "X-Title": xtitle, }
+    @property
+    def endpoints(self) -> dict:
+        """Available endpoints"""
+        return self._endpoints
 
-        chosenmodel = config.llm
-        # if using an alternative API, use encoding for GPT-3.5 by default
-        # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
-        #       this can lead to the token limit of the given model being overrun
-        if endpoint != 'none':
-            chosenmodel = 'gpt-3.5-turbo'
-        try:
-            self.__encoding = tiktoken.encoding_for_model(chosenmodel)
-        except:
-            try:
-                chosenmodel = 'gpt-3.5-turbo'
-                self.__encoding = tiktoken.encoding_for_model(chosenmodel)
-            except:
-                logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
-                raise
+    @property
+    def endpoint(self) -> str:
+        """Available endpoint"""
+        return self._endpoint        
     
     @property
     def token_limit(self) -> int:
         """The token limit of the model
         """
-        return self.__token_limit
+        return self._token_limit
     
     @property
     def model_name(self) -> str:
         """The name of the model
         """
-        return self.__model_name
+        return self._model_name
     
     @property
     def is_local(self) -> bool:
         """Is the model run locally?
         """
-        return self.__is_local
+        return self._is_local
     
     @property
     def api_key(self) -> str:
         """The secret key
         """
-        return self.__api_key
+        return self._api_key
     
     def generate_async_client(self) -> AsyncOpenAI:
         """Generates a new AsyncOpenAI client already setup to be used right away.
@@ -156,10 +175,10 @@ For more information, see here:
         Returns:
             AsyncOpenAI: The new async client object
         """
-        if self.__base_url:
-            return AsyncOpenAI(api_key=self.__api_key, base_url=self.__base_url, default_headers=self.__header)
+        if self._base_url:
+            return AsyncOpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=self._header)
         else:
-            return AsyncOpenAI(api_key=self.__api_key, default_headers=self.__header)
+            return AsyncOpenAI(api_key=self._api_key, default_headers=self._header)
 
     def generate_sync_client(self) -> OpenAI:
         """Generates a new OpenAI client already setup to be used right away.
@@ -170,10 +189,10 @@ For more information, see here:
         Returns:
             OpenAI: The new sync client object
         """
-        if self.__base_url:
-            return OpenAI(api_key=self.__api_key, base_url=self.__base_url, default_headers=self.__header)
+        if self._base_url:
+            return OpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=self._header)
         else:
-            return OpenAI(api_key=self.__api_key, default_headers=self.__header)
+            return OpenAI(api_key=self._api_key, default_headers=self._header)
     
     async def streaming_call(self, messages: message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
@@ -190,17 +209,17 @@ For more information, see here:
         """
         async_client = self.generate_async_client()
         logging.info('Getting LLM response...')
-        max_tokens = self.__max_tokens
+        max_tokens = self._max_tokens
         if is_multi_npc: # override max_tokens in radiant / multi-NPC conversations
             max_tokens = 250
         try:
             async for chunk in await async_client.chat.completions.create(model=self.model_name, 
                                                                             messages=messages.get_openai_messages(), 
                                                                             stream=True,
-                                                                            stop=self.__stop,
-                                                                            temperature=self.__temperature,
-                                                                            top_p=self.__top_p,
-                                                                            frequency_penalty=self.__frequency_penalty, 
+                                                                            stop=self._stop,
+                                                                            temperature=self._temperature,
+                                                                            top_p=self._top_p,
+                                                                            frequency_penalty=self._frequency_penalty, 
                                                                             max_tokens=max_tokens):
                 if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
                     yield chunk.choices[0].delta.content
@@ -208,7 +227,7 @@ For more information, see here:
                     break
         except Exception as e:
             if e.code in [401, 'invalid_api_key']: # incorrect API key
-                if self.__base_url == None: # None = OpenAI
+                if self._base_url == None: # None = OpenAI
                     service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
                 else:
                     service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
@@ -217,6 +236,27 @@ For more information, see here:
                 logging.error(f"LLM API Error: {e}")
             
 
+        finally:
+            await async_client.close()
+
+    async def streaming_one_message_call(self, message) -> AsyncGenerator[str | None, None]: 
+        async_client = self.generate_async_client()
+        logging.info('Getting LLM simple response...')
+        try:
+            async for chunk in await async_client.chat.completions.create(model=self._model_name, 
+                                                                            messages = [message.get_openai_message()],
+                                                                            stream=True,
+                                                                            stop=self._stop,
+                                                                            temperature=self._temperature,
+                                                                            top_p=self._top_p,
+                                                                            frequency_penalty=self._frequency_penalty, 
+                                                                            max_tokens=self._max_tokens):
+                if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
+                    yield chunk.choices[0].delta.content
+                else:
+                    break
+        except Exception as e:
+            logging.error(f"LLM API Error: {e}")
         finally:
             await async_client.close()
 
@@ -300,10 +340,10 @@ For more information, see here:
 
     
     def calculate_tokens_from_messages(self, messages: message_thread) -> int:
-        return openai_client.num_tokens_from_messages(messages, self.__model_name)
+        return openai_client.num_tokens_from_messages(messages, self._model_name)
     
     def calculate_tokens_from_text(self, text: str) -> int:
-        return len(self.__encoding.encode(text))
+        return len(self._encoding.encode(text))
     
     def is_text_too_long(self, text: str, token_limit_percent: float) -> bool:
         countTokens: int = self.calculate_tokens_from_text(text)
@@ -314,8 +354,8 @@ For more information, see here:
         return countTokens > self.token_limit * token_limit_percent
             
     
-    # --- Private methods ---    
-    def __get_token_limit(self, llm, custom_token_count, is_local):
+
+    def _get_token_limit(self, llm, custom_token_count, is_local):
         token_limit_dict = utils.get_model_token_limits()
 
         if '/' in llm:
@@ -336,3 +376,39 @@ For more information, see here:
             logging.warning(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
         
         return token_limit
+class image_client(openai_client):
+    """Setup for sync and async access to image generation models"""
+    def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
+        super().__init__(config, secret_key_file, skip_api_setup=True)
+        
+        self._set_llm_api_and_key(config.game,config.image_llm,config.image_llm_api,self._endpoints,secret_key_file)
+        self._token_limit: int = self._get_token_limit(config.image_llm, config.image_llm_custom_token_count, self._local)
+        self._base_url: str | None = self._endpoint if self._endpoint != 'none' else None
+        self._stop: str | List[str] = config.image_llm_stop
+        self._temperature: float = config.image_llm_temperature
+        self._top_p: float = config.image_llm_top_p
+        self._frequency_penalty: float = config.image_llm_frequency_penalty
+        self._max_tokens: int = config.image_llm_max_tokens
+        self._model_name: str = config.image_llm
+
+    #maybe rename single message call
+    async def streaming_one_message_call(self, message) -> AsyncGenerator[str | None, None]: 
+        async_client = self.generate_async_client()
+        logging.info('Getting LLM image response...')
+        try:
+            async for chunk in await async_client.chat.completions.create(model=self._model_name, 
+                                                                            messages = [message.get_openai_message()],
+                                                                            stream=True,
+                                                                            stop=self._stop,
+                                                                            temperature=self._temperature,
+                                                                            top_p=self._top_p,
+                                                                            frequency_penalty=self._frequency_penalty, 
+                                                                            max_tokens=self._max_tokens):
+                if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
+                    yield chunk.choices[0].delta.content
+                else:
+                    break
+        except Exception as e:
+            logging.error(f"Image LLM API Error: {e}")
+        finally:
+            await async_client.close()

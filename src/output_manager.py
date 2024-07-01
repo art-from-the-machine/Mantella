@@ -13,13 +13,13 @@ from src.llm.sentence import sentence as mantella_sentence #<- Do not collide wi
 import src.utils as utils
 from src.characters_manager import Characters
 from src.character_manager import Character
-from src.llm.messages import message
+from src.llm.messages import message, image_message
 from src.llm.message_thread import message_thread
-from src.llm.openai_client import openai_client
+from src.llm.openai_client import openai_client, image_client  
 from src.tts.ttsable import ttsable
 
 class ChatManager:
-    def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: openai_client):
+    def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: openai_client, image_client_instance: image_client):
         self.loglevel = 28
         self.__game: gameable = game
         self.max_response_sentences = config.max_response_sentences
@@ -27,12 +27,25 @@ class ChatManager:
         self.wait_time_buffer = config.wait_time_buffer
         self.__tts: ttsable = tts
         self.__client: openai_client = client
+        self.__image_client: image_client = image_client_instance 
         self.__is_generating: bool = False
         self.__stop_generation: bool = False
         self.__tts_access_lock = Lock()
         self.__number_words_tts: int = config.number_words_tts
         self.__end_of_sentence_chars = ['.', '?', '!', ':', ';']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
+        self.__generated_simple_result_lock = Lock()
+        self.__generated_simple_result = ""
+
+    @property
+    def generated_simple_result(self):
+        with self.__generated_simple_result_lock:
+            return self.__generated_simple_result
+
+    @generated_simple_result.setter
+    def generated_simple_result(self, value):
+        with self.__generated_simple_result_lock:
+            self.__generated_simple_result = value
 
     def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> mantella_sentence:
         """Generates the audio for a text and returns the corresponding sentence
@@ -326,3 +339,62 @@ class ChatManager:
             # before the ChatManager realises there is not another message coming from the LLM
             blocking_queue.put(mantella_sentence(active_character,"","",0, True))
             self.__is_generating = False
+
+
+    def generate_simple_response(self, message):
+            #Generates a response for a single message without characters or actions.
+            self.__is_generating = True
+            self.run_async(self.process_simple_response(message))
+                
+    async def process_simple_response(self, message):
+        """Stream response from LLM for a single message."""
+        logging.info("Starting process simple response")
+        try:
+            sentence = ''
+            full_reply = ''
+            if isinstance(message, image_message):
+                response_client = self.__image_client
+            else:
+                response_client = self.__client
+            while True:
+                try:
+                    start_time = time.time()
+                    async for content in response_client.streaming_one_message_call(message):
+                        if self.__stop_generation:
+                            break
+                        if not content:
+                            continue
+
+                        sentence += content
+
+                    break
+                except Exception as e:
+                    if isinstance(message, image_message):
+                        logging.error(f"Image LLM API Error: {e}")
+                    else:
+                        logging.error(f"LLM API Error: {e}")
+                    logging.log(self.loglevel, 'Retrying connection to API...')
+                    time.sleep(5)
+
+            full_reply += sentence
+            logging.log(self.loglevel, f"LLM returned simple response took {time.time() - start_time} seconds to execute")
+
+        except Exception as e:
+            logging.error(f"LLM API Error: {e}")
+        finally:
+            logging.log(22, f"Simple response saved ({response_client.calculate_tokens_from_text(full_reply)} tokens): {full_reply}")
+            self.__is_generating = False
+            self.generated_simple_result=full_reply
+    
+    def run_async(self, coro):
+        try:
+            logging.info("Try to get running loop to create task")
+            loop = asyncio.get_running_loop()
+            return loop.create_task(coro)
+        except RuntimeError:
+            logging.info("RunTimeError, trying to asyncio.run(coro)")
+            return asyncio.run(coro)
+        
+    def get_image_filepath(self):
+        return self.__game.get_image_filepath()
+        

@@ -19,6 +19,15 @@ class skyrim(gameable):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
         self.__create_all_voice_folders(config)
 
+    def get_image_filepath(self):     
+        is_vr = self.__config.game == "SkyrimVR"
+        filepath = (
+            self.__config.image_analysis_skyrim_vr_filepath
+            if is_vr
+            else self.__config.image_analysis_skyrim_filepath 
+        )
+        return filepath, is_vr
+
     def __create_all_voice_folders(self, config: ConfigLoader):
         all_voice_folders = self.character_df["skyrim_voice_folder"]
         all_voice_folders = all_voice_folders.loc[all_voice_folders.notna()]

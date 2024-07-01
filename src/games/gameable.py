@@ -87,6 +87,18 @@ class gameable(ABC):
         pass
 
     @abstractmethod
+    def get_image_filepath(self) -> bool:
+        """Checks the game that is running and returns a filepath where the game screenshots are located
+
+        Args:
+            none
+
+        Returns:
+            String: The screenshot filepath for the current loaded game
+        """
+        pass
+
+    @abstractmethod
     def load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
         """Loads a generic NPC if the NPC is not found in the CSV file
 

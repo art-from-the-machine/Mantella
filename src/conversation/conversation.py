@@ -17,6 +17,8 @@ from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
 import src.utils as utils
+from pathlib import Path
+from src.image.image_manager import ImageManager
 
 class conversation_continue_type(Enum):
     NPC_TALK = 1
@@ -41,6 +43,8 @@ class conversation:
         self.__generation_thread: Thread | None = None
         self.__generation_start_lock: Lock = Lock()
         self.__actions: list[action] = actions
+        self.__image_manager : ImageManager = ImageManager(context_for_conversation, output_manager, self.__generation_thread)
+        
 
     @property
     def has_already_ended(self) -> bool:
@@ -127,25 +131,32 @@ class conversation:
             return #If there is no player in the conversation, exit here
 
         with self.__generation_start_lock: #This lock makes sure no new generation by the LLM is started while we clear this
-            self.__stop_generation() # Stop generation of additional sentences right now
-            self.__sentences.clear() # Clear any remaining sentences from the list
-            
-            new_message: user_message = user_message(player_text, player_character.name, False)
-            new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
-            self.update_game_events(new_message)
-            self.__messages.add_message(new_message)
-            if self.__context.config.use_voice_player_input:
-                player__character_voiced_sentence = self.__output_manager.generate_sentence(player_text, player_character, False)
-                if player__character_voiced_sentence.error_message:
-                    player__character_voiced_sentence = sentence(player_character, player_text, "" , 2.0, False)
-                self.__sentences.put(player__character_voiced_sentence)
-            text = new_message.text
-            logging.log(23, f"Text passed to NPC: {text}")
+            if not self.__generation_thread:
+                self.__stop_generation() # Stop generation of additional sentences right now
+                self.__sentences.clear() # Clear any remaining sentences from the list
+                
+                new_message: user_message = user_message(player_text, player_character.name, False)
+                new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
+                self.update_game_events(new_message)
+                self.__messages.add_message(new_message)
+                if self.__context.config.use_voice_player_input:
+                    player__character_voiced_sentence = self.__output_manager.generate_sentence(player_text, player_character, False)
+                    if player__character_voiced_sentence.error_message:
+                        player__character_voiced_sentence = sentence(player_character, player_text, "" , 2.0, False)
+                    self.__sentences.put(player__character_voiced_sentence)
+                text = new_message.text
+                logging.log(23, f"Text passed to NPC: {text}")
+                ConversationIsEnded =self.__has_conversation_ended(text)
+                if ConversationIsEnded==False:
+                    self.__image_manager.process_image_analysis(self.__messages)
+                else:
+                    self.__image_manager.attempt_to_add_most_recent_image_to_deletion_array()
+        
 
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
         if ejected_npc:
             self.__eject_npc_from_conversation(ejected_npc)
-        elif self.__has_conversation_ended(text):
+        elif ConversationIsEnded==True:
             new_message.is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
             self.initiate_end_sequence()
         else:
@@ -254,6 +265,7 @@ class conversation:
         self.__has_already_ended = True
         self.__stop_generation()
         self.__sentences.clear()        
+        self.__image_manager.delete_images_from_file()     
         self.__save_conversation(is_reload=False)
     
     def __start_generating_npc_sentences(self):

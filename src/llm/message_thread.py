@@ -1,5 +1,5 @@
 from copy import deepcopy
-from src.llm.messages import message, system_message, user_message, assistant_message
+from src.llm.messages import message, system_message, user_message, assistant_message, image_message, image_description_message
 from openai.types.chat import ChatCompletionMessageParam
 
 class message_thread():
@@ -47,7 +47,7 @@ class message_thread():
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
         return message_thread.transform_to_openai_messages(self.__messages)
 
-    def add_message(self, new_message: user_message | assistant_message):
+    def add_message(self, new_message: user_message | assistant_message| image_message | image_description_message):
         self.__messages.append(new_message)
 
     def add_non_system_messages(self, new_messages: list[message]):
@@ -119,3 +119,42 @@ class message_thread():
                 m.is_multi_npc_message = multi_npc_conversation
             for m in messages_to_remove:
                 self.__messages.remove(m)
+    
+    def has_message_type(self, message_type: type) -> bool:
+        """Checks if there is any message of the specified type in the messages.
+
+        Args:
+            message_type (type): The type of message to check for.
+
+        Returns:
+            bool: True if there is a message of the specified type, False otherwise.
+        """
+        return any(isinstance(message, message_type) for message in self.__messages)
+
+    def replace_message_type(self, new_message: message, message_type: type):
+        """Replaces the first found message of the specified type in the messages with the provided new_message.
+
+        Args:
+            new_message (message): The new message to replace the old one.
+            message_type (type): The type of message to replace.
+        """
+        for idx, msg in enumerate(self.__messages):
+            if isinstance(msg, message_type):
+                self.__messages[idx] = new_message
+                # Move the new message to the end of the list
+                self.__messages.append(self.__messages.pop(idx))
+                break
+            
+    def delete_all_message_type(self, message_type: type):
+        """Deletes all messages of the specified type from the messages.
+
+        Args:
+            message_type (type): The type of messages to delete.
+        """
+        self.__messages = [msg for msg in self.__messages if not isinstance(msg, message_type)]
+
+    def replace_or_add_message(self, message_instance, message_type: type):
+        if self.has_message_type(message_type):
+            self.replace_message_type(message_instance,message_type)
+        else:
+            self.add_message(message_instance)

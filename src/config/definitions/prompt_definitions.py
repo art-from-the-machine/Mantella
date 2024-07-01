@@ -135,3 +135,15 @@ class PromptDefinitions:
         resummarize_prompt = """You are tasked with summarizing the conversation history between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}.
                                             Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {language}."""
         return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker()])
+    
+    @staticmethod
+    def get_image_llm_direct_prompt_config_value() -> ConfigValue:
+        image_llm_direct_prompt_description = """The prompt used if all the complete context prompt and image are sent all at once""" 
+        image_llm_direct_prompt = """This image is to give context and is from the player's point of view"""
+        return ConfigValueString("image_llm_direct_prompt","Image LLM direct prompt",image_llm_direct_prompt_description,image_llm_direct_prompt,[PromptDefinitions.PromptChecker()])
+    
+    @staticmethod
+    def get_image_llm_iterative_prompt_config_value() -> ConfigValue:
+        image_llm_iterative_prompt_description = """The prompt used if the image and context prompt are sent in sequence""" 
+        image_llm_iterative_prompt = """This image is to give context and is from the player's point of view in the game of Fallout 4. Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
+        return ConfigValueString("image_llm_iterative_prompt","Image LLM iterative prompt",image_llm_iterative_prompt_description,image_llm_iterative_prompt,[PromptDefinitions.PromptChecker()])
