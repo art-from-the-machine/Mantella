@@ -98,7 +98,10 @@ class conversation:
 
         #Grab the next sentence from the queue
         next_sentence: sentence | None = self.retrieve_sentence_from_queue()
+        
         if next_sentence and len(next_sentence.sentence) > 0:
+            if comm_consts.ACTION_REMOVECHARACTER in next_sentence.actions:
+                self.__context.remove_character(next_sentence.speaker)
             #if there is a next sentence and it actually has content, return it as something for an NPC to say 
             return comm_consts.KEY_REPLYTYPE_NPCTALK, next_sentence
         else:
@@ -144,7 +147,7 @@ class conversation:
 
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
         if ejected_npc:
-            self.__eject_npc_from_conversation(ejected_npc)
+            self.__prepare_eject_npc_from_conversation(ejected_npc)
         elif self.__has_conversation_ended(text):
             new_message.is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
             self.initiate_end_sequence()
@@ -272,9 +275,8 @@ class conversation:
                 time.sleep(0.1)
             self.__generation_thread = None 
 
-    def __eject_npc_from_conversation(self, npc: Character):
-        if not self.__has_already_ended:
-            self.__context.remove_character(npc)
+    def __prepare_eject_npc_from_conversation(self, npc: Character):
+        if not self.__has_already_ended:            
             self.__stop_generation()
             self.__sentences.clear()            
             # say goodbye
