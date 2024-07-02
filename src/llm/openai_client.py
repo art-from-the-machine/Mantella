@@ -79,8 +79,8 @@ class openai_client:
                 if 'Fallout4' in config.game:
                     game_installation_page = 'https://art-from-the-machine.github.io/Mantella/pages/installation_fallout4.html#language-models-llms'
 
-                logging.error(f'''No secret key found in MantellaSoftware/GPT_SECRET_KEY.txt.
-Please create a secret key and paste it in your Mantella mod folder's SKSE/Plugins/MantellaSoftware/GPT_SECRET_KEY.txt file.
+                logging.error(f'''No secret key found in GPT_SECRET_KEY.txt.
+Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
 If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running.
