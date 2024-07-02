@@ -167,7 +167,7 @@ class xtts(ttsable):
                 log_data.append(row)
 
             # Write log data to CSV file
-            with open(f"{self.config.save_folder}data/{log_file_name}_xtts.csv", 'w', newline='', encoding='utf-8') as csvfile:
+            with open(f"{self._save_folder}data/{log_file_name}_xtts.csv", 'w', newline='', encoding='utf-8') as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerows(log_data)
 
@@ -284,13 +284,13 @@ class xtts(ttsable):
             tts_data_dict = json.loads(self.__xtts_data.replace('\n', ''))
             # Wait for the server to be up and running
             server_ready = False
-            for _ in range(120):  # try for up to 10 seconds
+            for _ in range(180):  # try for up to three minutes
                 try:
                     response = requests.post(self.__xtts_set_tts_settings, json=tts_data_dict)
                     if response.status_code == 200:
                         server_ready = True
                         break
-                except ConnectionError:
+                except Exception:
                     pass  # Server not up yet
                 time.sleep(1)
         
