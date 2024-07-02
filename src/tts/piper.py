@@ -57,7 +57,7 @@ class piper(ttsable):
                                 frames = wav_file.getnframes()
                                 rate = wav_file.getframerate()
                                 duration = frames / float(rate)
-                                logging.info(f'"{voiceline}" is {duration} seconds long')
+                                logging.debug(f'"{voiceline}" is {duration} seconds long')
                                 if duration > 0:
                                     return
                         except:
