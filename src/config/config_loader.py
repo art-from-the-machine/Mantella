@@ -35,6 +35,7 @@ class ConfigLoader:
                     config_value.parse(each_value)
                 except:
                     create_back_up_configini = True
+                    # TODO: filter out warnings for ['game', 'skyrim_mod_folder', 'skyrimvr_mod_folder', 'fallout4_mod_folder', 'fallout4vr_mod_folder', fallout4vr_folder]
                     logging.warning(f"Could not identify config value '{each_key} = {each_value}' in current config.ini. Value will not be loaded. A backup of this config.ini will be created.")
 
         if create_back_up_configini:
