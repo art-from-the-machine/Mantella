@@ -20,7 +20,8 @@ class ttsable(ABC):
         self._facefx_path = config.facefx_path
         self._times_checked = 0
         self._tts_print = config.tts_print # to print output to console
-        self._output_path = config.save_folder+'data\\tmp'
+        self._save_folder = config.save_folder
+        self._output_path = self._save_folder+'data\\tmp'
         self._voiceline_folder = f"{self._output_path}/voicelines"
         os.makedirs(self._voiceline_folder, exist_ok=True)
         self._language = config.language
@@ -68,7 +69,10 @@ class ttsable(ABC):
                 new_wav_file_name = f"{self._voiceline_folder}/{timestamp + final_voiceline_file_name}.wav" 
                 new_lip_file_name = new_wav_file_name.replace(".wav", ".lip")
                 os.rename(final_voiceline_file, new_wav_file_name)
-                os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
+                try:
+                    os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
+                except:
+                    logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".lip")}')
                 final_voiceline_file = new_wav_file_name
             except:
                 logging.error(f'Could not rename {final_voiceline_file} or {final_voiceline_file.replace(".wav", ".lip")}')

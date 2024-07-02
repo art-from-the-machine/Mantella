@@ -106,13 +106,25 @@ class skyrim(gameable):
             for sub_folder in os.scandir(config.mod_path):
                 if sub_folder.is_dir():
                     shutil.copyfile(audio_file, f"{sub_folder.path}/{self.WAV_FILE}")
-                    shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.LIP_FILE}")
+                    try:
+                        shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.LIP_FILE}")
+                    except Exception as e:
+                        # only warn on failure
+                        logging.warning(e)
         else:
             shutil.copyfile(audio_file, f"{mod_folder}/{speaker.in_game_voice_model}/{self.WAV_FILE}")
-            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{mod_folder}/{speaker.in_game_voice_model}/{self.LIP_FILE}")
+            try:
+                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{mod_folder}/{speaker.in_game_voice_model}/{self.LIP_FILE}")
+            except Exception as e:
+                # only warn on failure
+                logging.warning(e)
         
-        os.remove(audio_file)
-        os.remove(audio_file.replace(".wav", ".lip"))
+        try:
+            os.remove(audio_file)
+            os.remove(audio_file.replace(".wav", ".lip"))
+        except Exception as e:
+            # only warn on failure
+            logging.warning(e)
 
         logging.log(23, f"{speaker.name} should speak")
 
