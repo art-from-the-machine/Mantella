@@ -8,7 +8,8 @@ import requests
 from src.llm.message_thread import message_thread
 from src.llm.messages import message
 from src.config.config_loader import ConfigLoader
-import os
+import sys
+from pathlib import Path
 
 class openai_client:
     """Joint setup for sync and async access to the LLMs
@@ -64,8 +65,14 @@ class openai_client:
         if (endpoint == 'none') or ("https" in endpoint):
             #cloud LLM
             self.__is_local: bool = False
-            with open(secret_key_file, 'r') as f:
-                self.__api_key: str = f.readline().strip()
+
+            try: # first check mod folder for secret key
+                mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
+                with open(mod_parent_folder+'\\'+secret_key_file, 'r') as f:
+                    self.__api_key: str = f.readline().strip()
+            except: # check locally (same folder as exe) for secret key
+                with open(secret_key_file, 'r') as f:
+                    self.__api_key: str = f.readline().strip()
 
             if not self.__api_key:
                 game_installation_page = 'https://art-from-the-machine.github.io/Mantella/pages/installation.html#language-models-llms'
