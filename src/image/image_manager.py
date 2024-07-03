@@ -109,7 +109,7 @@ class ImageManager:
                 self.__generation_thread.join()  # Wait for generate_simple_response to complete
                 self.__generation_thread=None
                 new_image_description_message : image_description_message = image_description_message(self.__output_manager.generated_simple_result, False)
-                if self.__output_manager.generated_simple_result is not "":
+                if self.__output_manager.generated_simple_result != "":
                     messages.replace_or_add_message(new_image_description_message,image_description_message)
                 self.__output_manager.generated_simple_result=""
 

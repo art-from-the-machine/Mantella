@@ -17,6 +17,7 @@ class skyrim(gameable):
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
+        self.__config: ConfigLoader = config
         self.__create_all_voice_folders(config)
 
     def get_image_filepath(self):     
