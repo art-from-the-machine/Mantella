@@ -18,7 +18,7 @@ class LLMDefinitions:
     
     @staticmethod
     def get_max_response_sentences_config_value() -> ConfigValue:
-        return ConfigValueInt("max_response_sentences","Max Sentences per Pesponse","The maximum number of sentences returned by the LLM on each response. Lower this value to reduce waffling.\nNote: The setting 'Number Words TTS' in the Text-to-Speech tab takes precedence over this setting.",999,1,999)
+        return ConfigValueInt("max_response_sentences","Max Sentences per Response","The maximum number of sentences returned by the LLM on each response. Lower this value to reduce waffling.\nNote: The setting 'Number Words TTS' in the Text-to-Speech tab takes precedence over this setting.",4,1,999)
     
     @staticmethod
     def get_llm_api_config_value() -> ConfigValue:

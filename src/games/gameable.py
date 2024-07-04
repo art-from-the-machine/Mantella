@@ -22,7 +22,7 @@ class gameable(ABC):
     Args:
         ABC (_type_): _description_
     """
-    def __init__(self, path_to_character_df: str, mantella_game_folder_path: str):
+    def __init__(self, config: ConfigLoader, path_to_character_df: str, mantella_game_folder_path: str):
         try:
             self.__character_df: pd.DataFrame = self.__get_character_df(path_to_character_df)
         except:
@@ -30,14 +30,10 @@ class gameable(ABC):
             input("Press Enter to exit.")
 
         #Apply character overrides
-        overrides_folder = f"data/{mantella_game_folder_path}/character_overrides"
+        overrides_folder = config.save_folder + f"data/{mantella_game_folder_path}/character_overrides"
         self.__apply_character_overrides(overrides_folder, self.__character_df.columns.values.tolist())            
 
-        # if the exe is being run by another process, store conversation data in MantellaData rather than the local data folder
-        if "--integrated" in sys.argv:
-            self.__conversation_folder_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)+f'/MantellaData/{mantella_game_folder_path}/conversations'
-        else:
-            self.__conversation_folder_path = f"data/{mantella_game_folder_path}/conversations"
+        self.__conversation_folder_path = config.save_folder + f"data/{mantella_game_folder_path}/conversations"
         
         conversation_log.game_path = self.__conversation_folder_path
     

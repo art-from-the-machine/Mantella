@@ -14,6 +14,12 @@ def initialise(config_file, logging_file, language_file) -> tuple[config_loader.
         if getattr(sys, 'frozen', False): # if exe and not Python script
             # change the current working directory to the executable's directory
             os.chdir(os.path.dirname(sys.executable))
+
+    def get_my_games_directory():
+            home = Path.home()
+            save_dir = home / "Documents" / "My Games" / "Mantella"
+            save_dir.mkdir(parents=True, exist_ok=True)
+            return str(save_dir)+'\\'
     
     def setup_logging(file_name):
         logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[])
@@ -81,17 +87,22 @@ def initialise(config_file, logging_file, language_file) -> tuple[config_loader.
             return {}
 
     set_cwd_to_exe_dir()
-    setup_logging(logging_file)
-    if "--integrated" in sys.argv:
-        config_file = str(Path(utils.resolve_path()).parent.parent.parent.parent)+'/MantellaData/'+config_file
-    config = config_loader.ConfigLoader(config_file)
-    logging.log(24, f'Mantella.exe running in {os.getcwd()}. config.ini available in {os.path.abspath(config_file)}.')
-    logging.log(24, f'Mantella currently running for {config.game}. Mantella mod files located in {config.mod_path}.')
+    save_folder = get_my_games_directory()
+    setup_logging(save_folder+logging_file)
+    config = config_loader.ConfigLoader(save_folder+config_file)
+    config.save_folder = save_folder
+    logging.log(23, f'''Mantella.exe running in: 
+{os.getcwd()}
+config.ini, logging.log, and conversation histories available in:
+{save_folder}''')
+    logging.log(23, f'''Mantella currently running for {config.game}. Mantella mod files located in: 
+{config.mod_path}''')
     if not config.have_all_config_values_loaded_correctly:
         logging.error("Cannot start Mantella. Not all settings that are required are set to correct values. Please check the above error messages and correct the corresponding settings!")
 
     # clean up old instances of exe runtime files
     utils.cleanup_mei(config.remove_mei_folders)
+    utils.cleanup_tmp(config.save_folder+'data\\tmp')
 
     language_info = get_language_info(language_file)
     

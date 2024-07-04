@@ -7,6 +7,7 @@ import src.utils as utils
 import requests
 import json
 import io
+from pathlib import Path
 
 class Transcriber:
     def __init__(self, config: ConfigLoader, secret_key_file: str):
@@ -59,17 +60,22 @@ class Transcriber:
                 self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
 
     def __get_api_key(self) -> str:
-        if not self.__api_key:                
-            with open(self.__secret_key_file, 'r') as f:
-                self.__api_key: str | None = f.readline().strip()
+        if not self.__api_key:
+            try: # first check mod folder for secret key
+                mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
+                with open(mod_parent_folder+'\\'+self.__secret_key_file, 'r') as f:
+                    self.__api_key: str = f.readline().strip()
+            except: # check locally (same folder as exe) for secret key
+                with open(self.__secret_key_file, 'r') as f:
+                    self.__api_key: str = f.readline().strip()
                 
-                if not self.__api_key:
-                    logging.error(f'''No secret key found in MantellaSoftware/GPT_SECRET_KEY.txt. Please create a secret key and paste it in GPT_SECRET_KEY.txt
+            if not self.__api_key:
+                logging.error(f'''No secret key found in GPT_SECRET_KEY.txt. Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
-If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running''')
-                    input("Press Enter to exit.")
-                    sys.exit(0)
+If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running.''')
+                input("Press Enter to continue.")
+                sys.exit(0)
         return self.__api_key          
 
     # def get_player_response(self, say_goodbye, prompt: str):
