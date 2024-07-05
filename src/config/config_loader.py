@@ -10,10 +10,11 @@ import src.utils as utils
 from pathlib import Path
 
 class ConfigLoader:
-    def __init__(self, file_name='config.ini'):
-        self.__has_any_value_changed: bool = False
+    def __init__(self, mygame_folder_path: str, file_name='config.ini'):
+        self.save_folder = mygame_folder_path
+        self.__has_any_value_changed: bool = False        
         self.__is_initial_load: bool = True
-        self.__file_name = file_name
+        self.__file_name = os.path.join(mygame_folder_path, file_name)
         self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.__on_config_value_change)
         if not os.path.exists(self.__file_name):
             logging.log(24,"Cannot find 'config.ini'. Assuming first time usage of MantellaSoftware and creating it.")
@@ -21,7 +22,7 @@ class ConfigLoader:
 
         config = configparser.ConfigParser()
         try:
-            config.read(file_name, encoding='utf-8')
+            config.read(self.__file_name, encoding='utf-8')
         except Exception as e:
             logging.error(repr(e))
             logging.error(f'Unable to read / open config.ini. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters.')
@@ -120,6 +121,7 @@ class ConfigLoader:
 
                 self.facefx_path = self.__definitions.get_string_value("facefx_folder")
 
+            self.mod_path_base = self.mod_path
             self.mod_path += "\\Sound\\Voice\\Mantella.esp"
 
             self.language = self.__definitions.get_string_value("language")

@@ -30,8 +30,10 @@ class gameable(ABC):
             input("Press Enter to exit.")
 
         #Apply character overrides
-        overrides_folder = config.save_folder + f"data/{mantella_game_folder_path}/character_overrides"
-        self.__apply_character_overrides(overrides_folder, self.__character_df.columns.values.tolist())            
+        mod_overrides_folder = os.path.join(*[config.mod_path_base,"SKSE","Plugins","MantellaSoftware","data",f"{mantella_game_folder_path}","character_overrides"])
+        self.__apply_character_overrides(mod_overrides_folder, self.__character_df.columns.values.tolist())
+        personal_overrides_folder = os.path.join(config.save_folder, f"data/{mantella_game_folder_path}/character_overrides")     
+        self.__apply_character_overrides(personal_overrides_folder, self.__character_df.columns.values.tolist())
 
         self.__conversation_folder_path = config.save_folder + f"data/{mantella_game_folder_path}/conversations"
         
@@ -214,6 +216,8 @@ class gameable(ABC):
         return character_info, is_generic_npc
     
     def __apply_character_overrides(self, overrides_folder: str, character_df_column_headers: list[str]):
+        if not os.path.exists(overrides_folder):
+            os.makedirs(overrides_folder)
         override_files: list[str] = os.listdir(overrides_folder)
         for file in override_files:
             filename, extension = os.path.splitext(file)

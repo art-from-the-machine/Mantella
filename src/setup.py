@@ -6,9 +6,9 @@ import src.utils as utils
 import pandas as pd
 import sys
 from pathlib import Path
-import src.config.config_loader as config_loader
+from src.config.config_loader import ConfigLoader
 
-def initialise(config_file, logging_file, language_file) -> tuple[config_loader.ConfigLoader, dict[Hashable, str]]:
+def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, dict[Hashable, str]]:
     
     def set_cwd_to_exe_dir():
         if getattr(sys, 'frozen', False): # if exe and not Python script
@@ -21,7 +21,7 @@ def initialise(config_file, logging_file, language_file) -> tuple[config_loader.
             save_dir.mkdir(parents=True, exist_ok=True)
             return str(save_dir)+'\\'
     
-    def setup_logging(file_name):
+    def setup_logging(file_name, config: ConfigLoader):
         logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[])
 
         # create custom formatter
@@ -85,12 +85,11 @@ def initialise(config_file, logging_file, language_file) -> tuple[config_loader.
         except:
             logging.error(f"Could not load language '{config.language}'. Please set a valid language in config.ini\n")
             return {}
-
     set_cwd_to_exe_dir()
     save_folder = get_my_games_directory()
-    setup_logging(save_folder+logging_file)
-    config = config_loader.ConfigLoader(save_folder+config_file)
-    config.save_folder = save_folder
+    config = ConfigLoader(save_folder, config_file)    
+    setup_logging(os.path.join(save_folder,logging_file), config)
+    
     logging.log(23, f'''Mantella.exe running in: 
 {os.getcwd()}
 config.ini, logging.log, and conversation histories available in:
