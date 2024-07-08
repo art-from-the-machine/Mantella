@@ -3,8 +3,6 @@ from openai.types.chat import ChatCompletionMessageParam
 from src.character_manager import Character
 
 from src.llm.sentence import sentence
-import base64
-import logging
 
 class message(ABC):
     """Base class for messages 
@@ -151,26 +149,17 @@ class user_message(message):
 class image_message(message):
     """A image message sent to the LLM. Contains the a base64 encode image and accompanying description text.
     """
-    def __init__(self, image_path: str, text: str = "", resolution: str = "auto", is_system_generated_message: bool = False):
+    def __init__(self, encoded_image: str, text: str = "", resolution: str = "auto", is_system_generated_message: bool = False):
         super().__init__(text, is_system_generated_message)
-        self.image_path = image_path
+        self.encoded_image = encoded_image
         self.text_content = text
         self.resolution = resolution
 
     def get_formatted_content(self):
-        return f"[Image: {self.image_path}] {self.text_content}"
+        return f"[Image: {self.encoded_image}] {self.text_content}"
 
     def get_dict_formatted_string(self):
-        return f"Image: {self.image_path}, Content: {self.text_content}"
-
-    @staticmethod
-    def encode_image_to_base64(image_path):
-        try:
-            with open(image_path, "rb") as image_file:
-                return base64.b64encode(image_file.read()).decode('utf-8')
-        except Exception as e:
-            logging.error(f"Error encoding image to base64: {e}")
-            return None
+        return f"Image: {self.encoded_image}, Content: {self.text_content}"
 
     def get_openai_message(self):
         # Implement the method to return the appropriate format for OpenAI API
@@ -184,7 +173,7 @@ class image_message(message):
                 {
                     "type": "image_url",
                     "image_url": {
-                        "url": f"data:image/jpeg;base64,{self.encode_image_to_base64(self.image_path)}",
+                        "url": f"data:image/jpeg;base64,{self.encoded_image}",
                         "detail": self.resolution
                     }
                 }

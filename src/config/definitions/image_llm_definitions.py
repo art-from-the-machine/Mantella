@@ -39,11 +39,11 @@ class ImageLLMDefinitions:
 If you're using iterative querying input True (or check the box)
 if you're sending the image and the LLM prompt all at once input False (or uncheck the box) , then the values from [LLM] will be used for image queries except for the prompts
 """
-        return ConfigValueBool("image_analysis_iterative_querying","Use iterative querying",description,False)
+        return ConfigValueBool("image_analysis_iterative_querying","Use iterative querying (two steps image analysis method)",description,False)
  
     @staticmethod
     def get_image_llm_model_config_value() -> ConfigValue:
-        model_description = """ model
+        model_description = """ THIS OPTION WILL ONLY BE TAKEN INTO ACCOUNT IF ITERATIVE QUERYING IS ACTIVATED, IF ITERATIVE QUERYING IS DEACTIVATED THE LLM MODEL WILL BE USED FOR IMAGE ANALYSIS
    Options:
    - OpenRouter: see https://openrouter.ai/docs#models. Take the value displayed under the model heading, the model must be capable of image analysis on an OpenAI compatible endpoint.
    - OpenAI: gpt-4-0125-preview, gpt-4o
