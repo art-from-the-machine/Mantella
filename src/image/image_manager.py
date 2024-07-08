@@ -32,6 +32,7 @@ class ImageManager:
         self.__images_to_delete = []  # Initialize as an empty list of ImageToDelete objects
 
     def __add_image_to_delete(self, image_path: str):
+        '''Build up the array of steam screenshots to eventually delete'''
         try:
             path_obj = Path(image_path)
             if path_obj.is_file():
@@ -43,6 +44,7 @@ class ImageManager:
             logging.debug(f"An error occurred while adding image to delete list: {e}")
 
     def delete_images_from_file(self):
+        '''Delete steam screenshots that were analyzed after the conversation is ended'''
         for image in self.__images_to_delete:
             try:
                 # Regular image deletion
@@ -68,6 +70,8 @@ class ImageManager:
         self.__images_to_delete.clear()
 
     def attempt_to_add_most_recent_image_to_deletion_array(self):
+        '''This is called by the conversation.py to remove a screenshot that was sent at the end of a conversation to avoid having a screenshot sticking around
+        in the next conversation.'''
         if self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_READY)==True:
             try:
                 most_recent_image_path, is_vr = self.__output_manager.get_image_filepath()
@@ -141,6 +145,9 @@ class ImageManager:
         return base64_str
 
     def __create_message_from_image(self,description):
+        '''Attempts to create an image object by checking the filepath, once the object is created it retrieves custom context to resize the object and/or send 
+        instructions to the LLM to let it do the resizing (less efficient than doing it in python). Once that done it encodes the image to base64 and generates
+        a image_message class object'''
         try:
             # Create an instance of the image_message class
             image_path, is_vr = self.__output_manager.get_image_filepath()
@@ -161,7 +168,7 @@ class ImageManager:
                 return None
             resolution = str(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_RES)).lower() or "auto"
             resize_value = int(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_RESIZE)) or 1024
-            image_object = self.resize_image(image_path, resize_value) #Need to make this editable
+            image_object = self.resize_image(image_path, resize_value) 
             encoded_image_str = self.image_to_base64(image_object)
             image_msg_instance = image_message(encoded_image_str, description, resolution, True)  # Need to put player name back in eventually
             return image_msg_instance
@@ -177,6 +184,12 @@ class ImageManager:
             messages.delete_all_message_type(image_description_message)
 
     def process_image_analysis(self, messages: message_thread):
+        '''Main workhorse of the image_manager, this checks the context values to see if a screenshot is ready to analyze and will attempt to process it according
+          to the option selected in iterative query in the config. If iterative query is disabled it will attempt to send the image directly to the LLM along 
+          with the rest of the prompt. If iterative query is selected it will instead send a request to the image_client and once it gets the response back it
+            will create a new image description message in the message_thread.
+        If no image is ready it removes all encoded images and image descriptions from the message thread to avoid overloading the LLM.
+        It also insures that there's only one image or only one image description present at any time in the message_thread to avoid overloading the LLM with info'''
         if self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_READY):
             if self.__context.config.image_analysis_iterative_querying == False:
                 logging.info("'Vision ready' Returned true, attempting direct image query")
@@ -208,6 +221,8 @@ class ImageManager:
             self.__clean_message_thread_from_images(messages)
 
     def find_most_recent_jpg(self, directory):
+        '''This will attempt to find the most recent image that was generated within the last few minutes, it will avoid using images that end in _vr cause those
+        are two duplicated sets of image due to VR. it will also avoid return and image that was already used in the conversation'''
         # Convert the directory to a Path object
         time.sleep(0.5)
         dir_path = Path(directory)
