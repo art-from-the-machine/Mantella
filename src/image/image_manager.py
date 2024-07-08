@@ -187,7 +187,10 @@ class ImageManager:
                     logging.debug("No valid image instance created for direct querying.")
             else:
                 logging.info("'Vision ready' Returned true, attempting iterative query")
-                image_instance = self.__create_message_from_image(self.__iterative_prompt)
+                iterative_prompt_instance= self.__iterative_prompt.format(
+                        game=self.__context.config.game
+                    )
+                image_instance = self.__create_message_from_image(iterative_prompt_instance)
                 if image_instance:
                     logging.info("Waiting for image_description_response to be filled")
                     self.__generation_thread = Thread(target=self.__output_manager.generate_simple_response, args=[image_instance])

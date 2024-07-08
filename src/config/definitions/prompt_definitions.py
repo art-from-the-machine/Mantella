@@ -145,5 +145,5 @@ class PromptDefinitions:
     @staticmethod
     def get_image_llm_iterative_prompt_config_value() -> ConfigValue:
         image_llm_iterative_prompt_description = """The prompt used if the image and context prompt are sent in sequence""" 
-        image_llm_iterative_prompt = """This image is to give context and is from the player's point of view in the game of Fallout 4. Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
-        return ConfigValueString("image_llm_iterative_prompt","Image LLM iterative prompt",image_llm_iterative_prompt_description,image_llm_iterative_prompt,[PromptDefinitions.PromptChecker()])
+        image_llm_iterative_prompt = """This image is to give context and is from the player's point of view in the game of {game}. Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
+        return ConfigValueString("image_llm_iterative_prompt","Image LLM iterative (two steps) prompt",image_llm_iterative_prompt_description,image_llm_iterative_prompt,[PromptDefinitions.PromptChecker()])
