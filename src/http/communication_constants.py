@@ -17,6 +17,8 @@ class communication_constants:
     KEY_REPLYTYPE_PLAYERTALK: str  = PREFIX + "player_talk"
     KEY_REPLYTYPE_ENDCONVERSATION: str  = PREFIX + "end_conversation"
 
+    KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"
+
     #Actors
     KEY_ACTORS: str = PREFIX + "actors"
     KEY_ACTOR_ID: str = PREFIX + "actor_id"

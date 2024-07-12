@@ -27,6 +27,7 @@ class conversation:
     TOKEN_LIMIT_PERCENT: float = 0.6 # TODO: check if this is necessary as it has been removed from the main branch
     """Controls the flow of a conversation."""
     def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, is_conversation_too_long: Callable[[message_thread, float], bool], actions: list[action]) -> None:
+        
         self.__context: context = context_for_conversation
         if not self.__context.npcs_in_conversation.contains_player_character(): # TODO: fix this being set to a radiant conversation because of NPCs in conversation not yet being added
             self.__conversation_type: conversation_type = radiant(context_for_conversation)
@@ -290,7 +291,7 @@ class conversation:
         for npc in self.__context.npcs_in_conversation.get_all_characters():
             if not npc.is_player_character:
                 conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()))
-        self.__rememberer.save_conversation_state(self.__messages, self.__context.npcs_in_conversation, is_reload)
+        self.__rememberer.save_conversation_state(self.__messages, self.__context.npcs_in_conversation, self.__context.world_id, is_reload)
         # self.__remember_thread = Thread(None, self.__rememberer.save_conversation_state, None, [self.__messages, self.__context.npcs_in_conversation]).start()
 
     @utils.time_it

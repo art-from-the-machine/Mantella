@@ -14,7 +14,8 @@ class context:
     """
     TOKEN_LIMIT_PERCENT: float = 0.45
 
-    def __init__(self, config: ConfigLoader, client: openai_client, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
+    def __init__(self, world_id: str, config: ConfigLoader, client: openai_client, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
+        self.__world_id = world_id
         self.__prev_game_time: tuple[str, str] = '', ''
         self.__npcs_in_conversation: Characters = Characters()
         self.__config: ConfigLoader = config
@@ -32,6 +33,10 @@ class context:
             self.__location: str = 'the Commonwealth'
         else:
             self.__location: str = "Skyrim"
+
+    @property
+    def world_id(self) -> str:
+        return self.__world_id
 
     @property
     def npcs_in_conversation(self) -> Characters:
@@ -286,7 +291,7 @@ class context:
         weather = self.__weather
         time = self.__ingame_time
         time_group = get_time_group(time)
-        conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player())
+        conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
 
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
         

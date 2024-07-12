@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Hashable
+import regex
 from src.games.equipment import Equipment, EquipmentItem
 from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
@@ -23,6 +24,7 @@ class CharacterDoesNotExist(Exception):
 
 class GameStateManager:
     TOKEN_LIMIT_PERCENT: float = 0.45 # not used?
+    WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
     def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: openai_client):        
         self.__game: gameable = game
@@ -41,7 +43,11 @@ class GameStateManager:
         if self.__talk: #This should only happen if game and server are out of sync due to some previous error -> close conversation and start a new one
             self.__talk.end()
             self.__talk = None
-        context_for_conversation = context(self.__config, self.__client, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
+        world_id = "default"
+        if input_json.__contains__(comm_consts.KEY_STARTCONVERSATION_WORLDID):
+            world_id = input_json[comm_consts.KEY_STARTCONVERSATION_WORLDID]
+            world_id = self.WORLD_ID_CLEANSE_REGEX.sub("", world_id)
+        context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
         self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client.are_messages_too_long, self.__actions)
         self.__update_context(input_json)
         self.__talk.start_conversation()
