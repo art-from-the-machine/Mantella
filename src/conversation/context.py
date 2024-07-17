@@ -85,12 +85,13 @@ class context:
     def add_or_update_characters(self, new_list_of_npcs: list[Character]):
         for npc in new_list_of_npcs:
             if not self.__npcs_in_conversation.contains_character(npc):
-                self.__npcs_in_conversation.add_character(npc)
+                self.__npcs_in_conversation.add_or_update_character(npc)
                 #self.__ingame_events.append(f"{npc.name} has joined the conversation")
                 self.__have_actors_changed = True
             else:
                 #check for updates in the transient stats and generate update events
                 self.__update_ingame_events_on_npc_change(npc)
+                self.__npcs_in_conversation.add_or_update_character(npc)
         for npc in self.__npcs_in_conversation.get_all_characters():
             if not npc in new_list_of_npcs:
                 self.__remove_character(npc)
@@ -296,5 +297,5 @@ class context:
         new_characters = Characters()
         for actor in self.__npcs_in_conversation.get_all_characters():
             if not actor.is_player_character:
-                new_characters.add_character(actor)
+                new_characters.add_or_update_character(actor)
         return new_characters

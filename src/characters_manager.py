@@ -24,12 +24,18 @@ class Characters:
     def active_character_count(self):
         return len(self.__active_characters)
     
-    def add_character(self, new_character: Character):
-        if not self.__active_characters.__contains__(new_character.name):
-            self.__active_characters[new_character.name] = new_character            
+    def add_or_update_character(self, new_character: Character):
+        if not self.__active_characters.__contains__(new_character.name): #Is add
+            self.__active_characters[new_character.name] = new_character   
             if new_character.is_player_character:
                 self.__player_character = new_character
             else:
+                self.__last_added_character = new_character
+        else: #Is update
+            self.__active_characters[new_character.name] = new_character   
+            if new_character.is_player_character:
+                self.__player_character = new_character
+            elif self.__last_added_character and self.__last_added_character.name == new_character.name:
                 self.__last_added_character = new_character
     
     def remove_character(self, character_to_remove: Character):
@@ -41,7 +47,7 @@ class Characters:
                 for (name, character) in self.__active_characters.items():
                     if not character.is_player_character:
                         self.__last_added_character = character
-
+    
     def get_character_by_name(self, name: str) -> Character:
         return self.__active_characters[name]
         
