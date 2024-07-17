@@ -31,12 +31,11 @@ class Characters:
                 self.__player_character = new_character
             else:
                 self.__last_added_character = new_character
-        else: #Is update
-            self.__active_characters[new_character.name] = new_character   
-            if new_character.is_player_character:
-                self.__player_character = new_character
-            elif self.__last_added_character and self.__last_added_character.name == new_character.name:
-                self.__last_added_character = new_character
+        else: #Is update: update transient stats + custom values
+            self.__active_characters[new_character.name].is_enemy = new_character.is_enemy
+            self.__active_characters[new_character.name].is_in_combat = new_character.is_in_combat
+            self.__active_characters[new_character.name].relationship_rank = new_character.relationship_rank
+            self.__active_characters[new_character.name].custom_character_values = new_character.custom_character_values
     
     def remove_character(self, character_to_remove: Character):
         if self.__active_characters.__contains__(character_to_remove.name):
