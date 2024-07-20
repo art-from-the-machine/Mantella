@@ -156,6 +156,13 @@ class Character:
         self.__voice_accent = value
 
     @property
+    def custom_character_values(self) -> dict[str, Any]:
+        return self.__custom_character_values
+    
+    @custom_character_values.setter
+    def custom_character_values(self, value: dict[str, Any]):
+        self.__custom_character_values = value
+    
     def equipment(self) -> Equipment:
         return self.__equipment
 
