@@ -19,7 +19,7 @@ class skyrim(gameable):
     #Weather constants
     KEY_CONTEXT_WEATHER_ID = "mantella_weather_id"
     KEY_CONTEXT_WEATHER_CLASSIFICATION = "mantella_weather_classification"
-    WEATHER_CLASIFICATIONS = ["The weather is pleasant.",
+    WEATHER_CLASSIFICATIONS = ["The weather is pleasant.",
                               "The sky is cloudy.",
                               "It is rainy.",
                               "It is snowing."]
@@ -162,7 +162,7 @@ class skyrim(gameable):
         if weather_attributes.__contains__(self.KEY_CONTEXT_WEATHER_CLASSIFICATION):
             weather_classification: int = weather_attributes[self.KEY_CONTEXT_WEATHER_CLASSIFICATION]
             if weather_classification >= 0 and weather_classification < len(self.WEATHER_CLASIFICATIONS):
-                return self.WEATHER_CLASIFICATIONS[weather_classification]
+                return self.WEATHER_CLASSIFICATIONS[weather_classification]
         return ""
  
     MALE_VOICE_MODELS: dict[str, str] = {

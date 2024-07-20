@@ -19,23 +19,23 @@ class OtherDefinitions:
     #Player Character
     @staticmethod
     def get_player_character_description() -> ConfigValue:
-        player_character_description_description = """A description of your player character ingame. Is sent to the LLM as part of the prompt using the '{{player_description}}' variable.
-                                                    This is not meant as a bio but rather a description how the NPC(s) perceive the player character when they speak to them.
-                                                    i.e. 'A tall man with long red hair.'
-                                                    If the game offers to set this option the text sent from the game takes precendence over this."""
-        return ConfigValueString("player_character_description","Player character description",player_character_description_description,"")
+        player_character_description_description = """A description of your player character ingame. This is sent to the LLM as part of the prompt using the '{{player_description}}' variable.
+                                                    This is not meant to be a bio but rather a description how the NPC(s) perceive the player character when they speak to them.
+                                                    e.g. 'A tall man with long red hair.'
+                                                    If the in-game MCM offers to set this option the text sent from the game takes precendence over this."""
+        return ConfigValueString("player_character_description","Player Character Description",player_character_description_description,"")
 
     @staticmethod
     def get_voice_player_input() -> ConfigValue:
-        voice_player_input_description = """Should the input of the player (both by text or voice) be spoken by the player character ingame?
+        voice_player_input_description = """Should the input of the player (both by text or voice) be spoken by the player character in-game?
                                             Can be used for immersion or to fill the initial gap between input and reply.
-                                            Use the 'Player voice model' setting to select the voice model of the TTS for the player character."""
-        return ConfigValueBool("voice_player_input","Voice player input",voice_player_input_description,False)
+                                            Use the 'Player Voice Model' setting to select the voice model of the TTS for the player character."""
+        return ConfigValueBool("voice_player_input","Voice Player Input",voice_player_input_description,False)
     
     @staticmethod
     def get_player_voice_model() -> ConfigValue:
         player_voice_model_description = """The voice model for the player character to use if 'Voice player input' is activated."""
-        return ConfigValueString("player_voice_model","Player voice model",player_voice_model_description,"")
+        return ConfigValueString("player_voice_model","Player Voice Model",player_voice_model_description,"")
 
     #MEI
     @staticmethod
