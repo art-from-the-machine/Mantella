@@ -131,7 +131,10 @@ class SettingsUIConstructor(ConfigValueVisitor):
         self.__all_ui_elements[config_value] = panel
 
     def visit_ConfigValueString(self, config_value: ConfigValueString):
-        def on_change(new_value:str) -> gr.Column | None:
+        def on_submit(new_value:str) -> gr.Column | None:
+            return self.__on_change(config_value, new_value)
+       
+        def on_blur(new_value:str) -> gr.Column | None: #aka lose focus
             return self.__on_change(config_value, new_value)
         
         with gr.Column(variant="panel") as panel:
@@ -149,7 +152,8 @@ class SettingsUIConstructor(ConfigValueVisitor):
                         elem_classes="multiline-textbox")
             error_message = self.__construct_initial_error_message(config_value)
             if hasattr(input_ui, "_id"):
-                input_ui.change(on_change, input_ui, error_message)
+                input_ui.blur(on_blur, input_ui, error_message)
+                input_ui.submit(on_submit, input_ui, error_message)
         self.__all_ui_elements[config_value] = panel
     
     def __count_rows_in_text(self, text: str) -> int:

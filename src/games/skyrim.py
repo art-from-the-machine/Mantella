@@ -2,6 +2,8 @@ import logging
 import os
 import shutil
 from typing import Any
+
+import pandas as pd
 from src.conversation.context import context
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
@@ -14,10 +16,25 @@ import src.utils as utils
 class skyrim(gameable):
     WAV_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
     LIP_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
+    #Weather constants
+    KEY_CONTEXT_WEATHER_ID = "mantella_weather_id"
+    KEY_CONTEXT_WEATHER_CLASSIFICATION = "mantella_weather_classification"
+    WEATHER_CLASSIFICATIONS = ["The weather is pleasant.",
+                              "The sky is cloudy.",
+                              "It is rainy.",
+                              "It is snowing."]
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
         self.__create_all_voice_folders(config)
+        
+        try:
+            weather_file = 'data/Skyrim/skyrim_weather.csv'
+            encoding = utils.get_file_encoding(weather_file)
+            self.__weather_table: pd.DataFrame = pd.read_csv(weather_file, engine='python', encoding=encoding)
+        except:
+            logging.error(f'Unable to read / open "data/Skyrim/skyrim_weather.csv". If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
+            input("Press Enter to exit.")
 
     def __create_all_voice_folders(self, config: ConfigLoader):
         all_voice_folders = self.character_df["skyrim_voice_folder"]
@@ -133,6 +150,20 @@ class skyrim(gameable):
             logging.log(23, f"'assist' keyword found. Ignoring sentence: {text.strip()}")
             return False
         return True
+    
+    def get_weather_description(self, weather_attributes: dict[str, Any]) -> str:
+        if weather_attributes.__contains__(self.KEY_CONTEXT_WEATHER_ID):
+            weather_id = weather_attributes[self.KEY_CONTEXT_WEATHER_ID]
+            id_match = self.__weather_table['id'].astype(str).str.lower() == weather_id.lower()
+            view = self.__weather_table.loc[id_match]
+            if view.shape[0] == 1: #If there is exactly one match
+                records = view.to_dict('records')[0]
+                return records["description"]
+        if weather_attributes.__contains__(self.KEY_CONTEXT_WEATHER_CLASSIFICATION):
+            weather_classification: int = weather_attributes[self.KEY_CONTEXT_WEATHER_CLASSIFICATION]
+            if weather_classification >= 0 and weather_classification < len(self.WEATHER_CLASIFICATIONS):
+                return self.WEATHER_CLASSIFICATIONS[weather_classification]
+        return ""
  
     MALE_VOICE_MODELS: dict[str, str] = {
         'ArgonianRace': 'Male Argonian',

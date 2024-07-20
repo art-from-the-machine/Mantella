@@ -5,7 +5,7 @@ from src.llm.message_thread import message_thread
 
 class remembering(ABC):
     @abstractmethod
-    def get_prompt_text(self, npcs_in_conversation: Characters) -> str:
+    def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str) -> str:
         """ Generates a text that explains the previous interactions of the npcs with the player. 
             Text is passed as part of the prompt to the LLM
 
@@ -18,7 +18,7 @@ class remembering(ABC):
         pass
 
     @abstractmethod
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, is_reload=False):
+    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False):
         """Saves the current state of the conversation.
 
         Args:

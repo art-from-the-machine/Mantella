@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
+import json
 import logging
+import os
 from pathlib import Path
 import sys
 from typing import Any
@@ -27,7 +29,13 @@ class gameable(ABC):
             logging.error(f'Unable to read / open {path_to_character_df}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
 
-        self.__conversation_folder_path = config.save_folder+f"data/{mantella_game_folder_path}/conversations"
+        #Apply character overrides
+        mod_overrides_folder = os.path.join(*[config.mod_path_base,"SKSE","Plugins","MantellaSoftware","data",f"{mantella_game_folder_path}","character_overrides"])
+        self.__apply_character_overrides(mod_overrides_folder, self.__character_df.columns.values.tolist())
+        personal_overrides_folder = os.path.join(config.save_folder, f"data/{mantella_game_folder_path}/character_overrides")     
+        self.__apply_character_overrides(personal_overrides_folder, self.__character_df.columns.values.tolist())
+
+        self.__conversation_folder_path = config.save_folder + f"data/{mantella_game_folder_path}/conversations"
         
         conversation_log.game_path = self.__conversation_folder_path
     
@@ -101,8 +109,20 @@ class gameable(ABC):
         """
         pass
 
-    def find_character_info(self, character_id: str, character_name: str, race: str, gender: int, ingame_voice_model: str):
-        # TODO: try loading the NPC's voice model as soon as the NPC is found to speed up run time and so that potential errors are raised ASAP
+    @abstractmethod
+    def get_weather_description(self, weather_attributes: dict[str, Any]) -> str:
+        """Returns a description of the current weather that can be used in the prompts
+
+        Args:
+            weather_attributes (dict[str, Any]): The json of weather attributes as transferred by the respective game
+
+        Returns:
+            str: A prose description of the weather for the LLM
+        """
+        pass
+
+    def _get_matching_df_rows_matcher(self, character_id: str, character_name: str, race: str) -> pd.Series | None:
+         # TODO: try loading the NPC's voice model as soon as the NPC is found to speed up run time and so that potential errors are raised ASAP
         full_id_len = 6
         full_id_search = character_id[-full_id_len:].lstrip('0')  # Strip leading zeros from the last 6 characters
 
@@ -115,8 +135,9 @@ class gameable(ABC):
         id_match = self.character_df['base_id'].apply(remove_leading_zeros).str.lower() == full_id_search.lower()
         name_match = self.character_df['name'].astype(str).str.lower() == character_name.lower()
 
-        character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
-        race_match = self.character_df['race'].astype(str).str.lower() == character_race.lower()
+        # character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
+        # race_match = self.character_df['race'].astype(str).str.lower() == character_race.lower()
+        race_match = self.character_df['race'].astype(str).str.lower() == race.lower()
 
         # Partial ID match with decreasing lengths
         partial_id_match = pd.Series(False, index=self.character_df.index)
@@ -129,36 +150,110 @@ class gameable(ABC):
             ).str.lower() == partial_id_search.lower()
 
         is_generic_npc = False
-        try: # match name, full ID, race (needed for Fallout 4 NPCs like Curie)
-            logging.info(" # match name, full ID, race (needed for Fallout 4 NPCs like Curie)")
-            character_info = self.character_df.loc[name_match & id_match & race_match].to_dict('records')[0]
-        except IndexError:
-            try: # match name and full ID
-                logging.info(" # match name and full ID")
-                character_info = self.character_df.loc[name_match & id_match].to_dict('records')[0]
-            except IndexError:
-                try: # match name, partial ID, and race
-                        logging.info(" # match name, partial ID, and race")
-                        character_info = self.character_df.loc[name_match & partial_id_match & race_match].to_dict('records')[0]
-                except IndexError:
-                    try: # match name and partial ID
-                        logging.info(" # match name and partial ID")
-                        character_info = self.character_df.loc[name_match & partial_id_match].to_dict('records')[0]
-                    except IndexError:
-                        try: # match name and race
-                            logging.info(" # match name and race")
-                            character_info = self.character_df.loc[name_match & race_match].to_dict('records')[0]
-                        except IndexError:
-                            try: # match just name
-                                logging.info(" # match just name")
-                                character_info = self.character_df.loc[name_match].to_dict('records')[0]
-                            except IndexError:
-                                try: # match just ID
-                                    logging.info(" # match just ID")
-                                    character_info = self.character_df.loc[id_match].to_dict('records')[0]
-                                except IndexError: # treat as generic NPC
-                                    logging.info(f"Could not find {character_name} in skyrim_characters.csv. Loading as a generic NPC.")
-                                    character_info = self.load_unnamed_npc(character_name, character_race, gender, ingame_voice_model)
-                                    is_generic_npc = True
+
+        ordered_matchers = [
+            name_match & id_match & race_match, # match name, full ID, race (needed for Fallout 4 NPCs like Curie)
+            name_match & id_match, # match name and full ID
+            name_match & partial_id_match & race_match, # match name, partial ID, and race
+            name_match & partial_id_match, # match name and partial ID
+            name_match & race_match, # match name and race
+            name_match, # match just name
+            id_match # match just ID
+        ]
+
+        for matchers in ordered_matchers:
+            view = self.character_df.loc[matchers]
+            if view.shape[0] == 1: #If there is exactly one match
+                return matchers
+            
+        return None
+        # try: # match name, full ID, race (needed for Fallout 4 NPCs like Curie)
+        #     logging.info(" # match name, full ID, race (needed for Fallout 4 NPCs like Curie)")
+        #     return self.character_df.loc[name_match & id_match & race_match]
+        # except IndexError:
+        #     try: # match name and full ID
+        #         logging.info(" # match name and full ID")
+        #         return self.character_df.loc[name_match & id_match]
+        #     except IndexError:
+        #         try: # match name, partial ID, and race
+        #                 logging.info(" # match name, partial ID, and race")
+        #                 return self.character_df.loc[name_match & partial_id_match & race_match]
+        #         except IndexError:
+        #             try: # match name and partial ID
+        #                 logging.info(" # match name and partial ID")
+        #                 return self.character_df.loc[name_match & partial_id_match]
+        #             except IndexError:
+        #                 try: # match name and race
+        #                     logging.info(" # match name and race")
+        #                     return self.character_df.loc[name_match & race_match]
+        #                 except IndexError:
+        #                     try: # match just name
+        #                         logging.info(" # match just name")
+        #                         return self.character_df.loc[name_match]
+        #                     except IndexError:
+        #                         try: # match just ID
+        #                             logging.info(" # match just ID")
+        #                             return self.character_df.loc[id_match]
+        #                         except IndexError: # treat as generic NPC
+        #                             logging.info(f"Could not find {character_name} in skyrim_characters.csv. Loading as a generic NPC.")
+        #                             return pd.DataFrame()
+
+    def find_character_info(self, character_id: str, character_name: str, race: str, gender: int, ingame_voice_model: str):
+        character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
+        matcher = self._get_matching_df_rows_matcher(character_id, character_name, character_race)
+        if isinstance(matcher, type(None)):
+            logging.info(f"Could not find {character_name} in skyrim_characters.csv. Loading as a generic NPC.")
+            character_info = self.load_unnamed_npc(character_name, character_race, gender, ingame_voice_model)
+            is_generic_npc = True
+        else:
+            result = self.character_df.loc[matcher]
+            count_rows = result.shape[0]
+            character_info = result.to_dict('records')[0]
+            is_generic_npc = False                                   
 
         return character_info, is_generic_npc
+    
+    def __apply_character_overrides(self, overrides_folder: str, character_df_column_headers: list[str]):
+        if not os.path.exists(overrides_folder):
+            os.makedirs(overrides_folder)
+        override_files: list[str] = os.listdir(overrides_folder)
+        for file in override_files:
+            filename, extension = os.path.splitext(file)
+            full_path_file = os.path.join(overrides_folder,file)
+            if extension == ".json":
+                with open(full_path_file) as fp:
+                    content: dict[str, str] = json.load(fp)
+                    name = content.get("name", "")
+                    base_id = content.get("base_id", "")
+                    race = content.get("race", "")
+                    matcher = self._get_matching_df_rows_matcher(base_id, name, race)
+                    if isinstance(matcher, type(None)): #character not in csv, add as new row
+                        row = []
+                        for entry in character_df_column_headers:
+                            value = content.get(entry, "")
+                            row.append(value)
+                        self.character_df.loc[len(self.character_df.index)] = row
+                    else: #character is in csv, update row
+                        for entry in character_df_column_headers:
+                            value = content.get(entry, None)
+                            if value:
+                                self.character_df.loc[matcher, entry] = value
+            elif extension == ".csv":
+                extra_df = self.__get_character_df(full_path_file)
+                for i in range(extra_df.shape[0]):#for each row in df
+                    name = extra_df.iloc[i].get("name", "")
+                    base_id = extra_df.iloc[i].get("base_id", "")
+                    race = extra_df.iloc[i].get("race", "")
+                    matcher = self._get_matching_df_rows_matcher(base_id, name, race)
+                    if isinstance(matcher, type(None)): #character not in csv, add as new row
+                        row = []
+                        for entry in character_df_column_headers:
+                            value = extra_df.iloc[i].get(entry, "")
+                            row.append(value)
+                        self.character_df.loc[len(self.character_df.index)] = row
+                    else: #character is in csv, update row
+                        for entry in character_df_column_headers:
+                            value = extra_df.iloc[i].get(entry, None)
+                            if value:
+                                self.character_df.loc[matcher, entry] = value
+        
