@@ -208,8 +208,6 @@ class gameable(ABC):
         else:
             result = self.character_df.loc[matcher]
             count_rows = result.shape[0]
-            if count_rows >= 2:
-                logging.info(f"Could not uniquely identify {character_name} in the list of characters. There are {count_rows} entries available in the list of characters that match the NPC. Will use the first one found.")
             character_info = result.to_dict('records')[0]
             is_generic_npc = False                                   
 
