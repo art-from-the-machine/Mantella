@@ -11,13 +11,13 @@ class conversation_log:
     game_path: str = "" # <- This gets set in the __init__ of gameable. Not clean but cleaner than other options
 
     @staticmethod
-    def save_conversation_log(character: Character, messages: list[ChatCompletionMessageParam]):
+    def save_conversation_log(character: Character, messages: list[ChatCompletionMessageParam], world_id: str):
         # save conversation history
 
         if not character.is_generic_npc:
             if len(messages) > 0:
                 # if this is not the first conversation
-                conversation_history_file = conversation_log.__get_path_to_conversation_history_file(character)
+                conversation_history_file = conversation_log.__get_path_to_conversation_history_file(character, world_id)
                 # transformed_messages = messages.transform_to_openai_messages(messages.get_talk_only())
                 if os.path.exists(conversation_history_file):
                     with open(conversation_history_file, 'r', encoding='utf-8') as f:
@@ -37,8 +37,8 @@ class conversation_log:
             logging.log(23, 'Conversation history will not be saved for this generic NPC.')
 
     @staticmethod    
-    def load_conversation_log(character: Character) -> list[str]:
-        conversation_history_file = conversation_log.__get_path_to_conversation_history_file(character)
+    def load_conversation_log(character: Character, world_id: str) -> list[str]:
+        conversation_history_file = conversation_log.__get_path_to_conversation_history_file(character, world_id)
         if os.path.exists(conversation_history_file):
             with open(conversation_history_file, 'r', encoding='utf-8') as f:
                 conversation_history = json.load(f)
@@ -50,5 +50,5 @@ class conversation_log:
             return []
 
     @staticmethod    
-    def __get_path_to_conversation_history_file(character: Character) -> str:
-        return f"{conversation_log.game_path}/{character.name}/{character.name}.json"
+    def __get_path_to_conversation_history_file(character: Character, world_id: str) -> str:
+        return f"{conversation_log.game_path}/{world_id}/{character.name}/{character.name}.json"

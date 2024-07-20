@@ -181,7 +181,7 @@ class context:
         """
         # BUG: this measure includes radiant conversations, 
         # so "trust" is accidentally increased even when an NPC hasn't spoken with the player
-        trust_level = len(conversation_log.load_conversation_log(npc))
+        trust_level = len(conversation_log.load_conversation_log(npc, self.__world_id))
         trust = 'a stranger'
         if npc.relationship_rank == 0:
             if trust_level < 1:

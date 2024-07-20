@@ -290,7 +290,7 @@ class conversation:
         """Saves conversation log and state for each NPC in the conversation"""
         for npc in self.__context.npcs_in_conversation.get_all_characters():
             if not npc.is_player_character:
-                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()))
+                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
         self.__rememberer.save_conversation_state(self.__messages, self.__context.npcs_in_conversation, self.__context.world_id, is_reload)
         # self.__remember_thread = Thread(None, self.__rememberer.save_conversation_state, None, [self.__messages, self.__context.npcs_in_conversation]).start()
 
