@@ -17,6 +17,8 @@ class communication_constants:
     KEY_REPLYTYPE_PLAYERTALK: str  = PREFIX + "player_talk"
     KEY_REPLYTYPE_ENDCONVERSATION: str  = PREFIX + "end_conversation"
 
+    KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"
+
     #Actors
     KEY_ACTORS: str = PREFIX + "actors"
     KEY_ACTOR_ID: str = PREFIX + "actor_id"
@@ -29,6 +31,7 @@ class communication_constants:
     KEY_ACTOR_ISINCOMBAT: str = PREFIX + "actor_is_in_combat"
     KEY_ACTOR_ISENEMY: str = PREFIX + "actor_is_enemy"
     KEY_ACTOR_CUSTOMVALUES: str = PREFIX + "actor_custom_values"
+    KEY_ACTOR_EQUIPMENT: str = PREFIX + "equipment"
 
     KEY_ACTOR_SPEAKER: str = PREFIX + "actor_speaker"
     KEY_ACTOR_LINETOSPEAK: str = PREFIX + "actor_line_to_speak"
@@ -36,9 +39,14 @@ class communication_constants:
     KEY_ACTOR_DURATION: str = PREFIX + "actor_line_duration"
     KEY_ACTOR_ACTIONS: str = PREFIX + "actor_actions"
 
+    KEY_ACTOR_PC_DESCRIPTION = PREFIX + "pc_description"
+    KEY_ACTOR_PC_VOICEPLAYERINPUT = PREFIX + "pc_voiceplayerinput"
+    KEY_ACTOR_PC_VOICEMODEL = PREFIX + "pc_voicemodel"
+
     #context
     KEY_CONTEXT: str = PREFIX + "context"
     KEY_CONTEXT_LOCATION: str = PREFIX + "location"
+    KEY_CONTEXT_WEATHER = PREFIX + "weather"
     KEY_CONTEXT_TIME: str = PREFIX + "time"
     KEY_CONTEXT_INGAMEEVENTS: str = PREFIX + "ingame_events"
     KEY_CONTEXT_CUSTOMVALUES: str = PREFIX + "custom_context_values"

@@ -10,10 +10,11 @@ import src.utils as utils
 from pathlib import Path
 
 class ConfigLoader:
-    def __init__(self, file_name='config.ini'):
-        self.__has_any_value_changed: bool = False
+    def __init__(self, mygame_folder_path: str, file_name='config.ini'):
+        self.save_folder = mygame_folder_path
+        self.__has_any_value_changed: bool = False        
         self.__is_initial_load: bool = True
-        self.__file_name = file_name
+        self.__file_name = os.path.join(mygame_folder_path, file_name)
         self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.__on_config_value_change)
         if not os.path.exists(self.__file_name):
             logging.log(24,"Cannot find 'config.ini'. Assuming first time usage of MantellaSoftware and creating it.")
@@ -21,7 +22,7 @@ class ConfigLoader:
 
         config = configparser.ConfigParser()
         try:
-            config.read(file_name, encoding='utf-8')
+            config.read(self.__file_name, encoding='utf-8')
         except Exception as e:
             logging.error(repr(e))
             logging.error(f'Unable to read / open config.ini. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters.')
@@ -120,6 +121,7 @@ class ConfigLoader:
 
                 self.facefx_path = self.__definitions.get_string_value("facefx_folder")
 
+            self.mod_path_base = self.mod_path
             self.mod_path += "\\Sound\\Voice\\Mantella.esp"
 
             self.language = self.__definitions.get_string_value("language")
@@ -210,6 +212,9 @@ class ConfigLoader:
             self.frequency_penalty = self.__definitions.get_float_value("frequency_penalty")
             self.max_tokens = self.__definitions.get_int_value("max_tokens")
 
+            # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
+            self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
+
             
 
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
@@ -231,7 +236,8 @@ class ConfigLoader:
 
             #Conversation
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
-            self.use_voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
+            self.player_character_description: str = self.__definitions.get_string_value("player_character_description")
+            self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
             self.player_voice_model: str = self.__definitions.get_string_value("player_voice_model")
 
             #new separate prompts for Fallout 4 have been added 

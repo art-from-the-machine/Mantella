@@ -2,6 +2,7 @@ import sys
 from faster_whisper import WhisperModel
 import speech_recognition as sr
 import logging
+from src.config.config_loader import ConfigLoader
 import src.utils as utils
 import requests
 import json
@@ -9,7 +10,7 @@ import io
 from pathlib import Path
 
 class Transcriber:
-    def __init__(self, config, secret_key_file: str):
+    def __init__(self, config: ConfigLoader, secret_key_file: str):
         self.loglevel = 27
         # self.mic_enabled = config.mic_enabled
         self.language = config.stt_language

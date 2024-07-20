@@ -29,9 +29,9 @@ class mantella_route(routeable):
         self.__secret_key_file: str = secret_key_file
         self.__game: GameStateManager | None = None
 
-        if not self._can_route_be_used():
-            error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
-            logging.error(error_message)
+        # if not self._can_route_be_used():
+        #     error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
+        #     logging.error(error_message)
 
     def _setup_route(self):
         if self.__game:

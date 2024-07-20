@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Hashable, Callable
+from src.http.communication_constants import communication_constants
 from src.conversation.conversation_log import conversation_log
 from src.characters_manager import Characters
 from src.remember.remembering import remembering
@@ -13,7 +14,8 @@ class context:
     """
     TOKEN_LIMIT_PERCENT: float = 0.45
 
-    def __init__(self, config: ConfigLoader, client: openai_client, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
+    def __init__(self, world_id: str, config: ConfigLoader, client: openai_client, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
+        self.__world_id = world_id
         self.__prev_game_time: tuple[str, str] = '', ''
         self.__npcs_in_conversation: Characters = Characters()
         self.__config: ConfigLoader = config
@@ -21,6 +23,7 @@ class context:
         self.__rememberer: remembering = rememberer
         self.__language: dict[Hashable, str] = language
         self.__is_prompt_too_long: Callable[[str, float], bool] = is_prompt_too_long
+        self.__weather: str = ""
         self.__custom_context_values: dict[str, Any] = {}
         self.__ingame_time: int = 12
         self.__ingame_events: list[str] = []
@@ -30,6 +33,10 @@ class context:
             self.__location: str = 'the Commonwealth'
         else:
             self.__location: str = "Skyrim"
+
+    @property
+    def world_id(self) -> str:
+        return self.__world_id
 
     @property
     def npcs_in_conversation(self) -> Characters:
@@ -108,8 +115,9 @@ class context:
     def get_time_group(self) -> str:
         return get_time_group(self.__ingame_time)
     
-    def update_context(self, location: str, in_game_time: int, custom_ingame_events: list[str], custom_context_values: dict[str, Any]):
+    def update_context(self, location: str, in_game_time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
         self.__ingame_events.extend(custom_ingame_events)
+        self.__weather = weather
         self.__custom_context_values = custom_context_values
         if location != self.__location:
             self.__location = location
@@ -174,7 +182,7 @@ class context:
         """
         # BUG: this measure includes radiant conversations, 
         # so "trust" is accidentally increased even when an NPC hasn't spoken with the player
-        trust_level = len(conversation_log.load_conversation_log(npc))
+        trust_level = len(conversation_log.load_conversation_log(npc, self.__world_id))
         trust = 'a stranger'
         if npc.relationship_rank == 0:
             if trust_level < 1:
@@ -242,6 +250,17 @@ class context:
                 bio_descriptions.append(f"{character.name}: {character.bio}")
         return "\n".join(bio_descriptions)
     
+    def __get_npc_equipment_text(self) -> str:
+        """Gets the equipment description of all npcs in the conversation
+
+        Returns:
+            str: the equipment descriptions concatenated together into a single string
+        """
+        equipment_descriptions = []
+        for character in self.get_characters_excluding_player().get_all_characters():
+                equipment_descriptions.append(character.equipment.get_equipment_description(character.name))
+        return " ".join(equipment_descriptions)
+    
     def generate_system_message(self, prompt: str) -> str:
         """Fills the variables in the prompt with the values calculated from the context
 
@@ -254,31 +273,43 @@ class context:
         """
         player: Character | None = self.__npcs_in_conversation.get_player_character()
         player_name = ""
+        player_description = self.__config.player_character_description
+        player_equipment = ""
         if player:
             player_name = player.name
+            player_equipment = player.equipment.get_equipment_description(player_name)
+            game_sent_description = player.get_custom_character_value(communication_constants.KEY_ACTOR_PC_DESCRIPTION)
+            if game_sent_description and game_sent_description != "":
+                player_description = game_sent_description
         if self.npcs_in_conversation.last_added_character:
             name: str = self.npcs_in_conversation.last_added_character.name
         names = self.__get_character_names_as_text(False)
         names_w_player = self.__get_character_names_as_text(True)
         bios = self.__get_bios_text()
         trusts = self.__get_trusts()
+        equipment = self.__get_npc_equipment_text()
         location = self.__location
+        weather = self.__weather
         time = self.__ingame_time
         time_group = get_time_group(time)
-        conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player())
+        conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
 
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
         
         for content in removal_content:
             result = prompt.format(
                 player_name = player_name,
+                player_description = player_description,
+                player_equipment = player_equipment,
                 name=name,
                 names=names,
                 names_w_player = names_w_player,
                 bio=content[0],
                 bios=content[0], 
-                trust=trusts, 
-                location=location, 
+                trust=trusts,
+                equipment = equipment,
+                location=location,
+                weather = weather,
                 time=time, 
                 time_group=time_group, 
                 language=self.__language['language'], 

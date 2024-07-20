@@ -27,6 +27,7 @@ class conversation:
     TOKEN_LIMIT_PERCENT: float = 0.6 # TODO: check if this is necessary as it has been removed from the main branch
     """Controls the flow of a conversation."""
     def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, is_conversation_too_long: Callable[[message_thread, float], bool], actions: list[action]) -> None:
+        
         self.__context: context = context_for_conversation
         if not self.__context.npcs_in_conversation.contains_player_character(): # TODO: fix this being set to a radiant conversation because of NPCs in conversation not yet being added
             self.__conversation_type: conversation_type = radiant(context_for_conversation)
@@ -98,7 +99,10 @@ class conversation:
 
         #Grab the next sentence from the queue
         next_sentence: sentence | None = self.retrieve_sentence_from_queue()
+        
         if next_sentence and len(next_sentence.sentence) > 0:
+            if comm_consts.ACTION_REMOVECHARACTER in next_sentence.actions:
+                self.__context.remove_character(next_sentence.speaker)
             #if there is a next sentence and it actually has content, return it as something for an NPC to say 
             return comm_consts.KEY_REPLYTYPE_NPCTALK, next_sentence
         else:
@@ -133,8 +137,8 @@ class conversation:
             new_message: user_message = user_message(player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
             self.update_game_events(new_message)
-            self.__messages.add_message(new_message)
-            if self.__context.config.use_voice_player_input:
+            self.__messages.add_message(new_message)            
+            if self.__should_voice_player_input(player_character):
                 player__character_voiced_sentence = self.__output_manager.generate_sentence(player_text, player_character, False)
                 if player__character_voiced_sentence.error_message:
                     player__character_voiced_sentence = sentence(player_character, player_text, "" , 2.0, False)
@@ -144,14 +148,14 @@ class conversation:
 
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
         if ejected_npc:
-            self.__eject_npc_from_conversation(ejected_npc)
+            self.__prepare_eject_npc_from_conversation(ejected_npc)
         elif self.__has_conversation_ended(text):
             new_message.is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
             self.initiate_end_sequence()
         else:
             self.__start_generating_npc_sentences()
 
-    def update_context(self, location: str, time: int, custom_ingame_events: list[str], custom_context_values: dict[str, Any]):
+    def update_context(self, location: str, time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
         """Updates the context with a new set of values
 
         Args:
@@ -160,7 +164,7 @@ class conversation:
             custom_ingame_events (list[str]): a list of events that happend since the last update
             custom_context_values (dict[str, Any]): the current set of context values
         """
-        self.__context.update_context(location, time, custom_ingame_events, custom_context_values)
+        self.__context.update_context(location, time, custom_ingame_events, weather, custom_context_values)
         if self.__context.have_actors_changed:
             self.__update_conversation_type()
             self.__context.have_actors_changed = False
@@ -272,9 +276,8 @@ class conversation:
                 time.sleep(0.1)
             self.__generation_thread = None 
 
-    def __eject_npc_from_conversation(self, npc: Character):
-        if not self.__has_already_ended:
-            self.__context.remove_character(npc)
+    def __prepare_eject_npc_from_conversation(self, npc: Character):
+        if not self.__has_already_ended:            
             self.__stop_generation()
             self.__sentences.clear()            
             # say goodbye
@@ -287,8 +290,8 @@ class conversation:
         """Saves conversation log and state for each NPC in the conversation"""
         for npc in self.__context.npcs_in_conversation.get_all_characters():
             if not npc.is_player_character:
-                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()))
-        self.__rememberer.save_conversation_state(self.__messages, self.__context.npcs_in_conversation, is_reload)
+                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
+        self.__rememberer.save_conversation_state(self.__messages, self.__context.npcs_in_conversation, self.__context.world_id, is_reload)
         # self.__remember_thread = Thread(None, self.__rememberer.save_conversation_state, None, [self.__messages, self.__context.npcs_in_conversation]).start()
 
     @utils.time_it
@@ -353,4 +356,13 @@ class conversation:
                     if words[i+1] in npc_name.lower().split():
                         return self.__context.npcs_in_conversation.get_character_by_name(npc_name)
         return None
+    
+    def __should_voice_player_input(self, player_character: Character) -> bool:
+        game_value: Any = player_character.get_custom_character_value(comm_consts.KEY_ACTOR_PC_VOICEPLAYERINPUT)
+        if game_value == None:
+            return self.__context.config.voice_player_input
+        return game_value
+
+            
+
                
