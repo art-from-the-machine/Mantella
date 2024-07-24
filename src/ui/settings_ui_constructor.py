@@ -84,32 +84,54 @@ class SettingsUIConstructor(ConfigValueVisitor):
         def on_change(new_value:int) -> gr.Column | None:
             return self.__on_change(config_value, new_value)
         
+        def on_reset_click() -> gr.Number:
+            config_value.value = config_value.default_value
+            return create_number_component(config_value)
+
+        def create_number_component(config_value: ConfigValueInt) -> gr.Number:
+            return gr.Number(value=config_value.value, 
+                        minimum=config_value.min_value, 
+                        maximum=config_value.max_value, 
+                        precision=0,
+                        show_label=False, 
+                        container=False)
+        
         with gr.Column(variant="panel") as panel:
             self.__construct_name_description_constraints(config_value)
-            input_ui = gr.Number(value=config_value.value, 
-                    minimum=config_value.min_value, 
-                    maximum=config_value.max_value, 
-                    precision=0,
-                    show_label=False, 
-                    container=False)            
+            with gr.Row(equal_height=True):
+                input_ui = create_number_component(config_value)
+                reset_button = gr.Button("Default", scale=0,)
             error_message = self.__construct_initial_error_message(config_value)
             if hasattr(input_ui, "_id"):
                 input_ui.change(on_change, input_ui, error_message)
+            if hasattr(reset_button, "_id"):
+                reset_button.click(on_reset_click, outputs=input_ui)
         self.__all_ui_elements[config_value] = panel
 
     def visit_ConfigValueFloat(self, config_value: ConfigValueFloat):
         def on_change(new_value:float) -> gr.Column | None:
             return self.__on_change(config_value, new_value)
         
-        with gr.Column(variant="panel") as panel:
-            self.__construct_name_description_constraints(config_value)
-            input_ui = gr.Number(value=config_value.value, 
+        def on_reset_click() -> gr.Number:
+            config_value.value = config_value.default_value
+            return create_input_component(config_value)
+
+        def create_input_component(config_value: ConfigValueFloat) -> gr.Number:
+            return gr.Number(value=config_value.value, 
                     minimum=config_value.min_value, 
                     maximum=config_value.max_value, 
                     precision=2,
                     show_label=False, 
                     container=False,
                     step=0.1)
+        
+        with gr.Column(variant="panel") as panel:
+            self.__construct_name_description_constraints(config_value)
+            with gr.Row(equal_height=True):
+                input_ui = create_input_component(config_value)
+                reset_button = gr.Button("Default", scale=0,)
+                if hasattr(reset_button, "_id"):
+                    reset_button.click(on_reset_click, outputs=input_ui)
             error_message = self.__construct_initial_error_message(config_value)
             if hasattr(input_ui, "_id"):
                 input_ui.change(on_change, input_ui, error_message)
@@ -119,12 +141,23 @@ class SettingsUIConstructor(ConfigValueVisitor):
         def on_change(new_value:bool) -> gr.Column | None:
             return self.__on_change(config_value, new_value)
         
-        with gr.Column(variant="panel") as panel:
-            self.__construct_name_description_constraints(config_value)
-            input_ui = gr.Checkbox(label = config_value.name,
+        def on_reset_click() -> gr.Checkbox:
+            config_value.value = config_value.default_value
+            return create_input_component(config_value)
+
+        def create_input_component(config_value: ConfigValueBool) -> gr.Checkbox:
+            return gr.Checkbox(label = config_value.name,
                                     value=config_value.value,
                                     show_label=False, 
                                     container=False,elem_classes="checkboxelement")
+        
+        with gr.Column(variant="panel") as panel:
+            self.__construct_name_description_constraints(config_value)
+            with gr.Row(equal_height=True):
+                input_ui = create_input_component(config_value)
+                reset_button = gr.Button("Default", scale=0,)
+                if hasattr(reset_button, "_id"):
+                    reset_button.click(on_reset_click, outputs=input_ui)
             error_message = self.__construct_initial_error_message(config_value)
             if hasattr(input_ui, "_id"):
                 input_ui.change(on_change, input_ui, error_message)
@@ -137,19 +170,30 @@ class SettingsUIConstructor(ConfigValueVisitor):
         def on_blur(new_value:str) -> gr.Column | None: #aka lose focus
             return self.__on_change(config_value, new_value)
         
-        with gr.Column(variant="panel") as panel:
-            self.__construct_name_description_constraints(config_value)
+        def on_reset_click() -> gr.Text:
+            config_value.value = config_value.default_value
+            return create_input_component(config_value)
+
+        def create_input_component(config_value: ConfigValueString) -> gr.Text:
             count_rows = self.__count_rows_in_text(config_value.value)
             if count_rows == 1:
-                input_ui = gr.Text(value=config_value.value,
+                return gr.Text(value=config_value.value,
                         show_label=False, 
                         container=False)
             else:
-                input_ui = gr.Text(value=config_value.value,
+                return gr.Text(value=config_value.value,
                         show_label=False, 
                         container=False,
                         lines= count_rows,
                         elem_classes="multiline-textbox")
+        
+        with gr.Column(variant="panel") as panel:
+            self.__construct_name_description_constraints(config_value)
+            with gr.Row(equal_height=True):
+                input_ui = create_input_component(config_value)
+                reset_button = gr.Button("Default", scale=0,)
+                if hasattr(reset_button, "_id"):
+                    reset_button.click(on_reset_click, outputs=input_ui)
             error_message = self.__construct_initial_error_message(config_value)
             if hasattr(input_ui, "_id"):
                 input_ui.blur(on_blur, input_ui, error_message)
@@ -165,14 +209,25 @@ class SettingsUIConstructor(ConfigValueVisitor):
         def on_change(new_value:str) -> gr.Column | None:
             return self.__on_change(config_value, new_value)
         
-        with gr.Column(variant="panel") as panel:
-            self.__construct_name_description_constraints(config_value)
-            input_ui = gr.Dropdown(value=config_value.value,                        
+        def on_reset_click() -> gr.Dropdown:
+            config_value.value = config_value.default_value
+            return create_input_component(config_value)
+
+        def create_input_component(config_value: ConfigValueSelection) -> gr.Dropdown:
+            return gr.Dropdown(value=config_value.value,                        
                     choices=config_value.Options, # type: ignore
                     multiselect=False,
-                    allow_custom_value=False, 
+                    allow_custom_value=config_value.Allows_custom_value, 
                     show_label=False,
                     container=False)
+        
+        with gr.Column(variant="panel") as panel:
+            self.__construct_name_description_constraints(config_value)
+            with gr.Row(equal_height=True):
+                input_ui = create_input_component(config_value)
+                reset_button = gr.Button("Default", scale=0,)
+                if hasattr(reset_button, "_id"):
+                    reset_button.click(on_reset_click, outputs=input_ui)
             error_message = self.__construct_initial_error_message(config_value)
             if hasattr(input_ui, "_id"):
                 input_ui.change(on_change, input_ui, error_message)
@@ -185,6 +240,13 @@ class SettingsUIConstructor(ConfigValueVisitor):
         def on_click() -> str | None:
             return config_value.show_file_or_path_picker_dialog()
         
+        def on_reset_click() -> gr.Text:
+            config_value.value = config_value.default_value
+            return create_input_component(config_value)
+
+        def create_input_component(config_value: ConfigValuePath) -> gr.Text:
+            return gr.Text(value=config_value.value, show_label=False, container=False)
+        
         with gr.Column(variant="panel") as panel:
             self.__construct_name_description_constraints(config_value)
             with gr.Row(equal_height=True):
@@ -192,6 +254,9 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 select_path_button = gr.Button("Pick", scale=0, variant="primary")
                 if hasattr(select_path_button, "_id"):
                     select_path_button.click(on_click, outputs=input_ui)
+                reset_button = gr.Button("Default", scale=0,)
+                if hasattr(reset_button, "_id"):
+                    reset_button.click(on_reset_click, outputs=input_ui)
             error_message = self.__construct_initial_error_message(config_value)
             if hasattr(input_ui, "_id"):
                 input_ui.change(on_change, input_ui, error_message)

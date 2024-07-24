@@ -5,7 +5,7 @@ from src.config.types.config_value import ConfigValue, ConvigValueTag
 
 class ConfigValueString(ConfigValue[str]):
     def __init__(self, identifier: str, name: str, description: str, default_value: str, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConvigValueTag] = []):
-        super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
+        super().__init__(identifier, name, description, self.__strip_lines(default_value), constraints, is_hidden, tags)
     
     def parse(self, config_value: str) -> ConfigValueConstraintResult:
         try:
@@ -20,3 +20,8 @@ class ConfigValueString(ConfigValue[str]):
         
     def accept_visitor(self, visitor: ConfigValueVisitor):
         visitor.visit_ConfigValueString(self)
+    
+    def __strip_lines(self, text: str) -> str:
+        result = ''.join([line.lstrip().rstrip()+'\n' for line in text.splitlines()])
+        result = result.rstrip("\n")#remove last \n that has been added by function above
+        return result

@@ -4,13 +4,18 @@ from src.config.types.config_value import ConfigValue, ConvigValueTag
 
 
 class ConfigValueSelection(ConfigValue[str]):
-    def __init__(self, identifier: str, name: str, description: str, default_value: str, options: list[str], constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConvigValueTag] = []):
+    def __init__(self, identifier: str, name: str, description: str, default_value: str, options: list[str], allows_free_edit: bool = False, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConvigValueTag] = []):
         super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
         self.__options: list[str] = options
+        self.__allows_free_edit = allows_free_edit
 
     @property
     def Options(self) -> list[str]:
         return self.__options
+    
+    @property
+    def Allows_custom_value(self) -> bool:
+        return self.__allows_free_edit
     
     def does_value_cause_error(self, value_to_check: str) -> ConfigValueConstraintResult:
         result = super().does_value_cause_error(value_to_check)

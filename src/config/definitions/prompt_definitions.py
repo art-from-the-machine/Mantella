@@ -40,7 +40,7 @@ class PromptDefinitions:
                                 player_name = the name of the player character
                                 player_description = a description of the player character (needs to be added in game or using the config value)
                                 player_equipment = a basic description of the equipment the player character carries
-                                equipment = a basic description of the equipment the the NPCs carry"""
+                                equipment = a basic description of the equipment the NPCs carry"""
     
     class PromptChecker(ConfigValueConstraint[str]):
         def __init__(self) -> None:
@@ -61,9 +61,10 @@ class PromptDefinitions:
                                 Sometimes in-game events will be passed before the player response between ** symbols. You cannot respond with ** symbols yourself, they only exist to give context. Here is an example:
                                 *The player picked up a pair of gloves*
                                 Who do you think these belong to?
-                                You are having a conversation with {trust} (the player) in {location}.
+                                You are having a conversation with {player_name} (the player) who is {trust} in {location}. {player_description} {player_equipment} {equipment}
                                 This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
                                 The time is {time} {time_group}. If you directly refer to the time, please state it as, for example, '10 in the evening' rather than '22:00'.
+                                {weather}
                                 You are not an AI language model because there are no AI language models in Skyrim. Do not break character / refer to the fact that you are in a video game.
                                 If the player says something hurtful / offensive, begin your response with 'Offended:'. Eg 'Have you washed lately?' 'Offended: How dare you!'. If they renounce their words, or to end combat, begin your response with 'Forgiven:'. 
                                 If the player asks you to follow them, and you are thoroughly convinced to do so, begin your response with 'Follow:'.
@@ -73,9 +74,12 @@ class PromptDefinitions:
 
     @staticmethod
     def get_skyrim_multi_npc_prompt_config_value() -> ConfigValue:
-        skyrim_multi_npc_prompt = """The following is a conversation in {location} in Skyrim between {names_w_player}. Here are their backgrounds: {bios} 
-                                    And here are their conversation histories: {conversation_summaries} 
+        skyrim_multi_npc_prompt = """The following is a conversation in {location} in Skyrim between {names_w_player}. {player_description} {player_equipment}
+                                    Here are their backgrounds: {bios}
+                                    {equipment}
+                                    And here are their conversation histories: {conversation_summaries}
                                     The time is {time} {time_group}. If you directly refer to the time, please state it as, for example, '10 in the evening' rather than '22:00'. 
+                                    {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
                                     Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable). 
                                     Remember, you can only respond as {names}. Ensure to use their full name when responding.
