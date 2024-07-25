@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
 from openai.types.chat import ChatCompletionMessageParam
+from src.character_manager import Character
+
+from src.llm.sentence import sentence
 
 class message(ABC):
     """Base class for messages 
@@ -68,18 +71,28 @@ class system_message(message):
         return f"{dictionary}"
         
 class assistant_message(message):
-    """An assitant message containing the response of an LLM to a request.
+    """An assistant message containing the response of an LLM to a request.
     Automatically appends the character name in front of the text if provided and if there is only one active_assistant_character
     """
-    def __init__(self, text: str, active_assistant_characters: list[str] = [], is_system_generated_message: bool = False):
-        super().__init__(text, is_system_generated_message)
-        self.__active_assistant_characters: list[str] = active_assistant_characters#Todo: Change str to Character once the circle dependcy with character_manager has been solved = active_assistant_characters
-        self.is_multi_npc_message = len(active_assistant_characters) > 1
+    def __init__(self, is_system_generated_message: bool = False):
+        super().__init__("", is_system_generated_message)
+        self.__sentences: list[sentence] = []
+    
+    def add_sentence(self, new_sentence: sentence):
+        self.__sentences.append(new_sentence)
 
     def get_formatted_content(self) -> str:
-        result = self.text    
-        if self.is_multi_npc_message and self.__active_assistant_characters.__len__() == 1:
-            result = self.__active_assistant_characters[0]+': '+ self.text
+        if len(self.__sentences) < 1:
+            return ""
+        
+        result = ""
+        lastActor: Character | None = None
+        for sentence in self.__sentences: 
+            if self.is_multi_npc_message and lastActor != sentence.speaker:
+                lastActor = sentence.speaker
+                result += "\n" + lastActor.name +': '+ sentence.sentence
+            else:
+                result += sentence.sentence
         return result
 
     def get_openai_message(self) -> ChatCompletionMessageParam:
@@ -88,10 +101,6 @@ class assistant_message(message):
     def get_dict_formatted_string(self) -> str:
         dictionary = {"role":"assistant", "content": self.get_formatted_content(),}
         return f"{dictionary}"
-    
-    def add_character(self, character: str):
-        if not self.__active_assistant_characters.__contains__(character):
-            self.__active_assistant_characters.append(character)
 
 class user_message(message):
     """A user message sent to the LLM. Contains the text from the player and optionally it's name.

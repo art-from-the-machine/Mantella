@@ -1,22 +1,27 @@
 import logging
+import os
 from typing import Hashable
 import src.color_formatter as cf
 import src.utils as utils
 import pandas as pd
 import sys
-import os
+from pathlib import Path
+from src.config.config_loader import ConfigLoader
 
-import src.config_loader as config_loader
-from src.llm.openai_client import openai_client
-
-def initialise(config_file, logging_file, secret_key_file, character_df_files, language_file, FO4_XVASynth_file) -> tuple[config_loader.ConfigLoader, pd.DataFrame, dict[Hashable, str], openai_client]:
+def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, dict[Hashable, str]]:
     
     def set_cwd_to_exe_dir():
         if getattr(sys, 'frozen', False): # if exe and not Python script
             # change the current working directory to the executable's directory
             os.chdir(os.path.dirname(sys.executable))
+
+    def get_my_games_directory():
+            home = Path.home()
+            save_dir = home / "Documents" / "My Games" / "Mantella"
+            save_dir.mkdir(parents=True, exist_ok=True)
+            return str(save_dir)+'\\'
     
-    def setup_logging(file_name):
+    def setup_logging(file_name, config: ConfigLoader):
         logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[])
 
         # create custom formatter
@@ -38,6 +43,7 @@ def initialise(config_file, logging_file, secret_key_file, character_df_files, l
         # Add the handlers to the logger
         logging.getLogger().addHandler(console_handler)
         logging.getLogger().addHandler(file_handler)
+        # logging.getLogger().addHandler(jsonHandler)
 
         #logging.debug("debug message")
         #logging.info("info message")
@@ -46,9 +52,10 @@ def initialise(config_file, logging_file, secret_key_file, character_df_files, l
         #logging.critical("critical message")
 
         # custom levels
-        #logging.addLevelName(21, "INFO")
-        #logging.addLevelName(22, "INFO")
-        #logging.addLevelName(23, "INFO")
+        logging.addLevelName(21, "INFO")
+        logging.addLevelName(22, "INFO")
+        logging.addLevelName(23, "INFO")
+        logging.addLevelName(24, "Startup")
 
         #logging.log(21, "Player transcription")
         #logging.log(22, "NPC voiceline")
@@ -63,18 +70,12 @@ def initialise(config_file, logging_file, secret_key_file, character_df_files, l
         #logging.log(28, "Large Language Model related")
         #logging.log(29, "Text-To-Speech related")
 
-    def get_character_df(file_name) -> pd.DataFrame:
-        encoding = utils.get_file_encoding(file_name)
-        character_df = pd.read_csv(file_name, engine='python', encoding=encoding)
-        character_df = character_df.loc[character_df['voice_model'].notna()]
-
-        return character_df
-    
-    def get_voice_folders_and_models(file_name):
-        encoding = utils.get_file_encoding(file_name)
-        FO4_Voice_folder_and_models_df = pd.read_csv(file_name, engine='python', encoding=encoding)
-
-        return FO4_Voice_folder_and_models_df
+        logging.addLevelName(40, "HTTP-in")
+        logging.addLevelName(41, "HTTP-out")
+        logging.addLevelName(42, "Queue")
+        # logging.log(40, "JSON coming from game")
+        # logging.log(41, "JSON sent back to game")
+        # logging.log(42, "Sentence queue access")
     
     def get_language_info(file_name) -> dict[Hashable, str]:
         language_df = pd.read_csv(file_name)
@@ -84,32 +85,24 @@ def initialise(config_file, logging_file, secret_key_file, character_df_files, l
         except:
             logging.error(f"Could not load language '{config.language}'. Please set a valid language in config.ini\n")
             return {}
-
     set_cwd_to_exe_dir()
-    setup_logging(logging_file)
-    config = config_loader.ConfigLoader(config_file)
+    save_folder = get_my_games_directory()
+    config = ConfigLoader(save_folder, config_file)    
+    setup_logging(os.path.join(save_folder,logging_file), config)
+    
+    logging.log(23, f'''Mantella.exe running in: 
+{os.getcwd()}
+config.ini, logging.log, and conversation histories available in:
+{save_folder}''')
+    logging.log(23, f'''Mantella currently running for {config.game}. Mantella mod files located in: 
+{config.mod_path}''')
+    if not config.have_all_config_values_loaded_correctly:
+        logging.error("Cannot start Mantella. Not all settings that are required are set to correct values. Please check the above error messages and correct the corresponding settings!")
 
     # clean up old instances of exe runtime files
     utils.cleanup_mei(config.remove_mei_folders)
-    
-    # Determine which game we're running for and select the appropriate character file
-
-    formatted_game_name = config.game.lower().replace(' ', '').replace('_', '')
-    if formatted_game_name in ("fallout4", "fallout4vr"):
-        character_df_file = character_df_files[1] 
-        FO4_Voice_folder_and_models_df = get_voice_folders_and_models(FO4_XVASynth_file)
-    else :
-        character_df_file = character_df_files[0]  # if not Fallout assume Skyrim
-        FO4_Voice_folder_and_models_df=''
-
-    try:
-        character_df = get_character_df(character_df_file)
-    except:
-        logging.error(f'Unable to read / open {character_df_file}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
-        input("Press Enter to exit.")
+    utils.cleanup_tmp(config.save_folder+'data\\tmp')
 
     language_info = get_language_info(language_file)
     
-    client = openai_client(config, secret_key_file)
-
-    return config, character_df, language_info, client, FO4_Voice_folder_and_models_df
+    return config, language_info

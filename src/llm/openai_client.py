@@ -10,7 +10,9 @@ import tiktoken
 import requests
 from src.llm.message_thread import message_thread
 from src.llm.messages import message
-from src.config_loader import ConfigLoader
+from src.config.config_loader import ConfigLoader
+import sys
+from pathlib import Path
 
 class openai_client:
     """Joint setup for sync and async access to the LLMs
@@ -63,19 +65,31 @@ class openai_client:
         else: # if endpoint isn't named, assume it is a direct URL
             endpoint = config.llm_api
 
-
         if (endpoint == 'none') or ("https" in endpoint):
             #cloud LLM
             self.__is_local: bool = False
-            with open(secret_key_file, 'r') as f:
-                self.__api_key: str = f.readline().strip()
+
+            try: # first check mod folder for secret key
+                mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
+                with open(mod_parent_folder+'\\'+secret_key_file, 'r') as f:
+                    self.__api_key: str = f.readline().strip()
+            except: # check locally (same folder as exe) for secret key
+                with open(secret_key_file, 'r') as f:
+                    self.__api_key: str = f.readline().strip()
 
             if not self.__api_key:
-                logging.error(f'''No secret key found in MantellaSoftware/GPT_SECRET_KEY.txt. Please create a secret key and paste it in GPT_SECRET_KEY.txt
+                game_installation_page = 'https://art-from-the-machine.github.io/Mantella/pages/installation.html#language-models-llms'
+                if 'Fallout4' in config.game:
+                    game_installation_page = 'https://art-from-the-machine.github.io/Mantella/pages/installation_fallout4.html#language-models-llms'
+
+                logging.error(f'''No secret key found in GPT_SECRET_KEY.txt.
+Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
-If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running''')
-                input("Press Enter to exit.")
+If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running.
+For more information, see here: 
+{game_installation_page}''')
+                input("Press create a secret key and restart your game.")
 
             if config.llm == 'undi95/toppy-m-7b:free':
                 logging.log(24, "Running Mantella with default LLM 'undi95/toppy-m-7b:free' (OpenRouter). For higher quality responses, better NPC memories, and more performant multi-NPC conversations, consider changing this model via the `model` setting in MantellaSoftware/config.ini")
@@ -87,7 +101,8 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
             self.__api_key: str = 'abc123'
             logging.info(f"Running Mantella with local language model")
 
-        self.__base_url: str = endpoint if endpoint != 'none' else None
+        self.TOKEN_LIMIT_PERCENT = 0.45 # TODO: review this variable
+        self.__base_url: str | None = endpoint if endpoint != 'none' else None
         self.__stop: str | List[str] = config.stop
         self.__temperature: float = config.temperature
         self.__top_p: float = config.top_p
@@ -108,8 +123,12 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         try:
             self.__encoding = tiktoken.encoding_for_model(chosenmodel)
         except:
-            logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
-            raise
+            try:
+                chosenmodel = 'gpt-3.5-turbo'
+                self.__encoding = tiktoken.encoding_for_model(chosenmodel)
+            except:
+                logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
+                raise
     
     @property
     def token_limit(self) -> int:
@@ -180,7 +199,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         
         return filename
     
-    async def streaming_call(self, messages: message_thread, num_characters: int, image_base64: str = None) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: message_thread, is_multi_npc: bool, image_base64: str = None) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
 
@@ -198,7 +217,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         async_client = self.generate_async_client()
         logging.info('Getting LLM response...')
         max_tokens = self.__max_tokens
-        if num_characters > 1:  # override max_tokens in radiant / multi-NPC conversations
+        if is_multi_npc: # override max_tokens in radiant / multi-NPC conversations
             max_tokens = 250
         
         try:
@@ -352,6 +371,15 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
     
     def calculate_tokens_from_text(self, text: str) -> int:
         return len(self.__encoding.encode(text))
+    
+    def is_text_too_long(self, text: str, token_limit_percent: float) -> bool:
+        countTokens: int = self.calculate_tokens_from_text(text)
+        return  countTokens > self.token_limit * token_limit_percent
+        
+    def are_messages_too_long(self, messages: message_thread, token_limit_percent: float) -> bool:
+        countTokens: int = self.calculate_tokens_from_messages(messages)
+        return countTokens > self.token_limit * token_limit_percent
+            
     
     # --- Private methods ---    
     def __get_token_limit(self, llm, custom_token_count, is_local):

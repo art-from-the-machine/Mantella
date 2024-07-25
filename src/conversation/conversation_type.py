@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
-from src.game_manager import GameStateManager
+from src.character_manager import Character
 from src.llm.message_thread import message_thread
 from src.conversation.context import context
 from src.llm.messages import user_message
-from src.stt import Transcriber
 
 class conversation_type(ABC):
     """Base class for different forms of conversations.
@@ -24,29 +23,16 @@ class conversation_type(ABC):
         """
         pass
 
-    def can_proceed(self, context_for_conversation: context) -> bool:
-        """Called to determine if the conversations can proceed at the moment.
-
-        Args:
-            settings (context): the current context of the conversation
-
-        Returns:
-            bool: Returns True if the conversation can proceed right away, False otherwise
-        """
-        return True
-    
     @abstractmethod
-    def pre_proceed_conversation(self, context_for_conversation: context, messages: message_thread, game_state: GameStateManager):
-        """Called after can_proceed but before generating the user or assistant messages. Allows the conversation type to set things up
+    def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread):
+        """Adjusts a given message_thread to one needed for the conversation type
 
         Args:
-            settings (context): the current context of the conversation
-            messages (message_thread): the current messages of the conversation
-            game_state (GameStateManager): the GameStateManager to make inquiries or send messages to Skyrim if needed
+            message_thread_to_adjust (message_thread): The message_thread to adjust
         """
-        pass    
-
-    def get_user_message(self, context_for_conversation: context, stt: Transcriber, messages: message_thread) -> user_message:
+        pass
+    
+    def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:
         """Gets the next user message for the conversation. Default implementation gets the input from the player
 
         Args:
@@ -57,17 +43,9 @@ class conversation_type(ABC):
         Returns:
             user_message: the text for the next user message
         """
-        player_name = context_for_conversation.config.player_name
-
-
-        names_in_conversation = ', '.join([player_name] + context_for_conversation.npcs_in_conversation.get_all_names())
-        transcribed_text, _ = stt.get_player_response(False, names_in_conversation)
-        if isinstance(transcribed_text, str):
-            return user_message(transcribed_text, player_name)
-        else:
-            return user_message("*Complete gibberish*")
+        return None
     
-    def should_end(self, context_for_conversation: context, messages: message_thread, game_state: GameStateManager) -> bool:
+    def should_end(self, context_for_conversation: context, messages: message_thread) -> bool:
         """Called after a message has been generated. Allows the conversation_type to stop the conversation at any point
 
         Args:
@@ -86,32 +64,23 @@ class pc_to_npc(conversation_type):
         super().__init__(prompt)
 
     def generate_prompt(self, context_for_conversation: context) -> str:
-        return context_for_conversation.generate_system_message(self._prompt, True)
-
-    def pre_proceed_conversation(self, context_for_conversation: context, messages: message_thread, game_state: GameStateManager):
-        aggro = game_state.load_data_when_available('_mantella_actor_is_in_combat', '').lower()
-        character = context_for_conversation.npcs_in_conversation.last_added_character
-        if character:
-            if aggro == 'true':
-                character.is_in_combat = 1
-            else:
-                character.is_in_combat = 0
+        return context_for_conversation.generate_system_message(self._prompt)
     
-    def get_user_message(self, context_for_conversation: context, stt: Transcriber, messages: message_thread) -> user_message:
-        if len(messages) == 1 and context_for_conversation.config.automatic_greeting == '1' and context_for_conversation.npcs_in_conversation.last_added_character:
-            return user_message(f"{context_for_conversation.language['hello']} {context_for_conversation.npcs_in_conversation.last_added_character.name}.", context_for_conversation.config.player_name, True)
+    def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
+        message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), multi_npc_conversation=False, remove_system_flagged_messages=True)
+    
+    def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:
+        if len(messages) == 1 and context_for_conversation.config.automatic_greeting:
+            player_character: Character | None = context_for_conversation.npcs_in_conversation.get_player_character()
+            if player_character:
+                for actor in context_for_conversation.npcs_in_conversation.get_all_characters():
+                    if not actor.is_player_character:
+                        message = user_message(f"{context_for_conversation.language['hello']} {actor.name}.", player_character.name, True)
+                        message.is_multi_npc_message = False
+                        return message
+            return None
         else:
-            return super().get_user_message(context_for_conversation, stt, messages)
-    
-    def can_proceed(self, settings: context) -> bool:
-        return len(settings.npcs_in_conversation) == 1
-    
-    def should_end(self, context_for_conversation: context, messages: message_thread, game_state: GameStateManager) -> bool:
-        conversation_ended = game_state.load_data_when_available('_mantella_end_conversation', '').lower()
-        if conversation_ended == 'true':
-            return True
-        else:
-            return False
+            return super().get_user_message(context_for_conversation, messages)
 
 class multi_npc(conversation_type):
     """Group conversation between the PC and multiple NPCs"""
@@ -119,25 +88,10 @@ class multi_npc(conversation_type):
         super().__init__(prompt)
 
     def generate_prompt(self, context_for_conversation: context) -> str:
-        return context_for_conversation.generate_system_message(self._prompt, True)
-
-    def pre_proceed_conversation(self, settings: context, messages: message_thread, game_state: GameStateManager):
-        pass
+        return context_for_conversation.generate_system_message(self._prompt)
     
-    def get_user_message(self, context_for_conversation: context, stt: Transcriber, messages: message_thread) -> user_message:
-        new_message = super().get_user_message(context_for_conversation, stt, messages)
-        new_message.is_multi_npc_message = True
-        return new_message
-    
-    def can_proceed(self, context_for_conversation: context) -> bool:
-        return len(context_for_conversation.npcs_in_conversation) > 1
-    
-    def should_end(self, context_for_conversation: context, messages: message_thread, game_state: GameStateManager) -> bool:
-        conversation_ended = game_state.load_data_when_available('_mantella_end_conversation', '').lower()
-        if conversation_ended == 'true':
-            return True
-        else:
-            return False
+    def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
+        message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), True, True)
 
 class radiant(conversation_type):
     """ Conversation between two NPCs without the player"""
@@ -147,25 +101,22 @@ class radiant(conversation_type):
         self.__user_end_prompt = context_for_conversation.config.radiant_end_prompt
 
     def generate_prompt(self, context_for_conversation: context) -> str:
-        return context_for_conversation.generate_system_message(self._prompt, False)
-
-    def pre_proceed_conversation(self, context_for_conversation: context, messages: message_thread, game_state: GameStateManager):
-        # check if radiant dialogue has switched to multi NPC
-            with open(f'{context_for_conversation.config.game_path}/_mantella_radiant_dialogue.txt', 'r', encoding='utf-8') as f:
-                context_for_conversation.should_switch_to_multi_npc_conversation = f.readline().strip().lower() != 'true'
+        return context_for_conversation.generate_system_message(self._prompt)
     
-    def get_user_message(self, context_for_conversation: context, stt: Transcriber, messages: message_thread) -> user_message:
+    def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
+        message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), True, True)
+    
+    def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:        
         text = ""
         if len(messages) == 1:
             text = self.__user_start_prompt
         elif len(messages) == 3:
             text = self.__user_end_prompt
-        reply = user_message(text, context_for_conversation.config.player_name, True)
+        else:
+            return None
+        reply = user_message(text, "", True)
         reply.is_multi_npc_message = False # Don't flag these as multi-npc messages. Don't want a 'Player:' in front of the instruction messages
         return reply
     
-    def can_proceed(self, context_for_conversation: context) -> bool:
-        return len(context_for_conversation.npcs_in_conversation) > 1
-    
-    def should_end(self, context_for_conversation: context, messages: message_thread, game_state: GameStateManager) -> bool:
+    def should_end(self, context_for_conversation: context, messages: message_thread) -> bool:
         return len(messages) > 4

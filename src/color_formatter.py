@@ -29,15 +29,16 @@ class CustomFormatter(logging.Formatter):
     BGmagenta = "\x1b[45m"
     BGcyan = "\x1b[46m"
     BGwhite = "\x1b[47m"
+    BGLightBlue = "\x1b[104m"
 
-    format = "%(asctime)s.%(msecs)03d %(levelname)s: %(message)s"
+    format_string: str = "%(asctime)s.%(msecs)03d %(levelname)s: %(message)s"
 
     FORMATS = {
-        logging.DEBUG: dim + format + reset,
-        logging.INFO: grey + format + reset,
-        logging.WARNING: yellow + format + reset,
-        logging.ERROR: red + format + reset,
-        logging.CRITICAL: white + BGred + format + reset,
+        logging.DEBUG: dim + format_string + reset,
+        logging.INFO: grey + format_string + reset,
+        logging.WARNING: yellow + format_string + reset,
+        logging.ERROR: red + format_string + reset,
+        logging.CRITICAL: white + BGred + format_string + reset,
 
         # INFO level
         # player
@@ -50,14 +51,21 @@ class CustomFormatter(logging.Formatter):
         24: white + "%(message)s" + reset,
 
         # STT
-        27: blue + format + reset,
+        27: blue + format_string + reset,
         # LLM
-        28: cyan + format + reset,
+        28: cyan + format_string + reset,
         # STT
-        29: magenta + format + reset,
+        29: magenta + format_string + reset,
 
         # WARNING level
         # 30:
+
+        # HTTP in
+        40: orange + format_string + reset,
+        # HTTP out
+        41: bold_red + format_string + reset,
+        # sentence queue
+        42: black + BGLightBlue + format_string + reset,
     }
 
     def format(self, record):

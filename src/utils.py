@@ -47,7 +47,22 @@ def get_file_encoding(file_path) -> str | None:
         return None
 
 
-def cleanup_mei(remove_mei_folders):
+def cleanup_tmp(tmp_folder: str):
+    if os.path.exists(tmp_folder):
+        mei_bundle = getattr(sys, "_MEIPASS", False)
+
+        for filename in os.listdir(tmp_folder):
+            file_path = os.path.join(tmp_folder, filename)
+            try:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                elif (os.path.isdir(file_path)) and (file_path != mei_bundle):
+                    rmtree(file_path)
+            except Exception as e:
+                logging.error(f"Failed to delete tmp folder: {e}")
+
+
+def cleanup_mei(remove_mei_folders: bool):
     """
     Rudimentary workaround for https://github.com/pyinstaller/pyinstaller/issues/2379
     """
@@ -61,7 +76,7 @@ def cleanup_mei(remove_mei_folders):
                 mei_files.append(file)
         
         if (len(mei_files) > 0):
-            if (remove_mei_folders == '1'):
+            if (remove_mei_folders):
                 file_removed = 0
                 for file in mei_files:
                     try:
@@ -69,7 +84,7 @@ def cleanup_mei(remove_mei_folders):
                         file_removed += 1
                     except PermissionError:  # mainly to allow simultaneous pyinstaller instances
                         pass
-                logging.info(f'{file_removed} previous runtime folder(s) cleaned up from {dir_mei}')
+                logging.log(24, f'{file_removed} previous runtime folder(s) cleaned up from {dir_mei}')
             else:
                 logging.warn(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in {dir_mei}. See MantellaSoftware/config.ini's remove_mei_folders setting for more information.")
         
@@ -158,6 +173,8 @@ def get_model_token_limits():
         'gpt-4-32k': 32_767,
         'gpt-4-vision-preview': 128_000,
         'gpt-3.5-turbo-instruct': 4095,
+        'gpt-4o': 128_000,
+        'gpt-4o-2024-05-13': 128_000,
         'palm-2-chat-bison': 36_864,
         'palm-2-codechat-bison': 28_672,
         'palm-2-chat-bison-32k': 131_072,
@@ -212,6 +229,21 @@ def get_model_token_limits():
         'mistral-medium': 32_000,
         'mistral-large': 32_000,
         'command': 4096,
-        'command-r': 128_000
+        'command-r': 128_000,
+        'llama-3-8b-instruct:free': 8_192,
+        'llama-3-lumimaid-8b': 24_576,
+        'llama-3-8b-instruct:extended': 16_384,
+        'llama-3-lumimaid-8b:extended': 24_576,
+        'llama-3-8b': 8_192,
+        'llama-3-70b': 8_192,
+        'llama-3-sonar-small-32k-chat': 32_768,
+        'llama-3-sonar-small-32k-online': 28_000,
+        'llama-3-sonar-large-32k-chat': 32_768,
+        'llama-3-sonar-large-32k-online': 28_000,
+        'llama-3-8b-instruct': 8_192,
+        'llama-3-70b-instruct': 8_192,
+        'soliloquy-l3': 24_576,
+        'llama-3-8b-instruct:nitro': 8_192,
+        'llama-3-70b-instruct:nitro': 8_192,
     }
     return token_limit_dict
