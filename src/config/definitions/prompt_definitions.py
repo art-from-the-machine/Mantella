@@ -61,7 +61,7 @@ class PromptDefinitions:
                                 Sometimes in-game events will be passed before the player response between ** symbols. You cannot respond with ** symbols yourself, they only exist to give context. Here is an example:
                                 *The player picked up a pair of gloves*
                                 Who do you think these belong to?
-                                You are having a conversation with {player_name} (the player) who is {trust} in {location}. {player_description} {player_equipment} {equipment}
+                                You are having a conversation with {player_name} (the player) who is {trust} in {location}. {player_name} is {player_description} {player_equipment} {equipment}
                                 This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
                                 The time is {time} {time_group}. If you directly refer to the time, please state it as, for example, '10 in the evening' rather than '22:00'.
                                 {weather}
@@ -74,10 +74,10 @@ class PromptDefinitions:
 
     @staticmethod
     def get_skyrim_multi_npc_prompt_config_value() -> ConfigValue:
-        skyrim_multi_npc_prompt = """The following is a conversation in {location} in Skyrim between {names_w_player}. {player_description} {player_equipment}
-                                    Here are their backgrounds: {bios}
-                                    {equipment}
+        skyrim_multi_npc_prompt = """The following is a conversation in {location} in Skyrim between {names_w_player}.
+                                    Here are their backgrounds: {bios}                                    
                                     And here are their conversation histories: {conversation_summaries}
+                                    {player_name} is {player_description} {player_equipment} {equipment}
                                     The time is {time} {time_group}. If you directly refer to the time, please state it as, for example, '10 in the evening' rather than '22:00'. 
                                     {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
