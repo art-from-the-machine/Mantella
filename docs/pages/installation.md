@@ -209,7 +209,7 @@ While Toppy is a good model to get started with, it can fall short when trying t
 <details>
 <summary><b>OpenAI</b></summary>  
 
-Copy your OpenAI secret API key (see [here](https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key) if you need help finding it (you will need to set up an account if you haven't already)) and paste into `MantellaSoftware/GPT_SECRET_KEY.txt`. Do not share this key with anyone. Note that you will need to set up your payment details for the API to work.
+Copy your OpenAI secret API key (see [here](https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key) if you need help finding it (you will need to set up an account if you haven't already)) and paste into `MantellaSoftware/GPT_SECRET_KEY.txt`. Do not share this key with anyone. Note that you will need to set up your payment details for the API to work. Once completed, in MantellaSoftware/config.ini set the `model` value to an OpenAI model (eg `gpt-4o`, `gpt-4o-mini`).
 </details>
 <br>
 
