@@ -72,6 +72,7 @@ class skyrim(gameable):
         actor_sex = gender
 
         voice_model = ''
+
         for key in skyrim.VOICE_MODEL_IDS:
             # using endswith because sometimes leading zeros are ignored
             if actor_voice_model_id.endswith(key):
@@ -83,14 +84,15 @@ class skyrim(gameable):
             try: # search for voice model in skyrim_characters.csv
                 voice_model = self.character_df.loc[self.character_df['skyrim_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
             except: # guess voice model based on sex and race
-                if actor_sex == '1':
+                modified_race_key = actor_race + "Race"
+                if actor_sex == 1:
                     try:
-                        voice_model = self.FEMALE_VOICE_MODELS[actor_race]
+                        voice_model = self.FEMALE_VOICE_MODELS[modified_race_key]
                     except:
                         voice_model = 'Female Nord'
                 else:
                     try:
-                        voice_model = self.MALE_VOICE_MODELS[actor_race]
+                        voice_model = self.MALE_VOICE_MODELS[modified_race_key]
                     except:
                         voice_model = 'Male Nord'
 

@@ -16,15 +16,13 @@ import src.utils as utils
 
 class fallout4(gameable):
     FO4_XVASynth_file: str =f"data/Fallout4/FO4_Voice_folder_XVASynth_matches.csv"
-    WAV_FILE: str  = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
+    WAV_FILE: str  = f'MantellaDi_MantellaDialogu_00001D8B_1.wav' #not used anymore since FO4 caches audio in a way that prevent wav file substitutions while the game is running
     LIP_FILE: str  = f'00001ED2_1.lip'
     KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSX: str  = "mantella_player_pos_x"
     KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSY: str  = "mantella_player_pos_y"
     KEY_CONTEXT_CUSTOMVALUES_PLAYERROT: str  = "mantella_player_rot"
     KEY_ACTOR_CUSTOMVALUES_POSX: str  = "mantella_actor_pos_x"
     KEY_ACTOR_CUSTOMVALUES_POSY: str  = "mantella_actor_pos_y"
-    # f4_wav_file1 = f'MutantellaOutput1.wav'
-    # f4_wav_file2 = f'MutantellaOutput2.wav'
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Fallout4/fallout4_characters.csv', "Fallout4")
@@ -108,15 +106,16 @@ class fallout4(gameable):
                 try: # search for voice model in fallout4_characters.csv
                     voice_model = self.character_df.loc[self.character_df['fallout4_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
                 except: 
+                    modified_race_key = actor_race + "Race"
                     #except then try to match using gender and race with pre-established dictionaries
-                    if actor_sex == '1':
+                    if actor_sex == 1:
                         try:
-                            voice_model = fallout4.FEMALE_VOICE_MODELS[actor_race]
+                            voice_model = fallout4.FEMALE_VOICE_MODELS[modified_race_key]
                         except:
-                            voice_model = 'femaleboston'
+                             voice_model = 'femaleboston'
                     else:
                         try:
-                            voice_model = fallout4.MALE_VOICE_MODELS[actor_race]
+                            voice_model = fallout4.MALE_VOICE_MODELS[modified_race_key]
                         except:
                             voice_model = 'maleboston'
         if FO4_voice_folder == '':
@@ -152,9 +151,6 @@ class fallout4(gameable):
             for sub_folder in os.scandir(mod_folder):
                 if not sub_folder.is_dir():
                     continue
-
-                shutil.copyfile(audio_file, f"{sub_folder.path}/{self.WAV_FILE}")
-
                 # Copy FaceFX generated LIP file
                 try:
                     shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.LIP_FILE}")
@@ -162,15 +158,21 @@ class fallout4(gameable):
                     # only warn on failure
                     logging.warning(e)
         else:
-            shutil.copyfile(audio_file, f"{mod_folder}/{speaker.in_game_voice_model}/{self.WAV_FILE}")
-
             # Copy FaceFX generated LIP file
             try:
                 shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{mod_folder}/{speaker.in_game_voice_model}/{self.LIP_FILE}")
             except Exception as e:
                 # only warn on failure
                 logging.warning(e)
-
+                # Attempt to create the directory if it does not exist and try copying the file again
+                speaker_voice_model_path = f"{mod_folder}/{speaker.in_game_voice_model}"
+                if not os.path.exists(speaker_voice_model_path):
+                    try:
+                        os.makedirs(speaker_voice_model_path)
+                        shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{speaker_voice_model_path}/{self.LIP_FILE}")
+                    except Exception as e:
+                        # Log the final failure after attempting directory creation
+                        logging.error(f"Failed to create directory or copy lip file: {e}")
 
         logging.log(23, f"{speaker.name} should speak")
 
