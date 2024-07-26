@@ -252,6 +252,9 @@ class ConfigLoader:
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")
             self.memory_prompt = self.__definitions.get_string_value("memory_prompt")
             self.resummarize_prompt = self.__definitions.get_string_value("resummarize_prompt")
+
+            # Vision
+            self.vision_enabled = True
             pass
         except Exception as e:
             logging.error('Parameter missing/invalid in config.ini file!')

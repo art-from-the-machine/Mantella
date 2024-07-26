@@ -19,11 +19,6 @@ from src.llm.messages import message
 from src.llm.message_thread import message_thread
 from src.llm.openai_client import openai_client
 #from src.tts import Synthesizer
-import pygetwindow as gw
-import pyautogui
-import base64
-import io
-from PIL import Image
 from src.tts.ttsable import ttsable
 
 class ChatManager:
@@ -167,59 +162,6 @@ class ChatManager:
         sentence = sentence.strip() + " "
         return sentence
 
-    def save_screenshot_and_get_base64(self, screenshot, window_title):
-        if screenshot is None:
-            return None
-
-        # 生成文件名
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{window_title.replace(' ', '_')}_{timestamp}.png"
-        
-        # 保存为PNG文件
-        screenshot.save(filename, "PNG")
-        print(f"Screenshot saved as {filename}")
-
-    def compress_and_resize_image(self, image, target_height=720):
-        # 计算新的宽度，保持宽高比
-        width, height = image.size
-        new_width = int((target_height / height) * width)
-        
-        # 调整大小
-        resized_image = image.resize((new_width, target_height), Image.LANCZOS)
-        
-        return resized_image
-    def get_window_screenshot_to_base64(self, window_title):
-        try:
-            # 获取指定标题的窗口
-            window = gw.getWindowsWithTitle(window_title)[0]
-            
-            # 确保窗口不是最小化的
-            if window.isMinimized:
-                window.restore()
-            
-            # 获取窗口的位置和大小
-            left, top = window.left, window.top
-            width, height = window.width, window.height
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            png_filename = f"{window_title.replace(' ', '_')}_{timestamp}.png"
-            jpeg_filename = f"{window_title.replace(' ', '_')}_{timestamp}_compressed.jpg"
-            # 截取窗口图像
-            screenshot = pyautogui.screenshot(region=(left, top, width, height))
-            # 压缩和调整大小
-            compressed_image = self.compress_and_resize_image(screenshot,target_height=480)
-            # 转换压缩后的图像为base64
-            buffered = io.BytesIO()
-            compressed_image.save(buffered, format="JPEG", quality=85)
-            img_str = base64.b64encode(buffered.getvalue()).decode()
-            self.save_screenshot_and_get_base64(screenshot, window_title)
-            logging.info(f"The Pictures is taken in: {window_title}")
-            return img_str
-        except IndexError:
-            print(f"Window with title '{window_title}' not found.")
-            return None
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return None
     def __matching_action_keyword(self, keyword: str, actions: list[action]) -> action | None:
         for a in actions:
             if keyword.lower() == a.keyword.lower():
@@ -248,7 +190,7 @@ class ChatManager:
             while True:
                 try:
                     start_time = time.time()
-                    async for content in self.__client.streaming_call(messages=messages, is_multi_npc=characters.contains_multiple_npcs(), image_base64=self.get_window_screenshot_to_base64("Skyrim Special Edition")):
+                    async for content in self.__client.streaming_call(messages=messages, is_multi_npc=characters.contains_multiple_npcs()):
                         if self.__stop_generation:
                             break
                         if not content:

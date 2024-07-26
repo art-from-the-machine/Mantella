@@ -11,6 +11,7 @@ import requests
 from src.llm.message_thread import message_thread
 from src.llm.messages import message
 from src.config.config_loader import ConfigLoader
+from src.image.image_manager import ImageManager
 import sys
 from pathlib import Path
 
@@ -129,6 +130,10 @@ For more information, see here:
             except:
                 logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
                 raise
+
+        self.__vision_enabled = config.vision_enabled
+        if self.__vision_enabled:
+            self.__image_manager = ImageManager(config.game, config.save_folder)
     
     @property
     def token_limit(self) -> int:
@@ -184,22 +189,8 @@ For more information, see here:
             return OpenAI(api_key=self.__api_key, base_url=self.__base_url, default_headers=self.__header)
         else:
             return OpenAI(api_key=self.__api_key, default_headers=self.__header)
-    def save_screenshot_and_get_base64(self, screenshot, window_title):
-        if screenshot is None:
-            return None
-
-        # 生成文件名
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{window_title.replace(' ', '_')}_{timestamp}.png"
-        
-        # 保存为PNG文件
-        screenshot.save(filename, "PNG")
-        print(f"Screenshot saved as {filename}")
-
-        
-        return filename
     
-    async def streaming_call(self, messages: message_thread, is_multi_npc: bool, image_base64: str = None) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
 
@@ -223,20 +214,8 @@ For more information, see here:
         try:
             # Prepare the messages including the image if provided
             openai_messages = messages.get_openai_messages()
-            if image_base64:
-                # Add the image to the last user message or create a new message if needed
-                if openai_messages and openai_messages[-1]['role'] == 'user':
-                    openai_messages[-1]['content'] = [
-                        {"type": "text", "text": openai_messages[-1]['content']},
-                        {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image_base64}"}}
-                    ]
-                else:
-                    openai_messages.append({
-                        "role": "user",
-                        "content": [
-                            {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image_base64}"}}
-                        ]
-                    })
+            if self.__vision_enabled:
+                openai_messages = self.__image_manager.add_image_to_messages(openai_messages)
 
             async for chunk in await async_client.chat.completions.create(
                 model=self.model_name, 
@@ -265,7 +244,7 @@ For more information, see here:
             await async_client.close()
 
     @utils.time_it
-    def request_call(self, messages: message_thread, image_base64: str = None) -> str | None:
+    def request_call(self, messages: message_thread) -> str | None:
         """A standard sync request call to the LLM. 
         This method generates a new client, calls 'client.chat.completions.create', returns the result and closes when finished
 
@@ -280,27 +259,10 @@ For more information, see here:
         chat_completion = None
         logging.info('Getting LLM response...')
         
-        try:
-            # Prepare the messages including the image if provided
-            openai_messages = messages.get_openai_messages()
-            if image_base64:
-                # Add the image to the last user message or create a new message if needed
-                if openai_messages and openai_messages[-1]['role'] == 'user':
-                    openai_messages[-1]['content'] = [
-                        {"type": "text", "text": openai_messages[-1]['content']},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
-                    ]
-                else:
-                    openai_messages.append({
-                        "role": "user",
-                        "content": [
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
-                        ]
-                    })
-            
+        try:            
             chat_completion = sync_client.chat.completions.create(
                 model=self.model_name,
-                messages=openai_messages,
+                messages=messages.get_openai_messages(),
                 max_tokens=1_000
             )
         except RateLimitError:
