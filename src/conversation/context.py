@@ -271,7 +271,7 @@ class context:
         """
         equipment_descriptions = []
         for character in self.get_characters_excluding_player().get_all_characters():
-                equipment_descriptions.append(character.equipment.get_equipment_description(character.name))
+                equipment_descriptions.append(character.equipment().get_equipment_description(character.name))
         return " ".join(equipment_descriptions)
     
     def generate_system_message(self, prompt: str) -> str:
@@ -290,7 +290,7 @@ class context:
         player_equipment = ""
         if player:
             player_name = player.name
-            player_equipment = player.equipment.get_equipment_description(player_name)
+            player_equipment = player.equipment().get_equipment_description(player_name)
             game_sent_description = player.get_custom_character_value(communication_constants.KEY_ACTOR_PC_DESCRIPTION)
             if game_sent_description and game_sent_description != "":
                 player_description = game_sent_description
