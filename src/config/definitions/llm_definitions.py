@@ -16,7 +16,7 @@ class LLMDefinitions:
             - Other services that provide an OpenAI compatible endpoint
             **If you are using OpenRouter or OpenAI ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.**          
             Note that for some services, like Text generation web UI, you must enable the OpenAI extension and have the model you want to use preloaded before running Mantella.
-            You can also enter a custom URL here to connect to other LLM services that provide an OpenAI compatible endpoint.
+            You can also enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
             After selecting a service, select the model using the option below. Press the *Update list* button to load a list of models available from the service."""
         return ConfigValueSelection("llm_api","LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"], allows_free_edit=True)
 
@@ -24,10 +24,9 @@ class LLMDefinitions:
     def get_model_config_value() -> ConfigValue:
         model_description = """Select the model to use. Press the *Update list* button to load a list of models available from the service selected above.
                             **If you are using OpenRouter or OpenAI updating the list requires a correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.**
-                            The list only provides the names of the models. For additional information like prices and context size, please refer to the corresponsing sites:
+                            The list does not provide all details about the models. For additional information please refer to the corresponsing sites:
                             - OpenRouter: https://openrouter.ai/docs#models
-                            - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/
-                            Local model users can ignore this setting as you will instead select your model directly in Kobold / Text generation web UI."""
+                            - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
         return ConfigValueSelection("model","Model",model_description,"undi95/toppy-m-7b:free",["Custom Model"], allows_values_not_in_options=True)
     
     @staticmethod
