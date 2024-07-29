@@ -9,9 +9,13 @@ import os
 
 class ImageManager:
     def __init__(self, game, save_folder) -> None:
-        self.__window_title = game
-        if self.__window_title == 'Skyrim':
-            self.__window_title = 'Skyrim Special Edition'
+        window_titles = {
+            'Skyrim': 'Skyrim Special Edition',
+            'SkyrimVR': 'Skyrim VR',
+            'Fallout4': 'Fallout4',
+            'Fallout4VR': 'Fallout4VR'
+        }
+        self.__window_title = window_titles.get(game, game)
 
         self.__image_path: str = save_folder+'data\\tmp\\images'
         os.makedirs(self.__image_path, exist_ok=True)
