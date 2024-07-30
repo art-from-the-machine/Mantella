@@ -163,7 +163,7 @@ class skyrim(gameable):
                 return records["description"]
         if weather_attributes.__contains__(self.KEY_CONTEXT_WEATHER_CLASSIFICATION):
             weather_classification: int = weather_attributes[self.KEY_CONTEXT_WEATHER_CLASSIFICATION]
-            if weather_classification >= 0 and weather_classification < len(self.WEATHER_CLASIFICATIONS):
+            if weather_classification >= 0 and weather_classification < len(self.WEATHER_CLASSIFICATIONS):
                 return self.WEATHER_CLASSIFICATIONS[weather_classification]
         return ""
  

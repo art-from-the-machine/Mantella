@@ -89,7 +89,8 @@ class context:
     def clear_context_ingame_events(self):
         self.__ingame_events.clear()
 
-    def add_or_update_characters(self, new_list_of_npcs: list[Character]):
+    def add_or_update_characters(self, new_list_of_npcs: list[Character]) -> list[Character]:
+        removed_npcs = []
         for npc in new_list_of_npcs:
             if not self.__npcs_in_conversation.contains_character(npc):
                 self.__npcs_in_conversation.add_or_update_character(npc)
@@ -101,7 +102,9 @@ class context:
                 self.__npcs_in_conversation.add_or_update_character(npc)
         for npc in self.__npcs_in_conversation.get_all_characters():
             if not npc in new_list_of_npcs:
+                removed_npcs.append(npc)
                 self.__remove_character(npc)
+        return removed_npcs
     
     def remove_character(self, npc: Character):
         if self.__npcs_in_conversation.contains_character(npc):
@@ -109,7 +112,7 @@ class context:
     
     def __remove_character(self, npc: Character):
         self.__npcs_in_conversation.remove_character(npc)
-        self.__ingame_events.append(f"{npc.name} has left the conversation")
+        self.__ingame_events.append(f"{npc.name} has left the conversation.")
         self.__have_actors_changed = True
 
     def get_time_group(self) -> str:

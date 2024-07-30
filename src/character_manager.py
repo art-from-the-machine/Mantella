@@ -163,6 +163,7 @@ class Character:
     def custom_character_values(self, value: dict[str, Any]):
         self.__custom_character_values = value
     
+    @property
     def equipment(self) -> Equipment:
         return self.__equipment
 

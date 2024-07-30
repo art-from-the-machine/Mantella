@@ -5,6 +5,7 @@ import logging
 import time
 import re
 import unicodedata
+from openai import APIConnectionError
 from src.games.gameable import gameable
 from src.conversation.action import action
 from src.llm.sentence_queue import sentence_queue
@@ -315,10 +316,13 @@ class ChatManager:
             # Mark the end of the response
             # await sentence_queue.put(None)
         except Exception as e:
-            if (hasattr(e, 'code')) and (e.code in [401, 'invalid_api_key']): # incorrect API key
-                logging.error(f"Invalid API key. Please ensure you have selected the right model for your service (OpenAI / OpenRouter) via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
-            elif isinstance(e, UnboundLocalError):
-                logging.error('No voice file generated for voice line. Please check your TTS service for errors. The reason for this error is often because a voice model could not be found.')
+            if isinstance(e, APIConnectionError):
+                if (hasattr(e, 'code')) and (e.code in [401, 'invalid_api_key']): # incorrect API key
+                    logging.error(f"Invalid API key. Please ensure you have selected the right model for your service (OpenAI / OpenRouter) via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+                elif isinstance(e, UnboundLocalError):
+                    logging.error('No voice file generated for voice line. Please check your TTS service for errors. The reason for this error is often because a voice model could not be found.')
+                else:
+                    logging.error(f"LLM API Error: {e}")
             else:
                 logging.error(f"LLM API Error: {e}")
         finally:
