@@ -15,7 +15,7 @@ class ImageManager:
     Manages game window capture and image processing
     '''
     
-    def __init__(self, game: str, save_folder: str, save_screenshot: bool, image_quality: int, resize_method: str, capture_offset: dict[str, int]) -> None:
+    def __init__(self, game: str, save_folder: str, save_screenshot: bool, image_quality: int, resize_image: bool, resize_method: str, capture_offset: dict[str, int]) -> None:
         WINDOW_TITLES = {
             'Skyrim': 'Skyrim Special Edition',
             'SkyrimVR': 'Skyrim VR',
@@ -26,6 +26,7 @@ class ImageManager:
         self.__save_screenshot: bool = save_screenshot
         self.__image_quality: int = image_quality
         self.__capture_offset: dict[str, int] = capture_offset
+        self.__resize_image_enabled: bool = resize_image
 
         RESIZING_METHODS = {
             'Nearest': cv2.INTER_NEAREST,
@@ -117,7 +118,7 @@ class ImageManager:
 
 
     @utils.time_it
-    def _resize_image(self, image: np.ndarray, target_height=512) -> np.ndarray:
+    def _resize_image(self, image: np.ndarray, width: int, height: int, target_height=512) -> np.ndarray:
         '''Resize the image to the target height while maintaining the aspect ratio
 
         Args:
@@ -127,7 +128,6 @@ class ImageManager:
         Returns:
             numpy.ndarray: The resized image
         '''
-        width, height = image.shape[:2]
 
         if height > target_height:
             new_width = int((target_height / height) * width)
@@ -144,11 +144,13 @@ class ImageManager:
             params (dict[str, int]): The capture parameters
 
         Returns:
-            numpy.ndarray: The captured screenshot as a numpy array
+            image (numpy.ndarray): The captured screenshot as a numpy array
+            width (int): The width of the screenshot
+            height (int): The height of the screenshot
         '''
         with mss.mss() as sct:
             screenshot = sct.grab(params)
-        return np.array(screenshot)
+        return np.array(screenshot), screenshot.width, screenshot.height
     
 
     @utils.time_it
@@ -164,13 +166,14 @@ class ImageManager:
                 return None
   
             # Capture
-            screenshot = self._take_screenshot(params)
+            screenshot, width, height = self._take_screenshot(params)
 
             # Process
-            compressed_image = self._resize_image(screenshot, target_height=512)
+            if self.__resize_image_enabled:
+                screenshot = self._resize_image(screenshot, width, height, target_height=512)
 
             # Encode
-            _, buffer = cv2.imencode('.jpg', compressed_image, [cv2.IMWRITE_JPEG_QUALITY, self.__image_quality])
+            _, buffer = cv2.imencode('.jpg', screenshot, [cv2.IMWRITE_JPEG_QUALITY, self.__image_quality])
             img_str = base64.b64encode(buffer).decode()
 
             # Optionally, save the image to disk
