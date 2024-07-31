@@ -98,6 +98,7 @@ class MantellaConfigValueDefinitionsNew:
         vision_category.add_config_value(VisionDefinitions.get_save_screenshot_config_value())
         vision_category.add_config_value(VisionDefinitions.get_image_quality_config_value())
         vision_category.add_config_value(VisionDefinitions.get_resize_method_config_value())
+        vision_category.add_config_value(VisionDefinitions.get_capture_offset_config_value())
         result.add_base_group(vision_category)
 
         language_category = ConfigValueGroup("Language", "Language", "Change the language used by Mantella as well as keywords.", on_value_change_callback)

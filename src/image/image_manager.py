@@ -8,13 +8,14 @@ import win32gui
 import mss
 import cv2
 from openai.types.chat import ChatCompletionMessageParam
+import ctypes
 
 class ImageManager:
     '''
     Manages game window capture and image processing
     '''
     
-    def __init__(self, game: str, save_folder: str, save_screenshot: bool, image_quality: int, resize_method: str) -> None:
+    def __init__(self, game: str, save_folder: str, save_screenshot: bool, image_quality: int, resize_method: str, capture_offset: dict[str, int]) -> None:
         WINDOW_TITLES = {
             'Skyrim': 'Skyrim Special Edition',
             'SkyrimVR': 'Skyrim VR',
@@ -24,6 +25,7 @@ class ImageManager:
         self.__window_title: str = WINDOW_TITLES.get(game, game)
         self.__save_screenshot: bool = save_screenshot
         self.__image_quality: int = image_quality
+        self.__capture_offset: dict[str, int] = capture_offset
 
         RESIZING_METHODS = {
             'Nearest': cv2.INTER_NEAREST,
@@ -38,6 +40,11 @@ class ImageManager:
             os.makedirs(self.__image_path, exist_ok=True)
 
         self.__capture_params = None
+
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except:
+            logging.warning('Failed to read monitor DPI. Images may not be saved in the correct dimensions.')
 
 
     @property
@@ -71,10 +78,10 @@ class ImageManager:
         left_border = client_left - window_rect[0]
         top_border = client_top - window_rect[1]
 
-        capture_left = window_rect[0] + left_border
-        capture_top = window_rect[1] + top_border
-        capture_width = client_rect[2]
-        capture_height = client_rect[3]
+        capture_left = max(window_rect[0] + left_border + self.__capture_offset.get('left', 0), 0)
+        capture_top = max(window_rect[1] + top_border + self.__capture_offset.get('top', 0), 0)
+        capture_width = client_rect[2] + self.__capture_offset.get('right', 0)
+        capture_height = client_rect[3] + self.__capture_offset.get('bottom', 0)
 
         return {"left": capture_left, "top": capture_top, "width": capture_width, "height": capture_height}
     
