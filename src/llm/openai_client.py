@@ -133,7 +133,7 @@ For more information, see here:
 
         self.__vision_enabled = config.vision_enabled
         if self.__vision_enabled:
-            self.__image_manager = ImageManager(config.game, config.save_folder)
+            self.__image_manager = ImageManager(config.game, config.save_folder, config.save_screenshot, config.image_quality, config.resize_method)
     
     @property
     def token_limit(self) -> int:
