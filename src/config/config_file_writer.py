@@ -42,7 +42,7 @@ class ConfigFileWriter(ConfigValueVisitor):
 
     def visit_ConfigValueFloat(self, config_value: ConfigValueFloat):
         lines_to_write = self.__generate_name_and_description_lines(config_value)
-        lines_to_write.append(f";   {config_value.identifier} must be a floatint point number between {config_value.min_value} and {config_value.max_value}{self.NEWLINE}")
+        lines_to_write.append(f";   {config_value.identifier} must be a floating point number between {config_value.min_value} and {config_value.max_value}{self.NEWLINE}")
         lines_to_write.extend(self.__generate_default_and_config_value_lines(config_value))
         self.write_setting_block_to_file(lines_to_write)
 

@@ -6,10 +6,10 @@ import os
 import time
 import wave
 from src import utils
-
 import sys
 from threading import Thread
 from queue import Queue, Empty
+from src.tts.synthesization_options import SynthesizationOptions
 
 # https://stackoverflow.com/a/4896288/25532567
 ON_POSIX = 'posix' in sys.builtin_module_names
@@ -33,14 +33,17 @@ class piper(ttsable):
 
         logging.log(self._loglevel, f'Connecting to Piper...')
         self._check_if_piper_is_running()
-
+    
+    def __write_to_stdin(self, text):
+        if self.process.stdin:
+            self.process.stdin.write(f"synthesize {text}\n")
+            self.process.stdin.flush()
 
     @utils.time_it
-    def tts_synthesize(self, voiceline, final_voiceline_file, aggro):
+    def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         if len(voiceline) > 3:
             while True:
-                self.process.stdin.write(f"synthesize {voiceline}\n")
-                self.process.stdin.flush()
+                self.__write_to_stdin(f"synthesize {voiceline}\n")
                 max_wait_time = 5
                 start_time = time.time()
 
@@ -76,8 +79,7 @@ class piper(ttsable):
             voice_cleaned = f"{voice.lower().replace(' ', '')}"
 
             model_path = self.__piper_path + f'/models/skyrim/low/{voice_cleaned}.onnx' # TODO: change /skyrim and /low parts of the path to dynamic variables
-            self.process.stdin.write(f"load_model {model_path}\n")
-            self.process.stdin.flush()
+            self.__write_to_stdin(f"load_model {model_path}\n")
             max_wait_time = 5
             start_time = time.time()
 

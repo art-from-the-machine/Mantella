@@ -18,6 +18,7 @@ from src.llm.messages import message
 from src.llm.message_thread import message_thread
 from src.llm.openai_client import openai_client
 from src.tts.ttsable import ttsable
+from src.tts.synthesization_options import SynthesizationOptions
 
 class ChatManager:
     def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: openai_client):
@@ -49,7 +50,8 @@ class ChatManager:
         """
         with self.__tts_access_lock:
             try:
-                audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, character_to_talk.is_in_combat, character_to_talk.advanced_voice_model)
+                synth_options = SynthesizationOptions(character_to_talk.is_in_combat)
+                audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
             except Exception as e:
                 error_text = f"Text-to-Speech Error: {e}"
                 logging.log(29, error_text)
@@ -218,7 +220,7 @@ class ChatManager:
                                 else:  # accumulated_sentence is empty
                                     # Split the sentence at the colon
                                     parts = content_edit.split(':', 1)
-                                    keyword_extraction = parts[0].strip()
+                                    keyword_extraction = parts[0].strip().lstrip("*").lstrip('"').strip() #This is very rough. Should use a Regex
                                     current_sentence = parts[1].strip() if len(parts) > 1 else ''
                                     # if LLM is switching character
                                     # Find the first character whose name starts with keyword_extraction
