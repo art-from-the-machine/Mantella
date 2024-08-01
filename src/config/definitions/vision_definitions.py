@@ -16,7 +16,7 @@ class VisionDefinitions:
 
     @staticmethod
     def get_image_quality_config_value() -> ConfigValue:
-        return ConfigValueInt("image_quality", "Screenshot Quality", "The quality of the image passed to the LLM. Higher values improve the LLM's understanding of passed images. Lower values improve performance.", 50, 1, 100, tags=[ConvigValueTag.advanced])
+        return ConfigValueInt("image_quality", "Screenshot Quality", "The quality of the image passed to the LLM from 1-100. Higher values improve the LLM's understanding of passed images. Lower values improve performance.", 50, 1, 100, tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_resize_image_config_value() -> ConfigValue:
