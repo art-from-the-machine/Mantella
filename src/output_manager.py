@@ -1,6 +1,4 @@
 import asyncio
-from datetime import datetime
-import os
 from threading import Lock
 import wave
 import logging
@@ -18,7 +16,6 @@ from src.character_manager import Character
 from src.llm.messages import message
 from src.llm.message_thread import message_thread
 from src.llm.openai_client import openai_client
-#from src.tts import Synthesizer
 from src.tts.ttsable import ttsable
 
 class ChatManager:

@@ -203,7 +203,6 @@ For more information, see here:
         Args:
             messages (message_thread): The message thread of the conversation
             num_characters (int): Number of characters in the conversation
-            image_base64 (str, optional): Base64 encoded image data. Defaults to None.
 
         Returns:
             AsyncGenerator[str | None, None]: Returns an iterable object. Iterate over this using 'async for'
@@ -256,7 +255,6 @@ For more information, see here:
 
         Args:
             messages (conversation_thread): The message thread of the conversation
-            image_base64 (str, optional): Base64 encoded image data. Defaults to None.
 
         Returns:
             str | None: The reply of the LLM

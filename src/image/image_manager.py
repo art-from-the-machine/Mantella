@@ -123,6 +123,8 @@ class ImageManager:
 
         Args:
             image (numpy.ndarray): The image to resize
+            width (int): The width of the screenshot
+            height (int): The height of the screenshot
             target_height (int): The target height for the resized image
 
         Returns:
