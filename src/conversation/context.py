@@ -120,17 +120,20 @@ class context:
     
     def update_context(self, location: str, in_game_time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
         self.__ingame_events.extend(custom_ingame_events)
-        self.__weather = weather
+        if weather != self.__weather:
+            if self.__weather != "":
+                self.__ingame_events.append(weather)
+            self.__weather = weather
         self.__custom_context_values = custom_context_values
         if location != self.__location:
             self.__location = location
-            custom_ingame_events.append(f"The location is now {location}.")
+            self.__ingame_events.append(f"The location is now {location}.")
         
         self.__ingame_time = in_game_time
         current_time: tuple[str, str] = str(in_game_time), get_time_group(in_game_time)
         if current_time != self.__prev_game_time:
             self.__prev_game_time = current_time
-            custom_ingame_events.append(f"The time is {current_time[0]} {current_time[1]}.")
+            self.__ingame_events.append(f"The time is {current_time[0]} {current_time[1]}.")
     
     def __update_ingame_events_on_npc_change(self, npc: Character):
         current_stats: Character = self.__npcs_in_conversation.get_character_by_name(npc.name)
