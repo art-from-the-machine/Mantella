@@ -36,7 +36,7 @@ class piper(ttsable):
     
     def __write_to_stdin(self, text):
         if self.process.stdin:
-            self.process.stdin.write(f"synthesize {text}\n")
+            self.process.stdin.write(text)
             self.process.stdin.flush()
 
     @utils.time_it
