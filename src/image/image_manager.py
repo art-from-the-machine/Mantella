@@ -15,7 +15,7 @@ class ImageManager:
     Manages game window capture and image processing
     '''
     
-    def __init__(self, game: str, save_folder: str, save_screenshot: bool, image_quality: int, resize_image: bool, resize_method: str, capture_offset: dict[str, int]) -> None:
+    def __init__(self, game: str, save_folder: str, save_screenshot: bool, image_quality: int, low_resolution_mode: bool, resize_method: str, capture_offset: dict[str, int]) -> None:
         WINDOW_TITLES = {
             'Skyrim': 'Skyrim Special Edition',
             'SkyrimVR': 'Skyrim VR',
@@ -26,7 +26,8 @@ class ImageManager:
         self.__save_screenshot: bool = save_screenshot
         self.__image_quality: int = image_quality
         self.__capture_offset: dict[str, int] = capture_offset
-        self.__resize_image_enabled: bool = resize_image
+        self.__low_resolution_mode: bool = low_resolution_mode
+        self.__detail = "low" if self.__low_resolution_mode else "high"
 
         RESIZING_METHODS = {
             'Nearest': cv2.INTER_NEAREST,
@@ -104,13 +105,13 @@ class ImageManager:
         if openai_messages and openai_messages[-1]['role'] == 'user':
             openai_messages[-1]['content'] = [
                 {"type": "text", "text": openai_messages[-1]['content']},
-                {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}"}}
+                {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}", "detail": self.__detail}}
             ]
         else:
             openai_messages.append({
                 "role": "user",
                 "content": [
-                    {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}"}}
+                    {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}", "detail": self.__detail}}
                 ]
             })
 
@@ -118,24 +119,60 @@ class ImageManager:
 
 
     @utils.time_it
-    def _resize_image(self, image: np.ndarray, width: int, height: int, target_height=512) -> np.ndarray:
-        '''Resize the image to the target height while maintaining the aspect ratio
+    def _resize_image(self, image: np.ndarray, width: int, height: int) -> np.ndarray:
+        '''Resize the image to the target resolution specified here: 
+        https://platform.openai.com/docs/guides/vision/managing-images
+
+        In summary:
+            "low" detail images should have a resolution of 512x512
+            "high" detail images should have a maximum length of 768 for the short side and 2048 for the long side
 
         Args:
             image (numpy.ndarray): The image to resize
             width (int): The width of the screenshot
             height (int): The height of the screenshot
-            target_height (int): The target height for the resized image
 
         Returns:
             numpy.ndarray: The resized image
         '''
 
-        if height > target_height:
-            new_width = int((target_height / height) * width)
-            image = cv2.resize(image, (new_width, target_height), interpolation=self.__resize_method)
+        if self.__low_resolution_mode:
+            target_size = 512
+            if height < width:
+                scale_factor = target_size / height
+                new_height = target_size
+                new_width = int(width * scale_factor)
+            else:
+                scale_factor = target_size / width
+                new_width = target_size
+                new_height = int(height * scale_factor)
+
+            resized_image = cv2.resize(image, (new_width, new_height), interpolation=self.__resize_method)
+
+            start_x = (new_width - target_size) // 2
+            start_y = (new_height - target_size) // 2
+
+            cropped_image = resized_image[start_y:start_y + target_size, start_x:start_x + target_size]
+
+            return cropped_image
+        else:
+            max_short_side = 768
+            max_long_side = 2_000
+
+            short_side = min(height, width)
+            long_side = max(height, width)
             
-        return image
+            if short_side <= max_short_side and long_side <= max_long_side:
+                return image
+            
+            scale_factor = min(max_short_side / short_side, max_long_side / long_side)
+            
+            new_width = int(width * scale_factor)
+            new_height = int(height * scale_factor)
+            
+            resized_image = cv2.resize(image, (new_width, new_height), interpolation=self.__resize_method)
+            
+            return resized_image
     
 
     @utils.time_it
@@ -156,6 +193,11 @@ class ImageManager:
     
 
     @utils.time_it
+    def _encode_image_to_jpeg(self, screenshot):
+        return cv2.imencode('.jpg', screenshot, [cv2.IMWRITE_JPEG_QUALITY, self.__image_quality])[1]
+    
+
+    @utils.time_it
     def _get_image(self) -> str | None:
         '''Capture, process, and encode an image of the game window
 
@@ -171,11 +213,10 @@ class ImageManager:
             screenshot, width, height = self._take_screenshot(params)
 
             # Process
-            if self.__resize_image_enabled:
-                screenshot = self._resize_image(screenshot, width, height, target_height=512)
+            screenshot = self._resize_image(screenshot, width, height)
 
             # Encode
-            _, buffer = cv2.imencode('.jpg', screenshot, [cv2.IMWRITE_JPEG_QUALITY, self.__image_quality])
+            buffer = self._encode_image_to_jpeg(screenshot)
             img_str = base64.b64encode(buffer).decode()
 
             # Optionally, save the image to disk

@@ -95,9 +95,9 @@ class MantellaConfigValueDefinitionsNew:
 
         vision_category = ConfigValueGroup("Vision", "Vision", "Vision settings.", on_value_change_callback)
         vision_category.add_config_value(VisionDefinitions.get_vision_enabled_config_value())
+        vision_category.add_config_value(VisionDefinitions.get_low_resolution_mode_config_value())
         vision_category.add_config_value(VisionDefinitions.get_save_screenshot_config_value())
         vision_category.add_config_value(VisionDefinitions.get_image_quality_config_value())
-        vision_category.add_config_value(VisionDefinitions.get_resize_image_config_value())
         vision_category.add_config_value(VisionDefinitions.get_resize_method_config_value())
         vision_category.add_config_value(VisionDefinitions.get_capture_offset_config_value())
         result.add_base_group(vision_category)

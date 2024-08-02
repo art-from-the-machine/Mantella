@@ -137,7 +137,7 @@ For more information, see here:
                                                 config.save_folder, 
                                                 config.save_screenshot, 
                                                 config.image_quality, 
-                                                config.resize_image, 
+                                                config.low_resolution_mode, 
                                                 config.resize_method, 
                                                 config.capture_offset)
     
