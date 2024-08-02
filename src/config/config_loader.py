@@ -256,9 +256,9 @@ class ConfigLoader:
 
             # Vision
             self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')
+            self.low_resolution_mode = self.__definitions.get_bool_value("low_resolution_mode")
             self.save_screenshot = self.__definitions.get_bool_value('save_screenshot')
             self.image_quality = self.__definitions.get_int_value("image_quality")
-            self.resize_image = self.__definitions.get_bool_value("resize_image")
             self.resize_method = self.__definitions.get_string_value("resize_method")
             self.capture_offset = json.loads(self.__definitions.get_string_value("capture_offset"))
             

@@ -11,20 +11,20 @@ class VisionDefinitions:
         return ConfigValueBool("vision_enabled", "Vision", "If enabled, in-game screenshots are passed to the chosen LLM with each player response. This feature is only compatible with LLMs that accept image as well as text inputs.", False)
     
     @staticmethod
+    def get_low_resolution_mode_config_value() -> ConfigValue:
+        return ConfigValueBool("low_resolution_mode", "Low Resolution Mode", "Resizes the image to 512x512 pixels (cropping the edges of the longest side). Enable this setting to lower API costs and improve performance.", True)
+    
+    @staticmethod
     def get_save_screenshot_config_value() -> ConfigValue:
-        return ConfigValueBool("save_screenshot", "Save Screenshots", "Whether to save screenshots to Documents/My Games/Mantella/data/tmp/images/. Disable this setting to improve performance.", False)
+        return ConfigValueBool("save_screenshot", "Save Screenshots", "Whether to save screenshots to Documents/My Games/Mantella/data/tmp/images/. Disable this setting to improve performance.", True)  
 
     @staticmethod
     def get_image_quality_config_value() -> ConfigValue:
-        return ConfigValueInt("image_quality", "Screenshot Quality", "The quality of the image passed to the LLM from 1-100. Higher values improve the LLM's understanding of passed images. Lower values improve performance.", 50, 1, 100, tags=[ConvigValueTag.advanced])
-    
-    @staticmethod
-    def get_resize_image_config_value() -> ConfigValue:
-        return ConfigValueBool("resize_image", "Resize Image", "Resize image to a height of 512 pixels. Enable this setting to lower API costs / improve performance.", True, tags=[ConvigValueTag.advanced])
+        return ConfigValueInt("image_quality", "Screenshot Quality", "The quality of the image passed to the LLM from 1-100. Higher values improve the LLM's understanding of passed images. Lower values slightly improve performance. This setting has no affect on API costs.", 50, 1, 100, tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_resize_method_config_value() -> ConfigValue:
-        return ConfigValueSelection("resize_method", "Resize Method", "The image scaling algorithm used to resize in-game screenshots if Resize Image is enabled. Algorithms are sorted from fastest / lowest quality (Nearest) to slowest / highest quality (Lanczos).", "Nearest", ["Nearest", "Linear", "Cubic", "Lanczos"], tags=[ConvigValueTag.advanced])
+        return ConfigValueSelection("resize_method", "Resize Method", "The image scaling algorithm used to resize in-game screenshots to match the target resolution. Algorithms are sorted from fastest / lowest quality (Nearest) to slowest / highest quality (Lanczos).", "Nearest", ["Nearest", "Linear", "Cubic", "Lanczos"], tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_capture_offset_config_value() -> ConfigValue:
