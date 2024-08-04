@@ -1,6 +1,4 @@
-import base64
-import datetime
-import io
+from threading import Lock
 import src.utils as utils
 from typing import AsyncGenerator, List
 from openai import OpenAI, AsyncOpenAI, RateLimitError
@@ -19,6 +17,7 @@ class openai_client:
     """Joint setup for sync and async access to the LLMs
     """
     def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
+        self.__generation_lock: Lock = Lock()
         def auto_resolve_endpoint(model_name, endpoints):
             # attempt connection to Kobold
             try:
@@ -210,43 +209,44 @@ For more information, see here:
         Yields:
             Iterator[AsyncGenerator[str | None, None]]: Yields the return of the 'client.chat.completions.create' method immediately
         """
-        async_client = self.generate_async_client()
-        logging.info('Getting LLM response...')
-        max_tokens = self.__max_tokens
-        if is_multi_npc: # override max_tokens in radiant / multi-NPC conversations
-            max_tokens = 250
-        
-        try:
-            # Prepare the messages including the image if provided
-            openai_messages = messages.get_openai_messages()
-            if self.__vision_enabled:
-                openai_messages = self.__image_manager.add_image_to_messages(openai_messages)
+        with self.__generation_lock:
+            async_client = self.generate_async_client()
+            logging.info('Getting LLM response...')
+            max_tokens = self.__max_tokens
+            if is_multi_npc: # override max_tokens in radiant / multi-NPC conversations
+                max_tokens = 250
+            
+            try:
+                # Prepare the messages including the image if provided
+                openai_messages = messages.get_openai_messages()
+                if self.__vision_enabled:
+                    openai_messages = self.__image_manager.add_image_to_messages(openai_messages)
 
-            async for chunk in await async_client.chat.completions.create(
-                model=self.model_name, 
-                messages=openai_messages, 
-                stream=True,
-                stop=self.__stop,
-                temperature=self.__temperature,
-                top_p=self.__top_p,
-                frequency_penalty=self.__frequency_penalty, 
-                max_tokens=max_tokens
-            ):
-                if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
-                    yield chunk.choices[0].delta.content
+                async for chunk in await async_client.chat.completions.create(
+                    model=self.model_name, 
+                    messages=openai_messages, 
+                    stream=True,
+                    stop=self.__stop,
+                    temperature=self.__temperature,
+                    top_p=self.__top_p,
+                    frequency_penalty=self.__frequency_penalty, 
+                    max_tokens=max_tokens
+                ):
+                    if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
+                        yield chunk.choices[0].delta.content
+                    else:
+                        break
+            except Exception as e:
+                if e.code in [401, 'invalid_api_key']:  # incorrect API key
+                    if self.__base_url == None:  # None = OpenAI
+                        service_connection_attempt = 'OpenRouter'  # check if player means to connect to OpenRouter
+                    else:
+                        service_connection_attempt = 'OpenAI'  # check if player means to connect to OpenAI
+                    logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
                 else:
-                    break
-        except Exception as e:
-            if e.code in [401, 'invalid_api_key']:  # incorrect API key
-                if self.__base_url == None:  # None = OpenAI
-                    service_connection_attempt = 'OpenRouter'  # check if player means to connect to OpenRouter
-                else:
-                    service_connection_attempt = 'OpenAI'  # check if player means to connect to OpenAI
-                logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
-            else:
-                logging.error(f"LLM API Error: {e}")
-        finally:
-            await async_client.close()
+                    logging.error(f"LLM API Error: {e}")
+            finally:
+                await async_client.close()
 
     @utils.time_it
     def request_call(self, messages: message_thread) -> str | None:
@@ -259,28 +259,29 @@ For more information, see here:
         Returns:
             str | None: The reply of the LLM
         """
-        sync_client = self.generate_sync_client()        
-        chat_completion = None
-        logging.info('Getting LLM response...')
-        
-        try:            
-            chat_completion = sync_client.chat.completions.create(
-                model=self.model_name,
-                messages=messages.get_openai_messages(),
-                max_tokens=1_000
-            )
-        except RateLimitError:
-            logging.warning('Could not connect to LLM API, retrying in 5 seconds...')
-            time.sleep(5)
+        with self.__generation_lock:
+            sync_client = self.generate_sync_client()        
+            chat_completion = None
+            logging.info('Getting LLM response...')
+            
+            try:            
+                chat_completion = sync_client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages.get_openai_messages(),
+                    max_tokens=1_000
+                )
+            except RateLimitError:
+                logging.warning('Could not connect to LLM API, retrying in 5 seconds...')
+                time.sleep(5)
+            finally:
+                sync_client.close()
 
-        sync_client.close()
-
-        if not chat_completion or chat_completion.choices.__len__() < 1 or not chat_completion.choices[0].message.content:
-            logging.info(f"LLM Response failed")
-            return None
-        
-        reply = chat_completion.choices[0].message.content
-        return reply
+            if not chat_completion or chat_completion.choices.__len__() < 1 or not chat_completion.choices[0].message.content:
+                logging.info(f"LLM Response failed")
+                return None
+            
+            reply = chat_completion.choices[0].message.content
+            return reply
     
     @staticmethod
     def num_tokens_from_messages(messages: message_thread | list[message], model="gpt-3.5-turbo") -> int:
