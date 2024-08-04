@@ -3,6 +3,7 @@ import logging
 from threading import Thread, Lock
 import time
 from typing import Any, Callable
+from src.characters_manager import Characters
 from src.conversation.conversation_log import conversation_log
 from src.conversation.action import action
 from src.llm.sentence_queue import sentence_queue
@@ -57,7 +58,11 @@ class conversation:
         Args:
             new_character (Character): the character to add or update
         """
-        self.__context.add_or_update_characters(new_character)
+        characters_removed_by_update = self.__context.add_or_update_characters(new_character)
+        if len(characters_removed_by_update) > 0:
+            all_characters = self.__context.npcs_in_conversation.get_all_characters()
+            all_characters.extend(characters_removed_by_update)
+            self.__save_conversations_for_characters(all_characters, is_reload=True)
 
         # #switch to multi-npc dialog
         # if isinstance(self.__conversation_type, pc_to_npc) and len(self.__context.npcs_in_conversation) > 1:
@@ -288,11 +293,15 @@ class conversation:
 
     def __save_conversation(self, is_reload: bool):
         """Saves conversation log and state for each NPC in the conversation"""
-        for npc in self.__context.npcs_in_conversation.get_all_characters():
+        self.__save_conversations_for_characters(self.__context.npcs_in_conversation.get_all_characters(), is_reload)
+
+    def __save_conversations_for_characters(self, characters_to_save_for: list[Character], is_reload: bool):
+        characters_object = Characters()
+        for npc in characters_to_save_for:
             if not npc.is_player_character:
+                characters_object.add_or_update_character(npc)
                 conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
-        self.__rememberer.save_conversation_state(self.__messages, self.__context.npcs_in_conversation, self.__context.world_id, is_reload)
-        # self.__remember_thread = Thread(None, self.__rememberer.save_conversation_state, None, [self.__messages, self.__context.npcs_in_conversation]).start()
+        self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload)
 
     @utils.time_it
     def __initiate_reload_conversation(self):

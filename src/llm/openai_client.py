@@ -9,6 +9,7 @@ import requests
 from src.llm.message_thread import message_thread
 from src.llm.messages import message
 from src.config.config_loader import ConfigLoader
+from src.image.image_manager import ImageManager
 import sys
 from pathlib import Path
 
@@ -128,6 +129,16 @@ For more information, see here:
             except:
                 logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
                 raise
+
+        self.__vision_enabled = config.vision_enabled
+        if self.__vision_enabled:
+            self.__image_manager = ImageManager(config.game, 
+                                                config.save_folder, 
+                                                config.save_screenshot, 
+                                                config.image_quality, 
+                                                config.low_resolution_mode, 
+                                                config.resize_method, 
+                                                config.capture_offset)
     
     @property
     def token_limit(self) -> int:
@@ -189,7 +200,8 @@ For more information, see here:
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
 
         Args:
-            messages (conversation_thread): The message thread of the conversation
+            messages (message_thread): The message thread of the conversation
+            num_characters (int): Number of characters in the conversation
 
         Returns:
             AsyncGenerator[str | None, None]: Returns an iterable object. Iterate over this using 'async for'
@@ -203,30 +215,36 @@ For more information, see here:
             max_tokens = self.__max_tokens
             if is_multi_npc: # override max_tokens in radiant / multi-NPC conversations
                 max_tokens = 250
+            
             try:
-                async for chunk in await async_client.chat.completions.create(model=self.model_name, 
-                                                                                messages=messages.get_openai_messages(), 
-                                                                                stream=True,
-                                                                                stop=self.__stop,
-                                                                                temperature=self.__temperature,
-                                                                                top_p=self.__top_p,
-                                                                                frequency_penalty=self.__frequency_penalty, 
-                                                                                max_tokens=max_tokens):
+                # Prepare the messages including the image if provided
+                openai_messages = messages.get_openai_messages()
+                if self.__vision_enabled:
+                    openai_messages = self.__image_manager.add_image_to_messages(openai_messages)
+
+                async for chunk in await async_client.chat.completions.create(
+                    model=self.model_name, 
+                    messages=openai_messages, 
+                    stream=True,
+                    stop=self.__stop,
+                    temperature=self.__temperature,
+                    top_p=self.__top_p,
+                    frequency_penalty=self.__frequency_penalty, 
+                    max_tokens=max_tokens
+                ):
                     if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
                         yield chunk.choices[0].delta.content
                     else:
                         break
             except Exception as e:
-                if e.code in [401, 'invalid_api_key']: # incorrect API key
-                    if self.__base_url == None: # None = OpenAI
-                        service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
+                if e.code in [401, 'invalid_api_key']:  # incorrect API key
+                    if self.__base_url == None:  # None = OpenAI
+                        service_connection_attempt = 'OpenRouter'  # check if player means to connect to OpenRouter
                     else:
-                        service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
+                        service_connection_attempt = 'OpenAI'  # check if player means to connect to OpenAI
                     logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
                 else:
                     logging.error(f"LLM API Error: {e}")
-                
-
             finally:
                 await async_client.close()
 
@@ -245,10 +263,15 @@ For more information, see here:
             sync_client = self.generate_sync_client()        
             chat_completion = None
             logging.info('Getting LLM response...')
-            try:
-                chat_completion = sync_client.chat.completions.create(model=self.model_name, messages=messages.get_openai_messages(), max_tokens=1_000)
+            
+            try:            
+                chat_completion = sync_client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages.get_openai_messages(),
+                    max_tokens=1_000
+                )
             except RateLimitError:
-                logging.warning('Could not connect to LLM API, retrying in 5 seconds...') #Do we really retry here?
+                logging.warning('Could not connect to LLM API, retrying in 5 seconds...')
                 time.sleep(5)
             finally:
                 sync_client.close()
