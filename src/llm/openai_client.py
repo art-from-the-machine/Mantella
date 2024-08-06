@@ -378,20 +378,22 @@ For more information, see here:
                 return f.readline().strip()
 
     @staticmethod
-    def get_model_list(service: str) -> LLMModelList:        
-        if service == "OpenAI":
-            endpoint = 'none'
-            default_model = "gpt-3.5-turbo"
-        elif service == "OpenRouter":
-            endpoint = 'https://openrouter.ai/api/v1'
-            default_model = "undi95/toppy-m-7b:free"
-        else:
+    def get_model_list(service: str) -> LLMModelList:
+        if service not in ['OpenAI', 'OpenRouter']:
             return LLMModelList([("Custom model","Custom model")], "Custom model", allows_manual_model_input=True)
-        
         try:
-            secret_key = openai_client.get_secret_key('GPT_SECRET_KEY.txt')
-            client = OpenAI(api_key=secret_key, base_url=endpoint)
-            models = client.models.list()
+            if service == "OpenAI":
+                default_model = "gpt-4o-mini"
+                models = utils.get_openai_model_list()
+                allow_manual_model_input = True
+            elif service == "OpenRouter":
+                default_model = "undi95/toppy-m-7b:free"
+                secret_key = openai_client.get_secret_key('GPT_SECRET_KEY.txt')
+                client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
+                models = client.models.list()
+                client.close()
+                allow_manual_model_input = False
+
             options = []
             multiplier = 1_000_000
             for model in models.data:
@@ -400,15 +402,14 @@ For more information, see here:
                         context_size: int = model.model_extra["context_length"]
                         prompt_cost: float = float(model.model_extra["pricing"]["prompt"]) * multiplier
                         completion_cost: float = float(model.model_extra["pricing"]["completion"]) * multiplier
-                        model_display_name = f"{model.id} | Context: {context_size} | Cost per 1M tokens. Prompt: {prompt_cost}$. Completion: {completion_cost}$"
+                        vision_available: str = ' | Vision Available' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
+                        model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}"
                     else:
                         model_display_name = model.id
                 except:
                     model_display_name = model.id
                 options.append((model_display_name, model.id))
-            return LLMModelList(options, default_model, allows_manual_model_input=False)
+            return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
         except APIConnectionError as e:
             error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required: {e}"
-            return LLMModelList([(error,"error")], "error",allows_manual_model_input=False)
-
-    
+            return LLMModelList([(error,"error")], "error", allows_manual_model_input=allow_manual_model_input)
