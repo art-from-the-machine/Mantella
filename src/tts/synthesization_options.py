@@ -5,7 +5,7 @@ class SynthesizationOptions:
         self.__aggro = aggro
     
     @property
-    def Aggro(self) -> bool:
+    def aggro(self) -> bool:
         """Is the NPC saying this angry/in combat right now?
         """
         return self.__aggro

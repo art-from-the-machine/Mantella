@@ -59,7 +59,7 @@ class ConfigFileWriter(ConfigValueVisitor):
 
     def visit_ConfigValueSelection(self, config_value: ConfigValueSelection):
         lines_to_write = self.__generate_name_and_description_lines(config_value)
-        lines_to_write.append(f";   Options: {', '.join(config_value.Options[:])}{self.NEWLINE}")
+        lines_to_write.append(f";   Options: {', '.join(config_value.options[:])}{self.NEWLINE}")
         lines_to_write.extend(self.__generate_default_and_config_value_lines(config_value))
         self.write_setting_block_to_file(lines_to_write)
 

@@ -21,15 +21,15 @@ class LLMModelList:
         self.__allows_manual_model_input = allows_manual_model_input
 
     @property
-    def Available_models(self) -> list[tuple[str, str]]:
+    def available_models(self) -> list[tuple[str, str]]:
         return self.__available_models
 
     @property
-    def Default_model(self) -> str:
+    def default_model(self) -> str:
         return self.__default_model
     
     @property
-    def Allows_manual_model_input(self) -> bool:
+    def allows_manual_model_input(self) -> bool:
         return self.__allows_manual_model_input
     
     def is_model_in_list(self, model: str) -> bool:
@@ -437,6 +437,7 @@ For more information, see here:
             if service == "OpenAI":
                 default_model = "gpt-4o-mini"
                 models = utils.get_openai_model_list()
+                # OpenAI models are not a "live" list, so manual input needs to be allowed for when new models not listed are released
                 allow_manual_model_input = True
             elif service == "OpenRouter":
                 default_model = "undi95/toppy-m-7b:free"

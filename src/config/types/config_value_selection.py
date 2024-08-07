@@ -11,15 +11,15 @@ class ConfigValueSelection(ConfigValue[str]):
         self.__allows_values_not_in_options = allows_values_not_in_options
 
     @property
-    def Options(self) -> list[str]:
+    def options(self) -> list[str]:
         return self.__options
     
     @property
-    def Allows_custom_value(self) -> bool:
+    def allows_custom_value(self) -> bool:
         return self.__allows_free_edit
     
     @property
-    def Allows_values_not_in_options(self) -> bool:
+    def allows_values_not_in_options(self) -> bool:
         return self.__allows_values_not_in_options
     
     def does_value_cause_error(self, value_to_check: str) -> ConfigValueConstraintResult:

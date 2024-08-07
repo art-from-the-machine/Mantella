@@ -51,7 +51,7 @@ class xvasynth(ttsable):
             voiceline_files.append(voiceline_file)
 
         if len(phrases) == 1:
-            self._synthesize_line(phrases[0], final_voiceline_file, synth_options.Aggro)
+            self._synthesize_line(phrases[0], final_voiceline_file, synth_options.aggro)
         else:
             # TODO: include batch synthesis for v3 models (batch not needed very often)
             if self.__model_type != 'xVAPitch':

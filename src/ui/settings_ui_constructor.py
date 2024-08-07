@@ -22,7 +22,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
         self.__config_value_to_ui_element: dict[ConfigValue, Any] = {}
     
     @property
-    def Config_value_to_ui_element(self) -> dict[ConfigValue, gr.Column]:
+    def config_value_to_ui_element(self) -> dict[ConfigValue, gr.Column]:
         return self.__config_value_to_ui_element
     
     def __create_config_value_ui_element(self, config_value: ConfigValue, create_input_component: Callable[[ConfigValue],Any], update_on_change: bool = True, update_on_submit: bool = False, update_on_blur: bool = False, additional_buttons: list[tuple[str, Callable[[], Any]]] = []):
@@ -177,9 +177,9 @@ class SettingsUIConstructor(ConfigValueVisitor):
             config_value = typing.cast(ConfigValueSelection, raw_config_value)
             if config_value.identifier != "model":
                 return gr.Dropdown(value=config_value.value,                        
-                    choices=config_value.Options, # type: ignore
+                    choices=config_value.options, # type: ignore
                     multiselect=False,
-                    allow_custom_value=config_value.Allows_custom_value, 
+                    allow_custom_value=config_value.allows_custom_value, 
                     show_label=False,
                     container=False)
             else: #special treatment for 'model' because the content of the dropdown needs to reload on change of 'llm_api'
@@ -187,11 +187,11 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 model_list = openai_client.get_model_list(service)
                 selected_model = config_value.value
                 if not model_list.is_model_in_list(selected_model):
-                    selected_model = model_list.Default_model
+                    selected_model = model_list.default_model
                 return gr.Dropdown(value=selected_model,                        
-                    choices= model_list.Available_models, # type: ignore
+                    choices= model_list.available_models, # type: ignore
                     multiselect=False,
-                    allow_custom_value=model_list.Allows_manual_model_input,
+                    allow_custom_value=model_list.allows_manual_model_input,
                     show_label=False,
                     container=False)
         
