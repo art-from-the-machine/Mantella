@@ -1,7 +1,7 @@
 from threading import Lock
 import src.utils as utils
 from typing import AsyncGenerator, List
-from openai import APIConnectionError, OpenAI, AsyncOpenAI, RateLimitError
+from openai import APIConnectionError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
 import logging
 import time
 import tiktoken
@@ -265,6 +265,11 @@ For more information, see here:
                         else:
                             service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
                         logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+                    else:
+                        logging.error(f"LLM API Error: {e}")
+                elif isinstance(e, BadRequestError):
+                    if (e.type == 'invalid_request_error') and (self.__vision_enabled): # invalid request
+                        logging.error(f"Invalid request. Try disabling Vision in Mantella's settings and try again.")
                     else:
                         logging.error(f"LLM API Error: {e}")
                 else:
