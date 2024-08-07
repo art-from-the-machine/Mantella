@@ -85,8 +85,7 @@ class LLMDefinitions:
     @staticmethod
     def get_try_filter_narration() -> ConfigValue:
         try_filter_narration_description = """Should Mantella try to filter narrations out of the output of the LLM?
-                                            If checked, tries to filter out sentences containing asterisks (*).
-                                            Default: Checked"""
+                                            If checked, tries to filter out sentences containing asterisks (*)."""
         return ConfigValueBool("try_filter_narration","Try to filter narrations from LLM output",try_filter_narration_description,True,tags=[ConvigValueTag.advanced])
 
     
