@@ -238,32 +238,6 @@ For more information, see here:
             if is_multi_npc: # override max_tokens in radiant / multi-NPC conversations
                 max_tokens = 250
             try:
-                async for chunk in await async_client.chat.completions.create(model=self.model_name, 
-                                                                                messages=messages.get_openai_messages(), 
-                                                                                stream=True,
-                                                                                stop=self.__stop,
-                                                                                temperature=self.__temperature,
-                                                                                top_p=self.__top_p,
-                                                                                frequency_penalty=self.__frequency_penalty, 
-                                                                                max_tokens=max_tokens):
-                    if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
-                        yield chunk.choices[0].delta.content
-                    else:
-                        break
-            except Exception as e:
-                if isinstance(e, APIConnectionError):
-                    if e.code in [401, 'invalid_api_key']: # incorrect API key
-                        if self.__base_url == None: # None = OpenAI
-                            service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
-                        else:
-                            service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
-                        logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
-                    else:
-                        logging.error(f"LLM API Error: {e}")
-                else:
-                    logging.error(f"LLM API Error: {e}")
-            
-            try:
                 # Prepare the messages including the image if provided
                 openai_messages = messages.get_openai_messages()
                 if self.__vision_enabled:
@@ -284,12 +258,15 @@ For more information, see here:
                     else:
                         break
             except Exception as e:
-                if e.code in [401, 'invalid_api_key']:  # incorrect API key
-                    if self.__base_url == None:  # None = OpenAI
-                        service_connection_attempt = 'OpenRouter'  # check if player means to connect to OpenRouter
+                if isinstance(e, APIConnectionError):
+                    if e.code in [401, 'invalid_api_key']: # incorrect API key
+                        if self.__base_url == None: # None = OpenAI
+                            service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
+                        else:
+                            service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
+                        logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
                     else:
-                        service_connection_attempt = 'OpenAI'  # check if player means to connect to OpenAI
-                    logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+                        logging.error(f"LLM API Error: {e}")
                 else:
                     logging.error(f"LLM API Error: {e}")
             finally:
