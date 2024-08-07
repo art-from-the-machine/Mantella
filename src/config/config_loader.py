@@ -194,6 +194,7 @@ class ConfigLoader:
             #LLM
             self.max_response_sentences = self.__definitions.get_int_value("max_response_sentences")
             self.llm = self.__definitions.get_string_value("model")
+            self.llm = self.llm.split(' |')[0] if ' |' in self.llm else self.llm
             self.wait_time_buffer = self.__definitions.get_float_value("wait_time_buffer")
             self.llm_api = self.__definitions.get_string_value("llm_api")
             # if self.llm_api == "Custom":
