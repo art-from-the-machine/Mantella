@@ -9,15 +9,11 @@ from src.config.types.config_value_bool import ConfigValueBool
 class LLMDefinitions:
     @staticmethod
     def get_llm_api_config_value() -> ConfigValue:
-        description = """Selects the LLM service to connect to. An LLM service provides access to LLMs for Mantella to call.
-            Mantella supports 
-            - Online services (OpenAI, OpenRouter)
-            - Services that run on the local system (KoboldCpp, textgenwebui)
-            - Other services that provide an OpenAI compatible endpoint
-            **If you are using OpenRouter or OpenAI ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.**          
-            Note that for some services, like Text generation web UI, you must enable the OpenAI extension and have the model you want to use preloaded before running Mantella.
-            You can also enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
-            After selecting a service, select the model using the option below. Press the *Update list* button to load a list of models available from the service."""
+        description = """Selects the LLM service to connect to (either local or via an API).
+            If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
+            After selecting a service, select the model using the option below. Press the *Update list* button to load a list of models available from the service.
+
+            **If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.**"""
         return ConfigValueSelection("llm_api","LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"], allows_free_edit=True)
 
     @staticmethod
