@@ -39,6 +39,8 @@ class LLMModelList:
 class openai_client:
     """Joint setup for sync and async access to the LLMs
     """
+    api_token_limits = {}
+
     def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
         def auto_resolve_endpoint(model_name, endpoints):
             # attempt connection to Kobold
@@ -346,7 +348,8 @@ For more information, see here:
     
     # --- Private methods ---    
     def __get_token_limit(self, llm, custom_token_count, is_local):
-        token_limit_dict = utils.get_model_token_limits()
+        manual_limits = utils.get_model_token_limits()
+        token_limit_dict = {**self.api_token_limits, **manual_limits}
 
         if '/' in llm:
             llm = llm.split('/')[-1]
@@ -390,6 +393,7 @@ For more information, see here:
                 default_model = "undi95/toppy-m-7b:free"
                 secret_key = openai_client.get_secret_key('GPT_SECRET_KEY.txt')
                 client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
+                # NOTE: while a secret key is not needed for this request, this may change in the future
                 models = client.models.list()
                 client.close()
                 allow_manual_model_input = False
@@ -404,6 +408,8 @@ For more information, see here:
                         completion_cost: float = float(model.model_extra["pricing"]["completion"]) * multiplier
                         vision_available: str = ' | Vision Available' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
                         model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}"
+                        
+                        openai_client.api_token_limits[model.id.split('/')[-1]] = context_size
                     else:
                         model_display_name = model.id
                 except:
