@@ -74,10 +74,10 @@ class PromptDefinitions:
 
     @staticmethod
     def get_skyrim_multi_npc_prompt_config_value() -> ConfigValue:
+        # TODO: integrate player description "{player_name} is {player_description} {player_equipment} {equipment}" when multi-NPC conversation, but not radiant
         skyrim_multi_npc_prompt = """The following is a conversation in {location} in Skyrim between {names_w_player}.
                                     Here are their backgrounds: {bios}                                    
                                     And here are their conversation histories: {conversation_summaries}
-                                    {player_name} is {player_description} {player_equipment} {equipment}
                                     The time is {time} {time_group}. If you directly refer to the time, please state it as, for example, '10 in the evening' rather than '22:00'. 
                                     {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
