@@ -11,6 +11,7 @@ import requests
 from subprocess import Popen, DEVNULL
 import time
 import sys
+from src.tts.synthesization_options import SynthesizationOptions
 
 class TTSServiceFailure(Exception):
     pass
@@ -42,7 +43,7 @@ class xvasynth(ttsable):
         self._check_if_xvasynth_is_running()
 
 
-    def tts_synthesize(self, voiceline, final_voiceline_file, aggro):
+    def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         phrases = self._split_voiceline(voiceline)
         voiceline_files = []
         for phrase in phrases:
@@ -50,7 +51,7 @@ class xvasynth(ttsable):
             voiceline_files.append(voiceline_file)
 
         if len(phrases) == 1:
-            self._synthesize_line(phrases[0], final_voiceline_file, aggro)
+            self._synthesize_line(phrases[0], final_voiceline_file, synth_options.Aggro)
         else:
             # TODO: include batch synthesis for v3 models (batch not needed very often)
             if self.__model_type != 'xVAPitch':
@@ -207,10 +208,9 @@ class xvasynth(ttsable):
             try:
                 audio, samplerate = sf.read(audio_file)
                 merged_audio = np.concatenate((merged_audio, audio))
+                sf.write(voiceline_file_name, merged_audio, samplerate)
             except:
                 logging.error(f'Could not find voiceline file: {audio_file}')
-
-        sf.write(voiceline_file_name, merged_audio, samplerate)
 
 
     def _synthesize_line(self, line, save_path, aggro: bool = False, voicemodelversion='3.0'):
@@ -242,7 +242,7 @@ class xvasynth(ttsable):
                 if attempt < max_attempts - 1:  # if not the last attempt
                     logging.warning(f"Connection error while synthesizing voiceline. Restarting xVASynth server... ({attempt})")
                     if voicemodelversion!='1.0':
-                        self.run_xvasynth_server()
+                        self._run_xvasynth_server()
                         self.change_voice(self._last_voice)
                 else:
                     logging.error(f"Failed to synthesize line after {max_attempts} attempts. Skipping voiceline: {line}")
@@ -272,7 +272,7 @@ class xvasynth(ttsable):
             except ConnectionError as e:
                 if attempt < max_attempts - 1:  # Not the last attempt
                     logging.warning(f"Connection error while synthesizing voiceline. Restarting xVASynth server... ({attempt})")
-                    self.run_xvasynth_server()
+                    self._run_xvasynth_server()
                     self.change_voice(self._last_voice)
                 else:
                     logging.error(f"Failed to synthesize line after {max_attempts} attempts. Skipping voiceline: {linesBatch}")

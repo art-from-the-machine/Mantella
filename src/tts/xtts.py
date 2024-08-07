@@ -10,6 +10,7 @@ import io
 import json
 from subprocess import Popen
 import time
+from src.tts.synthesization_options import SynthesizationOptions
 
 class TTSServiceFailure(Exception):
     pass
@@ -50,7 +51,7 @@ class xtts(ttsable):
         self.__last_model = self._get_first_available_official_model()
 
 
-    def tts_synthesize(self, voiceline, final_voiceline_file, aggro):
+    def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         self._synthesize_line_xtts(voiceline, final_voiceline_file)
     
 

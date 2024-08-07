@@ -9,6 +9,7 @@ from pathlib import Path
 from subprocess import STARTUPINFO, STARTF_USESHOWWINDOW
 import subprocess
 import time
+from src.tts.synthesization_options import SynthesizationOptions
 
 class ttsable(ABC):
     """Base class for different TTS services
@@ -36,7 +37,7 @@ class ttsable(ABC):
             self._game = "Skyrim"
 
 
-    def synthesize(self, voice: str, voiceline: str, in_game_voice: str, csv_in_game_voice: str, voice_accent: str, aggro: bool = False, advanced_voice_model: str | None = None):
+    def synthesize(self, voice: str, voiceline: str, in_game_voice: str, csv_in_game_voice: str, voice_accent: str, synth_options: SynthesizationOptions, advanced_voice_model: str | None = None):
         """Synthesizes a given voiceline
         """
         if self._last_voice == '' or self._last_voice not in [voice, in_game_voice, csv_in_game_voice, advanced_voice_model, 'fo4_'+voice]:
@@ -55,7 +56,7 @@ class ttsable(ABC):
         except:
             logging.warning("Failed to remove spoken voicelines")
 
-        self.tts_synthesize(voiceline, final_voiceline_file, aggro)
+        self.tts_synthesize(voiceline, final_voiceline_file, synth_options)
         if not os.path.exists(final_voiceline_file):
             logging.error(f'TTS failed to generate voiceline at: {Path(final_voiceline_file)}')
             raise FileNotFoundError()
@@ -91,7 +92,7 @@ class ttsable(ABC):
 
 
     @abstractmethod
-    def tts_synthesize(self, voiceline, final_voiceline_file):
+    def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         """Synthesize the voiceline with the TTS service
         """
         pass

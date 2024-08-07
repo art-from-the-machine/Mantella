@@ -155,7 +155,8 @@ class skyrim(gameable):
     
     def get_weather_description(self, weather_attributes: dict[str, Any]) -> str:
         if weather_attributes.__contains__(self.KEY_CONTEXT_WEATHER_ID):
-            weather_id = weather_attributes[self.KEY_CONTEXT_WEATHER_ID]
+            weather_id: str = weather_attributes[self.KEY_CONTEXT_WEATHER_ID]
+            weather_id = utils.convert_to_skyrim_hex_format(weather_id)
             id_match = self.__weather_table['id'].astype(str).str.lower() == weather_id.lower()
             view = self.__weather_table.loc[id_match]
             if view.shape[0] == 1: #If there is exactly one match
@@ -163,7 +164,7 @@ class skyrim(gameable):
                 return records["description"]
         if weather_attributes.__contains__(self.KEY_CONTEXT_WEATHER_CLASSIFICATION):
             weather_classification: int = weather_attributes[self.KEY_CONTEXT_WEATHER_CLASSIFICATION]
-            if weather_classification >= 0 and weather_classification < len(self.WEATHER_CLASIFICATIONS):
+            if weather_classification >= 0 and weather_classification < len(self.WEATHER_CLASSIFICATIONS):
                 return self.WEATHER_CLASSIFICATIONS[weather_classification]
         return ""
  

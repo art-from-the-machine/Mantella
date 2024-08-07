@@ -8,6 +8,7 @@ from src.config.config_json_writer import ConfigJsonWriter
 from src.config.config_file_writer import ConfigFileWriter
 import src.utils as utils
 from pathlib import Path
+import json
 
 class ConfigLoader:
     def __init__(self, mygame_folder_path: str, file_name='config.ini'):
@@ -252,6 +253,15 @@ class ConfigLoader:
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")
             self.memory_prompt = self.__definitions.get_string_value("memory_prompt")
             self.resummarize_prompt = self.__definitions.get_string_value("resummarize_prompt")
+
+            # Vision
+            self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')
+            self.low_resolution_mode = self.__definitions.get_bool_value("low_resolution_mode")
+            self.save_screenshot = self.__definitions.get_bool_value('save_screenshot')
+            self.image_quality = self.__definitions.get_int_value("image_quality")
+            self.resize_method = self.__definitions.get_string_value("resize_method")
+            self.capture_offset = json.loads(self.__definitions.get_string_value("capture_offset"))
+            
             pass
         except Exception as e:
             logging.error('Parameter missing/invalid in config.ini file!')
