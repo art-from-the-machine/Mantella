@@ -1,7 +1,7 @@
 from threading import Lock
 import src.utils as utils
 from typing import AsyncGenerator, List
-from openai import OpenAI, AsyncOpenAI, RateLimitError
+from openai import APIConnectionError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
 import logging
 import time
 import tiktoken
@@ -13,9 +13,36 @@ from src.image.image_manager import ImageManager
 import sys
 from pathlib import Path
 
+        
+class LLMModelList:            
+    def __init__(self, available_models: list[tuple[str, str]], default_model: str, allows_manual_model_input: bool) -> None:
+        self.__available_models = available_models
+        self.__default_model = default_model
+        self.__allows_manual_model_input = allows_manual_model_input
+
+    @property
+    def available_models(self) -> list[tuple[str, str]]:
+        return self.__available_models
+
+    @property
+    def default_model(self) -> str:
+        return self.__default_model
+    
+    @property
+    def allows_manual_model_input(self) -> bool:
+        return self.__allows_manual_model_input
+    
+    def is_model_in_list(self, model: str) -> bool:
+        for model_in_list in self.__available_models:
+            if model_in_list[1] == model:
+                return True
+        return False
+
 class openai_client:
     """Joint setup for sync and async access to the LLMs
     """
+    api_token_limits = {}
+
     def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
         self.__generation_lock: Lock = Lock()
         def auto_resolve_endpoint(model_name, endpoints):
@@ -48,9 +75,10 @@ class openai_client:
         }
         
         cleaned_llm_api = config.llm_api.strip().lower().replace(' ', '')
-        if cleaned_llm_api == 'auto':
-            endpoint = auto_resolve_endpoint(config.llm, endpoints)
-        elif cleaned_llm_api == 'openai':
+        # if cleaned_llm_api == 'auto':
+        #     endpoint = auto_resolve_endpoint(config.llm, endpoints)
+        # el
+        if cleaned_llm_api == 'openai':
             endpoint = endpoints['openai']
             logging.info(f"Running LLM with OpenAI")
         elif cleaned_llm_api == 'openrouter':
@@ -69,13 +97,7 @@ class openai_client:
             #cloud LLM
             self.__is_local: bool = False
 
-            try: # first check mod folder for secret key
-                mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
-                with open(mod_parent_folder+'\\'+secret_key_file, 'r') as f:
-                    self.__api_key: str = f.readline().strip()
-            except: # check locally (same folder as exe) for secret key
-                with open(secret_key_file, 'r') as f:
-                    self.__api_key: str = f.readline().strip()
+            self.__api_key = self.get_secret_key(secret_key_file)
 
             if not self.__api_key:
                 game_installation_page = 'https://art-from-the-machine.github.io/Mantella/pages/installation.html#language-models-llms'
@@ -215,7 +237,6 @@ For more information, see here:
             max_tokens = self.__max_tokens
             if is_multi_npc: # override max_tokens in radiant / multi-NPC conversations
                 max_tokens = 250
-            
             try:
                 # Prepare the messages including the image if provided
                 openai_messages = messages.get_openai_messages()
@@ -237,12 +258,20 @@ For more information, see here:
                     else:
                         break
             except Exception as e:
-                if e.code in [401, 'invalid_api_key']:  # incorrect API key
-                    if self.__base_url == None:  # None = OpenAI
-                        service_connection_attempt = 'OpenRouter'  # check if player means to connect to OpenRouter
+                if isinstance(e, APIConnectionError):
+                    if e.code in [401, 'invalid_api_key']: # incorrect API key
+                        if self.__base_url == None: # None = OpenAI
+                            service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
+                        else:
+                            service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
+                        logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
                     else:
-                        service_connection_attempt = 'OpenAI'  # check if player means to connect to OpenAI
-                    logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+                        logging.error(f"LLM API Error: {e}")
+                elif isinstance(e, BadRequestError):
+                    if (e.type == 'invalid_request_error') and (self.__vision_enabled): # invalid request
+                        logging.error(f"Invalid request. Try disabling Vision in Mantella's settings and try again.")
+                    else:
+                        logging.error(f"LLM API Error: {e}")
                 else:
                     logging.error(f"LLM API Error: {e}")
             finally:
@@ -350,7 +379,8 @@ For more information, see here:
     
     # --- Private methods ---    
     def __get_token_limit(self, llm, custom_token_count, is_local):
-        token_limit_dict = utils.get_model_token_limits()
+        manual_limits = utils.get_model_token_limits()
+        token_limit_dict = {**self.api_token_limits, **manual_limits}
 
         if '/' in llm:
             llm = llm.split('/')[-1]
@@ -370,3 +400,54 @@ For more information, see here:
             logging.warning(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
         
         return token_limit
+    
+    @staticmethod
+    def get_secret_key(secret_key_file: str) -> str:
+        try: # first check mod folder for secret key
+            mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
+            with open(mod_parent_folder+'\\'+secret_key_file, 'r') as f:
+                return f.readline().strip()
+        except: # check locally (same folder as exe) for secret key
+            with open(secret_key_file, 'r') as f:
+                return f.readline().strip()
+
+    @staticmethod
+    def get_model_list(service: str) -> LLMModelList:
+        if service not in ['OpenAI', 'OpenRouter']:
+            return LLMModelList([("Custom model","Custom model")], "Custom model", allows_manual_model_input=True)
+        try:
+            if service == "OpenAI":
+                default_model = "gpt-4o-mini"
+                models = utils.get_openai_model_list()
+                # OpenAI models are not a "live" list, so manual input needs to be allowed for when new models not listed are released
+                allow_manual_model_input = True
+            elif service == "OpenRouter":
+                default_model = "undi95/toppy-m-7b:free"
+                secret_key = openai_client.get_secret_key('GPT_SECRET_KEY.txt')
+                client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
+                # NOTE: while a secret key is not needed for this request, this may change in the future
+                models = client.models.list()
+                client.close()
+                allow_manual_model_input = False
+
+            options = []
+            multiplier = 1_000_000
+            for model in models.data:
+                try:
+                    if model.model_extra:
+                        context_size: int = model.model_extra["context_length"]
+                        prompt_cost: float = float(model.model_extra["pricing"]["prompt"]) * multiplier
+                        completion_cost: float = float(model.model_extra["pricing"]["completion"]) * multiplier
+                        vision_available: str = ' | Vision Available' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
+                        model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}"
+                        
+                        openai_client.api_token_limits[model.id.split('/')[-1]] = context_size
+                    else:
+                        model_display_name = model.id
+                except:
+                    model_display_name = model.id
+                options.append((model_display_name, model.id))
+            return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
+        except APIConnectionError as e:
+            error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required: {e}"
+            return LLMModelList([(error,"error")], "error", allows_manual_model_input=allow_manual_model_input)

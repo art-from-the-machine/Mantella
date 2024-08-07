@@ -16,6 +16,14 @@ class OtherDefinitions:
         auto_launch_ui_description = """Whether the Mantella UI should launch automatically in your browser."""
         return ConfigValueBool("auto_launch_ui","Auto Launch UI",auto_launch_ui_description,True)
 
+    #Conversation
+    @staticmethod
+    def get_automatic_greeting_config_value() -> ConfigValue:
+        automatic_greeting_description = """Should a conversation be started with an automatic greeting from the LLM / NPC.
+                                        - If enabled: Conversations are always started by the LLM.
+                                        - If disabled: The LLM will not respond until the player speaks first."""
+        return ConfigValueBool("automatic_greeting","Automatic Greeting",automatic_greeting_description,True)
+    
     #Player Character
     @staticmethod
     def get_player_character_description() -> ConfigValue:

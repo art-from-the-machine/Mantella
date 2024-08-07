@@ -8,47 +8,39 @@ from src.config.types.config_value_bool import ConfigValueBool
 
 class LLMDefinitions:
     @staticmethod
-    def get_model_config_value() -> ConfigValue:
-        model_description = """Options:
-                            - OpenRouter: see https://openrouter.ai/docs#models. Copy the value displayed under the model heading (eg anthropic/claude-3-sonnet).
-                            - OpenAI: gpt-3.5-turbo, gpt-4o
-                            Local model users can ignore this setting as you will instead select your model directly in Kobold / Text generation web UI.
-                            Remember to change your secret key in GPT_SECRET_KEY.txt when switching between OpenRouter and OpenAI services!"""
-        return ConfigValueString("model","Model",model_description,"undi95/toppy-m-7b:free")
-    
-    @staticmethod
-    def get_max_response_sentences_config_value() -> ConfigValue:
-        return ConfigValueInt("max_response_sentences","Max Sentences per Response","The maximum number of sentences returned by the LLM on each response. Lower this value to reduce waffling.\nNote: The setting 'Number Words TTS' in the Text-to-Speech tab takes precedence over this setting.",4,1,999)
-    
-    @staticmethod
     def get_llm_api_config_value() -> ConfigValue:
-        description = """Selects the LLM service to connect to.
-            By default, the service will be automatically determined based on whether Kobold / Text generation web UI is running, and if neither are running, based on the model selected.
-            If you would prefer to explicitly select the service to connect to, you can do so by changing to one of the values below.
-            Ensure that you have the correct secret key set in GPT_SECRET_KEY.txt for the service you are using (if using OpenRouter or OpenAI).
-            Note that for some services, like Text generation web UI, you must enable the OpenAI extension and have the model you want to use preloaded before running Mantella.
-            Choosing 'Custom' will change the URL to the URL set in 'LLM Custom Service URL' below."""
-        return ConfigValueSelection("llm_api","LLM Service",description, "auto", ["auto", "OpenRouter", "OpenAI", "Kobold", "textgenwebui", "Custom"],tags=[ConvigValueTag.advanced])
-    
+        description = """Selects the LLM service to connect to (either local or via an API).
+            If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
+            After selecting a service, select the model using the option below. Press the *Update list* button to load a list of models available from the service.
+
+            **If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.**"""
+        return ConfigValueSelection("llm_api","LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"], allows_free_edit=True)
+
     @staticmethod
-    def get_llm_custom_service_url_config_value() -> ConfigValue:
-        description = """If 'Custom' is selected for 'LLM Service' above, Mantella will connect to the URL below. 
-                        A custom LLM service is expected to provide an OpenAI API compatible endpoint."""
-        return ConfigValueString("llm_custom_service_url","LLM Custom Service URL",description, "http://127.0.0.1:5001/v1",tags=[ConvigValueTag.advanced])
+    def get_model_config_value() -> ConfigValue:
+        model_description = """Select the model to use. Press the *Update list* button to load a list of models available from the service selected above.
+                            **If you are using OpenRouter or OpenAI updating the list requires a correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.**
+                            The list does not provide all details about the models. For additional information please refer to the corresponsing sites:
+                            - OpenRouter: https://openrouter.ai/docs#models
+                            - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
+        return ConfigValueSelection("model","Model",model_description,"undi95/toppy-m-7b:free",["Custom Model"], allows_values_not_in_options=True)
     
     @staticmethod
     def get_custom_token_count_config_value() -> ConfigValue:
         description = """If the model chosen is not recognised by Mantella, the token count for the given model will default to this number.
                     If this is not the correct token count for your chosen model, you can change it here.
                     Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit."""
-        return ConfigValueInt("custom_token_count","Custom Token Count",description, 4096, 4096, 9999999,tags=[ConvigValueTag.advanced])
-    
+        return ConfigValueInt("custom_token_count","Custom Token Count",description, 4096, 4096, 9999999)
+
     @staticmethod
-    def get_automatic_greeting_folder_config_value() -> ConfigValue:
-        automatic_greeting_description = """Should a conversation be started with an automatic greeting from the LLM / NPC.
-                                        If enabled: Conversations are always started by the LLM.
-                                        If disabled: The LLM will not respond until the player speaks first."""
-        return ConfigValueBool("automatic_greeting","Automatic Greeting",automatic_greeting_description,True,tags=[ConvigValueTag.advanced])
+    def get_max_response_sentences_config_value() -> ConfigValue:
+        return ConfigValueInt("max_response_sentences","Max Sentences per Response","The maximum number of sentences returned by the LLM on each response. Lower this value to reduce waffling.\nNote: The setting 'Number Words TTS' in the Text-to-Speech tab takes precedence over this setting.",4,1,999)
+    
+    # @staticmethod
+    # def get_llm_custom_service_url_config_value() -> ConfigValue:
+    #     description = """If 'Custom' is selected for 'LLM Service' above, Mantella will connect to the URL below. 
+    #                     A custom LLM service is expected to provide an OpenAI API compatible endpoint."""
+    #     return ConfigValueString("llm_custom_service_url","LLM Custom Service URL",description, "http://127.0.0.1:5001/v1",tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_wait_time_buffer_config_value() -> ConfigValue:
@@ -89,8 +81,7 @@ class LLMDefinitions:
     @staticmethod
     def get_try_filter_narration() -> ConfigValue:
         try_filter_narration_description = """Should Mantella try to filter narrations out of the output of the LLM?
-                                            If checked, tries to filter out sentences containing asterisks (*).
-                                            Default: Checked"""
+                                            If checked, tries to filter out sentences containing asterisks (*)."""
         return ConfigValueBool("try_filter_narration","Try to filter narrations from LLM output",try_filter_narration_description,True,tags=[ConvigValueTag.advanced])
 
     

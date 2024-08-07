@@ -87,7 +87,7 @@ class ConfigJsonWriter(ConfigValueVisitor):
         result[self.KEY_TYPE] = "selection"
         self.__add_id_name_and_description(result, config_value)
         result[self.KEY_VALUE] = config_value.value
-        result[self.KEY_SELECTION_OPTIONS] = config_value.Options
+        result[self.KEY_SELECTION_OPTIONS] = config_value.options
         self.__add_constraints(result, config_value)
         self.__content.append(result)
 
