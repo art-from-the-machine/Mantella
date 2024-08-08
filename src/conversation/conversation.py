@@ -2,7 +2,8 @@ from enum import Enum
 import logging
 from threading import Thread, Lock
 import time
-from typing import Any, Callable
+from typing import Any
+from src.llm.openai_client import openai_client
 from src.characters_manager import Characters
 from src.conversation.conversation_log import conversation_log
 from src.conversation.action import action
@@ -26,8 +27,9 @@ class conversation_continue_type(Enum):
 
 class conversation:
     TOKEN_LIMIT_PERCENT: float = 0.6 # TODO: check if this is necessary as it has been removed from the main branch
+    TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
     """Controls the flow of a conversation."""
-    def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, is_conversation_too_long: Callable[[message_thread, float], bool], actions: list[action]) -> None:
+    def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, openai_client: openai_client, actions: list[action]) -> None:
         
         self.__context: context = context_for_conversation
         if not self.__context.npcs_in_conversation.contains_player_character(): # TODO: fix this being set to a radiant conversation because of NPCs in conversation not yet being added
@@ -37,7 +39,7 @@ class conversation:
         self.__messages: message_thread = message_thread(None)
         self.__output_manager: ChatManager = output_manager
         self.__rememberer: remembering = rememberer
-        self.__is_conversation_too_long: Callable[[message_thread, float], bool] = is_conversation_too_long
+        self.__openai_client = openai_client
         self.__has_already_ended: bool = False        
         self.__sentences: sentence_queue = sentence_queue()
         self.__generation_thread: Thread | None = None
@@ -98,7 +100,7 @@ class conversation:
         """
         if self.has_already_ended:
             return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None        
-        if self.__is_conversation_too_long(self.__messages, self.TOKEN_LIMIT_PERCENT):
+        if self.__openai_client.are_messages_too_long(self.__messages, self.TOKEN_LIMIT_PERCENT):
             # Check if conversation too long and if yes initiate intermittent reload
             self.__initiate_reload_conversation()
 
@@ -194,13 +196,15 @@ class conversation:
                 self.__messages: message_thread = message_thread(new_prompt)
             else:
                 self.__conversation_type.adjust_existing_message_thread(self.__messages, self.__context)
-                self.__messages.reload_message_thread(new_prompt, 8)
+                self.__messages.reload_message_thread(new_prompt, self.__openai_client.calculate_tokens_from_text, int(self.__openai_client.token_limit * self.TOKEN_LIMIT_RELOAD_MESSAGES))
 
     @utils.time_it
     def update_game_events(self, message: user_message) -> user_message:
         """Add in-game events to player's response"""
 
-        message.add_event(self.__context.get_context_ingame_events())
+        all_ingame_events = self.__context.get_context_ingame_events()
+        max_events = min(len(all_ingame_events) ,self.__context.config.max_count_events)
+        message.add_event(all_ingame_events[-max_events:])
         self.__context.clear_context_ingame_events()        
 
         if message.count_ingame_events() > 0:            
@@ -324,7 +328,8 @@ class conversation:
         self.__save_conversation(is_reload=True)
         # Reload
         new_prompt = self.__conversation_type.generate_prompt(self.__context)
-        self.__messages.reload_message_thread(new_prompt, 8)
+        self.__messages.reload_message_thread(new_prompt, self.__openai_client.calculate_tokens_from_text, int(self.__openai_client.token_limit * self.TOKEN_LIMIT_RELOAD_MESSAGES))
+
 
     def __has_conversation_ended(self, last_user_text: str) -> bool:
         """Checks if the last player text has ended the conversation

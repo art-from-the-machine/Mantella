@@ -48,7 +48,7 @@ class GameStateManager:
             world_id = input_json[comm_consts.KEY_STARTCONVERSATION_WORLDID]
             world_id = self.WORLD_ID_CLEANSE_REGEX.sub("", world_id)
         context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
-        self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client.are_messages_too_long, self.__actions)
+        self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__actions)
         self.__update_context(input_json)
         self.__talk.start_conversation()
         
