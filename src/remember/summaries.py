@@ -33,18 +33,27 @@ class summaries(remembering):
             str: a concatenation of the summaries as a single string
         """
         result = ""
+        paragraphs: list[str] = []
         for character in npcs_in_conversation.get_all_characters():
             if not character.is_player_character:          
                 conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)      
-                if os.path.exists(conversation_summary_file):                    
+                if os.path.exists(conversation_summary_file):
                     with open(conversation_summary_file, 'r', encoding='utf-8') as f:
                         previous_conversation_summaries = f.read()
-                        # character.conversation_summary = previous_conversation_summaries
-                        if len(npcs_in_conversation) == 1 and len(previous_conversation_summaries) > 0:
-                            result = f"Below is a summary for each of your previous conversations:\n\n{previous_conversation_summaries}"
-                        elif len(npcs_in_conversation) > 1 and len(previous_conversation_summaries) > 0:
-                            result += f"{character.name}: {previous_conversation_summaries}"
-        return result
+                        split = previous_conversation_summaries.split("\n")
+                        for paragraph in split:
+                            if paragraph != "" and not paragraphs.__contains__(paragraph):
+                                paragraphs.append(paragraph)
+                        # # character.conversation_summary = previous_conversation_summaries
+                        # if len(npcs_in_conversation) == 1 and len(previous_conversation_summaries) > 0:
+                        #     result = f"Below is a summary for each of your previous conversations:\n\n{previous_conversation_summaries}"
+                        # elif len(npcs_in_conversation) > 1 and len(previous_conversation_summaries) > 0:
+                        #     result += f"{character.name}: {previous_conversation_summaries}"
+        if len(paragraphs) > 0:
+            result = "\n".join(paragraphs)
+            return f"Below is a summary of past events:\n {result}"
+        else:
+            return ""
 
     def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False):
         summary = ''
