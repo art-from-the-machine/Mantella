@@ -247,9 +247,11 @@ class ConfigLoader:
             if self.game == "Fallout4" or self.game == "Fallout4VR":
                 self.prompt = self.__definitions.get_string_value("fallout4_prompt")
                 self.multi_npc_prompt = self.__definitions.get_string_value("fallout4_multi_npc_prompt")
+                self.radiant_prompt = self.__definitions.get_string_value("fallout4_radiant_prompt")
             else:
                 self.prompt = self.__definitions.get_string_value("skyrim_prompt")
                 self.multi_npc_prompt = self.__definitions.get_string_value("skyrim_multi_npc_prompt")
+                self.radiant_prompt = self.__definitions.get_string_value("skyrim_radiant_prompt")
 
             self.radiant_start_prompt = self.__definitions.get_string_value("radiant_start_prompt")
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")
