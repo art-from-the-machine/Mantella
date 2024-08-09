@@ -96,7 +96,7 @@ class multi_npc(conversation_type):
 class radiant(conversation_type):
     """ Conversation between two NPCs without the player"""
     def __init__(self, context_for_conversation: context) -> None:
-        super().__init__(context_for_conversation.config.multi_npc_prompt)
+        super().__init__(context_for_conversation.config.radiant_prompt)
         self.__user_start_prompt = context_for_conversation.config.radiant_start_prompt
         self.__user_end_prompt = context_for_conversation.config.radiant_end_prompt
 
