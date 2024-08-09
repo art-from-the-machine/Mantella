@@ -42,6 +42,11 @@ class piper(ttsable):
     @utils.time_it
     def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         if len(voiceline) > 3:
+            # Piper tends to overexaggerate sentences with exclamation marks, which works well for combat but not for casual conversation
+            if not synth_options.aggro:
+                voiceline = voiceline.replace('!','.')
+            else:
+                voiceline = voiceline.replace('.','!')
             while True:
                 self.__write_to_stdin(f"synthesize {voiceline}\n")
                 max_wait_time = 5
