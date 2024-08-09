@@ -26,9 +26,9 @@ class OtherDefinitions:
     
     @staticmethod
     def get_max_count_events_config_value() -> ConfigValue:
-        max_count_events_description = """Maximum number of ingame events that can are sent to the LLM with one message of the user. 
-                                    If the maximum number is reached, the oldest event will be dropped.
-                                    Increasing this number will cost more prompt tokens and might require a larger context size quickly."""
+        max_count_events_description = """Maximum number of in-game events that can are sent to the LLM with one player message. 
+                                    If the maximum number is reached, the oldest events will be dropped.
+                                    Increasing this number will cost more prompt tokens and lead to the context limit being reached faster."""
         return ConfigValueInt("max_count_events","Max Count Events",max_count_events_description,5,0,999999)
     
     #Player Character
