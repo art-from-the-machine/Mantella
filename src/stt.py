@@ -36,6 +36,8 @@ class Transcriber:
         self.call_count = 0
         self.__secret_key_file = secret_key_file
         self.__api_key: str | None = None
+        self.__ignore_list = ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much', "thank you for watching and i'll see you in the next video", "we'll see you in the next video", 'see you next time']
+            
 
         # if self.mic_enabled == '1':
         self.recognizer = sr.Recognizer()
@@ -124,7 +126,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
             #     return 'goodbye'
 
             # common phrases hallucinated by Whisper
-            if transcript_cleaned in ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much']:
+            if transcript_cleaned in self.__ignore_list:
                 continue
 
             # self.game_state_manager.write_game_info('_mantella_status', 'Thinking...')
