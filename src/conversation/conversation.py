@@ -26,7 +26,7 @@ class conversation_continue_type(Enum):
     END_CONVERSATION = 3
 
 class conversation:
-    TOKEN_LIMIT_PERCENT: float = 0.6 # TODO: check if this is necessary as it has been removed from the main branch
+    TOKEN_LIMIT_PERCENT: float = 0.9
     TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
     """Controls the flow of a conversation."""
     def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, openai_client: openai_client, actions: list[action]) -> None:
