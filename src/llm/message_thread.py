@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Callable
 from src.llm.messages import message, system_message, user_message, assistant_message
 from openai.types.chat import ChatCompletionMessageParam
 
@@ -60,16 +61,25 @@ class message_thread():
             if not isinstance(message, system_message):
                 self.__messages.append(new_message)
     
-    def reload_message_thread(self, new_prompt: str, last_messages_to_keep: int):
+    def reload_message_thread(self, new_prompt: str, text_measurer: Callable[[str], int], max_tokens: int):
         """Reloads this message_thread with a new system_message prompt and drops all but the last X messages
 
         Args:
             new_prompt (str): the new prompt for the system_message
             last_messages_to_keep (int): how many of the last messages to keep
         """
-        result = []
+        result: list[message] = []
         result.append(system_message(new_prompt))
-        result.extend(self.get_talk_only()[-last_messages_to_keep:])
+        messages_to_keep: list[message]  = []
+        used_tokens = 0
+        for talk_message in reversed(self.get_talk_only()):
+            used_tokens += text_measurer(talk_message.get_formatted_content())
+            if used_tokens < max_tokens:
+                messages_to_keep.append(talk_message)
+            else:
+                break
+        messages_to_keep.reverse()
+        result.extend(messages_to_keep)
         self.__messages = result
 
     def get_talk_only(self, include_system_generated_messages: bool = False) -> list[message]:
