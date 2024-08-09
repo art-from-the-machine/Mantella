@@ -16,8 +16,8 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
             os.chdir(os.path.dirname(sys.executable))
 
     def get_my_games_directory():
-            home = Path.home()
-            save_dir = home / "Documents" / "My Games" / "Mantella"
+            home: str = os.path.expanduser("~")
+            save_dir = Path(os.path.join(home,"Documents","My Games","Mantella"))
             save_dir.mkdir(parents=True, exist_ok=True)
             return str(save_dir)+'\\'
     
