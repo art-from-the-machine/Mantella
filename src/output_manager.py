@@ -301,12 +301,10 @@ class ChatManager:
                     logging.log(self.loglevel, 'Retrying connection to API...')
                     time.sleep(5)
 
-            #Added from xTTS implementation
             # Check if there is any accumulated sentence at the end
-            if accumulated_sentence:
+            if accumulated_sentence and len(accumulated_sentence.strip()) > 3:
                 # Generate the audio and return the audio file path
                 try:
-                    #Added from XTTS implementation
                     new_sentence = self.generate_sentence(' ' + accumulated_sentence + ' ', active_character)
                     blocking_queue.put(new_sentence)
                     full_reply += accumulated_sentence
