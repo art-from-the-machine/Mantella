@@ -41,40 +41,39 @@ class piper(ttsable):
 
     @utils.time_it
     def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
-        if len(voiceline) > 3:
-            # Piper tends to overexaggerate sentences with exclamation marks, which works well for combat but not for casual conversation
-            if not synth_options.aggro:
-                voiceline = voiceline.replace('!','.')
-            else:
-                voiceline = voiceline.replace('.','!')
-            while True:
-                self.__write_to_stdin(f"synthesize {voiceline}\n")
-                max_wait_time = 5
-                start_time = time.time()
+        # Piper tends to overexaggerate sentences with exclamation marks, which works well for combat but not for casual conversation
+        if not synth_options.aggro:
+            voiceline = voiceline.replace('!','.')
+        else:
+            voiceline = voiceline.replace('.','!')
+        while True:
+            self.__write_to_stdin(f"synthesize {voiceline}\n")
+            max_wait_time = 5
+            start_time = time.time()
 
-                while time.time() - start_time < max_wait_time:
-                    exit_code = self.process.poll()
-                    if exit_code is not None and exit_code != 0:
-                        logging.error(f"Piper process has crashed with exit code: {exit_code}")
-                        self._run_piper()
-                        self.change_voice(self._last_voice)
-                        break
-                    elif os.path.exists(final_voiceline_file):
-                        try: # don't just check if .wav exists, check if it has contents
-                            with wave.open(final_voiceline_file, 'rb') as wav_file:
-                                frames = wav_file.getnframes()
-                                rate = wav_file.getframerate()
-                                duration = frames / float(rate)
-                                logging.debug(f'"{voiceline}" is {duration} seconds long')
-                                if duration > 0:
-                                    return
-                        except:
-                            pass
-                    time.sleep(0.01)
+            while time.time() - start_time < max_wait_time:
+                exit_code = self.process.poll()
+                if exit_code is not None and exit_code != 0:
+                    logging.error(f"Piper process has crashed with exit code: {exit_code}")
+                    self._run_piper()
+                    self.change_voice(self._last_voice)
+                    break
+                elif os.path.exists(final_voiceline_file):
+                    try: # don't just check if .wav exists, check if it has contents
+                        with wave.open(final_voiceline_file, 'rb') as wav_file:
+                            frames = wav_file.getnframes()
+                            rate = wav_file.getframerate()
+                            duration = frames / float(rate)
+                            logging.debug(f'"{voiceline}" is {duration} seconds long')
+                            if duration > 0:
+                                return
+                    except:
+                        pass
+                time.sleep(0.01)
 
-                logging.warning(f'Synthesis timed out for voiceline "{voiceline.strip()}". Restarting Piper...')
-                self._restart_piper()
-                self.change_voice(self._last_voice)
+            logging.warning(f'Synthesis timed out for voiceline "{voiceline.strip()}". Restarting Piper...')
+            self._restart_piper()
+            self.change_voice(self._last_voice)
 
 
     def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None):
