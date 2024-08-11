@@ -30,9 +30,24 @@ class piper(ttsable):
     def __init__(self, config: ConfigLoader) -> None:
         super().__init__(config)
         self.__piper_path = config.piper_path
+        self.__models_path = self.__piper_path + f'/models/skyrim/low/' # TODO: change /skyrim and /low parts of the path to dynamic variables
 
         logging.log(self._loglevel, f'Connecting to Piper...')
         self._check_if_piper_is_running()
+
+        self.__available_models = self.get_available_models(self.__models_path)
+
+
+    @utils.time_it
+    def get_available_models(self, folder_path):
+        try:
+            models = [f.replace('.onnx','') for f in os.listdir(folder_path) if f.endswith('.onnx')]
+            return models
+        except FileNotFoundError:
+            raise FileNotFoundError
+        except PermissionError:
+            raise PermissionError
+
     
     def __write_to_stdin(self, text):
         if self.process.stdin:
@@ -74,15 +89,26 @@ class piper(ttsable):
             logging.warning(f'Synthesis timed out for voiceline "{voiceline.strip()}". Restarting Piper...')
             self._restart_piper()
             self.change_voice(self._last_voice)
+    
+
+    @utils.time_it
+    def _select_voice_type(self, voice: str, in_game_voice: str | None, csv_in_game_voice: str | None, advanced_voice_model: str | None):
+        # check if model name in each CSV column exists, with advanced_voice_model taking precedence over other columns
+        for voice_type in [advanced_voice_model, voice, in_game_voice, csv_in_game_voice]:
+            if voice_type:
+                voice_cleaned = voice_type.lower().replace(' ', '')
+                if voice_cleaned in self.__available_models:
+                    return voice_cleaned
+        logging.error(f'Could not find voice model {voice}.onnx in {self.__models_path}')
 
 
     def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None):
         while True:
             logging.log(self._loglevel, 'Loading voice model...')
 
-            voice_cleaned = f"{voice.lower().replace(' ', '')}"
+            selected_voice = self._select_voice_type(voice, in_game_voice, csv_in_game_voice, advanced_voice_model)
+            model_path = self.__models_path + f'{selected_voice}.onnx'
 
-            model_path = self.__piper_path + f'/models/skyrim/low/{voice_cleaned}.onnx' # TODO: change /skyrim and /low parts of the path to dynamic variables
             self.__write_to_stdin(f"load_model {model_path}\n")
             max_wait_time = 5
             start_time = time.time()
