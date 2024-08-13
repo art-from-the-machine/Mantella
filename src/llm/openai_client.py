@@ -105,7 +105,7 @@ class openai_client:
                     game_installation_page = 'https://art-from-the-machine.github.io/Mantella/pages/installation_fallout4.html#language-models-llms'
 
                 logging.error(f'''No secret key found in GPT_SECRET_KEY.txt.
-Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
+Please create a secret key (API Key) and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
 If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running.
@@ -114,7 +114,7 @@ For more information, see here:
                 input("Press create a secret key and restart your game.")
 
             if config.llm == 'undi95/toppy-m-7b:free':
-                logging.log(24, "Running Mantella with default LLM 'undi95/toppy-m-7b:free' (OpenRouter). For higher quality responses, better NPC memories, and more performant multi-NPC conversations, consider changing this model via the `model` setting in MantellaSoftware/config.ini")
+                logging.log(24, "Running Mantella  on OpenRouter with the default LLM 'undi95/toppy-m-7b:free'. For higher quality responses, better NPC memories, and 'smarter' multi-NPC conversations, consider changing this model via the `model` setting in MantellaSoftware/config.ini")
             else:
                 logging.log(23, f"Running Mantella with '{config.llm}'. The language model can be changed in MantellaSoftware/config.ini")
         else:
@@ -140,6 +140,8 @@ For more information, see here:
         # if using an alternative API, use encoding for GPT-3.5 by default
         # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
         #       this can lead to the token limit of the given model being overrun
+        # NOTE: Token Overruns are not an issue with OpenRouter
+        # # OpenRouter uses "middle-out" culling. If you overrun, the middle (which receives the least attention by the LLM anyway) is dynamically removed.
         if endpoint != 'none':
             chosenmodel = 'gpt-3.5-turbo'
         try:
@@ -149,7 +151,7 @@ For more information, see here:
                 chosenmodel = 'gpt-3.5-turbo'
                 self.__encoding = tiktoken.encoding_for_model(chosenmodel)
             except:
-                logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
+                logging.error('Error loading model. If you aren\'t using OpenRouter (or OpenAI), please find the setting `llm_api = ` in your config.ini and follow the instructions found in the comment just above that setting.')
                 raise
 
         self.__vision_enabled = config.vision_enabled
@@ -264,7 +266,7 @@ For more information, see here:
                             service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
                         else:
                             service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
-                        logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+                        logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini.\nIf you are trying to connect to a local LLM, ensure that your local LLM software is running and you have a model loaded.")
                     else:
                         logging.error(f"LLM API Error: {e}")
                 elif isinstance(e, BadRequestError):
@@ -388,16 +390,17 @@ For more information, see here:
         if llm in token_limit_dict:
             token_limit = token_limit_dict[llm]
         else:
-            logging.log(23, f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count} (this number can be changed via the `custom_token_count` setting in config.ini)")
+            logging.log(23, f"Could not find the token limit for your LLM: {llm}. Defaulting to a conservative token limit of 4096 to avoid unexpected crashes.\n(If you know the actual token limit for your model you can update the `custom_token_count` setting (currently: {custom_token_count}) in config.ini)")
             try:
                 token_limit = int(custom_token_count)
             except ValueError:
-                logging.error(f"Invalid custom_token_count value: {custom_token_count}. It should be a valid integer. Please update your configuration.")
+                logging.error(f"Invalid custom_token_count value: {custom_token_count}. It should be a number using digits only. Please fix the 'custom_token_count =' line in the [LanguageModel.Advanced] section of your Mantella config.ini.")
                 token_limit = 4096  # Default to 4096 in case of an error.
         if token_limit <= 4096:
             if is_local:
-                llm = 'Local language model'
-            logging.warning(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
+                llm = 'Local LLM'
+            
+            logging.warning(f"This notification is NOT an error - just an educational message. Your {llm} appears to have a low context token limit of 4096 (or less!).\nHigher token limit models (8192 and above) run locally can give NPCs better conversational memories if you can run one locally.\nNOTE: Mantella uses cloud services by default for performance and increased capability reasons.")
         
         return token_limit
     
@@ -421,6 +424,7 @@ For more information, see here:
                 models = utils.get_openai_model_list()
                 # OpenAI models are not a "live" list, so manual input needs to be allowed for when new models not listed are released
                 allow_manual_model_input = True
+                logging.warning(f"This notification is NOT an error - just an educational message. Mantella defaults to using OpenRouter.ai because every OpenAI LLM is also available through OpenRouter - along over 100 other models.")
             elif service == "OpenRouter":
                 default_model = "undi95/toppy-m-7b:free"
                 secret_key = openai_client.get_secret_key('GPT_SECRET_KEY.txt')
@@ -449,5 +453,5 @@ For more information, see here:
                 options.append((model_display_name, model.id))
             return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
         except APIConnectionError as e:
-            error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required: {e}"
+            error = f"Failed to retrieve list of models from {service}. A valid API key generated from your {service} account is required in 'GPT_SECRET_KEY.txt': {e}"
             return LLMModelList([(error,"error")], "error", allows_manual_model_input=allow_manual_model_input)
