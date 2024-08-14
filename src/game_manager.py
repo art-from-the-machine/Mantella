@@ -122,7 +122,7 @@ class GameStateManager:
                     actors_in_json.append(actor)
             
             self.__talk.add_or_update_character(actors_in_json)
-            location: str = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_LOCATION]
+            location: str = json[comm_consts.KEY_CONTEXT].get(comm_consts.KEY_CONTEXT_LOCATION, None)
             time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
             ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
             custom_context_values: dict[str, Any] = {}

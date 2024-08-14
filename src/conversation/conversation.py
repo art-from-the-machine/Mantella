@@ -162,7 +162,7 @@ class conversation:
         else:
             self.__start_generating_npc_sentences()
 
-    def update_context(self, location: str, time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
+    def update_context(self, location: str | None, time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
         """Updates the context with a new set of values
 
         Args:
