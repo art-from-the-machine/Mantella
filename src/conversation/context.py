@@ -118,14 +118,14 @@ class context:
     def get_time_group(self) -> str:
         return get_time_group(self.__ingame_time)
     
-    def update_context(self, location: str, in_game_time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
+    def update_context(self, location: str | None, in_game_time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
         self.__ingame_events.extend(custom_ingame_events)
         if weather != self.__weather:
             if self.__weather != "":
                 self.__ingame_events.append(weather)
             self.__weather = weather
         self.__custom_context_values = custom_context_values
-        if location != self.__location:
+        if (location) and (location != self.__location):
             self.__location = location
             self.__ingame_events.append(f"The location is now {location}.")
         

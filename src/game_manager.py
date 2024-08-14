@@ -58,8 +58,6 @@ class GameStateManager:
         if(not self.__talk ):
             return self.error_message("No running conversation at this point")
         
-        self.__update_context(input_json) # TODO: check how fast reloading characters each conversation turn is
-        
         if input_json.__contains__(comm_consts.KEY_REQUEST_EXTRA_ACTIONS):
             extra_actions: list[str] = input_json[comm_consts.KEY_REQUEST_EXTRA_ACTIONS]
             if extra_actions.__contains__(comm_consts.ACTION_RELOADCONVERSATION):
@@ -122,7 +120,7 @@ class GameStateManager:
                     actors_in_json.append(actor)
             
             self.__talk.add_or_update_character(actors_in_json)
-            location: str = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_LOCATION]
+            location: str = json[comm_consts.KEY_CONTEXT].get(comm_consts.KEY_CONTEXT_LOCATION, None)
             time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
             ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
             custom_context_values: dict[str, Any] = {}
