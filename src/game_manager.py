@@ -58,8 +58,6 @@ class GameStateManager:
         if(not self.__talk ):
             return self.error_message("No running conversation at this point")
         
-        self.__update_context(input_json) # TODO: check how fast reloading characters each conversation turn is
-        
         if input_json.__contains__(comm_consts.KEY_REQUEST_EXTRA_ACTIONS):
             extra_actions: list[str] = input_json[comm_consts.KEY_REQUEST_EXTRA_ACTIONS]
             if extra_actions.__contains__(comm_consts.ACTION_RELOADCONVERSATION):
