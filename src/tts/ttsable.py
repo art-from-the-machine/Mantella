@@ -43,7 +43,7 @@ class ttsable(ABC):
         if self._last_voice == '' or self._last_voice not in [voice, in_game_voice, csv_in_game_voice, advanced_voice_model, 'fo4_'+voice]:
             self.change_voice(voice, in_game_voice, csv_in_game_voice, advanced_voice_model, voice_accent)
 
-        logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
+        #logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
 
         final_voiceline_file_name = 'out' # "out" is the file name used by XTTS
         final_voiceline_file =  f"{self._voiceline_folder}/{final_voiceline_file_name}.wav"
@@ -69,11 +69,16 @@ class ttsable(ABC):
                 timestamp: str = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f_")
                 new_wav_file_name = f"{self._voiceline_folder}/{timestamp + final_voiceline_file_name}.wav" 
                 new_lip_file_name = new_wav_file_name.replace(".wav", ".lip")
+                new_fuz_file_name = new_wav_file_name.replace(".wav", ".fuz")
                 os.rename(final_voiceline_file, new_wav_file_name)
                 try:
                     os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
                 except:
                     logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".lip")}')
+                try:
+                    os.rename(final_voiceline_file.replace(".wav", ".fuz"), new_fuz_file_name)
+                except:
+                    logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".fuz")}')
                 final_voiceline_file = new_wav_file_name
             except:
                 logging.error(f'Could not rename {final_voiceline_file} or {final_voiceline_file.replace(".wav", ".lip")}')
@@ -149,11 +154,44 @@ class ttsable(ABC):
             # remove file created by FaceFXWrapper
             if os.path.exists(wav_file.replace(".wav", "_r.wav")):
                 os.remove(wav_file.replace(".wav", "_r.wav"))
-
+            
             if (not os.path.exists(lip)) and attempts < 5:
                 logging.warning('Could not generate .lip file. Retrying...')
                 time.sleep(0.1)
                 attempts += 1
                 self._generate_lip_file(wav_file, voiceline, attempts)
+            
+            #Fallout: generate FUZ file
+            if self._game == "Fallout4":    
+                fuz_extractor_executable = Path(self._facefx_path) / "Fuz_extractor.exe"
+                if not fuz_extractor_executable.exists():
+                    logging.error(f'Could not find Fuz_extractor.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
+                    raise FileNotFoundError()
+            
+                xWMAEncode_executable = Path(self._facefx_path) / "xWMAEncode.exe"
+                if not xWMAEncode_executable.exists():
+                    logging.error(f'Could not find xWMAEncode.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
+                    raise FileNotFoundError()
+
+                xwm_file = wav_file.replace(".wav", ".xwm")
+                xwmcmds = [
+                    xWMAEncode_executable.name,
+                    f'"{wav_file}"',
+                    f'"{xwm_file}"'
+                    ]
+                xwm_command = " ".join(xwmcmds)
+                run_facefx_command(xwm_command, self._facefx_path)
+
+                fuzfile = wav_file.replace(".wav", ".fuz")
+                fuzcmds = [
+                    fuz_extractor_executable.name,
+                    "-c",
+                    f'"{fuzfile}"',
+                    f'"{lip}"',
+                    f'"{xwm_file}"'
+                    ]
+                fuz_command = " ".join(fuzcmds)
+                run_facefx_command(fuz_command, self._facefx_path)
+           
         except Exception as e:
             logging.warning(e)

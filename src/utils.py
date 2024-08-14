@@ -22,7 +22,7 @@ def clean_text(text):
     # Remove all punctuation from the sentence
     text_cleaned = text.translate(str.maketrans('', '', string.punctuation))
     # Remove any extra whitespace
-    text_cleaned = re.sub('\s+', ' ', text_cleaned).strip()
+    text_cleaned = re.sub('\\s+', ' ', text_cleaned).strip()
     text_cleaned = text_cleaned.lower()
 
     return text_cleaned
