@@ -28,6 +28,13 @@ def clean_text(text):
     return text_cleaned
 
 
+def remove_trailing_number(s):
+    try:
+        return re.sub(r'\d+$', '', s)
+    except:
+        return s
+
+
 def resolve_path():
     if getattr(sys, 'frozen', False):
         resolved_path = os.path.dirname(sys.executable)
