@@ -121,15 +121,13 @@ class ChatManager:
         
         def parse_asterisks_brackets(sentence: str) -> str:
             if ('*' in sentence):
-                # Check if sentence contains two asterisks
-                asterisk_check = re.search(r"(?<!\*)\*(?!\*)[^*]*\*(?!\*)", sentence)
-                if asterisk_check:
-                    logging.log(28, f"Removed asterisks text from response: {sentence}")
-                    # Remove text between two asterisks
-                    sentence = re.sub(r"(?<!\*)\*(?!\*)[^*]*\*(?!\*)", "", sentence)
-                else:
-                    logging.log(28, f"Removed response containing single asterisks: {sentence}")
-                    sentence = ''
+                original_sentence = sentence
+                sentence = re.sub(r'\*[^*]*\*', '', sentence)
+                sentence = sentence.replace('*', '')
+
+                if sentence != original_sentence:
+                    removed_text = original_sentence.replace(sentence, '').strip()
+                    logging.log(28, f"Removed asterisks text from response: {removed_text}")
 
             if ('(' in sentence) or (')' in sentence):
                 # Check if sentence contains two brackets
@@ -170,7 +168,8 @@ class ChatManager:
     
     def __character_switched_to(self, extracted_keyword: str, charaters_in_conversation: Characters) -> Character | None:
         for actor in charaters_in_conversation.get_all_characters():
-            if actor.name.startswith(extracted_keyword):
+            actor_name = actor.name.lower()
+            if actor_name.startswith(extracted_keyword.lower()):
                 return actor
         return None
 
