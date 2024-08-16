@@ -131,9 +131,13 @@ class skyrim(gameable):
                         # only warn on failure
                         logging.warning(e)
         else:
-            shutil.copyfile(audio_file, f"{mod_folder}/{speaker.in_game_voice_model}/{self.WAV_FILE}")
+            voice_folder_path = f"{mod_folder}/{speaker.in_game_voice_model}"
+            if not os.path.exists(voice_folder_path):
+                os.makedirs(voice_folder_path)
+                logging.warning(f"{voice_folder_path} has been created for the first time. Please restart Skyrim to interact with this NPC.")
+            shutil.copyfile(audio_file, f"{voice_folder_path}/{self.WAV_FILE}")
             try:
-                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{mod_folder}/{speaker.in_game_voice_model}/{self.LIP_FILE}")
+                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{self.LIP_FILE}")
             except Exception as e:
                 # only warn on failure
                 logging.warning(e)

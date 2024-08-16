@@ -160,19 +160,12 @@ class fallout4(gameable):
         else:
             # Copy FaceFX generated LIP file
             try:
-                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{mod_folder}/{speaker.in_game_voice_model}/{self.LIP_FILE}")
+                voice_folder_path = f"{mod_folder}/{speaker.in_game_voice_model}"
+                if not os.path.exists(voice_folder_path):
+                    os.makedirs(voice_folder_path)
+                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{self.LIP_FILE}")
             except Exception as e:
-                # only warn on failure
-                logging.warning(e)
-                # Attempt to create the directory if it does not exist and try copying the file again
-                speaker_voice_model_path = f"{mod_folder}/{speaker.in_game_voice_model}"
-                if not os.path.exists(speaker_voice_model_path):
-                    try:
-                        os.makedirs(speaker_voice_model_path)
-                        shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{speaker_voice_model_path}/{self.LIP_FILE}")
-                    except Exception as e:
-                        # Log the final failure after attempting directory creation
-                        logging.error(f"Failed to create directory or copy lip file: {e}")
+                logging.error(f"Failed to create directory or copy lip file: {e}")
 
         logging.log(23, f"{speaker.name} should speak")
 
