@@ -16,7 +16,7 @@ class context:
 
     def __init__(self, world_id: str, config: ConfigLoader, client: openai_client, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
         self.__world_id = world_id
-        self.__prev_game_time: tuple[str, str] = '', ''
+        self.__prev_game_time: tuple[str, str] | None = None
         self.__npcs_in_conversation: Characters = Characters()
         self.__config: ConfigLoader = config
         self.__client: openai_client = client
@@ -130,8 +130,9 @@ class context:
             self.__ingame_events.append(f"The location is now {location}.")
         
         self.__ingame_time = in_game_time
-        current_time: tuple[str, str] = str(in_game_time), get_time_group(in_game_time)
-        if current_time != self.__prev_game_time:
+        in_game_time_twelve_hour = in_game_time - 12 if in_game_time > 12 else in_game_time
+        current_time: tuple[str, str] = str(in_game_time_twelve_hour), get_time_group(in_game_time)
+        if (current_time != self.__prev_game_time) and (self.__prev_game_time != None):
             self.__prev_game_time = current_time
             self.__ingame_events.append(f"The time is {current_time[0]} {current_time[1]}.")
     
@@ -309,8 +310,9 @@ class context:
         equipment = self.__get_npc_equipment_text()
         location = self.__location
         weather = self.__weather
-        time = self.__ingame_time
-        time_group = get_time_group(time)
+        time = self.__ingame_time - 12 if self.__ingame_time > 12 else self.__ingame_time
+        time_group = get_time_group(self.__ingame_time)
+        self.__prev_game_time = str(time), time_group
         conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
 
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
