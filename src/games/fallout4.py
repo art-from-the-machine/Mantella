@@ -129,7 +129,7 @@ class fallout4(gameable):
         
         character_info = {
             'name': name,
-            'bio': f'You are a {name}',
+            'bio': f'You are a {"male" if actor_sex==0 else "female"} {actor_race if actor_race.lower() != name.lower() else ""} {name}.',
             'voice_model': voice_model,
             'advanced_voice_model': '',
             'fallout4_voice_folder': FO4_voice_folder,
