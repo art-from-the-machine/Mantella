@@ -1,3 +1,5 @@
+from src import utils
+
 class EquipmentItem:
     def __init__(self, name: str) -> None:
         self.__name = name
@@ -38,14 +40,16 @@ class Equipment:
             if item:
                 used_weapon_items.append(item.name)
         weapons_text = self.format_listing(used_weapon_items)
+        equipment_desc = ""
         if weapons_text == "" and armor_text == "":
-            return ""
+            return equipment_desc
         elif weapons_text == "":
-            return f"wears {armor_text}."
+            equipment_desc = f"{character_name} wears {armor_text}."
         elif armor_text == "":
-            return f"uses {weapons_text}."
+            equipment_desc = f"{character_name} uses {weapons_text}."
         else:
-            return f"wears {armor_text} and uses {weapons_text}."
+            equipment_desc = f"{character_name} wears {armor_text} and uses {weapons_text}."
+        return utils.remove_extra_whitespace(equipment_desc)
 
     @staticmethod
     def format_listing(listing: list[str]) -> str:
