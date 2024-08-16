@@ -103,7 +103,7 @@ class GameStateManager:
     def sentence_to_json(self, sentence_to_prepare: sentence) -> dict[str, Any]:
         return {
             comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.speaker.name,
-            comm_consts.KEY_ACTOR_LINETOSPEAK: sentence_to_prepare.sentence,
+            comm_consts.KEY_ACTOR_LINETOSPEAK: sentence_to_prepare.sentence.strip(),
             comm_consts.KEY_ACTOR_VOICEFILE: sentence_to_prepare.voice_file,
             comm_consts.KEY_ACTOR_DURATION: sentence_to_prepare.voice_line_duration,
             comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions
