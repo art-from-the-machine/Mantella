@@ -61,7 +61,7 @@ class PromptDefinitions:
                                 Sometimes in-game events will be passed before the player response between ** symbols. You cannot respond with ** symbols yourself, they only exist to give context. Here is an example:
                                 *The player picked up a pair of gloves*
                                 Who do you think these belong to?
-                                You are having a conversation with {player_name} (the player) who is {trust} in {location}. {player_name} is {player_description} {player_equipment} {equipment}
+                                You are having a conversation with {player_name} (the player) who is {trust} in {location}. {player_name} {player_description} {player_equipment} {equipment}
                                 This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
                                 The time is {time} {time_group}. If you directly refer to the time, please state it as, for example, '10 in the evening' rather than '22:00'.
                                 {weather}

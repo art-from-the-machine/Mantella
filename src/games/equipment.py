@@ -41,11 +41,11 @@ class Equipment:
         if weapons_text == "" and armor_text == "":
             return ""
         elif weapons_text == "":
-            return f"{character_name} wears {armor_text}."
+            return f"wears {armor_text}."
         elif armor_text == "":
-            return f"{character_name} uses {weapons_text}."
+            return f"uses {weapons_text}."
         else:
-            return f"{character_name} wears {armor_text} and uses {weapons_text}."
+            return f"wears {armor_text} and uses {weapons_text}."
 
     @staticmethod
     def format_listing(listing: list[str]) -> str:
