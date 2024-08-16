@@ -30,7 +30,7 @@ def clean_text(text):
 
 def remove_trailing_number(s):
     try:
-        return re.sub(r'\d+$', '', s)
+        return re.sub(r'\d+$', '', s).strip()
     except:
         return s
 
