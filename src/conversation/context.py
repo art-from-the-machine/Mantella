@@ -297,7 +297,7 @@ class context:
         player_equipment = ""
         if player:
             player_name = player.name
-            player_equipment = player.equipment.get_equipment_description(player_name)
+            player_equipment = player.equipment.get_equipment_description('')
             game_sent_description = player.get_custom_character_value(communication_constants.KEY_ACTOR_PC_DESCRIPTION)
             if game_sent_description and game_sent_description != "":
                 player_description = game_sent_description
