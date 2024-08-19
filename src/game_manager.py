@@ -150,7 +150,7 @@ class GameStateManager:
     def load_character(self, json: dict[str, Any]) -> Character | None:
         try:
             base_id: str = utils.convert_to_skyrim_hex_format(str(json[comm_consts.KEY_ACTOR_BASEID]))
-            ref_id: str = str(json[comm_consts.KEY_ACTOR_BASEID])
+            ref_id: str = utils.convert_to_skyrim_hex_format(str(json[comm_consts.KEY_ACTOR_REFID]))
             character_name: str = str(json[comm_consts.KEY_ACTOR_NAME])
             gender: int = int(json[comm_consts.KEY_ACTOR_GENDER])
             race: str = str(json[comm_consts.KEY_ACTOR_RACE])
