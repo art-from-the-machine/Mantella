@@ -14,27 +14,24 @@ class conversation_log:
     def save_conversation_log(character: Character, messages: list[ChatCompletionMessageParam], world_id: str):
         # save conversation history
 
-        if not character.is_generic_npc:
-            if len(messages) > 0:
-                # if this is not the first conversation
-                conversation_history_file = conversation_log.__get_path_to_conversation_history_file(character, world_id)
-                # transformed_messages = messages.transform_to_openai_messages(messages.get_talk_only())
-                if os.path.exists(conversation_history_file):
-                    with open(conversation_history_file, 'r', encoding='utf-8') as f:
-                        conversation_history = json.load(f)
+        if len(messages) > 0:
+            # if this is not the first conversation
+            conversation_history_file = conversation_log.__get_path_to_conversation_history_file(character, world_id)
+            # transformed_messages = messages.transform_to_openai_messages(messages.get_talk_only())
+            if os.path.exists(conversation_history_file):
+                with open(conversation_history_file, 'r', encoding='utf-8') as f:
+                    conversation_history = json.load(f)
 
-                    # add new conversation to conversation history
-                    conversation_history.append(messages) # append everything except the initial system prompt
-                # if this is the first conversation
-                else:
-                    directory = os.path.dirname(conversation_history_file)
-                    os.makedirs(directory, exist_ok=True)
-                    conversation_history = [messages] # wrap the first conversation in a list
-                
-                with open(conversation_history_file, 'w', encoding='utf-8') as f:
-                    json.dump(conversation_history, f, indent=4) # save everything except the initial system prompt
-        else:
-            logging.log(23, 'Conversation history will not be saved for this generic NPC.')
+                # add new conversation to conversation history
+                conversation_history.append(messages) # append everything except the initial system prompt
+            # if this is the first conversation
+            else:
+                directory = os.path.dirname(conversation_history_file)
+                os.makedirs(directory, exist_ok=True)
+                conversation_history = [messages] # wrap the first conversation in a list
+            
+            with open(conversation_history_file, 'w', encoding='utf-8') as f:
+                json.dump(conversation_history, f, indent=4) # save everything except the initial system prompt
 
     @staticmethod    
     def load_conversation_log(character: Character, world_id: str) -> list[str]:
@@ -51,4 +48,13 @@ class conversation_log:
 
     @staticmethod    
     def __get_path_to_conversation_history_file(character: Character, world_id: str) -> str:
-        return f"{conversation_log.game_path}/{world_id}/{character.name}/{character.name}.json"
+        # if multiple NPCs in a conversation have the same name (eg Whiterun Guard) their names are appended with number IDs
+        # these IDs need to be removed when saving the conversation
+        name: str = utils.remove_trailing_number(character.name)
+        non_ref_path = f"{conversation_log.game_path}/{world_id}/{name}/{name}.json"
+        ref_path = f"{conversation_log.game_path}/{world_id}/{name} - {character.id}/{name}.json"
+
+        if os.path.exists(non_ref_path): # if a conversation folder already exists for this NPC, use it
+            return non_ref_path
+        else: # else include the NPC's reference ID in the folder name to differentiate generic NPCs
+            return ref_path

@@ -95,9 +95,9 @@ class PromptDefinitions:
                                 Sometimes in-game events will be passed before the player response between ** symbols. You cannot respond with ** symbols yourself, they only exist to give context. Here is an example:
                                 *The player picked up a pair of gloves*
                                 Who do you think these belong to?
-                                You are having a conversation with {player_name} (the player) who is {trust} in {location}. {player_name} is {player_description} {player_equipment} {equipment}
+                                You are having a conversation with {player_name} (the player) who is {trust} in {location}. {player_name} {player_description} {player_equipment} {equipment}
                                 This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
-                                The time is {time} {time_group}. If you directly refer to the time, please state it as, for example, '10 in the evening' rather than '22:00'.
+                                The time is {time} {time_group}.
                                 {weather}
                                 You are not an AI language model because there are no AI language models in Skyrim. Do not break character / refer to the fact that you are in a video game.
                                 If the player says something hurtful / offensive, begin your response with 'Offended:'. Eg 'Have you washed lately?' 'Offended: How dare you!'. If they renounce their words, or to end combat, begin your response with 'Forgiven:'. 
@@ -124,8 +124,8 @@ class PromptDefinitions:
     def get_skyrim_radiant_prompt_config_value() -> ConfigValue:
         skyrim_radiant_prompt = """The following is a conversation in {location} in Skyrim between {names}.
                                     Here are their backgrounds: {bios}                                    
-                                    And here are their conversation histories: {conversation_summaries}
-                                    The time is {time} {time_group}. If you directly refer to the time, please state it as, for example, '10 in the evening' rather than '22:00'. 
+                                    {conversation_summaries}
+                                    The time is {time} {time_group}.
                                     {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
                                     Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable). 
@@ -141,7 +141,7 @@ class PromptDefinitions:
                             Who do you think these belong to?
                             You are having a conversation with {trust} (the player) in {location}.
                             This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
-                            The time is {time} {time_group}. If you directly refer to the time, please state it as, for example, '10 in the evening' rather than '22:00'.
+                            The time is {time} {time_group}.
                             The conversation takes place in {language}.
                             {conversation_summary}"""
         return ConfigValueString("fallout4_prompt","Fallout 4 Prompt",PromptDefinitions.BASE_PROMPT_DESCRIPTION,fallout4_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES)])
@@ -150,7 +150,7 @@ class PromptDefinitions:
     def get_fallout4_multi_npc_prompt_config_value() -> ConfigValue:
         fallout4_multi_npc_prompt = """The following is a conversation in {location} in the post-apocalyptic Commonwealth of Fallout between {names_w_player}. Here are their backgrounds: {bios} 
                             And here are their conversation histories: {conversation_summaries} 
-                            The time is {time} {time_group}. If you directly refer to the time, please state it as, for example, '10 in the evening' rather than '22:00'. 
+                            The time is {time} {time_group}.
                             You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
                             Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable). 
                             Remember, you can only respond as {names}. Ensure to use their full name when responding.
