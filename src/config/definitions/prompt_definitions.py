@@ -108,11 +108,11 @@ class PromptDefinitions:
 
     @staticmethod
     def get_skyrim_multi_npc_prompt_config_value() -> ConfigValue:
-        skyrim_multi_npc_prompt = """The following is a conversation in {location} in Skyrim between {names_w_player}. {player_description} {player_equipment}
+        skyrim_multi_npc_prompt = """The following is a conversation in {location} in Skyrim between {names_w_player}. {player_name} {player_description} {player_equipment}
                                     Here are their backgrounds: {bios}
                                     {equipment}
                                     And here are their conversation histories: {conversation_summaries}
-                                    The time is {time} {time_group}. If you directly refer to the time, please state it as, for example, '10 in the evening' rather than '22:00'.
+                                    The time is {time} {time_group}.
                                     {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'.
                                     Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable).
@@ -161,7 +161,7 @@ class PromptDefinitions:
     def get_fallout4_radiant_prompt_config_value() -> ConfigValue:
         fallout4_radiant_prompt = """The following is a conversation in {location} in the post-apocalyptic Commonwealth of Fallout between {names}. Here are their backgrounds: {bios} 
                             And here are their conversation histories: {conversation_summaries} 
-                            The time is {time} {time_group}. If you directly refer to the time, please state it as, for example, '10 in the evening' rather than '22:00'. 
+                            The time is {time} {time_group}.
                             You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
                             Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable). 
                             Remember, you can only respond as {names}. Ensure to use their full name when responding.
