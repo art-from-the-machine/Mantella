@@ -234,6 +234,7 @@ class ConfigLoader:
 
             self.image_llm_frequency_penalty = self.__definitions.get_float_value("image_llm_frequency_penalty")
             self.image_llm_max_tokens = self.__definitions.get_int_value("image_llm_max_tokens")
+            self.delete_steam_screenshots_after_use = self.__definitions.get_bool_value("delete_steam_screenshots_after_use")
 
 
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")

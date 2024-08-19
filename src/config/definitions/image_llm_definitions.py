@@ -9,7 +9,10 @@ from src.config.types.config_value_bool import ConfigValueBool
 class ImageLLMDefinitions:
     @staticmethod
     def get_image_analysis_skyrim_filepath_config_value() -> ConfigValue:
-        description = """ Settings for for the filepath of Skyrim (desktop) directory where the executable is located. 
+        description = """ Settings for for the filepath of Skyrim (desktop) director.
+        If SUP_SKSE is used to take screenshots the filepath is the one pointing to where the executable is located.
+        If Steam is used to take screenshots the filepath is the one for the Steam directory where the steam screenshots are stored. Steam overlay must be enabled for it to work.
+        For steam screenshots they should located inside your steam directory -> userdata -> Your personal user number -> 760 -> remote -> 489830 -> screenshots
         If you are not using Skyrim (desktop), you may retain the default setting.
         Copy the complete filepath from your OS file explorer. """
         return ConfigValueString("image_analysis_skyrim_filepath","Set the filepath to Skyrim (desktop) directory",description,"C:\Games\Steam\steamapps\common\Skyrim Special Edition")
@@ -99,5 +102,10 @@ if you're sending the image and the LLM prompt all at once input False (or unche
     @staticmethod
     def get_image_llm_max_tokens_config_value() -> ConfigValue:
         return ConfigValueInt("image_llm_max_tokens","Max tokens","Lowering this value can sometimes result in empty responses", 250, 1, 999999,tags=[ConvigValueTag.advanced])
-
+    
+    @staticmethod
+    def delete_steam_images_after_use() -> ConfigValue:
+        description = """Check this to automatically delete steam screenshots taking while Mantella was active. The screenshots will be deleted after the conversation has ended."""
+        return ConfigValueBool("delete_steam_screenshots_after_use","Delete steam screenshots after the conversation has ended",description,True, tags=[ConvigValueTag.advanced])
+    
     

@@ -74,6 +74,8 @@ class MantellaConfigValueDefinitionsNew:
         image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_stop_config_value())
         image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_frequency_penalty_config_value())
         image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_max_tokens_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.delete_steam_images_after_use())
+
         result.add_base_group(image_llm_category)
         tts_category = ConfigValueGroup("TTS", "Text-to-Speech", "Settings for the TTS methods Mantella supports.", on_value_change_callback)
         tts_category.add_config_value(TTSDefinitions.get_tts_service_config_value())

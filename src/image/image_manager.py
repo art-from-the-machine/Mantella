@@ -2,6 +2,7 @@
 import logging
 import time
 import os
+import re
 from threading import Thread
 from src.output_manager import ChatManager
 from src.llm.messages import image_message, image_description_message 
@@ -21,6 +22,11 @@ class ImageManager:
     KEY_CONTEXT_CUSTOMVALUES_VISION_READY: str = "mantella_vision_ready"
     KEY_CONTEXT_CUSTOMVALUES_VISION_RES: str = "mantella_vision_resolution"
     KEY_CONTEXT_CUSTOMVALUES_VISION_RESIZE: int = "mantella_vision_resize"
+    KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY: str = "mantella_vision_hints_names"
+    KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY: str = "mantella_vision_hints_distance"
+    KEY_CONTEXT_CUSTOMVALUES_VISION_ISUSINGSTEAMSCREENSHOT : str = "mantella_vision_is_using_steam_screenshot"
+    KEY_CONTEXT_CUSTOMVALUES_VISION_STEAMSCREENSHOTDELAY : str = "mantella_vision_steam_screenshot_delay"
+
     def __init__(self, context_for_conversation, output_manager, generation_thread) -> None:
         
         self.__context: context = context_for_conversation 
@@ -43,43 +49,117 @@ class ImageManager:
         except Exception as e:
             logging.debug(f"An error occurred while adding image to delete list: {e}")
 
+    def process_vision_hints(self):
+        # Fetch the string data
+        names_str = str(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY))
+        distances_str = str(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY))
+        # Initialize the default empty output
+        formatted_output = ""  # Default message if no data is available
+        
+        # Check if both strings are not empty
+        if names_str and distances_str:
+            # Convert and sort the data
+            sorted_pairs = self.create_and_sort_array(names_str, distances_str)
+
+            # Dictionaries to hold names categorized by distance
+            categories = {
+                "Very close": [],
+                "Close": [],
+                "Medium distance": [],
+                "Far": [],
+                "Very far": []
+            }
+            
+            # Categorize each pair
+            for name, distance in sorted_pairs:
+                if distance < 150:
+                    categories["Very close"].append(name)
+                elif 150 <= distance < 500:
+                    categories["Close"].append(name)
+                elif 500 <= distance < 1000:
+                    categories["Medium distance"].append(name)
+                elif 1000 <= distance < 2500:
+                    categories["Far"].append(name)
+                elif distance >= 2500:
+                    categories["Very far"].append(name)
+            
+            # Format the output
+            output = []
+            for category, names in categories.items():
+                if names:  # Only include categories with names
+                    formatted_names = ";".join(names)
+                    output.append(f"{category}: {formatted_names}")
+            
+            # Join all categories with a new line
+            if output:  # Check if there's any output to include
+                formatted_output = "Here are the list of NPCs or creatures that might be shown on the image and their approximate distance from the player : \n" +"\n".join(output)
+                print(f"Hints are {formatted_output}")
+        return formatted_output
+   
+    def create_and_sort_array(self,names_str, distances_str):
+        # Use regex to find all elements inside brackets
+        names = re.findall(r'\[(.*?)\]', names_str)
+        distances = re.findall(r'\[(.*?)\]', distances_str)
+        
+        # Convert distance strings to floats
+        distances = [float(distance) for distance in distances]
+        
+        # Create a list of tuples from names and distances
+        name_distance_pairs = list(zip(names, distances))
+        
+        # Sort the list of tuples by the distance
+        name_distance_pairs.sort(key=lambda x: x[1])
+        
+        return name_distance_pairs
+
+    def getSteamScreenshotDelay(self):
+        steamScreenshotDelay = 120
+        try:
+            steamScreenshotDelay = int(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_STEAMSCREENSHOTDELAY))
+        except:
+            logging.debug("No json value for steamScreenshotDelay found")
+        return steamScreenshotDelay
+        
+        
+
     def delete_images_from_file(self):
         '''Delete steam screenshots that were analyzed after the conversation is ended'''
-        for image in self.__images_to_delete:
-            try:
-                # Regular image deletion
-                if image.image_path.is_file():
-                    image.image_path.unlink()  # Delete the file
-                    logging.debug( f"Deleted image {image.image_path}")
-                else:
-                    logging.debug(f"The file {image.image_path} does not exist.")
+        if self.__context.config.delete_steam_screenshots_after_use :
+            for image in self.__images_to_delete:
+                try:
+                    # Regular image deletion
+                    if image.image_path.is_file():
+                        image.image_path.unlink()  # Delete the file
+                        logging.debug( f"Deleted image {image.image_path}")
+                    else:
+                        logging.debug(f"The file {image.image_path} does not exist.")
 
-                # Prepare the VR image path
-                vr_image_path = image.image_path.with_name(image.image_path.stem + '_vr.jpg')
-                
-                # VR image deletion
-                if vr_image_path.is_file():
-                    vr_image_path.unlink()  # Delete the VR file
-                    logging.debug( f"Deleted VR image {vr_image_path}")
-                else:
-                    logging.debug(f"The VR file {vr_image_path} does not exist.")
-            except Exception as e:
-                logging.error(f"An error occurred while deleting images: {e}")
+                    # Prepare the VR image path
+                    vr_image_path = image.image_path.with_name(image.image_path.stem + '_vr.jpg')
+                    
+                    # VR image deletion
+                    if vr_image_path.is_file():
+                        vr_image_path.unlink()  # Delete the VR file
+                        logging.debug( f"Deleted VR image {vr_image_path}")
+                    else:
+                        logging.debug(f"The VR file {vr_image_path} does not exist.")
+                except Exception as e:
+                    logging.error(f"An error occurred while deleting images: {e}")
 
-        # Clear the list after attempting to delete all images
-        self.__images_to_delete.clear()
+            # Clear the list after attempting to delete all images
+            self.__images_to_delete.clear()
 
     def attempt_to_add_most_recent_image_to_deletion_array(self):
         '''This is called by the conversation.py to remove a screenshot that was sent at the end of a conversation to avoid having a screenshot sticking around
         in the next conversation.'''
-        if self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_READY)==True:
-            try:
+        try:
+             if self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_READY)==True:
                 most_recent_image_path, is_vr = self.__output_manager.get_image_filepath()
                 if is_vr: 
                     most_recent_image_path = self.find_most_recent_jpg(str(most_recent_image_path))
                     self.__add_image_to_delete(str(most_recent_image_path))
-            except Exception as e:
-                logging.error(f"An error occurred while adding the latest image to deletion array: {e}")
+        except Exception as e:
+            logging.error(f"An error occurred while adding the latest image to deletion array: {e}")
 
     @staticmethod
     def resize_image(image_path, target_width):
@@ -149,21 +229,26 @@ class ImageManager:
         instructions to the LLM to let it do the resizing (less efficient than doing it in python). Once that done it encodes the image to base64 and generates
         a image_message class object'''
         try:
+            is_steam_screenshot = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_ISUSINGSTEAMSCREENSHOT)
+        except AttributeError:
+            is_steam_screenshot = None
+        try:
             # Create an instance of the image_message class
             image_path, is_vr = self.__output_manager.get_image_filepath()
             image_path = Path(image_path) 
-            if is_vr: 
+            if is_vr or is_steam_screenshot : 
                 recent_image_path = self.find_most_recent_jpg(str(image_path))
                 if recent_image_path:
                     image_path = Path(recent_image_path) 
                 else:
-                    logging.warning(f"No jpg file created in the last 2 minutes was found in {str(image_path)} .")
+                    logging.warning(f"No jpg file created in the last {int(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_STEAMSCREENSHOTDELAY))} seconds was found in {str(image_path)} .")
                     return None
                 self.__add_image_to_delete(str(image_path))
             else:
                 image_path = Path(image_path) / "Mantella_Vision.jpg" 
             # Check if the file exists
             if not image_path.is_file():
+                
                 logging.debug(f"The file {str(image_path)} does not exist.")
                 return None
             resolution = str(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_RES)).lower() or "auto"
@@ -190,10 +275,18 @@ class ImageManager:
             will create a new image description message in the message_thread.
         If no image is ready it removes all encoded images and image descriptions from the message thread to avoid overloading the LLM.
         It also insures that there's only one image or only one image description present at any time in the message_thread to avoid overloading the LLM with info'''
-        if self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_READY):
+        try:
+            vision_ready = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_READY)
+        except AttributeError:
+            vision_ready = None
+        
+        if vision_ready:
+        #if self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_READY):
+            vision_hints_prompt = self.process_vision_hints()
             if self.__context.config.image_analysis_iterative_querying == False:
                 logging.info("'Vision ready' Returned true, attempting direct image query")
-                image_instance = self.__create_message_from_image(self.__direct_prompt)
+                image_prompt = self.__direct_prompt+vision_hints_prompt
+                image_instance = self.__create_message_from_image(image_prompt)
                 if image_instance:
                     messages.replace_or_add_message(image_instance, image_message)
                 else:
@@ -203,7 +296,8 @@ class ImageManager:
                 iterative_prompt_instance= self.__iterative_prompt.format(
                         game=self.__context.config.game
                     )
-                image_instance = self.__create_message_from_image(iterative_prompt_instance)
+                image_prompt=iterative_prompt_instance+vision_hints_prompt
+                image_instance = self.__create_message_from_image(image_prompt)
                 if image_instance:
                     logging.info("Waiting for image_description_response to be filled")
                     self.__generation_thread = Thread(target=self.__output_manager.generate_simple_response, args=[image_instance])
@@ -211,7 +305,7 @@ class ImageManager:
                     self.__generation_thread.join()
                     self.__generation_thread = None
                     if self.__output_manager.generated_simple_result:
-                        new_image_description_message = image_description_message(self.__output_manager.generated_simple_result, False)
+                        new_image_description_message = image_description_message(self.__output_manager.generated_simple_result+vision_hints_prompt, False)
                         messages.replace_or_add_message(new_image_description_message, image_description_message)
                     else:
                         logging.warning("Generated simple response did not produce a valid result.")
@@ -240,7 +334,8 @@ class ImageManager:
             jpg_files = list(dir_path.glob('*.jpg'))
             
             # Filter the files to include only those modified in the last 2 minutes
-            recent_files = [f for f in jpg_files if datetime.fromtimestamp(f.stat().st_mtime) > now - timedelta(minutes=2)]
+            steamScreenshotDelay = self.getSteamScreenshotDelay()
+            recent_files = [f for f in jpg_files if datetime.fromtimestamp(f.stat().st_mtime) > now - timedelta(seconds=steamScreenshotDelay)]
             
             # Sort files by modification time, most recent first
             recent_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
