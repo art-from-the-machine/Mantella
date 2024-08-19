@@ -222,22 +222,26 @@ class gameable(ABC):
             full_path_file = os.path.join(overrides_folder,file)
             if extension == ".json":
                 with open(full_path_file) as fp:
-                    content: dict[str, str] = json.load(fp)
-                    name = content.get("name", "")
-                    base_id = content.get("base_id", "")
-                    race = content.get("race", "")
-                    matcher = self._get_matching_df_rows_matcher(base_id, name, race)
-                    if isinstance(matcher, type(None)): #character not in csv, add as new row
-                        row = []
-                        for entry in character_df_column_headers:
-                            value = content.get(entry, "")
-                            row.append(value)
-                        self.character_df.loc[len(self.character_df.index)] = row
-                    else: #character is in csv, update row
-                        for entry in character_df_column_headers:
-                            value = content.get(entry, None)
-                            if value:
-                                self.character_df.loc[matcher, entry] = value
+                    json_object = json.load(fp)
+                    if isinstance(json_object, dict):#Otherwise it is already a list
+                        json_object = [json_object]
+                    for json_content in json_object:
+                        content: dict[str, str] = json_content
+                        name = content.get("name", "")
+                        base_id = content.get("base_id", "")
+                        race = content.get("race", "")
+                        matcher = self._get_matching_df_rows_matcher(base_id, name, race)
+                        if isinstance(matcher, type(None)): #character not in csv, add as new row
+                            row = []
+                            for entry in character_df_column_headers:
+                                value = content.get(entry, "")
+                                row.append(value)
+                            self.character_df.loc[len(self.character_df.index)] = row
+                        else: #character is in csv, update row
+                            for entry in character_df_column_headers:
+                                value = content.get(entry, None)
+                                if value and value != "":
+                                    self.character_df.loc[matcher, entry] = value
             elif extension == ".csv":
                 extra_df = self.__get_character_df(full_path_file)
                 for i in range(extra_df.shape[0]):#for each row in df
@@ -254,6 +258,6 @@ class gameable(ABC):
                     else: #character is in csv, update row
                         for entry in character_df_column_headers:
                             value = extra_df.iloc[i].get(entry, None)
-                            if value:
+                            if value and not pd.isna(value) and value != "":
                                 self.character_df.loc[matcher, entry] = value
         
