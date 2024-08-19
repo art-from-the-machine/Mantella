@@ -249,15 +249,15 @@ class conversation:
                     goodbye_sentence.actions.append(comm_consts.ACTION_ENDCONVERSATION)
                     self.__sentences.put(goodbye_sentence)
                     
-    def contains_character(self, character_id: str) -> bool:
+    def contains_character(self, ref_id: str) -> bool:
         for actor in self.__context.npcs_in_conversation.get_all_characters():
-            if actor.id == character_id:
+            if actor.ref_id == ref_id:
                 return True
         return False
     
-    def get_character(self, character_id: str) -> Character | None:
+    def get_character(self, ref_id: str) -> Character | None:
         for actor in self.__context.npcs_in_conversation.get_all_characters():
-            if actor.id == character_id:
+            if actor.ref_id == ref_id:
                 return actor
         return None
 
