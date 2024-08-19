@@ -21,7 +21,8 @@ class communication_constants:
 
     #Actors
     KEY_ACTORS: str = PREFIX + "actors"
-    KEY_ACTOR_ID: str = PREFIX + "actor_id"
+    KEY_ACTOR_BASEID: str = PREFIX + "actor_baseid"
+    KEY_ACTOR_REFID: str = PREFIX + "actor_refid"
     KEY_ACTOR_NAME: str = PREFIX + "actor_name"
     KEY_ACTOR_GENDER: str = PREFIX + "actor_gender"
     KEY_ACTOR_RACE: str = PREFIX + "actor_race"

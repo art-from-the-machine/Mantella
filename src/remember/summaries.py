@@ -76,7 +76,7 @@ class summaries(remembering):
         if os.path.exists(name_conversation_folder_path): # if a conversation folder already exists for this NPC, use it
             character_conversation_folder_path = name_conversation_folder_path
         else: # else include the NPC's reference ID in the folder name to differentiate generic NPCs
-            name_ref: str = f'{name} - {character.id}'
+            name_ref: str = f'{name} - {character.ref_id}'
             character_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name_ref)
         
         if os.path.exists(character_conversation_folder_path):

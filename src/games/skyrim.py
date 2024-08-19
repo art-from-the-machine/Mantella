@@ -54,8 +54,8 @@ class skyrim(gameable):
                         if os.path.isfile(source_file_path):
                             shutil.copy(source_file_path, in_game_voice_folder_path)
 
-    def load_external_character_info(self, id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
-        character_info, is_generic_npc = self.find_character_info(id, name, race, gender, ingame_voice_model)
+    def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
+        character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
         actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
         return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None))

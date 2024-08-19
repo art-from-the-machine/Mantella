@@ -55,7 +55,7 @@ class gameable(ABC):
         return character_df
     
     @abstractmethod
-    def load_external_character_info(self, id: str, name: str, race: str, gender: int, actor_voice_model_name: str)-> external_character_info:
+    def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, actor_voice_model_name: str)-> external_character_info:
         """This loads extra information about a character that can not be gained from the game. i.e. bios or voice_model_names for TTS
 
         Args:
@@ -121,10 +121,10 @@ class gameable(ABC):
         """
         pass
 
-    def _get_matching_df_rows_matcher(self, character_id: str, character_name: str, race: str) -> pd.Series | None:
+    def _get_matching_df_rows_matcher(self, base_id: str, character_name: str, race: str) -> pd.Series | None:
          # TODO: try loading the NPC's voice model as soon as the NPC is found to speed up run time and so that potential errors are raised ASAP
         full_id_len = 6
-        full_id_search = character_id[-full_id_len:].lstrip('0')  # Strip leading zeros from the last 6 characters
+        full_id_search = base_id[-full_id_len:].lstrip('0')  # Strip leading zeros from the last 6 characters
 
         # Function to remove leading zeros from hexadecimal ID strings
         def remove_leading_zeros(hex_str):
@@ -144,7 +144,7 @@ class gameable(ABC):
         for length in [5, 4, 3]:
             if partial_id_match.any():
                 break
-            partial_id_search = character_id[-length:].lstrip('0')  # strip leading zeros from partial ID search
+            partial_id_search = base_id[-length:].lstrip('0')  # strip leading zeros from partial ID search
             partial_id_match = self.character_df['base_id'].apply(
                 lambda x: remove_leading_zeros(str(x)[-length:]) if pd.notna(x) and len(str(x)) >= length else remove_leading_zeros(str(x))
             ).str.lower() == partial_id_search.lower()
@@ -198,9 +198,9 @@ class gameable(ABC):
         #                             logging.info(f"Could not find {character_name} in skyrim_characters.csv. Loading as a generic NPC.")
         #                             return pd.DataFrame()
 
-    def find_character_info(self, character_id: str, character_name: str, race: str, gender: int, ingame_voice_model: str):
+    def find_character_info(self, base_id: str, character_name: str, race: str, gender: int, ingame_voice_model: str):
         character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
-        matcher = self._get_matching_df_rows_matcher(character_id, character_name, character_race)
+        matcher = self._get_matching_df_rows_matcher(base_id, character_name, character_race)
         if isinstance(matcher, type(None)):
             logging.info(f"Could not find {character_name} in skyrim_characters.csv. Loading as a generic NPC.")
             character_info = self.load_unnamed_npc(character_name, character_race, gender, ingame_voice_model)

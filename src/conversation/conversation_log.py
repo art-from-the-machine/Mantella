@@ -52,7 +52,7 @@ class conversation_log:
         # these IDs need to be removed when saving the conversation
         name: str = utils.remove_trailing_number(character.name)
         non_ref_path = f"{conversation_log.game_path}/{world_id}/{name}/{name}.json"
-        ref_path = f"{conversation_log.game_path}/{world_id}/{name} - {character.id}/{name}.json"
+        ref_path = f"{conversation_log.game_path}/{world_id}/{name} - {character.ref_id}/{name}.json"
 
         if os.path.exists(non_ref_path): # if a conversation folder already exists for this NPC, use it
             return non_ref_path
