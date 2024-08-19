@@ -93,7 +93,6 @@ class ImageManager:
             # Join all categories with a new line
             if output:  # Check if there's any output to include
                 formatted_output = "Here are the list of NPCs or creatures that might be shown on the image and their approximate distance from the player : \n" +"\n".join(output)
-                print(f"Hints are {formatted_output}")
         return formatted_output
    
     def create_and_sort_array(self,names_str, distances_str):
