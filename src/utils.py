@@ -95,24 +95,32 @@ def convert_to_skyrim_hex_format(identifier: str) -> str:
 def get_time_group(in_game_time):
     in_game_time = int(in_game_time)
 
-    if in_game_time <= 4:
-        time_group = 'at night'
-    elif in_game_time <= 7:
-        # NPCs wake up between 6 and 8
-        time_group = 'in the early morning'
-    elif in_game_time <= 11:
-        # shops open at 8
-        time_group = 'in the morning'
-    elif in_game_time <= 14:
-        time_group = 'in the afternoon'
-    elif in_game_time <= 19:
-        time_group = 'in the early evening'
+    if in_game_time <= 1: 
+        time_group = 'around midnight' # 00:00 to 00:59 am
+    elif in_game_time <= 4: 
+        time_group = 'in the dead of night' # 1:00 am to 4:59 am 
+    elif in_game_time <= 6: 
+        time_group = 'early morning, around sunrise' # 5:00 am to 6:59 am - NPCs wake up between 6 and 8
+    elif in_game_time <= 8: #shops opening soon...
+        time_group = 'in the morning' # 7:00 am to 8:59 am
+    elif in_game_time <= 10: 
+        time_group = 'mid morning' # 9:00 am to 10:59 am
+    elif in_game_time <= 12: 
+        time_group = 'around noon' # 11:00 am to 12:59 pm
+    elif in_game_time <= 14: 
+        time_group = 'in the early afternoon' # 1:00 pm to 2:59 pm
+    elif in_game_time <= 16:
+        time_group = 'in the afternoon' # 3:00 pm to 4:59 pm
+    elif in_game_time <= 18:
+        time_group = 'in the late afternoon' # 5:00 pm to 6:59 pm
+    elif in_game_time <= 19: #shops closing soon...
+        time_group = 'around sunset' # 7:00 pm to 7:59 pm
     elif in_game_time <= 21:
-        # shops shut at 8
-        time_group = 'in the late evening'
-    elif in_game_time <= 24:
-        # NPCs sleep between 8 and 10
-        time_group = 'at night'
+        time_group = 'in the evening' # 8:00 pm to 9:59 pm
+    elif in_game_time <= 22: # NPCs sleep between 8 and 10
+        time_group = 'well after dark' # 9:00 pm to 10:59 pm
+    elif in_game_time <=23:
+        time_group = 'around midnight'
     
     return time_group
 
