@@ -28,8 +28,10 @@ class context:
         self.__ingame_time: int = 12
         self.__ingame_events: list[str] = []
         self.__have_actors_changed: bool = False
+        self.__game = config.game
 
-        if config.game == "Fallout4" or config.game == "Fallout4VR":
+        self.__prev_location: str | None = None
+        if self.__game == "Fallout4" or self.__game == "Fallout4VR":
             self.__location: str = 'the Commonwealth'
         else:
             self.__location: str = "Skyrim"
@@ -125,9 +127,17 @@ class context:
                 self.__ingame_events.append(weather)
             self.__weather = weather
         self.__custom_context_values = custom_context_values
-        if (location) and (location != self.__location):
-            self.__location = location
-            self.__ingame_events.append(f"The location is now {location}.")
+        if location:
+            if location != '':
+                self.__location = location
+            else:
+                if self.__game == "Fallout4" or self.__game == "Fallout4VR":
+                    self.__location: str = 'the Commonwealth'
+                else:
+                    self.__location: str = "Skyrim"
+            if (self.__location != self.__prev_location) and (self.__prev_location != None):
+                self.__prev_location = self.__location
+                self.__ingame_events.append(f"The location is now {location}.")
         
         self.__ingame_time = in_game_time
         in_game_time_twelve_hour = in_game_time - 12 if in_game_time > 12 else in_game_time
@@ -309,6 +319,7 @@ class context:
         trusts = self.__get_trusts()
         equipment = self.__get_npc_equipment_text()
         location = self.__location
+        self.__prev_location = location
         weather = self.__weather
         time = self.__ingame_time - 12 if self.__ingame_time > 12 else self.__ingame_time
         time_group = get_time_group(self.__ingame_time)
