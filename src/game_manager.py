@@ -36,7 +36,8 @@ class GameStateManager:
         self.__talk: conversation | None = None
         self.__actions: list[action] =  [action(comm_consts.ACTION_NPC_OFFENDED, config.offended_npc_response, f"The player offended the NPC"),
                                                 action(comm_consts.ACTION_NPC_FORGIVEN, config.forgiven_npc_response, f"The player made up with the NPC"),
-                                                action(comm_consts.ACTION_NPC_FOLLOW, config.follow_npc_response, f"The NPC is willing to follow the player")]
+                                                action(comm_consts.ACTION_NPC_FOLLOW, config.follow_npc_response, f"The NPC is willing to follow the player"),
+                                                action(comm_consts.ACTION_NPC_INVENTORY, config.inventory_npc_response, f"The NPC is willing to show their inventory to the player")]
 
     ###### react to calls from the game #######
     def start_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:

@@ -186,6 +186,7 @@ class ChatManager:
             cumulative_sentence_bool = False
             current_sentence: str = ""
             actions_in_sentence: list[action] = []
+            show_inventory = False
             while True:
                 try:
                     start_time = time.time()
@@ -239,6 +240,8 @@ class ChatManager:
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:
+                                            if keyword_extraction.lower() == 'inventory':
+                                                show_inventory = True
                                             logging.log(28, action_to_take.info_text)
                                             actions_in_sentence.append(action_to_take)
                                             full_reply += f"{keyword_extraction}: "
@@ -286,7 +289,8 @@ class ChatManager:
                                 # conversation has switched from radiant to multi NPC (this allows the player to "interrupt" radiant dialogue and include themselves in the conversation)
                                 # the conversation has ended
                                 # contains_player_character() == not radiant
-                                if (num_sentences >= self.__config.max_response_sentences and characters.contains_player_character()):
+                                # the NPC is opening their inventory (subsequent lines get cut off anyway when the game pauses to open the inventory menu)
+                                if (num_sentences >= self.__config.max_response_sentences and characters.contains_player_character()) or (show_inventory):
                                     break
 
                     break

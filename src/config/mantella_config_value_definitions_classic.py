@@ -78,6 +78,7 @@ class MantellaConfigValueDefinitionsClassic:
         language_advanced_category.add_config_value(LanguageDefinitions.get_offended_npc_response())
         language_advanced_category.add_config_value(LanguageDefinitions.get_forgiven_npc_response())
         language_advanced_category.add_config_value(LanguageDefinitions.get_follow_npc_response())
+        language_advanced_category.add_config_value(LanguageDefinitions.get_inventory_npc_response())
         result.append(language_advanced_category)
         
         microphone_advanced_category = ConfigValueGroup("Microphone.Advanced", "Microphone advanced", "More advanced settings concerning microphone input and voice transription.", on_value_change_callback)

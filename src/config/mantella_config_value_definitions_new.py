@@ -101,6 +101,7 @@ class MantellaConfigValueDefinitionsNew:
         language_category.add_config_value(LanguageDefinitions.get_offended_npc_response())
         language_category.add_config_value(LanguageDefinitions.get_forgiven_npc_response())
         language_category.add_config_value(LanguageDefinitions.get_follow_npc_response())
+        language_category.add_config_value(LanguageDefinitions.get_inventory_npc_response())
         result.add_base_group(language_category)
 
         prompts_category = ConfigValueGroup("Prompts", "Prompts", "Change the basic prompts used by Mantella.", on_value_change_callback)

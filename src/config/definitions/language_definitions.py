@@ -37,3 +37,9 @@ class LanguageDefinitions:
         description = """The keyword used by the NPC when they are willing to become a follower.
                         This should match what is stated in the starting prompt."""
         return ConfigValueString("follow_npc_response","NPC Response: Follow",description,"Follow", tags=[ConvigValueTag.advanced])
+    
+    @staticmethod
+    def get_inventory_npc_response() -> ConfigValue:
+        description = """The keyword used by the NPC when they are willing to show their inventory.
+                        This should match what is stated in the starting prompt."""
+        return ConfigValueString("inventory_npc_response","NPC Response: Inventory",description,"Inventory", tags=[ConvigValueTag.advanced])
