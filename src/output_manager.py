@@ -122,11 +122,11 @@ class ChatManager:
         def parse_asterisks_brackets(sentence: str) -> str:
             if ('*' in sentence):
                 original_sentence = sentence
-                sentence = re.sub(r'\*[^*]*\*', '', sentence)
+                sentence = re.sub(r'\*[^*]*?\*', '', sentence)
                 sentence = sentence.replace('*', '')
 
                 if sentence != original_sentence:
-                    removed_text = original_sentence.replace(sentence, '').strip()
+                    removed_text = original_sentence.replace(sentence.strip(), '').strip()
                     logging.log(28, f"Removed asterisks text from response: {removed_text}")
 
             if ('(' in sentence) or (')' in sentence):
@@ -199,10 +199,15 @@ class ChatManager:
                         sentence += content
                         # Check for the last occurrence of sentence-ending punctuation
                         last_punctuation = max(sentence.rfind(p) for p in self.__end_of_sentence_chars)
-                        if last_punctuation != -1:
+                        asterisks_count = sentence.count('*')
+                        if (last_punctuation != -1) and (asterisks_count % 2 == 0):
                             # Split the sentence at the last punctuation mark
                             remaining_content = sentence[last_punctuation + 1:]
-                            current_sentence = sentence[:last_punctuation + 1]
+                            # if sentence is contained in bracket or asterisk, include the bracket / asterisk
+                            if remaining_content.strip() in ['*',')','}',']']:
+                                remaining_content = ''
+                            else:
+                                current_sentence = sentence[:last_punctuation + 1]
 
                             current_sentence = self.clean_sentence(current_sentence)
                             if not current_sentence:
