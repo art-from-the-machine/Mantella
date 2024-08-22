@@ -132,6 +132,7 @@ class ConfigLoader:
             self.offended_npc_response = self.__definitions.get_string_value("offended_npc_response")
             self.forgiven_npc_response = self.__definitions.get_string_value("forgiven_npc_response")
             self.follow_npc_response = self.__definitions.get_string_value("follow_npc_response")
+            self.inventory_npc_response = self.__definitions.get_string_value("inventory_npc_response")
 
             #TTS
             self.tts_service = self.__definitions.get_string_value("tts_service").strip().lower()

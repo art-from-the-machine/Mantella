@@ -60,3 +60,4 @@ class communication_constants:
     ACTION_NPC_OFFENDED: str = PREFIX + "npc_offended"
     ACTION_NPC_FORGIVEN: str = PREFIX + "npc_forgiven"
     ACTION_NPC_FOLLOW: str = PREFIX + "npc_follow"
+    ACTION_NPC_INVENTORY: str = PREFIX + "npc_inventory"
