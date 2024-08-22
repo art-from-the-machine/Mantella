@@ -151,20 +151,21 @@ class gameable(ABC):
 
         is_generic_npc = False
 
-        ordered_matchers = [
-            name_match & id_match & race_match, # match name, full ID, race (needed for Fallout 4 NPCs like Curie)
-            name_match & id_match, # match name and full ID
-            name_match & partial_id_match & race_match, # match name, partial ID, and race
-            name_match & partial_id_match, # match name and partial ID
-            name_match & race_match, # match name and race
-            name_match, # match just name
-            id_match # match just ID
-        ]
+        ordered_matchers = {
+            'name, ID, race': name_match & id_match & race_match, # match name, full ID, race (needed for Fallout 4 NPCs like Curie)
+            'name, ID': name_match & id_match, # match name and full ID
+            'name, partial ID, race': name_match & partial_id_match & race_match, # match name, partial ID, and race
+            'name, partial ID': name_match & partial_id_match, # match name and partial ID
+            'name, race': name_match & race_match, # match name and race
+            'name': name_match, # match just name
+            'ID': id_match # match just ID
+        }
 
-        for matchers in ordered_matchers:
-            view = self.character_df.loc[matchers]
+        for matcher in ordered_matchers:
+            view = self.character_df.loc[ordered_matchers[matcher]]
             if view.shape[0] == 1: #If there is exactly one match
-                return matchers
+                logging.info(f'Matched {character_name} in CSV by {matcher}')
+                return ordered_matchers[matcher]
             
         return None
         # try: # match name, full ID, race (needed for Fallout 4 NPCs like Curie)
