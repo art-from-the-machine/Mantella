@@ -258,7 +258,7 @@ class ChatManager:
                                 else:
                                     sentence = accumulated_sentence + current_sentence
                                 accumulated_sentence = ''
-                                if len(sentence.strip()) < 3:
+                                if len(sentence.strip()) <= 3:
                                     logging.log(28, f'Skipping voiceline that is too short: {sentence}')
                                     break
 
