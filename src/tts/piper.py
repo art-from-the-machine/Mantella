@@ -61,7 +61,9 @@ class piper(ttsable):
             voiceline = voiceline.replace('!','.')
         else:
             voiceline = voiceline.replace('.','!')
-        while True:
+
+        attempts = 0
+        while attempts < 3:
             self.__write_to_stdin(f"synthesize {voiceline}\n")
             max_wait_time = 5
             start_time = time.time()
@@ -89,6 +91,7 @@ class piper(ttsable):
             logging.warning(f'Synthesis timed out for voiceline "{voiceline.strip()}". Restarting Piper...')
             self._restart_piper()
             self.change_voice(self._last_voice)
+            attempts += 1
     
 
     @utils.time_it
