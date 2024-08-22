@@ -31,6 +31,12 @@ class OtherDefinitions:
                                     Increasing this number will cost more prompt tokens and lead to the context limit being reached faster."""
         return ConfigValueInt("max_count_events","Max Count Events",max_count_events_description,5,0,999999)
     
+    @staticmethod
+    def get_hourly_time_config_value() -> ConfigValue:
+        description = """If enabled, NPCs will be made aware of the time every in-game hour. Otherwise, time updates will be less granular (eg 'The conversation now takes place in the morning' / 'at night' etc).
+                        To remove mentions of the hour entirely, prompts also need to be edited from 'The time is {time} {time_group}.' to 'The conversation takes place {time_group}.'"""
+        return ConfigValueBool("hourly_time","Report In-Game Time Hourly",description,False)
+    
     #Player Character
     @staticmethod
     def get_player_character_description() -> ConfigValue:
