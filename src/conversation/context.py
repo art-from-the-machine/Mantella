@@ -158,10 +158,11 @@ class context:
         current_stats: Character = self.__npcs_in_conversation.get_character_by_name(npc.name)
         #Is in Combat
         if current_stats.is_in_combat != npc.is_in_combat:
+            name = 'The player' if npc.is_player_character else npc.name
             if npc.is_in_combat:
-                self.__ingame_events.append(f"{npc.name} is now in combat!")
+                self.__ingame_events.append(f"{name} is now in combat!")
             else:
-                self.__ingame_events.append(f"{npc.name} is no longer in combat!")
+                self.__ingame_events.append(f"{name} is no longer in combat.")
         #update custom  values
         try:
             if (current_stats.get_custom_character_value("mantella_actor_pos_x") is not None and
