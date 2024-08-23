@@ -59,42 +59,43 @@ class skyrim(gameable):
         actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
         return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None))
+    
+    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str) -> str:
+        voice_model = ''
 
-    def load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
-        """Load generic NPC if character cannot be found in skyrim_characters.csv"""
-        # unknown == I couldn't find the IDs for these voice models
-        
         actor_voice_model = ingame_voice_model
         actor_voice_model_id = actor_voice_model.split('(')[1].split(')')[0]
         actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
-
-        actor_race = race
-        actor_sex = gender
-
-        voice_model = ''
 
         for key in skyrim.VOICE_MODEL_IDS:
             # using endswith because sometimes leading zeros are ignored
             if actor_voice_model_id.endswith(key):
                 voice_model = skyrim.VOICE_MODEL_IDS[key]
-                break
-        
+                return voice_model
+
         # if voice_model not found in the voice model ID list
-        if voice_model == '':
-            try: # search for voice model in skyrim_characters.csv
-                voice_model = self.character_df.loc[self.character_df['skyrim_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
-            except: # guess voice model based on sex and race
-                modified_race_key = actor_race + "Race"
-                if actor_sex == 1:
-                    try:
-                        voice_model = self.FEMALE_VOICE_MODELS[modified_race_key]
-                    except:
-                        voice_model = 'Female Nord'
-                else:
-                    try:
-                        voice_model = self.MALE_VOICE_MODELS[modified_race_key]
-                    except:
-                        voice_model = 'Male Nord'
+        try: # search for voice model in skyrim_characters.csv
+            voice_model = self.character_df.loc[self.character_df['skyrim_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
+        except: # guess voice model based on sex and race
+            modified_race_key = actor_race + "Race"
+            if actor_sex == 1:
+                try:
+                    voice_model = self.FEMALE_VOICE_MODELS[modified_race_key]
+                except:
+                    voice_model = 'Female Nord'
+            else:
+                try:
+                    voice_model = self.MALE_VOICE_MODELS[modified_race_key]
+                except:
+                    voice_model = 'Male Nord'
+
+        return voice_model
+
+    def load_unnamed_npc(self, name: str, actor_race: str, actor_sex: int, ingame_voice_model:str) -> dict[str, Any]:
+        """Load generic NPC if character cannot be found in skyrim_characters.csv"""
+        # unknown == I couldn't find the IDs for these voice models
+
+        voice_model = self.find_best_voice_model(actor_race, actor_sex, ingame_voice_model)
 
         try: # search for relavant skyrim_voice_folder for voice_model
             skyrim_voice_folder = self.character_df.loc[self.character_df['voice_model'].astype(str).str.lower()==voice_model.lower(), 'skyrim_voice_folder'].values[0]

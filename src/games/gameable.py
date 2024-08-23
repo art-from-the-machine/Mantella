@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from pathlib import Path
-import sys
+import numpy as np
 from typing import Any
 import pandas as pd
 from src.conversation.conversation_log import conversation_log
@@ -50,7 +50,6 @@ class gameable(ABC):
     def __get_character_df(self, file_name: str) -> pd.DataFrame:
         encoding = utils.get_file_encoding(file_name)
         character_df = pd.read_csv(file_name, engine='python', encoding=encoding)
-        character_df = character_df.loc[character_df['voice_model'].notna()]
 
         return character_df
     
@@ -95,7 +94,7 @@ class gameable(ABC):
         pass
 
     @abstractmethod
-    def load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
+    def load_unnamed_npc(self, name: str, actor_race: str, actor_sex: int, ingame_voice_model:str) -> dict[str, Any]:
         """Loads a generic NPC if the NPC is not found in the CSV file
 
          Args:
@@ -118,6 +117,20 @@ class gameable(ABC):
 
         Returns:
             str: A prose description of the weather for the LLM
+        """
+        pass
+
+    @abstractmethod
+    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str) -> str:
+        """Returns the voice model which most closely matches the NPC
+
+        Args:
+            actor_race (str): The race of the NPC
+            actor_sex (int): The sex of the NPC
+            ingame_voice_model (str): The in-game voice model provided for the NPC
+
+        Returns:
+            str: The voice model which most closely matches the NPC
         """
         pass
 
@@ -208,8 +221,9 @@ class gameable(ABC):
             is_generic_npc = True
         else:
             result = self.character_df.loc[matcher]
-            count_rows = result.shape[0]
             character_info = result.to_dict('records')[0]
+            if (character_info['voice_model'] is None) or (np.isnan(character_info['voice_model'])) or (character_info['voice_model'] == ''):
+                character_info['voice_model'] = self.find_best_voice_model(race, gender, ingame_voice_model) 
             is_generic_npc = False                                   
 
         return character_info, is_generic_npc
