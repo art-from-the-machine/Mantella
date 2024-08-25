@@ -3,7 +3,6 @@ import json
 import logging
 import os
 from pathlib import Path
-import numpy as np
 from typing import Any
 import pandas as pd
 from src.conversation.conversation_log import conversation_log
@@ -222,7 +221,7 @@ class gameable(ABC):
         else:
             result = self.character_df.loc[matcher]
             character_info = result.to_dict('records')[0]
-            if (character_info['voice_model'] is None) or (np.isnan(character_info['voice_model'])) or (character_info['voice_model'] == ''):
+            if (character_info['voice_model'] is None) or (pd.isnull(character_info['voice_model'])) or (character_info['voice_model'] == ''):
                 character_info['voice_model'] = self.find_best_voice_model(race, gender, ingame_voice_model) 
             is_generic_npc = False                                   
 
