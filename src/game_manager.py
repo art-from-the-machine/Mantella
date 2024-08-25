@@ -57,7 +57,7 @@ class GameStateManager:
     
     def continue_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(not self.__talk ):
-            return self.error_message("No running conversation at this point")
+            return self.error_message("No running conversation.")
         
         if input_json.__contains__(comm_consts.KEY_REQUEST_EXTRA_ACTIONS):
             extra_actions: list[str] = input_json[comm_consts.KEY_REQUEST_EXTRA_ACTIONS]
@@ -77,7 +77,7 @@ class GameStateManager:
 
     def player_input(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(not self.__talk ):
-            return self.error_message("No running conversation at this point")
+            return self.error_message("No running conversation.")
         
         player_text: str = input_json[comm_consts.KEY_REQUESTTYPE_PLAYERINPUT]
         self.__update_context(input_json)
