@@ -205,6 +205,7 @@ class ChatManager:
                             remaining_content = sentence[last_punctuation + 1:]
                             # if sentence is contained in bracket or asterisk, include the bracket / asterisk
                             if remaining_content.strip() in ['*',')','}',']']:
+                                current_sentence = sentence
                                 remaining_content = ''
                             else:
                                 current_sentence = sentence[:last_punctuation + 1]
