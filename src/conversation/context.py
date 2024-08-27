@@ -339,7 +339,9 @@ class context:
         conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
 
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
-        
+        have_bios_been_dropped = False
+        have_summaries_been_dropped = False
+        logging.log(23, f'Maximum size of prompt is {self.__client.token_limit} x 0.45 = {self.__client.token_limit * 0.45} tokens.')
         for content in removal_content:
             result = prompt.format(
                 player_name = player_name,
@@ -360,8 +362,19 @@ class context:
                 conversation_summary=content[1],
                 conversation_summaries=content[1]
                 )
-            if not self.__is_prompt_too_long(result, self.TOKEN_LIMIT_PERCENT): #self.__client.calculate_tokens_from_text(result) < self.__client.token_limit * self.__token_limit_percent:
+            if self.__is_prompt_too_long(result, self.TOKEN_LIMIT_PERCENT):
+                if content[1] != "":
+                    have_summaries_been_dropped = True
+                    logging.log(logging.WARNING, f'Prompt + bios + summaries = {self.__client.calculate_tokens_from_text(result)} tokens. Exceeding token limit for prompt. Dropping summaries! Your NPCs will not remember past conversations!')
+                else:
+                    have_bios_been_dropped = True
+                    logging.log(logging.WARNING, f'Prompt + bios = {self.__client.calculate_tokens_from_text(result)} tokens. Exceeding token limit for prompt. Dropping bios and summaries! Your NPCs will have no clue who they are!')
+            else:
                 logging.log(23, f'Prompt sent to LLM ({self.__client.calculate_tokens_from_text(result)} tokens): {result.strip()}')
+                if have_summaries_been_dropped and have_bios_been_dropped:
+                    logging.log(logging.WARNING, f'Both the bios and summaries of the NPCs you selected could not be fit into the maximum prompt size of {self.__client.token_limit * 0.45} tokens! Your NPCs will not remember any past events nor know who they are! Talk to less NPCs at once or use another LLM model with a larger context size!')
+                elif have_summaries_been_dropped:
+                    logging.log(logging.WARNING, f'The summaries of the NPCs you selected could not be fit into the maximum prompt size of {self.__client.token_limit * 0.45} tokens! Your NPCs will not remember any past events! Talk to less NPCs at once or use another LLM model with a larger context size!')
                 return result
             
 
