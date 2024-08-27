@@ -373,8 +373,6 @@ class conversation:
     
     def __should_voice_player_input(self, player_character: Character) -> bool:
         game_value: Any = player_character.get_custom_character_value(comm_consts.KEY_ACTOR_PC_VOICEPLAYERINPUT)
-        if game_value == None:
-            return self.__context.config.voice_player_input
         return game_value
 
             

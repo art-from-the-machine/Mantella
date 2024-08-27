@@ -212,11 +212,11 @@ class GameStateManager:
                 if is_generic_npc:
                     character_name = external_info.name
                     ingame_voice_model = external_info.ingame_voice_model
-            elif self.__talk and is_player_character and self.__config.voice_player_input:
+            elif self.__talk and is_player_character:
                 if custom_values.__contains__(comm_consts.KEY_ACTOR_PC_VOICEMODEL):
-                    tts_voice_model = self.__get_player_voice_model(str(custom_values[comm_consts.KEY_ACTOR_PC_VOICEMODEL]))
+                    tts_voice_model = str(custom_values[comm_consts.KEY_ACTOR_PC_VOICEMODEL])
                 else:
-                    tts_voice_model = self.__get_player_voice_model(None)
+                    tts_voice_model = None
 
             return Character(base_id,
                             ref_id,
@@ -245,11 +245,6 @@ class GameStateManager:
                 comm_consts.KEY_REPLYTYPE: "error",
                 "mantella_message": message
             }
-    
-    def __get_player_voice_model(self, game_value: str | None) -> str:
-        if game_value == None:
-            return self.__config.player_voice_model
-        return game_value
     
     def __convert_to_equipment_item_dictionary(self, input_dict: dict[str, Any]) -> dict[str, EquipmentItem]:
         result: dict[str, EquipmentItem] = {}

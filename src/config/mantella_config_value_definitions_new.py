@@ -126,8 +126,6 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
         other_category.add_config_value(OtherDefinitions.get_hourly_time_config_value())
         other_category.add_config_value(OtherDefinitions.get_player_character_description())
-        other_category.add_config_value(OtherDefinitions.get_voice_player_input())
-        other_category.add_config_value(OtherDefinitions.get_player_voice_model())
         # other_category.add_config_value(OtherDefinitions.get_debugging_config_value())
         # other_category.add_config_value(OtherDefinitions.get_play_audio_from_script_config_value())
         # other_category.add_config_value(OtherDefinitions.get_debugging_npc_config_value())
