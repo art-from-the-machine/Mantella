@@ -82,6 +82,21 @@ class GameStateManager:
         player_text: str = input_json[comm_consts.KEY_REQUESTTYPE_PLAYERINPUT]
         self.__update_context(input_json)
         self.__talk.process_player_input(player_text)
+
+        cleaned_player_text = utils.clean_text(player_text)
+        npcs_in_conversation = self.__talk.context.npcs_in_conversation
+        if not npcs_in_conversation.contains_multiple_npcs(): # actions are only enabled in 1-1 conversations
+            for action in self.__actions:
+                # if the player response is just the name of an action, force the action to trigger
+                if action.keyword.lower() == cleaned_player_text.lower():
+                    return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCACTION,
+                            comm_consts.KEY_REPLYTYPE_NPCACTION: {
+                                'mantella_actor_speaker': npcs_in_conversation.last_added_character.name,
+                                'mantella_actor_actions': [action.game_action_identifier],
+                                }
+                            }
+        
+        # if the player response is not an action command, return a regular player reply type
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}
 
     def end_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
