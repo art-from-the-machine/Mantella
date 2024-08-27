@@ -29,6 +29,14 @@ If you get stuck anywhere in the installation process, please see {doc}`/pages/i
 Mantella's default text-to-speech service, Piper, only supports English. For text-to-speech services that support other languages, see [here](#text-to-speech).
 ```
 
+<details>
+<summary><b>Upgrading from a previous Mantella version</b></summary>  
+
+Make sure all Mantella conversations have ended in-game and save your game. Deactivate the previous Mantella version in your mod manager before activating the new version.
+
+From v0.12, Mantella stores conversation histories in your `Documents/My Games/Mantella/Data/Skyrim/conversations/YourPlayerName1/` folder. This folder will generate for the first time after a conversation has been saved. Once generated, transfer your previous conversation histories (in your previous `/Data/Skyrim/conversations/` folder) to this new folder.
+</details>
+
 ____________________________________
 
 ## Requirements
