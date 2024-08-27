@@ -14,6 +14,7 @@ class communication_constants:
     KEY_REQUEST_EXTRA_ACTIONS: str = PREFIX + "extra_actions"
     
     KEY_REPLYTYPE_NPCTALK: str = PREFIX + "npc_talk"
+    KEY_REPLYTYPE_NPCACTION: str  = PREFIX + "npc_action"
     KEY_REPLYTYPE_PLAYERTALK: str  = PREFIX + "player_talk"
     KEY_REPLYTYPE_ENDCONVERSATION: str  = PREFIX + "end_conversation"
 
