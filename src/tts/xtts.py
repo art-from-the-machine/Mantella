@@ -144,21 +144,6 @@ class xtts(ttsable):
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
 
 
-    def _voice_exists(self, voice_name, speaker_type):
-        """Checks if the sanitized voice name exists in the specified filtered speakers."""
-        sanitized_voice_name = self._sanitize_voice_name(voice_name)
-        speakers = []
-        
-        if speaker_type == 'advanced':
-            speakers = self.advanced_filtered_speakers.get(self._language, {}).get('speakers', [])
-        elif speaker_type == 'regular':
-            speakers = self.voice_filtered_speakers.get(self._language, {}).get('speakers', [])
-        elif speaker_type == 'csv_voice_folder':
-            speakers = self.csv_voice_folder_speakers.get(self._language, {}).get('speakers', [])
-
-        return sanitized_voice_name in [self._sanitize_voice_name(speaker) for speaker in speakers]
-    
-
     @utils.time_it
     def _select_voice_type(self, voice: str, in_game_voice: str | None, csv_in_game_voice: str | None, advanced_voice_model: str | None):
         # check if model name in each CSV column exists, with advanced_voice_model taking precedence over other columns
