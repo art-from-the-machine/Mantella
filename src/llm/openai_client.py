@@ -422,7 +422,7 @@ For more information, see here:
                 # OpenAI models are not a "live" list, so manual input needs to be allowed for when new models not listed are released
                 allow_manual_model_input = True
             elif service == "OpenRouter":
-                default_model = "undi95/toppy-m-7b:free"
+                default_model = "google/gemma-2-9b-it:free"
                 secret_key = openai_client.get_secret_key('GPT_SECRET_KEY.txt')
                 client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
                 # NOTE: while a secret key is not needed for this request, this may change in the future
