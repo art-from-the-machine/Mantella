@@ -23,7 +23,7 @@ class LLMDefinitions:
                             The list does not provide all details about the models. For additional information please refer to the corresponsing sites:
                             - OpenRouter: https://openrouter.ai/docs#models
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
-        return ConfigValueSelection("model","Model",model_description,"undi95/toppy-m-7b:free",["Custom Model"], allows_values_not_in_options=True)
+        return ConfigValueSelection("model","Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True)
     
     @staticmethod
     def get_custom_token_count_config_value() -> ConfigValue:
