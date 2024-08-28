@@ -3,7 +3,6 @@ import json
 import logging
 import os
 from pathlib import Path
-import sys
 from typing import Any
 import pandas as pd
 from src.conversation.conversation_log import conversation_log
@@ -50,12 +49,11 @@ class gameable(ABC):
     def __get_character_df(self, file_name: str) -> pd.DataFrame:
         encoding = utils.get_file_encoding(file_name)
         character_df = pd.read_csv(file_name, engine='python', encoding=encoding)
-        character_df = character_df.loc[character_df['voice_model'].notna()]
 
         return character_df
     
     @abstractmethod
-    def load_external_character_info(self, id: str, name: str, race: str, gender: int, actor_voice_model_name: str)-> external_character_info:
+    def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, actor_voice_model_name: str)-> external_character_info:
         """This loads extra information about a character that can not be gained from the game. i.e. bios or voice_model_names for TTS
 
         Args:
@@ -95,7 +93,7 @@ class gameable(ABC):
         pass
 
     @abstractmethod
-    def load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
+    def load_unnamed_npc(self, name: str, actor_race: str, actor_sex: int, ingame_voice_model:str) -> dict[str, Any]:
         """Loads a generic NPC if the NPC is not found in the CSV file
 
          Args:
@@ -121,10 +119,24 @@ class gameable(ABC):
         """
         pass
 
-    def _get_matching_df_rows_matcher(self, character_id: str, character_name: str, race: str) -> pd.Series | None:
+    @abstractmethod
+    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str) -> str:
+        """Returns the voice model which most closely matches the NPC
+
+        Args:
+            actor_race (str): The race of the NPC
+            actor_sex (int): The sex of the NPC
+            ingame_voice_model (str): The in-game voice model provided for the NPC
+
+        Returns:
+            str: The voice model which most closely matches the NPC
+        """
+        pass
+
+    def _get_matching_df_rows_matcher(self, base_id: str, character_name: str, race: str) -> pd.Series | None:
          # TODO: try loading the NPC's voice model as soon as the NPC is found to speed up run time and so that potential errors are raised ASAP
         full_id_len = 6
-        full_id_search = character_id[-full_id_len:].lstrip('0')  # Strip leading zeros from the last 6 characters
+        full_id_search = base_id[-full_id_len:].lstrip('0')  # Strip leading zeros from the last 6 characters
 
         # Function to remove leading zeros from hexadecimal ID strings
         def remove_leading_zeros(hex_str):
@@ -144,27 +156,28 @@ class gameable(ABC):
         for length in [5, 4, 3]:
             if partial_id_match.any():
                 break
-            partial_id_search = character_id[-length:].lstrip('0')  # strip leading zeros from partial ID search
+            partial_id_search = base_id[-length:].lstrip('0')  # strip leading zeros from partial ID search
             partial_id_match = self.character_df['base_id'].apply(
                 lambda x: remove_leading_zeros(str(x)[-length:]) if pd.notna(x) and len(str(x)) >= length else remove_leading_zeros(str(x))
             ).str.lower() == partial_id_search.lower()
 
         is_generic_npc = False
 
-        ordered_matchers = [
-            name_match & id_match & race_match, # match name, full ID, race (needed for Fallout 4 NPCs like Curie)
-            name_match & id_match, # match name and full ID
-            name_match & partial_id_match & race_match, # match name, partial ID, and race
-            name_match & partial_id_match, # match name and partial ID
-            name_match & race_match, # match name and race
-            name_match, # match just name
-            id_match # match just ID
-        ]
+        ordered_matchers = {
+            'name, ID, race': name_match & id_match & race_match, # match name, full ID, race (needed for Fallout 4 NPCs like Curie)
+            'name, ID': name_match & id_match, # match name and full ID
+            'name, partial ID, race': name_match & partial_id_match & race_match, # match name, partial ID, and race
+            'name, partial ID': name_match & partial_id_match, # match name and partial ID
+            'name, race': name_match & race_match, # match name and race
+            'name': name_match, # match just name
+            'ID': id_match # match just ID
+        }
 
-        for matchers in ordered_matchers:
-            view = self.character_df.loc[matchers]
+        for matcher in ordered_matchers:
+            view = self.character_df.loc[ordered_matchers[matcher]]
             if view.shape[0] == 1: #If there is exactly one match
-                return matchers
+                logging.info(f'Matched {character_name} in CSV by {matcher}')
+                return ordered_matchers[matcher]
             
         return None
         # try: # match name, full ID, race (needed for Fallout 4 NPCs like Curie)
@@ -198,17 +211,18 @@ class gameable(ABC):
         #                             logging.info(f"Could not find {character_name} in skyrim_characters.csv. Loading as a generic NPC.")
         #                             return pd.DataFrame()
 
-    def find_character_info(self, character_id: str, character_name: str, race: str, gender: int, ingame_voice_model: str):
+    def find_character_info(self, base_id: str, character_name: str, race: str, gender: int, ingame_voice_model: str):
         character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
-        matcher = self._get_matching_df_rows_matcher(character_id, character_name, character_race)
+        matcher = self._get_matching_df_rows_matcher(base_id, character_name, character_race)
         if isinstance(matcher, type(None)):
             logging.info(f"Could not find {character_name} in skyrim_characters.csv. Loading as a generic NPC.")
             character_info = self.load_unnamed_npc(character_name, character_race, gender, ingame_voice_model)
             is_generic_npc = True
         else:
             result = self.character_df.loc[matcher]
-            count_rows = result.shape[0]
             character_info = result.to_dict('records')[0]
+            if (character_info['voice_model'] is None) or (pd.isnull(character_info['voice_model'])) or (character_info['voice_model'] == ''):
+                character_info['voice_model'] = self.find_best_voice_model(race, gender, ingame_voice_model) 
             is_generic_npc = False                                   
 
         return character_info, is_generic_npc
@@ -222,22 +236,26 @@ class gameable(ABC):
             full_path_file = os.path.join(overrides_folder,file)
             if extension == ".json":
                 with open(full_path_file) as fp:
-                    content: dict[str, str] = json.load(fp)
-                    name = content.get("name", "")
-                    base_id = content.get("base_id", "")
-                    race = content.get("race", "")
-                    matcher = self._get_matching_df_rows_matcher(base_id, name, race)
-                    if isinstance(matcher, type(None)): #character not in csv, add as new row
-                        row = []
-                        for entry in character_df_column_headers:
-                            value = content.get(entry, "")
-                            row.append(value)
-                        self.character_df.loc[len(self.character_df.index)] = row
-                    else: #character is in csv, update row
-                        for entry in character_df_column_headers:
-                            value = content.get(entry, None)
-                            if value:
-                                self.character_df.loc[matcher, entry] = value
+                    json_object = json.load(fp)
+                    if isinstance(json_object, dict):#Otherwise it is already a list
+                        json_object = [json_object]
+                    for json_content in json_object:
+                        content: dict[str, str] = json_content
+                        name = content.get("name", "")
+                        base_id = content.get("base_id", "")
+                        race = content.get("race", "")
+                        matcher = self._get_matching_df_rows_matcher(base_id, name, race)
+                        if isinstance(matcher, type(None)): #character not in csv, add as new row
+                            row = []
+                            for entry in character_df_column_headers:
+                                value = content.get(entry, "")
+                                row.append(value)
+                            self.character_df.loc[len(self.character_df.index)] = row
+                        else: #character is in csv, update row
+                            for entry in character_df_column_headers:
+                                value = content.get(entry, None)
+                                if value and value != "":
+                                    self.character_df.loc[matcher, entry] = value
             elif extension == ".csv":
                 extra_df = self.__get_character_df(full_path_file)
                 for i in range(extra_df.shape[0]):#for each row in df
@@ -254,6 +272,6 @@ class gameable(ABC):
                     else: #character is in csv, update row
                         for entry in character_df_column_headers:
                             value = extra_df.iloc[i].get(entry, None)
-                            if value:
+                            if value and not pd.isna(value) and value != "":
                                 self.character_df.loc[matcher, entry] = value
         

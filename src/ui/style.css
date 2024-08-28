@@ -35,3 +35,17 @@
 {
     background: cornflowerblue !important;
 }
+
+.custom-footer {
+    text-align: left;
+    font-size: 20px;
+    padding: 3px;
+}
+
+.custom-footer a {
+    text-decoration: none;
+}
+
+.custom-footer a:hover {
+    text-decoration: underline;
+}

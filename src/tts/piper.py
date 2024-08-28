@@ -30,9 +30,24 @@ class piper(ttsable):
     def __init__(self, config: ConfigLoader) -> None:
         super().__init__(config)
         self.__piper_path = config.piper_path
+        self.__models_path = self.__piper_path + f'/models/skyrim/low/' # TODO: change /skyrim and /low parts of the path to dynamic variables
 
         logging.log(self._loglevel, f'Connecting to Piper...')
         self._check_if_piper_is_running()
+
+        self.__available_models = self.get_available_models(self.__models_path)
+
+
+    @utils.time_it
+    def get_available_models(self, folder_path):
+        try:
+            models = [f.replace('.onnx','') for f in os.listdir(folder_path) if f.endswith('.onnx')]
+            return models
+        except FileNotFoundError:
+            raise FileNotFoundError
+        except PermissionError:
+            raise PermissionError
+
     
     def __write_to_stdin(self, text):
         if self.process.stdin:
@@ -41,49 +56,62 @@ class piper(ttsable):
 
     @utils.time_it
     def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
-        if len(voiceline) > 3:
-            # Piper tends to overexaggerate sentences with exclamation marks, which works well for combat but not for casual conversation
-            if not synth_options.aggro:
-                voiceline = voiceline.replace('!','.')
-            else:
-                voiceline = voiceline.replace('.','!')
-            while True:
-                self.__write_to_stdin(f"synthesize {voiceline}\n")
-                max_wait_time = 5
-                start_time = time.time()
+        # Piper tends to overexaggerate sentences with exclamation marks, which works well for combat but not for casual conversation
+        if not synth_options.aggro:
+            voiceline = voiceline.replace('!','.')
+        else:
+            voiceline = voiceline.replace('.','!')
 
-                while time.time() - start_time < max_wait_time:
-                    exit_code = self.process.poll()
-                    if exit_code is not None and exit_code != 0:
-                        logging.error(f"Piper process has crashed with exit code: {exit_code}")
-                        self._run_piper()
-                        self.change_voice(self._last_voice)
-                        break
-                    elif os.path.exists(final_voiceline_file):
-                        try: # don't just check if .wav exists, check if it has contents
-                            with wave.open(final_voiceline_file, 'rb') as wav_file:
-                                frames = wav_file.getnframes()
-                                rate = wav_file.getframerate()
-                                duration = frames / float(rate)
-                                logging.debug(f'"{voiceline}" is {duration} seconds long')
-                                if duration > 0:
-                                    return
-                        except:
-                            pass
-                    time.sleep(0.01)
+        attempts = 0
+        while attempts < 3:
+            self.__write_to_stdin(f"synthesize {voiceline}\n")
+            max_wait_time = 5
+            start_time = time.time()
 
-                logging.warning(f'Synthesis timed out for voiceline "{voiceline.strip()}". Restarting Piper...')
-                self._restart_piper()
-                self.change_voice(self._last_voice)
+            while time.time() - start_time < max_wait_time:
+                exit_code = self.process.poll()
+                if exit_code is not None and exit_code != 0:
+                    logging.error(f"Piper process has crashed with exit code: {exit_code}")
+                    self._run_piper()
+                    self.change_voice(self._last_voice)
+                    break
+                elif os.path.exists(final_voiceline_file):
+                    try: # don't just check if .wav exists, check if it has contents
+                        with wave.open(final_voiceline_file, 'rb') as wav_file:
+                            frames = wav_file.getnframes()
+                            rate = wav_file.getframerate()
+                            duration = frames / float(rate)
+                            logging.debug(f'"{voiceline}" is {duration} seconds long')
+                            if duration > 0:
+                                return
+                    except:
+                        pass
+                time.sleep(0.01)
+
+            logging.warning(f'Synthesis timed out for voiceline "{voiceline.strip()}". Restarting Piper...')
+            self._restart_piper()
+            self.change_voice(self._last_voice)
+            attempts += 1
+    
+
+    @utils.time_it
+    def _select_voice_type(self, voice: str, in_game_voice: str | None, csv_in_game_voice: str | None, advanced_voice_model: str | None):
+        # check if model name in each CSV column exists, with advanced_voice_model taking precedence over other columns
+        for voice_type in [advanced_voice_model, voice, in_game_voice, csv_in_game_voice]:
+            if voice_type:
+                voice_cleaned = voice_type.lower().replace(' ', '')
+                if voice_cleaned in self.__available_models:
+                    return voice_cleaned
+        logging.error(f'Could not find voice model {voice}.onnx in {self.__models_path}')
 
 
     def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None):
         while True:
             logging.log(self._loglevel, 'Loading voice model...')
 
-            voice_cleaned = f"{voice.lower().replace(' ', '')}"
+            selected_voice = self._select_voice_type(voice, in_game_voice, csv_in_game_voice, advanced_voice_model)
+            model_path = self.__models_path + f'{selected_voice}.onnx'
 
-            model_path = self.__piper_path + f'/models/skyrim/low/{voice_cleaned}.onnx' # TODO: change /skyrim and /low parts of the path to dynamic variables
             self.__write_to_stdin(f"load_model {model_path}\n")
             max_wait_time = 5
             start_time = time.time()

@@ -21,6 +21,13 @@ class StartUI(routeable):
             #     self.__generate_chat_page()
             # with gr.Tab("NPC editor", interactive=False):
             #     self.__generate_character_editor_page()
+
+            with gr.Row(elem_classes="custom-footer"):
+                gr.HTML("""
+                    <div class="custom-footer">
+                        <a href="https://art-from-the-machine.github.io/Mantella/" target="_blank">Mantella Installation Guide</a>
+                    </div>
+                """)
         return main_block
 
     def __generate_settings_page(self) -> gr.Column:

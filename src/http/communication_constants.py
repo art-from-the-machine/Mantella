@@ -14,6 +14,7 @@ class communication_constants:
     KEY_REQUEST_EXTRA_ACTIONS: str = PREFIX + "extra_actions"
     
     KEY_REPLYTYPE_NPCTALK: str = PREFIX + "npc_talk"
+    KEY_REPLYTYPE_NPCACTION: str  = PREFIX + "npc_action"
     KEY_REPLYTYPE_PLAYERTALK: str  = PREFIX + "player_talk"
     KEY_REPLYTYPE_ENDCONVERSATION: str  = PREFIX + "end_conversation"
 
@@ -21,7 +22,8 @@ class communication_constants:
 
     #Actors
     KEY_ACTORS: str = PREFIX + "actors"
-    KEY_ACTOR_ID: str = PREFIX + "actor_id"
+    KEY_ACTOR_BASEID: str = PREFIX + "actor_baseid"
+    KEY_ACTOR_REFID: str = PREFIX + "actor_refid"
     KEY_ACTOR_NAME: str = PREFIX + "actor_name"
     KEY_ACTOR_GENDER: str = PREFIX + "actor_gender"
     KEY_ACTOR_RACE: str = PREFIX + "actor_race"
@@ -59,3 +61,4 @@ class communication_constants:
     ACTION_NPC_OFFENDED: str = PREFIX + "npc_offended"
     ACTION_NPC_FORGIVEN: str = PREFIX + "npc_forgiven"
     ACTION_NPC_FOLLOW: str = PREFIX + "npc_follow"
+    ACTION_NPC_INVENTORY: str = PREFIX + "npc_inventory"

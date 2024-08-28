@@ -3,6 +3,7 @@ from openai.types.chat import ChatCompletionMessageParam
 from src.character_manager import Character
 
 from src.llm.sentence import sentence
+from src import utils
 
 class message(ABC):
     """Base class for messages 
@@ -93,6 +94,7 @@ class assistant_message(message):
                 result += "\n" + lastActor.name +': '+ sentence.sentence
             else:
                 result += sentence.sentence
+        result = utils.remove_extra_whitespace(result)
         return result
 
     def get_openai_message(self) -> ChatCompletionMessageParam:
@@ -120,6 +122,7 @@ class user_message(message):
         if self.is_multi_npc_message:
             result += f"{self.__player_character_name}: "
         result += f"{self.text}"
+        result = utils.remove_extra_whitespace(result)
         return result
     
     def get_openai_message(self) -> ChatCompletionMessageParam:

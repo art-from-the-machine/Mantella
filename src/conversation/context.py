@@ -16,7 +16,8 @@ class context:
 
     def __init__(self, world_id: str, config: ConfigLoader, client: openai_client, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
         self.__world_id = world_id
-        self.__prev_game_time: tuple[str, str] = '', ''
+        self.__hourly_time = config.hourly_time
+        self.__prev_game_time: tuple[str | None, str] | None = None
         self.__npcs_in_conversation: Characters = Characters()
         self.__config: ConfigLoader = config
         self.__client: openai_client = client
@@ -28,8 +29,10 @@ class context:
         self.__ingame_time: int = 12
         self.__ingame_events: list[str] = []
         self.__have_actors_changed: bool = False
+        self.__game = config.game
 
-        if config.game == "Fallout4" or config.game == "Fallout4VR":
+        self.__prev_location: str | None = None
+        if self.__game == "Fallout4" or self.__game == "Fallout4VR":
             self.__location: str = 'the Commonwealth'
         else:
             self.__location: str = "Skyrim"
@@ -118,31 +121,48 @@ class context:
     def get_time_group(self) -> str:
         return get_time_group(self.__ingame_time)
     
-    def update_context(self, location: str, in_game_time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
+    def update_context(self, location: str | None, in_game_time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
         self.__ingame_events.extend(custom_ingame_events)
         if weather != self.__weather:
             if self.__weather != "":
                 self.__ingame_events.append(weather)
             self.__weather = weather
         self.__custom_context_values = custom_context_values
-        if location != self.__location:
-            self.__location = location
-            self.__ingame_events.append(f"The location is now {location}.")
+        if location:
+            if location != '':
+                self.__location = location
+            else:
+                if self.__game == "Fallout4" or self.__game == "Fallout4VR":
+                    self.__location: str = 'the Commonwealth'
+                else:
+                    self.__location: str = "Skyrim"
+            if (self.__location != self.__prev_location) and (self.__prev_location != None):
+                self.__prev_location = self.__location
+                self.__ingame_events.append(f"The location is now {location}.")
         
         self.__ingame_time = in_game_time
-        current_time: tuple[str, str] = str(in_game_time), get_time_group(in_game_time)
-        if current_time != self.__prev_game_time:
+        in_game_time_twelve_hour = in_game_time - 12 if in_game_time > 12 else in_game_time
+        if self.__hourly_time:
+            current_time: tuple[str | None, str] = str(in_game_time_twelve_hour), get_time_group(in_game_time)
+        else:
+            current_time: tuple[str | None, str] = None, get_time_group(in_game_time)
+
+        if (current_time != self.__prev_game_time) and (self.__prev_game_time != None):
             self.__prev_game_time = current_time
-            self.__ingame_events.append(f"The time is {current_time[0]} {current_time[1]}.")
+            if self.__hourly_time:
+                self.__ingame_events.append(f"The time is {current_time[0]} {current_time[1]}.")
+            else:
+                self.__ingame_events.append(f"The conversation now takes place {current_time[1]}.")
     
     def __update_ingame_events_on_npc_change(self, npc: Character):
         current_stats: Character = self.__npcs_in_conversation.get_character_by_name(npc.name)
         #Is in Combat
         if current_stats.is_in_combat != npc.is_in_combat:
+            name = 'The player' if npc.is_player_character else npc.name
             if npc.is_in_combat:
-                self.__ingame_events.append(f"{npc.name} is now in combat!")
+                self.__ingame_events.append(f"{name} is now in combat!")
             else:
-                self.__ingame_events.append(f"{npc.name} is no longer in combat!")
+                self.__ingame_events.append(f"{name} is no longer in combat.")
         #update custom  values
         try:
             if (current_stats.get_custom_character_value("mantella_actor_pos_x") is not None and
@@ -296,7 +316,7 @@ class context:
         player_equipment = ""
         if player:
             player_name = player.name
-            player_equipment = player.equipment.get_equipment_description(player_name)
+            player_equipment = player.equipment.get_equipment_description('')
             game_sent_description = player.get_custom_character_value(communication_constants.KEY_ACTOR_PC_DESCRIPTION)
             if game_sent_description and game_sent_description != "":
                 player_description = game_sent_description
@@ -308,9 +328,14 @@ class context:
         trusts = self.__get_trusts()
         equipment = self.__get_npc_equipment_text()
         location = self.__location
+        self.__prev_location = location
         weather = self.__weather
-        time = self.__ingame_time
-        time_group = get_time_group(time)
+        time = self.__ingame_time - 12 if self.__ingame_time > 12 else self.__ingame_time
+        time_group = get_time_group(self.__ingame_time)
+        if self.__hourly_time:
+            self.__prev_game_time = str(time), time_group
+        else:
+            self.__prev_game_time = None, time_group
         conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
 
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]

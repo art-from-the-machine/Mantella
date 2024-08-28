@@ -132,6 +132,7 @@ class ConfigLoader:
             self.offended_npc_response = self.__definitions.get_string_value("offended_npc_response")
             self.forgiven_npc_response = self.__definitions.get_string_value("forgiven_npc_response")
             self.follow_npc_response = self.__definitions.get_string_value("follow_npc_response")
+            self.inventory_npc_response = self.__definitions.get_string_value("inventory_npc_response")
 
             #TTS
             self.tts_service = self.__definitions.get_string_value("tts_service").strip().lower()
@@ -239,6 +240,7 @@ class ConfigLoader:
             #Conversation
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
             self.max_count_events = self.__definitions.get_int_value("max_count_events")
+            self.hourly_time = self.__definitions.get_bool_value("hourly_time")
             self.player_character_description: str = self.__definitions.get_string_value("player_character_description")
             self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
             self.player_voice_model: str = self.__definitions.get_string_value("player_voice_model")
@@ -247,9 +249,11 @@ class ConfigLoader:
             if self.game == "Fallout4" or self.game == "Fallout4VR":
                 self.prompt = self.__definitions.get_string_value("fallout4_prompt")
                 self.multi_npc_prompt = self.__definitions.get_string_value("fallout4_multi_npc_prompt")
+                self.radiant_prompt = self.__definitions.get_string_value("fallout4_radiant_prompt")
             else:
                 self.prompt = self.__definitions.get_string_value("skyrim_prompt")
                 self.multi_npc_prompt = self.__definitions.get_string_value("skyrim_multi_npc_prompt")
+                self.radiant_prompt = self.__definitions.get_string_value("skyrim_radiant_prompt")
 
             self.radiant_start_prompt = self.__definitions.get_string_value("radiant_start_prompt")
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")

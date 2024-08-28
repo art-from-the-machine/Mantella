@@ -22,10 +22,21 @@ def clean_text(text):
     # Remove all punctuation from the sentence
     text_cleaned = text.translate(str.maketrans('', '', string.punctuation))
     # Remove any extra whitespace
-    text_cleaned = re.sub('\s+', ' ', text_cleaned).strip()
+    text_cleaned = remove_extra_whitespace(text_cleaned)
     text_cleaned = text_cleaned.lower()
 
     return text_cleaned
+
+
+def remove_extra_whitespace(text):
+    return re.sub('\s+', ' ', text).strip()
+
+
+def remove_trailing_number(s):
+    try:
+        return re.sub(r'\d+$', '', s).strip()
+    except:
+        return s
 
 
 def resolve_path():

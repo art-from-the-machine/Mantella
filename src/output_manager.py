@@ -121,15 +121,13 @@ class ChatManager:
         
         def parse_asterisks_brackets(sentence: str) -> str:
             if ('*' in sentence):
-                # Check if sentence contains two asterisks
-                asterisk_check = re.search(r"(?<!\*)\*(?!\*)[^*]*\*(?!\*)", sentence)
-                if asterisk_check:
-                    logging.log(28, f"Removed asterisks text from response: {sentence}")
-                    # Remove text between two asterisks
-                    sentence = re.sub(r"(?<!\*)\*(?!\*)[^*]*\*(?!\*)", "", sentence)
-                else:
-                    logging.log(28, f"Removed response containing single asterisks: {sentence}")
-                    sentence = ''
+                original_sentence = sentence
+                sentence = re.sub(r'\*[^*]*?\*', '', sentence)
+                sentence = sentence.replace('*', '')
+
+                if sentence != original_sentence:
+                    removed_text = original_sentence.replace(sentence.strip(), '').strip()
+                    logging.log(28, f"Removed asterisks text from response: {removed_text}")
 
             if ('(' in sentence) or (')' in sentence):
                 # Check if sentence contains two brackets
@@ -170,7 +168,8 @@ class ChatManager:
     
     def __character_switched_to(self, extracted_keyword: str, charaters_in_conversation: Characters) -> Character | None:
         for actor in charaters_in_conversation.get_all_characters():
-            if actor.name.startswith(extracted_keyword):
+            actor_name = actor.name.lower()
+            if actor_name.startswith(extracted_keyword.lower()):
                 return actor
         return None
 
@@ -187,6 +186,7 @@ class ChatManager:
             cumulative_sentence_bool = False
             current_sentence: str = ""
             actions_in_sentence: list[action] = []
+            show_inventory = False
             while True:
                 try:
                     start_time = time.time()
@@ -199,10 +199,16 @@ class ChatManager:
                         sentence += content
                         # Check for the last occurrence of sentence-ending punctuation
                         last_punctuation = max(sentence.rfind(p) for p in self.__end_of_sentence_chars)
-                        if last_punctuation != -1:
+                        asterisks_count = sentence.count('*')
+                        if (last_punctuation != -1) and (asterisks_count % 2 == 0):
                             # Split the sentence at the last punctuation mark
                             remaining_content = sentence[last_punctuation + 1:]
-                            current_sentence = sentence[:last_punctuation + 1]
+                            # if sentence is contained in bracket or asterisk, include the bracket / asterisk
+                            if remaining_content.strip() in ['*',')','}',']']:
+                                current_sentence = sentence
+                                remaining_content = ''
+                            else:
+                                current_sentence = sentence[:last_punctuation + 1]
 
                             current_sentence = self.clean_sentence(current_sentence)
                             if not current_sentence:
@@ -240,6 +246,8 @@ class ChatManager:
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:
+                                            if keyword_extraction.lower() == 'inventory':
+                                                show_inventory = True
                                             logging.log(28, action_to_take.info_text)
                                             actions_in_sentence.append(action_to_take)
                                             full_reply += f"{keyword_extraction}: "
@@ -256,7 +264,7 @@ class ChatManager:
                                 else:
                                     sentence = accumulated_sentence + current_sentence
                                 accumulated_sentence = ''
-                                if len(sentence.strip()) < 3:
+                                if len(sentence.strip()) <= 3:
                                     logging.log(28, f'Skipping voiceline that is too short: {sentence}')
                                     break
 
@@ -287,7 +295,8 @@ class ChatManager:
                                 # conversation has switched from radiant to multi NPC (this allows the player to "interrupt" radiant dialogue and include themselves in the conversation)
                                 # the conversation has ended
                                 # contains_player_character() == not radiant
-                                if (num_sentences >= self.__config.max_response_sentences and characters.contains_player_character()):
+                                # the NPC is opening their inventory (subsequent lines get cut off anyway when the game pauses to open the inventory menu)
+                                if (num_sentences >= self.__config.max_response_sentences and characters.contains_player_character()) or (show_inventory):
                                     break
 
                     break
@@ -301,12 +310,10 @@ class ChatManager:
                     logging.log(self.loglevel, 'Retrying connection to API...')
                     time.sleep(5)
 
-            #Added from xTTS implementation
             # Check if there is any accumulated sentence at the end
-            if accumulated_sentence:
+            if accumulated_sentence and len(accumulated_sentence.strip()) > 3:
                 # Generate the audio and return the audio file path
                 try:
-                    #Added from XTTS implementation
                     new_sentence = self.generate_sentence(' ' + accumulated_sentence + ' ', active_character)
                     blocking_queue.put(new_sentence)
                     full_reply += accumulated_sentence
