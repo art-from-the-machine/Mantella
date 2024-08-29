@@ -33,6 +33,8 @@ class LLMModelList:
         return self.__allows_manual_model_input
     
     def is_model_in_list(self, model: str) -> bool:
+        if self.__allows_manual_model_input:
+            return True
         for model_in_list in self.__available_models:
             if model_in_list[1] == model:
                 return True
