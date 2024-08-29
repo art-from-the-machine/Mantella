@@ -1,6 +1,8 @@
 import logging
 import os
+import platform
 from typing import Hashable
+import winreg
 import src.color_formatter as cf
 import src.utils as utils
 import pandas as pd
@@ -16,10 +18,20 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
             os.chdir(os.path.dirname(sys.executable))
 
     def get_my_games_directory():
-            home: str = os.path.expanduser("~")
-            save_dir = Path(os.path.join(home,"Documents","My Games","Mantella"))
-            save_dir.mkdir(parents=True, exist_ok=True)
-            return str(save_dir)+'\\'
+        documents_path = ""
+        if platform.system() == "Windows":
+            reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders")
+            documents_path = winreg.QueryValueEx(reg_key, "Personal")[0]
+            winreg.CloseKey(reg_key)
+        else:
+            homepath = os.getenv('HOMEPATH')
+            if homepath:
+                documents_path = os.path.realpath(homepath+'/Documents')
+        if documents_path == "":
+            print("ERROR: Could not find 'Documents' folder or equivalent!")
+        save_dir = Path(os.path.join(documents_path,"My Games","Mantella"))
+        save_dir.mkdir(parents=True, exist_ok=True)
+        return str(save_dir)+'\\'
     
     def setup_logging(file_name, config: ConfigLoader):
         logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[])
