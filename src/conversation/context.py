@@ -339,7 +339,9 @@ class context:
         conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
 
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
-        
+        have_bios_been_dropped = False
+        have_summaries_been_dropped = False
+        logging.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')
         for content in removal_content:
             result = prompt.format(
                 player_name = player_name,
@@ -360,13 +362,20 @@ class context:
                 conversation_summary=content[1],
                 conversation_summaries=content[1]
                 )
-            if not self.__is_prompt_too_long(result, self.TOKEN_LIMIT_PERCENT): #self.__client.calculate_tokens_from_text(result) < self.__client.token_limit * self.__token_limit_percent:
-                logging.log(23, f'Prompt sent to LLM ({self.__client.calculate_tokens_from_text(result)} tokens): {result.strip()}')
-                return result
-            
-
-        logging.log(23, f'Prompt sent to LLM ({self.__client.calculate_tokens_from_text(result)} tokens): {prompt.strip()}')
-        return prompt #This should only trigger, if the default prompt even without bios and conversation_summaries is too long
+            if self.__is_prompt_too_long(result, self.TOKEN_LIMIT_PERCENT):
+                if content[0] != "":
+                    have_summaries_been_dropped = True
+                else:
+                    have_bios_been_dropped = True
+            else:
+                break
+        
+        logging.log(23, f'Prompt sent to LLM ({self.__client.calculate_tokens_from_text(result)} tokens): {result.strip()}')
+        if have_summaries_been_dropped and have_bios_been_dropped:
+            logging.log(logging.WARNING, f'Both the bios and summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations and will have limited knowledge of who they are.')
+        elif have_summaries_been_dropped:
+            logging.log(logging.WARNING, f'The summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations.')
+        return result
     
     def get_characters_excluding_player(self) -> Characters:
         new_characters = Characters()
