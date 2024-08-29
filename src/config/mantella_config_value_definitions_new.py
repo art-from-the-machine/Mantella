@@ -23,15 +23,15 @@ class MantellaConfigValueDefinitionsNew:
         # hidden_category.add_config_value(ConfigValueBool("show_advanced","","", False, is_hidden=True))
         # result.add_base_group(hidden_category)
 
-        if "--integrated" not in sys.argv: # if integrated, these paths are all relative so do not need to be manually set
-            game_category = ConfigValueGroup("Game", "Game", "Settings for the games Mantella supports.", on_value_change_callback)
-            game_category.add_config_value(GameDefinitions.get_game_config_value())
-            game_category.add_config_value(GameDefinitions.get_skyrim_mod_folder_config_value())
-            game_category.add_config_value(GameDefinitions.get_skyrimvr_mod_folder_config_value())
-            game_category.add_config_value(GameDefinitions.get_fallout4_mod_folder_config_value())
-            game_category.add_config_value(GameDefinitions.get_fallout4vr_mod_folder_config_value())
-            game_category.add_config_value(GameDefinitions.get_fallout4vr_folder_config_value())
-            result.add_base_group(game_category)
+        # if "--integrated" not in sys.argv: # if integrated, these paths are all relative so do not need to be manually set
+        game_category = ConfigValueGroup("Game", "Game", "Settings for the games Mantella supports.", on_value_change_callback,"--integrated" in sys.argv)
+        game_category.add_config_value(GameDefinitions.get_game_config_value())
+        game_category.add_config_value(GameDefinitions.get_skyrim_mod_folder_config_value())
+        game_category.add_config_value(GameDefinitions.get_skyrimvr_mod_folder_config_value())
+        game_category.add_config_value(GameDefinitions.get_fallout4_mod_folder_config_value())
+        game_category.add_config_value(GameDefinitions.get_fallout4vr_mod_folder_config_value())
+        game_category.add_config_value(GameDefinitions.get_fallout4vr_folder_config_value())
+        result.add_base_group(game_category)
         
         llm_category = ConfigValueGroup("LLM", "Large Language Model", "Settings for the LLM providers and the LLMs themselves.", on_value_change_callback)
         llm_category.add_config_value(LLMDefinitions.get_llm_api_config_value())
