@@ -5,12 +5,12 @@ import requests
 from typing import Any
 import soundfile as sf
 import numpy as np
-import csv
 import io
 import json
 from subprocess import Popen
 import time
 from src.tts.synthesization_options import SynthesizationOptions
+from src import utils
 
 class TTSServiceFailure(Exception):
     pass
@@ -35,10 +35,6 @@ class xtts(ttsable):
         self.__xtts_set_tts_settings = f'{self.__xtts_url}/set_tts_settings'
         self.__xtts_get_models_list = f'{self.__xtts_url}/get_models_list'
         self.__xtts_get_speakers_list = f'{self.__xtts_url}/speakers_list'
-        self.__advanced_voice_model_data = list(set(game.character_df['advanced_voice_model'].fillna('').apply(str).tolist()))
-        self.__voice_model_data = list(set(game.character_df['voice_model'].fillna('').apply(str).tolist()))
-        self.__csv_voice_folder_data = list(set(game.character_df['skyrim_voice_folder'].tolist())) if 'skyrim' in config.game.lower() else list(set(game.character_df['fallout4_voice_folder'].tolist()))
-        self.__speaker_type = ''
         if not self._facefx_path :
             self._facefx_path = self.__xtts_server_path + "/plugins/lip_fuz"
 
@@ -47,7 +43,6 @@ class xtts(ttsable):
 
         self.__available_models = self._get_available_models()
         self.__available_speakers = self._get_available_speakers()
-        self._generate_filtered_speaker_dicts()
         self.__last_model = self._get_first_available_official_model()
 
 
@@ -58,21 +53,7 @@ class xtts(ttsable):
     def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None):
         logging.log(self._loglevel, 'Loading voice model...')
 
-        selected_voice: str | None = None
-    
-        # Determine the most suitable voice model to use
-        if advanced_voice_model and self._voice_exists(advanced_voice_model, 'advanced'):
-            selected_voice = advanced_voice_model
-            self.__speaker_type = 'advanced_voice_model'
-        elif voice and self._voice_exists(voice, 'regular'):
-            selected_voice = voice
-            self.__speaker_type = 'voice_model'
-        elif in_game_voice and self._voice_exists(in_game_voice, 'regular'):
-            selected_voice = in_game_voice
-            self.__speaker_type = 'game_voice_folder'
-        elif csv_in_game_voice and self._voice_exists(csv_in_game_voice, 'csv_voice_folder'):
-            selected_voice = csv_in_game_voice
-            self.__speaker_type = 'csv_game_voice_folder'
+        selected_voice: str | None = self._select_voice_type(voice, in_game_voice, csv_in_game_voice, advanced_voice_model)
 
         if (selected_voice and selected_voice.lower() in ['maleeventoned','femaleeventoned']) and (self._game == 'Fallout4'):
             selected_voice = 'fo4_'+ selected_voice
@@ -97,7 +78,10 @@ class xtts(ttsable):
                 self.__last_model = voice
 
         if (self.__xtts_accent == 1) and (voice_accent != None):
-            self.__voice_accent = voice_accent
+            if voice_accent == '':
+                self.__voice_accent = self._language
+            else:
+                self.__voice_accent = voice_accent
 
 
     def _get_available_models(self):
@@ -118,7 +102,12 @@ class xtts(ttsable):
         # Code to request and return the list of available models
         try:
             response = requests.get(self.__xtts_get_speakers_list)
-            return response.json() if response.status_code == 200 else {}
+            if response.status_code == 200:
+                all_speakers = response.json()
+                current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
+                return current_language_speakers
+            else:
+                return {}
         except requests.exceptions.ConnectionError as e:
             logging.warning(e)
             return {}
@@ -130,58 +119,6 @@ class xtts(ttsable):
             if model in self.__available_models:
                 return model
         return None
-    
-    
-    def _generate_filtered_speaker_dicts(self):
-        def filter_and_log_speakers(voice_model_list, log_file_name, available_speakers, sanitize_voice_name_func):
-            # Initialize filtered speakers dictionary with all languages
-            filtered_speakers = {lang: {'speakers': []} for lang in available_speakers}
-            # Prepare the header for the CSV log
-            languages = sorted(available_speakers.keys())
-            log_data = [["Voice Model"] + languages]
-
-            # Set to keep track of added (sanitized) voice models to avoid duplicates
-            added_voice_models = set()
-
-            # Iterate over each voice model in the list and sanitize
-            for voice_model in voice_model_list:
-                sanitized_vm = sanitize_voice_name_func(voice_model)
-                # Skip if this sanitized voice model has already been processed
-                if sanitized_vm in added_voice_models:
-                    continue
-
-                # Add to tracking set
-                added_voice_models.add(sanitized_vm)
-
-                # Initialize log row with sanitized name
-                row = [sanitized_vm] + [''] * len(languages)
-                # Check each language for the presence of the sanitized voice model
-                for i, lang in enumerate(languages, start=1):
-                    available_lang_speakers = [sanitize_voice_name_func(speaker) for speaker in available_speakers[lang]['speakers']]
-                    if sanitized_vm in available_lang_speakers:
-                        # Append sanitized voice model name to the filtered speakers list for the language
-                        filtered_speakers[lang]['speakers'].append(sanitized_vm)
-                        # Mark as found in this language in the log row
-                        row[i] = 'X'
-
-                # Append row to log data
-                log_data.append(row)
-
-            # Write log data to CSV file
-            with open(f"{self._save_folder}data/{log_file_name}_xtts.csv", 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerows(log_data)
-
-            return filtered_speakers
-        
-        # Filter and log advanced voice models
-        self.advanced_filtered_speakers = filter_and_log_speakers(self.__advanced_voice_model_data, "advanced_voice_model_data_log", self.__available_speakers, self._sanitize_voice_name)
-        
-        # Filter and log regular voice models
-        self.voice_filtered_speakers = filter_and_log_speakers(self.__voice_model_data, "voice_model_data_log", self.__available_speakers, self._sanitize_voice_name)
-
-        # Filter and log voice folder names according to CSV
-        self.csv_voice_folder_speakers = filter_and_log_speakers(self.__csv_voice_folder_data, "csv_voice_folder_data_log", self.__available_speakers, self._sanitize_voice_name)
 
     
     def _convert_to_16bit(self, input_file, output_file=None):
@@ -207,19 +144,15 @@ class xtts(ttsable):
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
 
 
-    def _voice_exists(self, voice_name, speaker_type):
-        """Checks if the sanitized voice name exists in the specified filtered speakers."""
-        sanitized_voice_name = self._sanitize_voice_name(voice_name)
-        speakers = []
-        
-        if speaker_type == 'advanced':
-            speakers = self.advanced_filtered_speakers.get(self._language, {}).get('speakers', [])
-        elif speaker_type == 'regular':
-            speakers = self.voice_filtered_speakers.get(self._language, {}).get('speakers', [])
-        elif speaker_type == 'csv_voice_folder':
-            speakers = self.csv_voice_folder_speakers.get(self._language, {}).get('speakers', [])
-
-        return sanitized_voice_name in [self._sanitize_voice_name(speaker) for speaker in speakers]
+    @utils.time_it
+    def _select_voice_type(self, voice: str, in_game_voice: str | None, csv_in_game_voice: str | None, advanced_voice_model: str | None):
+        # check if model name in each CSV column exists, with advanced_voice_model taking precedence over other columns
+        for voice_type in [advanced_voice_model, voice, in_game_voice, csv_in_game_voice]:
+            if voice_type:
+                voice_cleaned = self._sanitize_voice_name(voice_type)
+                if voice_cleaned in [self._sanitize_voice_name(speaker) for speaker in self.__available_speakers]:
+                    return voice_cleaned
+        logging.error(f'Could not find voice model {voice} in XTTS models list')
     
 
     def _synthesize_line_xtts(self, line, save_path):
@@ -237,7 +170,7 @@ class xtts(ttsable):
         if response and response.status_code == 200:
             self._convert_to_16bit(io.BytesIO(response.content), save_path)
         elif response:
-            logging.error(f"Failed with {self.__speaker_type}: '{self._last_voice}'. HTTP Error: {response.status_code}")
+            logging.error(f"Failed with '{self._last_voice}'. HTTP Error: {response.status_code}")
 
 
     def _check_if_xtts_is_running(self):
