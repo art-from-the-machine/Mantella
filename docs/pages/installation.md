@@ -1,48 +1,45 @@
 # Skyrim Installation
 If you get stuck anywhere in the installation process, please see {doc}`/pages/issues_qna` or reach out on [Discord](https://discord.gg/Q4BJAdtGUE).
 
-## Video Tutorial
-For visual guides to help install Mantella, see either of these tutorial videos below:
+## Quick Start
+1. Download and install the [required mods](#required-skyrim-mods) using your mod manager.
+2. Open the folder where your mod manager installed Mantella: 
 
-### Dead Pixel Gaming
-<iframe width="560" height="315" src="https://www.youtube.com/embed/g5q2Pm8jaOQ?si=6MoeSJ-78X5GMENi" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+	<details>
+	<summary><b>Mod Organizer 2 Users</b></summary>  
+
+	You can find your Mantella mod folder by right clicking the Mantella mod in the Mod Organizer 2 UI and selecting “Open in Explorer”:  
+
+	<img src="../_static/img/mo2_mod_folder.png" alt="Mod Organizer 2 Mod Folder" width="240" height="auto" style="padding: 10px;"/>  
+	</details>
+	<details>
+	<summary><b>Vortex Users</b></summary>  
+
+	You can find your Mantella mod folder by going to `\Data\Mantella` from your Skyrim game folder.  
+	Eg `C:\Games\Steam\steamapps\common\Skyrim Special Edition\Data\Mantella`.
+	</details>
+
+3. Create a free account with [OpenRouter](https://openrouter.ai/sign-up). Go to the "Keys" tab in the top right corner and generate a new key. Save the key value to the `GPT_SECRET_KEY.txt` file in your Mantella folder found in step 2.
+
+4. Launch Skyrim. Mantella will open a window automatically when Skyrim is launched and will say "Waiting for player to select an NPC..." when it is ready (this might take a few minutes when launched for the first time). When you start the game, the Mantella spell will be added to your inventory. Cast this spell on an NPC to start a conversation.
 
 ```{admonition} Note
 :class: seealso
 
-xVASynth models do not have to be downloaded manually, see [here](#text-to-speech) for more details.
+Mantella's default text-to-speech service, Piper, only supports English. For text-to-speech services that support other languages, see [here](#text-to-speech).
 ```
-
-### MrHaurrus (French with English subtitles)
-<iframe width="560" height="315" src="https://www.youtube.com/embed/-zRj2zFvGo0?si=yvhmMaZFCpgMYyhg" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-
-```{admonition} Note
-:class: seealso
-
-xVASynth does not need to be run before Mantella.exe, and the bugs mentioned in the video have since been fixed.
-```
-
-## Requirements
-### Hardware Requirements
-#### xVASynth
-**CPU**  
-xVASynth runs in CPU mode by default, using a single CPU core/thread. Generally, if you can already run Skyrim, xVASynth should work with most CPU setups. 
 
 <details>
-<summary><b>GPU (Optional)</b></summary>  
+<summary><b>Upgrading from a previous Mantella version</b></summary>  
 
-NVIDIA cards that have CUDA can run xVASynth in GPU mode. Using the same GPU for both xVASynth and Skyrim may cause stutter.
+Make sure all Mantella conversations have ended in-game and save your game. Deactivate the previous Mantella version in your mod manager before activating the new version.
+
+From v0.12, Mantella stores conversation histories in your `Documents/My Games/Mantella/Data/Skyrim/conversations/YourPlayerName1/` folder. This folder will generate for the first time after a conversation has been saved. Once generated, transfer your previous conversation histories (in your previous `/Data/Skyrim/conversations/` folder) to this new folder.
 </details>
 
-### Storage Requirements
-This mod requires ~29GB of space when xVASynth and all voice models are installed. Temporarily another ~17GB is needed to unpack the voice models, unless the torrent is used which does not have the voice files archived.
+____________________________________
 
-
-### Compatibility
-- Some users have reported that Skyrim crashes when Mantella is used with **Fuz Ro D'oh**. A possible fix is to disable and re-enable Fuz Ro D'oh
-- Mantella requires **Windows 10 / 11** (it is yet unconfirmed whether it works on Windows 7)
-- Mantella has been confirmed to work with the **FUS** (by pointing `skyrim_folder` to Skyrim), **Librum** (by pointing `skyrim_folder` to overwrite/root), and **Wildlands** (by pointing `skyrim_folder` to Wildlander/SKSE), and **Nolvus** Wabbajack modlists
-- Mantella needs to be loaded after the Unofficial Skyrim Special Edition Patch (**USSEP**) mod in your load order
+## Requirements
 
 ### Skyrim
 ```{admonition} Warning
@@ -53,16 +50,191 @@ As Mantella accesses and writes to files within your Skyrim folder, it is unlike
 
 Steam does not allow to create a new Steam Game Library on the same disk. You can either move the whole Steam client outside [as described on this Steam Support page](https://help.steampowered.com/en/faqs/view/4BD4-4528-6B2E-8327) or use [LostDragonist/steam-library-setup-tool](https://github.com/LostDragonist/steam-library-setup-tool/wiki/Usage-Guide) to allow multiple Steam Game Libraries on one disk.
 
-### Mantella Files
-The Mantella files can be downloaded from [Nexus Mods](https://www.nexusmods.com/skyrimspecialedition/mods/98631).
+### Required Skyrim Mods
+<div style="display: flex; align-items: flex-start;">
+<div style="flex: 1;">
 
-| File | Installation |
+```{admonition} Warning
+:class: attention
+
+Always ensure you are downloading the right version of each mod for your version of Skyrim. **This is the #1 reason for installation problems.** You can check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details -> File version. VR users can just download the VR version of each mod if available, or SE if not.
+```
+</div> 
+<div style="flex: 0 0 auto; margin-left: 20px;"> 
+<img src="../_static/img/skyrim_version.png" alt="Skyrim Version" width="240" height="auto"/> 
+</div> 
+</div> 
+
+Please follow the installation instructions on each of the linked pages:
+
+| Mod | Notes |
 |----------|----------|
-| Mantella Software | Extract this folder somewhere convenient to you (if you need some inspiration, you can store it in Documents). **Do not store this folder in Program Files / (x86), Desktop, or your Skyrim folder**. |
-| Mantella Spell | This file can be installed in the same way as other mods with your mod manager. |
+| [SKSE](http://skse.silverlock.org/) | Once installed by following the included readme.txt, run SKSE instead of the Skyrim exe. Note that there is a separate VR version of SKSE. |
+| [VR Address Library for SKSEVR](https://www.nexusmods.com/skyrimspecialedition/mods/58101) or [Address Library for SKSE Plugins](https://www.nexusmods.com/skyrimspecialedition/mods/32444) |  |
+| [FonixData File (Mod Manager Install)](https://www.nexusmods.com/skyrimspecialedition/mods/40971) | For lip sync generation. |
+| [UIExtensions](https://www.nexusmods.com/skyrimspecialedition/mods/17561) | If using text input instead of mic. |
+| [SkyUI](https://www.nexusmods.com/skyrimspecialedition/mods/12604) | To access Mantella's MCM. |
+| [Mantella](https://www.nexusmods.com/skyrimspecialedition/mods/98631) |  |
 
-## Text-to-Speech
-Mantella can either be run with xVASynth or XTTS to generate the voicelines for NPCs. It is recommended to start with xVASynth because it is has lower hardware requirements than XTTS, but if you either have a powerful GPU / don't mind paying to run XTTS externally you can choose this option below.
+
+### Optional Skyrim Mods
+These mods aren't strictly necessary for Mantella to work, but they do greatly improve the experience.
+
+| Mod | Notes |
+|----------|----------|
+| [No NPC Greetings](https://www.nexusmods.com/skyrim/mods/746) | Recommended so that Mantella voicelines are not interrupted by vanilla voicelines. |
+| [World Encounter Hostility Fix - Performance Version](https://www.nexusmods.com/skyrimspecialedition/mods/91403) | Stops certain NPCs from turning hostile when you cast the Mantella spell on them. This mod requires the [Unofficial Skyrim Special Edition Patch (USSEP)](https://www.nexusmods.com/skyrimspecialedition/mods/266). Mantella needs to be loaded after USSEP in your load order. |
+
+### Compatibility
+- Some users have reported that Skyrim crashes when Mantella is used with **Fuz Ro D'oh**. A possible fix is to disable and re-enable Fuz Ro D'oh.
+- Mantella requires **Windows 10 / 11** (it is yet unconfirmed whether it works on Windows 7).
+- Mantella needs to be loaded after the Unofficial Skyrim Special Edition Patch (**USSEP**) mod in your load order.
+
+____________________________________
+
+## Usage
+### Mantella UI
+The Mantella UI should open in your browser when the Mantella window starts, but if it does not, it can be accessed here: [http://localhost:4999/ui/?__theme=dark](http://localhost:4999/ui/?__theme=dark).
+
+```{admonition} Note
+:class: seealso
+
+In order to access the Mantella UI, the Mantella window needs to be running.
+```
+
+### MCM
+The Mantella MCM can be accessed in-game (`SYSTEM -> MOD CONFIGURATION -> Mantella`). Many options can be tweaked here, such as NPC actions and radiant conversations.  
+<img src="../_static/img/mcm_general.png" alt="MCM General Settings" width="970" height="auto" style="padding: 10px;"/>  
+
+### Conversations
+The Mantella spell & power should be added to your inventory under the Illusion category in the Magic menu once you install the mod. Conversations can be started by selecting an NPC with the spell, power, hotkey (enabled in the MCM menu), or via the in-game dialogue menu. 
+
+You can end a conversation by casting the Mantella End Conversation spell, or by simply saying / typing "goodbye" (recommended). NPCs will respond with "Safe travels" when conversations are ended via the latter method.
+
+Once a conversation has started, you can add more NPCs to the conversation between each of your responses to start a group conversation:  
+`Cast Mantella on NPC1 -> Say hi to NPC1 -> Cast Mantella on NPC2 -> Say hi to NPC1 & NPC2 etc`
+
+Radiant conversations can also be enabled in the MCM menu. These are conversations that are randomly started between idle NPCs. You can join the conversation by casting Mantella on either NPC.
+
+### Text Input
+Text input can be enabled by disabling mic input in Mantella's MCM menu.
+
+### Saved Data
+When a conversation ends, a summary of the conversation is saved to a local text file for each NPC in the conversation. These summaries are then loaded the next time an NPC is spoken with. You can view / edit these summaries in your `My Games/Mantella/data/Skyrim/conversations/YourPlayerName1/` folder.
+____________________________________
+
+## Services
+While the [quick start guide](#quick-start) is the fastest way to get set up, Mantella can be heavily tweaked to your liking and can connect to a variety of different services.
+
+### Language Models (LLMs)
+LLMs power the creation of responses by NPCs. There are a number of different LLMs to choose from, ranging from free local models to large externally hosted models.
+
+```{admonition} Note
+:class: seealso
+
+Some smaller models may struggle to handle long term conversations and memory summarising.
+```
+
+If you have already followed the [quick start guide](#quick-start) you will have an OpenRouter account set up with Toppy, a free and easy to use LLM. You can select from a variety of other LLMs hosted on OpenRouter (both free and paid) via the `Model` option in the `Large Language Model` tab of the [Mantella UI](#mantella-ui). 
+
+If you would prefer to use a different service, or host your own LLM locally, see the options below:
+
+#### API Models
+<details>
+<summary><b>OpenAI</b></summary>  
+
+Copy your OpenAI secret API key (see [here](https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key) if you need help finding it (you will need to set up an account if you haven't already)) and paste into your `GPT_SECRET_KEY.txt` file (see the [quick start guide](#quick-start) to learn where `GPT_SECRET_KEY.txt` is stored). Note that you will need to set up your payment details for the API to work. 
+
+Once completed, in the `LLM Service` dropdown of the `Large Language Model` tab of the [Mantella UI](#mantella-ui) select "OpenAI". Update the list of model options in the `Model` setting and select an OpenAI model.
+</details>
+<br>
+
+#### Local Models
+<details>
+<summary><b>koboldcpp</b></summary>  
+
+1. Install koboldcpp's latest release from [here](https://github.com/LostRuins/koboldcpp/releases). If you want to run koboldcpp on your CPU or otherwise do not have an NVIDIA GPU, download `koboldcpp_nocuda.exe` under "Assets". If you have an NVIDIA GPU with CUDA support, download `koboldcpp.exe` under "Assets".   
+<img src="../_static/img/kobold_download.png" alt="Kobold Download Files" width="200" height="auto" style="padding: 10px;"/>  
+
+2. Download a local model, such as `toppy-m-7b.Q4_K_S.gguf` from [here](https://huggingface.co/TheBloke/Toppy-M-7B-GGUF/tree/main?not-for-all-audiences=true).  
+<img src="../_static/img/toppy_download.png" alt="Toppy Download Location" width="500" height="auto" style="padding: 10px;"/>  
+
+3. Run koboldcpp.exe. When presented with the launch window, drag the "Context Size" slider to 4096. Click the "Browse" button next to the "Model" field and select the model you downloaded. Click "Launch" in the bottom right corner.  
+<img src="../_static/img/kobold_launch.png" alt="Kobold Launch Window" width="400" height="auto" style="padding: 10px;"/>  
+
+```{admonition} Optional
+:class: hint
+
+Under the "Presets" drop down at the top, choose either Use CLBlast, or Use CuBlas (if using Cuda). You will then see a field for GPU Layers. If you want to use CPU only leave it at 0. If you want to use your GPU, you can experiment with how many "layers" to offload to your GPU based on your system.
+```
+
+4. In the `LLM Service` dropdown of the `Large Language Model` tab of the [Mantella UI](#mantella-ui) select "KoboldCpp".
+
+```{admonition} Note
+:class: seealso
+
+Make sure koboldcpp is running when Mantella is running! 
+```
+</details>
+<br>
+<details>
+<summary><b>text-generation-webui</b></summary>  
+
+1. Install the latest text-generation-webui .zip from [here](https://github.com/oobabooga/text-generation-webui/releases).  
+<img src="../_static/img/ooba_zip.png" alt="text-generation-webui .zip File" width="200" height="auto" style="padding: 10px;"/>  
+
+2. Place a local model into the `text-generation-webui\models` folder (to get started, you can download `toppy-m-7b.Q4_K_S.gguf` from [here](https://huggingface.co/TheBloke/Toppy-M-7B-GGUF/tree/main?not-for-all-audiences=true)).  
+<img src="../_static/img/toppy_download.png" alt="Toppy Download Location" width="500" height="auto" style="padding: 10px;"/>  
+
+3. Paste the text "--extensions openai --auto-launch" (as well as "--cpu" for CPU users) into the installed folder's CMD_FLAGS.txt file.  
+<img src="../_static/img/ooba_cmd_flags.png" alt="CMD_Flags.txt" width="400" height="auto" style="padding: 10px;"/>  
+
+4. Start text-generation-webui and wait for the UI to open in your web browser. Navigate to the "Model" tab, select your model from the drop-down list, and click "Load".  
+<img src="../_static/img/ooba_load_model.png" alt="text-generation-webui Load Model" width="400" height="auto" style="padding: 10px;"/>  
+
+5. In the `LLM Service` dropdown of the `Large Language Model` tab of the [Mantella UI](#mantella-ui) select "textgenwebui".
+
+```{admonition} Note
+:class: seealso
+
+Make sure text-generation-webui is running when Mantella is running! 
+```
+</details>
+<br>
+<details>
+<summary><b>LM Studio</b></summary>  
+
+1. Download and install LM Studio from [here](https://lmstudio.ai/).  
+
+2. Open LM Studio and download an LLM model.  
+
+3. Go to the Local Server tab, and in the drop-down at the top of the page select your model. If a Windows Firewall message pops up click Allow. Click the Start Server button.  
+<img src="../_static/img/lmstudio_load_model.png" alt="LM Studio Load Model" width="400" height="auto" style="padding: 10px;"/>  
+
+4. In the `LLM Service` text box of the `Large Language Model` tab of the [Mantella UI](#mantella-ui), set the value to `http://localhost:1234/v1/`. This is the URL that LM Studio is running your model on. If everything works correctly you should see a message display in Mantella.exe saying "Running Mantella with local language model" when you start it.  
+
+```{admonition} Note
+:class: seealso
+
+Make sure LM Studio is running when Mantella is running! 
+```
+</details>
+<br>
+
+#### Other LLM Services
+Mantella has the ability to support other language model services, although these services do need to support outputs in the OpenAI format (like text-generation-webui does via the "--extensions openai" option above).
+
+____________________________________
+
+### Vision
+LLM vision can be enabled in the `Vision` tab of the [Mantella UI](#mantella-ui). If the selected model in the `Large Language Model` tab has vision capabilities, a screenshot of your game window will be passed to the model every time you respond to an NPC.
+
+Vision capabilities can also be run locally via koboldcpp. To get started, download the required [mmproj file](https://huggingface.co/koboldcpp/mmproj/tree/main) for your local LLM (as an example, [Toppy](https://huggingface.co/TheBloke/Toppy-M-7B-GGUF/tree/main?not-for-all-audiences=true) requires `llama-7b-mmproj-v1.5-Q4_0.gguf`). In the koboldcpp launch window, under the `Model Files` tab, set the path to your mmproj file via the `LLaVa mmproj` setting. When koboldcpp is launched, and vision is enabled in the [Mantella UI](#mantella-ui), your local LLM will support vision.
+
+____________________________________
+
+### Text-to-Speech
+By default, Mantella comes packaged with a fast and local TTS service called Piper (note: Piper only supports English). Mantella can also be run with xVASynth (local) or XTTS (local / online) to generate NPC voicelines:
 
 <details>
 	<summary><b>xVASynth</b></summary>  
@@ -110,12 +282,9 @@ Mantella can either be run with xVASynth or XTTS to generate the voicelines for 
 	</details>
 	<br>
 
+3. (Optional) Download the xVASynth DeepMoji Plugin [here](https://www.nexusmods.com/skyrimspecialedition/mods/107142). It boosts the emotionality of xVASynth voice models to make them sound less robotic (only available in English).
 
-4. Download the .lip plugin for xVASynth [here](https://www.nexusmods.com/skyrimspecialedition/mods/55605) and download FaceFXWrapper from [here](https://www.nexusmods.com/skyrimspecialedition/mods/20061) (you do not need to download CK64Fixes). Instructions on how to install these are on the .lip plugin Nexus page. Make sure to place FaceFXWrapper in the plugins folder as stated on the .lip plugin page.  
-When installed correctly, it should look like the below:  
-<img src="../_static/img/lip_fuz_plugin_folder.png" alt="Lip Plugin Folder" width="800" height="auto" style="padding: 10px;"/>
-
-5. (Optional) Download the xVASynth DeepMoji Plugin [here](https://www.nexusmods.com/skyrimspecialedition/mods/107142). It boosts the emotionality of xVASynth voice models to make them sound less robotic (only available in English).
+4. Select xVASynth in the Text-to-Speech tab of the [Mantella UI](#mantella-ui) and set the path to your xVASynth folder.
 </details>
 <br>
 
@@ -130,11 +299,9 @@ When installed correctly, it should look like the below:
 
 2. Download the [voice models (latents) folder](https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files) for your desired language. Extract this folder into the same folder as `xtts-api-server-mantella.exe` above. In other words, you should have a folder called `latent_speaker_folder` in your XTTS folder.
 
-3. Download the .lip plugin [here](https://www.nexusmods.com/skyrimspecialedition/mods/55605) and download FaceFXWrapper from [here](https://www.nexusmods.com/skyrimspecialedition/mods/20061) (you do not need to download CK64Fixes). Instructions on how to install these are on the .lip plugin Nexus page. Make sure to place FaceFXWrapper in the plugins folder as stated on the .lip plugin page.  
+3. Select XTTS in the Text-to-Speech tab of the [Mantella UI](#mantella-ui) and set the path to your XTTS folder.
 
-4. Set `xtts_server_folder` in MantellaSoftware/config.ini to the path of your new exe, and `tts_service` to "XTTS".
-
-5. (Optional) Configure XTTS settings in the [Speech.Advanced] section of MantellaSoftware/config.ini. Note that if you are using an NVIDIA GPU, the `xtts_deepspeed` setting can improve response times by 2-4x if you also have `xtts_device` set to "cuda".
+4. (Optional) If you are using an NVIDIA GPU, the `XTTS DeepSpeed` setting can improve response times by 2-4x if you also have `XTTS Device` set to "cuda".
 
 </details>  
 <br>  
@@ -148,7 +315,7 @@ When installed correctly, it should look like the below:
 
 3. On the following two pages just click "Continue" and "Deploy" (you don't need to change any settings here).
 
-4. Once the Pod is running, in your MantellaSoftware/config.ini set `tts_service` to "XTTS" and `xtts_url` to `https://{pod_id}-8020.proxy.runpod.net/`, with {pod-id} being the ID of the running Pod. Eg `https://a1b2c3d4qwerty-8020.proxy.runpod.net/`.  
+4. Once the Pod is running, select XTTS in the Text-to-Speech tab of the [Mantella UI](#mantella-ui) and set `XTTS URL` to `https://{pod_id}-8020.proxy.runpod.net/`, with {pod-id} being the ID of the running Pod. Eg `https://a1b2c3d4qwerty-8020.proxy.runpod.net/`.  
 <img src="../_static/img/xtts_runpod_id.png" alt="XTTS RunPod ID" width="800" height="auto" style="padding: 10px;"/>
 
 5. It takes a few minutes for the Pod to start up, you can check the progress in Logs -> Container Logs from the Pod's dropdown menu. It will say "Uvicorn running" when it is ready.
@@ -157,134 +324,9 @@ When installed correctly, it should look like the below:
 </details>  
 </details>  
 
-## Required Skyrim Mods
-```{admonition} Warning
-:class: attention
+____________________________________
 
-Always ensure you are downloading the right version of each mod for your version of Skyrim. **This is the #1 reason for installation problems.** You can check your Skyrim version by right-clicking its exe file in your Skyrim folder and going to Properties -> Details -> File version. VR users can just download the VR version of each mod if available, or SE if not.
-```
-
-<img src="../_static/img/skyrim_version.png" alt="Skyrim Version" width="240" height="auto"/>
-
-Please follow the installation instructions on each of the linked pages:
-
-| Mod | Notes |
-|----------|----------|
-| [SKSE](http://skse.silverlock.org/) | Once installed by following the included readme.txt, run SKSE instead of the Skyrim exe. Note that there is a separate VR version of SKSE |
-| [VR Address Library for SKSEVR](https://www.nexusmods.com/skyrimspecialedition/mods/58101) or [Address Library for SKSE Plugins](https://www.nexusmods.com/skyrimspecialedition/mods/32444) |  |
-| [PapyrusUtil SE]( https://www.nexusmods.com/skyrimspecialedition/mods/13048) | **The VR version can be found under "Miscellaneous Files"** |
-| [UIExtensions](https://www.nexusmods.com/skyrimspecialedition/mods/17561) | If using text input instead of mic |
-| [SkyUI](https://www.nexusmods.com/skyrimspecialedition/mods/12604) | To access Mantella's MCM |
-
-
-## Optional Skyrim Mods
-These mods aren't strictly necessary for Mantella to work, but they do greatly improve the experience.
-
-| Mod | Notes |
-|----------|----------|
-| [No NPC Greetings](https://www.nexusmods.com/skyrim/mods/746) | Recommended so that Mantella voicelines are not interrupted by vanilla voicelines. |
-| [World Encounter Hostility Fix - Performance Version](https://www.nexusmods.com/skyrimspecialedition/mods/91403) | Stops certain NPCs from turning hostile when you cast the Mantella spell on them. This mod requires the [Unofficial Skyrim Special Edition Patch (USSEP)](https://www.nexusmods.com/skyrimspecialedition/mods/266). Mantella needs to be loaded after USSEP in your load order. |
-
-## Language Models (LLMs)
-LLMs power the creation of responses by NPCs. There are a number of different LLMs to choose from, ranging from free local models to large externally hosted models.
-
-```{admonition} Note
-:class: seealso
-
-Some smaller models may struggle to handle long term conversations and memory summarising.
-```
-
-By default Mantella is set up to run with Toppy, a free and easy to use model hosted on OpenRouter. It is recommended to start with this model. To learn how to get started, see the OpenRouter section below.
-
-### API Models
-<details>
-<summary><b>OpenRouter (Free Models Available)</b></summary>  
-
-Create an account with OpenRouter. Go to the "Keys" tab and generate a new key, saving its value to `MantellaSoftware/GPT_SECRET_KEY.txt` (do not share this secret key with anyone). This is all you need to do to get started with Toppy, Mantella's default model.
-
-While Toppy is a good model to get started with, it can fall short when trying to handle complex conversations, in-game lore, or long term memories. You are also limited to 100 requests a day when using free models. To try out a different model, in MantellaSoftware/config.ini set `model` to a model from the list [here](https://openrouter.ai/docs#models) (eg `undi95/toppy-m-7b`). Note that the majority of other models are not free, and you will need to add credits to your account to use them.
-</details>
-<br>
-
-<details>
-<summary><b>OpenAI</b></summary>  
-
-Copy your OpenAI secret API key (see [here](https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key) if you need help finding it (you will need to set up an account if you haven't already)) and paste into `MantellaSoftware/GPT_SECRET_KEY.txt`. Do not share this key with anyone. Note that you will need to set up your payment details for the API to work. Once completed, in MantellaSoftware/config.ini set the `model` value to an OpenAI model (eg `gpt-4o`, `gpt-4o-mini`).
-</details>
-<br>
-
-### Local Models
-<details>
-<summary><b>koboldcpp</b></summary>  
-
-1. Install koboldcpp's latest release from [here](https://github.com/LostRuins/koboldcpp/releases). If you want to run koboldcpp on your CPU or otherwise do not have an NVIDIA GPU, download `koboldcpp_nocuda.exe` under "Assets". If you have an NVIDIA GPU with CUDA support, download `koboldcpp.exe` under "Assets".   
-<img src="../_static/img/kobold_download.png" alt="Kobold Download Files" width="200" height="auto" style="padding: 10px;"/>  
-
-2. Download a local model, such as `toppy-m-7b.Q4_K_S.gguf` from [here](https://huggingface.co/TheBloke/Toppy-M-7B-GGUF/tree/main?not-for-all-audiences=true).  
-<img src="../_static/img/toppy_download.png" alt="Toppy Download Location" width="500" height="auto" style="padding: 10px;"/>  
-
-3. Run koboldcpp.exe. When presented with the launch window, drag the "Context Size" slider to 4096. Click the "Browse" button next to the "Model" field and select the model you downloaded. Click "Launch" in the bottom right corner.  
-<img src="../_static/img/kobold_launch.png" alt="Kobold Launch Window" width="400" height="auto" style="padding: 10px;"/>  
-
-```{admonition} Optional
-:class: hint
-
-Under the "Presets" drop down at the top, choose either Use CLBlast, or Use CuBlas (if using Cuda). You will then see a field for GPU Layers. If you want to use CPU only leave it at 0. If you want to use your GPU, you can experiment with how many "layers" to offload to your GPU based on your system.
-```
-
-```{admonition} Note
-:class: seealso
-
-Make sure koboldcpp is running when Mantella is running! 
-```
-</details>
-<br>
-<details>
-<summary><b>text-generation-webui</b></summary>  
-
-1. Install the latest text-generation-webui .zip from [here](https://github.com/oobabooga/text-generation-webui/releases).  
-<img src="../_static/img/ooba_zip.png" alt="text-generation-webui .zip File" width="200" height="auto" style="padding: 10px;"/>  
-
-2. Place a local model into the `text-generation-webui\models` folder (to get started, you can download `toppy-m-7b.Q4_K_S.gguf` from [here](https://huggingface.co/TheBloke/Toppy-M-7B-GGUF/tree/main?not-for-all-audiences=true)).  
-<img src="../_static/img/toppy_download.png" alt="Toppy Download Location" width="500" height="auto" style="padding: 10px;"/>  
-
-3. Paste the text "--extensions openai --auto-launch" (as well as "--cpu" for CPU users) into the installed folder's CMD_FLAGS.txt file.  
-<img src="../_static/img/ooba_cmd_flags.png" alt="CMD_Flags.txt" width="400" height="auto" style="padding: 10px;"/>  
-
-4. Start text-generation-webui and wait for the UI to open in your web browser. Navigate to the "Model" tab, select your model from the drop-down list, and click "Load".  
-<img src="../_static/img/ooba_load_model.png" alt="text-generation-webui Load Model" width="400" height="auto" style="padding: 10px;"/>  
-
-```{admonition} Note
-:class: seealso
-
-Make sure text-generation-webui is running when Mantella is running! 
-```
-</details>
-<br>
-<details>
-<summary><b>LM Studio</b></summary>  
-
-1. Download and install LM Studio from [here](https://lmstudio.ai/).  
-
-2. Open LM Studio and download an LLM model.  
-
-3. Go to the Local Server tab, and in the drop-down at the top of the page select your model. If a Windows Firewall message pops up click Allow. Click the Start Server button.  
-<img src="../_static/img/lmstudio_load_model.png" alt="LM Studio Load Model" width="400" height="auto" style="padding: 10px;"/>  
-
-4. In MantellaSoftware/config.ini, set `llm_api = http://localhost:1234/v1/`. This is the URL that LM Studio is running your model on. If everything works correctly you should see a message display in Mantella.exe saying "Running Mantella with local language model" when you start it.  
-
-```{admonition} Note
-:class: seealso
-
-Make sure LM Studio is running when Mantella is running! 
-```
-</details>
-<br>
-
-### Other LLM Services
-Mantella has the ability to support other language model services, although these services do need to support outputs in the OpenAI format (like text-generation-webui does via the "--extensions openai" option above).
-
-## Whisper
+### Whisper
 <details>
 <summary><b>Whisper via your CPU is handled automatically. Open this section only if you like tinkering</b></summary>  
 
@@ -292,69 +334,3 @@ guillaumekln's Faster-Whisper version of Whisper is used as Speech-To-Text engin
 
 It is reasonably fast even in CPU mode with the base model. Optionally, to use GPU/CUDA mode, some extra files are required, see [Faster Whisper documentation](https://github.com/guillaumekln/faster-whisper#gpu). Note that cuBLAS may already be part of the CUDA Toolkit, so you may only require the `cudnn_###_infer64_8.dll` files to be beside the Mantella executable. Afterwards enable `process_device = cuda` under `[Microphone]` in MantellaSoftware/config.ini.
 </details>
-
-## Setup & Configuration
-1. Set up the MantellaSoftware/config.ini file with your paths to Skyrim (`skyrim_folder`), xVASynth (`xvasynth_folder`) / XTTS (`xtts_server_folder`), and the Mantella Skyrim mod (`mod_folder`). Change `game` to "Skyrim" if you are not running Mantella in VR.
-
-	<br>
-	<details>
-	<summary><b>Mod Organizer 2 Users</b></summary>  
-
-	- **skyrim_folder**  
-	By default, this is simply the path to your Skyrim folder. If you are using a Wabbajack modlist, you may need to try searching for a folder called overwrite/root or "Stock Game" in your Mod Organizer 2 / Wabbajack installation path and set this as your `skyrim_folder` path. For FUS users, once you set this path and cast the spell once, you then need to set your `skyrim_folder` path back to your actual Skyrim folder.
-
-	- **mod_folder**  
-	You can find the mod folder by right clicking the mod in the Mod Organizer 2 UI and selecting "Open in Explorer":  
-	<img src="../_static/img/mo2_mod_folder.png" alt="Mod Organizer 2 Mod Folder" width="240" height="auto" style="padding: 10px;"/>  
-	</details>
-	<br>
-	<details>
-	<summary><b>Vortex Users</b></summary>  
- 
-	- **skyrim_folder**  
-	This is simply the path to your Skyrim folder.  
-
-	- **mod_folder**  
-	You need to point `mod_folder` to your Skyrim/Data folder. So essentially, you need to take the Skyrim folder set in `skyrim_folder` and add "\Data" to the end of it. For example:  
-	`mod_folder = C:\Games\Steam\steamapps\common\Skyrim Special Edition\Data`  
-	</details>
-	<br>
-2. Run Mantella.exe in MantellaSoftware and wait for the message "Waiting for player to select an NPC..." to display. Once it does, it is ready for you to select an NPC in-game via the Mantella spell.  
-<img src="../_static/img/mantella_exe.png" alt="MCM General Settings" width="500" height="auto" style="padding: 10px;"/>  
-```{admonition} Warning
-:class: attention
-
-Do not try to run Mantella.exe through Mod Organizer 2 / Vortex as it will not work correctly.
-```
-
-3. When you first load the mod, MAKE SURE TO CREATE A SAVE AND RELOAD THAT SAVE. The voicelines will not play otherwise! You do not have to start a new game to do this, you can also create a new save in an existing game. 
-
-```{admonition} Note
-:class: seealso
-
-While there have not been issues reported with using Mantella in an existing save so far, please be aware that adding mods mid-game can cause problems.
-```
-
-The Mantella spell & power should be added to your inventory under the Illusion category in the Magic menu once you install the mod. Conversations can be started by selecting an NPC with the spell, power, or hotkey (default is H). You can end a conversation by casting the Mantella End Conversation spell, or by simply saying / typing "goodbye". If the NPC responds with "safe travels" then the conversation has ended correctly via this latter method.  
-
-
-## Other Tips
-### Text Input
-Text input can be enabled by either setting `microphone_enabled = 0` in MantellaSoftware/config.ini or via Mantella's MCM in-game.
-
-### Group Conversations
-Once a conversation has started, you can add more NPCs to the conversation between each of your responses:  
-`Cast Mantella on NPC1 -> Say hi to NPC1 -> Cast Mantella on NPC2 -> Say hi to NPC1 & NPC2 etc`
-
-### MCM
-Many options can be tweaked in the Mantella MCM, such as NPC actions and radiant conversations.  
-<img src="../_static/img/mcm_general.png" alt="MCM General Settings" width="970" height="auto" style="padding: 10px;"/>  
-
-### NPCs not Found
-If the NPC is unavailable to Mantella (most likely a modded NPC which you can add yourself via {doc}`/pages/adding_modded_npcs`), the message "Conversation ended." should immediately pop up in the top left corner and the conversation will exit. If the only message you see from the spell is "Conversation ended", please refer to the "Issues Q&A" section for common solutions to this.
-
-### Caching
-Voicelines are cached in the `MantellaSoftware/data/voicelines/` folder. If this data takes up too much space over time, the contents of voicelines/ can be periodically deleted.
-
-### Issues
-If you are experiencing errors, please see {doc}`/pages/issues_qna`. Otherwise, please share the details of the errors and your MantellaSoftware/logging.log file on the Mantella Discord [#issues channel](https://discord.gg/Q4BJAdtGUE).

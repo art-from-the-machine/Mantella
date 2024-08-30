@@ -23,7 +23,7 @@
    Bring Skyrim & Fallout 4 NPCs to life with AI
    </div>
    <p>
-    Mantella is a Skyrim & Fallout 4 mod which allows you to naturally speak to NPCs using <a href="https://github.com/openai/whisper" target="_blank" rel="noopener noreferrer">Whisper</a> (speech-to-text), LLMs (text generation), and <a href="https://github.com/DanRuta/xVA-Synth" target="_blank" rel="noopener noreferrer">xVASynth</a> / <a href="https://www.nexusmods.com/skyrimspecialedition/mods/113445" target="_blank" rel="noopener noreferrer">XTTS</a> (text-to-speech). 
+    Mantella is a Skyrim & Fallout 4 mod which allows you to naturally speak to NPCs using <a href="https://github.com/openai/whisper" target="_blank" rel="noopener noreferrer">Whisper</a> (speech-to-text), LLMs (text generation), and Piper / <a href="https://github.com/DanRuta/xVA-Synth" target="_blank" rel="noopener noreferrer">xVASynth</a> / <a href="https://www.nexusmods.com/skyrimspecialedition/mods/113445" target="_blank" rel="noopener noreferrer">XTTS</a> (text-to-speech). 
     </p> 
     <p>
     Click <a href="https://youtu.be/FLmbd48r2Wo?si=QLe2_E1CogpxlaS1" target="_blank" rel="noopener noreferrer">here</a> to see the full trailer, or go straight to the  <a href="./pages/installation.html">installation guide for Skyrim</a> or <a href="./pages/installation_fallout4.html">the installation guide for Fallout 4.</a>
@@ -53,11 +53,12 @@ pages/attributions
 
 ## Features
 - 🗣️📢 Interact with 2,000+ NPCs, all with their own unique backgrounds (or [add your own](#adding-modded-npcs))
-- 💻🤖 Support for local (eg Llama 2), OpenAI (eg GPT-4), and OpenRouter (eg Claude v2) LLMs
+- 💻🤖 Support for local (eg Llama 3), OpenAI (eg GPT-4o), and OpenRouter (eg Claude Opus) LLMs
 - 💬💭 NPCs remember past conversations with you
 - 🎮🌍 NPCs are aware of in-game events
-- ❤️🗡️ NPCs can perform actions based on Mantella conversations (follow, attack, forgive)
-- 🗨️👥 NPCs can start Mantella conversations with each other
+- ❤️🗡️ NPCs can perform actions based on conversations (follow, attack, forgive, inventory)
+- 👁️🧠 NPCs can see what you see
+- 🗨️👥 NPCs can start conversations with each other
 - 🗣️👥 Talk to multiple NPCs in group conversations
 - 🌐⚙️ Compatibility with 20+ languages
 - 🕶️🔌 Fully playable in VR / SE / AE
