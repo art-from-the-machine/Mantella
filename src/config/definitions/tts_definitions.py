@@ -95,7 +95,9 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     
     @staticmethod
     def get_xtts_accent_config_value() -> ConfigValue:
-        return ConfigValueBool("xtts_accent","XTTS Accent","Changes the 'accent' of NPCs by sending the language value from data/Skyrim/skyrim_characters.csv's lang_override column to XTTS.\nThis helps give NPC's unique-sounding voices, even when they use the same base voice model. Note that this setting is only available for Skyrim.", False, tags=[ConvigValueTag.advanced])
+        description = """Changes the 'accent' of NPCs by sending the language value from data/Skyrim/skyrim_characters.csv's lang_override column to XTTS.\nThis helps give NPC's unique-sounding voices, even when they use the same base voice model. Note that this setting is only available for Skyrim.
+                    If running XTTS locally, this setting requires XTTS Mantella API Server v1.3.2 or later: https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files"""
+        return ConfigValueBool("xtts_accent", "XTTS Accent", description, False, tags=[ConvigValueTag.advanced])
     
     # xVASynth section
     @staticmethod
