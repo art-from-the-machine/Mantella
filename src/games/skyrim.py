@@ -167,7 +167,12 @@ class skyrim(gameable):
             if weather_classification >= 0 and weather_classification < len(self.WEATHER_CLASSIFICATIONS):
                 return self.WEATHER_CLASSIFICATIONS[weather_classification]
         return ""
- 
+
+    @property
+    def extender_name(self) -> str:
+        return 'SKSE'
+
+
     MALE_VOICE_MODELS: dict[str, str] = {
         'ArgonianRace': 'Male Argonian',
         'BretonRace': 'Male Even Toned',

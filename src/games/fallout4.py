@@ -160,9 +160,10 @@ class fallout4(gameable):
             # only warn on failure
             logging.warning(e)
 
-        logging.log(23, f"{speaker.name}: {queue_output.sentence}")
+            logging.log(23, f"{speaker.name}: {queue_output.sentence}")
 
         self.__last_played_voiceline = queue_output.voice_file
+        logging.info(f"{speaker.name}: {queue_output.sentence}")
 
     def __delete_last_played_voiceline(self):
         if self.__last_played_voiceline:
@@ -183,6 +184,11 @@ class fallout4(gameable):
             str: A prose description of the weather for the LLM
         """
         return ""
+    
+    @property
+    def extender_name(self) -> str:
+        return 'F4SE'
+
 
     MALE_VOICE_MODELS: dict[str, str] = {
         'AssaultronRace':	'robot_assaultron',

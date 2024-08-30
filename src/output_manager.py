@@ -195,10 +195,11 @@ class ChatManager:
                             break
                         if not content:
                             continue
-
+                        
                         sentence += content
-                        # Check for the last occurrence of sentence-ending punctuation
-                        last_punctuation = max(sentence.rfind(p) for p in self.__end_of_sentence_chars)
+                        # Check for the last occurrence of sentence-ending punctuation within first 150 chars
+                        last_punctuation = max(sentence.rfind(p,0, 148) for p in self.__end_of_sentence_chars)
+                        
                         if last_punctuation != -1:
                             # Split the sentence at the last punctuation mark
                             remaining_content = sentence[last_punctuation + 1:]
@@ -259,10 +260,22 @@ class ChatManager:
                                 if len(sentence.strip()) < 3:
                                     logging.log(28, f'Skipping voiceline that is too short: {sentence}')
                                     break
-
+                                
                                 logging.log(self.loglevel, f"LLM returned sentence took {time.time() - start_time} seconds to execute")
                                 # Generate the audio and return the audio file path
                                 # Put the audio file path in the sentence_queue
+                                
+                                # Try to get the sentence below 148 characters which is the max for Fallout4
+                                while len(sentence.encode('utf-8')) > 148:			# Count bytes and not chars
+                                    for p in [',', ' ']:                    		# First look for comma, then space
+                                        lastp = sentence.rfind(p, 0, 148)
+                                        if lastp != -1:
+                                            remaining_content = sentence[lastp+1:] + remaining_content
+                                            sentence = sentence[:lastp+1]
+                                            break
+                                   
+                                #logging.info(f"[{len(sentence)}] {sentence}")
+                                
                                 new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character)
                                 blocking_queue.put(new_sentence)
 
@@ -304,6 +317,7 @@ class ChatManager:
             # Check if there is any accumulated sentence at the end
             if accumulated_sentence and len(accumulated_sentence.strip()) > 3:
                 # Generate the audio and return the audio file path
+                # Might need to check for len > 150 here
                 try:
                     new_sentence = self.generate_sentence(' ' + accumulated_sentence + ' ', active_character)
                     blocking_queue.put(new_sentence)
