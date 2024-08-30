@@ -19,7 +19,7 @@ If you get stuck anywhere in the installation process, please see {doc}`/pages/i
 	Eg `C:\Games\Steam\steamapps\common\Skyrim Special Edition\Data\Mantella`.
 	</details>
 
-3. Create a free account with [OpenRouter](https://openrouter.ai/sign-up). Go to the "Keys" tab in the top right corner and generate a new key. Save the key value to the `GPT_SECRET_KEY.txt` file in your Mantella folder found in step 2.
+3. Create a free account with <a href="https://openrouter.ai/sign-up" target="_blank" rel="noopener noreferrer">OpenRouter</a>. Go to the "Keys" tab in the top right corner and generate a new key. Save the key value to the `GPT_SECRET_KEY.txt` file in your Mantella folder found in step 2.
 
 4. Launch Skyrim. Mantella will open a window automatically when Skyrim is launched and will say "Waiting for player to select an NPC..." when it is ready (this might take a few minutes when launched for the first time). When you start the game, the Mantella spell will be added to your inventory. Cast this spell on an NPC to start a conversation.
 
