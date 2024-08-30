@@ -426,9 +426,14 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                 secret_key = openai_client.get_secret_key('GPT_SECRET_KEY.txt')
                 if not secret_key:
                     return LLMModelList([("No secret key found in GPT_SECRET_KEY.txt", "Custom model")], "Custom model", allows_manual_model_input=True)
-                client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
                 # NOTE: while a secret key is not needed for this request, this may change in the future
+                client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
+                # don't log initial 'HTTP Request: GET https://openrouter.ai/api/v1/models "HTTP/1.1 200 OK"'
+                logging.getLogger('openai').setLevel(logging.ERROR)
+                logging.getLogger("httpx").setLevel(logging.ERROR)
                 models = client.models.list()
+                logging.getLogger('openai').setLevel(logging.INFO)
+                logging.getLogger("httpx").setLevel(logging.INFO)
                 client.close()
                 allow_manual_model_input = False
 
