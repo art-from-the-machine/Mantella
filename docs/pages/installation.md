@@ -34,6 +34,8 @@ Mantella's default text-to-speech service, Piper, only supports English. For tex
 
 Make sure all Mantella conversations have ended in-game and save your game. Deactivate the previous Mantella version in your mod manager before activating the new version.
 
+In case you missed it, <a href="https://www.nexusmods.com/skyrimspecialedition/mods/40971" target="_blank" rel="noopener noreferrer">FonixData File (Mod Manager Install)</a> has recently been added as a required mod.
+
 From v0.12, Mantella stores conversation histories in your `Documents/My Games/Mantella/Data/Skyrim/conversations/YourPlayerName1/` folder. This folder will generate for the first time after a conversation has been saved. Once generated, transfer your previous conversation histories (in your previous `/Data/Skyrim/conversations/` folder) to this new folder.
 </details>
 
