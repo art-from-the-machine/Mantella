@@ -56,7 +56,7 @@ class CustomFormatter(logging.Formatter):
         # Startup
         24: white + "%(message)s" + reset,
         # Hyperlink
-        50: hyperlink + "%(message)s" + reset,
+        25: hyperlink + "%(message)s" + reset,
 
         # STT
         27: blue + format_string + reset,

@@ -105,7 +105,7 @@ class GameStateManager:
             self.__talk = None
 
         logging.log(24, '\nConversations not starting when you select an NPC? See here:')
-        logging.log(50, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
+        logging.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
         logging.log(24, '\nWaiting for player to select an NPC...')
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_ENDCONVERSATION}
 
