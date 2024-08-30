@@ -450,6 +450,6 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                     model_display_name = model.id
                 options.append((model_display_name, model.id))
             return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
-        except APIConnectionError as e:
-            error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required: {e}"
-            return LLMModelList([(error,"error")], "error", allows_manual_model_input=allow_manual_model_input)
+        except Exception as e:
+            error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required. The file is in your mod folder of Mantella. Error: {e}"
+            return LLMModelList([(error,"error")], "error", allows_manual_model_input=False)
