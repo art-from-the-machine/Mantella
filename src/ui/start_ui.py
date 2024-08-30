@@ -67,11 +67,11 @@ class StartUI(routeable):
         
         link = f'http://localhost:{str(self._config.port)}/ui?__theme=dark'
         logging.log(24, f'\nMantella settings can be changed via this link:')
-        logging.log(50, link)
+        logging.log(25, link)
         if self._config.auto_launch_ui == True:
             if not webbrowser.open(link, new=2):
                 logging.warning('\nFailed to open Mantella settings UI automatically. To edit settings, see here:')
-                logging.log(50, link)
+                logging.log(25, link)
     
     def __load_css(self):
         with open('src/ui/style.css', 'r') as file:

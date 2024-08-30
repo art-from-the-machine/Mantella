@@ -39,7 +39,7 @@ class http_server:
             route.add_route_to_server(self.__app)
 
         logging.log(24, '\nConversations not starting when you select an NPC? See here:')
-        logging.log(50, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
+        logging.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
         logging.log(24, '\nWaiting for player to select an NPC...')
     
         uvicorn.run(self.__app, port=port)
