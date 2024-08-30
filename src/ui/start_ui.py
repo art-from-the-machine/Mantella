@@ -66,7 +66,8 @@ class StartUI(routeable):
                             path="/ui")
         
         link = f'http://localhost:{str(self._config.port)}/ui?__theme=dark'
-        logging.info(f'Mantella settings can be changed via this link: {link}')
+        logging.log(24, f'\nMantella settings can be changed via this link:')
+        logging.log(50, link)
         if self._config.auto_launch_ui == True:
             webbrowser.open(link, new=2)
     

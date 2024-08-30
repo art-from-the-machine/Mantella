@@ -35,6 +35,8 @@ class CustomFormatter(logging.Formatter):
     dim_blue = "\x1b[34m\x1b[2m"
     dim_green = "\x1b[32m\x1b[2m"
 
+    hyperlink = blue + underscore
+
     format_string: str = "%(asctime)s.%(msecs)03d %(levelname)s: %(message)s"
 
     FORMATS = {
@@ -53,6 +55,8 @@ class CustomFormatter(logging.Formatter):
         23: dim + "%(message)s" + reset,
         # Startup
         24: white + "%(message)s" + reset,
+        # Hyperlink
+        50: hyperlink + "%(message)s" + reset,
 
         # STT
         27: blue + format_string + reset,
