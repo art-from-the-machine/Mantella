@@ -260,7 +260,7 @@ You might need to say something in the mic / type something in the text box for 
 
 xVASynth related warning when started by Mantella. Thus far has not impacted Mantella so it can be safely ignored.
 
-You can also download ffmpeg (https://ffmpeg.org/download.html) and put a copy of ffmpeg.exe in the same folder as Mantella and xVASynth and the error will be resolved, since ffmpeg will be found.
+You can also download [ffmpeg](https://ffmpeg.org/download.html) and put a copy of ffmpeg.exe in the same folder as Mantella and xVASynth and the error will be resolved, since ffmpeg will be found.
 </details>
 <br>
 
