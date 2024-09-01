@@ -115,9 +115,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
     def visit_ConfigValueInt(self, config_value: ConfigValueInt):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Number:
             config_value = typing.cast(ConfigValueInt, raw_config_value)
-            return gr.Number(value=config_value.value, 
-                        minimum=config_value.min_value, 
-                        maximum=config_value.max_value, 
+            return gr.Number(value=config_value.value,
                         precision=0,
                         show_label=False, 
                         container=False)
@@ -128,8 +126,6 @@ class SettingsUIConstructor(ConfigValueVisitor):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Number:
             config_value = typing.cast(ConfigValueFloat, raw_config_value)
             return gr.Number(value=config_value.value, 
-                    minimum=config_value.min_value, 
-                    maximum=config_value.max_value, 
                     precision=2,
                     show_label=False, 
                     container=False,
