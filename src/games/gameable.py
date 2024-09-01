@@ -261,8 +261,11 @@ class gameable(ABC):
                     extra_df = self.__get_character_df(full_path_file)
                     for i in range(extra_df.shape[0]):#for each row in df
                         name = extra_df.iloc[i].get("name", "")
+                        if pd.isna(name): name = ""                                                  
                         base_id = extra_df.iloc[i].get("base_id", "")
+                        if pd.isna(base_id): base_id = ""      
                         race = extra_df.iloc[i].get("race", "")
+                        if pd.isna(race): race = ""
                         matcher = self._get_matching_df_rows_matcher(base_id, name, race)
                         if isinstance(matcher, type(None)): #character not in csv, add as new row
                             row = []
