@@ -61,6 +61,7 @@ class piper(ttsable):
             voiceline = voiceline.replace('!','.')
         else:
             voiceline = voiceline.replace('.','!')
+        voiceline = voiceline.replace('*','') # Drop *. Piper reads them aloud. "*She waves.*" -> "Asterisk She waves. Asterisk"
 
         attempts = 0
         while attempts < 3:
