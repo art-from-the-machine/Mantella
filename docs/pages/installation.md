@@ -265,6 +265,12 @@ By default, Mantella comes packaged with a fast and local TTS service called Pip
 
 	You may need to restart the download a few times for all voice models to properly download.  
 	```
+    
+  ```{admonition} Warning
+	:class: attention
+
+	If the first voice model never finishes installing. See if the game folder exists within `resources/app/models`. If it is not there, create it and retry. As this is a known bug of xVASynth: [https://github.com/DanRuta/xVA-Synth/issues/59](https://github.com/DanRuta/xVA-Synth/issues/59)
+	```
 
    	#### 🌊 Torrent (Slowest, Easiest)  
    	Voice models can be downloaded via a single torrent. Torrents can be downloaded via Bittorent clients such as [qBittorent](https://www.qbittorrent.org/download). Note that download speeds vary depending on the time of day. Paste the below magnet link in your browser to receive a popup to open it via your Bittorent client, and set the download location to your_xVASynth_folder/resources/app/models/skyrim:  
