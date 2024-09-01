@@ -34,7 +34,7 @@ Mantella's default text-to-speech service, Piper, only supports English. For tex
 
 Make sure all Mantella conversations have ended in-game and save your game. Deactivate the previous Mantella version in your mod manager before activating the new version.
 
-In case you missed it, <a href="https://www.nexusmods.com/skyrimspecialedition/mods/40971" target="_blank" rel="noopener noreferrer">FonixData File (Mod Manager Install)</a> has recently been added as a required mod.
+In case you missed it, <a href="https://www.nexusmods.com/skyrimspecialedition/mods/40971" target="_blank" rel="noopener noreferrer">FonixData File (Mod Manager Install)</a> and <a href="https://aka.ms/vs/17/release/vc_redist.x64.exe" target="_blank" rel="noopener noreferrer">Microsoft Visual C++ Redistributable 2015-2022</a> have recently been added as requirements.
 
 From v0.12, Mantella stores conversation histories in your `Documents/My Games/Mantella/Data/Skyrim/conversations/YourPlayerName1/` folder. This folder will generate for the first time after a conversation has been saved. Once generated, transfer your previous conversation histories (in your previous `/Data/Skyrim/conversations/` folder) to this new folder.
 </details>
@@ -76,6 +76,7 @@ Please follow the installation instructions on each of the linked pages:
 | [FonixData File (Mod Manager Install)](https://www.nexusmods.com/skyrimspecialedition/mods/40971) | For lip sync generation. |
 | [UIExtensions](https://www.nexusmods.com/skyrimspecialedition/mods/17561) | If using text input instead of mic. |
 | [SkyUI](https://www.nexusmods.com/skyrimspecialedition/mods/12604) | To access Mantella's MCM. |
+| [Microsoft Visual C++ Redistributable 2015-2022](https://aka.ms/vs/17/release/vc_redist.x64.exe) | |
 | [Mantella](https://www.nexusmods.com/skyrimspecialedition/mods/98631) |  |
 
 
