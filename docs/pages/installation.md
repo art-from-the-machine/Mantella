@@ -266,7 +266,7 @@ By default, Mantella comes packaged with a fast and local TTS service called Pip
 	You may need to restart the download a few times for all voice models to properly download.  
 	```
     
-  ```{admonition} Warning
+  	```{admonition} Warning
 	:class: attention
 
 	If the first voice model never finishes installing. See if the game folder exists within `resources/app/models`. If it is not there, create it and retry. As this is a known bug of xVASynth: [https://github.com/DanRuta/xVA-Synth/issues/59](https://github.com/DanRuta/xVA-Synth/issues/59)
