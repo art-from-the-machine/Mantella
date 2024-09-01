@@ -122,6 +122,12 @@ Radiant conversations can also be enabled in the MCM menu. These are conversatio
 ### Text Input
 Text input can be enabled by disabling mic input in Mantella's MCM menu.
 
+### Restarting the Mantella window
+If for whatever reason the Mantella window crashes or gets stuck, you can restart it by going to your `Mantella MCM -> Advanced -> Restart Mantella.exe`.
+
+### Actions
+By default, actions are disabled in the Mantella MCM. You can enabled these in the MCM's `General` tab. If you struggling to get an NPC to perform an action on their own, you can force these actions to occur by simply saying / typing the action you want to occur (eg "follow", "inventory", etc).
+
 ### Saved Data
 When a conversation ends, a summary of the conversation is saved to a local text file for each NPC in the conversation. These summaries are then loaded the next time an NPC is spoken with. You can view / edit these summaries in your `My Games/Mantella/data/Skyrim/conversations/YourPlayerName1/` folder.
 ____________________________________
