@@ -5,7 +5,9 @@
 ### [Discord](https://discord.gg/Q4BJAdtGUE)
 <br>
 
-#### SKYRIM : NPCs keep repeating the same line of dialogue
+#### Skyrim
+
+##### NPCs keep repeating the same line of dialogue
 <details>
 <summary>Details</summary>
 
@@ -15,7 +17,7 @@ If this only happens occasionally, it is likely because the next voiceline is be
 </details>
 <br>
 
-#### SKYRIM : Mantella spells have not been added to my inventory
+##### Mantella spells have not been added to my inventory
 <details>
 <summary>Details</summary>
 
@@ -25,7 +27,7 @@ Open Skyrim, end all Mantella conversations and unequip the Mantella spell, and 
 </details>
 <br>
 
-#### SKYRIM : Voicelines are being displayed in Mantella.exe but are not being said in-game
+##### Voicelines are being displayed in Mantella.exe but are not being said in-game
 <details>
 <summary>Details</summary>
 
@@ -35,7 +37,9 @@ If the above fails, a more unlikely reason for voicelines not playing is if you 
 </details>
 <br>
 
-#### FALLOUT 4 : "Warning: Could not find _mantella__fallout4_folder.txt" in Mantella.exe
+#### Fallout 4
+
+##### "Warning: Could not find _mantella__fallout4_folder.txt" in Mantella.exe
 <details>
 <summary>Details</summary>
 
@@ -47,7 +51,7 @@ If you have the required mods installed, then this issue might instead be caused
 </details>
 <br>
 
-#### FALLOUT 4 : On game load the following message is displayed : "F4SE or SUP_F4SE not properly installed, Mantella will not work correctly"
+##### On game load the following message is displayed : "F4SE or SUP_F4SE not properly installed, Mantella will not work correctly"
 <details>
 <summary>Details</summary>
 
@@ -66,7 +70,7 @@ Multiples reasons can cause this issue:
 </details>
 <br>
 
-#### FALLOUT 4 : Lip sync isn't working at all after adding a new NPC
+##### Lip sync isn't working at all after adding a new NPC
 <details>
 <summary>Details</summary>
 
@@ -74,7 +78,7 @@ Lip files need to be present at launch for the game to register it. Restarting F
 </details>
 <br>
 
-#### FALLOUT 4 : The NPC is lip syncing a different line than the one said in game
+##### The NPC is lip syncing a different line than the one said in game
 <details>
 <summary>Details</summary>
 
@@ -82,7 +86,7 @@ This might be caused by an invalid mod file path (ex: a file path pointing to fo
 </details>
 <br>
 
-#### FALLOUT 4 : Every time a conversation is started the notification is : "NPC not added. Please try again after your next response."
+##### Every time a conversation is started the notification is : "NPC not added. Please try again after your next response."
 <details>
 <summary>Details</summary>
 
@@ -99,7 +103,7 @@ Multiples reasons can cause this issue:
 </details>
 <br>
 
-#### FALLOUT 4 : After trying to start a conversation, the notification says "Starting a conversation with NPCNAME", but nothing happens in Fallout 4 or the Mantella console
+##### After trying to start a conversation, the notification says "Starting a conversation with NPCNAME", but nothing happens in Fallout 4 or the Mantella console
 <details>
 <summary>Details</summary>
 
@@ -112,7 +116,7 @@ Multiples reasons can cause this issue:
 </details>
 <br>
 
-#### FALLOUT 4 : The text input menu isn't showing up when the hotkey is pressed after the notification "Awaiting user input for X seconds"
+##### The text input menu isn't showing up when the hotkey is pressed after the notification "Awaiting user input for X seconds"
 <details>
 <summary>Details</summary>
 
@@ -125,7 +129,7 @@ Multiples reasons can cause this issue:
 </details>
 <br>
 
-#### FALLOUT 4 : The Mantella gun & holotape do not get added on load and are not available at the Chem Station in UTILITY
+##### The Mantella gun & holotape do not get added on load and are not available at the Chem Station in UTILITY
 <details>
 <summary>Details</summary>
 
@@ -133,7 +137,7 @@ This is an issue with the way the Mantella esp mod itself has been installed. Pl
 </details>
 <br>
 
-#### FALLOUT 4 : The NPC subtitles play in-game but no audio can be heard.
+##### The NPC subtitles play in-game but no audio can be heard.
 <details>
 <summary>Details</summary>
 
@@ -141,7 +145,7 @@ Double check the config ini to make sure that the value of `FO4_NPC_response_vol
 </details>
 <br>
 
-#### FALLOUT 4 : The mod is enabled but the gun doesn't appear in game at game load
+##### The mod is enabled but the gun doesn't appear in game at game load
 <details>
 <summary>Details</summary>
 
@@ -154,7 +158,9 @@ This might be caused by multiple reasons:
 </details>
 <br>
 
-#### ALL GAMES : API Error: cannot access local variable 'audio_file' where it is not associated with a value
+#### All Games
+
+##### API Error: cannot access local variable 'audio_file' where it is not associated with a value
 <details>
 <summary>Details</summary>
 
@@ -162,7 +168,7 @@ This error occurs when something has failed in a previous step (likely an issue 
 </details>
 <br>
 
-#### ALL GAMES : RuntimeError('PytorchStreamReader failed reading zip archive: failed finding central directory')
+##### RuntimeError('PytorchStreamReader failed reading zip archive: failed finding central directory')
 <details>
 <summary>Details</summary>
 
@@ -172,7 +178,7 @@ A way to check for other corrupted voice models, is to compare the file sizes wi
 </details>
 <br>
 
-#### ALL GAMES : Loading voice model... xVASynth Error: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+##### Loading voice model... xVASynth Error: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
 <details>
 <summary>Details</summary>
 
@@ -182,7 +188,7 @@ If this does not resolve your issue, please share the text found in your xVASynt
 </details>
 <br>
 
-#### ALL GAMES : NPC 'XYZ' could not be found in skyrim_characters.csv or fallout4_characters.csv
+##### NPC 'XYZ' could not be found in skyrim_characters.csv or fallout4_characters.csv
 <details>
 <summary>Details</summary>
 
@@ -190,7 +196,7 @@ This means that the NPC's name exactly as written in the error message could not
 </details>
 <br>
 
-#### ALL GAMES : NPCs only respond with "I can't find the right words at the moment."
+##### NPCs only respond with "I can't find the right words at the moment."
 <details>
 <summary>Details</summary>
 
@@ -198,7 +204,7 @@ This either means the LLM servers you have connected to are currently down or th
 </details>
 <br>
 
-#### ALL GAMES : Microphone is not picking up sound / exe stuck on "Listening..."
+##### Microphone is not picking up sound / exe stuck on "Listening..."
 <details>
 <summary>Details</summary>
 
@@ -206,7 +212,7 @@ Make sure that your mic is picking up correctly on other software and that it is
 </details>
 <br>
 
-#### ALL GAMES : 'NoneType' object has no attribute 'close'
+##### 'NoneType' object has no attribute 'close'
 <details>
 <summary>Details</summary>
 
@@ -214,7 +220,7 @@ This error means that Whisper is unable to find a connected microphone. Please e
 </details>
 <br>
 
-#### ALL GAMES : "Invalid start byte" error
+#####  "Invalid start byte" error
 <details>
 <summary>Details</summary>
 
@@ -222,7 +228,7 @@ This error occurs when you introduce character symbols that can't be recognized 
 </details>
 <br>
 
-#### ALL GAMES : Mantella.exe closes after "VAD filter removed 00:00.000 of audio" statement
+##### Mantella.exe closes after "VAD filter removed 00:00.000 of audio" statement
 <details>
 <summary>Details</summary>
 
@@ -230,7 +236,7 @@ This is an issue related to CUDA. Please try setting `Process Device` to "cpu" u
 </details>
 <br>
 
-#### ALL GAMES : Mantella.exe opens, but does not display any text
+##### Mantella.exe opens, but does not display any text
 <details>
 <summary>Details</summary>
 
@@ -238,7 +244,7 @@ Ensure that you are not running Mantella.exe via a Vortex / Mod Organizer 2 shor
 </details>
 <br>
 
-#### ALL GAMES : ERROR: xVASynth Error: [WinError 5] Access is denied
+##### ERROR: xVASynth Error: [WinError 5] Access is denied
 <details>
 <summary>Details</summary>
 
@@ -246,7 +252,7 @@ This happens when your antivirus is blocking Mantella.exe from working. Please a
 </details>
 <br>
 
-#### ALL GAMES : Cannot start new conversation after ending previous conversation (conversation ended message)
+##### Cannot start new conversation after ending previous conversation (conversation ended message)
 <details>
 <summary>Details</summary>
 
@@ -254,7 +260,7 @@ You might need to say something in the mic / type something in the text box for 
 </details>
 <br>
 
-#### ALL GAMES : RuntimeWarning: Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work
+##### RuntimeWarning: Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work
 <details>
 <summary>Details</summary>
 
@@ -264,7 +270,7 @@ You can also download [ffmpeg](https://ffmpeg.org/download.html) and put a copy 
 </details>
 <br>
 
-#### ALL GAMES : Error: [Errno 2] No such file or directory: 'data/skyrim_characters.csv' or 'data/fallout4_characters.csv'
+##### Error: [Errno 2] No such file or directory: 'data/skyrim_characters.csv' or 'data/fallout4_characters.csv'
 <details>
 <summary>Details</summary>
 
