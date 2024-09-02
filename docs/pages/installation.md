@@ -243,7 +243,21 @@ Vision capabilities can also be run locally via koboldcpp. To get started, downl
 ____________________________________
 
 ### Text-to-Speech
-By default, Mantella comes packaged with a fast and local TTS service called Piper (note: Piper only supports English). Mantella can also be run with xVASynth (local) or XTTS (local / online) to generate NPC voicelines:
+By default, Mantella comes packaged with a fast and local TTS service called Piper (note: Piper only supports English). Mantella can also be run with xVASynth (local) or XTTS (local / online) to generate NPC voicelines. See the comparison below  for more details:
+
+| Feature | Piper | xVASynth | XTTS |
+|:----------|:----------:|:----------:|:----------:|
+| Fastest | ✔* |  |  |
+| Easiest setup | ✔ |  |  |
+| Highest quality |  |  | ✔ |
+| Greatest emotional range |  | ✔ |  |
+| Support for modded NPCs |  | ✔ | ✔ |
+| Easy to create custom voice models |  |  | ✔ |
+| Local support | ✔ | ✔ | ✔ |
+| API support |  |  | ✔ |
+| Can run on a second PC |  |  | ✔ |
+
+*XTTS may generate faster responses when running externally.
 
 <details>
 	<summary><b>xVASynth</b></summary>  
