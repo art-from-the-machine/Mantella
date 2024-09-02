@@ -144,7 +144,7 @@ LLMs power the creation of responses by NPCs. There are a number of different LL
 Some smaller models may struggle to handle long term conversations and memory summarising.
 ```
 
-If you have already followed the [quick start guide](#quick-start) you will have an OpenRouter account set up with Toppy, a free and easy to use LLM. You can select from a variety of other LLMs hosted on OpenRouter (both free and paid) via the `Model` option in the `Large Language Model` tab of the [Mantella UI](#mantella-ui). 
+If you have already followed the [quick start guide](#quick-start) you will have an OpenRouter account set up with Gemma 2 9B, a free and easy to use LLM. You can select from a variety of other LLMs hosted on OpenRouter (both free and paid) via the `Model` option in the `Large Language Model` tab of the [Mantella UI](#mantella-ui). 
 
 If you would prefer to use a different service, or host your own LLM locally, see the options below:
 
