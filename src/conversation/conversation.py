@@ -29,13 +29,13 @@ class conversation:
     TOKEN_LIMIT_PERCENT: float = 0.9
     TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
     """Controls the flow of a conversation."""
-    def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, openai_client: openai_client, actions: list[action]) -> None:
+    def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, openai_client: openai_client) -> None:
         
         self.__context: context = context_for_conversation
         if not self.__context.npcs_in_conversation.contains_player_character(): # TODO: fix this being set to a radiant conversation because of NPCs in conversation not yet being added
-            self.__conversation_type: conversation_type = radiant(context_for_conversation)
+            self.__conversation_type: conversation_type = radiant(context_for_conversation.config)
         else:
-            self.__conversation_type: conversation_type = pc_to_npc(context_for_conversation.config.prompt)        
+            self.__conversation_type: conversation_type = pc_to_npc(context_for_conversation.config)        
         self.__messages: message_thread = message_thread(None)
         self.__output_manager: ChatManager = output_manager
         self.__rememberer: remembering = rememberer
@@ -44,7 +44,7 @@ class conversation:
         self.__sentences: sentence_queue = sentence_queue()
         self.__generation_thread: Thread | None = None
         self.__generation_start_lock: Lock = Lock()
-        self.__actions: list[action] = actions
+        # self.__actions: list[action] = actions
 
     @property
     def has_already_ended(self) -> bool:
@@ -185,11 +185,11 @@ class conversation:
             self.__sentences.clear()
             
             if not self.__context.npcs_in_conversation.contains_player_character():
-                self.__conversation_type = radiant(self.__context)
+                self.__conversation_type = radiant(self.__context.config)
             elif self.__context.npcs_in_conversation.active_character_count() >= 3:
-                self.__conversation_type = multi_npc(self.__context.config.multi_npc_prompt)
+                self.__conversation_type = multi_npc(self.__context.config)
             else:
-                self.__conversation_type = pc_to_npc(self.__context.config.prompt)
+                self.__conversation_type = pc_to_npc(self.__context.config)
 
             new_prompt = self.__conversation_type.generate_prompt(self.__context)        
             if len(self.__messages) == 0:
@@ -274,7 +274,7 @@ class conversation:
         with self.__generation_start_lock:
             if not self.__generation_thread:
                 self.__sentences.is_more_to_come = True
-                self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.__actions]).start()   
+                self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions]).start()   
 
     def __stop_generation(self):
         """Stops the current generation of sentences if there is one
