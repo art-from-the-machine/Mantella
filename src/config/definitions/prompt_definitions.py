@@ -23,7 +23,8 @@ class PromptDefinitions:
                                 "time_group", 
                                 "language", 
                                 "conversation_summary",
-                                "conversation_summaries"]
+                                "conversation_summaries",
+                                "actions"]
     
     ALLOWED_PROMPT_VARIABLES_RADIANT = [
                                 "game",
@@ -38,7 +39,8 @@ class PromptDefinitions:
                                 "time_group", 
                                 "language", 
                                 "conversation_summary",
-                                "conversation_summaries"]
+                                "conversation_summaries",
+                                "actions"]
     
     BASE_PROMPT_DESCRIPTION = """The starting prompt sent to the LLM when an NPC is selected.
                                 If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
@@ -57,7 +59,8 @@ class PromptDefinitions:
                                 player_name = the name of the player character
                                 player_description = a description of the player character (needs to be added in game or using the config value)
                                 player_equipment = a basic description of the equipment the player character carries
-                                equipment = a basic description of the equipment the NPCs carry"""
+                                equipment = a basic description of the equipment the NPCs carry
+                                actions = instructions for the LLM how to trigger actions"""
     
     BASE_RADIANT_DESCRIPTION = """The starting prompt sent to the LLM when a radiant conversation is started.
                                 If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
@@ -71,7 +74,8 @@ class PromptDefinitions:
                                 time_group = the time of day in words (eg "in the morning", "at night")
                                 language = the selected language
                                 conversation_summary = reads the latest conversation summaries for the NPCs stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt
-                                equipment = a basic description of the equipment the NPCs carry"""
+                                equipment = a basic description of the equipment the NPCs carry
+                                actions = instructions for the LLM to trigger actions"""
         
     class PromptChecker(ConfigValueConstraint[str]):
         def __init__(self, allowed_prompt_variables: list[str]) -> None:
@@ -100,9 +104,7 @@ class PromptDefinitions:
                                 The time is {time} {time_group}.
                                 {weather}
                                 You are not an AI language model because there are no AI language models in Skyrim. Do not break character / refer to the fact that you are in a video game.
-                                To show the player what you have in your inventory or to give / take an item, begin your response with 'Inventory:'.
-                                If the player says something hurtful / offensive, begin your response with 'Offended:'. Eg 'Have you washed lately?' 'Offended: How dare you!'. If they renounce their words, or to end combat, begin your response with 'Forgiven:'. 
-                                If the player asks you to follow them, and you are thoroughly convinced to do so, begin your response with 'Follow:'.
+                                {actions}
                                 The conversation takes place in {language}.
                                 {conversation_summary}"""
         return ConfigValueString("skyrim_prompt","Skyrim Prompt",PromptDefinitions.BASE_PROMPT_DESCRIPTION,skyrim_prompt_value,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES)])
@@ -117,6 +119,7 @@ class PromptDefinitions:
                                     {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'.
                                     Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable).
+                                    {actions}
                                     Remember, you can only respond as {names}. Ensure to use their full name when responding.
                                     The conversation takes place in {language}."""
         return ConfigValueString("skyrim_multi_npc_prompt","Skyrim Multi-NPC Prompt",PromptDefinitions.BASE_PROMPT_DESCRIPTION,skyrim_multi_npc_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES)])
@@ -130,6 +133,7 @@ class PromptDefinitions:
                                     {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
                                     Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable). 
+                                    {actions}
                                     Remember, you can only respond as {names}. Ensure to use their full name when responding.
                                     The conversation takes place in {language}."""
         return ConfigValueString("skyrim_radiant_prompt","Skyrim Radiant Conversation Prompt",PromptDefinitions.BASE_RADIANT_DESCRIPTION,skyrim_radiant_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_RADIANT)])
@@ -142,6 +146,7 @@ class PromptDefinitions:
                             Who do you think these belong to?
                             You are having a conversation with {trust} (the player) in {location}.
                             This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
+                            {actions}
                             The time is {time} {time_group}.
                             The conversation takes place in {language}.
                             {conversation_summary}"""
@@ -154,6 +159,7 @@ class PromptDefinitions:
                             The time is {time} {time_group}.
                             You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
                             Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable). 
+                            {actions}
                             Remember, you can only respond as {names}. Ensure to use their full name when responding.
                             The conversation takes place in {language}."""
         return ConfigValueString("fallout4_multi_npc_prompt","Fallout 4 Multi-NPC Prompt",PromptDefinitions.BASE_PROMPT_DESCRIPTION,fallout4_multi_npc_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES)])
@@ -165,6 +171,7 @@ class PromptDefinitions:
                             The time is {time} {time_group}.
                             You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
                             Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable). 
+                            {actions}
                             Remember, you can only respond as {names}. Ensure to use their full name when responding.
                             The conversation takes place in {language}."""
         return ConfigValueString("fallout4_radiant_prompt","Fallout 4 Radiant Conversation Prompt",PromptDefinitions.BASE_RADIANT_DESCRIPTION,fallout4_radiant_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_RADIANT)])
