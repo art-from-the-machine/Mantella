@@ -227,7 +227,7 @@ class gameable(ABC):
 
         return character_info, is_generic_npc
     
-     def __apply_character_overrides(self, overrides_folder: str, character_df_column_headers: list[str]):
+    def __apply_character_overrides(self, overrides_folder: str, character_df_column_headers: list[str]):
         if not os.path.exists(overrides_folder):
             os.makedirs(overrides_folder)
         override_files: list[str] = os.listdir(overrides_folder)
