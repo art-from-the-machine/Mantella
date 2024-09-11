@@ -260,17 +260,14 @@ class gameable(ABC):
                 elif extension == ".csv":
                     extra_df = self.__get_character_df(full_path_file)
                     for i in range(extra_df.shape[0]):#for each row in df
-                        name = extra_df.iloc[i].get("name", "")
-                        if pd.isna(name): name = ""                                                  
-                        base_id = extra_df.iloc[i].get("base_id", "")
-                        if pd.isna(base_id): base_id = ""      
-                        race = extra_df.iloc[i].get("race", "")
-                        if pd.isna(race): race = ""
+                        name = self.get_string_from_df(extra_df.iloc[i], "name")
+                        base_id = self.get_string_from_df(extra_df.iloc[i], "base_id")
+                        race = self.get_string_from_df(extra_df.iloc[i], "race")
                         matcher = self._get_matching_df_rows_matcher(base_id, name, race)
                         if isinstance(matcher, type(None)): #character not in csv, add as new row
                             row = []
                             for entry in character_df_column_headers:
-                                value = extra_df.iloc[i].get(entry, "")
+                                value = self.get_string_from_df(extra_df.iloc[i], entry)
                                 row.append(value)
                             self.character_df.loc[len(self.character_df.index)] = row
                         else: #character is in csv, update row
@@ -281,4 +278,9 @@ class gameable(ABC):
             except Exception as e:
                 logging.log(logging.WARNING, f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
 
-        
+    @staticmethod
+    def get_string_from_df(iloc, column_name: str) -> str:
+        entry = iloc.get(column_name, "")
+        if pd.isna(entry): entry = ""
+        elif not isinstance(entry, str): entry = str(entry)
+        return entry        
