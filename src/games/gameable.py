@@ -227,7 +227,7 @@ class gameable(ABC):
 
         return character_info, is_generic_npc
     
-        def __apply_character_overrides(self, overrides_folder: str, character_df_column_headers: list[str]):
+     def __apply_character_overrides(self, overrides_folder: str, character_df_column_headers: list[str]):
         if not os.path.exists(overrides_folder):
             os.makedirs(overrides_folder)
         override_files: list[str] = os.listdir(overrides_folder)
@@ -263,18 +263,11 @@ class gameable(ABC):
                         name = self.get_string_from_df(extra_df.iloc[i], "name")
                         base_id = self.get_string_from_df(extra_df.iloc[i], "base_id")
                         race = self.get_string_from_df(extra_df.iloc[i], "race")
-                        # name = extra_df.iloc[i].get("name", "")
-                        # if pd.isna(name): name = ""                                                  
-                        # base_id = extra_df.iloc[i].get("base_id", "")
-                        # if pd.isna(base_id): base_id = ""      
-                        # race = extra_df.iloc[i].get("race", "")
-                        # if pd.isna(race): race = ""
                         matcher = self._get_matching_df_rows_matcher(base_id, name, race)
                         if isinstance(matcher, type(None)): #character not in csv, add as new row
                             row = []
                             for entry in character_df_column_headers:
                                 value = self.get_string_from_df(extra_df.iloc[i], entry)
-                                # value = extra_df.iloc[i].get(entry, "")
                                 row.append(value)
                             self.character_df.loc[len(self.character_df.index)] = row
                         else: #character is in csv, update row
