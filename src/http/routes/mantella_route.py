@@ -16,6 +16,7 @@ from src.tts.ttsable import ttsable
 from src.tts.xvasynth import xvasynth
 from src.tts.xtts import xtts
 from src.tts.piper import piper
+from src.http.routes.global_manager import GlobalManager  # Import the global manager
 
 class mantella_route(routeable):
     """Main route for Mantella conversations
@@ -57,6 +58,9 @@ class mantella_route(routeable):
         
         chat_manager = ChatManager(game, self._config, tts, client)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, client)
+		
+        # Initialize the global manager with the GameStateManager instance
+        GlobalManager.initialize(self.__game)
 
     def add_route_to_server(self, app: FastAPI):
         @app.post("/mantella")

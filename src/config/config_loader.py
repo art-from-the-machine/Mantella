@@ -259,7 +259,22 @@ class ConfigLoader:
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")
             self.memory_prompt = self.__definitions.get_string_value("memory_prompt")
             self.resummarize_prompt = self.__definitions.get_string_value("resummarize_prompt")
-
+            
+            # Inner Thoughts
+            self.inner_thoughts_prompt = self.__definitions.get_string_value("inner_thoughts_prompt")
+            self.multiple_inner_thoughts_prompt = self.__definitions.get_string_value("multiple_inner_thoughts_prompt")
+            self.auto_inner_thoughts = self.__definitions.get_bool_value("auto_inner_thoughts")
+            self.interval_type = self.__definitions.get_config_value_definition("interval_type").value
+            self.fixed_interval = self.__definitions.get_int_value("fixed_interval")
+            self.intent_thoughts_length = self.__definitions.get_int_value("intent_thoughts_length")
+            self.conversation_retrieval_count = self.__definitions.get_int_value("conversation_retrieval_count")
+            self.temperature_i = self.__definitions.get_float_value("temperature_i")
+            self.top_p_i = self.__definitions.get_float_value("top_p_i")
+            self.frequency_penalty_i = self.__definitions.get_float_value("frequency_penalty_i")
+            self.presence_penalty_i = self.__definitions.get_float_value("presence_penalty_i")
+            self.max_tokens_i = self.__definitions.get_int_value("max_tokens_i")
+			
+			
             # Vision
             self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')
             self.low_resolution_mode = self.__definitions.get_bool_value("low_resolution_mode")

@@ -6,6 +6,7 @@ from src.config.types.config_value_group import ConfigValueGroup
 from src.config.definitions.game_definitions import GameDefinitions
 from src.config.definitions.language_definitions import LanguageDefinitions
 from src.config.definitions.llm_definitions import LLMDefinitions
+from src.config.definitions.thoughts_definitions import InnerThoughtsDefinitions
 from src.config.definitions.other_definitions import OtherDefinitions
 from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
@@ -115,8 +116,26 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_memory_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_resummarize_prompt_config_value())
+        
         result.add_base_group(prompts_category)
 
+        #Inner Thoughts
+        inner_thoughts_category = ConfigValueGroup("Inner Thoughts", "Inner Thoughts", "Settings related to the Inner Thoughts feature for NPCs.", on_value_change_callback)
+        inner_thoughts_category.add_config_value(InnerThoughtsDefinitions.get_inner_thoughts_prompt_config_value())
+        inner_thoughts_category.add_config_value(InnerThoughtsDefinitions.get_multiple_inner_thoughts_prompt_config_value())
+        inner_thoughts_category.add_config_value(InnerThoughtsDefinitions.get_auto_inner_thoughts_config_value())
+        inner_thoughts_category.add_config_value(InnerThoughtsDefinitions.get_interval_type_config_value())
+        inner_thoughts_category.add_config_value(InnerThoughtsDefinitions.get_fixed_interval_config_value())
+        inner_thoughts_category.add_config_value(InnerThoughtsDefinitions.get_intent_thoughts_length_config_value())
+        inner_thoughts_category.add_config_value(InnerThoughtsDefinitions.get_conversation_retrieval_count_config_value())
+        inner_thoughts_category.add_config_value(InnerThoughtsDefinitions.get_temperature_config_value_i())
+        inner_thoughts_category.add_config_value(InnerThoughtsDefinitions.get_top_p_config_value_i())
+        inner_thoughts_category.add_config_value(InnerThoughtsDefinitions.get_frequency_penalty_config_value_i())
+        inner_thoughts_category.add_config_value(InnerThoughtsDefinitions.get_presence_penalty_config_value_i())
+        inner_thoughts_category.add_config_value(InnerThoughtsDefinitions.get_max_tokens_config_value_i())
+		
+        result.add_base_group(inner_thoughts_category)
+		
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
         other_category.add_config_value(OtherDefinitions.get_auto_launch_ui_config_value())
         other_category.add_config_value(OtherDefinitions.get_port_config_value())

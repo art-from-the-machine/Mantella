@@ -37,6 +37,10 @@ class ChatManager:
         self.__end_of_sentence_chars = ['.', '?', '!', ':', ';']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
+    # Getter Method
+    def is_generating(self):
+        return self.__is_generating
+	
     def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> mantella_sentence:
         """Generates the audio for a text and returns the corresponding sentence
 
@@ -48,6 +52,7 @@ class ChatManager:
         Returns:
             mantella_sentence | None: _description_
         """
+		
         with self.__tts_access_lock:
             try:
                 synth_options = SynthesizationOptions(character_to_talk.is_in_combat)

@@ -27,7 +27,20 @@ def clean_text(text):
 
     return text_cleaned
 
+def clean_text_thoughts(text):
+    # Define a tabela de tradução que remove pontuação, mas mantém asteriscos
+    punct_to_remove = string.punctuation.replace('*', '')  # Remove todos os caracteres de pontuação, exceto o asterisco
+    text_cleaned = text.translate(str.maketrans('', '', punct_to_remove))
+    
+    # Remove qualquer espaço em branco extra
+    text_cleaned = remove_extra_whitespace(text_cleaned)
+    
+    # Converte o texto para minúsculas
+    text_cleaned = text_cleaned.lower()
 
+    return text_cleaned
+	
+	
 def remove_extra_whitespace(text):
     return re.sub('\s+', ' ', text).strip()
 
