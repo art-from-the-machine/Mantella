@@ -47,6 +47,19 @@ class conversation:
         self.__actions: list[action] = actions
 
     @property
+    def assistant_message(self):
+        return assistant_message
+	
+    @property
+    def user_message(self):
+        return user_message
+	
+    @property
+    def messages(self) -> message_thread:
+        """Retorna o message_thread atual da conversa."""
+        return self.__messages
+	
+    @property
     def has_already_ended(self) -> bool:
         return self.__has_already_ended
     

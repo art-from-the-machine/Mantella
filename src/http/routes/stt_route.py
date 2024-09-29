@@ -31,6 +31,7 @@ class stt_route(routeable):
 
     def _setup_route(self):
         if not self.__stt:
+            # Inicialize o Transcriber com o contexto existente
             self.__stt = Transcriber(self._config, self.__secret_key_file)
 
     def add_route_to_server(self, app: FastAPI):
@@ -45,11 +46,13 @@ class stt_route(routeable):
                 logging.error(error_message)
                 return self.error_message(error_message)
             received_json: dict[str, Any] | None = await request.json()
+            logging.info(f"Received JSON data: {received_json}")
             if received_json and received_json[self.KEY_REQUESTTYPE] == self.KEY_REQUESTTYPE_TTS:
                 if self._show_debug_messages:
                     logging.log(self._log_level_http_in, json.dumps(received_json, indent=4))
                 names: list[str] = received_json[self.KEY_INPUT_NAMESINCONVERSATION]
                 names_in_conversation = ', '.join(names)
+                logging.info(f"nomes na conversa: {names_in_conversation}")
                 transcribed_text = self.__stt.recognize_input(names_in_conversation)
                 if isinstance(transcribed_text, str):
                     return self.construct_return_json(transcribed_text)
