@@ -42,10 +42,10 @@ class InnerThoughtsDefinitions:
     # Configuration for selecting fixed or random interval
     @staticmethod
     def get_interval_type_config_value() -> ConfigValue:
-        interval_type_description = """Choose whether to use a fixed interval in seconds or a random interval between 60 and 180 seconds for checking the automatic greeting.
+        interval_type_description = """Choose whether to use a fixed interval in seconds or a random interval between 60 and 240 seconds for checking the automatic greeting.
                                        - Fixed: A specific interval in seconds defined by the user. This can be better for creating a more dynamic flow in conversations, particularly in group chats, as it ensures regular opportunities for NPCs to speak, 
 									     keeping the interaction steady and engaging
-                                       - Random: A random interval between 60 and 180 seconds."""
+                                       - Random: A random interval between 60 and 240 seconds."""
         interval_type_options = ["Fixed", "Random"]
 
         return ConfigValueSelection(
@@ -119,10 +119,13 @@ class InnerThoughtsDefinitions:
         inner_thoughts_prompt_description = """This prompt analyzes the NPC's current emotional state based on recent interactions with the player. 
         It returns a simple description of the emotional state and indicates whether the NPC should speak or remain silent. Ensure the following dynamic variables are contained in curly brackets {}: name = the NPC's name"""
 
-        inner_thoughts_prompt = """Based on the recent interactions between The Player (user) and {name} (assistant), determine {name}'s current emotional state and indicate whether {name} should speak or remain silent.
-        Possible emotional states: Happy, Sad, Irritated, Surprised, Fearful, Anxious, Confused, Neutral, Thoughtful, Remembering something, Distracted, Curious. 
-        Action decision: {name} should speak. / {name} should remain silent. Response Format: {name} is [emotional state]. {name} should [speak / remain silent]. 
-        Examples: - Lydia is curious. Lydia should speak. - Lydia is thoughtful. Lydia should remain silent. Now, based on the interactions:"""
+        inner_thoughts_prompt = """Based on the recent interactions between the Player (user) and {name} (assistant), determine {name}'s current emotional state by prioritizing recent events and considering past 
+        interactions for context. Introduce variation by using intermediate emotional states. Indicate whether {name} should speak or remain silent. Emotional states can also be a combination, such as Thoughtful and Confused, 
+        leading to a tendency to remain silent.
+        Possible emotional states: Happy, Content, Thoughtful, Sad, Irritated, Frustrated, Surprised, Fearful, Anxious, Confused, Neutral, Remembering something, Distracted, Curious.
+        Action decision: {name} should speak. / {name} should remain silent.
+        Response Format: {name} is [emotional state]. {name} should [speak / remain silent].
+        Now, based on the interactions:"""
 
         return ConfigValueString(
             "inner_thoughts_prompt",  # Identifier
@@ -139,14 +142,16 @@ class InnerThoughtsDefinitions:
         It returns a simple description of each NPC's emotional state and indicates which NPC should speak next. 
         Ensure the following dynamic variables are contained in curly brackets {}: names = a list of NPCs' names involved in the conversation."""
 
-        multiple_inner_thoughts_prompt = """Based on the recent interactions between The Player (user) and the following NPCs: {names}, determine each NPC's current emotional state and decide which NPC should speak next. 
-		Possible emotional states: Happy, Sad, Irritated, Surprised, Fearful, Anxious, Confused, Neutral, Thoughtful, Remembering something, Distracted, Curious. Criteria for selecting which NPC should speak: 
-		Prioritize NPCs who have been quieter or less engaged. 
-		Consider the emotional state; NPCs who are curious, eager, or have relevant input may be more inclined to speak. 
-		If multiple NPCs equally meet the criteria, choose the one whose input would most enrich the conversation.
-		Do not select The Player (user) as the next speaker. Focus only on NPCs
-		Response Format (provide no additional text or explanations): [NPC Name] is [emotional state]. [NPC Name] is [emotional state]. [Selected NPC Name] should speak next. 
-		Examples: - Lydia is curious. Sven is thoughtful. Lydia should speak next. - Aela is distracted. Vilkas is irritated. Vilkas should speak next. Now, based on the interactions:"""
+        multiple_inner_thoughts_prompt = """Based on the recent interactions between The Player (user) and the following NPCs: {names}, determine each NPC's current emotional state by prioritizing recent interactions and considering past engagements. 
+        Introduce variation by using intermediate emotional states, including possible combinations such as Thoughtful and Curious. Decide which NPC should speak next.
+        Possible emotional states: Happy, Content, Thoughtful, Sad, Irritated, Frustrated, Surprised, Fearful, Anxious, Confused, Neutral, Remembering something, Distracted, Curious. 
+        Criteria for selecting which NPC should speak: 
+        Prioritize NPCs who have been quieter or less engaged. 
+        Consider the emotional state: NPCs who are curious, eager, or have relevant input may be more inclined to speak. 
+        If multiple NPCs equally meet the criteria, choose the one whose input would most enrich the conversation.
+        Do not select The Player (user) as the next speaker. Focus only on NPCs.
+        Response Format (provide no additional text or explanations): [NPC Name] is [emotional state]. [NPC Name] is [emotional state]. [Selected NPC Name] should speak next.
+        Now, based on the interactions:"""
 
 
         return ConfigValueString("multiple_inner_thoughts_prompt", "Multiple Inner Thoughts Prompt", multiple_inner_thoughts_prompt_description, multiple_inner_thoughts_prompt, [InnerThoughtsDefinitions.PromptChecker(InnerThoughtsDefinitions.ALLOWED_PROMPT_VARIABLES)], tags=[ConvigValueTag.advanced])

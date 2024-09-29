@@ -295,6 +295,12 @@ class GameStateManager:
                 if not self.__chat_manager.is_generating():  # Verificação direta da variável de estado
                     # Get the latest conversations using the existing function
                     last_conversations = self.get_last_conversations()
+					
+                    # Check if there are at least 3 conversations
+                    if len(last_conversations) < 3:
+                        logging.info(f"Not enough conversations to start monitoring. Found only {len(last_conversations)}.")
+                        time.sleep(30)  # Wait before checking again
+                        continue
 
                     assistant_message_type = self.get_thread_assistant_message
                     user_message_type = self.get_thread_user_message
@@ -360,7 +366,7 @@ class GameStateManager:
 
 				# Determines wait time based on user configuration
                 if self.__config.interval_type == "Random":
-                    sleep_time = random.uniform(60, 180)
+                    sleep_time = random.uniform(60, 240)
                 else:
                     sleep_time = self.__config.fixed_interval  # Use user-defined fixed interval
 
