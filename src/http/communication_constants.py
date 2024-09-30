@@ -62,3 +62,8 @@ class communication_constants:
     ACTION_NPC_FORGIVEN: str = PREFIX + "npc_forgiven"
     ACTION_NPC_FOLLOW: str = PREFIX + "npc_follow"
     ACTION_NPC_INVENTORY: str = PREFIX + "npc_inventory"
+    ACTION_NPC_MOVETO_NPC: str = PREFIX + "npc_move_character_near_npc"
+
+    # Function data
+    FUNCTION_DATA_TARGET_IDS: str = PREFIX + "function_data_target_ids"
+    FUNCTION_DATA_TARGET_NAMES: str = PREFIX + "function_data_target_names"

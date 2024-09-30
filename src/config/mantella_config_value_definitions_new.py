@@ -11,6 +11,7 @@ from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
 from src.config.definitions.vision_definitions import VisionDefinitions
+from src.config.definitions.function_llm_definitions import FunctionLLMDefinitions
 import sys
 
 
@@ -48,6 +49,17 @@ class MantellaConfigValueDefinitionsNew:
         # llm_category.add_config_value(LLMDefinitions.get_stop_llm_generation_on_assist_keyword())
         llm_category.add_config_value(LLMDefinitions.get_try_filter_narration())
         result.add_base_group(llm_category)
+
+        function_llm_category = ConfigValueGroup("Function LLM", "Function inference", "Settings for the LLM providers and the LLMs themselves.", on_value_change_callback)
+        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_enable_inference())
+        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_model_config_value())
+        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_api_config_value())
+        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_custom_token_count_config_value())
+        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_temperature_config_value())
+        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_top_p_config_value())
+        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_frequency_penalty_config_value())
+        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_max_tokens_config_value())
+        result.add_base_group(function_llm_category)
 
         tts_category = ConfigValueGroup("TTS", "Text-to-Speech", "Settings for the TTS methods Mantella supports.", on_value_change_callback)
         tts_category.add_config_value(TTSDefinitions.get_tts_service_config_value())

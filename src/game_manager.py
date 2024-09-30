@@ -38,7 +38,6 @@ class GameStateManager:
                                                 action(comm_consts.ACTION_NPC_FORGIVEN, config.forgiven_npc_response, f"The player made up with the NPC"),
                                                 action(comm_consts.ACTION_NPC_FOLLOW, config.follow_npc_response, f"The NPC is willing to follow the player"),
                                                 action(comm_consts.ACTION_NPC_INVENTORY, config.inventory_npc_response, f"The NPC is willing to show their inventory to the player")]
-
     ###### react to calls from the game #######
     def start_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if self.__talk: #This should only happen if game and server are out of sync due to some previous error -> close conversation and start a new one
@@ -95,10 +94,11 @@ class GameStateManager:
                                 'mantella_actor_actions': [action.game_action_identifier],
                                 }
                             }
-        
+
         # if the player response is not an action command, return a regular player reply type
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}
-
+    
+        
     def end_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(self.__talk):
             self.__talk.end()
@@ -118,14 +118,20 @@ class GameStateManager:
         }
     
     def sentence_to_json(self, sentence_to_prepare: sentence) -> dict[str, Any]:
-        return {
+        json_dict = {
             comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.speaker.name,
             comm_consts.KEY_ACTOR_LINETOSPEAK: sentence_to_prepare.sentence.strip(),
             comm_consts.KEY_ACTOR_VOICEFILE: sentence_to_prepare.voice_file,
             comm_consts.KEY_ACTOR_DURATION: sentence_to_prepare.voice_line_duration,
             comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions
         }
+        if sentence_to_prepare.target_ids:
+            json_dict[comm_consts.FUNCTION_DATA_TARGET_IDS] = sentence_to_prepare.target_ids
+        if sentence_to_prepare.target_names:
+            json_dict[comm_consts.FUNCTION_DATA_TARGET_NAMES] = sentence_to_prepare.target_names
 
+        return json_dict
+    
     ##### utils #######
 
     def __update_context(self,  json: dict[str, Any]):

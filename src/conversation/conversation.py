@@ -19,6 +19,7 @@ from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
 import src.utils as utils
+from src.function_inference.function_manager import get_function_manager_instance
 
 class conversation_continue_type(Enum):
     NPC_TALK = 1
@@ -45,6 +46,8 @@ class conversation:
         self.__generation_thread: Thread | None = None
         self.__generation_start_lock: Lock = Lock()
         self.__actions: list[action] = actions
+        self.__function_manager = get_function_manager_instance()
+        self.__function_manager.initialize(context_for_conversation, output_manager, None)
 
     @property
     def has_already_ended(self) -> bool:
@@ -110,6 +113,13 @@ class conversation:
         if next_sentence and len(next_sentence.sentence) > 0:
             if comm_consts.ACTION_REMOVECHARACTER in next_sentence.actions:
                 self.__context.remove_character(next_sentence.speaker)
+            if self.__function_manager.is_initialized() and self.__function_manager.llm_output_call_type == "function":
+                # Prefix the function name with "mantella_" and add it to the actions list
+                mantella_function_name = "mantella_" + self.__function_manager.llm_output_function_name
+                next_sentence.actions.append(mantella_function_name)
+                next_sentence.target_ids.append(self.__function_manager.llm_output_target_id)
+                next_sentence.target_names.append(self.__function_manager.llm_output_target_name)
+                self.__function_manager.clear_llm_output_data() 
             #if there is a next sentence and it actually has content, return it as something for an NPC to say 
             return comm_consts.KEY_REPLYTYPE_NPCTALK, next_sentence
         else:
@@ -154,6 +164,10 @@ class conversation:
             logging.log(23, f"Text passed to NPC: {text}")
 
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
+        ConversationIsEnded =self.__has_conversation_ended(text)
+        if ConversationIsEnded==False and self.__function_manager.is_initialized() and not self.__context.npcs_in_conversation.contains_multiple_npcs(): #No actions for multi NPC conversations
+            self.__function_manager.process_function_call(self.__messages,text)
+
         if ejected_npc:
             self.__prepare_eject_npc_from_conversation(ejected_npc)
         elif self.__has_conversation_ended(text):

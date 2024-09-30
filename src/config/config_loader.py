@@ -218,7 +218,17 @@ class ConfigLoader:
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
             self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
 
-            
+            #FUNCTION_LLM
+            self.function_enable_inference = self.__definitions.get_bool_value("enable_function_inference")
+            self.function_llm = self.__definitions.get_string_value("function_llm_model")
+            self.function_llm_api = self.__definitions.get_string_value("function_llm_api")
+            self.function_llm_custom_token_count = self.__definitions.get_int_value("function_llm_custom_token_count")
+            self.function_llm_temperature = self.__definitions.get_float_value("function_llm_temperature")
+            self.function_llm_top_p = self.__definitions.get_float_value("function_llm_top_p")
+
+            self.function_llm_stop = None
+            self.function_llm_frequency_penalty = self.__definitions.get_float_value("function_llm_frequency_penalty")
+            self.function_llm_max_tokens = self.__definitions.get_int_value("function_llm_max_tokens")
 
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
             #Debugging

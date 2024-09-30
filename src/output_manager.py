@@ -5,6 +5,7 @@ import logging
 import time
 import re
 import unicodedata
+import json
 from openai import APIConnectionError
 from src.games.gameable import gameable
 from src.conversation.action import action
@@ -16,12 +17,12 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.llm.messages import message
 from src.llm.message_thread import message_thread
-from src.llm.openai_client import openai_client
+from src.llm.openai_client import openai_client, function_client
 from src.tts.ttsable import ttsable
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ChatManager:
-    def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: openai_client):
+    def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: openai_client, function_client_instance: function_client):
         self.loglevel = 28
         self.__game: gameable = game
         self.__config: ConfigLoader = config
@@ -30,12 +31,25 @@ class ChatManager:
         # self.wait_time_buffer = config.wait_time_buffer
         self.__tts: ttsable = tts
         self.__client: openai_client = client
+        self.__function_client: function_client = function_client_instance 
         self.__is_generating: bool = False
         self.__stop_generation: bool = False
         self.__tts_access_lock = Lock()
         # self.__number_words_tts: int = config.number_words_tts
         self.__end_of_sentence_chars = ['.', '?', '!', ':', ';']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
+        self.__generated_function_results_lock = Lock()
+        self.__generated_function_results = None
+
+    @property
+    def generated_function_results(self):
+        with self.__generated_function_results_lock:
+            return self.__generated_function_results
+
+    @generated_function_results.setter
+    def generated_function_results(self, value):
+        with self.__generated_function_results_lock:
+            self.__generated_function_results = value
 
     def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> mantella_sentence:
         """Generates the audio for a text and returns the corresponding sentence
@@ -341,3 +355,59 @@ class ChatManager:
             # before the ChatManager realises there is not another message coming from the LLM
             blocking_queue.put(mantella_sentence(active_character,"","",0, True))
             self.__is_generating = False
+
+    def generate_simple_response_from_message_thread(self, messages, response_type: str, tools_list: list[str] = None):
+        # Generates a response for a single message without characters or actions.
+        self.__is_generating = True
+        if response_type.lower() == "function":
+            llm_response = self.__function_client.request_call(messages, tools_list)
+            if llm_response:
+                # Check if the response is a string and convert it to JSON if necessary
+                if isinstance(llm_response, str):
+                    try:
+                        llm_response = json.loads(llm_response)
+                    except json.JSONDecodeError as e:
+                        logging.error("Failed to decode JSON from LLM response: %s", e)
+                        return
+
+                # Check if 'choices' exists and is not empty
+                if 'choices' in llm_response and llm_response['choices']:
+                    for choice in llm_response['choices']:
+                        # Safely access 'message' and 'tool_calls'
+                        tool_calls = choice.get('message', {}).get('tool_calls')
+                        if tool_calls and isinstance(tool_calls, list) and tool_calls:
+                            first_tool_call = tool_calls[0]
+                            self.generated_function_results = self.process_tool_call(first_tool_call)
+                        else:
+                            print("No tool calls found in response or tool_calls is not a list")
+                else:
+                    print("No choices found in response")
+            else:
+                logging.error("No valid response received from LLM")
+        else:
+            logging.error("Unsupported response type for direct calls")
+
+    def process_tool_call(self,tool_call):
+        # Check if 'function' and required fields are in tool_call
+        if 'function' in tool_call and 'name' in tool_call['function'] and 'arguments' in tool_call['function']:
+            function_name = tool_call['function']['name']
+            arguments = json.loads(tool_call['function']['arguments'])
+            # Safely get 'type' from tool_call or default to 'unknown'
+            call_type = tool_call.get('type', 'unknown') if isinstance(tool_call, dict) else 'unknown'
+        
+
+            print("Function Name:", function_name)
+            print("Call Type:", call_type)
+            print("Arguments:", arguments)
+            return call_type, function_name, arguments
+            # Optional: Store values in variables if further processing is needed
+            # function_name_var = function_name
+            # call_type_var = call_type
+            # arguments_var = arguments
+        else:
+            print("Missing function details in tool call")
+
+
+
+    
+        
