@@ -8,7 +8,9 @@ from src.config.types.config_value_string import ConfigValueString
 class VisionDefinitions:
     @staticmethod
     def get_vision_enabled_config_value() -> ConfigValue:
-        return ConfigValueBool("vision_enabled", "Vision", "If enabled, in-game screenshots are passed to the chosen LLM with each player response. This feature is only compatible with LLMs that accept image as well as text inputs.", False)
+        description = """If enabled, in-game screenshots are passed to the chosen LLM with each player response. This feature is only compatible with LLMs that accept image as well as text input.
+                        **Please ensure your game window is visible on screen when running and is not blocked by other windows!**"""
+        return ConfigValueBool("vision_enabled", "Vision", description, False)
     
     @staticmethod
     def get_low_resolution_mode_config_value() -> ConfigValue:

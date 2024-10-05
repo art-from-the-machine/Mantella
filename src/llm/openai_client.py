@@ -33,6 +33,8 @@ class LLMModelList:
         return self.__allows_manual_model_input
     
     def is_model_in_list(self, model: str) -> bool:
+        if self.__allows_manual_model_input:
+            return True
         for model_in_list in self.__available_models:
             if model_in_list[1] == model:
                 return True
@@ -98,20 +100,6 @@ class openai_client:
             self.__is_local: bool = False
 
             self.__api_key = self.get_secret_key(secret_key_file)
-
-            if not self.__api_key:
-                game_installation_page = 'https://art-from-the-machine.github.io/Mantella/pages/installation.html#language-models-llms'
-                if 'Fallout4' in config.game:
-                    game_installation_page = 'https://art-from-the-machine.github.io/Mantella/pages/installation_fallout4.html#language-models-llms'
-
-                logging.error(f'''No secret key found in GPT_SECRET_KEY.txt.
-Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
-If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
-If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
-If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running.
-For more information, see here: 
-{game_installation_page}''')
-                input("Press create a secret key and restart your game.")
 
             if config.llm == 'undi95/toppy-m-7b:free':
                 logging.log(24, "Running Mantella with default LLM 'undi95/toppy-m-7b:free' (OpenRouter). For higher quality responses, better NPC memories, and more performant multi-NPC conversations, consider changing this model via the `model` setting in MantellaSoftware/config.ini")
@@ -402,14 +390,26 @@ For more information, see here:
         return token_limit
     
     @staticmethod
-    def get_secret_key(secret_key_file: str) -> str:
+    def get_secret_key(secret_key_file: str) -> str | None:
         try: # first check mod folder for secret key
             mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
             with open(mod_parent_folder+'\\'+secret_key_file, 'r') as f:
-                return f.readline().strip()
+                secret_key = f.readline().strip()
         except: # check locally (same folder as exe) for secret key
             with open(secret_key_file, 'r') as f:
-                return f.readline().strip()
+                secret_key = f.readline().strip()
+
+        if not secret_key or secret_key == '':
+                logging.critical(f'''No secret key found in GPT_SECRET_KEY.txt.
+Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
+If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
+If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
+If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is selected and running.
+For more information, see here: https://art-from-the-machine.github.io/Mantella/''')
+                return None
+        
+        else:
+            return secret_key
 
     @staticmethod
     def get_model_list(service: str) -> LLMModelList:
@@ -422,11 +422,18 @@ For more information, see here:
                 # OpenAI models are not a "live" list, so manual input needs to be allowed for when new models not listed are released
                 allow_manual_model_input = True
             elif service == "OpenRouter":
-                default_model = "undi95/toppy-m-7b:free"
+                default_model = "google/gemma-2-9b-it:free"
                 secret_key = openai_client.get_secret_key('GPT_SECRET_KEY.txt')
-                client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
+                if not secret_key:
+                    return LLMModelList([("No secret key found in GPT_SECRET_KEY.txt", "Custom model")], "Custom model", allows_manual_model_input=True)
                 # NOTE: while a secret key is not needed for this request, this may change in the future
+                client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
+                # don't log initial 'HTTP Request: GET https://openrouter.ai/api/v1/models "HTTP/1.1 200 OK"'
+                logging.getLogger('openai').setLevel(logging.ERROR)
+                logging.getLogger("httpx").setLevel(logging.ERROR)
                 models = client.models.list()
+                logging.getLogger('openai').setLevel(logging.INFO)
+                logging.getLogger("httpx").setLevel(logging.INFO)
                 client.close()
                 allow_manual_model_input = False
 
@@ -448,6 +455,6 @@ For more information, see here:
                     model_display_name = model.id
                 options.append((model_display_name, model.id))
             return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
-        except APIConnectionError as e:
-            error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required: {e}"
-            return LLMModelList([(error,"error")], "error", allows_manual_model_input=allow_manual_model_input)
+        except Exception as e:
+            error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required. The file is in your mod folder of Mantella. Error: {e}"
+            return LLMModelList([(error,"error")], "error", allows_manual_model_input=False)

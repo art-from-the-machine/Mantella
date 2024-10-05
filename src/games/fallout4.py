@@ -36,15 +36,14 @@ class fallout4(gameable):
         self.__last_played_voiceline: str | None = None
 
 
-    def load_external_character_info(self, id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
-        character_info, is_generic_npc = self.find_character_info(id, name, race, gender, ingame_voice_model)
+    def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
+        character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
         actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
         return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None)) 
     
-    def load_unnamed_npc(self, name: str, race: str, gender: int, ingame_voice_model:str) -> dict[str, Any]:
-        """Load generic NPC if character cannot be found in fallout4_characters.csv"""
-        # unknown == I couldn't find the IDs for these voice models
+    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str) -> str:
+        voice_model = ''
 
         actor_voice_model = ingame_voice_model
         actor_voice_model_id = actor_voice_model.split('(')[1].split(')')[0]
@@ -58,14 +57,7 @@ class fallout4(gameable):
             actor_voice_model_name='gen1synth01'
             actor_voice_model_id='000BBBF0'
 
-        actor_race = race
-        actor_sex = gender
-
-        logging.log(23, f"Current voice actor is voice model {actor_voice_model_name} with ID {actor_voice_model_id} gender {actor_sex} race {actor_race} ")
-
-        voice_model = ''
         matching_row=''
-        FO4_voice_folder=''
         # Search for the Matching 'voice_ID'
         matching_row = self.__FO4_Voice_folder_and_models_df[self.__FO4_Voice_folder_and_models_df['voice_ID'] == actor_voice_model_id]
 
@@ -73,8 +65,6 @@ class fallout4(gameable):
         if not matching_row.empty:
             # Assuming there's only one match, get the value from the 'voice_model' column
             voice_model = matching_row['voice_model'].iloc[0]
-            FO4_voice_folder = matching_row['voice_file_name'].iloc[0]
-            logging.log(23, f"Matched voice model with ID to {FO4_voice_folder}")  # Or use the variable as needed
         else:
             logging.log(23, "No matching voice ID found. Attempting voice_file_name match.")
       
@@ -84,7 +74,6 @@ class fallout4(gameable):
             if not matching_row_by_name.empty:
                 # If there is a match, set 'voice_model' to 'actor_voice_model_name'
                 voice_model = matching_row_by_name['voice_model'].iloc[0]
-                FO4_voice_folder = matching_row_by_name['voice_file_name'].iloc[0]
             else:
                 try: # search for voice model in fallout4_characters.csv
                     voice_model = self.character_df.loc[self.character_df['fallout4_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
@@ -101,18 +90,27 @@ class fallout4(gameable):
                             voice_model = fallout4.MALE_VOICE_MODELS[modified_race_key]
                         except:
                             voice_model = 'maleboston'
-        if FO4_voice_folder == '':
-            try: # search for relevant FO4_Voice_folder_and_models_df for voice_model
-                matching_row_by_voicemodel = self.__FO4_Voice_folder_and_models_df[self.__FO4_Voice_folder_and_models_df['voice_model'].str.lower() == voice_model.lower()]
-                if not matching_row_by_voicemodel.empty:
-                    # FO4_voice_folder becomes the matching row of FO4_Voice_folder_XVASynth_matches.csv
-                    FO4_voice_folder = matching_row_by_voicemodel['voice_file_name'].iloc[0]
-            except: # assume it is simply the voice_model name without spaces
-                FO4_voice_folder = voice_model.replace(' ','')
+
+        return voice_model
+
+    
+    def load_unnamed_npc(self, name: str, actor_race: str, actor_sex: int, ingame_voice_model:str) -> dict[str, Any]:
+        """Load generic NPC if character cannot be found in fallout4_characters.csv"""
+        # unknown == I couldn't find the IDs for these voice models
+
+        voice_model = self.find_best_voice_model(actor_race, actor_sex, ingame_voice_model)
+
+        try: # search for relevant FO4_Voice_folder_and_models_df for voice_model
+            matching_row_by_voicemodel = self.__FO4_Voice_folder_and_models_df[self.__FO4_Voice_folder_and_models_df['voice_model'].str.lower() == voice_model.lower()]
+            if not matching_row_by_voicemodel.empty:
+                # FO4_voice_folder becomes the matching row of FO4_Voice_folder_XVASynth_matches.csv
+                FO4_voice_folder = matching_row_by_voicemodel['voice_file_name'].iloc[0]
+        except: # assume it is simply the voice_model name without spaces
+            FO4_voice_folder = voice_model.replace(' ','')
         
         character_info = {
             'name': name,
-            'bio': f'You are a {name}',
+            'bio': f'You are a {"male" if actor_sex==0 else "female"} {actor_race if actor_race.lower() != name.lower() else ""} {name}.',
             'voice_model': voice_model,
             'advanced_voice_model': '',
             'fallout4_voice_folder': FO4_voice_folder,
@@ -142,7 +140,7 @@ class fallout4(gameable):
             # only warn on failure
             logging.warning(e)
 
-            logging.log(23, f"{speaker.name}: {queue_output.sentence}")
+        logging.log(23, f"{speaker.name}: {queue_output.sentence}")
 
         self.__last_played_voiceline = queue_output.voice_file
         logging.info(f"{speaker.name}: {queue_output.sentence}")

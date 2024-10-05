@@ -36,7 +36,8 @@ class GameStateManager:
         self.__talk: conversation | None = None
         self.__actions: list[action] =  [action(comm_consts.ACTION_NPC_OFFENDED, config.offended_npc_response, f"The player offended the NPC"),
                                                 action(comm_consts.ACTION_NPC_FORGIVEN, config.forgiven_npc_response, f"The player made up with the NPC"),
-                                                action(comm_consts.ACTION_NPC_FOLLOW, config.follow_npc_response, f"The NPC is willing to follow the player")]
+                                                action(comm_consts.ACTION_NPC_FOLLOW, config.follow_npc_response, f"The NPC is willing to follow the player"),
+                                                action(comm_consts.ACTION_NPC_INVENTORY, config.inventory_npc_response, f"The NPC is willing to show their inventory to the player")]
 
     ###### react to calls from the game #######
     def start_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
@@ -56,9 +57,7 @@ class GameStateManager:
     
     def continue_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(not self.__talk ):
-            return self.error_message("No running conversation at this point")
-        
-        self.__update_context(input_json) # TODO: check how fast reloading characters each conversation turn is
+            return self.error_message("No running conversation.")
         
         if input_json.__contains__(comm_consts.KEY_REQUEST_EXTRA_ACTIONS):
             extra_actions: list[str] = input_json[comm_consts.KEY_REQUEST_EXTRA_ACTIONS]
@@ -78,11 +77,26 @@ class GameStateManager:
 
     def player_input(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(not self.__talk ):
-            return self.error_message("No running conversation at this point")
+            return self.error_message("No running conversation.")
         
         player_text: str = input_json[comm_consts.KEY_REQUESTTYPE_PLAYERINPUT]
         self.__update_context(input_json)
         self.__talk.process_player_input(player_text)
+
+        cleaned_player_text = utils.clean_text(player_text)
+        npcs_in_conversation = self.__talk.context.npcs_in_conversation
+        if not npcs_in_conversation.contains_multiple_npcs(): # actions are only enabled in 1-1 conversations
+            for action in self.__actions:
+                # if the player response is just the name of an action, force the action to trigger
+                if action.keyword.lower() == cleaned_player_text.lower():
+                    return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCACTION,
+                            comm_consts.KEY_REPLYTYPE_NPCACTION: {
+                                'mantella_actor_speaker': npcs_in_conversation.last_added_character.name,
+                                'mantella_actor_actions': [action.game_action_identifier],
+                                }
+                            }
+        
+        # if the player response is not an action command, return a regular player reply type
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}
 
     def end_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
@@ -90,7 +104,8 @@ class GameStateManager:
             self.__talk.end()
             self.__talk = None
 
-        logging.log(24, '\nConversations not starting when you select an NPC? See here:\nhttps://art-from-the-machine.github.io/Mantella/pages/issues_qna')
+        logging.log(24, '\nConversations not starting when you select an NPC? See here:')
+        logging.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
         logging.log(24, '\nWaiting for player to select an NPC...')
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_ENDCONVERSATION}
 
@@ -98,14 +113,14 @@ class GameStateManager:
 
     def character_to_json(self, character_to_jsonfy: Character) -> dict[str, Any]:
         return {
-            comm_consts.KEY_ACTOR_ID: character_to_jsonfy.id,
+            comm_consts.KEY_ACTOR_BASEID: character_to_jsonfy.base_id,
             comm_consts.KEY_ACTOR_NAME: character_to_jsonfy.name,
         }
     
     def sentence_to_json(self, sentence_to_prepare: sentence) -> dict[str, Any]:
         return {
             comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.speaker.name,
-            comm_consts.KEY_ACTOR_LINETOSPEAK: sentence_to_prepare.sentence,
+            comm_consts.KEY_ACTOR_LINETOSPEAK: sentence_to_prepare.sentence.strip(),
             comm_consts.KEY_ACTOR_VOICEFILE: sentence_to_prepare.voice_file,
             comm_consts.KEY_ACTOR_DURATION: sentence_to_prepare.voice_line_duration,
             comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions
@@ -122,7 +137,7 @@ class GameStateManager:
                     actors_in_json.append(actor)
             
             self.__talk.add_or_update_character(actors_in_json)
-            location: str = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_LOCATION]
+            location: str = json[comm_consts.KEY_CONTEXT].get(comm_consts.KEY_CONTEXT_LOCATION, None)
             time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
             ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
             custom_context_values: dict[str, Any] = {}
@@ -151,7 +166,9 @@ class GameStateManager:
     @utils.time_it
     def load_character(self, json: dict[str, Any]) -> Character | None:
         try:
-            character_id: str = str(json[comm_consts.KEY_ACTOR_ID])
+            base_id: str = utils.convert_to_skyrim_hex_format(str(json[comm_consts.KEY_ACTOR_BASEID]))
+            ref_id: str = utils.convert_to_skyrim_hex_format(str(json[comm_consts.KEY_ACTOR_REFID]))
+            ref_id = ref_id[-6:].upper() # ignore plugin ID at the start of the ref ID as this can vary by load order
             character_name: str = str(json[comm_consts.KEY_ACTOR_NAME])
             gender: int = int(json[comm_consts.KEY_ACTOR_GENDER])
             race: str = str(json[comm_consts.KEY_ACTOR_RACE])
@@ -175,8 +192,8 @@ class GameStateManager:
             advanced_voice_model: str = ""
             voice_accent: str = ""
             is_player_character: bool = bool(json[comm_consts.KEY_ACTOR_ISPLAYER])
-            if self.__talk and self.__talk.contains_character(character_id):
-                already_loaded_character: Character | None = self.__talk.get_character(character_id)
+            if self.__talk and self.__talk.contains_character(ref_id):
+                already_loaded_character: Character | None = self.__talk.get_character(ref_id)
                 if already_loaded_character:
                     bio = already_loaded_character.bio
                     tts_voice_model = already_loaded_character.tts_voice_model
@@ -185,7 +202,7 @@ class GameStateManager:
                     voice_accent = already_loaded_character.voice_accent
                     is_generic_npc = already_loaded_character.is_generic_npc
             elif self.__talk and not is_player_character :#If this is not the player and the character has not already been loaded
-                external_info: external_character_info = self.__game.load_external_character_info(character_id, character_name, race, gender, actor_voice_model)
+                external_info: external_character_info = self.__game.load_external_character_info(base_id, character_name, race, gender, actor_voice_model)
                 
                 bio = external_info.bio
                 tts_voice_model = external_info.tts_voice_model
@@ -202,7 +219,8 @@ class GameStateManager:
                 else:
                     tts_voice_model = self.__get_player_voice_model(None)
 
-            return Character(character_id,
+            return Character(base_id,
+                            ref_id,
                             character_name,
                             gender,
                             race,

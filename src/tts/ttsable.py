@@ -9,6 +9,7 @@ from pathlib import Path
 from subprocess import STARTUPINFO, STARTF_USESHOWWINDOW
 import subprocess
 import time
+import re
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ttsable(ABC):
@@ -65,18 +66,22 @@ class ttsable(ABC):
 
         #rename to unique name        
         if (os.path.exists(final_voiceline_file)):
+            #logging.info(f"Folder {self._voiceline_folder} File {final_voiceline_file_name}")
             try:
                 timestamp: str = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f_")
                 new_wav_file_name = f"{self._voiceline_folder}/{timestamp + final_voiceline_file_name}.wav" 
                 new_lip_file_name = new_wav_file_name.replace(".wav", ".lip")
                 new_fuz_file_name = new_wav_file_name.replace(".wav", ".fuz")
                 os.rename(final_voiceline_file, new_wav_file_name)
+
                 try:
                     os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
                 except:
                     logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".lip")}')
                 try:
-                    os.rename(final_voiceline_file.replace(".wav", ".fuz"), new_fuz_file_name)
+                    fuz_file_name = final_voiceline_file.replace(".wav", ".fuz")
+                    if (os.path.exists(fuz_file_name)):
+                        os.rename(fuz_file_name, new_fuz_file_name)
                 except:
                     logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".fuz")}')
                 final_voiceline_file = new_wav_file_name
@@ -162,7 +167,7 @@ class ttsable(ABC):
                 self._generate_lip_file(wav_file, voiceline, attempts)
             
             #Fallout: generate FUZ file
-            if self._game == "Fallout4":    
+            if self._game == "Fallout4" or self._game == "Skyrim":    
                 fuz_extractor_executable = Path(self._facefx_path) / "Fuz_extractor.exe"
                 if not fuz_extractor_executable.exists():
                     logging.error(f'Could not find Fuz_extractor.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')

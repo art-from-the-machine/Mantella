@@ -12,7 +12,7 @@ from pathlib import Path
 class Transcriber:
     def __init__(self, config: ConfigLoader, secret_key_file: str):
         self.loglevel = 27
-        # self.mic_enabled = config.mic_enabled
+        #self.mic_enabled = config.mic_enabled
         self.language = config.stt_language
         self.task = "transcribe"
         if config.stt_translate == 1:
@@ -39,7 +39,7 @@ class Transcriber:
         self.__ignore_list = ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much', "thank you for watching and i'll see you in the next video", "we'll see you in the next video", 'see you next time']
             
 
-        # if self.mic_enabled == '1':
+        #if self.mic_enabled == '1':
         self.recognizer = sr.Recognizer()
         self.recognizer.pause_threshold = config.pause_threshold
         self.microphone = sr.Microphone()

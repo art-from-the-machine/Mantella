@@ -63,8 +63,9 @@ class SettingsUIConstructor(ConfigValueVisitor):
     def __on_change(self, config_value: ConfigValue[T], new_value: T) -> gr.Markdown:
         result: ConfigValueConstraintResult = config_value.does_value_cause_error(new_value)
         if result.is_success:
-            config_value.value = new_value
-            logging.info(f'{config_value.name} set to {config_value.value}')           
+            if config_value.value != new_value:
+                config_value.value = new_value
+                logging.info(f'{config_value.name} set to {config_value.value}')
             return self.__construct_error_message_panel('', is_visible=False)
         else:
             return self.__construct_error_message_panel(result.error_message, is_visible=True)
@@ -114,9 +115,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
     def visit_ConfigValueInt(self, config_value: ConfigValueInt):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Number:
             config_value = typing.cast(ConfigValueInt, raw_config_value)
-            return gr.Number(value=config_value.value, 
-                        minimum=config_value.min_value, 
-                        maximum=config_value.max_value, 
+            return gr.Number(value=config_value.value,
                         precision=0,
                         show_label=False, 
                         container=False)
@@ -127,8 +126,6 @@ class SettingsUIConstructor(ConfigValueVisitor):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Number:
             config_value = typing.cast(ConfigValueFloat, raw_config_value)
             return gr.Number(value=config_value.value, 
-                    minimum=config_value.min_value, 
-                    maximum=config_value.max_value, 
                     precision=2,
                     show_label=False, 
                     container=False,

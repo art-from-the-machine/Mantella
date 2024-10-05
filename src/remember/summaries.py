@@ -8,6 +8,7 @@ from src.llm.messages import user_message
 from src.characters_manager import Characters
 from src.character_manager import Character
 from src.remember.remembering import remembering
+from src import utils
 
 class summaries(remembering):
     """ Stores a conversation as a summary in a text file.
@@ -57,23 +58,27 @@ class summaries(remembering):
 
     def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False):
         summary = ''
-        non_generic_npc: list[Character] = []
         for npc in npcs_in_conversation.get_all_characters():
-            if npc.is_generic_npc:
-                logging.info('A summary will not be saved for this generic NPC.')            
-            elif not npc.is_player_character:
-                non_generic_npc.append(npc)
-        for npc in non_generic_npc:            
-            if len(summary) < 1: # if a summary has not already been generated, make one
-                summary = self.__create_new_conversation_summary(messages, npc.name)
-            if len(summary) > 0 or is_reload: # if a summary has been generated, give the same summary to all NPCs
-                self.__append_new_conversation_summary(summary, npc, world_id)
+            if not npc.is_player_character:
+                if len(summary) < 1: # if a summary has not already been generated, make one
+                    summary = self.__create_new_conversation_summary(messages, npc.name)
+                if len(summary) > 0 or is_reload: # if a summary has been generated, give the same summary to all NPCs
+                    self.__append_new_conversation_summary(summary, npc, world_id)
 
     def __get_latest_conversation_summary_file_path(self, character: Character, world_id: str) -> str:
         """Get latest conversation summary by file name suffix"""
 
-        name: str = character.name
-        character_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name)
+        # if multiple NPCs in a conversation have the same name (eg Whiterun Guard) their names are appended with number IDs
+        # these IDs need to be removed when saving the conversation
+        name: str = utils.remove_trailing_number(character.name)
+        
+        name_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name)
+        if os.path.exists(name_conversation_folder_path): # if a conversation folder already exists for this NPC, use it
+            character_conversation_folder_path = name_conversation_folder_path
+        else: # else include the NPC's reference ID in the folder name to differentiate generic NPCs
+            name_ref: str = f'{name} - {character.ref_id}'
+            character_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name_ref)
+        
         if os.path.exists(character_conversation_folder_path):
             # get all files from the directory
             files = os.listdir(character_conversation_folder_path)
