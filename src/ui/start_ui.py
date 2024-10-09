@@ -74,7 +74,7 @@ class StartUI(routeable):
                 logging.log(25, link)
     
     def __load_css(self):
-        with open('src/ui/style.css', 'r') as file:
+        with open('data/style.css', 'r') as file:
             css_content = file.read()
         return css_content
     

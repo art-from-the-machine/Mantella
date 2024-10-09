@@ -167,7 +167,7 @@ class ttsable(ABC):
                 self._generate_lip_file(wav_file, voiceline, attempts)
             
             #Fallout: generate FUZ file
-            if self._game == "Fallout4" or self._game == "Skyrim":    
+            if self._game == "Fallout4":    
                 fuz_extractor_executable = Path(self._facefx_path) / "Fuz_extractor.exe"
                 if not fuz_extractor_executable.exists():
                     logging.error(f'Could not find Fuz_extractor.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
