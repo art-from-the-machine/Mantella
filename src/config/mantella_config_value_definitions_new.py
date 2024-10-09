@@ -18,13 +18,13 @@ class MantellaConfigValueDefinitionsNew:
     @staticmethod
     def get_config_values(on_value_change_callback: Callable[..., Any] | None = None) -> ConfigValues:
         result: ConfigValues = ConfigValues()
-
+        is_integrated = "--integrated" in sys.argv
         # hidden_category= ConfigValueGroup("Hidden", "Hidden", "Don't show these on the UI", on_value_change_callback, is_hidden=True)
         # hidden_category.add_config_value(ConfigValueBool("show_advanced","","", False, is_hidden=True))
         # result.add_base_group(hidden_category)
 
         # if "--integrated" not in sys.argv: # if integrated, these paths are all relative so do not need to be manually set
-        game_category = ConfigValueGroup("Game", "Game", "Settings for the games Mantella supports.", on_value_change_callback,"--integrated" in sys.argv)
+        game_category = ConfigValueGroup("Game", "Game", "Settings for the games Mantella supports.", on_value_change_callback, is_integrated)
         game_category.add_config_value(GameDefinitions.get_game_config_value())
         game_category.add_config_value(GameDefinitions.get_skyrim_mod_folder_config_value())
         game_category.add_config_value(GameDefinitions.get_skyrimvr_mod_folder_config_value())
@@ -53,8 +53,8 @@ class MantellaConfigValueDefinitionsNew:
         tts_category.add_config_value(TTSDefinitions.get_tts_service_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xvasynth_folder_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_folder_config_value())
-        tts_category.add_config_value(TTSDefinitions.get_piper_folder_config_value())
-        tts_category.add_config_value(TTSDefinitions.get_facefx_folder_config_value())
+        tts_category.add_config_value(TTSDefinitions.get_piper_folder_config_value(is_integrated))
+        tts_category.add_config_value(TTSDefinitions.get_facefx_folder_config_value(is_integrated))
         tts_category.add_config_value(TTSDefinitions.get_number_words_tts_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_url_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_default_model_config_value())
