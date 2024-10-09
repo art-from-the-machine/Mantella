@@ -29,7 +29,7 @@ class gameable(ABC):
             input("Press Enter to exit.")
 
         #Apply character overrides
-        mod_overrides_folder = os.path.join(*[config.mod_path_base,"SKSE","Plugins","MantellaSoftware","data",f"{mantella_game_folder_path}","character_overrides"])
+        mod_overrides_folder = os.path.join(*[config.mod_path_base, self.extender_name, "Plugins","MantellaSoftware","data",f"{mantella_game_folder_path}","character_overrides"])
         self.__apply_character_overrides(mod_overrides_folder, self.__character_df.columns.values.tolist())
         personal_overrides_folder = os.path.join(config.save_folder, f"data/{mantella_game_folder_path}/character_overrides")     
         self.__apply_character_overrides(personal_overrides_folder, self.__character_df.columns.values.tolist())
@@ -42,6 +42,12 @@ class gameable(ABC):
     def character_df(self) -> pd.DataFrame:
         return self.__character_df
     
+    @property
+    @abstractmethod
+    def extender_name(self) -> str:
+        """ Return name of the appropriate script extender (SKSE/F4SE) """
+        pass
+
     @property
     def conversation_folder_path(self) -> str:
         return self.__conversation_folder_path
