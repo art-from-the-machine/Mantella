@@ -1,4 +1,5 @@
 from typing import Any, TypeVar
+from src.config.types.config_value_multi_selection import ConfigValueMultiSelection
 from src.config.config_value_constraint import ConfigValueConstraintResult
 from src.config.types.config_value import ConfigValue
 from src.config.types.config_value_bool import ConfigValueBool
@@ -20,6 +21,7 @@ class ConfigValues(ConfigValueVisitor):
         self.__bool_values: dict[str, tuple[ConfigValueBool, str]] = {}
         self.__string_values: dict[str, tuple[ConfigValueString, str]] = {}
         self.__selection_values: dict[str, tuple[ConfigValueSelection, str]] = {}
+        self.__multi_selection_values: dict[str, tuple[ConfigValueMultiSelection, str]] = {}
         self.__path_values: dict[str, tuple[ConfigValuePath, str]] = {}
         self.__constraint_violations: dict[str, list[str]] = {}
         self.__last_section_id: str = ""
@@ -64,6 +66,9 @@ class ConfigValues(ConfigValueVisitor):
                 return self.__get_value(self.__selection_values, identifier)
             except:
                 return self.__get_value(self.__path_values, identifier)
+            
+    def get_string_list_value(self, identifier: str) -> list[str]:
+        return self.__get_value(self.__multi_selection_values, identifier)
     
     def clear_constraint_violations(self):
         self.__constraint_violations.clear()
@@ -93,6 +98,10 @@ class ConfigValues(ConfigValueVisitor):
         self.__selection_values[config_value.identifier] = config_value, self.__last_section_id
         self.__all_config_values[config_value.identifier] = config_value
 
+    def visit_ConfigValueMultiSelection(self, config_value: ConfigValueMultiSelection):
+        self.__multi_selection_values[config_value.identifier] = config_value, self.__last_section_id
+        self.__all_config_values[config_value.identifier] = config_value
+
     def visit_ConfigValuePath(self, config_value: ConfigValuePath):
         self.__path_values[config_value.identifier] = config_value, self.__last_section_id
         self.__all_config_values[config_value.identifier] = config_value
@@ -102,7 +111,7 @@ class ConfigValues(ConfigValueVisitor):
             self.__constraint_violations[config_value.identifier] = []
         self.__constraint_violations[config_value.identifier].append(text)
     
-    T = TypeVar('T', int, float, bool, str)
+    T = TypeVar('T', int, float, bool, str, list[str])
     def __get_value(self, dictionary_to_check: dict[str, tuple[Any, str]], identifier: str) -> T:
         if dictionary_to_check.__contains__(identifier):
             config_value, category = dictionary_to_check[identifier]

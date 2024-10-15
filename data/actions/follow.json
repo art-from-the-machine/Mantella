@@ -1,0 +1,12 @@
+{
+    "identifier": "mantella_npc_follow",
+    "name": "Follow",
+    "description": "The keyword used by the NPC when they are willing to become a follower.",
+    "key": "Follow",
+    "prompt": "If the player asks you to follow them, and you are thoroughly convinced to do so, begin your response with '{key}:'",
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": false,
+    "radiant": false,
+    "info-text": "The NPC is willing to follow the player"
+}
