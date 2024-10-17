@@ -1,6 +1,8 @@
 import logging
 import os
+from re import I
 import shutil
+
 from typing import Any
 import pandas as pd
 from src.http.file_communication_compatibility import file_communication_compatibility
@@ -16,13 +18,12 @@ import src.utils as utils
 
 class fallout4(gameable):
     FO4_XVASynth_file: str =f"data/Fallout4/FO4_Voice_folder_XVASynth_matches.csv"
-    WAV_FILE: str  = f'MantellaDi_MantellaDialogu_00001D8B_1.wav' #not used anymore since FO4 caches audio in a way that prevent wav file substitutions while the game is running
-    LIP_FILE: str  = f'00001ED2_1.lip'
     KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSX: str  = "mantella_player_pos_x"
     KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSY: str  = "mantella_player_pos_y"
     KEY_CONTEXT_CUSTOMVALUES_PLAYERROT: str  = "mantella_player_rot"
     KEY_ACTOR_CUSTOMVALUES_POSX: str  = "mantella_actor_pos_x"
     KEY_ACTOR_CUSTOMVALUES_POSY: str  = "mantella_actor_pos_y"
+    
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Fallout4/fallout4_characters.csv', "Fallout4")
@@ -32,26 +33,8 @@ class fallout4(gameable):
         encoding = utils.get_file_encoding(fallout4.FO4_XVASynth_file)
         self.__FO4_Voice_folder_and_models_df = pd.read_csv(fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)
         self.__playback: audio_playback = audio_playback(config)
-        self.create_all_voice_folders(self.__config)
         self.__last_played_voiceline: str | None = None
 
-    def create_all_voice_folders(self, config: ConfigLoader):
-        all_voice_folders = self.character_df["fallout4_voice_folder"]
-        all_voice_folders = all_voice_folders.loc[all_voice_folders.notna()]
-        set_of_voice_folders = set()
-        for voice_folder in all_voice_folders:
-            voice_folder = str.strip(voice_folder)
-            if voice_folder and not set_of_voice_folders.__contains__(voice_folder):
-                set_of_voice_folders.add(voice_folder)
-                in_game_voice_folder_path = f"{config.mod_path}/{voice_folder}/"
-                if not os.path.exists(in_game_voice_folder_path):
-                    os.mkdir(in_game_voice_folder_path)
-                    example_folder = f"{config.mod_path}/maleboston/"
-                    for file_name in os.listdir(example_folder):
-                        source_file_path = os.path.join(example_folder, file_name)
-
-                        if os.path.isfile(source_file_path):
-                            shutil.copy(source_file_path, in_game_voice_folder_path)
 
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
@@ -101,7 +84,7 @@ class fallout4(gameable):
                         try:
                             voice_model = fallout4.FEMALE_VOICE_MODELS[modified_race_key]
                         except:
-                             voice_model = 'femaleboston'
+                            voice_model = 'femaleboston'
                     else:
                         try:
                             voice_model = fallout4.MALE_VOICE_MODELS[modified_race_key]
@@ -122,8 +105,6 @@ class fallout4(gameable):
             if not matching_row_by_voicemodel.empty:
                 # FO4_voice_folder becomes the matching row of FO4_Voice_folder_XVASynth_matches.csv
                 FO4_voice_folder = matching_row_by_voicemodel['voice_file_name'].iloc[0]
-            else:
-                FO4_voice_folder = voice_model.replace(' ','')
         except: # assume it is simply the voice_model name without spaces
             FO4_voice_folder = voice_model.replace(' ','')
         
@@ -139,56 +120,40 @@ class fallout4(gameable):
     
     @utils.time_it
     def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
-        self.__delete_last_played_voiceline()
-
         audio_file = queue_output.voice_file
+        fuz_file = audio_file.replace(".wav",".fuz")
+        speaker = queue_output.speaker
+
+        lip_name = "00001ED2_1"
+        voice_name = "MantellaVoice00"
+
         if not os.path.exists(audio_file):
             return
         mod_folder = config.mod_path
+        
         # subtitle = queue_output.sentence
-        speaker: Character = queue_output.speaker
-        if config.add_voicelines_to_all_voice_folders:
-            for sub_folder in os.scandir(mod_folder):
-                if not sub_folder.is_dir():
-                    continue
-                # Copy FaceFX generated LIP file
-                try:
-                    shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.LIP_FILE}")
-                except Exception as e:
-                    # only warn on failure
-                    logging.warning(e)
-        else:
-            # Copy FaceFX generated LIP file
-            try:
-                voice_folder_path = f"{mod_folder}/{speaker.in_game_voice_model}"
-                if not os.path.exists(voice_folder_path):
-                    os.makedirs(voice_folder_path)
-                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{self.LIP_FILE}")
-            except Exception as e:
-                logging.error(f"Failed to create directory or copy lip file: {e}")
+        # Copy FaceFX generated FUZ file
+        try:
+            fuz_filepath = os.path.normpath(f"{mod_folder}/{voice_name}/{lip_name}.fuz")
+            shutil.copyfile(fuz_file, fuz_filepath)
+        except Exception as e:
+            # only warn on failure
+            logging.warning(e)
 
-        logging.log(23, f"{speaker.name} should speak")
+        logging.log(23, f"{speaker.name}: {queue_output.sentence}")
 
-        player_pos_x: float | None = context_of_conversation.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSX)
-        player_pos_y: float | None = context_of_conversation.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSY)
-        player_rot: float | None = context_of_conversation.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_PLAYERROT)
-        speaker_pos_x: float | None =  speaker.get_custom_character_value(self.KEY_ACTOR_CUSTOMVALUES_POSX)
-        speaker_pos_y: float | None = speaker.get_custom_character_value(self.KEY_ACTOR_CUSTOMVALUES_POSY)
-        if player_pos_x and player_pos_y and player_rot and speaker_pos_x and speaker_pos_y:
-            player_pos: tuple[float, float] = (float(player_pos_x), float(player_pos_y))
-            speaker_pos: tuple[float,float] = (float(speaker_pos_x), float(speaker_pos_y))
-            self.__playback.play_adjusted_volume(queue_output, speaker_pos, player_pos, float(player_rot))
-            self.__last_played_voiceline = queue_output.voice_file
+        self.__last_played_voiceline = queue_output.voice_file
+        logging.info(f"{speaker.name}: {queue_output.sentence}")
 
     def __delete_last_played_voiceline(self):
         if self.__last_played_voiceline:
             if os.path.exists(self.__last_played_voiceline):
                 os.remove(self.__last_played_voiceline)
                 self.__last_played_voiceline = None
-
+                
     def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:
         return True
-    
+
     def get_weather_description(self, weather_attributes: dict[str, Any]) -> str:
         """Returns a description of the current weather that can be used in the prompts
 
@@ -199,6 +164,11 @@ class fallout4(gameable):
             str: A prose description of the weather for the LLM
         """
         return ""
+    
+    @property
+    def extender_name(self) -> str:
+        return 'F4SE'
+
 
     MALE_VOICE_MODELS: dict[str, str] = {
         'AssaultronRace':	'robot_assaultron',
