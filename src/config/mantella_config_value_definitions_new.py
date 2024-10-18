@@ -1,4 +1,5 @@
 from typing import Any, Callable
+from src.conversation.action import action
 from src.config.config_values import ConfigValues
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value import ConfigValue
@@ -16,7 +17,7 @@ import sys
 
 class MantellaConfigValueDefinitionsNew:
     @staticmethod
-    def get_config_values(on_value_change_callback: Callable[..., Any] | None = None) -> ConfigValues:
+    def get_config_values(is_integrated: bool, actions: list[action], on_value_change_callback: Callable[..., Any] | None = None) -> ConfigValues:
         result: ConfigValues = ConfigValues()
         is_integrated = "--integrated" in sys.argv
         # hidden_category= ConfigValueGroup("Hidden", "Hidden", "Don't show these on the UI", on_value_change_callback, is_hidden=True)
@@ -98,10 +99,8 @@ class MantellaConfigValueDefinitionsNew:
         language_category.add_config_value(LanguageDefinitions.get_end_conversation_keyword_config_value())
         language_category.add_config_value(LanguageDefinitions.get_goodbye_npc_response())
         language_category.add_config_value(LanguageDefinitions.get_collecting_thoughts_npc_response())
-        language_category.add_config_value(LanguageDefinitions.get_offended_npc_response())
-        language_category.add_config_value(LanguageDefinitions.get_forgiven_npc_response())
-        language_category.add_config_value(LanguageDefinitions.get_follow_npc_response())
-        language_category.add_config_value(LanguageDefinitions.get_inventory_npc_response())
+        for action in actions:
+            language_category.add_config_value(LanguageDefinitions.get_action_keyword_override(action))
         result.add_base_group(language_category)
 
         prompts_category = ConfigValueGroup("Prompts", "Prompts", "Change the basic prompts used by Mantella.", on_value_change_callback)
@@ -122,6 +121,7 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         other_category.add_config_value(OtherDefinitions.get_remove_mei_folders_config_value())
+        other_category.add_config_value(OtherDefinitions.get_active_actions(actions))
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
         other_category.add_config_value(OtherDefinitions.get_hourly_time_config_value())

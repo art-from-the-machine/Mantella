@@ -39,11 +39,11 @@ class ConfigJsonWriter(ConfigValueVisitor):
         result: dict[str, Any] = {}
         result[self.KEY_TYPE] = "group"
         self.__add_id_name_and_description(result, config_value)
-        recursive: ConfigJsonWriter = ConfigJsonWriter()
-        for cf in config_value.value:
-            cf.accept_visitor(recursive)
-        result[self.KEY_VALUE] = recursive.get_Json()
-        self.__content.append(result)
+        # recursive: ConfigJsonWriter = ConfigJsonWriter()
+        # for cf in config_value.value:
+        #     cf.accept_visitor(recursive)
+        # result[self.KEY_VALUE] = recursive.get_Json()
+        # self.__content.append(result)
 
     def visit_ConfigValueInt(self, config_value: ConfigValueInt):
         result: dict[str, Any] = {}

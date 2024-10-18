@@ -1,7 +1,9 @@
+from src.conversation.action import action
 from src.config.types.config_value import ConfigValue, ConvigValueTag
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_string import ConfigValueString
+from src.config.types.config_value_multi_selection import ConfigValueMultiSelection
 
 
 class OtherDefinitions:
@@ -16,7 +18,13 @@ class OtherDefinitions:
         auto_launch_ui_description = """Whether the Mantella UI should launch automatically in your browser."""
         return ConfigValueBool("auto_launch_ui","Auto Launch UI",auto_launch_ui_description,True)
 
-    #Conversation
+    #Conversation        
+    @staticmethod
+    def get_active_actions(actions: list[action]) -> ConfigValue:
+        description = "The actions Mantella will provide."
+        default_value:list[str] = [a.name for a in actions]
+        return ConfigValueMultiSelection("active_actions","Actions to use",description, default_value, default_value)
+
     @staticmethod
     def get_automatic_greeting_config_value() -> ConfigValue:
         automatic_greeting_description = """Should a conversation be started with an automatic greeting from the LLM / NPC.
