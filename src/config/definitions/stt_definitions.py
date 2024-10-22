@@ -41,7 +41,7 @@ class STTDefinitions:
     @staticmethod
     def get_stt_language_config_value() -> ConfigValue:
         description = """The player's spoken language."""
-        return ConfigValueSelection("stt_language","STT Language",description,"default",["default","en", "ar", "da", "de", "el", "es", "fi", "fr", "hu", "it", "ko", "nl", "pl", "pt", "ro", "ru", "sv", "sw", "uk", "ha", "tr", "vi", "yo"], tags=[ConvigValueTag.advanced])
+        return ConfigValueSelection("stt_language","STT Language",description,"default",["default","en", "ar", "cs", "da", "de", "el", "es", "fi", "fr", "hi", "hu", "it", "ja", "ko", "nl", "pl", "pt", "ro", "ru", "sv", "sw", "uk", "ha", "tr", "vi", "yo"], tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_stt_translate_config_value() -> ConfigValue:
