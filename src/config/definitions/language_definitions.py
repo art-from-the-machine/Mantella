@@ -1,3 +1,4 @@
+from src.conversation.action import action
 from src.config.types.config_value import ConfigValue, ConvigValueTag
 from src.config.types.config_value_selection import ConfigValueSelection
 from src.config.types.config_value_string import ConfigValueString
@@ -21,25 +22,6 @@ class LanguageDefinitions:
         return ConfigValueString("collecting_thoughts_npc_response", "NPC Response: Collecting Thoughts","The response the NPC gives when they need to summarise the conversation because the maximum token count has been reached.","I need to gather my thoughts for a moment", tags=[ConvigValueTag.advanced])
 
     @staticmethod
-    def get_offended_npc_response() -> ConfigValue:
-        description = """The keyword used by the NPC when they are offended.
-                       This should match what is stated in the starting prompt."""
-        return ConfigValueString("offended_npc_response","NPC Response: Offended",description, "Offended", tags=[ConvigValueTag.advanced])
-
-    @staticmethod
-    def get_forgiven_npc_response() -> ConfigValue:
-        description = """The keyword used by the NPC when they have forgiven the player for offending them.
-                        This should match what is stated in the starting prompt."""
-        return ConfigValueString("forgiven_npc_response","NPC Response: Forgiven",description,"Forgiven", tags=[ConvigValueTag.advanced])
-
-    @staticmethod
-    def get_follow_npc_response() -> ConfigValue:
-        description = """The keyword used by the NPC when they are willing to become a follower.
-                        This should match what is stated in the starting prompt."""
-        return ConfigValueString("follow_npc_response","NPC Response: Follow",description,"Follow", tags=[ConvigValueTag.advanced])
-    
-    @staticmethod
-    def get_inventory_npc_response() -> ConfigValue:
-        description = """The keyword used by the NPC when they are willing to show their inventory.
-                        This should match what is stated in the starting prompt."""
-        return ConfigValueString("inventory_npc_response","NPC Response: Inventory",description,"Inventory", tags=[ConvigValueTag.advanced])
+    def get_action_keyword_override(action: action) -> ConfigValue:
+        identifier = action.identifier.lstrip("mantella_").lstrip("npc_")
+        return ConfigValueString(f"{identifier}_npc_response",f"NPC Response override: {action.name}",action.description, action.keyword, tags=[ConvigValueTag.advanced])

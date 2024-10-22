@@ -27,5 +27,9 @@ class ConfigValueVisitor(ABC):
         pass
 
     @abstractmethod
+    def visit_ConfigValueMultiSelection(self, config_value):
+        pass
+
+    @abstractmethod
     def visit_ConfigValuePath(self, config_value):
         pass

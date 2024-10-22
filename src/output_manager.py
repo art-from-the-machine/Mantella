@@ -186,7 +186,6 @@ class ChatManager:
             cumulative_sentence_bool = False
             current_sentence: str = ""
             actions_in_sentence: list[action] = []
-            show_inventory = False
             while True:
                 try:
                     start_time = time.time()
@@ -246,8 +245,6 @@ class ChatManager:
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:
-                                            if keyword_extraction.lower() == 'inventory':
-                                                show_inventory = True
                                             logging.log(28, action_to_take.info_text)
                                             actions_in_sentence.append(action_to_take)
                                             full_reply += f"{keyword_extraction}: "
@@ -274,9 +271,11 @@ class ChatManager:
                                 new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character)
                                 blocking_queue.put(new_sentence)
 
+                                has_interrupting_action = False
                                 if not new_sentence.error_message:
                                     for a in actions_in_sentence:
-                                        new_sentence.actions.append(a.game_action_identifier)
+                                        has_interrupting_action |= a.is_interrupting
+                                        new_sentence.actions.append( a.identifier)
                                 else:
                                     break
                                 
@@ -295,8 +294,8 @@ class ChatManager:
                                 # conversation has switched from radiant to multi NPC (this allows the player to "interrupt" radiant dialogue and include themselves in the conversation)
                                 # the conversation has ended
                                 # contains_player_character() == not radiant
-                                # the NPC is opening their inventory (subsequent lines get cut off anyway when the game pauses to open the inventory menu)
-                                if (num_sentences >= self.__config.max_response_sentences and characters.contains_player_character()) or (show_inventory):
+                                # the NPC should perform an interrupting action like opening their inventory (subsequent lines get cut off anyway when the game pauses to open the inventory menu)
+                                if (num_sentences >= self.__config.max_response_sentences and characters.contains_player_character()) or (has_interrupting_action):
                                     break
 
                     break
@@ -306,7 +305,10 @@ class ChatManager:
                     new_sentence = self.generate_sentence(error_response, active_character)
                     blocking_queue.put(new_sentence)
                     if new_sentence.error_message:
-                        break     
+                        break
+                    else:
+                        for a in actions_in_sentence:
+                            new_sentence.actions.append( a.identifier)
                     logging.log(self.loglevel, 'Retrying connection to API...')
                     time.sleep(5)
 
