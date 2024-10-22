@@ -31,16 +31,16 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
         return ConfigValuePath("xtts_server_folder", "XTTS Folder", "The folder you have the XTTS server downloaded to (the folder that contains xtts-api-server-mantella.exe).", "C:\\Games\\Steam\\steamapps\\common\\XTTS","xtts-api-server-mantella.exe")
     
     @staticmethod
-    def get_piper_folder_config_value() -> ConfigValue:
+    def get_piper_folder_config_value(is_hidden: bool = False) -> ConfigValue:
         #Note(Leidtier): Because this is a Frankenparameter, I just set it to be a string. It SHOULD be a path, but this would require a different handling of the default empty state
-        return ConfigValueString("piper_folder", "Piper Folder", "The folder where Piper is installed (where piper.exe exists).", "")
+        return ConfigValueString("piper_folder", "Piper Folder", "The folder where Piper is installed (where piper.exe exists).", "", is_hidden=is_hidden)
 
     @staticmethod
-    def get_facefx_folder_config_value() -> ConfigValue:
+    def get_facefx_folder_config_value(is_hidden: bool = False) -> ConfigValue:
         #Note(Leidtier): Because this is a Frankenparameter, I just set it to be a string. It SHOULD be a path, but this would require a different handling of the default empty state
         facefx_discription = """The FaceFXWrapper program converts WAV files to LIP files required by Bethesda games to accurately lip sync.
                             Leaving this empty will default to the xVASynth lip_fuz plugin folder location, which is xVASynth\\resources\\app\\plugins\\lip_fuz\\"""
-        return ConfigValueString("facefx_folder", "FaceFXWrapper Folder", facefx_discription, "")
+        return ConfigValueString("facefx_folder", "FaceFXWrapper Folder", facefx_discription, "", is_hidden=is_hidden)
     
     @staticmethod
     def get_tts_service_config_value() -> ConfigValue:
