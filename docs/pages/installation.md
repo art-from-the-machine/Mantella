@@ -319,8 +319,6 @@ By default, Mantella comes packaged with a fast and local TTS service called Pip
 
 <details>
 	<summary><b>XTTS</b></summary>  
-	See here for MrHaurrus's tutorial on setting up XTTS, or read the instructions below:  
-	<iframe width="560" height="315" src="https://www.youtube.com/embed/gvT0t87JVjo?si=Pvh3tSixieccuTwj" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>  
 	<details>
 		<summary><b>Local</b></summary> 
 
