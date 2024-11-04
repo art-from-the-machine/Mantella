@@ -4,7 +4,7 @@ data/**/*.lip
 data/**/*.json
 data/**/*.txt
 data/tmp/
-GPT_SECRET_KEY.txt
+*SECRET_KEY.txt
 logging.log
 player_recording.wav
 MantellaEnv*

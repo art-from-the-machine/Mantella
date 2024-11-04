@@ -31,11 +31,10 @@ class ImageLLMDefinitions:
         return ConfigValueString("image_analysis_fallout4_filepath","Set the filepath to Fallout 4 (desktop) directory",description,"C:\Games\Steam\steamapps\common\Fallout 4")
 
     def get_image_analysis_fallout4_vr_filepath_config_value() -> ConfigValue:
-        description = """ Settings for for the filepath of Steam directory where the steam screenshots are stored. 
-        They should located inside your steam directory -> userdata -> Your personal user number -> 760 -> remote -> 611660 -> screenshots
-        If you are not using Fallout 4 (VR), you may retain the default setting.
-        Copy the complete filepath from your OS file explorer. """
-        return ConfigValueString("image_analysis_fallout4_vr_filepath","Set the filepath to Steam Screenshot directory for Fallout 4 VR",description,"C:\\Games\\Steam\\userdata\\YOUR_USER_NUMBER_HERE\\760\\remote\\611660\\screenshots")
+        description = """ Settings for for the filepath of Fallout 4 (desktop) directory where the executable is located. 
+        If you are not using Fallout 4 (desktop), you may retain the default setting.
+        Copy the complete filepath from your OS file explorer.  """
+        return ConfigValueString("image_analysis_fallout4_vr_filepath","Set the filepath to Steam Screenshot directory for Fallout 4 VR",description,"C:\Games\Steam\steamapps\common\Fallout 4 VR")
 
     def get_image_analysis_iterative_querying_config_value() -> ConfigValue:
         description = """ Selecting this will mean that Mantella will ask a LLM for an image description then make a second request to obtain a NPC response, the second request can be from a entirely different LLM.

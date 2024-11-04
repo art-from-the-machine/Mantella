@@ -155,8 +155,13 @@ class ImageManager:
              if self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_READY)==True:
                 most_recent_image_path, is_vr = self.__output_manager.get_image_filepath()
                 if is_vr: 
-                    most_recent_image_path = self.find_most_recent_jpg(str(most_recent_image_path))
-                    self.__add_image_to_delete(str(most_recent_image_path))
+                    try:
+                        is_steam_screenshot = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_ISUSINGSTEAMSCREENSHOT)
+                    except AttributeError:
+                        is_steam_screenshot = None
+                    if is_steam_screenshot:
+                        most_recent_image_path = self.find_most_recent_jpg(str(most_recent_image_path))
+                        self.__add_image_to_delete(str(most_recent_image_path))
         except Exception as e:
             logging.error(f"An error occurred while adding the latest image to deletion array: {e}")
 
@@ -174,19 +179,24 @@ class ImageManager:
 
                 # If resizing is not needed
                 if target_width is None or original_width <= target_width:
-                    # Save the image temporarily to avoid returning a closed object
-                    img.save(image_path)
-                    # Reopen and return the image as a new PIL Image object
-                    return Image.open(image_path)
+                    # Return the original image without resizing
+                    return img
 
-                # Calculate new dimensions
+                # Calculate new dimensions while preserving aspect ratio
                 aspect_ratio = original_height / original_width
                 new_height = int(target_width * aspect_ratio)
 
-                # Resize and return new image
-                resized_img = img.resize((target_width, new_height), Image.LANCZOS )
-                resized_img.save(image_path)  # Overwrite the original image or save as a new file
-                #logging.info(f"Resized image to target width :  {target_width}")
+                # Convert to 'RGB' if the image has an alpha channel (RGBA)
+                if img.mode == 'RGBA':
+                    img = img.convert('RGB')
+
+                # Resize the image
+                resized_img = img.resize((target_width, new_height), Image.LANCZOS)
+
+                # Save the resized image back to the same path (or overwrite)
+                resized_img.save(image_path)
+
+                # Return the resized image
                 return resized_img
         except Exception as e:
             logging.warning(f"Failed to resize image {image_path}: {str(e)}")
@@ -209,6 +219,10 @@ class ImageManager:
         Returns:
             str: A base64-encoded string of the image.
         """
+        # If the image has an alpha channel, convert it to RGB (removing alpha channel)
+        if pil_img.mode == 'RGBA':
+            pil_img = pil_img.convert('RGB')
+            
         # Create a bytes buffer for the in-memory image
         img_buffer = BytesIO()
         
@@ -235,7 +249,8 @@ class ImageManager:
             # Create an instance of the image_message class
             image_path, is_vr = self.__output_manager.get_image_filepath()
             image_path = Path(image_path) 
-            if is_vr or is_steam_screenshot : 
+            #if is_steam_screenshot then search for the most recent jpg in the filepath : 
+            if is_steam_screenshot : 
                 recent_image_path = self.find_most_recent_jpg(str(image_path))
                 if recent_image_path:
                     image_path = Path(recent_image_path) 
@@ -247,9 +262,11 @@ class ImageManager:
                 image_path = Path(image_path) / "Mantella_Vision.jpg" 
             # Check if the file exists
             if not image_path.is_file():
-                
-                logging.debug(f"The file {str(image_path)} does not exist.")
-                return None
+                image_path, is_vr  = self.__output_manager.get_image_filepath()
+                image_path = Path(image_path) / "MantellaVision.png" 
+                if not image_path.is_file():
+                    logging.debug(f"The file {str(image_path)} does not exist.")
+                    return None
             resolution = str(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_RES)).lower() or "auto"
             resize_value = int(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_RESIZE)) or 1024
             image_object = self.resize_image(image_path, resize_value) 
