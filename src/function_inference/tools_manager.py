@@ -1,57 +1,61 @@
 import json
-
+from src.function_inference.LLMFunction_class import LLMFunction,LLMOpenAIfunction
 
 class ToolsManager:
     def __init__(self):
         self.__tools = {}
-        self.__tooltips = {}  
+        self.__tooltips = {}
 
-
-    def build_GPT_function(self,GPT_func_name: str, GPT_func_description: str, GPT_func_parameters: dict, GPT_required: list = None, additionalProperties: bool = False, strict: bool = True, parallel_tool_calls: bool = False):
+    def add_function(self, llm_function: LLMFunction):
         """
-        Builds a GPT function template with additional parameters for strict mode and parallel tool calls.
+        Adds an LLMFunction instance to the tools storage.
+
+        Args:
+            llm_function (LLMFunction): The LLMFunction instance to store.
+        """
+        self.__tools[llm_function.GPT_func_name] = llm_function
+
+    def get_function(self, GPT_func_name: str) -> dict:
+        """
+        Retrieves a function by its name from the tools storage.
 
         Args:
             GPT_func_name (str): The name of the function.
-            GPT_func_description (str): A brief description of the function's purpose.
-            GPT_func_parameters (dict): The parameters for the function in the form of a dictionary.
-            additionalProperties (bool): Whether additional properties are allowed in the parameters (default is False).
-            strict (bool): Whether the function should operate in strict mode (default is False).
-            parallel_tool_calls (bool): Whether parallel tool calls are allowed (default is False).
 
         Returns:
-            dict: A dictionary representing the GPT function template.
+            dict: The formatted function template, or None if the function does not exist.
         """
-        if GPT_required is None:
-            GPT_required = list(GPT_func_parameters.keys())  # Default to all parameters if 'required' is not provided
+        llm_function:LLMFunction = self.__tools.get(GPT_func_name, None)
+        if llm_function:
+            return llm_function.get_formatted_LLMFunction()
+        return None
 
-        return {
-            "type": "function",
-            "function": {
-                "name": GPT_func_name,
-                "description": GPT_func_description,
-                "parameters": {
-                    "type": "object",
-                    "properties": GPT_func_parameters,
-                    "required": GPT_required,
-                    "additionalProperties": additionalProperties
-                },
-                "strict": strict,
-                "parallel_tool_calls": parallel_tool_calls
-            }
-        }
-
-    def add_function(self, function_name: str, function_template: dict):
+    def list_functions_names(self) -> list:
         """
-        Manually add a function template to the tools storage.
+        Lists all the function names stored in the tools manager.
 
-        Args:
-            function_name (str): The name of the function (key for the tools dictionary).
-            function_template (dict): The function template to store.
+        Returns:
+            list: A list of all function names.
         """
-        self.__tools[function_name] = function_template
+        return list(self.__tools.keys())
 
-    def build_dictionary(self,pairs: list[tuple[str, str]]) -> dict:
+    def list_all_functions(self) -> list:
+        """
+        Returns an array of all formatted function templates stored in the tools manager.
+
+        Returns:
+            list: A list of all function templates as dictionaries.
+        """
+        return [func.get_formatted_LLMFunction() for func in self.__tools.values()]
+
+    def clear_all_functions(self):
+        """
+        Clears all function templates from the tools storage.
+        """
+        self.__tools.clear()
+        print("All function templates have been cleared.")
+
+    def build_dictionary(self, pairs: list[tuple[str, str]]) -> dict:
         """
         Builds a dictionary with multiple customizable names and definitions.
 
@@ -62,8 +66,8 @@ class ToolsManager:
             dict: A dictionary built from the provided name-definition pairs.
         """
         return {name: definition for name, definition in pairs}
-    
-    def build_nested_dict(self,pairs: list[tuple]) -> dict:
+
+    def build_nested_dict(self, pairs: list[tuple]) -> dict:
         """
         Builds a nested dictionary from a list of tuples.
 
@@ -80,48 +84,18 @@ class ToolsManager:
             # Traverse through the tuple to build the nested structure
             current_level = nested_dict
             *keys, value = path
-            
+
             for key in keys:
                 # Create a new nested dictionary if the key doesn't exist
                 if key not in current_level:
                     current_level[key] = {}
                 current_level = current_level[key]
-            
+
             # Set the final value at the deepest level
             current_level[keys[-1]] = value
 
         return nested_dict
-    
-    def get_function(self, GPT_func_name: str) -> dict:
-        """
-        Retrieves a function by its name from the tools storage.
 
-        Args:
-            GPT_func_name (str): The name of the function.
-
-        Returns:
-            dict: The function template, or None if the function does not exist.
-        """
-        return self.__tools.get(GPT_func_name, None)
-
-    def list_functions_names(self) -> list:
-        """
-        Lists all the function names stored in the tools manager.
-
-        Returns:
-            list: A list of all function names.
-        """
-        return list(self.__tools.keys())
-    
-    def list_all_functions(self) -> list:
-        """
-        Returns an array of all function templates stored in the tools manager.
-
-        Returns:
-            list: A list of all function templates as dictionaries.
-        """
-        return list(self.__tools.values())
-    
     def format_with_multiple_arrays(self, intro_text: str, array_descriptions: list[tuple[str, list]], outro_text: str) -> str:
         """
         Builds a formatted string with multiple JSON arrays based on the provided descriptions.
@@ -180,9 +154,17 @@ class ToolsManager:
             list: A list of all tooltips as strings.
         """
         return list(self.__tooltips.values())
-                
-# Assuming the ToolsManager class and build_dictionary function are already defined
-'''
+
+    def clear_all_tooltips(self):
+        """
+        Clears all tooltips from the manager.
+        """
+        self.__tooltips.clear()
+        print("All tooltips have been cleared.")
+
+
+# Example usage of the updated ToolsManager and LLMFunction classes
+
 # Initialize the ToolsManager
 manager = ToolsManager()
 
@@ -204,21 +186,31 @@ function_parameters = manager.build_dictionary([
         "items": {"type": "string"}
     })
 ])
-
-# Build the function using build_GPT_function
-move_character_function = manager.build_GPT_function(
+'''
+# Build the function using the LLMFunction class
+move_character_function = LLMFunction(
     GPT_func_name="move_character_near_npc",
     GPT_func_description="Determine where to move a character closest to a specific NPC, such as 'the rabbit closest to me'.",
-    GPT_func_parameters=function_parameters,
+    function_parameters=function_parameters,
     GPT_required=["npc_names", "distances", "npc_ids"],  # Required fields
-    additionalProperties=False,
-    strict=True,
-    parallel_tool_calls=False
+    is_generic_npc_function=False,
+    is_follower_function=False,
+    is_settler_function=False
 )
 
-# Manually add the function to the ToolsManager
-manager.add_function("move_character_near_npc", move_character_function)
+# Add the function to the ToolsManager
+manager.add_function(move_character_function)
 
-# You can now retrieve and print the function, or list it
-print(manager.get_function("move_character_near_npc"))
+# Retrieve and print the function
+formatted_function = manager.get_function("move_character_near_npc")
+print(json.dumps(formatted_function, indent=4))
+
+# List all function names
+print("Function names:", manager.list_functions_names())
+
+# List all formatted functions
+all_functions = manager.list_all_functions()
+print("All functions:")
+for func in all_functions:
+    print(json.dumps(func, indent=4))
 '''

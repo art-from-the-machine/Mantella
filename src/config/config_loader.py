@@ -226,7 +226,7 @@ class ConfigLoader:
             self.function_llm_temperature = self.__definitions.get_float_value("function_llm_temperature")
             self.function_llm_top_p = self.__definitions.get_float_value("function_llm_top_p")
 
-            self.function_llm_stop = None
+            self.function_llm_stop = "</tool_call>"
             self.function_llm_frequency_penalty = self.__definitions.get_float_value("function_llm_frequency_penalty")
             self.function_llm_max_tokens = self.__definitions.get_int_value("function_llm_max_tokens")
 

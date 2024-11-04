@@ -13,6 +13,7 @@ class sentence:
         self.__error_message: str | None = error_message
         self.__target_ids: list[int] = []
         self.__target_names: list[str] = []
+        self.__has_veto: bool = False
 
     @property
     def speaker(self) -> Character:
@@ -49,3 +50,12 @@ class sentence:
     @property
     def target_names(self) -> list[str] | None:
         return self.__target_names
+    
+    @property
+    def has_veto(self) -> bool:
+        return self.__has_veto
+    
+    @has_veto.setter
+    def has_veto(self, value):
+        self.__has_veto = value
+    

@@ -70,6 +70,10 @@ class system_message(message):
     def get_dict_formatted_string(self) -> str:
         dictionary = {"role":"system", "content": self.get_formatted_content(),}
         return f"{dictionary}"
+    
+    def append_text(self, text_to_append: str):
+        """Appends a string to the system message text."""
+        self.text += text_to_append
         
 class assistant_message(message):
     """An assistant message containing the response of an LLM to a request.
@@ -147,3 +151,7 @@ class user_message(message):
     
     def set_ingame_time(self, time: str, time_group: str):
         self.__time = time, time_group
+
+    def append_text(self, text_to_append: str):
+        """Appends a string to the system message text."""
+        self.text += text_to_append

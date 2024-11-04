@@ -63,6 +63,10 @@ class communication_constants:
     ACTION_NPC_FOLLOW: str = PREFIX + "npc_follow"
     ACTION_NPC_INVENTORY: str = PREFIX + "npc_inventory"
     ACTION_NPC_MOVETO_NPC: str = PREFIX + "npc_move_character_near_npc"
+    ACTION_MAKE_NPC_WAIT: str = PREFIX + "make_npc_wait"
+    ACTION_NPC_ATTACK_OTHER_NPC: str = PREFIX + "npc_attack_other_npc"
+    ACTION_NPC_LOOT_ITEMS: str = PREFIX + "npc_loot_items"
+
 
     # Function data
     FUNCTION_DATA_TARGET_IDS: str = PREFIX + "function_data_target_ids"

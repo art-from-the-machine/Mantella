@@ -231,7 +231,14 @@ class ChatManager:
                             
                             if not self.__game.is_sentence_allowed(current_sentence, num_sentences):
                                 continue
-                            
+                            # --- Add this block to handle the <veto> tag ---
+                            has_veto = False
+                            if current_sentence.strip().startswith('<veto>'):
+                                logging.log(28, f"Detected <veto> tag in sentence: {current_sentence}")
+                                # Remove the <veto> tag
+                                current_sentence = current_sentence.strip()[len('<veto>'):].lstrip()
+                                has_veto = True
+
                             # New logic to handle conditions based on the presence of a colon and the state of `accumulated_sentence`
                             content_edit = unicodedata.normalize('NFKC', current_sentence)
                             if ':' in content_edit:
@@ -286,6 +293,8 @@ class ChatManager:
                                 # Generate the audio and return the audio file path
                                 # Put the audio file path in the sentence_queue
                                 new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character)
+                                # --- Set the has_veto attribute ---
+                                new_sentence.has_veto = has_veto
                                 blocking_queue.put(new_sentence)
 
                                 if not new_sentence.error_message:
@@ -375,9 +384,17 @@ class ChatManager:
                     for choice in llm_response['choices']:
                         # Safely access 'message' and 'tool_calls'
                         tool_calls = choice.get('message', {}).get('tool_calls')
+                        content = (choice.get('message', {}).get('content') or '').strip()
                         if tool_calls and isinstance(tool_calls, list) and tool_calls:
                             first_tool_call = tool_calls[0]
                             self.generated_function_results = self.process_tool_call(first_tool_call)
+                        elif "<tool_call>" in choice.get('message', {}).get('content', '') :
+                            self.generated_function_results = self.process_pseudo_tool_call(choice.get('message', {}).get('content', ''))
+                            return
+                        elif content.startswith('{') and '}' in content:
+                            # Attempt to parse the content as a function call
+                            self.generated_function_results = self.process_unlabeled_function_content(content)
+                            return
                         else:
                             print("No tool calls found in response or tool_calls is not a list")
                 else:
@@ -407,6 +424,103 @@ class ChatManager:
         else:
             print("Missing function details in tool call")
 
+    def process_pseudo_tool_call(self,tool_call_string):
+        # Ensure that <tool_call> is at the very beginning of the string
+        if not tool_call_string.strip().startswith('<tool_call>'):
+            print("Error: <tool_call> not at the beginning of the output.")
+            return None
+
+        call_type = 'function'  # As specified, call_type is always 'function'
+
+        # Remove the '<tool_call>' prefix and any surrounding whitespace
+        content = tool_call_string.strip()[len('<tool_call>'):].strip()
+
+        # Patterns to match different possible formats, including self-closing tags
+        patterns = [
+            # Pattern for <FunctionCall ...> ... </FunctionCall> or self-closing tags
+            r'<FunctionCall\s+name=["\']([^"\']+)["\']\s+arguments=(\{.*?\})\s*(?:/?>|>\s*</FunctionCall>)',
+            # Pattern for JSON content
+            r'(\{.*\})'
+        ]
+
+        function_name = None
+        arguments = None
+
+        for pattern in patterns:
+            match = re.search(pattern, content, re.DOTALL)
+            if match:
+                if 'FunctionCall' in pattern:
+                    # Extract function name and arguments
+                    function_name = match.group(1)
+                    arguments_str = match.group(2)
+                    try:
+                        arguments = json.loads(arguments_str)
+                    except json.JSONDecodeError as e:
+                        print("Failed to parse arguments as JSON:", e)
+                        arguments = arguments_str  # Return arguments as string if parsing fails
+                else:
+                    # Try to parse the entire content as JSON
+                    json_like_str = match.group(1)
+                    try:
+                        data = json.loads(json_like_str)
+                        function_name = data.get('name')
+                        arguments = data.get('arguments')
+                    except json.JSONDecodeError as e:
+                        print("Failed to parse JSON-like dictionary:", e)
+                        return None
+                break  # Exit the loop since we've successfully parsed
+
+        if function_name and arguments is not None:
+            return call_type, function_name, arguments
+        else:
+            print("Failed to parse the tool call string.")
+            return None
+        
+    def process_unlabeled_function_content(self,content):
+        print("Attempting to process unlabeled function content")
+        call_type = 'function'  # As specified, call_type is always 'function'
+
+        # Find the first '{' character
+        start_idx = content.find('{')
+        if start_idx == -1:
+            print("No JSON object found in content.")
+            return None
+
+        # Initialize brace count and find the matching '}'
+        brace_count = 0
+        end_idx = -1
+        for idx in range(start_idx, len(content)):
+            char = content[idx]
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    end_idx = idx + 1  # Include the closing brace
+                    break
+
+        if end_idx == -1:
+            print("No matching closing brace found for JSON object.")
+            return None
+
+        # Extract the JSON string
+        json_str = content[start_idx:end_idx]
+
+        # Attempt to parse the JSON string
+        try:
+            # Replace single quotes with double quotes to make it valid JSON
+            json_str = json_str.replace("'", '"')
+            data = json.loads(json_str)
+            function_name = data.get('name')
+            arguments = data.get('arguments')
+            if function_name and arguments is not None:
+                return call_type, function_name, arguments
+            else:
+                print("Function name or arguments missing in content.")
+                return None
+        except json.JSONDecodeError as e:
+            print("Failed to parse content as JSON:", e)
+            return None
 
 
     

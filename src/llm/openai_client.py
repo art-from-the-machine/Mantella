@@ -514,16 +514,21 @@ class function_client(openai_client):
             openai_messages = messages.get_openai_messages()
             print(openai_messages)
             try:            
-                chat_completion = sync_client.chat.completions.create(
-                    model=self.model_name,
-                    messages=openai_messages,
-                    tools=tools_list,
-                    stop=self._stop,
-                    temperature=self._temperature,
-                    top_p=self._top_p,
-                    frequency_penalty=self._frequency_penalty, 
-                    max_tokens=self._max_tokens
-                    )
+                params = {
+                'model': self.model_name,
+                'messages': openai_messages,
+                'stop': self._stop,
+                'temperature': self._temperature,
+                'top_p': self._top_p,
+                'frequency_penalty': self._frequency_penalty,
+                'max_tokens': self._max_tokens,
+                }
+            
+                if not self._base_url:
+                    params['tools'] = tools_list  # Include tools only if self._base_url is False or None
+
+                chat_completion = sync_client.chat.completions.create(**params)
+       
             except Exception as e:
                     if isinstance(e, APIConnectionError):
                         if e.code in [401, 'invalid_api_key']: # incorrect API key
@@ -535,8 +540,8 @@ class function_client(openai_client):
                         else:
                             logging.error(f"LLM API Error: {e}")
                     elif isinstance(e, BadRequestError):
-                        if (e.type == 'invalid_request_error') and (self.__vision_enabled): # invalid request
-                            logging.error(f"Invalid request. Try disabling Vision in Mantella's settings and try again.")
+                        if (e.type == 'invalid_request_error') : # invalid request
+                            logging.error(f"Invalid request. Double check the functions submitted.")
                         else:
                             logging.error(f"LLM API Error: {e}")
                     else:
