@@ -28,6 +28,7 @@ class xtts(ttsable):
         self.__xtts_data = config.xtts_data
         self.__xtts_server_path = config.xtts_server_path
         self.__xtts_accent = config.xtts_accent
+        self._language = self._language if self._language != 'zh' else 'zh-cn'
         self.__voice_accent = self._language
         self.__official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
         self.__xtts_synthesize_url = f'{self.__xtts_url}/tts_to_audio/'
@@ -81,6 +82,7 @@ class xtts(ttsable):
             if voice_accent == '':
                 self.__voice_accent = self._language
             else:
+                voice_accent = voice_accent if voice_accent != 'zh' else 'zh-cn'
                 self.__voice_accent = voice_accent
 
 
@@ -105,6 +107,10 @@ class xtts(ttsable):
             if response.status_code == 200:
                 all_speakers = response.json()
                 current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
+                if len(current_language_speakers) == 0: # if there are no speakers for the chosen language, fall back to English voice models
+                    logging.warning(f"No voice models found in XTTS's speakers/{self._language} folder. Attempting to load English voice models instead...")
+                    self._language = 'en'
+                    current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
                 return current_language_speakers
             else:
                 return {}
