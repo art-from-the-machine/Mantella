@@ -29,7 +29,7 @@ def clean_text(text):
 
 
 def remove_extra_whitespace(text):
-    return re.sub('\s+', ' ', text).strip()
+    return re.sub('\\s+', ' ', text).strip()
 
 
 def remove_trailing_number(s):
