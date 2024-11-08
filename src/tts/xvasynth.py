@@ -282,7 +282,7 @@ class xvasynth(ttsable):
     def _check_if_xvasynth_is_running(self):
         self._times_checked += 1
         try:
-            if (self._times_checked > 10):
+            if (self._times_checked > 15):
                 # break loop
                 logging.error(f'Could not connect to xVASynth after {self._times_checked} attempts. Ensure that xVASynth is running and restart Mantella.')
                 raise TTSServiceFailure()
