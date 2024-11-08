@@ -120,7 +120,7 @@ class ttsable(ABC):
             startupinfo.dwFlags |= STARTF_USESHOWWINDOW
             
             batch_file_path = Path(facefx_path) / "run_mantella_command.bat"
-            with open(batch_file_path, 'w') as file:
+            with open(batch_file_path, 'w', encoding='utf-8') as file:
                 file.write(f"@echo off\n{command} >nul 2>&1")
 
             subprocess.run(batch_file_path, cwd=facefx_path, creationflags=subprocess.CREATE_NO_WINDOW)

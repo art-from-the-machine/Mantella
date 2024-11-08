@@ -34,7 +34,7 @@ class ChatManager:
         self.__stop_generation: bool = False
         self.__tts_access_lock = Lock()
         # self.__number_words_tts: int = config.number_words_tts
-        self.__end_of_sentence_chars = ['.', '?', '!', ':', ';']
+        self.__end_of_sentence_chars = ['.', '?', '!', ':', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
     def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> mantella_sentence:

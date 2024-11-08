@@ -34,7 +34,7 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
         return str(save_dir)+'\\'
     
     def setup_logging(file_name, config: ConfigLoader):
-        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[])
+        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[], encoding='utf-8')
 
         # create custom formatter
         formatter = cf.CustomFormatter()
@@ -48,7 +48,7 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
         file_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
 
         # Create a file handler and set the formatter
-        file_handler = logging.FileHandler(file_name)
+        file_handler = logging.FileHandler(file_name, encoding='utf-8')
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(file_formatter)
 
