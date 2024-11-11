@@ -168,7 +168,17 @@ class GameStateManager:
         try:
             base_id: str = utils.convert_to_skyrim_hex_format(str(json[comm_consts.KEY_ACTOR_BASEID]))
             ref_id: str = utils.convert_to_skyrim_hex_format(str(json[comm_consts.KEY_ACTOR_REFID]))
-            ref_id = ref_id[-6:].upper() # ignore plugin ID at the start of the ref ID as this can vary by load order
+
+            # ignore plugin ID at the start of the ref ID as this can vary by load order
+            if ref_id.startswith('FE'):             #Item from lite mod, statically placed in CK, has 'FEXXX' prefix. 
+                ref_id = ref_id[-3:].rjust(6,"0")   #Mask off prefix, pad w/'0'
+            else:
+                ref_id = ref_id[-6:]
+            if base_id.startswith('FE'):
+                base_id = base_id[-3:].rjust(6,"0")
+            else:
+                base_id = base_id[-6:]
+
             character_name: str = str(json[comm_consts.KEY_ACTOR_NAME])
             gender: int = int(json[comm_consts.KEY_ACTOR_GENDER])
             race: str = str(json[comm_consts.KEY_ACTOR_RACE])
