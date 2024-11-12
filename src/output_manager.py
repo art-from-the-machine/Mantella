@@ -21,6 +21,7 @@ from src.tts.ttsable import ttsable
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ChatManager:
+    @utils.time_it
     def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: openai_client):
         self.loglevel = 28
         self.__game: gameable = game
@@ -37,6 +38,11 @@ class ChatManager:
         self.__end_of_sentence_chars = ['.', '?', '!', ':', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
+    @property
+    def tts(self) -> ttsable:
+        return self.__tts
+
+    @utils.time_it
     def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> mantella_sentence:
         """Generates the audio for a text and returns the corresponding sentence
 
@@ -58,6 +64,7 @@ class ChatManager:
                 return mantella_sentence(character_to_talk, text, "", 0, True, error_text)
             return mantella_sentence(character_to_talk, text, audio_file, self.get_audio_duration(audio_file), is_system_generated_sentence)
 
+    @utils.time_it
     def num_tokens(self, content_to_measure: message | str | message_thread | list[message]) -> int:
         """Measures the length of an input in tokens
 
@@ -72,6 +79,7 @@ class ChatManager:
         else:
             return openai_client.num_tokens_from_message(content_to_measure, None)
 
+    @utils.time_it
     def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: sentence_queue, actions: list[action]):
         """Starts generating responses by the LLM for the current state of the input messages
 
@@ -87,6 +95,7 @@ class ChatManager:
         
         asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions))
     
+    @utils.time_it
     def stop_generation(self):
         """Stops the current generation and only returns once this stop has been successful
         """
@@ -99,6 +108,7 @@ class ChatManager:
         self.__stop_generation = False
         return
 
+    @utils.time_it
     def get_audio_duration(self, audio_file: str):
         """Check if the external software has finished playing the audio file"""
 
@@ -110,6 +120,7 @@ class ChatManager:
         duration = frames / float(rate) + self.__config.wait_time_buffer
         return duration
  
+    @utils.time_it
     def clean_sentence(self, sentence: str) -> str:
         def remove_as_a(sentence: str) -> str:
             """Remove 'As an XYZ,' from beginning of sentence"""
@@ -160,12 +171,14 @@ class ChatManager:
         sentence = sentence.strip() + " "
         return sentence
 
+    @utils.time_it
     def __matching_action_keyword(self, keyword: str, actions: list[action]) -> action | None:
         for a in actions:
             if keyword.lower() == a.keyword.lower():
                 return a
         return None
     
+    @utils.time_it
     def __character_switched_to(self, extracted_keyword: str, charaters_in_conversation: Characters) -> Character | None:
         for actor in charaters_in_conversation.get_all_characters():
             actor_name = actor.name.lower()
@@ -173,6 +186,7 @@ class ChatManager:
                 return actor
         return None
 
+    @utils.time_it
     async def process_response(self, active_character: Character, blocking_queue: sentence_queue, messages : message_thread, characters: Characters, actions: list[action]):
         """Stream response from LLM one sentence at a time"""
 
@@ -186,6 +200,7 @@ class ChatManager:
             cumulative_sentence_bool = False
             current_sentence: str = ""
             actions_in_sentence: list[action] = []
+            first_token = True
             while True:
                 try:
                     start_time = time.time()
@@ -194,6 +209,10 @@ class ChatManager:
                             break
                         if not content:
                             continue
+
+                        if first_token:
+                            logging.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to respond")
+                            first_token = False
                         
                         sentence += content
                         # Check for the last occurrence of sentence-ending punctuation within first 150 chars
@@ -242,7 +261,7 @@ class ChatManager:
                                             logging.log(28, f"Switched to {character_switched_to.name}")
                                             active_character = character_switched_to
                                             full_reply += f"{keyword_extraction}: "
-                                            self.__tts.change_voice(active_character.tts_voice_model, voice_accent=active_character.voice_accent)
+                                            self.__tts.change_voice(active_character.tts_voice_model, active_character.in_game_voice_model, active_character.csv_in_game_voice_model, active_character.advanced_voice_model, voice_accent=active_character.voice_accent)
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:
@@ -266,7 +285,6 @@ class ChatManager:
                                     logging.log(28, f'Skipping voiceline that is too short: {sentence}')
                                     break
                                 
-                                logging.log(self.loglevel, f"LLM returned sentence took {time.time() - start_time} seconds to execute")
                                 # Generate the audio and return the audio file path
                                 # Put the audio file path in the sentence_queue
                                 
