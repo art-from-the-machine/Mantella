@@ -34,10 +34,6 @@ class GameStateManager:
         self.__chat_manager: ChatManager = chat_manager
         self.__rememberer: remembering = summaries(game, config.memory_prompt, config.resummarize_prompt, client, language_info['language'])
         self.__talk: conversation | None = None
-        self.__actions: list[action] =  [action(comm_consts.ACTION_NPC_OFFENDED, config.offended_npc_response, f"The player offended the NPC"),
-                                                action(comm_consts.ACTION_NPC_FORGIVEN, config.forgiven_npc_response, f"The player made up with the NPC"),
-                                                action(comm_consts.ACTION_NPC_FOLLOW, config.follow_npc_response, f"The NPC is willing to follow the player"),
-                                                action(comm_consts.ACTION_NPC_INVENTORY, config.inventory_npc_response, f"The NPC is willing to show their inventory to the player")]
 
     ###### react to calls from the game #######
     def start_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
@@ -49,7 +45,7 @@ class GameStateManager:
             world_id = input_json[comm_consts.KEY_STARTCONVERSATION_WORLDID]
             world_id = self.WORLD_ID_CLEANSE_REGEX.sub("", world_id)
         context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
-        self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__actions)
+        self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client)
         self.__update_context(input_json)
         self.__talk.start_conversation()
         
@@ -86,13 +82,13 @@ class GameStateManager:
         cleaned_player_text = utils.clean_text(player_text)
         npcs_in_conversation = self.__talk.context.npcs_in_conversation
         if not npcs_in_conversation.contains_multiple_npcs(): # actions are only enabled in 1-1 conversations
-            for action in self.__actions:
+            for action in self.__config.actions:
                 # if the player response is just the name of an action, force the action to trigger
-                if action.keyword.lower() == cleaned_player_text.lower():
+                if action.keyword.lower() == cleaned_player_text.lower() and npcs_in_conversation.last_added_character:
                     return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCACTION,
                             comm_consts.KEY_REPLYTYPE_NPCACTION: {
                                 'mantella_actor_speaker': npcs_in_conversation.last_added_character.name,
-                                'mantella_actor_actions': [action.game_action_identifier],
+                                'mantella_actor_actions': [action.identifier],
                                 }
                             }
         

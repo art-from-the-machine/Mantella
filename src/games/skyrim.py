@@ -108,14 +108,7 @@ class skyrim(gameable):
         voice_folder_path = f"{mod_folder}/MantellaVoice00"
         if not os.path.exists(voice_folder_path):
             os.makedirs(voice_folder_path)
-        #logging.warning(f"{voice_folder_path} has been created for the first time. Please restart Skyrim to interact with this NPC.")
-        #logging.info(f"-> {voice_folder_path}/{self.FUZ_FILE}")
-        #os.remove(f"{voice_folder_path}/{self.FUZ_FILE}")
-
-        #shutil.copyfile(audio_file.replace(".wav",".fuz"), f"{voice_folder_path}/{self.FUZ_FILE}")
         shutil.copyfile(audio_file, f"{voice_folder_path}/{self.WAV_FILE}")
-        logging.log(23, f"{speaker.name}: {queue_output.sentence}")
-
         try:
             shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{self.LIP_FILE}")
         except Exception as e:

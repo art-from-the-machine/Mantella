@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from src.config.config_loader import ConfigLoader
+from src.conversation.action import action
 from src.character_manager import Character
 from src.llm.message_thread import message_thread
 from src.conversation.context import context
@@ -7,9 +9,9 @@ from src.llm.messages import user_message
 class conversation_type(ABC):
     """Base class for different forms of conversations.
     """
-    def __init__(self, prompt: str) -> None:
+    def __init__(self, config: ConfigLoader) -> None:
         super().__init__()
-        self._prompt = prompt
+        self._config = config
     
     @abstractmethod
     def generate_prompt(self, context_for_conversation: context) -> str:
@@ -60,11 +62,12 @@ class conversation_type(ABC):
 
 class pc_to_npc(conversation_type):
     """PC talks to a single NPC. The classic conversation"""
-    def __init__(self, prompt: str) -> None:
-        super().__init__(prompt)
+    def __init__(self, config: ConfigLoader) -> None:
+        super().__init__(config)
 
     def generate_prompt(self, context_for_conversation: context) -> str:
-        return context_for_conversation.generate_system_message(self._prompt)
+        actions = [a for a in self._config.actions if a.use_in_on_on_one]
+        return context_for_conversation.generate_system_message(self._config.prompt, actions)
     
     def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
         message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), multi_npc_conversation=False, remove_system_flagged_messages=True)
@@ -84,24 +87,26 @@ class pc_to_npc(conversation_type):
 
 class multi_npc(conversation_type):
     """Group conversation between the PC and multiple NPCs"""
-    def __init__(self, prompt: str) -> None:
-        super().__init__(prompt)
+    def __init__(self, config: ConfigLoader) -> None:
+        super().__init__(config)
 
     def generate_prompt(self, context_for_conversation: context) -> str:
-        return context_for_conversation.generate_system_message(self._prompt)
+        actions = [a for a in self._config.actions if a.use_in_multi_npc]
+        return context_for_conversation.generate_system_message(self._config.multi_npc_prompt, actions)
     
     def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
         message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), True, True)
 
 class radiant(conversation_type):
     """ Conversation between two NPCs without the player"""
-    def __init__(self, context_for_conversation: context) -> None:
-        super().__init__(context_for_conversation.config.radiant_prompt)
-        self.__user_start_prompt = context_for_conversation.config.radiant_start_prompt
-        self.__user_end_prompt = context_for_conversation.config.radiant_end_prompt
+    def __init__(self, config: ConfigLoader) -> None:
+        super().__init__(config)
+        self.__user_start_prompt = config.radiant_start_prompt
+        self.__user_end_prompt = config.radiant_end_prompt
 
     def generate_prompt(self, context_for_conversation: context) -> str:
-        return context_for_conversation.generate_system_message(self._prompt)
+        actions = [a for a in self._config.actions if a.use_in_radiant]
+        return context_for_conversation.generate_system_message(self._config.radiant_prompt, actions)
     
     def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
         message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), True, True)

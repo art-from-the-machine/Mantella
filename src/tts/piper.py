@@ -133,7 +133,7 @@ class piper(ttsable):
                     pass
                 time.sleep(0.01)
 
-            logging.warning(f'Voice model loading timed out for "{voice}". Restarting Piper...')
+            logging.warning(f'Voice model loading timed out for "{selected_voice}". Restarting Piper...')
             self._restart_piper()
 
 

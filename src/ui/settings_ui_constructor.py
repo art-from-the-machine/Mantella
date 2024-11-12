@@ -8,6 +8,7 @@ from src.config.types.config_value_path import ConfigValuePath
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_float import ConfigValueFloat
 from src.config.types.config_value_selection import ConfigValueSelection
+from src.config.types.config_value_multi_selection import ConfigValueMultiSelection
 from src.config.types.config_value_string import ConfigValueString
 from src.config.config_value_constraint import ConfigValueConstraintResult
 from src.config.types.config_value import ConfigValue, ConvigValueTag
@@ -196,6 +197,21 @@ class SettingsUIConstructor(ConfigValueVisitor):
         if config_value.identifier == "model":
             additional_buttons = [("Update list", update_model_list)]
         self.__create_config_value_ui_element(config_value, create_input_component,additional_buttons=additional_buttons)
+
+    def visit_ConfigValueMultiSelection(self, config_value: ConfigValueMultiSelection):
+        def create_input_component(raw_config_value: ConfigValue) -> gr.Dropdown:
+            config_value = typing.cast(ConfigValueMultiSelection, raw_config_value)
+            values: list[str | int | float] = []
+            for s in config_value.value:
+                values.append(s)
+            return gr.Dropdown(value=values,                        
+                choices=config_value.options, # type: ignore
+                multiselect=True,
+                allow_custom_value=False, 
+                show_label=False,
+                container=False)
+            
+        self.__create_config_value_ui_element(config_value, create_input_component)
 
     def visit_ConfigValuePath(self, config_value: ConfigValuePath):
         def on_pick_click() -> str | None:

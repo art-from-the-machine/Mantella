@@ -1,0 +1,26 @@
+[
+    {
+        "identifier": "mantella_npc_offended",
+        "name": "Offended",
+        "description": "The keyword used by the NPC when they are offended.",
+        "key": "Offended",
+        "prompt": "If the player says something hurtful / offensive, begin your response with '{key}:'. Eg 'Have you washed lately?' '{key}: How dare you!'.",
+        "is-interrupting": false,
+        "one-on-one": true,
+        "multi-npc": false,
+        "radiant": false,
+        "info-text": "The player offended the NPC"
+    },
+    {
+        "identifier": "mantella_npc_forgiven",
+        "name": "Forgiven",
+        "description": "The keyword used by the NPC when they have forgiven the player for offending them.",
+        "key": "Forgiven",
+        "prompt": "If the player renounces their words, or to end combat, begin your response with '{key}:'.",
+        "is-interrupting": false,
+        "one-on-one": true,
+        "multi-npc": false,
+        "radiant": false,
+        "info-text": "The player made up with the NPC"
+    }
+]  

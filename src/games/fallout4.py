@@ -1,8 +1,6 @@
 import logging
 import os
-from re import I
 import shutil
-
 from typing import Any
 import pandas as pd
 from src.http.file_communication_compatibility import file_communication_compatibility
@@ -23,7 +21,6 @@ class fallout4(gameable):
     KEY_CONTEXT_CUSTOMVALUES_PLAYERROT: str  = "mantella_player_rot"
     KEY_ACTOR_CUSTOMVALUES_POSX: str  = "mantella_actor_pos_x"
     KEY_ACTOR_CUSTOMVALUES_POSY: str  = "mantella_actor_pos_y"
-    
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Fallout4/fallout4_characters.csv', "Fallout4")
@@ -105,6 +102,8 @@ class fallout4(gameable):
             if not matching_row_by_voicemodel.empty:
                 # FO4_voice_folder becomes the matching row of FO4_Voice_folder_XVASynth_matches.csv
                 FO4_voice_folder = matching_row_by_voicemodel['voice_file_name'].iloc[0]
+            else:
+                FO4_voice_folder = voice_model.replace(' ','')
         except: # assume it is simply the voice_model name without spaces
             FO4_voice_folder = voice_model.replace(' ','')
         
@@ -140,8 +139,6 @@ class fallout4(gameable):
             # only warn on failure
             logging.warning(e)
 
-        logging.log(23, f"{speaker.name}: {queue_output.sentence}")
-
         self.__last_played_voiceline = queue_output.voice_file
         logging.info(f"{speaker.name}: {queue_output.sentence}")
 
@@ -150,10 +147,10 @@ class fallout4(gameable):
             if os.path.exists(self.__last_played_voiceline):
                 os.remove(self.__last_played_voiceline)
                 self.__last_played_voiceline = None
-                
+
     def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:
         return True
-
+    
     def get_weather_description(self, weather_attributes: dict[str, Any]) -> str:
         """Returns a description of the current weather that can be used in the prompts
 

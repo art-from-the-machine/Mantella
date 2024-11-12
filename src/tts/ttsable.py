@@ -9,7 +9,6 @@ from pathlib import Path
 from subprocess import STARTUPINFO, STARTF_USESHOWWINDOW
 import subprocess
 import time
-import re
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ttsable(ABC):
@@ -41,10 +40,10 @@ class ttsable(ABC):
     def synthesize(self, voice: str, voiceline: str, in_game_voice: str, csv_in_game_voice: str, voice_accent: str, synth_options: SynthesizationOptions, advanced_voice_model: str | None = None):
         """Synthesizes a given voiceline
         """
-        if self._last_voice == '' or self._last_voice not in [voice, in_game_voice, csv_in_game_voice, advanced_voice_model, 'fo4_'+voice]:
+        if self._last_voice == '' or self._last_voice.lower() not in {v.lower() for v in {voice, in_game_voice, csv_in_game_voice, advanced_voice_model, f'fo4_{voice}'}}:
             self.change_voice(voice, in_game_voice, csv_in_game_voice, advanced_voice_model, voice_accent)
 
-        #logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
+        logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
 
         final_voiceline_file_name = 'out' # "out" is the file name used by XTTS
         final_voiceline_file =  f"{self._voiceline_folder}/{final_voiceline_file_name}.wav"
@@ -66,7 +65,6 @@ class ttsable(ABC):
 
         #rename to unique name        
         if (os.path.exists(final_voiceline_file)):
-            #logging.info(f"Folder {self._voiceline_folder} File {final_voiceline_file_name}")
             try:
                 timestamp: str = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f_")
                 new_wav_file_name = f"{self._voiceline_folder}/{timestamp + final_voiceline_file_name}.wav" 
@@ -170,12 +168,12 @@ class ttsable(ABC):
             if self._game == "Fallout4":    
                 fuz_extractor_executable = Path(self._facefx_path) / "Fuz_extractor.exe"
                 if not fuz_extractor_executable.exists():
-                    logging.error(f'Could not find Fuz_extractor.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
+                    logging.error(f'Could not find Fuz_extractor.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
                     raise FileNotFoundError()
             
                 xWMAEncode_executable = Path(self._facefx_path) / "xWMAEncode.exe"
                 if not xWMAEncode_executable.exists():
-                    logging.error(f'Could not find xWMAEncode.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
+                    logging.error(f'Could not find xWMAEncode.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
                     raise FileNotFoundError()
 
                 xwm_file = wav_file.replace(".wav", ".xwm")
