@@ -127,7 +127,7 @@ class piper(ttsable):
                 try:  
                     line = self.q.get_nowait() # or q.get(timeout=.1)
                     if "Model loaded" in line:
-                        self._last_voice = voice
+                        self._last_voice = selected_voice
                         return
                 except Empty:
                     pass

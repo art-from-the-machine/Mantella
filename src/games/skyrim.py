@@ -106,7 +106,6 @@ class skyrim(gameable):
         # subtitle = queue_output.sentence
         speaker: Character = queue_output.speaker
         voice_folder_path = f"{mod_folder}/MantellaVoice00"
-        logging.info(f"Voice folder: {speaker.in_game_voice_model}")
         if not os.path.exists(voice_folder_path):
             os.makedirs(voice_folder_path)
         #logging.warning(f"{voice_folder_path} has been created for the first time. Please restart Skyrim to interact with this NPC.")
