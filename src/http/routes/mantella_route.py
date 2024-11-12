@@ -16,6 +16,7 @@ from src.tts.ttsable import ttsable
 from src.tts.xvasynth import xvasynth
 from src.tts.xtts import xtts
 from src.tts.piper import piper
+from src import utils
 
 class mantella_route(routeable):
     """Main route for Mantella conversations
@@ -33,6 +34,7 @@ class mantella_route(routeable):
         #     error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
         #     logging.error(error_message)
 
+    @utils.time_it
     def _setup_route(self):
         if self.__game:
             self.__game.end_conversation({})
@@ -58,9 +60,11 @@ class mantella_route(routeable):
         chat_manager = ChatManager(game, self._config, tts, client)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, client)
 
+    @utils.time_it
     def add_route_to_server(self, app: FastAPI):
         @app.post("/mantella")
         async def mantella(request: Request):
+            logging.debug('Received request')
             if not self._can_route_be_used():
                 error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
                 logging.error(error_message)
@@ -72,10 +76,15 @@ class mantella_route(routeable):
             reply = {}
             received_json: dict[str, Any] | None = await request.json()
             if received_json:
+                logging.debug('Processing request...')
                 if self._show_debug_messages:
                     logging.log(self._log_level_http_in, json.dumps(received_json, indent=4))
                 request_type: str = received_json[comm_consts.KEY_REQUESTTYPE]
                 match request_type:
+                    case comm_consts.KEY_REQUESTTYPE_INIT:
+                        # nothing needs to be done for this request aside from self._can_route_be_used() being triggered
+                        logging.debug('Mantella settings initialized')
+                        reply = {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_INITCOMPLETED}
                     case comm_consts.KEY_REQUESTTYPE_STARTCONVERSATION:
                         reply = self.__game.start_conversation(received_json)
                     case comm_consts.KEY_REQUESTTYPE_CONTINUECONVERSATION:
