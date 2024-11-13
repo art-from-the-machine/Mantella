@@ -10,10 +10,12 @@ from subprocess import STARTUPINFO, STARTF_USESHOWWINDOW
 import subprocess
 import time
 from src.tts.synthesization_options import SynthesizationOptions
+import requests
 
 class ttsable(ABC):
     """Base class for different TTS services
     """
+    @utils.time_it
     def __init__(self, config: ConfigLoader) -> None:
         super().__init__()
         self._config: ConfigLoader = config
@@ -27,6 +29,7 @@ class ttsable(ABC):
         os.makedirs(self._voiceline_folder, exist_ok=True)
         self._language = config.language
         self._last_voice = '' # last active voice model
+        self._lip_generation_enabled = config.lip_generation
         # determines whether the voiceline should play internally
         #self.debug_mode = config.debug_mode
         #self.play_audio_from_script = config.play_audio_from_script
@@ -36,7 +39,7 @@ class ttsable(ABC):
         else: 
             self._game = "Skyrim"
 
-
+    @utils.time_it
     def synthesize(self, voice: str, voiceline: str, in_game_voice: str, csv_in_game_voice: str, voice_accent: str, synth_options: SynthesizationOptions, advanced_voice_model: str | None = None):
         """Synthesizes a given voiceline
         """
@@ -61,7 +64,8 @@ class ttsable(ABC):
             logging.error(f'TTS failed to generate voiceline at: {Path(final_voiceline_file)}')
             raise FileNotFoundError()
         
-        self._generate_lip_file(final_voiceline_file, voiceline)
+        if (self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response):
+            self._generate_lip_file(final_voiceline_file, voiceline)
 
         #rename to unique name        
         if (os.path.exists(final_voiceline_file)):
@@ -93,6 +97,7 @@ class ttsable(ABC):
 
 
     @abstractmethod
+    @utils.time_it
     def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None):
         """Change the voice model
         """
@@ -100,6 +105,7 @@ class ttsable(ABC):
 
 
     @abstractmethod
+    @utils.time_it
     def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         """Synthesize the voiceline with the TTS service
         """
@@ -114,7 +120,15 @@ class ttsable(ABC):
             return ''
 
 
+    @staticmethod
+    @utils.time_it
+    def _send_request(url, data):
+        requests.post(url, json=data)
+
+
+    @utils.time_it
     def _generate_lip_file(self, wav_file, voiceline, attempts=0):
+        @utils.time_it
         def run_facefx_command(command, facefx_path):
             startupinfo = STARTUPINFO()
             startupinfo.dwFlags |= STARTF_USESHOWWINDOW
