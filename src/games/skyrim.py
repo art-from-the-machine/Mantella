@@ -36,13 +36,14 @@ class skyrim(gameable):
             logging.error(f'Unable to read / open "data/Skyrim/skyrim_weather.csv". If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
 
-
+    @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
         actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
         return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None))
     
+    @utils.time_it
     def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str) -> str:
         voice_model = ''
 
@@ -74,6 +75,7 @@ class skyrim(gameable):
 
         return voice_model
 
+    @utils.time_it
     def load_unnamed_npc(self, name: str, actor_race: str, actor_sex: int, ingame_voice_model:str) -> dict[str, Any]:
         """Load generic NPC if character cannot be found in skyrim_characters.csv"""
         # unknown == I couldn't find the IDs for these voice models
@@ -113,23 +115,25 @@ class skyrim(gameable):
             shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{self.LIP_FILE}")
         except Exception as e:
             # only warn on failure
-            logging.warning(e)
+            pass
         
         try:
             #os.remove(audio_file)
             os.remove(audio_file.replace(".wav", ".lip"))
         except Exception as e:
             # only warn on failure
-            logging.warning(e)
+            pass
 
         logging.log(23, f"{speaker.name} should speak")
 
+    @utils.time_it
     def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:
         if ('assist' in text) and (count_sentence_in_text > 0):
             logging.log(23, f"'assist' keyword found. Ignoring sentence: {text.strip()}")
             return False
         return True
     
+    @utils.time_it
     def get_weather_description(self, weather_attributes: dict[str, Any]) -> str:
         if weather_attributes.__contains__(self.KEY_CONTEXT_WEATHER_ID):
             weather_id: str = weather_attributes[self.KEY_CONTEXT_WEATHER_ID]

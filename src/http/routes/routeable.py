@@ -4,6 +4,7 @@ from typing import Any
 from fastapi import FastAPI
 from src.config.config_loader import ConfigLoader
 from src.http.communication_constants import communication_constants as comm_consts
+from src import utils
 
 class routeable(ABC):
     """Base class for different http server routes
@@ -25,6 +26,7 @@ class routeable(ABC):
         """
         pass
 
+    @utils.time_it
     def _can_route_be_used(self) -> bool:        
         if not self._has_route_been_initialized or self._config.has_any_config_value_changed:
             self._config.update_config_loader_with_changed_config_values()

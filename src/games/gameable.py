@@ -21,6 +21,7 @@ class gameable(ABC):
     Args:
         ABC (_type_): _description_
     """
+    @utils.time_it
     def __init__(self, config: ConfigLoader, path_to_character_df: str, mantella_game_folder_path: str):
         try:
             self.__character_df: pd.DataFrame = self.__get_character_df(path_to_character_df)

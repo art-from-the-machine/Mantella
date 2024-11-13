@@ -61,6 +61,7 @@ class Transcriber:
             else:
                 self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
 
+    @utils.time_it
     def __get_api_key(self) -> str:
         if not self.__api_key:
             try: # first check mod folder for secret key
@@ -108,6 +109,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         
         # return transcribed_text, say_goodbye
 
+    @utils.time_it
     def recognize_input(self, prompt: str):
         """
         Recognize input from mic and return transcript if activation tag (assistant name) exist
@@ -133,6 +135,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
             return transcript
     
 
+    @utils.time_it
     def _recognize_speech_from_mic(self, prompt:str):
         """
         Capture the words from the recorded audio (audio stream --> free text).
@@ -175,6 +178,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
 
 
     @staticmethod
+    @utils.time_it
     def activation_name_exists(transcript_cleaned, activation_name):
         """Identifies keyword in the input transcript"""
 
@@ -190,6 +194,7 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
 
 
     @staticmethod
+    @utils.time_it
     def _remove_activation_word(transcript, activation_name):
         transcript = transcript.replace(activation_name, '')
         return transcript

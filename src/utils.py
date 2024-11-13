@@ -48,6 +48,7 @@ def resolve_path():
     return resolved_path
 
 
+@time_it
 def get_file_encoding(file_path) -> str | None:
     with open(file_path,'rb') as f:
         data = f.read()

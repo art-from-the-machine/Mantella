@@ -15,6 +15,7 @@ class ImageManager:
     Manages game window capture and image processing
     '''
     
+    @utils.time_it
     def __init__(self, game: str, save_folder: str, save_screenshot: bool, image_quality: int, low_resolution_mode: bool, resize_method: str, capture_offset: dict[str, int]) -> None:
         WINDOW_TITLES = {
             'Skyrim': 'Skyrim Special Edition',
@@ -88,6 +89,7 @@ class ImageManager:
         return {"left": capture_left, "top": capture_top, "width": capture_width, "height": capture_height}
     
 
+    @utils.time_it
     def add_image_to_messages(self, openai_messages: list[ChatCompletionMessageParam]) -> list[ChatCompletionMessageParam]:
         '''Adds a captured image to the latest user message
 

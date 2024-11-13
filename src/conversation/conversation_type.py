@@ -5,6 +5,7 @@ from src.character_manager import Character
 from src.llm.message_thread import message_thread
 from src.conversation.context import context
 from src.llm.messages import user_message
+from src import utils
 
 class conversation_type(ABC):
     """Base class for different forms of conversations.
@@ -65,13 +66,16 @@ class pc_to_npc(conversation_type):
     def __init__(self, config: ConfigLoader) -> None:
         super().__init__(config)
 
+    @utils.time_it
     def generate_prompt(self, context_for_conversation: context) -> str:
         actions = [a for a in self._config.actions if a.use_in_on_on_one]
         return context_for_conversation.generate_system_message(self._config.prompt, actions)
     
+    @utils.time_it
     def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
         message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), multi_npc_conversation=False, remove_system_flagged_messages=True)
     
+    @utils.time_it
     def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:
         if len(messages) == 1 and context_for_conversation.config.automatic_greeting:
             player_character: Character | None = context_for_conversation.npcs_in_conversation.get_player_character()
@@ -90,10 +94,12 @@ class multi_npc(conversation_type):
     def __init__(self, config: ConfigLoader) -> None:
         super().__init__(config)
 
+    @utils.time_it
     def generate_prompt(self, context_for_conversation: context) -> str:
         actions = [a for a in self._config.actions if a.use_in_multi_npc]
         return context_for_conversation.generate_system_message(self._config.multi_npc_prompt, actions)
     
+    @utils.time_it
     def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
         message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), True, True)
 
@@ -104,13 +110,16 @@ class radiant(conversation_type):
         self.__user_start_prompt = config.radiant_start_prompt
         self.__user_end_prompt = config.radiant_end_prompt
 
+    @utils.time_it
     def generate_prompt(self, context_for_conversation: context) -> str:
         actions = [a for a in self._config.actions if a.use_in_radiant]
         return context_for_conversation.generate_system_message(self._config.radiant_prompt, actions)
     
+    @utils.time_it
     def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
         message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), True, True)
     
+    @utils.time_it
     def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:        
         text = ""
         if len(messages) == 1:
