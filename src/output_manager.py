@@ -75,9 +75,9 @@ class ChatManager:
             int: count tokens in the input
         """
         if isinstance(content_to_measure, message_thread) or isinstance(content_to_measure, list):
-            return openai_client.num_tokens_from_messages(content_to_measure)
+            return self.__client.num_tokens_from_messages(content_to_measure)
         else:
-            return openai_client.num_tokens_from_message(content_to_measure, None)
+            return self.__client.num_tokens_from_message(content_to_measure)
 
     @utils.time_it
     def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: sentence_queue, actions: list[action]):
