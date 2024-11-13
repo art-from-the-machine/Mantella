@@ -132,8 +132,9 @@ class context:
         return get_time_group(self.__ingame_time)
     
     @utils.time_it
-    def update_context(self, location: str | None, in_game_time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
-        self.__ingame_events.extend(custom_ingame_events)
+    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str, custom_context_values: dict[str, Any]):
+        if custom_ingame_events:
+            self.__ingame_events.extend(custom_ingame_events)
         if weather != self.__weather:
             if self.__weather != "":
                 self.__ingame_events.append(weather)
@@ -151,19 +152,20 @@ class context:
                 self.__prev_location = self.__location
                 self.__ingame_events.append(f"The location is now {location}.")
         
-        self.__ingame_time = in_game_time
-        in_game_time_twelve_hour = in_game_time - 12 if in_game_time > 12 else in_game_time
-        if self.__hourly_time:
-            current_time: tuple[str | None, str] = str(in_game_time_twelve_hour), get_time_group(in_game_time)
-        else:
-            current_time: tuple[str | None, str] = None, get_time_group(in_game_time)
-
-        if (current_time != self.__prev_game_time) and (self.__prev_game_time != None):
-            self.__prev_game_time = current_time
+        if in_game_time:
+            self.__ingame_time = in_game_time
+            in_game_time_twelve_hour = in_game_time - 12 if in_game_time > 12 else in_game_time
             if self.__hourly_time:
-                self.__ingame_events.append(f"The time is {current_time[0]} {current_time[1]}.")
+                current_time: tuple[str | None, str] = str(in_game_time_twelve_hour), get_time_group(in_game_time)
             else:
-                self.__ingame_events.append(f"The conversation now takes place {current_time[1]}.")
+                current_time: tuple[str | None, str] = None, get_time_group(in_game_time)
+
+            if (current_time != self.__prev_game_time) and (self.__prev_game_time != None):
+                self.__prev_game_time = current_time
+                if self.__hourly_time:
+                    self.__ingame_events.append(f"The time is {current_time[0]} {current_time[1]}.")
+                else:
+                    self.__ingame_events.append(f"The conversation now takes place {current_time[1]}.")
     
     @utils.time_it
     def __update_ingame_events_on_npc_change(self, npc: Character):

@@ -26,6 +26,7 @@ class GameStateManager:
     TOKEN_LIMIT_PERCENT: float = 0.45 # not used?
     WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
+    @utils.time_it
     def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: openai_client):        
         self.__game: gameable = game
         self.__config: ConfigLoader = config
@@ -36,6 +37,7 @@ class GameStateManager:
         self.__talk: conversation | None = None
 
     ###### react to calls from the game #######
+    @utils.time_it
     def start_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if self.__talk: #This should only happen if game and server are out of sync due to some previous error -> close conversation and start a new one
             self.__talk.end()
@@ -51,6 +53,7 @@ class GameStateManager:
         
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED}
     
+    @utils.time_it
     def continue_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(not self.__talk ):
             return self.error_message("No running conversation.")
@@ -71,6 +74,7 @@ class GameStateManager:
                 return self.error_message(sentence_to_play.error_message)
         return reply
 
+    @utils.time_it
     def player_input(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(not self.__talk ):
             return self.error_message("No running conversation.")
@@ -95,6 +99,7 @@ class GameStateManager:
         # if the player response is not an action command, return a regular player reply type
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}
 
+    @utils.time_it
     def end_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(self.__talk):
             self.__talk.end()
@@ -107,12 +112,14 @@ class GameStateManager:
 
     ####### JSON constructions #########
 
+    @utils.time_it
     def character_to_json(self, character_to_jsonfy: Character) -> dict[str, Any]:
         return {
             comm_consts.KEY_ACTOR_BASEID: character_to_jsonfy.base_id,
             comm_consts.KEY_ACTOR_NAME: character_to_jsonfy.name,
         }
     
+    @utils.time_it
     def sentence_to_json(self, sentence_to_prepare: sentence) -> dict[str, Any]:
         return {
             comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.speaker.name,
@@ -124,18 +131,28 @@ class GameStateManager:
 
     ##### utils #######
 
+    @utils.time_it
     def __update_context(self,  json: dict[str, Any]):
         if self.__talk:
-            actors_in_json: list[Character] = []
-            for actorJson in json[comm_consts.KEY_ACTORS]:
-                actor: Character | None = self.load_character(actorJson)                
-                if actor:
-                    actors_in_json.append(actor)
+            if json.__contains__(comm_consts.KEY_ACTORS):
+                actors_in_json: list[Character] = []
+                for actorJson in json[comm_consts.KEY_ACTORS]:
+                    actor: Character | None = self.load_character(actorJson)                
+                    if actor:
+                        actors_in_json.append(actor)
+                self.__talk.add_or_update_character(actors_in_json)
             
-            self.__talk.add_or_update_character(actors_in_json)
-            location: str = json[comm_consts.KEY_CONTEXT].get(comm_consts.KEY_CONTEXT_LOCATION, None)
-            time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
-            ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
+            location = None
+            if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_LOCATION):
+                location: str = json[comm_consts.KEY_CONTEXT].get(comm_consts.KEY_CONTEXT_LOCATION, None)
+            
+            time = None
+            if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_TIME):
+                time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
+            
+            ingame_events = None
+            if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_INGAMEEVENTS):
+                ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
             custom_context_values: dict[str, Any] = {}
             weather = ""
             if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_WEATHER):
@@ -243,11 +260,13 @@ class GameStateManager:
                 "mantella_message": message
             }
     
+    @utils.time_it
     def __get_player_voice_model(self, game_value: str | None) -> str:
         if game_value == None:
             return self.__config.player_voice_model
         return game_value
     
+    @utils.time_it
     def __convert_to_equipment_item_dictionary(self, input_dict: dict[str, Any]) -> dict[str, EquipmentItem]:
         result: dict[str, EquipmentItem] = {}
         if input_dict:
