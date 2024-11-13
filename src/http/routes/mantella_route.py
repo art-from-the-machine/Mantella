@@ -39,8 +39,6 @@ class mantella_route(routeable):
         if self.__game:
             self.__game.end_conversation({})
 
-        client = openai_client(self._config, self.__secret_key_file)
-
         # Determine which game we're running for and select the appropriate character file
         game: gameable
         formatted_game_name = self._config.game.lower().replace(' ', '').replace('_', '')
@@ -56,6 +54,8 @@ class mantella_route(routeable):
             tts = xtts(self._config, game)
         if self._config.tts_service == 'piper':
             tts = piper(self._config)
+
+        client = openai_client(self._config, self.__secret_key_file)
         
         chat_manager = ChatManager(game, self._config, tts, client)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, client)
