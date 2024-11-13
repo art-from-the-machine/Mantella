@@ -53,6 +53,12 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
                         Be aware, the higher the number, the longer the TTS audio processing time will take."""
         return ConfigValueInt("number_words_tts","Number of Words TTS",description, 3, 1, 999999)
     
+    @staticmethod
+    def get_lip_generation_config_value() -> ConfigValue:
+        description = """Whether to generate lip sync files for spoken voicelines. Disable this setting to improve response times.
+                        Set to 'Lazy' to skip lip syncing only for the first sentence spoken of every response."""
+        return ConfigValueSelection("lip_generation","Lip File Generation",description,"Enabled",["Enabled","Lazy","Disabled"],tags=[ConvigValueTag.advanced])
+    
     # XTTS Section
 
     @staticmethod

@@ -21,6 +21,7 @@ class gameable(ABC):
     Args:
         ABC (_type_): _description_
     """
+    @utils.time_it
     def __init__(self, config: ConfigLoader, path_to_character_df: str, mantella_game_folder_path: str):
         try:
             self.__character_df: pd.DataFrame = self.__get_character_df(path_to_character_df)
@@ -52,6 +53,7 @@ class gameable(ABC):
     def conversation_folder_path(self) -> str:
         return self.__conversation_folder_path
     
+    @utils.time_it
     def __get_character_df(self, file_name: str) -> pd.DataFrame:
         encoding = utils.get_file_encoding(file_name)
         character_df = pd.read_csv(file_name, engine='python', encoding=encoding)
@@ -139,35 +141,41 @@ class gameable(ABC):
         """
         pass
 
+    @utils.time_it
     def _get_matching_df_rows_matcher(self, base_id: str, character_name: str, race: str) -> pd.Series | None:
-         # TODO: try loading the NPC's voice model as soon as the NPC is found to speed up run time and so that potential errors are raised ASAP
+        character_name_lower = character_name.lower()
+        race_lower = race.lower()
+        
         full_id_len = 6
         full_id_search = base_id[-full_id_len:].lstrip('0')  # Strip leading zeros from the last 6 characters
 
         # Function to remove leading zeros from hexadecimal ID strings
-        def remove_leading_zeros(hex_str):
-            if pd.isna(hex_str):
-                return ''
-            return str(hex_str).lstrip('0')
+        def vectorized_remove_zeros(series):
+            return series.fillna('').astype(str).str.lstrip('0')
+        
+        def vectorized_partial_id_match(series, length):
+            str_series = series.fillna('').astype(str)
+            # Create mask for strings long enough
+            length_mask = str_series.str.len() >= length
+            # Apply different logic based on length
+            result = pd.Series('', index=series.index)  # Default to empty string
+            result[length_mask] = str_series[length_mask].str[-length:].str.lstrip('0')
+            result[~length_mask] = str_series[~length_mask].str.lstrip('0')
+            return result.str.lower()
 
-        id_match = self.character_df['base_id'].apply(remove_leading_zeros).str.lower() == full_id_search.lower()
-        name_match = self.character_df['name'].astype(str).str.lower() == character_name.lower()
+        df_id_cleaned = vectorized_remove_zeros(self.character_df['base_id']).str.lower()
+        id_match = df_id_cleaned == full_id_search.lower()
+        name_match = self.character_df['name'].astype(str).str.lower() == character_name_lower
 
-        # character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
-        # race_match = self.character_df['race'].astype(str).str.lower() == character_race.lower()
-        race_match = self.character_df['race'].astype(str).str.lower() == race.lower()
+        race_match = self.character_df['race'].astype(str).str.lower() == race_lower
 
         # Partial ID match with decreasing lengths
         partial_id_match = pd.Series(False, index=self.character_df.index)
         for length in [5, 4, 3]:
             if partial_id_match.any():
                 break
-            partial_id_search = base_id[-length:].lstrip('0')  # strip leading zeros from partial ID search
-            partial_id_match = self.character_df['base_id'].apply(
-                lambda x: remove_leading_zeros(str(x)[-length:]) if pd.notna(x) and len(str(x)) >= length else remove_leading_zeros(str(x))
-            ).str.lower() == partial_id_search.lower()
-
-        is_generic_npc = False
+            partial_id_search = base_id[-length:].lstrip('0').lower()  # strip leading zeros from partial ID search
+            partial_id_match = vectorized_partial_id_match(self.character_df['base_id'], length) == partial_id_search
 
         ordered_matchers = {
             'name, ID, race': name_match & id_match & race_match, # match name, full ID, race (needed for Fallout 4 NPCs like Curie)
@@ -186,37 +194,8 @@ class gameable(ABC):
                 return ordered_matchers[matcher]
             
         return None
-        # try: # match name, full ID, race (needed for Fallout 4 NPCs like Curie)
-        #     logging.info(" # match name, full ID, race (needed for Fallout 4 NPCs like Curie)")
-        #     return self.character_df.loc[name_match & id_match & race_match]
-        # except IndexError:
-        #     try: # match name and full ID
-        #         logging.info(" # match name and full ID")
-        #         return self.character_df.loc[name_match & id_match]
-        #     except IndexError:
-        #         try: # match name, partial ID, and race
-        #                 logging.info(" # match name, partial ID, and race")
-        #                 return self.character_df.loc[name_match & partial_id_match & race_match]
-        #         except IndexError:
-        #             try: # match name and partial ID
-        #                 logging.info(" # match name and partial ID")
-        #                 return self.character_df.loc[name_match & partial_id_match]
-        #             except IndexError:
-        #                 try: # match name and race
-        #                     logging.info(" # match name and race")
-        #                     return self.character_df.loc[name_match & race_match]
-        #                 except IndexError:
-        #                     try: # match just name
-        #                         logging.info(" # match just name")
-        #                         return self.character_df.loc[name_match]
-        #                     except IndexError:
-        #                         try: # match just ID
-        #                             logging.info(" # match just ID")
-        #                             return self.character_df.loc[id_match]
-        #                         except IndexError: # treat as generic NPC
-        #                             logging.info(f"Could not find {character_name} in skyrim_characters.csv. Loading as a generic NPC.")
-        #                             return pd.DataFrame()
 
+    @utils.time_it
     def find_character_info(self, base_id: str, character_name: str, race: str, gender: int, ingame_voice_model: str):
         character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
         matcher = self._get_matching_df_rows_matcher(base_id, character_name, character_race)
@@ -233,6 +212,7 @@ class gameable(ABC):
 
         return character_info, is_generic_npc
     
+    @utils.time_it
     def __apply_character_overrides(self, overrides_folder: str, character_df_column_headers: list[str]):
         if not os.path.exists(overrides_folder):
             os.makedirs(overrides_folder)
@@ -285,6 +265,7 @@ class gameable(ABC):
                 logging.log(logging.WARNING, f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
 
     @staticmethod
+    @utils.time_it
     def get_string_from_df(iloc, column_name: str) -> str:
         entry = iloc.get(column_name, "")
         if pd.isna(entry): entry = ""

@@ -169,6 +169,8 @@ class ConfigLoader:
                 self.xvasynth_path = ""
                 self.xtts_server_path = ""
 
+            self.lip_generation = self.__definitions.get_string_value("lip_generation").strip().lower()
+
             #Added from xTTS implementation
             self.xtts_default_model = self.__definitions.get_string_value("xtts_default_model")
             self.xtts_deepspeed = self.__definitions.get_bool_value("xtts_deepspeed")

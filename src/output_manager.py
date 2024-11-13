@@ -43,7 +43,7 @@ class ChatManager:
         return self.__tts
 
     @utils.time_it
-    def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> mantella_sentence:
+    def generate_sentence(self, text: str, character_to_talk: Character, is_first_line_of_response: bool = False, is_system_generated_sentence: bool = False) -> mantella_sentence:
         """Generates the audio for a text and returns the corresponding sentence
 
         Args:
@@ -56,7 +56,7 @@ class ChatManager:
         """
         with self.__tts_access_lock:
             try:
-                synth_options = SynthesizationOptions(character_to_talk.is_in_combat)
+                synth_options = SynthesizationOptions(character_to_talk.is_in_combat, is_first_line_of_response)
                 audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
             except Exception as e:
                 error_text = f"Text-to-Speech Error: {e}"
@@ -75,9 +75,9 @@ class ChatManager:
             int: count tokens in the input
         """
         if isinstance(content_to_measure, message_thread) or isinstance(content_to_measure, list):
-            return openai_client.num_tokens_from_messages(content_to_measure)
+            return self.__client.num_tokens_from_messages(content_to_measure)
         else:
-            return openai_client.num_tokens_from_message(content_to_measure, None)
+            return self.__client.num_tokens_from_message(content_to_measure)
 
     @utils.time_it
     def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: sentence_queue, actions: list[action]):
@@ -201,6 +201,7 @@ class ChatManager:
             current_sentence: str = ""
             actions_in_sentence: list[action] = []
             first_token = True
+            is_first_line_of_response = True
             while True:
                 try:
                     start_time = time.time()
@@ -299,7 +300,8 @@ class ChatManager:
                                    
                                 #logging.info(f"[{len(sentence)}] {sentence}")
                                 
-                                new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character)
+                                new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character, is_first_line_of_response)
+                                is_first_line_of_response = False
                                 blocking_queue.put(new_sentence)
 
                                 has_interrupting_action = False

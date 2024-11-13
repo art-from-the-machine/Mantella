@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from src.config.config_loader import ConfigLoader
 from src.http.routes.routeable import routeable
 from src.stt import Transcriber
+from src import utils
 
 class stt_route(routeable):
     """Route that can be called to get a transcribe from the mic
@@ -29,10 +30,12 @@ class stt_route(routeable):
         self.__stt: Transcriber | None = None
         self.__secret_key_file = secret_key_file
 
+    @utils.time_it
     def _setup_route(self):
         if not self.__stt:
             self.__stt = Transcriber(self._config, self.__secret_key_file)
 
+    @utils.time_it
     def add_route_to_server(self, app: FastAPI):
         @app.post("/stt")
         async def stt(request: Request):
@@ -56,6 +59,7 @@ class stt_route(routeable):
             
             return self.construct_return_json("*Complete gibberish*")
     
+    @utils.time_it
     def construct_return_json(self, transcribe: str) -> dict:
         reply = {
             self.KEY_REPLYTYPE: self.KEY_REQUESTTYPE_TTS,

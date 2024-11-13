@@ -11,6 +11,7 @@ class conversation_log:
     game_path: str = "" # <- This gets set in the __init__ of gameable. Not clean but cleaner than other options
 
     @staticmethod
+    @utils.time_it
     def save_conversation_log(character: Character, messages: list[ChatCompletionMessageParam], world_id: str):
         # save conversation history
 
@@ -33,7 +34,8 @@ class conversation_log:
             with open(conversation_history_file, 'w', encoding='utf-8') as f:
                 json.dump(conversation_history, f, indent=4) # save everything except the initial system prompt
 
-    @staticmethod    
+    @staticmethod   
+    @utils.time_it 
     def load_conversation_log(character: Character, world_id: str) -> list[str]:
         conversation_history_file = conversation_log.__get_path_to_conversation_history_file(character, world_id)
         if os.path.exists(conversation_history_file):
@@ -46,7 +48,19 @@ class conversation_log:
         else:
             return []
 
+    @staticmethod
+    @utils.time_it
+    def get_conversation_log_length(character: Character, world_id: str) -> int:
+        conversation_history_file = conversation_log.__get_path_to_conversation_history_file(character, world_id)
+        if os.path.exists(conversation_history_file):
+            with open(conversation_history_file, 'r', encoding='utf-8') as f:
+                conversation_history = json.load(f)
+            return sum(len(conversation) for conversation in conversation_history)
+        else:
+            return 0
+
     @staticmethod    
+    @utils.time_it
     def __get_path_to_conversation_history_file(character: Character, world_id: str) -> str:
         # if multiple NPCs in a conversation have the same name (eg Whiterun Guard) their names are appended with number IDs
         # these IDs need to be removed when saving the conversation

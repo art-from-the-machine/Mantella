@@ -13,7 +13,7 @@ def time_it(func):
         start = time.time()
         result = func(*args, **kwargs)
         end = time.time()
-        logging.debug(f"Function {func.__name__} took {round(end - start, 5)} seconds to execute")
+        logging.debug(f"Function {func.__module__}.{func.__name__} took {round(end - start, 5)} seconds to execute")
         return result
     return wrapper
 
@@ -48,6 +48,7 @@ def resolve_path():
     return resolved_path
 
 
+@time_it
 def get_file_encoding(file_path) -> str | None:
     with open(file_path,'rb') as f:
         data = f.read()
