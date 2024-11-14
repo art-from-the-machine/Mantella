@@ -69,11 +69,11 @@ class CustomFormatter(logging.Formatter):
         # 30:
 
         # HTTP in
-        40: dim_blue + format_string + reset,
+        41: dim_blue + format_string + reset,
         # HTTP out
-        41: dim_green + format_string + reset,
+        42: dim_green + format_string + reset,
         # sentence queue
-        42: black + BGLightBlue + format_string + reset,
+        43: black + BGLightBlue + format_string + reset,
     }
 
     def format(self, record):
