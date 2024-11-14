@@ -25,15 +25,16 @@ class stt_route(routeable):
     KEY_REPLYTYPE: str = PREFIX + "reply_type"
     KEY_TRANSCRIBE: str = PREFIX + "transcribe"
 
-    def __init__(self, config: ConfigLoader, secret_key_file: str, show_debug_messages: bool = False) -> None:
+    def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str, show_debug_messages: bool = False) -> None:
         super().__init__(config, show_debug_messages)
         self.__stt: Transcriber | None = None
+        self.__stt_secret_key_file = stt_secret_key_file
         self.__secret_key_file = secret_key_file
 
     @utils.time_it
     def _setup_route(self):
         if not self.__stt:
-            self.__stt = Transcriber(self._config, self.__secret_key_file)
+            self.__stt = Transcriber(self._config, self.__stt_secret_key_file, self.__secret_key_file)
 
     @utils.time_it
     def add_route_to_server(self, app: FastAPI):
