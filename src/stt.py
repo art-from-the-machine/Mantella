@@ -10,7 +10,7 @@ import io
 from pathlib import Path
 
 class Transcriber:
-    def __init__(self, config: ConfigLoader, secret_key_file: str):
+    def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str):
         self.loglevel = 27
         # self.mic_enabled = config.mic_enabled
         self.language = config.stt_language
@@ -34,6 +34,7 @@ class Transcriber:
         self.radiant_end_prompt = config.radiant_end_prompt
 
         self.call_count = 0
+        self.__stt_secret_key_file = stt_secret_key_file
         self.__secret_key_file = secret_key_file
         self.__api_key: str | None = None
         self.__ignore_list = ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much', "thank you for watching and i'll see you in the next video", "we'll see you in the next video", 'see you next time']
@@ -64,13 +65,22 @@ class Transcriber:
     @utils.time_it
     def __get_api_key(self) -> str:
         if not self.__api_key:
-            try: # first check mod folder for secret key
+            try: # first check mod folder for stt secret key
                 mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
-                with open(mod_parent_folder+'\\'+self.__secret_key_file, 'r') as f:
+                with open(mod_parent_folder+'\\'+self.__stt_secret_key_file, 'r') as f:
                     self.__api_key: str = f.readline().strip()
-            except: # check locally (same folder as exe) for secret key
-                with open(self.__secret_key_file, 'r') as f:
-                    self.__api_key: str = f.readline().strip()
+            except: # check locally (same folder as exe) for stt secret key
+                try:
+                    with open(self.__stt_secret_key_file, 'r') as f:
+                        self.__api_key: str = f.readline().strip()
+                except:
+                    try: # first check mod folder for secret key
+                        mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
+                        with open(mod_parent_folder+'\\'+self.__secret_key_file, 'r') as f:
+                            self.__api_key: str = f.readline().strip()
+                    except: # check locally (same folder as exe) for secret key
+                        with open(self.__secret_key_file, 'r') as f:
+                            self.__api_key: str = f.readline().strip()
                 
             if not self.__api_key:
                 logging.error(f'''No secret key found in GPT_SECRET_KEY.txt. Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
@@ -81,33 +91,6 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
                 sys.exit(0)
         return self.__api_key          
 
-    # def get_player_response(self, say_goodbye, prompt: str):
-    #     if (self.debug_mode == '1') & (self.debug_use_default_player_response == '1'):
-    #         transcribed_text = self.default_player_response
-    #     else:
-    #         if self.mic_enabled == '1':
-    #             # listen for response
-    #             transcribed_text = self.recognize_input(prompt)
-    #         else:
-    #             # text input through console
-    #             if (self.debug_mode == '1') & (self.debug_use_default_player_response == '0'):
-    #                 transcribed_text = input('\nWrite player\'s response: ')
-    #                 logging.log(self.loglevel, f'Player wrote "{transcribed_text}"')
-    #             # await text input from the game
-    #             else:
-    #                 self.game_state_manager.write_game_info('_mantella_text_input', '')
-    #                 self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'True')
-    #                 transcribed_text = self.game_state_manager.load_data_when_available('_mantella_text_input', '')
-    #                 self.game_state_manager.write_game_info('_mantella_text_input', '')
-    #                 self.game_state_manager.write_game_info('_mantella_text_input_enabled', 'False')
-
-    #     if (self.debug_mode == '1') & (self.debug_exit_on_first_exchange == '1'):
-    #         if say_goodbye:
-    #             transcribed_text = self.end_conversation_keyword
-    #         else:
-    #             say_goodbye = True
-        
-        # return transcribed_text, say_goodbye
 
     @utils.time_it
     def recognize_input(self, prompt: str):
@@ -159,6 +142,8 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
                 data = {'model': self.model, 'prompt': prompt}
                 files = {'file': ('audio.wav', audio, 'audio/wav')}
                 response = requests.post(url, headers=headers, files=files, data=data)
+                if response.status_code != 200:
+                    logging.error(f'STT Error: {response.content}')
                 response_data = json.loads(response.text)
                 if 'text' in response_data:
                     return response_data['text'].strip()
@@ -172,7 +157,8 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         audio_data = audio.get_wav_data(convert_rate=16000)
         audio_file = io.BytesIO(audio_data)
         transcript = whisper_transcribe(audio_file, prompt)
-        logging.log(self.loglevel, transcript)
+        if transcript:
+            logging.log(self.loglevel, transcript)
 
         return transcript
 
