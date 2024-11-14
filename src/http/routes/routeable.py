@@ -14,8 +14,8 @@ class routeable(ABC):
         self._config: ConfigLoader = config
         self._has_route_been_initialized: bool = False
         self._show_debug_messages: bool = show_debug_messages
-        self._log_level_http_in = 40
-        self._log_level_http_out = 41
+        self._log_level_http_in = 41
+        self._log_level_http_out = 42
 
     @abstractmethod
     def add_route_to_server(self, app: FastAPI):

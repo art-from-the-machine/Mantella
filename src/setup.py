@@ -82,9 +82,9 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
         #logging.log(28, "Large Language Model related")
         #logging.log(29, "Text-To-Speech related")
 
-        logging.addLevelName(40, "HTTP-in")
-        logging.addLevelName(41, "HTTP-out")
-        logging.addLevelName(42, "Queue")
+        logging.addLevelName(41, "HTTP-in")
+        logging.addLevelName(42, "HTTP-out")
+        logging.addLevelName(43, "Queue")
         # logging.log(40, "JSON coming from game")
         # logging.log(41, "JSON sent back to game")
         # logging.log(42, "Sentence queue access")
