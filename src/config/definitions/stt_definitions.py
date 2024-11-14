@@ -23,14 +23,14 @@ class STTDefinitions:
         description = """The size of the Whisper model used. Some languages require larger models. The base.en model works well enough for English.
                         See here for a comparison of languages and their Whisper performance: 
                         https://github.com/openai/whisper#available-models-and-languages"""
-        return ConfigValueSelection("model_size", "Model Size", description, "base", ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large-v1", "large-v2", "whisper-1"])
+        return ConfigValueSelection("model_size", "Model Size", description, "base", ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "distil-small.en", "medium", "medium.en", "distil-medium.en", "large-v1", "large-v2", "large-v3", "distil-large-v2", "distil-large-v3", "whisper-1"])
 
     @staticmethod
     def get_pause_threshold_config_value() -> ConfigValue:
         description = """How long to wait (in seconds) before converting mic input to text.
                     If you feel like you are being cut off before you finish your response, increase this value.
                     If you feel like there is too much of a delay between you finishing your response and the text conversion, decrease this value."""
-        return ConfigValueFloat("pause_threshold","Pause Threshold", description, 1.0, 1.0, 999, tags=[ConvigValueTag.advanced])
+        return ConfigValueFloat("pause_threshold","Pause Threshold", description, 1.0, 0.1, 999, tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_listen_timeout_config_value() -> ConfigValue:
@@ -63,7 +63,7 @@ class STTDefinitions:
                         You are expected to "bring your own server" and have whispercpp running while running Mantella.
                         If the default works for you, DO NOT change this variable. 
                         To change to whispercpp server mode / OpenAI API instead, enter whispercpp. 
-                        Additionally, if using the OpenAI API, ensure your GPT_SECRET_KEY.txt is an OpenAI key, 'Whisper URL' is "https://api.openai.com/v1/audio/transcriptions" below, and 'Model Size' is "whisper-1" above"""
+                        Additionally, if using the OpenAI API, ensure your GPT_SECRET_KEY.txt is an OpenAI key (or create a new file called 'STT_SECRET_KEY.txt' in the same folder as GPT_SECRET_KEY.txt and add the API key there), 'Whisper URL' is "https://api.openai.com/v1/audio/transcriptions" below, and 'Model Size' is "whisper-1" above"""
         return ConfigValueString("whisper_type","Whisper Type", description, "faster_whisper", tags=[ConvigValueTag.advanced])
 
     @staticmethod
