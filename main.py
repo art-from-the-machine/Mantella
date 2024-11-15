@@ -7,6 +7,16 @@ import logging
 import src.setup as setup
 from src.ui.start_ui import StartUI
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+    handlers=[logging.StreamHandler()]
+)
+
+for handler in logging.getLogger().handlers:
+    if isinstance(handler, logging.StreamHandler):
+        handler.setStream(open(handler.stream.name, 'w', encoding='utf-8'))
+
 def main():
     try:
         config, language_info = setup.initialise(
