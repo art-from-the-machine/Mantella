@@ -8,6 +8,8 @@ import requests
 import json
 import io
 from pathlib import Path
+import base64
+from openai import OpenAI
 
 class Transcriber:
     def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str):
@@ -22,13 +24,10 @@ class Transcriber:
         self.process_device = config.whisper_process_device
         self.audio_threshold = config.audio_threshold
         self.listen_timeout = config.listen_timeout
-        self.whisper_type = config.whisper_type
-        self.whisper_url = config.whisper_url
+        self.external_whisper_service = config.external_whisper_service
+        self.whisper_service = config.whisper_url
+        self.whisper_url = self.__get_endpoint(config.whisper_url)
 
-        #self.debug_mode = config.debug_mode
-        #self.debug_use_default_player_response = config.debug_use_default_player_response
-        #self.default_player_response = config.default_player_response
-        #self.debug_exit_on_first_exchange = config.debug_exit_on_first_exchange
         self.end_conversation_keyword = config.end_conversation_keyword
         self.radiant_start_prompt = config.radiant_start_prompt
         self.radiant_end_prompt = config.radiant_end_prompt
@@ -36,60 +35,121 @@ class Transcriber:
         self.call_count = 0
         self.__stt_secret_key_file = stt_secret_key_file
         self.__secret_key_file = secret_key_file
-        self.__api_key: str | None = None
+        self.__api_key: str | None = self.__get_api_key()
+        self.__initial_client: OpenAI | None = None
+        if (self.__api_key) and ('openai' in self.whisper_url):
+            self.__initial_client = self.__generate_sync_client() # initialize first client in advance to save time
+        
         self.__ignore_list = ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much', "thank you for watching and i'll see you in the next video", "we'll see you in the next video", 'see you next time']
-            
-
-        # if self.mic_enabled == '1':
+        
         self.recognizer = sr.Recognizer()
         self.recognizer.pause_threshold = config.pause_threshold
         self.microphone = sr.Microphone()
 
         if self.audio_threshold == 'auto':
             logging.log(self.loglevel, f"Audio threshold set to 'auto'. Adjusting microphone for ambient noise...")
-            logging.log(self.loglevel, "If the mic is not picking up your voice, try setting this audio_threshold value manually in MantellaSoftware/config.ini.\n")
+            logging.log(self.loglevel, "If the mic is not picking up your voice, try setting this `Speech-to-Text`->`Audio Threshold` value manually in the Mantella UI\n")
             with self.microphone as source:
                 self.recognizer.adjust_for_ambient_noise(source, duration=5)
         else:
             self.recognizer.dynamic_energy_threshold = False
             self.recognizer.energy_threshold = int(self.audio_threshold)
-            logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this value in MantellaSoftware/config.ini. If the mic is picking up too much background noise, try increasing this value.\n")
+            logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this `Speech-to-Text`->`Audio Threshold` value in the Mantella UI. If the mic is picking up too much background noise, try increasing this value.\n")
 
+        self.transcribe_model: WhisperModel | None = None
         # if using faster_whisper, load model selected by player, otherwise skip this step
-        if self.whisper_type == 'faster_whisper':
+        if not self.external_whisper_service:
             if self.process_device == 'cuda':
                 self.transcribe_model = WhisperModel(self.model, device=self.process_device)
             else:
                 self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
 
+
+    @utils.time_it
+    def __generate_sync_client(self):
+        if self.__initial_client:
+            client = self.__initial_client
+            self.__initial_client = None # do not reuse the same client
+        else:
+            client = OpenAI(api_key=self.__api_key, base_url=self.whisper_url)
+
+        return client
+    
+
+    @utils.time_it
+    def __get_endpoint(self, whisper_url):
+        known_endpoints = {
+            'OpenAI': 'https://api.openai.com/v1',
+            'Groq': 'https://api.groq.com/openai/v1',
+            'whisper.cpp': 'http://127.0.0.1:8080/inference',
+        }
+        if whisper_url in known_endpoints:
+            return known_endpoints[whisper_url]
+        else: # if not found, use value as is
+            return whisper_url
+
+
     @utils.time_it
     def __get_api_key(self) -> str:
-        if not self.__api_key:
+        if self.external_whisper_service:
             try: # first check mod folder for stt secret key
                 mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
                 with open(mod_parent_folder+'\\'+self.__stt_secret_key_file, 'r') as f:
-                    self.__api_key: str = f.readline().strip()
+                    api_key: str = f.readline().strip()
             except: # check locally (same folder as exe) for stt secret key
                 try:
                     with open(self.__stt_secret_key_file, 'r') as f:
-                        self.__api_key: str = f.readline().strip()
+                        api_key: str = f.readline().strip()
                 except:
                     try: # first check mod folder for secret key
                         mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
                         with open(mod_parent_folder+'\\'+self.__secret_key_file, 'r') as f:
-                            self.__api_key: str = f.readline().strip()
+                            api_key: str = f.readline().strip()
                     except: # check locally (same folder as exe) for secret key
                         with open(self.__secret_key_file, 'r') as f:
-                            self.__api_key: str = f.readline().strip()
+                            api_key: str = f.readline().strip()
                 
-            if not self.__api_key:
+            if not api_key:
                 logging.error(f'''No secret key found in GPT_SECRET_KEY.txt. Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
-If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
-If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is running.''')
+If you would prefer to run speech-to-text locally, please ensure the `Speech-to-Text`->`External Whisper Service` setting in the Mantella UI is disabled.''')
                 input("Press Enter to continue.")
                 sys.exit(0)
-        return self.__api_key          
+            return api_key
+    
+
+    @utils.time_it
+    def whisper_transcribe(self, audio, prompt: str):
+        if self.transcribe_model: # local model
+            segments, info = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=5, vad_filter=True, initial_prompt=prompt)
+            result_text = ' '.join(segment.text for segment in segments)
+            return result_text
+        elif 'openai' in self.whisper_url: # OpenAI compatible endpoint
+            client = self.__generate_sync_client()
+            try:
+                response_data = client.audio.transcriptions.create(model=self.model, language=self.language, file=audio, prompt=prompt)
+            except Exception as e:
+                if e.code in [404, 'model_not_found']:
+                    if self.whisper_service == 'OpenAI':
+                        logging.error(f"Selected Whisper model '{self.model}' does not exist in the OpenAI service. Try changing 'Speech-to-Text'->'Model Size' to 'whisper-1' in the Mantella UI")
+                    elif self.whisper_service == 'Groq':
+                        logging.error(f"Selected Whisper model '{self.model}' does not exist in the Groq service. Try changing 'Speech-to-Text'->'Model Size' to one of the following models in the Mantella UI: https://console.groq.com/docs/speech-text#supported-models")
+                    else:
+                        logging.error(f"Selected Whisper model '{self.model}' does not exist in the selected service {self.whisper_service}. Try changing 'Speech-to-Text'->'Model Size' to a compatible model in the Mantella UI")
+                else:
+                    logging.error(f'STT error: e')
+                input("Press Enter to exit.")
+            client.close()
+            return response_data.text.strip()
+        else: # custom server model
+            data = {'model': self.model, 'prompt': prompt}
+            files = {'file': ('audio.wav', audio, 'audio/wav')}
+            response = requests.post(self.whisper_url, files=files, data=data)
+            if response.status_code != 200:
+                logging.error(f'STT Error: {response.content}')
+            response_data = json.loads(response.text)
+            if 'text' in response_data:
+                return response_data['text'].strip()
 
 
     @utils.time_it
@@ -98,7 +158,6 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         Recognize input from mic and return transcript if activation tag (assistant name) exist
         """
         while True:
-            # self.game_state_manager.write_game_info('_mantella_status', 'Listening...')
             logging.log(self.loglevel, 'Listening...')
             transcript = self._recognize_speech_from_mic(prompt)
             if transcript == None:
@@ -106,15 +165,10 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
 
             transcript_cleaned = utils.clean_text(transcript)
 
-            # conversation_ended = self.game_state_manager.load_data_when_available('_mantella_end_conversation', '')
-            # if conversation_ended.lower() == 'true':
-            #     return 'goodbye'
-
             # common phrases hallucinated by Whisper
             if transcript_cleaned in self.__ignore_list:
                 continue
 
-            # self.game_state_manager.write_game_info('_mantella_status', 'Thinking...')
             return transcript
     
 
@@ -124,41 +178,23 @@ If you are running a model locally, please ensure the service (Kobold / Text gen
         Capture the words from the recorded audio (audio stream --> free text).
         Transcribe speech from recorded from `microphone`.
         """
-        @utils.time_it
-        def whisper_transcribe(audio, prompt: str):
-            # if using faster_whisper (default) return based on faster_whisper's code, if not assume player wants to use server mode and send query to whisper_url set by player.
-            if self.whisper_type == 'faster_whisper':
-                segments, info = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=5, vad_filter=True, initial_prompt=prompt)
-                result_text = ' '.join(segment.text for segment in segments)
-
-                return result_text
-            # this code queries the whispercpp server set by the user to obtain the response, this format also allows use of official openai whisper API
-            else:
-                url = self.whisper_url
-                if 'openai' in url:
-                    headers = {"Authorization": f"Bearer {self.__get_api_key()}",}
-                else:
-                    headers = {"Authorization": "Bearer apikey",}
-                data = {'model': self.model, 'prompt': prompt}
-                files = {'file': ('audio.wav', audio, 'audio/wav')}
-                response = requests.post(url, headers=headers, files=files, data=data)
-                if response.status_code != 200:
-                    logging.error(f'STT Error: {response.content}')
-                response_data = json.loads(response.text)
-                if 'text' in response_data:
-                    return response_data['text'].strip()
-
-        with self.microphone as source:
-            try:
-                audio = self.recognizer.listen(source, timeout=self.listen_timeout)
-            except sr.WaitTimeoutError:
-                return ''
+        while True:
+            with self.microphone as source:
+                try:
+                    audio = self.recognizer.listen(source, timeout=self.listen_timeout)
+                    break
+                except sr.WaitTimeoutError:
+                    logging.warning(f'No microphone input detected after {self.listen_timeout} seconds. Try lowering the `Speech-to-Text`->`Audio Threshold` value in the Mantella UI')
+                    continue
         
         audio_data = audio.get_wav_data(convert_rate=16000)
+        logging.log(self.loglevel, 'Speech detected')
+        #transcript = base64.b64encode(audio_data).decode('utf-8')
         audio_file = io.BytesIO(audio_data)
-        transcript = whisper_transcribe(audio_file, prompt)
-        if transcript:
-            logging.log(self.loglevel, transcript)
+        audio_file.name = "out.wav"
+        transcript = self.whisper_transcribe(audio_file, prompt)
+        # if transcript:
+        #     logging.log(self.loglevel, transcript)
 
         return transcript
 

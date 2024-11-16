@@ -201,7 +201,7 @@ class ConfigLoader:
                 self.audio_threshold = str(self.__definitions.get_int_value("audio_threshold"))
             self.pause_threshold = self.__definitions.get_float_value("pause_threshold")
             self.listen_timeout = self.__definitions.get_int_value("listen_timeout")
-            self.whisper_type = self.__definitions.get_string_value("whisper_type")
+            self.external_whisper_service = self.__definitions.get_bool_value("external_whisper_service")
             self.whisper_url = self.__definitions.get_string_value("whisper_url")
 
             #LLM
