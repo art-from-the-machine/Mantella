@@ -1,3 +1,4 @@
+import sys
 from src.http.http_server import http_server
 import traceback
 from src.http.routes.routeable import routeable
@@ -7,15 +8,17 @@ import logging
 import src.setup as setup
 from src.ui.start_ui import StartUI
 
+# Ensure sys.stdout and sys.stderr use UTF-8 encoding
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+
+# Configure logging to use the updated streams
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s: %(message)s",
-    handlers=[logging.StreamHandler()]
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
-
-for handler in logging.getLogger().handlers:
-    if isinstance(handler, logging.StreamHandler):
-        handler.setStream(open(handler.stream.name, 'w', encoding='utf-8'))
 
 def main():
     try:
