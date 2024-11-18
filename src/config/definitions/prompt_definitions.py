@@ -44,6 +44,16 @@ class PromptDefinitions:
                                 "bios_and_summaries",
                                 "actions"]
     
+    ALLOWED_PROMPT_VARIABLES_MEMORY = [
+        "bios",
+        "names",
+        "conversation_summaries",
+        "name",
+        "language",
+        "game",
+        "player_name"
+        ]
+    
     BASE_PROMPT_DESCRIPTION = """The starting prompt sent to the LLM when an NPC is selected.
                                 The following are dynamic variables that need to be contained in curly brackets {}:
                                 name = the NPC's name
@@ -63,6 +73,8 @@ class PromptDefinitions:
                                 player_equipment = a basic description of the equipment the player character carries
                                 equipment = a basic description of the equipment the NPCs carry
                                 actions = instructions for the LLM how to trigger actions"""
+    
+ 
     
     BASE_RADIANT_DESCRIPTION = """The starting prompt sent to the LLM when a radiant conversation is started.
                                 The following are dynamic variables that need to be contained in curly brackets {}:
@@ -282,10 +294,12 @@ Content Guidelines:
                                                language = the selected language
                                                game = the game selected
                                                player_name = the name of the player character""" 
-        memory_prompt = """You are tasked with summarizing the conversation between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}. 
+        memory_prompt = """You are tasked with summarizing the conversation between {name} (the assistant) and the player (the user) / other characters. Here are their backgrounds: 
+                                            {bios} 
+                                            And here are their conversation histories: {conversation_summaries}
                                             It is not necessary to comment on any mixups in communication such as mishearings. Text contained within brackets state in-game events. 
-                                            Please summarize the conversation into a single paragraph in {language}."""
-        return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "player_name"])])
+                                            Please summarize the conversation into a single paragraph in {language}. These conversations take place in {game}. """
+        return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MEMORY)])
     
     @staticmethod
     def get_resummarize_prompt_config_value() -> ConfigValue:

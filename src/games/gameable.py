@@ -240,7 +240,7 @@ class Gameable(ABC):
         for matcher in ordered_matchers:
             view = self.character_df.loc[ordered_matchers[matcher]]
             if view.shape[0] == 1: #If there is exactly one match
-                logging.info(f'Matched {character_name} in CSV by {matcher}')
+                #logging.info(f'Matched {character_name} in CSV by {matcher}')
                 return ordered_matchers[matcher]
             
         logging.info(f"No unique match for name='{character_name}', base_id(last6)='{full_id_search}', race='{race}'. See debug match counts above.")
