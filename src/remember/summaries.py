@@ -1,27 +1,35 @@
+from collections import defaultdict
 import logging
 import os
 import time
+from typing import Dict, List
 from src.config.config_loader import ConfigLoader
 from src.games.gameable import gameable
-from src.llm.llm_client import LLMClient
+from src.llm.summary_client import SummaryLLMCLient
 from src.llm.message_thread import message_thread
-from src.llm.messages import user_message
+from src.llm.messages import assistant_message, join_message, leave_message, user_message
 from src.characters_manager import Characters
 from src.character_manager import Character
 from src.remember.remembering import remembering
 from src import utils
 
+class CharacterSummaryParameters:
+    def __init__(self, messages: message_thread, involved_characters: List[Character]) -> None:
+        self.messages = messages
+        self.characters = involved_characters
+
+
 class summaries(remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, game: gameable, config: ConfigLoader, client: LLMClient, language_name: str, summary_limit_pct: float = 0.3) -> None:
+    def __init__(self, game: gameable, config: ConfigLoader, client: SummaryLLMCLient, language_name: str, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
         self.__config = config
         self.__game: gameable = game
         self.__summary_limit_pct: float = summary_limit_pct
-        self.__client: LLMClient = client
+        self.__client: SummaryLLMCLient = client
         self.__language_name: str = language_name
         self.__memory_prompt: str = config.memory_prompt
         self.__resummarize_prompt:str = config.resummarize_prompt
@@ -32,38 +40,193 @@ class summaries(remembering):
 
         Args:
             npcs_in_conversation (Characters): the npcs to load the summaries for
+            world_id (str): the world identifier
 
         Returns:
             str: a concatenation of the summaries as a single string
         """
+        return self.__get_prompt_text(npcs_in_conversation.get_all_characters(), world_id, True)
+
+    @utils.time_it
+    def __get_prompt_text(self, characters: List[Character], world_id: str, log_file_info) -> str:
         paragraphs = []
-        for character in npcs_in_conversation.get_all_characters():
-            if not character.is_player_character:          
-                conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)      
-                if os.path.exists(conversation_summary_file):
-                    with open(conversation_summary_file, 'r', encoding='utf-8') as f:
-                        for line in f:
-                            line = line.strip()
-                            if line and line not in paragraphs:
-                                paragraphs.append(line.strip())
+        for character in characters:
+            if not character.is_player_character:
+                file_lines = self.__load_summary_file_contents(character, world_id, log_file_info)
+                for line in file_lines:
+                    if line not in paragraphs:
+                        paragraphs.append(line)
         if paragraphs:
             result = "\n".join(paragraphs)
             return f"Below is a summary of past events:\n{result}"
         else:
             return ""
 
+    def __load_summary_file_contents(self, character, world_id, log_file_info) -> list:
+        """Load the contents of a summary file and return a list of non-empty lines.
+
+        Args:
+            file_path (str): the path to the summary file
+
+        Returns:
+            list: a list of cleaned lines from the file
+        """
+        file_path = self.__get_latest_conversation_summary_file_path(character, world_id, log_file_info)
+        lines = []
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    stripped_line = line.strip()
+                    if stripped_line and stripped_line not in lines:
+                        lines.append(stripped_line)
+        return lines
+
+
+    @utils.time_it
+    def may_add_missing_join_leave_messages(self, messages: message_thread) -> bool:
+        """ Adds missing join and leave messages to the beginning / end of the message thread."""
+        hadMissingMessages = False
+        characters_found = {}
+        characters_joined = {}
+        characters_left = {}
+    
+        # check if every join message has a leave message and vice versa
+        for message in messages.get_messages_of_type((join_message)):
+            if not message.character.is_player_character:
+                name = message.character.name
+                characters_joined[name] = message.character
+                characters_found[name] = message.character
+        
+        for message in messages.get_messages_of_type((leave_message)):
+            if not message.character.is_player_character:
+                name = message.character.name
+                characters_left[name] = message.character
+                characters_found[name] = message.character
+
+    
+        # Insert the missing messages at the appropriate places
+        if len(characters_joined) < len(characters_found):
+            for name, character in characters_found.items():
+                if name not in characters_joined:
+                    messages.insert_after_system_messages(join_message(character, self.__config))
+                    hadMissingMessages = True
+        if len(characters_left) < len(characters_found):
+            for name, character in characters_found.items():
+                if name not in characters_left:
+                    messages.add_message(leave_message(character, self.__config))
+                    hadMissingMessages = True
+        return hadMissingMessages
+    
     @utils.time_it
     def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False):
         summary = ''
-        for npc in npcs_in_conversation.get_all_characters():
-            if not npc.is_player_character:
-                if len(summary) < 1: # if a summary has not already been generated, make one
-                    summary = self.__create_new_conversation_summary(messages, npc.name)
-                if len(summary) > 0 or is_reload: # if a summary has been generated, give the same summary to all NPCs
-                    self.__append_new_conversation_summary(summary, npc, world_id)
+        # If we truncated the conversation due to running out of context, join and leave messages may be missing
+        self.may_add_missing_join_leave_messages(messages)
+        
+        characters = self.get_character_lookup_dict(messages)
+        npc_message_threads: Dict[str, CharacterSummaryParameters] = self.get_threads_for_summarization(messages, characters)
+        npcs_with_shared_threads = self.group_shared_threads(npc_message_threads)
+        
+        for npc_names in npcs_with_shared_threads:
+           summary = self.__create_new_conversation_summary(npc_message_threads[npc_names[0]], world_id)
+           for npc_name in npc_names:
+               self.__append_new_conversation_summary(summary, characters[npc_name], world_id)
+        
+        
+                
+
+    def get_character_lookup_dict(self, all_messages: message_thread) -> Dict[str, Character]:
+        """Returns a dictionary of character names to Character objects."""
+        characters = {}
+        for message in all_messages.get_messages_of_type((join_message)):
+            if not isinstance(message, (join_message, leave_message)) or message.character == None or message.character.is_player_character:
+                continue
+            characters[message.character.name] = message.character
+        return characters
 
     @utils.time_it
-    def __get_latest_conversation_summary_file_path(self, character: Character, world_id: str) -> str:
+    def get_threads_for_summarization(self, all_messages: message_thread, characters:Dict[str, Character]) -> Dict[str, CharacterSummaryParameters]:
+        """
+        Returns a dictionary mapping an NPC's name to a CharacterSummaryParameters object,
+        which encapsulates the npc's message_thread and the list of Characters they've seen.
+        """
+        npcs_in_conversation: Dict[str, bool] = {}
+        def set_in_conversation(npc: Character, in_conversation: bool):
+            npcs_in_conversation[npc.name] = in_conversation
+        
+        npc_messageThreads: Dict[str, message_thread] = {}
+        npc_has_seen_npcs: Dict[str, Dict[str, Character]] = {}
+
+        for message in all_messages.get_persistent_messages():
+            # Mark npc as present when they join
+            if isinstance(message, join_message) and not message.character.is_player_character:
+                set_in_conversation(message.character, True)
+
+            # Add the message for each npc that was in the conversation to hear this message
+            for npc_name, in_conversation in npcs_in_conversation.items():
+                # For each npc we extract a list of all the other npcs that have been in the conversation with them at the same time
+                for npc_name2, in_conversation2 in npcs_in_conversation.items():
+                    if in_conversation and in_conversation2:
+                        if npc_has_seen_npcs.get(npc_name) is None:
+                            npc_has_seen_npcs[npc_name] = {}
+                        npc_has_seen_npcs[npc_name][npc_name2] = characters[npc_name2]  # Assuming message.character represents the Character.
+                
+                # We also store the message for the npc if they are in the conversation for it
+                if in_conversation:
+                    if npc_name not in npc_messageThreads:
+                        npc_messageThreads[npc_name] = message_thread(self.__config, None)
+                    thread: message_thread = npc_messageThreads[npc_name]
+                    
+                    # Mark passage of time, in case a character left and rejoined the conversation
+                    if len(thread) > 0:
+                        npcs_previous_message = thread.get_last_message()
+                        if isinstance(npcs_previous_message, leave_message) and npcs_previous_message.character.name == npc_name:
+                            thread.add_message(assistant_message("* some time later *"))
+                    
+                    thread.add_message(message)
+            
+            # Mark npc as absent when they leave 
+            if isinstance(message, leave_message) and not message.character.is_player_character:
+                set_in_conversation(message.character, False)
+
+        # Prepare the result
+        result: Dict[str, CharacterSummaryParameters] = {}
+        for npc_name, seen_npcs_dict in npc_has_seen_npcs.items():
+            if npc_name not in npc_messageThreads:
+                continue
+            seen_npcs = [seen_npcs_dict[key] for key in seen_npcs_dict]
+            thread = npc_messageThreads[npc_name]
+            result[npc_name] = CharacterSummaryParameters(thread, seen_npcs)
+            
+        return result
+
+    def group_shared_threads(self, npc_threads: Dict[str, CharacterSummaryParameters]) -> list[list[str]]:
+        """
+        Groups NPC message threads if they have exactly the same messages.
+
+        Two threads are considered identical if the sequence of messages (by text) returned by 
+        thread.get_talk_only() (when converted to a tuple of strings) is exactly equal.
+
+        Returns:
+        A dictionary mapping a representative message_thread to a list of NPC names that share that thread.
+        """
+        # Group NPCs by the exact tuple of message texts from their thread.
+        thread_groups = defaultdict(list)
+        for npc_name, summary_params in npc_threads.items():
+            messages_tuple = tuple(message.text for message in summary_params.messages.get_talk_only())
+            thread_groups[messages_tuple].append(npc_name)
+
+        # Build the result: for each group, select a representative thread.
+        result: list[list[str]] = []
+        for messages, npc_list in thread_groups.items():
+            result.append(npc_list)
+
+        return result
+
+                        
+
+    @utils.time_it
+    def __get_latest_conversation_summary_file_path(self, character: Character, world_id: str, log_file_info) -> str:
         """
         Get the path to the latest conversation summary file, prioritizing name_ref folders over legacy name folders.
         
@@ -99,10 +262,12 @@ class summaries(remembering):
         # Determine which folder path to use based on existence
         if os.path.exists(name_ref_path):
             target_folder = name_ref_path
-            logging.info(f"Loaded latest summary file from: {target_folder}")
+            if log_file_info:
+                logging.info(f"Loaded latest summary file from: {target_folder}")
         elif os.path.exists(name_path):
             target_folder = name_path
-            logging.info(f"Loaded latest summary file from: {target_folder}")
+            if log_file_info:
+                logging.info(f"Loaded latest summary file from: {target_folder}")
         else:
             target_folder = name_ref_path  # Use name_ref format for new folders
             logging.info(f"{name_ref_path} does not exist. A new summary file will be created.")
@@ -111,16 +276,26 @@ class summaries(remembering):
         return f"{target_folder}/{base_name}_summary_{latest_file_number}.txt"
     
     @utils.time_it
-    def __create_new_conversation_summary(self, messages: message_thread, npc_name: str) -> str:
+    def __create_new_conversation_summary(self, npcInfo:CharacterSummaryParameters, world_id: str) -> str:
+        if self.__config.game == "Fallout4" or self.__config.game == "Fallout4VR":
+            location: str = 'the Commonwealth'
+        else:
+            location: str = "Skyrim"
+        
+        bios = '\n\n'.join([f"{c.name}: {c.bio}" for c in npcInfo.characters])
+        names = ', '.join([c.name for c in npcInfo.characters])
         prompt = self.__memory_prompt.format(
-                    name=npc_name,
+                    name=names,
+                    names=names,
                     language=self.__language_name,
-                    game=self.__game
+                    game=location, 
+                    bios=bios,
+                    conversation_summaries=self.__get_prompt_text(npcInfo.characters, world_id, False)
                 )
         while True:
             try:
-                if len(messages) >= 5:
-                    return self.summarize_conversation(messages.transform_to_dict_representation(messages.get_talk_only()), prompt, npc_name)
+                if len(npcInfo.messages) >= 5:
+                    return self.summarize_conversation(npcInfo.messages.transform_to_dict_representation(npcInfo.messages.get_talk_only()), prompt)
                 else:
                     logging.info(f"Conversation summary not saved. Not enough dialogue spoken.")
                 break
@@ -133,7 +308,7 @@ class summaries(remembering):
     @utils.time_it
     def __append_new_conversation_summary(self, new_summary: str, npc: Character, world_id: str):
         # if this is not the first conversation
-        conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc, world_id)
+        conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc, world_id,False)
         if os.path.exists(conversation_summary_file):
             with open(conversation_summary_file, 'r', encoding='utf-8') as f:
                 previous_conversation_summaries = f.read()
@@ -164,7 +339,7 @@ class summaries(remembering):
                         language=self.__language_name,
                         game=self.__game
                     )
-                    long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt, npc.name)
+                    long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt)
                     break
                 except:
                     logging.error('Failed to summarize conversation. Retrying...')
@@ -181,10 +356,8 @@ class summaries(remembering):
             with open(new_conversation_summary_file, 'w', encoding='utf-8') as f:
                 f.write(long_conversation_summary)
             
-            # npc.conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc)
-
     @utils.time_it
-    def summarize_conversation(self, text_to_summarize: str, prompt: str, npc_name: str) -> str:
+    def summarize_conversation(self, text_to_summarize: str, prompt: str) -> str:
         summary = ''
         if len(text_to_summarize) > 5:
             messages = message_thread(self.__config, prompt)
@@ -194,6 +367,7 @@ class summaries(remembering):
                 logging.info(f"Summarizing conversation failed.")
                 return ""
 
+            npc_name = "Someone"
             summary = summary.replace('The assistant', npc_name)
             summary = summary.replace('the assistant', npc_name)
             summary = summary.replace('an assistant', npc_name)

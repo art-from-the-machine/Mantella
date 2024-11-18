@@ -2,6 +2,7 @@ import logging
 from typing import Any, Hashable
 import regex
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
+from src.llm.summary_client import SummaryLLMCLient
 from src.games.equipment import Equipment, EquipmentItem
 from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
@@ -29,13 +30,13 @@ class GameStateManager:
     WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
     @utils.time_it
-    def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, stt_api_file: str, api_file: str):        
+    def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, summary_client:SummaryLLMCLient, stt_api_file: str, api_file: str):        
         self.__game: gameable = game
         self.__config: ConfigLoader = config
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
-        self.__rememberer: remembering = summaries(game, config, client, language_info['language'])
+        self.__rememberer: remembering = summaries(game, config, summary_client, language_info['language'])
         self.__talk: conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk

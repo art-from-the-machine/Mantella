@@ -296,6 +296,10 @@ class SettingsUIConstructor(ConfigValueVisitor):
             "vision_model": {
                 "dependent_config": "vision_llm_api",
                 "model_list_getter": ClientBase.get_model_list,
+            },
+            "model_summaries": {
+                "dependent_config": "llm_api",
+                "model_list_getter": ClientBase.get_model_list,
             }
         }
 
