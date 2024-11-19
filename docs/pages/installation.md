@@ -21,13 +21,15 @@
 
 4. Launch Skyrim. Mantella will open a window automatically when Skyrim is launched and will say "Waiting for player to select an NPC..." when it is ready (this might take a few minutes when launched for the first time). When you start the game, the Mantella spell will be added to your inventory. Cast this spell on an NPC to start a conversation.
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/0YlccdAJIDg?si=KTVDapemtDFV5TvN" title="Mantella Installation Tutorial" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>  
-
 ```{admonition} Note
 :class: seealso
 
 Mantella's default text-to-speech service, Piper, only supports English. For text-to-speech services that support other languages, see [here](#text-to-speech).
 ```
+
+<div style="text-align: center;">
+	<iframe width="560" height="315" src="https://www.youtube.com/embed/0YlccdAJIDg?si=KTVDapemtDFV5TvN" title="Mantella Installation Tutorial" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>  
+</div>  
 
 <details>
 <summary><b>Upgrading from a previous Mantella version</b></summary>  
