@@ -21,6 +21,8 @@
 
 4. Launch Skyrim. Mantella will open a window automatically when Skyrim is launched and will say "Waiting for player to select an NPC..." when it is ready (this might take a few minutes when launched for the first time). When you start the game, the Mantella spell will be added to your inventory. Cast this spell on an NPC to start a conversation.
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/0YlccdAJIDg?si=KTVDapemtDFV5TvN" title="Mantella Installation Tutorial" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>  
+
 ```{admonition} Note
 :class: seealso
 
@@ -36,9 +38,6 @@ In case you missed it, <a href="https://www.nexusmods.com/skyrimspecialedition/m
 
 From v0.12, Mantella stores conversation histories in your `Documents/My Games/Mantella/Data/Skyrim/conversations/YourPlayerName1/` folder. This folder will generate for the first time after a conversation has been saved. Once generated, transfer your previous conversation histories (in your previous `/Data/Skyrim/conversations/` folder) to this new folder.
 </details>  
-
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/0YlccdAJIDg?si=KTVDapemtDFV5TvN" title="Mantella Installation Tutorialr" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>  
 
 If you get stuck anywhere in the installation process, please see {doc}`/pages/issues_qna` or reach out on [Discord](https://discord.gg/Q4BJAdtGUE).
 
