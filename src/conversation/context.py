@@ -276,7 +276,7 @@ class context:
         return context.format_listing(relationships)
        
     @utils.time_it
-    def __get_character_names_as_text(self, should_include_player: bool) -> str:
+    def get_character_names_as_text(self, should_include_player: bool) -> str:
         """Gets the names of the NPCs in the conversation as a natural language list
 
         Args:
@@ -357,8 +357,8 @@ class context:
                 player_description = game_sent_description
         if self.npcs_in_conversation.last_added_character:
             name: str = self.npcs_in_conversation.last_added_character.name
-        names = self.__get_character_names_as_text(False)
-        names_w_player = self.__get_character_names_as_text(True)
+        names = self.get_character_names_as_text(False)
+        names_w_player = self.get_character_names_as_text(True)
         bios = self.__get_bios_text()
         trusts = self.__get_trusts()
         equipment = self.__get_npc_equipment_text()
