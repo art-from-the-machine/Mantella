@@ -76,10 +76,11 @@ class ttsable(ABC):
                 new_fuz_file_name = new_wav_file_name.replace(".wav", ".fuz")
                 os.rename(final_voiceline_file, new_wav_file_name)
 
-                try:
-                    os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
-                except:
-                    logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".lip")}')
+                if (self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response):
+                    try:
+                        os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
+                    except:
+                        logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".lip")}')
                 try:
                     fuz_file_name = final_voiceline_file.replace(".wav", ".fuz")
                     if (os.path.exists(fuz_file_name)):
