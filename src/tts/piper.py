@@ -10,6 +10,7 @@ import sys
 from threading import Thread
 from queue import Queue, Empty
 from src.tts.synthesization_options import SynthesizationOptions
+from src.games.gameable import gameable
 
 # https://stackoverflow.com/a/4896288/25532567
 ON_POSIX = 'posix' in sys.builtin_module_names
@@ -28,10 +29,11 @@ class piper(ttsable):
     """Piper TTS handler
     """
     @utils.time_it
-    def __init__(self, config: ConfigLoader) -> None:
+    def __init__(self, config: ConfigLoader, game: gameable) -> None:
         super().__init__(config)
+        self.__game: gameable = game
         self.__piper_path = config.piper_path
-        self.__models_path = self.__piper_path + f'/models/skyrim/low/' # TODO: change /skyrim and /low parts of the path to dynamic variables
+        self.__models_path = self.__piper_path + f'/models/{self.__game.game_name_in_filepath}/low/' # TODO: change /low parts of the path to dynamic variables
         self.__selected_voice = None
         self.__waiting_for_voice_load = False
 
@@ -118,6 +120,7 @@ class piper(ttsable):
                     line = self.q.get_nowait() # or q.get(timeout=.1)
                     if "Model loaded" in line:
                         logging.info('Model loaded')
+                        logging.info('Model {self.__selected_voice} loaded')
                         self.__waiting_for_voice_load = False
                         self._last_voice = self.__selected_voice
                         return

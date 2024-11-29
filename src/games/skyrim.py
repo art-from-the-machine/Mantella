@@ -152,6 +152,10 @@ class skyrim(gameable):
     @property
     def extender_name(self) -> str:
         return 'SKSE'
+    
+    @property
+    def game_name_in_filepath(self) -> str:
+        return 'skyrim'
 
 
     MALE_VOICE_MODELS: dict[str, str] = {
