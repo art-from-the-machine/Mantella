@@ -10,23 +10,55 @@ import io
 from pathlib import Path
 import base64
 from openai import OpenAI
+import uuid
+from typing import Dict, Optional
+from dataclasses import dataclass
+from datetime import datetime
+import queue
+import threading
+import time
+
+@dataclass
+class TranscriptionJob:
+    id: str
+    audio_data: sr.AudioData
+    transcript: Optional[str] = None
+    started_at: datetime = datetime.now()
+    prompt: str = ''
+    completed: bool = False
+
+class TranscriptionQueue:
+    """Thread-safe queue for managing transcriptions"""
+    def __init__(self):
+        self.queue = queue.Queue()
+        self.is_more_to_come = True
+    
+    def put(self, capture: TranscriptionJob):
+        self.queue.put(capture)
+    
+    def get(self, timeout: float = None) -> Optional[TranscriptionJob]:
+        try:
+            return self.queue.get(timeout=timeout)
+        except queue.Empty:
+            return None
 
 class Transcriber:
     def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str):
         self.loglevel = 27
         # self.mic_enabled = config.mic_enabled
         self.language = config.stt_language
-        self.task = "transcribe"
-        if config.stt_translate == 1:
-            # translate to English
-            self.task = "translate"
+        self.task = "translate" if config.stt_translate == 1 else "transcribe"
         self.model = config.whisper_model
         self.process_device = config.whisper_process_device
-        self.audio_threshold = config.audio_threshold
+        self.audio_threshold = int(config.audio_threshold)
         self.listen_timeout = config.listen_timeout
         self.external_whisper_service = config.external_whisper_service
         self.whisper_service = config.whisper_url
         self.whisper_url = self.__get_endpoint(config.whisper_url)
+        self.pause_threshold = config.pause_threshold
+        # heavy-handed fix to non_speaking_duration as it it always required to be less than pause_threshold
+        self.non_speaking_duration = 0.5 if self.pause_threshold > 0.5 else self.pause_threshold - 0.01
+        self.show_mic_warning = True
 
         self.end_conversation_keyword = config.end_conversation_keyword
         self.radiant_start_prompt = config.radiant_start_prompt
@@ -43,7 +75,8 @@ class Transcriber:
         self.__ignore_list = ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much', "thank you for watching and i'll see you in the next video", "we'll see you in the next video", 'see you next time']
         
         self.recognizer = sr.Recognizer()
-        self.recognizer.pause_threshold = config.pause_threshold
+        self.recognizer.pause_threshold = self.pause_threshold
+        self.recognizer.non_speaking_duration = self.non_speaking_duration
         self.microphone = sr.Microphone()
 
         if self.audio_threshold == 'auto':
@@ -53,7 +86,7 @@ class Transcriber:
                 self.recognizer.adjust_for_ambient_noise(source, duration=5)
         else:
             self.recognizer.dynamic_energy_threshold = False
-            self.recognizer.energy_threshold = int(self.audio_threshold)
+            self.recognizer.energy_threshold = self.audio_threshold
             logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this `Speech-to-Text`->`Audio Threshold` value in the Mantella UI. If the mic is picking up too much background noise, try increasing this value.\n")
 
         self.transcribe_model: WhisperModel | None = None
@@ -64,6 +97,19 @@ class Transcriber:
             else:
                 self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
 
+        # Thread management
+        self.__listen_thread: Optional[threading.Thread] = None
+        self.__transcribe_thread: Optional[threading.Thread] = None
+        self.__stop_listening = threading.Event()
+        self.__stop_transcribing = threading.Event()
+        self.__transcription_queue = TranscriptionQueue()
+        self.__latest_capture: Optional[TranscriptionJob] = None
+        self.__latest_capture_lock = threading.Lock()
+        self._speech_started = threading.Event()
+
+    @property
+    def stopped_listening(self):
+        return self.__stop_listening
 
     @utils.time_it
     def __generate_sync_client(self):
@@ -137,7 +183,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     else:
                         logging.error(f"Selected Whisper model '{self.model}' does not exist in the selected service {self.whisper_service}. Try changing 'Speech-to-Text'->'Model Size' to a compatible model in the Mantella UI")
                 else:
-                    logging.error(f'STT error: e')
+                    logging.error(f'STT error: {e}')
                 input("Press Enter to exit.")
             client.close()
             return response_data.text.strip()
@@ -153,50 +199,129 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
 
     @utils.time_it
-    def recognize_input(self, prompt: str):
-        """
-        Recognize input from mic and return transcript if activation tag (assistant name) exist
-        """
-        while True:
-            logging.log(self.loglevel, 'Listening...')
-            transcript = self._recognize_speech_from_mic(prompt)
-            if transcript == None:
+    def start_listening(self, prompt: str = ''):
+        '''Start background listening thread'''
+        with self.__latest_capture_lock:
+            if self.__listen_thread and self.__listen_thread.is_alive():
+                return
+            
+            self._speech_started.clear()
+            self.__stop_listening.clear()
+            self.__stop_transcribing.clear()
+            self.__transcription_queue.is_more_to_come = True
+            
+            # Start listening thread
+            self.__listen_thread = threading.Thread(
+                target=self.__background_listen,
+                daemon=True,
+                args=[prompt]
+            )
+            self.__listen_thread.start()
+            
+            # Start transcription thread
+            self.__transcribe_thread = threading.Thread(
+                target=self.__process_transcriptions,
+                daemon=True
+            )
+            self.__transcribe_thread.start()
+            
+            logging.log(self.loglevel, 'Started speech recognition threads')
+    
+    
+    @utils.time_it
+    def __process_transcriptions(self):
+        '''Transcribe captured mic inputs'''
+        while not self.__stop_transcribing.is_set():
+            try:
+                # Get next capture from queue
+                capture = self.__transcription_queue.get(timeout=0.5)
+                if not capture:
+                    time.sleep(0.01)
+                    continue
+
+                audio_data = capture.audio_data.get_wav_data(convert_rate=16_000)
+                #transcript = base64.b64encode(audio_data).decode('utf-8')
+                audio_file = io.BytesIO(audio_data)
+                audio_file.name = 'out.wav'
+                transcript = self.whisper_transcribe(audio_file, capture.prompt)
+
+                transcript_cleaned = utils.clean_text(transcript)
+
+                # common phrases hallucinated by Whisper
+                if transcript_cleaned in self.__ignore_list:
+                    transcript = None
+                
+                # Update capture with transcription
+                capture.transcript = transcript
+                capture.completed = True
+            except queue.Empty:
                 continue
-
-            transcript_cleaned = utils.clean_text(transcript)
-
-            # common phrases hallucinated by Whisper
-            if transcript_cleaned in self.__ignore_list:
-                continue
-
-            return transcript
+            except Exception as e:
+                logging.error(f'Error processing mic input: {str(e)}')
+                time.sleep(0.1)
     
 
     @utils.time_it
-    def _recognize_speech_from_mic(self, prompt:str):
-        """
-        Capture the words from the recorded audio (audio stream --> free text).
-        Transcribe speech from recorded from `microphone`.
-        """
-        while True:
-            with self.microphone as source:
+    def __background_listen(self, prompt: str = '') -> str:
+        '''Capture speech from mic input'''
+        with self.microphone as source:
+            while not self.__stop_listening.is_set():
                 try:
-                    audio = self.recognizer.listen(source, timeout=self.listen_timeout)
-                    break
-                except sr.WaitTimeoutError:
-                    logging.warning(f'No microphone input detected after {self.listen_timeout} seconds. Try lowering the `Speech-to-Text`->`Audio Threshold` value in the Mantella UI')
-                    continue
-        
-        audio_data = audio.get_wav_data(convert_rate=16000)
-        logging.log(self.loglevel, 'Speech detected')
-        #transcript = base64.b64encode(audio_data).decode('utf-8')
-        audio_file = io.BytesIO(audio_data)
-        audio_file.name = "out.wav"
-        transcript = self.whisper_transcribe(audio_file, prompt)
-        # if transcript:
-        #     logging.log(self.loglevel, transcript)
+                    if not self.__latest_capture: # if another mic input isn't already being processed
+                        logging.log(self.loglevel, 'Listening...')
+                        audio = self.recognizer.listen(source, timeout=self.listen_timeout)
+                        self.__stop_listening.set()
+                        logging.log(self.loglevel, 'Speech detected. Transcribing...')
 
-        return transcript
+                        capture = TranscriptionJob(
+                            id=str(uuid.uuid4()),
+                            audio_data=audio,
+                            prompt=prompt,
+                        )
+
+                        # Store as latest capture
+                        with self.__latest_capture_lock:
+                            self.__latest_capture = capture
+                        
+                        # Add to transcription queue
+                        self.__transcription_queue.put(capture)
+                except sr.WaitTimeoutError:
+                    if self.show_mic_warning:
+                        logging.warning(f'No microphone input detected after {self.listen_timeout} seconds. Try lowering the `Speech-to-Text`->`Audio Threshold` value in the Mantella UI')
+                        self.show_mic_warning = False
+                    continue
+                except Exception as e:
+                    logging.error(f'Error in microphone input: {e}')
+                    time.sleep(0.1)
+
+
+    @utils.time_it
+    def get_latest_transcription(self) -> Optional[str]:
+        ''' Get the transcription of the most recent speech detection'''
+        while True:
+            with self.__latest_capture_lock:
+                latest_capture = self.__latest_capture
+
+            if latest_capture and latest_capture.completed:
+                transcript = latest_capture.transcript
+                
+                with self.__latest_capture_lock:
+                    self.__latest_capture = None
+                
+                if transcript:
+                    logging.log(self.loglevel, f"Player said '{transcript}'")
+                else:
+                    logging.warning('Could not detect speech from mic input')
+                    if self.__stop_listening:
+                        self.start_listening()
+                
+                return transcript
+            
+            time.sleep(0.01)
+
+
+    def has_player_spoken(self):
+        return True if self.__latest_capture else False
 
 
     @staticmethod
@@ -220,3 +345,21 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
     def _remove_activation_word(transcript, activation_name):
         transcript = transcript.replace(activation_name, '')
         return transcript
+    
+
+    @utils.time_it
+    def stop_listening(self):
+        '''Stop background listening and transcription'''
+        self.__stop_listening.set()
+        self.__stop_transcribing.set()
+        self.__transcription_queue.is_more_to_come = False
+        
+        if self.__listen_thread:
+            self.__listen_thread.join()
+            self.__listen_thread = None
+            
+        if self.__transcribe_thread:
+            self.__transcribe_thread.join()
+            self.__transcribe_thread = None
+        
+        logging.log(self.loglevel, 'Stopped speech recognition threads')

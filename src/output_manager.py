@@ -32,7 +32,7 @@ class ChatManager:
         self.__tts: ttsable = tts
         self.__client: openai_client = client
         self.__is_generating: bool = False
-        self.__stop_generation: bool = False
+        self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
         # self.__number_words_tts: int = config.number_words_tts
         self.__end_of_sentence_chars = ['.', '?', '!', ':', ';', '。', '？', '！', '；', '：']
@@ -99,13 +99,10 @@ class ChatManager:
     def stop_generation(self):
         """Stops the current generation and only returns once this stop has been successful
         """
-        if not self.__is_generating:
-            return
-        
-        self.__stop_generation = True
+        self.__stop_generation.set()
         while self.__is_generating:
-            time.sleep(0.1)
-        self.__stop_generation = False
+            time.sleep(0.01)
+        self.__stop_generation.clear()
         return
 
     @utils.time_it
@@ -117,7 +114,7 @@ class ChatManager:
             rate = wf.getframerate()
 
         # wait `buffer` seconds longer to let processes finish running correctly
-        duration = frames / float(rate) + self.__config.wait_time_buffer
+        duration = frames / float(rate)
         return duration
  
     @utils.time_it
@@ -206,7 +203,7 @@ class ChatManager:
                 try:
                     start_time = time.time()
                     async for content in self.__client.streaming_call(messages=messages, is_multi_npc=characters.contains_multiple_npcs()):
-                        if self.__stop_generation:
+                        if self.__stop_generation.is_set():
                             break
                         if not content:
                             continue
@@ -300,6 +297,8 @@ class ChatManager:
                                    
                                 #logging.info(f"[{len(sentence)}] {sentence}")
                                 
+                                if self.__stop_generation.is_set():
+                                    break
                                 new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character, is_first_line_of_response)
                                 is_first_line_of_response = False
                                 blocking_queue.put(new_sentence)
@@ -345,18 +344,19 @@ class ChatManager:
                     logging.log(self.loglevel, 'Retrying connection to API...')
                     time.sleep(5)
 
-            # Check if there is any accumulated sentence at the end
-            if accumulated_sentence and len(accumulated_sentence.strip()) > 3:
-                # Generate the audio and return the audio file path
-                # Might need to check for len > 150 here
-                try:
-                    new_sentence = self.generate_sentence(' ' + accumulated_sentence + ' ', active_character)
-                    blocking_queue.put(new_sentence)
-                    full_reply += accumulated_sentence
-                    accumulated_sentence = ''
-                except Exception as e:
-                    accumulated_sentence = ''
-                    logging.error(f"TTS Error: {e}")
+            if not self.__stop_generation.is_set():
+                # Check if there is any accumulated sentence at the end
+                if accumulated_sentence and len(accumulated_sentence.strip()) > 3:
+                    # Generate the audio and return the audio file path
+                    # Might need to check for len > 150 here
+                    try:
+                        new_sentence = self.generate_sentence(' ' + accumulated_sentence + ' ', active_character)
+                        blocking_queue.put(new_sentence)
+                        full_reply += accumulated_sentence
+                        accumulated_sentence = ''
+                    except Exception as e:
+                        accumulated_sentence = ''
+                        logging.error(f"TTS Error: {e}")
 
             # Mark the end of the response
             # await sentence_queue.put(None)

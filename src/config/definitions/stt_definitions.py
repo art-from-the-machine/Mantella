@@ -16,7 +16,7 @@ class STTDefinitions:
         audio_threshold_description = """Controls how much background noise is filtered out.
                                         If the mic is not picking up speech, try lowering this value.
                                         If the mic is picking up too much background noise, try increasing this value."""
-        return ConfigValueInt("audio_threshold","Audio Threshold",audio_threshold_description, 175, 1, 999)
+        return ConfigValueInt("audio_threshold","Audio Threshold",audio_threshold_description, 175, 0, 999)
     
     @staticmethod
     def get_model_size_config_value() -> ConfigValue:
