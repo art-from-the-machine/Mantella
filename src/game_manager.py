@@ -16,6 +16,7 @@ from src.conversation.context import context
 from src.character_manager import Character
 import src.utils as utils
 from src.http.communication_constants import communication_constants as comm_consts
+from src.stt import Transcriber
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv/fallout4_characters.csv"""
@@ -27,7 +28,7 @@ class GameStateManager:
     WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
     @utils.time_it
-    def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: openai_client):        
+    def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: openai_client, stt_api_file: str, api_file: str):        
         self.__game: gameable = game
         self.__config: ConfigLoader = config
         self.__language_info: dict[Hashable, str] = language_info 
@@ -35,6 +36,11 @@ class GameStateManager:
         self.__chat_manager: ChatManager = chat_manager
         self.__rememberer: remembering = summaries(game, config.memory_prompt, config.resummarize_prompt, client, language_info['language'])
         self.__talk: conversation | None = None
+        self.__mic_input: bool = False
+        self.__mic_ptt: bool = False # push-to-talk
+        self.__stt_api_file: str = stt_api_file
+        self.__api_file: str = api_file
+        self.__stt: Transcriber | None = None
 
     ###### react to calls from the game #######
     @utils.time_it
@@ -46,8 +52,16 @@ class GameStateManager:
         if input_json.__contains__(comm_consts.KEY_STARTCONVERSATION_WORLDID):
             world_id = input_json[comm_consts.KEY_STARTCONVERSATION_WORLDID]
             world_id = self.WORLD_ID_CLEANSE_REGEX.sub("", world_id)
+        if input_json.__contains__(comm_consts.KEY_INPUTTYPE):
+            if input_json[comm_consts.KEY_INPUTTYPE] in (comm_consts.KEY_INPUTTYPE_MIC, comm_consts.KEY_INPUTTYPE_PTT):
+                self.__mic_input = True
+                # only init Transcriber if mic input is enabled
+                self.__stt = Transcriber(self.__config, self.__stt_api_file, self.__api_file)
+                if input_json[comm_consts.KEY_INPUTTYPE] == comm_consts.KEY_INPUTTYPE_PTT:
+                    self.__mic_ptt = True
+                
         context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
-        self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client)
+        self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
         self.__update_context(input_json)
         character_to_talk = self.__talk.context.npcs_in_conversation.last_added_character
         self.__talk.output_manager.tts.change_voice(character_to_talk.tts_voice_model, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.advanced_voice_model, character_to_talk.voice_accent)
@@ -65,8 +79,18 @@ class GameStateManager:
             if extra_actions.__contains__(comm_consts.ACTION_RELOADCONVERSATION):
                 self.__talk.reload_conversation()
 
-        replyType, sentence_to_play = self.__talk.continue_conversation()
-        reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
+        self.__update_context(input_json)
+
+        while True:
+            replyType, sentence_to_play = self.__talk.continue_conversation()
+            if replyType == comm_consts.KEY_REQUESTTYPE_TTS:
+                # if player input is detected mid-response, immediately process the player input
+                reply = self.player_input({"mantella_context": {}, "mantella_player_input": "", "mantella_request_type": "mantella_player_input"})
+                continue # continue conversation with new player input (ie call self.__talk.continue_conversation() again)
+            else:
+                reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
+                break
+
         if sentence_to_play:
             if not sentence_to_play.error_message:
                 self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config)            
@@ -145,38 +169,26 @@ class GameStateManager:
                 self.__talk.add_or_update_character(actors_in_json)
             
             location = None
-            if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_LOCATION):
-                location: str = json[comm_consts.KEY_CONTEXT].get(comm_consts.KEY_CONTEXT_LOCATION, None)
-            
             time = None
-            if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_TIME):
-                time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
-            
             ingame_events = None
-            if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_INGAMEEVENTS):
-                ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
-            custom_context_values: dict[str, Any] = {}
             weather = ""
-            if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_WEATHER):
-                weather = self.__game.get_weather_description(json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_WEATHER])
-            if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
-                custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
+            custom_context_values: dict[str, Any] = {}
+            if json.__contains__(comm_consts.KEY_CONTEXT):
+                if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_LOCATION):
+                    location: str = json[comm_consts.KEY_CONTEXT].get(comm_consts.KEY_CONTEXT_LOCATION, None)
+                
+                if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_TIME):
+                    time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
+
+                if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_INGAMEEVENTS):
+                    ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
+                
+                if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_WEATHER):
+                    weather = self.__game.get_weather_description(json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_WEATHER])
+
+                if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
+                    custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
             self.__talk.update_context(location, time, ingame_events, weather, custom_context_values)
-
-
-    # def debugging_setup(self, debug_character_name, character_df):
-    #     """Select character based on debugging parameters"""
-
-    #     # None == in-game character chosen by spell
-    #     if debug_character_name == 'None':
-    #         character_id, character_name = self.load_character_name_id()
-    #     else:
-    #         character_name = debug_character_name
-    #         debug_character_name = ''
-
-    #     character_name, character_id, location, in_game_time = self.write_dummy_game_info(character_name, character_df)
-
-    #     return character_name, character_id, location, in_game_time
     
     @utils.time_it
     def load_character(self, json: dict[str, Any]) -> Character | None:

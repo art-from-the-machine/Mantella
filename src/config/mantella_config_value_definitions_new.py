@@ -82,7 +82,7 @@ class MantellaConfigValueDefinitionsNew:
         stt_category.add_config_value(STTDefinitions.get_stt_language_config_value())
         stt_category.add_config_value(STTDefinitions.get_stt_translate_config_value())
         stt_category.add_config_value(STTDefinitions.get_process_device_config_value())
-        stt_category.add_config_value(STTDefinitions.get_whisper_type_config_value())
+        stt_category.add_config_value(STTDefinitions.get_external_whisper_service_config_value())
         stt_category.add_config_value(STTDefinitions.get_whisper_url_config_value())
         result.add_base_group(stt_category)
 

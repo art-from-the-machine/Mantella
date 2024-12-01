@@ -8,6 +8,11 @@ from src.http.routes.routeable import routeable
 from src.stt import Transcriber
 from src import utils
 
+'''
+    NOTE: This route is being deprecated. 
+    Player mic input is now handled within game_manager.py's player_input() function
+'''
+
 class stt_route(routeable):
     """Route that can be called to get a transcribe from the mic
 
