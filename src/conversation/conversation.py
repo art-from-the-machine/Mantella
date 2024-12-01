@@ -133,6 +133,7 @@ class conversation:
             #if there is a next sentence and it actually has content, return it as something for an NPC to say
             if self.last_sentence_audio_length > 0:
                 logging.info(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
+            # before immediately sending the next voiceline, give the player the chance to interrupt
             while time.time() - self.last_sentence_start_time < self.last_sentence_audio_length:
                 if self.__stt.has_player_spoken():
                     self.__stop_generation()
