@@ -119,8 +119,7 @@ class piper(ttsable):
                 try:  
                     line = self.q.get_nowait() # or q.get(timeout=.1)
                     if "Model loaded" in line:
-                        logging.info('Model loaded')
-                        logging.info('Model {self.__selected_voice} loaded')
+                        logging.info(f'Model {self.__selected_voice} loaded')
                         self.__waiting_for_voice_load = False
                         self._last_voice = self.__selected_voice
                         return
