@@ -45,6 +45,12 @@ class gameable(ABC):
     
     @property
     @abstractmethod
+    def game_name_in_filepath(self) -> str:
+        """ Return the appropriate game name """
+        pass
+    
+    @property
+    @abstractmethod
     def extender_name(self) -> str:
         """ Return name of the appropriate script extender (SKSE/F4SE) """
         pass

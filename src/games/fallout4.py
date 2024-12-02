@@ -171,6 +171,9 @@ class fallout4(gameable):
     def extender_name(self) -> str:
         return 'F4SE'
 
+    @property
+    def game_name_in_filepath(self) -> str:
+        return 'fallout4'
 
     MALE_VOICE_MODELS: dict[str, str] = {
         'AssaultronRace':	'robot_assaultron',

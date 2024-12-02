@@ -54,7 +54,7 @@ class mantella_route(routeable):
         elif self._config.tts_service == 'xtts':
             tts = xtts(self._config, game)
         if self._config.tts_service == 'piper':
-            tts = piper(self._config)
+            tts = piper(self._config, game)
 
         client = openai_client(self._config, self.__secret_key_file)
         
