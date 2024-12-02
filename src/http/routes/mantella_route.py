@@ -24,10 +24,11 @@ class mantella_route(routeable):
     Args:
         routeable (_type_): _description_
     """
-    def __init__(self, config: ConfigLoader, secret_key_file: str, language_info: dict[Hashable, str], show_debug_messages: bool = False) -> None:
+    def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str, language_info: dict[Hashable, str], show_debug_messages: bool = False) -> None:
         super().__init__(config, show_debug_messages)
         self.__language_info: dict[Hashable, str] = language_info
         self.__secret_key_file: str = secret_key_file
+        self.__stt_secret_key_file = stt_secret_key_file
         self.__game: GameStateManager | None = None
 
         # if not self._can_route_be_used():
@@ -58,7 +59,7 @@ class mantella_route(routeable):
         client = openai_client(self._config, self.__secret_key_file)
         
         chat_manager = ChatManager(game, self._config, tts, client)
-        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, client)
+        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, client, self.__stt_secret_key_file, self.__secret_key_file)
 
     @utils.time_it
     def add_route_to_server(self, app: FastAPI):
