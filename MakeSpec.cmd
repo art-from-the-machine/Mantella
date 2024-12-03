@@ -1,1 +1,0 @@
-@pyi-makespec -F --collect-data=gradio_client --collect-data=gradio main.py
