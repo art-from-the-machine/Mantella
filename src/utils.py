@@ -101,7 +101,10 @@ def cleanup_mei(remove_mei_folders: bool):
                 logging.warn(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in {dir_mei}. See MantellaSoftware/config.ini's remove_mei_folders setting for more information.")
         
 def convert_to_skyrim_hex_format(identifier: str) -> str:
-    hex_format = f'{int(identifier):x}'
+    intID = int(identifier)
+    if intID < 0:
+        intID += 2**32
+    hex_format = f'{intID:x}'.upper()
     return hex_format.rjust(8,"0")
 
 def get_time_group(in_game_time):

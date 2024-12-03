@@ -5,7 +5,7 @@ from typing import Any
 import pandas as pd
 from src.http.file_communication_compatibility import file_communication_compatibility
 from src.conversation.context import context
-from src.audio.audio_playback import audio_playback
+#from src.audio.audio_playback import audio_playback
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import sentence
@@ -29,7 +29,7 @@ class fallout4(gameable):
         self.__config: ConfigLoader = config
         encoding = utils.get_file_encoding(fallout4.FO4_XVASynth_file)
         self.__FO4_Voice_folder_and_models_df = pd.read_csv(fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)
-        self.__playback: audio_playback = audio_playback(config)
+        #self.__playback: audio_playback = audio_playback(config)
         self.__last_played_voiceline: str | None = None
 
 
