@@ -1,3 +1,4 @@
+import configparser
 import logging
 import os
 import platform
@@ -17,19 +18,44 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
             # change the current working directory to the executable's directory
             os.chdir(os.path.dirname(sys.executable))
 
+    def get_custom_user_folder() -> str:
+        file_name = "custom_user_folder.ini"
+        if not os.path.exists(file_name):
+            return ""
+
+        user_folder_config = configparser.ConfigParser()
+        try:
+            user_folder_config.read(file_name, encoding='utf-8')
+            
+        except Exception as e:
+            logging.error(repr(e))
+            logging.error(f"Unable to read / open '{file_name}'. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters.")
+            logging.log(logging.WARNING, "Using default user folder in '../Documents/my games/Mantella/'.")
+            return ""      
+        
+        try:
+            return user_folder_config.get("UserFolder","custom_user_folder")
+        except Exception as e:
+            logging.error(f"Could not find option 'custom_user_folder' in section 'UserFolder' in '{file_name}'.")
+            logging.log(logging.WARNING, "Using default user folder in '../Documents/my games/Mantella/'.")
+            return ""   
+
     def get_my_games_directory():
-        documents_path = ""
-        if platform.system() == "Windows":
-            reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders")
-            documents_path = winreg.QueryValueEx(reg_key, "Personal")[0]
-            winreg.CloseKey(reg_key)
-        else:
-            homepath = os.getenv('HOMEPATH')
-            if homepath:
-                documents_path = os.path.realpath(homepath+'/Documents')
+        documents_path = get_custom_user_folder()        
         if documents_path == "":
-            print("ERROR: Could not find 'Documents' folder or equivalent!")
-        save_dir = Path(os.path.join(documents_path,"My Games","Mantella"))
+            if platform.system() == "Windows":
+                reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders")
+                documents_path = winreg.QueryValueEx(reg_key, "Personal")[0]
+                winreg.CloseKey(reg_key)
+            else:
+                homepath = os.getenv('HOMEPATH')
+                if homepath:
+                    documents_path = os.path.realpath(homepath+'/Documents')
+            if documents_path == "":
+                print("ERROR: Could not find 'Documents' folder or equivalent!")
+            save_dir = Path(os.path.join(documents_path,"My Games","Mantella"))
+        else:
+            save_dir = Path(documents_path)
         save_dir.mkdir(parents=True, exist_ok=True)
         return str(save_dir)+'\\'
     
