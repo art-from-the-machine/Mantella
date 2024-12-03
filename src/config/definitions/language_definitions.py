@@ -7,7 +7,7 @@ from src.config.types.config_value_string import ConfigValueString
 class LanguageDefinitions:    
     @staticmethod
     def get_language_config_value() -> ConfigValue:
-        return ConfigValueSelection("language","Language","The language used by ChatGPT, xVASynth, and Whisper.","en",["en", "ar", "cs", "da", "de", "el", "es", "fi", "fr", "hi", "hu", "it", "ja", "ko", "nl", "pl", "pt", "ro", "ru", "sv", "sw", "uk", "ha", "tr", "vi", "yo"])
+        return ConfigValueSelection("language","Language","The language used by ChatGPT, xVASynth, and Whisper.","en",["en", "ar", "cs", "da", "de", "el", "es", "fi", "fr", "hi", "hu", "it", "ja", "ko", "nl", "pl", "pt", "ro", "ru", "sv", "sw", "uk", "ha", "tr", "vi", "yo", "zh"])
     
     @staticmethod
     def get_end_conversation_keyword_config_value() -> ConfigValue:

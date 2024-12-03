@@ -4,11 +4,13 @@ class communication_constants:
     KEY_REQUESTTYPE: str = PREFIX + "request_type"
     KEY_REPLYTYPE: str = PREFIX + "reply_type"
 
+    KEY_REQUESTTYPE_INIT: str = PREFIX + "initialize"
     KEY_REQUESTTYPE_STARTCONVERSATION: str = PREFIX + "start_conversation"
     KEY_REQUESTTYPE_CONTINUECONVERSATION: str = PREFIX + "continue_conversation"
     KEY_REQUESTTYPE_PLAYERINPUT: str = PREFIX + "player_input"
     KEY_REQUESTTYPE_ENDCONVERSATION: str = PREFIX + "end_conversation"
 
+    KEY_REPLYTTYPE_INITCOMPLETED: str = PREFIX + "init_completed"
     KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED: str = PREFIX + "start_conversation_completed"
 
     KEY_REQUEST_EXTRA_ACTIONS: str = PREFIX + "extra_actions"
@@ -19,6 +21,14 @@ class communication_constants:
     KEY_REPLYTYPE_ENDCONVERSATION: str  = PREFIX + "end_conversation"
 
     KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"
+    KEY_INPUTTYPE: str = PREFIX + "input_type"
+    KEY_INPUTTYPE_MIC: str = PREFIX + "mic_input"
+    KEY_INPUTTYPE_TEXT: str = PREFIX + "text_input"
+    KEY_INPUTTYPE_PTT: str = PREFIX + "push_to_talk"
+
+    KEY_REQUESTTYPE_TTS: str = PREFIX + "tts"
+    KEY_INPUT_NAMESINCONVERSATION: str = PREFIX + "names_in_conversation"
+    KEY_TRANSCRIBE: str = PREFIX + "transcribe"
 
     #Actors
     KEY_ACTORS: str = PREFIX + "actors"

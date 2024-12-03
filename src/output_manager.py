@@ -21,6 +21,7 @@ from src.tts.ttsable import ttsable
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ChatManager:
+    @utils.time_it
     def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: openai_client):
         self.loglevel = 28
         self.__game: gameable = game
@@ -31,13 +32,18 @@ class ChatManager:
         self.__tts: ttsable = tts
         self.__client: openai_client = client
         self.__is_generating: bool = False
-        self.__stop_generation: bool = False
+        self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
         # self.__number_words_tts: int = config.number_words_tts
-        self.__end_of_sentence_chars = ['.', '?', '!', ':', ';']
+        self.__end_of_sentence_chars = ['.', '?', '!', ':', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
-    def generate_sentence(self, text: str, character_to_talk: Character, is_system_generated_sentence: bool = False) -> mantella_sentence:
+    @property
+    def tts(self) -> ttsable:
+        return self.__tts
+
+    @utils.time_it
+    def generate_sentence(self, text: str, character_to_talk: Character, is_first_line_of_response: bool = False, is_system_generated_sentence: bool = False) -> mantella_sentence:
         """Generates the audio for a text and returns the corresponding sentence
 
         Args:
@@ -50,7 +56,7 @@ class ChatManager:
         """
         with self.__tts_access_lock:
             try:
-                synth_options = SynthesizationOptions(character_to_talk.is_in_combat)
+                synth_options = SynthesizationOptions(character_to_talk.is_in_combat, is_first_line_of_response)
                 audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
             except Exception as e:
                 error_text = f"Text-to-Speech Error: {e}"
@@ -58,6 +64,7 @@ class ChatManager:
                 return mantella_sentence(character_to_talk, text, "", 0, True, error_text)
             return mantella_sentence(character_to_talk, text, audio_file, self.get_audio_duration(audio_file), is_system_generated_sentence)
 
+    @utils.time_it
     def num_tokens(self, content_to_measure: message | str | message_thread | list[message]) -> int:
         """Measures the length of an input in tokens
 
@@ -68,10 +75,11 @@ class ChatManager:
             int: count tokens in the input
         """
         if isinstance(content_to_measure, message_thread) or isinstance(content_to_measure, list):
-            return openai_client.num_tokens_from_messages(content_to_measure)
+            return self.__client.num_tokens_from_messages(content_to_measure)
         else:
-            return openai_client.num_tokens_from_message(content_to_measure, None)
+            return self.__client.num_tokens_from_message(content_to_measure)
 
+    @utils.time_it
     def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: sentence_queue, actions: list[action]):
         """Starts generating responses by the LLM for the current state of the input messages
 
@@ -87,18 +95,17 @@ class ChatManager:
         
         asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions))
     
+    @utils.time_it
     def stop_generation(self):
         """Stops the current generation and only returns once this stop has been successful
         """
-        if not self.__is_generating:
-            return
-        
-        self.__stop_generation = True
+        self.__stop_generation.set()
         while self.__is_generating:
-            time.sleep(0.1)
-        self.__stop_generation = False
+            time.sleep(0.01)
+        self.__stop_generation.clear()
         return
 
+    @utils.time_it
     def get_audio_duration(self, audio_file: str):
         """Check if the external software has finished playing the audio file"""
 
@@ -107,9 +114,10 @@ class ChatManager:
             rate = wf.getframerate()
 
         # wait `buffer` seconds longer to let processes finish running correctly
-        duration = frames / float(rate) + self.__config.wait_time_buffer
+        duration = frames / float(rate)
         return duration
  
+    @utils.time_it
     def clean_sentence(self, sentence: str) -> str:
         def remove_as_a(sentence: str) -> str:
             """Remove 'As an XYZ,' from beginning of sentence"""
@@ -160,12 +168,14 @@ class ChatManager:
         sentence = sentence.strip() + " "
         return sentence
 
+    @utils.time_it
     def __matching_action_keyword(self, keyword: str, actions: list[action]) -> action | None:
         for a in actions:
             if keyword.lower() == a.keyword.lower():
                 return a
         return None
     
+    @utils.time_it
     def __character_switched_to(self, extracted_keyword: str, charaters_in_conversation: Characters) -> Character | None:
         for actor in charaters_in_conversation.get_all_characters():
             actor_name = actor.name.lower()
@@ -173,6 +183,7 @@ class ChatManager:
                 return actor
         return None
 
+    @utils.time_it
     async def process_response(self, active_character: Character, blocking_queue: sentence_queue, messages : message_thread, characters: Characters, actions: list[action]):
         """Stream response from LLM one sentence at a time"""
 
@@ -186,14 +197,20 @@ class ChatManager:
             cumulative_sentence_bool = False
             current_sentence: str = ""
             actions_in_sentence: list[action] = []
+            first_token = True
+            is_first_line_of_response = True
             while True:
                 try:
                     start_time = time.time()
                     async for content in self.__client.streaming_call(messages=messages, is_multi_npc=characters.contains_multiple_npcs()):
-                        if self.__stop_generation:
+                        if self.__stop_generation.is_set():
                             break
                         if not content:
                             continue
+
+                        if first_token:
+                            logging.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to respond")
+                            first_token = False
                         
                         sentence += content
                         # Check for the last occurrence of sentence-ending punctuation within first 150 chars
@@ -242,7 +259,7 @@ class ChatManager:
                                             logging.log(28, f"Switched to {character_switched_to.name}")
                                             active_character = character_switched_to
                                             full_reply += f"{keyword_extraction}: "
-                                            self.__tts.change_voice(active_character.tts_voice_model, voice_accent=active_character.voice_accent)
+                                            self.__tts.change_voice(active_character.tts_voice_model, active_character.in_game_voice_model, active_character.csv_in_game_voice_model, active_character.advanced_voice_model, voice_accent=active_character.voice_accent)
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:
@@ -266,7 +283,6 @@ class ChatManager:
                                     logging.log(28, f'Skipping voiceline that is too short: {sentence}')
                                     break
                                 
-                                logging.log(self.loglevel, f"LLM returned sentence took {time.time() - start_time} seconds to execute")
                                 # Generate the audio and return the audio file path
                                 # Put the audio file path in the sentence_queue
                                 
@@ -281,7 +297,10 @@ class ChatManager:
                                    
                                 #logging.info(f"[{len(sentence)}] {sentence}")
                                 
-                                new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character)
+                                if self.__stop_generation.is_set():
+                                    break
+                                new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character, is_first_line_of_response)
+                                is_first_line_of_response = False
                                 blocking_queue.put(new_sentence)
 
                                 has_interrupting_action = False
@@ -325,18 +344,19 @@ class ChatManager:
                     logging.log(self.loglevel, 'Retrying connection to API...')
                     time.sleep(5)
 
-            # Check if there is any accumulated sentence at the end
-            if accumulated_sentence and len(accumulated_sentence.strip()) > 3:
-                # Generate the audio and return the audio file path
-                # Might need to check for len > 150 here
-                try:
-                    new_sentence = self.generate_sentence(' ' + accumulated_sentence + ' ', active_character)
-                    blocking_queue.put(new_sentence)
-                    full_reply += accumulated_sentence
-                    accumulated_sentence = ''
-                except Exception as e:
-                    accumulated_sentence = ''
-                    logging.error(f"TTS Error: {e}")
+            if not self.__stop_generation.is_set():
+                # Check if there is any accumulated sentence at the end
+                if accumulated_sentence and len(accumulated_sentence.strip()) > 3:
+                    # Generate the audio and return the audio file path
+                    # Might need to check for len > 150 here
+                    try:
+                        new_sentence = self.generate_sentence(' ' + accumulated_sentence + ' ', active_character)
+                        blocking_queue.put(new_sentence)
+                        full_reply += accumulated_sentence
+                        accumulated_sentence = ''
+                    except Exception as e:
+                        accumulated_sentence = ''
+                        logging.error(f"TTS Error: {e}")
 
             # Mark the end of the response
             # await sentence_queue.put(None)

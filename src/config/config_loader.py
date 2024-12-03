@@ -169,6 +169,8 @@ class ConfigLoader:
                 self.xvasynth_path = ""
                 self.xtts_server_path = ""
 
+            self.lip_generation = self.__definitions.get_string_value("lip_generation").strip().lower()
+
             #Added from xTTS implementation
             self.xtts_default_model = self.__definitions.get_string_value("xtts_default_model")
             self.xtts_deepspeed = self.__definitions.get_bool_value("xtts_deepspeed")
@@ -199,7 +201,7 @@ class ConfigLoader:
                 self.audio_threshold = str(self.__definitions.get_int_value("audio_threshold"))
             self.pause_threshold = self.__definitions.get_float_value("pause_threshold")
             self.listen_timeout = self.__definitions.get_int_value("listen_timeout")
-            self.whisper_type = self.__definitions.get_string_value("whisper_type")
+            self.external_whisper_service = self.__definitions.get_bool_value("external_whisper_service")
             self.whisper_url = self.__definitions.get_string_value("whisper_url")
 
             #LLM

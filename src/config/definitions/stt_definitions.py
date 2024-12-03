@@ -16,21 +16,27 @@ class STTDefinitions:
         audio_threshold_description = """Controls how much background noise is filtered out.
                                         If the mic is not picking up speech, try lowering this value.
                                         If the mic is picking up too much background noise, try increasing this value."""
-        return ConfigValueInt("audio_threshold","Audio Threshold",audio_threshold_description, 175, 1, 999)
+        return ConfigValueInt("audio_threshold","Audio Threshold",audio_threshold_description, 175, 0, 999)
     
     @staticmethod
     def get_model_size_config_value() -> ConfigValue:
         description = """The size of the Whisper model used. Some languages require larger models. The base.en model works well enough for English.
                         See here for a comparison of languages and their Whisper performance: 
                         https://github.com/openai/whisper#available-models-and-languages"""
-        return ConfigValueSelection("model_size", "Model Size", description, "base", ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large-v1", "large-v2", "whisper-1"])
+        options = ["tiny", "tiny.en", 
+                   "base", "base.en", 
+                   "small", "small.en", "distil-small.en", 
+                   "medium", "medium.en", "distil-medium.en", 
+                   "large-v1", "large-v2", "large-v3", "distil-large-v2", "distil-large-v3", 
+                   "whisper-1"]
+        return ConfigValueSelection("model_size", "Model Size", description, "base", options, allows_free_edit=True)
 
     @staticmethod
     def get_pause_threshold_config_value() -> ConfigValue:
         description = """How long to wait (in seconds) before converting mic input to text.
                     If you feel like you are being cut off before you finish your response, increase this value.
                     If you feel like there is too much of a delay between you finishing your response and the text conversion, decrease this value."""
-        return ConfigValueFloat("pause_threshold","Pause Threshold", description, 1.0, 1.0, 999, tags=[ConvigValueTag.advanced])
+        return ConfigValueFloat("pause_threshold","Pause Threshold", description, 1.0, 0.1, 999, tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_listen_timeout_config_value() -> ConfigValue:
@@ -54,22 +60,18 @@ class STTDefinitions:
         return ConfigValueSelection("process_device", "Process Device", "Whether to run Whisper on your CPU or NVIDIA GPU (with CUDA installed) (only impacts faster_whisper option, no impact on whispercpp, which is controlled by your server).","cpu",["cpu","cuda"], tags=[ConvigValueTag.advanced])
 
     @staticmethod
-    def get_whisper_type_config_value() -> ConfigValue:
-        description = """Intended for advanced use only. Allows using whispercpp (https://github.com/ggerganov/whisper.cpp) in server mode instead of the default faster_whisper.
-                        Alternatively, can be used to run Whisper via the OpenAI API.
-                        The main benefits would be to reduce VRAM usage when using larger whisper models, to enable use of distil-whisper models,
-                        to share a whisper speech to text service between AI mods like Mantella and Herika, or run the whispercpp server in a cloud service.
-                        In whispercpp server mode, the server settings, not the ones above, will control the model you use and CPU vs GPU usage.  
-                        You are expected to "bring your own server" and have whispercpp running while running Mantella.
-                        If the default works for you, DO NOT change this variable. 
-                        To change to whispercpp server mode / OpenAI API instead, enter whispercpp. 
-                        Additionally, if using the OpenAI API, ensure your GPT_SECRET_KEY.txt is an OpenAI key, 'Whisper URL' is "https://api.openai.com/v1/audio/transcriptions" below, and 'Model Size' is "whisper-1" above"""
-        return ConfigValueString("whisper_type","Whisper Type", description, "faster_whisper", tags=[ConvigValueTag.advanced])
+    def get_external_whisper_service_config_value() -> ConfigValue:
+        description = """Allows running of Whisper externally. When enabled, Mantella will call the 'Whisper URL' provided below instead of running Whisper locally."""
+        return ConfigValueBool("external_whisper_service","External Whisper Service", description, False, tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_whisper_url_config_value() -> ConfigValue:
-        description = """Intended for advanced use only. Allows entering a OpenAI-compatible server URL. If you set whispercpp above in 'Whisper Type', then enter the whispercpp server URL here.
-                        Note that if you are also using the Herika mod, the default 8080 port used by whispercpp server may conflict with Herika. You can change the port to, e.g., 8070 instead to avoid the conflict.
-                        Examples: http://127.0.0.1:8080/inference (default) / http://127.0.0.1:8070/inference (if you use the optional --port 8070 comand line argument), https://api.openai.com/v1/audio/transcriptions (if using OpenAI API)"""
-        return ConfigValueString("whisper_url","Whisper URL",description, "http://127.0.0.1:8080/inference", tags=[ConvigValueTag.advanced])
+        description = """The external Whisper service URL Mantella will connect to (if 'External Whisper Service' is enabled above). 
+                        Some services require an API secret key. This secret key either needs to be set in your `GPT_SECRET_KEY.txt` file, or by creating a new text file called `STT_SECRET_KEY.txt` in the same folder as `GPT_SECRET_KEY.txt` and adding the API key there. If you don't see the service you would like to connect to in the dropdown list, you can also manually enter a URL to connect to.
+                        
+                        **Known services**:
+	                        **OpenAI**: Ensure 'Speech-to-Text'->'Model Size' is set to `whisper-1`. Requires an OpenAI secret key.
+                            **Groq**: Ensure 'Speech-to-Text'->'Model Size' is set to one of the following: https://console.groq.com/docs/speech-text#supported-models. Requires a Groq secret key.
+                            **whisper.cpp**: whisper.cpp (https://github.com/ggerganov/whisper.cpp) can be connected to when it is run in server mode. No secret key is required. Ensure the server is running before starting Mantella. By default, selecting whisper.cpp will connect to the URL http://127.0.0.1:8080/inference, but you can also manually enter a URL in this field if you have selected a port other than 8080 / are running whisper.cpp on another machine."""
+        return ConfigValueSelection("whisper_url", "Whisper URL", description, "OpenAI", ["OpenAI", "Groq", "whisper.cpp"], allows_free_edit=True, tags=[ConvigValueTag.advanced])
     

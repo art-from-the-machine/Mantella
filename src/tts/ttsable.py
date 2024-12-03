@@ -10,10 +10,12 @@ from subprocess import STARTUPINFO, STARTF_USESHOWWINDOW
 import subprocess
 import time
 from src.tts.synthesization_options import SynthesizationOptions
+import requests
 
 class ttsable(ABC):
     """Base class for different TTS services
     """
+    @utils.time_it
     def __init__(self, config: ConfigLoader) -> None:
         super().__init__()
         self._config: ConfigLoader = config
@@ -27,6 +29,7 @@ class ttsable(ABC):
         os.makedirs(self._voiceline_folder, exist_ok=True)
         self._language = config.language
         self._last_voice = '' # last active voice model
+        self._lip_generation_enabled = config.lip_generation
         # determines whether the voiceline should play internally
         #self.debug_mode = config.debug_mode
         #self.play_audio_from_script = config.play_audio_from_script
@@ -36,11 +39,11 @@ class ttsable(ABC):
         else: 
             self._game = "Skyrim"
 
-
+    @utils.time_it
     def synthesize(self, voice: str, voiceline: str, in_game_voice: str, csv_in_game_voice: str, voice_accent: str, synth_options: SynthesizationOptions, advanced_voice_model: str | None = None):
         """Synthesizes a given voiceline
         """
-        if self._last_voice == '' or self._last_voice.lower() not in {v.lower() for v in {voice, in_game_voice, csv_in_game_voice, advanced_voice_model, f'fo4_{voice}'}}:
+        if self._last_voice == '' or (isinstance(self._last_voice, str) and self._last_voice.lower() not in {isinstance(v, str) and v.lower() for v in {voice, in_game_voice, csv_in_game_voice, advanced_voice_model, f'fo4_{voice}'}}):
             self.change_voice(voice, in_game_voice, csv_in_game_voice, advanced_voice_model, voice_accent)
 
         logging.log(22, f'Synthesizing voiceline: {voiceline.strip()}')
@@ -61,7 +64,8 @@ class ttsable(ABC):
             logging.error(f'TTS failed to generate voiceline at: {Path(final_voiceline_file)}')
             raise FileNotFoundError()
         
-        self._generate_lip_file(final_voiceline_file, voiceline)
+        if (self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response):
+            self._generate_lip_file(final_voiceline_file, voiceline)
 
         #rename to unique name        
         if (os.path.exists(final_voiceline_file)):
@@ -72,10 +76,11 @@ class ttsable(ABC):
                 new_fuz_file_name = new_wav_file_name.replace(".wav", ".fuz")
                 os.rename(final_voiceline_file, new_wav_file_name)
 
-                try:
-                    os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
-                except:
-                    logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".lip")}')
+                if (self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response):
+                    try:
+                        os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
+                    except:
+                        logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".lip")}')
                 try:
                     fuz_file_name = final_voiceline_file.replace(".wav", ".fuz")
                     if (os.path.exists(fuz_file_name)):
@@ -93,6 +98,7 @@ class ttsable(ABC):
 
 
     @abstractmethod
+    @utils.time_it
     def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None):
         """Change the voice model
         """
@@ -100,6 +106,7 @@ class ttsable(ABC):
 
 
     @abstractmethod
+    @utils.time_it
     def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         """Synthesize the voiceline with the TTS service
         """
@@ -114,13 +121,21 @@ class ttsable(ABC):
             return ''
 
 
+    @staticmethod
+    @utils.time_it
+    def _send_request(url, data):
+        requests.post(url, json=data)
+
+
+    @utils.time_it
     def _generate_lip_file(self, wav_file, voiceline, attempts=0):
+        @utils.time_it
         def run_facefx_command(command, facefx_path):
             startupinfo = STARTUPINFO()
             startupinfo.dwFlags |= STARTF_USESHOWWINDOW
             
             batch_file_path = Path(facefx_path) / "run_mantella_command.bat"
-            with open(batch_file_path, 'w') as file:
+            with open(batch_file_path, 'w', encoding='utf-8') as file:
                 file.write(f"@echo off\n{command} >nul 2>&1")
 
             subprocess.run(batch_file_path, cwd=facefx_path, creationflags=subprocess.CREATE_NO_WINDOW)

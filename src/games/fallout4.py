@@ -33,12 +33,14 @@ class fallout4(gameable):
         self.__last_played_voiceline: str | None = None
 
 
+    @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
         actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
         return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None)) 
     
+    @utils.time_it
     def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str) -> str:
         voice_model = ''
 
@@ -90,7 +92,7 @@ class fallout4(gameable):
 
         return voice_model
 
-    
+    @utils.time_it
     def load_unnamed_npc(self, name: str, actor_race: str, actor_sex: int, ingame_voice_model:str) -> dict[str, Any]:
         """Load generic NPC if character cannot be found in fallout4_characters.csv"""
         # unknown == I couldn't find the IDs for these voice models
@@ -142,15 +144,18 @@ class fallout4(gameable):
         self.__last_played_voiceline = queue_output.voice_file
         logging.info(f"{speaker.name}: {queue_output.sentence}")
 
+    @utils.time_it
     def __delete_last_played_voiceline(self):
         if self.__last_played_voiceline:
             if os.path.exists(self.__last_played_voiceline):
                 os.remove(self.__last_played_voiceline)
                 self.__last_played_voiceline = None
 
+    @utils.time_it
     def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:
         return True
     
+    @utils.time_it
     def get_weather_description(self, weather_attributes: dict[str, Any]) -> str:
         """Returns a description of the current weather that can be used in the prompts
 
@@ -166,6 +171,9 @@ class fallout4(gameable):
     def extender_name(self) -> str:
         return 'F4SE'
 
+    @property
+    def game_name_in_filepath(self) -> str:
+        return 'fallout4'
 
     MALE_VOICE_MODELS: dict[str, str] = {
         'AssaultronRace':	'robot_assaultron',

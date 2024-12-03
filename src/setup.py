@@ -34,7 +34,7 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
         return str(save_dir)+'\\'
     
     def setup_logging(file_name, config: ConfigLoader):
-        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[])
+        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[], encoding='utf-8')
 
         # create custom formatter
         formatter = cf.CustomFormatter()
@@ -48,7 +48,7 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
         file_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
 
         # Create a file handler and set the formatter
-        file_handler = logging.FileHandler(file_name)
+        file_handler = logging.FileHandler(file_name, encoding='utf-8')
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(file_formatter)
 
@@ -82,9 +82,9 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
         #logging.log(28, "Large Language Model related")
         #logging.log(29, "Text-To-Speech related")
 
-        logging.addLevelName(40, "HTTP-in")
-        logging.addLevelName(41, "HTTP-out")
-        logging.addLevelName(42, "Queue")
+        logging.addLevelName(41, "HTTP-in")
+        logging.addLevelName(42, "HTTP-out")
+        logging.addLevelName(43, "Queue")
         # logging.log(40, "JSON coming from game")
         # logging.log(41, "JSON sent back to game")
         # logging.log(42, "Sentence queue access")

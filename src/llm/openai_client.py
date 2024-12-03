@@ -10,7 +10,7 @@ from src.llm.message_thread import message_thread
 from src.llm.messages import message
 from src.config.config_loader import ConfigLoader
 from src.image.image_manager import ImageManager
-import sys
+import os
 from pathlib import Path
 
         
@@ -44,67 +44,20 @@ class openai_client:
     """Joint setup for sync and async access to the LLMs
     """
     api_token_limits = {}
+    tiktoken_cache_dir = "data"
+    os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
 
+    @utils.time_it
     def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
         self.__generation_lock: Lock = Lock()
-        def auto_resolve_endpoint(model_name, endpoints):
-            # attempt connection to Kobold
-            try:
-                response = requests.get(endpoints['kobold'])
-                if response.status_code == 200:
-                    return endpoints['kobold']
-            except requests.RequestException:
-                # attempt connection to textgenwebui
-                try:
-                    response = requests.get(endpoints['textgenwebui'] + '/models')
-                    if response.status_code == 200:
-                        return endpoints['textgenwebui']
-                except requests.RequestException:
-                    pass
-            
-            # OpenRouter model names always have slashes (/), whereas OpenAI model names never have slashes
-            # if this assumption changes, then this code will be inaccurate
-            if '/' in model_name:
-                return endpoints['openrouter']
-            else:
-                return endpoints['openai']
-        
-        endpoints = {
-            'openai': 'none', # don't set an endpoint, just use the OpenAI default
-            'openrouter': 'https://openrouter.ai/api/v1',
-            'kobold': 'http://127.0.0.1:5001/v1',
-            'textgenwebui': 'http://127.0.0.1:5000/v1',
-        }
-        
-        cleaned_llm_api = config.llm_api.strip().lower().replace(' ', '')
-        # if cleaned_llm_api == 'auto':
-        #     endpoint = auto_resolve_endpoint(config.llm, endpoints)
-        # el
-        if cleaned_llm_api == 'openai':
-            endpoint = endpoints['openai']
-            logging.info(f"Running LLM with OpenAI")
-        elif cleaned_llm_api == 'openrouter':
-            endpoint = endpoints['openrouter']
-            logging.info(f"Running LLM with OpenRouter")
-        elif cleaned_llm_api in ['kobold','koboldcpp']:
-            endpoint = endpoints['kobold']
-            logging.info(f"Running LLM with koboldcpp")
-        elif cleaned_llm_api in ['textgenwebui','text-gen-web-ui','textgenerationwebui','text-generation-web-ui']:
-            endpoint = endpoints['textgenwebui']
-            logging.info(f"Running LLM with Text generation web UI")
-        else: # if endpoint isn't named, assume it is a direct URL
-            endpoint = config.llm_api
+
+        endpoint = self.__get_endpoint(config.llm_api)
 
         if (endpoint == 'none') or ("https" in endpoint):
             #cloud LLM
             self.__is_local: bool = False
-
             self.__api_key = self.get_secret_key(secret_key_file)
-
-            if config.llm == 'undi95/toppy-m-7b:free':
-                logging.log(24, "Running Mantella with default LLM 'undi95/toppy-m-7b:free' (OpenRouter). For higher quality responses, better NPC memories, and more performant multi-NPC conversations, consider changing this model via the `model` setting in MantellaSoftware/config.ini")
-            else:
-                logging.log(23, f"Running Mantella with '{config.llm}'. The language model can be changed in MantellaSoftware/config.ini")
+            logging.log(23, f"Running Mantella with '{config.llm}'. The language model can be changed in MantellaSoftware/config.ini")
         else:
             #local LLM
             self.__is_local: bool = True
@@ -123,22 +76,8 @@ class openai_client:
         referer = "https://art-from-the-machine.github.io/Mantella/"
         xtitle = "Mantella"
         self.__header: dict[str, str] = {"HTTP-Referer": referer, "X-Title": xtitle, }
-
-        chosenmodel = config.llm
-        # if using an alternative API, use encoding for GPT-3.5 by default
-        # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
-        #       this can lead to the token limit of the given model being overrun
-        if endpoint != 'none':
-            chosenmodel = 'gpt-3.5-turbo'
-        try:
-            self.__encoding = tiktoken.encoding_for_model(chosenmodel)
-        except:
-            try:
-                chosenmodel = 'gpt-3.5-turbo'
-                self.__encoding = tiktoken.encoding_for_model(chosenmodel)
-            except:
-                logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `llm_api` in MantellaSoftware/config.ini and follow the instructions to change this setting')
-                raise
+        self.__startup_async_client = self.generate_async_client() # initialize first client in advance of sending first LLM request to save time
+        self.__encoding = self.__get_model_encoding(endpoint, config.llm)
 
         self.__vision_enabled = config.vision_enabled
         if self.__vision_enabled:
@@ -174,12 +113,12 @@ class openai_client:
         """
         return self.__api_key
     
+    @utils.time_it
     def generate_async_client(self) -> AsyncOpenAI:
         """Generates a new AsyncOpenAI client already setup to be used right away.
         Close the client after usage using 'await client.close()'
 
-        At the time of this writing (28.Dec.2023), calling OpenRouter using this client tends to 'break' at some point.
-        To circumvent this, use a new client for each call to 'client.chat.completions.create'
+        The client needs to be closed after every call (and a new one created for the next call) to avoid connection issues
 
         Use :func:`~openai_client.openai_client.streaming_call` for a normal streaming call to the LLM
 
@@ -191,6 +130,7 @@ class openai_client:
         else:
             return AsyncOpenAI(api_key=self.__api_key, default_headers=self.__header)
 
+    @utils.time_it
     def generate_sync_client(self) -> OpenAI:
         """Generates a new OpenAI client already setup to be used right away.
         Close the client after usage using 'client.close()'
@@ -205,6 +145,7 @@ class openai_client:
         else:
             return OpenAI(api_key=self.__api_key, default_headers=self.__header)
     
+    @utils.time_it
     async def streaming_call(self, messages: message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
@@ -220,8 +161,14 @@ class openai_client:
             Iterator[AsyncGenerator[str | None, None]]: Yields the return of the 'client.chat.completions.create' method immediately
         """
         with self.__generation_lock:
-            async_client = self.generate_async_client()
             logging.info('Getting LLM response...')
+
+            if self.__startup_async_client:
+                async_client = self.__startup_async_client
+                self.__startup_async_client = None # do not reuse the same client
+            else:
+                async_client = self.generate_async_client()
+            
             max_tokens = self.__max_tokens
             if is_multi_npc: # override max_tokens in radiant / multi-NPC conversations
                 max_tokens = 250
@@ -300,15 +247,10 @@ class openai_client:
             reply = chat_completion.choices[0].message.content
             return reply
     
-    @staticmethod
-    def num_tokens_from_messages(messages: message_thread | list[message], model="gpt-3.5-turbo") -> int:
+    @utils.time_it
+    def num_tokens_from_messages(self, messages: message_thread | list[message]) -> int:
         """Returns the number of tokens used by a list of messages
         """
-        try:
-            encoding = tiktoken.encoding_for_model(model)
-        except KeyError:
-            encoding = tiktoken.get_encoding("cl100k_base")
-        
         messages_to_check = []
         if isinstance(messages, message_thread):
             messages_to_check = messages.get_openai_messages()
@@ -322,20 +264,14 @@ class openai_client:
             num_tokens += 4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
             for key, value in message.items():
                 if isinstance(value, str):
-                    num_tokens += len(encoding.encode(value))
+                    num_tokens += len(self.__encoding.encode(value))
                     if key == "name":  # if there's a name, the role is omitted
                         num_tokens += -1  # role is always required and always 1 token
         num_tokens += 2  # every reply is primed with <im_start>assistant
         return num_tokens
     
-    @staticmethod
-    def num_tokens_from_message(message_to_measure: message | str, encoding: tiktoken.Encoding | None, model="gpt-3.5-turbo") -> int:
-        if not encoding:
-            try:
-                encoding = tiktoken.encoding_for_model(model)
-            except KeyError:
-                encoding = tiktoken.get_encoding("cl100k_base")
-        
+    @utils.time_it
+    def num_tokens_from_message(self, message_to_measure: message | str) -> int:
         text: str = ""
         if isinstance(message_to_measure, message):
             text = message_to_measure.get_formatted_content()
@@ -349,23 +285,27 @@ class openai_client:
         
         return num_tokens
 
-    
+    @utils.time_it
     def calculate_tokens_from_messages(self, messages: message_thread) -> int:
-        return openai_client.num_tokens_from_messages(messages, self.__model_name)
+        return self.num_tokens_from_messages(messages)
     
+    @utils.time_it
     def calculate_tokens_from_text(self, text: str) -> int:
         return len(self.__encoding.encode(text))
     
+    @utils.time_it
     def is_text_too_long(self, text: str, token_limit_percent: float) -> bool:
         countTokens: int = self.calculate_tokens_from_text(text)
         return  countTokens > self.token_limit * token_limit_percent
         
+    @utils.time_it
     def are_messages_too_long(self, messages: message_thread, token_limit_percent: float) -> bool:
         countTokens: int = self.calculate_tokens_from_messages(messages)
         return countTokens > self.token_limit * token_limit_percent
             
     
     # --- Private methods ---    
+    @utils.time_it
     def __get_token_limit(self, llm, custom_token_count, is_local):
         manual_limits = utils.get_model_token_limits()
         token_limit_dict = {**self.api_token_limits, **manual_limits}
@@ -389,7 +329,58 @@ class openai_client:
         
         return token_limit
     
+
+    @utils.time_it
+    def __get_endpoint(self, llm_api: str) -> str:
+        endpoints = {
+            'openai': 'none', # don't set an endpoint, just use the OpenAI default
+            'openrouter': 'https://openrouter.ai/api/v1',
+            'kobold': 'http://127.0.0.1:5001/v1',
+            'textgenwebui': 'http://127.0.0.1:5000/v1',
+        }
+        
+        cleaned_llm_api = llm_api.strip().lower().replace(' ', '')
+        if cleaned_llm_api == 'openai':
+            endpoint = endpoints['openai']
+            logging.info(f"Running LLM with OpenAI")
+        elif cleaned_llm_api == 'openrouter':
+            endpoint = endpoints['openrouter']
+            logging.info(f"Running LLM with OpenRouter")
+        elif cleaned_llm_api in ['kobold','koboldcpp']:
+            endpoint = endpoints['kobold']
+            logging.info(f"Running LLM with koboldcpp")
+        elif cleaned_llm_api in ['textgenwebui','text-gen-web-ui','textgenerationwebui','text-generation-web-ui']:
+            endpoint = endpoints['textgenwebui']
+            logging.info(f"Running LLM with Text generation web UI")
+        else: # if endpoint isn't named, assume it is a direct URL
+            endpoint = llm_api
+
+        return endpoint
+    
+
+    @utils.time_it
+    def __get_model_encoding(self, endpoint: str, llm: str) -> tiktoken.Encoding:
+        chosenmodel = llm
+        # if using an alternative API to OpenAI, use encoding for GPT-3.5 by default
+        # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
+        #       this can lead to the token limit of the given model being overrun
+        try:
+            if endpoint == 'none': # 'none' == OpenAI endpoint
+                encoding = tiktoken.encoding_for_model(chosenmodel) # get encoding for specific model
+            else:
+                encoding = tiktoken.get_encoding('cl100k_base') # get generic encoding
+        except:
+            try:
+                encoding = tiktoken.get_encoding('cl100k_base') # try loading a generic encoding
+            except:
+                logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `Large Language Model`->`LLM Service` in the Mantella UI and follow the instructions to change this setting')
+                raise
+        
+        return encoding
+
+    
     @staticmethod
+    @utils.time_it
     def get_secret_key(secret_key_file: str) -> str | None:
         try: # first check mod folder for secret key
             mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)

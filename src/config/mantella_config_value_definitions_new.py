@@ -56,6 +56,7 @@ class MantellaConfigValueDefinitionsNew:
         tts_category.add_config_value(TTSDefinitions.get_xtts_folder_config_value())
         tts_category.add_config_value(TTSDefinitions.get_piper_folder_config_value(is_integrated))
         tts_category.add_config_value(TTSDefinitions.get_facefx_folder_config_value(is_integrated))
+        tts_category.add_config_value(TTSDefinitions.get_lip_generation_config_value())
         tts_category.add_config_value(TTSDefinitions.get_number_words_tts_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_url_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_default_model_config_value())
@@ -81,7 +82,7 @@ class MantellaConfigValueDefinitionsNew:
         stt_category.add_config_value(STTDefinitions.get_stt_language_config_value())
         stt_category.add_config_value(STTDefinitions.get_stt_translate_config_value())
         stt_category.add_config_value(STTDefinitions.get_process_device_config_value())
-        stt_category.add_config_value(STTDefinitions.get_whisper_type_config_value())
+        stt_category.add_config_value(STTDefinitions.get_external_whisper_service_config_value())
         stt_category.add_config_value(STTDefinitions.get_whisper_url_config_value())
         result.add_base_group(stt_category)
 
