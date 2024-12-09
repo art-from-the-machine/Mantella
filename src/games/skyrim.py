@@ -15,6 +15,7 @@ import src.utils as utils
 
 class skyrim(gameable):
     WAV_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
+    FUZ_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.fuz'
     LIP_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
     #Weather constants
     KEY_CONTEXT_WEATHER_ID = "mantella_weather_id"
@@ -26,7 +27,6 @@ class skyrim(gameable):
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
-        self.__create_all_voice_folders(config)
         
         try:
             weather_file = 'data/Skyrim/skyrim_weather.csv'
@@ -36,30 +36,14 @@ class skyrim(gameable):
             logging.error(f'Unable to read / open "data/Skyrim/skyrim_weather.csv". If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
 
-    def __create_all_voice_folders(self, config: ConfigLoader):
-        all_voice_folders = self.character_df["skyrim_voice_folder"]
-        all_voice_folders = all_voice_folders.loc[all_voice_folders.notna()]
-        set_of_voice_folders = set()
-        for voice_folder in all_voice_folders:
-            voice_folder = str.strip(voice_folder)
-            if voice_folder and not set_of_voice_folders.__contains__(voice_folder):
-                set_of_voice_folders.add(voice_folder)
-                in_game_voice_folder_path = f"{config.mod_path}/{voice_folder}/"
-                if not os.path.exists(in_game_voice_folder_path):
-                    os.mkdir(in_game_voice_folder_path)
-                    example_folder = f"{config.mod_path}/MaleNord/"
-                    for file_name in os.listdir(example_folder):
-                        source_file_path = os.path.join(example_folder, file_name)
-
-                        if os.path.isfile(source_file_path):
-                            shutil.copy(source_file_path, in_game_voice_folder_path)
-
+    @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
         actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
         return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None))
     
+    @utils.time_it
     def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str) -> str:
         voice_model = ''
 
@@ -91,6 +75,7 @@ class skyrim(gameable):
 
         return voice_model
 
+    @utils.time_it
     def load_unnamed_npc(self, name: str, actor_race: str, actor_sex: int, ingame_voice_model:str) -> dict[str, Any]:
         """Load generic NPC if character cannot be found in skyrim_characters.csv"""
         # unknown == I couldn't find the IDs for these voice models
@@ -122,42 +107,33 @@ class skyrim(gameable):
         mod_folder = config.mod_path
         # subtitle = queue_output.sentence
         speaker: Character = queue_output.speaker
-        if config.add_voicelines_to_all_voice_folders:
-            for sub_folder in os.scandir(config.mod_path):
-                if sub_folder.is_dir():
-                    shutil.copyfile(audio_file, f"{sub_folder.path}/{self.WAV_FILE}")
-                    try:
-                        shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{sub_folder.path}/{self.LIP_FILE}")
-                    except Exception as e:
-                        # only warn on failure
-                        logging.warning(e)
-        else:
-            voice_folder_path = f"{mod_folder}/{speaker.in_game_voice_model}"
-            if not os.path.exists(voice_folder_path):
-                os.makedirs(voice_folder_path)
-                logging.warning(f"{voice_folder_path} has been created for the first time. Please restart Skyrim to interact with this NPC.")
-            shutil.copyfile(audio_file, f"{voice_folder_path}/{self.WAV_FILE}")
-            try:
-                shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{self.LIP_FILE}")
-            except Exception as e:
-                # only warn on failure
-                logging.warning(e)
+        voice_folder_path = f"{mod_folder}/MantellaVoice00"
+        if not os.path.exists(voice_folder_path):
+            os.makedirs(voice_folder_path)
+        shutil.copyfile(audio_file, f"{voice_folder_path}/{self.WAV_FILE}")
+        try:
+            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{self.LIP_FILE}")
+        except Exception as e:
+            # only warn on failure
+            pass
         
         try:
-            os.remove(audio_file)
+            #os.remove(audio_file)
             os.remove(audio_file.replace(".wav", ".lip"))
         except Exception as e:
             # only warn on failure
-            logging.warning(e)
+            pass
 
         logging.log(23, f"{speaker.name} should speak")
 
+    @utils.time_it
     def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:
         if ('assist' in text) and (count_sentence_in_text > 0):
             logging.log(23, f"'assist' keyword found. Ignoring sentence: {text.strip()}")
             return False
         return True
     
+    @utils.time_it
     def get_weather_description(self, weather_attributes: dict[str, Any]) -> str:
         if weather_attributes.__contains__(self.KEY_CONTEXT_WEATHER_ID):
             weather_id: str = weather_attributes[self.KEY_CONTEXT_WEATHER_ID]
@@ -172,7 +148,16 @@ class skyrim(gameable):
             if weather_classification >= 0 and weather_classification < len(self.WEATHER_CLASSIFICATIONS):
                 return self.WEATHER_CLASSIFICATIONS[weather_classification]
         return ""
- 
+
+    @property
+    def extender_name(self) -> str:
+        return 'SKSE'
+    
+    @property
+    def game_name_in_filepath(self) -> str:
+        return 'skyrim'
+
+
     MALE_VOICE_MODELS: dict[str, str] = {
         'ArgonianRace': 'Male Argonian',
         'BretonRace': 'Male Even Toned',

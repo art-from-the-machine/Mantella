@@ -21,6 +21,14 @@ class communication_constants:
     KEY_REPLYTYPE_ENDCONVERSATION: str  = PREFIX + "end_conversation"
 
     KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"
+    KEY_INPUTTYPE: str = PREFIX + "input_type"
+    KEY_INPUTTYPE_MIC: str = PREFIX + "mic_input"
+    KEY_INPUTTYPE_TEXT: str = PREFIX + "text_input"
+    KEY_INPUTTYPE_PTT: str = PREFIX + "push_to_talk"
+
+    KEY_REQUESTTYPE_TTS: str = PREFIX + "tts"
+    KEY_INPUT_NAMESINCONVERSATION: str = PREFIX + "names_in_conversation"
+    KEY_TRANSCRIBE: str = PREFIX + "transcribe"
 
     #Actors
     KEY_ACTORS: str = PREFIX + "actors"

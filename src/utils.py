@@ -13,7 +13,7 @@ def time_it(func):
         start = time.time()
         result = func(*args, **kwargs)
         end = time.time()
-        logging.debug(f"Function {func.__name__} took {round(end - start, 5)} seconds to execute")
+        logging.debug(f"Function {func.__module__}.{func.__name__} took {round(end - start, 5)} seconds to execute")
         return result
     return wrapper
 
@@ -29,7 +29,7 @@ def clean_text(text):
 
 
 def remove_extra_whitespace(text):
-    return re.sub('\s+', ' ', text).strip()
+    return re.sub('\\s+', ' ', text).strip()
 
 
 def remove_trailing_number(s):
@@ -48,6 +48,7 @@ def resolve_path():
     return resolved_path
 
 
+@time_it
 def get_file_encoding(file_path) -> str | None:
     with open(file_path,'rb') as f:
         data = f.read()
@@ -100,7 +101,10 @@ def cleanup_mei(remove_mei_folders: bool):
                 logging.warn(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in {dir_mei}. See MantellaSoftware/config.ini's remove_mei_folders setting for more information.")
         
 def convert_to_skyrim_hex_format(identifier: str) -> str:
-    hex_format = f'{int(identifier):x}'
+    intID = int(identifier)
+    if intID < 0:
+        intID += 2**32
+    hex_format = f'{intID:x}'.upper()
     return hex_format.rjust(8,"0")
 
 def get_time_group(in_game_time):

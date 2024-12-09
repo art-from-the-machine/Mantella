@@ -1,4 +1,5 @@
 from typing import Any, Callable
+from src.conversation.action import action
 from src.config.config_values import ConfigValues
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value import ConfigValue
@@ -17,15 +18,15 @@ import sys
 
 class MantellaConfigValueDefinitionsNew:
     @staticmethod
-    def get_config_values(on_value_change_callback: Callable[..., Any] | None = None) -> ConfigValues:
+    def get_config_values(is_integrated: bool, actions: list[action], on_value_change_callback: Callable[..., Any] | None = None) -> ConfigValues:
         result: ConfigValues = ConfigValues()
-
+        is_integrated = "--integrated" in sys.argv
         # hidden_category= ConfigValueGroup("Hidden", "Hidden", "Don't show these on the UI", on_value_change_callback, is_hidden=True)
         # hidden_category.add_config_value(ConfigValueBool("show_advanced","","", False, is_hidden=True))
         # result.add_base_group(hidden_category)
 
         # if "--integrated" not in sys.argv: # if integrated, these paths are all relative so do not need to be manually set
-        game_category = ConfigValueGroup("Game", "Game", "Settings for the games Mantella supports.", on_value_change_callback,"--integrated" in sys.argv)
+        game_category = ConfigValueGroup("Game", "Game", "Settings for the games Mantella supports.", on_value_change_callback, is_integrated)
         game_category.add_config_value(GameDefinitions.get_game_config_value())
         game_category.add_config_value(GameDefinitions.get_skyrim_mod_folder_config_value())
         game_category.add_config_value(GameDefinitions.get_skyrimvr_mod_folder_config_value())
@@ -66,8 +67,9 @@ class MantellaConfigValueDefinitionsNew:
         tts_category.add_config_value(TTSDefinitions.get_tts_service_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xvasynth_folder_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_folder_config_value())
-        tts_category.add_config_value(TTSDefinitions.get_piper_folder_config_value())
-        tts_category.add_config_value(TTSDefinitions.get_facefx_folder_config_value())
+        tts_category.add_config_value(TTSDefinitions.get_piper_folder_config_value(is_integrated))
+        tts_category.add_config_value(TTSDefinitions.get_facefx_folder_config_value(is_integrated))
+        tts_category.add_config_value(TTSDefinitions.get_lip_generation_config_value())
         tts_category.add_config_value(TTSDefinitions.get_number_words_tts_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_url_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_default_model_config_value())
@@ -93,7 +95,7 @@ class MantellaConfigValueDefinitionsNew:
         stt_category.add_config_value(STTDefinitions.get_stt_language_config_value())
         stt_category.add_config_value(STTDefinitions.get_stt_translate_config_value())
         stt_category.add_config_value(STTDefinitions.get_process_device_config_value())
-        stt_category.add_config_value(STTDefinitions.get_whisper_type_config_value())
+        stt_category.add_config_value(STTDefinitions.get_external_whisper_service_config_value())
         stt_category.add_config_value(STTDefinitions.get_whisper_url_config_value())
         result.add_base_group(stt_category)
 
@@ -111,10 +113,8 @@ class MantellaConfigValueDefinitionsNew:
         language_category.add_config_value(LanguageDefinitions.get_end_conversation_keyword_config_value())
         language_category.add_config_value(LanguageDefinitions.get_goodbye_npc_response())
         language_category.add_config_value(LanguageDefinitions.get_collecting_thoughts_npc_response())
-        language_category.add_config_value(LanguageDefinitions.get_offended_npc_response())
-        language_category.add_config_value(LanguageDefinitions.get_forgiven_npc_response())
-        language_category.add_config_value(LanguageDefinitions.get_follow_npc_response())
-        language_category.add_config_value(LanguageDefinitions.get_inventory_npc_response())
+        for action in actions:
+            language_category.add_config_value(LanguageDefinitions.get_action_keyword_override(action))
         result.add_base_group(language_category)
 
         prompts_category = ConfigValueGroup("Prompts", "Prompts", "Change the basic prompts used by Mantella.", on_value_change_callback)
@@ -135,6 +135,7 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         other_category.add_config_value(OtherDefinitions.get_remove_mei_folders_config_value())
+        other_category.add_config_value(OtherDefinitions.get_active_actions(actions))
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
         other_category.add_config_value(OtherDefinitions.get_hourly_time_config_value())

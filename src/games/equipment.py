@@ -21,10 +21,12 @@ class Equipment:
     def __init__(self, slots_to_items: dict[str, EquipmentItem]) -> None:
         self.__slots_to_items = slots_to_items
 
+    @utils.time_it
     def get_item(self, slot: str) -> EquipmentItem | None:
         if self.__slots_to_items.__contains__(slot):
             return self.__slots_to_items[slot]
         
+    @utils.time_it
     def get_equipment_description(self, character_name: str) -> str:        
         worn_armor_items: list[str] = []
         for slot in self.DESCRIPTION_ORDER_ARMOR:
@@ -52,6 +54,7 @@ class Equipment:
         return utils.remove_extra_whitespace(equipment_desc)
 
     @staticmethod
+    @utils.time_it
     def format_listing(listing: list[str]) -> str:
         """Returns a list of string concatenated by ',' and 'and' to be used in a text
 

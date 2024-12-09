@@ -2,6 +2,7 @@ import configparser
 import logging
 import os
 import sys
+from src.conversation.action import action
 from src.config.config_values import ConfigValues
 from src.config.mantella_config_value_definitions_new import MantellaConfigValueDefinitionsNew
 from src.config.config_json_writer import ConfigJsonWriter
@@ -12,11 +13,14 @@ import json
 
 class ConfigLoader:
     def __init__(self, mygame_folder_path: str, file_name='config.ini'):
+        self.is_run_integrated = "--integrated" in sys.argv
         self.save_folder = mygame_folder_path
         self.__has_any_value_changed: bool = False        
         self.__is_initial_load: bool = True
         self.__file_name = os.path.join(mygame_folder_path, file_name)
-        self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.__on_config_value_change)
+        path_to_actions = os.path.join(utils.resolve_path(),"data","actions")
+        self.__actions = self.load_actions_from_json(path_to_actions)
+        self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.is_run_integrated, self.__actions, self.__on_config_value_change)
         if not os.path.exists(self.__file_name):
             logging.log(24,"Cannot find 'config.ini'. Assuming first time usage of MantellaSoftware and creating it.")
             self.__write_config_state(self.__definitions)
@@ -44,7 +48,7 @@ class ConfigLoader:
             self.__write_config_state(self.__definitions, True)
         
         self.__is_initial_load = False
-        self.__update_config_values_from_current_state()     
+        self.__update_config_values_from_current_state()
     
     @property
     def have_all_config_values_loaded_correctly(self) -> bool:
@@ -125,14 +129,20 @@ class ConfigLoader:
             self.mod_path_base = self.mod_path
             self.mod_path += "\\Sound\\Voice\\Mantella.esp"
 
+            selected_actions = self.__definitions.get_string_list_value("active_actions")
+            self.actions = [a for a in self.__actions if a.name in selected_actions]
+
             self.language = self.__definitions.get_string_value("language")
             self.end_conversation_keyword = self.__definitions.get_string_value("end_conversation_keyword")
             self.goodbye_npc_response = self.__definitions.get_string_value("goodbye_npc_response")
             self.collecting_thoughts_npc_response = self.__definitions.get_string_value("collecting_thoughts_npc_response")
-            self.offended_npc_response = self.__definitions.get_string_value("offended_npc_response")
-            self.forgiven_npc_response = self.__definitions.get_string_value("forgiven_npc_response")
-            self.follow_npc_response = self.__definitions.get_string_value("follow_npc_response")
-            self.inventory_npc_response = self.__definitions.get_string_value("inventory_npc_response")
+            for a in self.__actions:
+                identifier = a.identifier.lstrip("mantella_").lstrip("npc_")
+                a.keyword = self.__definitions.get_string_value(f"{identifier}_npc_response")
+            # self.offended_npc_response = self.__definitions.get_string_value("offended_npc_response")
+            # self.forgiven_npc_response = self.__definitions.get_string_value("forgiven_npc_response")
+            # self.follow_npc_response = self.__definitions.get_string_value("follow_npc_response")
+            # self.inventory_npc_response = self.__definitions.get_string_value("inventory_npc_response")
 
             #TTS
             self.tts_service = self.__definitions.get_string_value("tts_service").strip().lower()
@@ -158,6 +168,8 @@ class ConfigLoader:
                     self.piper_path = self.__definitions.get_string_value("piper_folder")
                 self.xvasynth_path = ""
                 self.xtts_server_path = ""
+
+            self.lip_generation = self.__definitions.get_string_value("lip_generation").strip().lower()
 
             #Added from xTTS implementation
             self.xtts_default_model = self.__definitions.get_string_value("xtts_default_model")
@@ -189,7 +201,7 @@ class ConfigLoader:
                 self.audio_threshold = str(self.__definitions.get_int_value("audio_threshold"))
             self.pause_threshold = self.__definitions.get_float_value("pause_threshold")
             self.listen_timeout = self.__definitions.get_int_value("listen_timeout")
-            self.whisper_type = self.__definitions.get_string_value("whisper_type")
+            self.external_whisper_service = self.__definitions.get_bool_value("external_whisper_service")
             self.whisper_url = self.__definitions.get_string_value("whisper_url")
 
             #LLM
@@ -284,11 +296,42 @@ class ConfigLoader:
             logging.error('Parameter missing/invalid in config.ini file!')
             raise e
     
-    def get_config_value_json(self) -> str:
-        json_writer = ConfigJsonWriter()
-        for definition in self.__definitions.base_groups:
-            definition.accept_visitor(json_writer)
-        return json_writer.get_Json()
+    def load_actions_from_json(self, actions_folder: str) -> list[action]:
+        result = []
+        if not os.path.exists(actions_folder):
+            os.makedirs(actions_folder)
+        override_files: list[str] = os.listdir(actions_folder)
+        for file in override_files:
+            try:
+                filename, extension = os.path.splitext(file)
+                full_path_file = os.path.join(actions_folder,file)
+                if extension == ".json":
+                    with open(full_path_file) as fp:
+                        json_object = json.load(fp)
+                        if isinstance(json_object, dict):#Otherwise it is already a list
+                            json_object = [json_object]
+                        for json_content in json_object:
+                            content: dict[str, str] = json_content
+                            identifier: str = content.get("identifier", "")
+                            name: str = content.get("name", "")
+                            key: str = content.get("key", "")
+                            description: str = content.get("description", "")
+                            prompt: str = content.get("prompt", "")
+                            is_interrupting: bool = bool(content.get("is-interrupting", ""))
+                            one_on_one: bool = bool(content.get("one-on-one", ""))
+                            multi_npc: bool = bool(content.get("multi-npc", ""))
+                            radiant: bool = bool(content.get("radiant", ""))
+                            info_text: str = content.get("info-text", "")
+                            result.append(action(identifier, name, key,description,prompt,is_interrupting, one_on_one,multi_npc,radiant,info_text))
+            except Exception as e:
+                logging.log(logging.WARNING, f"Could not load action definition file '{file}' in '{actions_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
+        return result
+    
+    # def get_config_value_json(self) -> str:
+    #     json_writer = ConfigJsonWriter()
+    #     for definition in self.__definitions.base_groups:
+    #         definition.accept_visitor(json_writer)
+    #     return json_writer.get_Json()
 
         
 

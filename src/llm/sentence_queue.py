@@ -2,6 +2,7 @@ import logging
 import queue
 import threading
 from src.llm.sentence import sentence
+from src import utils
 
 class sentence_queue:
     __logging_level = 42
@@ -21,6 +22,7 @@ class sentence_queue:
     def is_more_to_come(self, value: bool):
         self.__is_more_to_come = value
 
+    @utils.time_it
     def get_next_sentence(self) -> sentence | None:
         self.log(f"Trying to aquire get_lock to get next sentence")
         with self.__get_lock:
@@ -32,13 +34,14 @@ class sentence_queue:
                 self.log(f"Nothing to get from queue, returning None")
                 return None
     
+    @utils.time_it
     def put(self, new_sentence: sentence):
         self.log(f"Trying to aquire put_lock to put '{new_sentence.sentence}'")
         with self.__put_lock:
             self.log(f"Putting '{new_sentence.sentence}'")
             self.__queue.put(new_sentence)
 
-
+    @utils.time_it
     def put_at_front(self, new_sentence: sentence):
         self.log(f"Trying to aquire get_lock to put_at_front '{new_sentence.sentence}'")
         with self.__get_lock:
@@ -54,6 +57,7 @@ class sentence_queue:
                 for s in sentence_list:
                     self.__queue.put_nowait(s)
 
+    @utils.time_it
     def clear(self):
         self.log(f"Trying to aquire get_lock to clear()")
         with self.__get_lock:
@@ -65,6 +69,7 @@ class sentence_queue:
                 except queue.Empty:
                     pass
     
+    @utils.time_it
     def log(self, text: str):
         if(self.__should_log):
             logging.log(self.__logging_level, text)
