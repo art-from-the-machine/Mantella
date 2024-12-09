@@ -112,11 +112,12 @@ class user_message(message):
     """A user message sent to the LLM. Contains the text from the player and optionally it's name.
     Ingame Events can be added as a list[str]. Each ingame event will be placed before the text of the player in asterisks 
     """
-    def __init__(self, text: str, player_character_name: str = "", is_system_generated_message: bool = False):
+    def __init__(self, text: str, player_character_name: str = "", is_system_generated_message: bool = False, is_LLM_warning: bool = False):
         super().__init__(text, is_system_generated_message)
         self.__player_character_name: str = player_character_name
         self.__ingame_events: list[str] = []
         self.__time: tuple[str,str] | None = None
+        self.__is_LLM_warning: bool = is_LLM_warning
 
     def get_formatted_content(self) -> str:
         result = ""
@@ -155,3 +156,11 @@ class user_message(message):
     def append_text(self, text_to_append: str):
         """Appends a string to the system message text."""
         self.text += text_to_append
+        
+    @property
+    def is_LLM_warning(self) -> bool:
+        return self.__is_LLM_warning
+
+    @is_LLM_warning.setter
+    def is_LLM_warning(self, value: bool):
+        self.__is_LLM_warning = value

@@ -1,0 +1,32 @@
+{
+    "GPT_func_name": "npc_loot_items",
+    "GPT_func_description": "Use this function to loot items. If the type of item to loot is unspecified, then use 'any'.",
+    "function_parameters": {
+        "item_type": {
+            "type": "array",
+            "description": "The type of item to loot.",
+            "items": {
+                "type": "string"
+            }
+        }
+    },
+    "system_prompt_info": "`{GPT_func_name}` if requested to loot, scavenge or collect items",
+    "GPT_required": ["item_type"],
+    "allowed_games": ["fallout4"],
+    "is_generic_npc_function": false,
+    "is_follower_function": false,
+    "is_settler_function": false,
+    "is_pre_dialogue": true,
+    "is_post_dialogue": false,
+    "key": "loot_items",
+    "is_interrupting": false,
+    "is_one_on_one": true,
+    "is_multi_npc": false,
+    "is_radiant": false,
+    "llm_feedback": "{speakerName} is about to scavenge {llm_output_arguments} items at {playerName}'s request. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
+    "parameter_package_key": "loot_items_tooltip",
+    "additionalProperties": false,
+    "strict": false,
+    "parallel_tool_calls": false,
+    "veto_warning" : "{speakerName} is about to scavenge {llm_output_arguments} items at {playerName}'s request. Begin your response with <veto> if {speakerName} would refuse to do that then explain in first person in character why."
+}

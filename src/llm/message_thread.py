@@ -129,3 +129,10 @@ class message_thread():
                 m.is_multi_npc_message = multi_npc_conversation
             for m in messages_to_remove:
                 self.__messages.remove(m)
+
+    def remove_LLM_warnings(self):
+        """Removes any user_message where is_LLM_warning is True from the message thread."""
+        self.__messages = [
+            msg for msg in self.__messages
+            if not (isinstance(msg, user_message) and msg.is_LLM_warning)
+        ]

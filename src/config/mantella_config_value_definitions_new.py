@@ -52,6 +52,7 @@ class MantellaConfigValueDefinitionsNew:
 
         function_llm_category = ConfigValueGroup("Function LLM", "Function inference", "Settings for the LLM providers and the LLMs themselves.", on_value_change_callback)
         function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_enable_inference())
+        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_enable_veto())
         function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_model_config_value())
         function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_api_config_value())
         function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_custom_token_count_config_value())

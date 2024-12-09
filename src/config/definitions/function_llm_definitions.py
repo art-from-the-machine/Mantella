@@ -14,6 +14,11 @@ class FunctionLLMDefinitions:
 """
         return ConfigValueBool("enable_function_inference","Enable function inference",description,False)
  
+    def get_function_enable_veto() -> ConfigValue:
+        description = """ Selecting this will allow NPC to refuse to perform actions based on function calls if the LLM considers the character itself would not perform them.
+"""
+        return ConfigValueBool("enable_function_veto","Enable function veto (free will)",description,False)
+
     @staticmethod
     def get_function_llm_model_config_value() -> ConfigValue:
         model_description = """THIS OPTION WILL ONLY BE TAKEN INTO ACCOUNT IF FUNCTION INFERENCE IS ACTIVATED

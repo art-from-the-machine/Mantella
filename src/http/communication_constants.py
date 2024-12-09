@@ -4,11 +4,13 @@ class communication_constants:
     KEY_REQUESTTYPE: str = PREFIX + "request_type"
     KEY_REPLYTYPE: str = PREFIX + "reply_type"
 
+    KEY_REQUESTTYPE_INIT: str = PREFIX + "initialize"
     KEY_REQUESTTYPE_STARTCONVERSATION: str = PREFIX + "start_conversation"
     KEY_REQUESTTYPE_CONTINUECONVERSATION: str = PREFIX + "continue_conversation"
     KEY_REQUESTTYPE_PLAYERINPUT: str = PREFIX + "player_input"
     KEY_REQUESTTYPE_ENDCONVERSATION: str = PREFIX + "end_conversation"
 
+    KEY_REPLYTTYPE_INITCOMPLETED: str = PREFIX + "init_completed"
     KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED: str = PREFIX + "start_conversation_completed"
 
     KEY_REQUEST_EXTRA_ACTIONS: str = PREFIX + "extra_actions"

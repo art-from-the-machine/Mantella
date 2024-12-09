@@ -109,19 +109,26 @@ class conversation:
 
         #Grab the next sentence from the queue
         next_sentence: sentence | None = self.retrieve_sentence_from_queue()
-        
+
         if next_sentence and len(next_sentence.sentence) > 0:
             if comm_consts.ACTION_REMOVECHARACTER in next_sentence.actions:
                 self.__context.remove_character(next_sentence.speaker)
-            if self.__function_manager.is_initialized() and self.__function_manager.llm_output_call_type == "function" and not next_sentence.has_veto:
-                # Prefix the function name with "mantella_" and add it to the actions list
-                mantella_function_name = "mantella_" + self.__function_manager.llm_output_function_name
-                next_sentence.actions.append(mantella_function_name)
-                if self.__function_manager.llm_output_target_id:
-                    next_sentence.target_ids.append(self.__function_manager.llm_output_target_id)
-                if self.__function_manager.llm_output_target_name:
-                    next_sentence.target_names.append(self.__function_manager.llm_output_target_name)
-                self.__function_manager.clear_llm_output_data() 
+            #check if the next function call has been vetoed by the LLm, if so then the function doesn't occur
+            if self.__context.config.function_enable_inference:
+                if next_sentence.has_veto:
+                    print(f"Cancelling function call {self.__function_manager.llm_output_function_name } due to <veto> tag")
+                    self.__function_manager.clear_llm_output_data() 
+                if self.__function_manager.is_initialized() and self.__function_manager.llm_output_call_type == "function":
+                    # Prefix the function name with "mantella_" and add it to the actions list
+                    mantella_function_name = "mantella_" + self.__function_manager.llm_output_function_name
+                    next_sentence.actions.append(mantella_function_name)
+                    if self.__function_manager.llm_output_target_id:
+                        next_sentence.target_ids.append(self.__function_manager.llm_output_target_id)
+                    if self.__function_manager.llm_output_target_name:
+                        next_sentence.target_names.append(self.__function_manager.llm_output_target_name)
+                    self.__function_manager.clear_llm_output_data() 
+                if self.__context.config.function_enable_veto:
+                    self.__messages.remove_LLM_warnings()
             #if there is a next sentence and it actually has content, return it as something for an NPC to say 
             return comm_consts.KEY_REPLYTYPE_NPCTALK, next_sentence
         else:
@@ -167,11 +174,12 @@ class conversation:
 
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
         ConversationIsEnded =self.__has_conversation_ended(text)
-        if ConversationIsEnded==False and self.__function_manager.is_initialized() and not self.__context.npcs_in_conversation.contains_multiple_npcs(): #No actions for multi NPC conversations
+        if ConversationIsEnded==False and self.__function_manager.is_initialized() and not self.__context.npcs_in_conversation.contains_multiple_npcs() and self.__context.config.function_enable_inference: #No actions for multi NPC conversations
             returnedLLMFunctionOutput=self.__function_manager.process_function_call(self.__messages,text)
-            if returnedLLMFunctionOutput: 
-                warning_message: user_message = user_message(returnedLLMFunctionOutput, player_character.name, True) #Sends a warning message to the LLM so it roughly knows what the NPC is going to do and has a chance to stop it
-                self.__messages.add_message(warning_message)  #consider making this a one of a singleton message
+            print(f"function enable veto is {self.__context.config.function_enable_veto}")
+            print(f"Returned function output is {returnedLLMFunctionOutput}")              
+            warning_message: user_message = user_message(returnedLLMFunctionOutput, player_character.name, True, is_LLM_warning = True) #Sends a warning message to the LLM so it roughly knows what the NPC is going to do and has a chance to stop it
+            self.__messages.add_message(warning_message)  #consider making this a one of a singleton message
 
         if ejected_npc:
             self.__prepare_eject_npc_from_conversation(ejected_npc)
@@ -191,8 +199,10 @@ class conversation:
             custom_context_values (dict[str, Any]): the current set of context values
         """
         self.__context.update_context(location, time, custom_ingame_events, weather, custom_context_values)
-  
+        print(f"in conversation the custom values are {self.__context.get_custom_context_value('mantella_function_npc_distances')}")
+
         self.__function_manager.context = self.__context
+        print(f"in conversation the custom values for function manager are {self.__function_manager.context.get_custom_context_value('mantella_function_npc_distances')}")
         if self.__context.have_actors_changed:
             self.__update_conversation_type()
             self.__context.have_actors_changed = False
@@ -264,6 +274,8 @@ class conversation:
             self.__sentences.clear()            
             # say goodbyes
             npc = self.__context.npcs_in_conversation.last_added_character
+            if self.__context.config.function_enable_veto:
+                self.__messages.remove_LLM_warnings() #remove vote warning to prevent those from being part of the summary
             if npc:
                 goodbye_sentence = self.__output_manager.generate_sentence(config.goodbye_npc_response, npc, True)
                 if goodbye_sentence:

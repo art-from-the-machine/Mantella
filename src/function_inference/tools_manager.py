@@ -15,6 +15,21 @@ class ToolsManager:
         """
         self.__tools[llm_function.GPT_func_name] = llm_function
 
+    def get_function_object(self, GPT_func_name: str) -> LLMFunction:
+        """
+        Retrieves a function by its name from the tools storage.
+
+        Args:
+            GPT_func_name (str): The name of the function.
+
+        Returns:
+            dict: The formatted function template, or None if the function does not exist.
+        """
+        llm_function:LLMFunction = self.__tools.get(GPT_func_name, None)
+        if llm_function:
+            return llm_function
+        return None
+
     def get_function(self, GPT_func_name: str) -> dict:
         """
         Retrieves a function by its name from the tools storage.
@@ -47,6 +62,15 @@ class ToolsManager:
             list: A list of all function templates as dictionaries.
         """
         return [func.get_formatted_LLMFunction() for func in self.__tools.values()]
+    
+    def get_all_functions(self) -> list:
+        """
+        Returns a list of all function objects stored in the tools manager.
+
+        Returns:
+            list: A list of all function objects.
+        """
+        return list(self.__tools.values())
 
     def clear_all_functions(self):
         """

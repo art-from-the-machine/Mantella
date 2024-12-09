@@ -1,0 +1,27 @@
+{
+    "GPT_func_name": "mantella_heal_me",
+    "GPT_func_description": "Use this function to heal the user.",
+    "function_parameters": {
+        "is_healing": {
+            "type": "boolean",
+            "description": "Set to true to heal the user."
+        }
+    },
+    "system_prompt_info" : "`{GPT_func_name}` if requested to heal the user.",
+    "GPT_required": ["is_healing"],
+    "allowed_games": [""],
+    "is_generic_npc_function": false,
+    "is_follower_function": true,
+    "is_settler_function": false,
+    "is_pre_dialogue": true,
+    "is_post_dialogue": false,
+    "key": "heal_me",
+    "is_interrupting": false,
+    "is_one_on_one": true,
+    "is_multi_npc": false,
+    "is_radiant": false,
+    "llm_feedback": "{speakerName} is about to heal {playerName} at their request. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
+    "parameter_package_key": "", 
+    "veto_warning" : "{speakerName} is about to heal {playerName} at their request. Begin your response with <veto> if {speakerName} would refuse to do that then explain in first person in character why.",
+    "conditions" : ["player_is_damaged","speaker_has_stimpack"]
+}

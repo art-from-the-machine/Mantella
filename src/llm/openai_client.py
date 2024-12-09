@@ -130,11 +130,10 @@ class openai_client:
             else:
                 return endpoints['openai']
             
-    def _set_llm_api_and_key(self, llm, llm_api, endpoints, secret_key_file):
+    def _set_llm_api_and_key(self, llm, llm_api, endpoints, secret_key_file, fallback_secret_key=None):
         cleaned_llm_api = llm_api.strip().lower().replace(' ', '')
         # if cleaned_llm_api == 'auto':
         #     endpoint = auto_resolve_endpoint(config.llm, endpoints)
-        # el
         if cleaned_llm_api == 'openai':
             self._endpoint = endpoints['openai']
             logging.info(f"Running LLM with OpenAI")
@@ -155,7 +154,10 @@ class openai_client:
             self._is_local: bool = False
 
             self._api_key = self.get_secret_key(secret_key_file)
-
+            # Attempt to use fallback_secret_key if initial retrieval failed
+            if not self._api_key and fallback_secret_key:
+                logging.info(f"Attempting to use the fallback secret key from : {fallback_secret_key}")
+                self._api_key = self.get_secret_key(fallback_secret_key)
             if llm == 'undi95/toppy-m-7b:free':
                 logging.log(24, "Running Mantella with default LLM 'undi95/toppy-m-7b:free' (OpenRouter). For higher quality responses, better NPC memories, and more performant multi-NPC conversations, consider changing this model via the `model` setting in MantellaSoftware/config.ini")
             else:
@@ -414,23 +416,37 @@ class openai_client:
     
     @staticmethod
     def get_secret_key(secret_key_file: str) -> str | None:
-        try: # first check mod folder for secret key
+        secret_key = None
+        # First, try to open the secret key file in the mod folder
+        try:
             mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
-            with open(mod_parent_folder+'\\'+secret_key_file, 'r') as f:
+            secret_key_path = Path(mod_parent_folder) / secret_key_file
+            with open(secret_key_path, 'r') as f:
                 secret_key = f.readline().strip()
-        except: # check locally (same folder as exe) for secret key
-            with open(secret_key_file, 'r') as f:
-                secret_key = f.readline().strip()
+        except FileNotFoundError:
+            # Try to open the secret key file in the local folder
+            try:
+                secret_key_path = Path(secret_key_file)
+                with open(secret_key_path, 'r') as f:
+                    secret_key = f.readline().strip()
+            except FileNotFoundError:
+                # File not found in either location
+                secret_key = None
+            except Exception as e:
+                logging.error(f"Error reading secret key file at {secret_key_file}: {e}")
+                secret_key = None
+        except Exception as e:
+            logging.error(f"Error reading secret key file at {secret_key_path}: {e}")
+            secret_key = None
 
-        if not secret_key or secret_key == '':
-                logging.critical(f'''No secret key found in GPT_SECRET_KEY.txt.
-Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
-If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
-If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
-If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is selected and running.
-For more information, see here: https://art-from-the-machine.github.io/Mantella/''')
-                return None
-        
+        if not secret_key:
+            logging.critical(f'''No secret key found in {secret_key_file}.
+    Please create a secret key and paste it in your Mantella mod folder's {secret_key_file} file.
+    If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
+    If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
+    If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is selected and running.
+    For more information, see here: https://art-from-the-machine.github.io/Mantella/''')
+            return None
         else:
             return secret_key
 
@@ -484,11 +500,21 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
 
 class function_client(openai_client):
     """Setup for sync and async access to image generation models"""
-    def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
+    def __init__(self, config: ConfigLoader, secret_key_file: str, fallback_secret_key: str) -> None:
         super().__init__(config, secret_key_file, skip_api_setup=True)
         
-        self._set_llm_api_and_key(config.function_llm,config.function_llm_api,self._endpoints,secret_key_file)
-        self._token_limit: int = self._get_token_limit(config.function_llm, config.function_llm_custom_token_count, self._local)
+        self._set_llm_api_and_key(
+            config.function_llm,
+            config.function_llm_api,
+            self._endpoints,
+            secret_key_file,
+            fallback_secret_key  # Pass the new parameter here
+        )
+        self._token_limit: int = self._get_token_limit(
+            config.function_llm, 
+            config.function_llm_custom_token_count, 
+            self._local
+        )
         self._base_url: str | None = self._endpoint if self._endpoint != 'none' else None
         self._stop: str | List[str] = config.function_llm_stop
         self._temperature: float = config.function_llm_temperature
@@ -496,7 +522,7 @@ class function_client(openai_client):
         self._frequency_penalty: float = config.function_llm_frequency_penalty
         self._max_tokens: int = config.function_llm_max_tokens
         self._model_name: str = config.function_llm
-
+        
     def request_call(self, messages: message_thread, tools_list: ["tools list"]) -> str | None:
         """A standard sync request call to the LLM. 
         This method generates a new client, calls 'client.chat.completions.create', returns the result and closes when finished
