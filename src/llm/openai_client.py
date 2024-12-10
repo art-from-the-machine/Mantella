@@ -57,13 +57,15 @@ class openai_client:
         self._generation_lock: Lock = Lock()
         self._api_key = None
         self._is_local = None
-         #######################
-       
+        
+        referer = "https://art-from-the-machine.github.io/Mantella/"
+        xtitle = "Mantella"
+        self._header: dict[str, str] = {"HTTP-Referer": referer, "X-Title": xtitle, }
         
 
-        
+        self.TOKEN_LIMIT_PERCENT = 0.45 # TODO: review this variable
         if not skip_api_setup:
-            endpoint = self.__get_endpoint(config.llm_api) 
+            endpoint = self._get_endpoint(config.llm_api) 
             if (endpoint == 'none') or ("https" in endpoint):
                 #cloud LLM
                 self._is_local: bool = False
@@ -74,10 +76,9 @@ class openai_client:
                 self._is_local: bool = True
                 self._api_key: str = 'abc123'
                 logging.info(f"Running Mantella with local language model")
-            self._encoding = self.__get_model_encoding(endpoint, config.llm)
+            self._encoding = self._get_model_encoding(endpoint, config.llm)
 
-            self._set_llm_api_and_key(config.llm, config.llm_api, self._endpoints, secret_key_file)
-            self._base_url: str | None = self._endpoint if self._endpoint != 'none' else None
+            self._base_url: str | None = endpoint if endpoint != 'none' else None
             self._stop: str | List[str] = config.stop
             self._temperature: float = config.temperature
             self._top_p: float = config.top_p
@@ -86,22 +87,15 @@ class openai_client:
             self._model_name: str = config.llm
             self._token_limit: int = self._get_token_limit(config.llm, config.custom_token_count, self._is_local)
             self._startup_async_client = self.generate_async_client() # initialize first client in advance of sending first LLM request to save time
-            
-        
-        self.TOKEN_LIMIT_PERCENT = 0.45 # TODO: review this variable
-        referer = "https://art-from-the-machine.github.io/Mantella/"
-        xtitle = "Mantella"
-        self._header: dict[str, str] = {"HTTP-Referer": referer, "X-Title": xtitle, }
-
-        self.__vision_enabled = config.vision_enabled
-        if self.__vision_enabled:
-            self.__image_manager = ImageManager(config.game, 
-                                                config.save_folder, 
-                                                config.save_screenshot, 
-                                                config.image_quality, 
-                                                config.low_resolution_mode, 
-                                                config.resize_method, 
-                                                config.capture_offset)
+            self.__vision_enabled = config.vision_enabled
+            if self.__vision_enabled:
+                self.__image_manager = ImageManager(config.game, 
+                                                    config.save_folder, 
+                                                    config.save_screenshot, 
+                                                    config.image_quality, 
+                                                    config.low_resolution_mode, 
+                                                    config.resize_method,         
+                                                    config.capture_offset)
 
 
     def auto_resolve_endpoint(model_name, endpoints):
@@ -210,6 +204,7 @@ class openai_client:
         else:
             return AsyncOpenAI(api_key=self._api_key, default_headers=self._header)
 
+
     @utils.time_it
     def generate_sync_client(self) -> OpenAI:
         """Generates a new OpenAI client already setup to be used right away.
@@ -249,7 +244,7 @@ class openai_client:
             else:
                 async_client = self.generate_async_client()
             
-            max_tokens = self.__max_tokens
+            max_tokens = self._max_tokens
             if is_multi_npc: # override max_tokens in radiant / multi-NPC conversations
                 max_tokens = 250
             try:
@@ -409,9 +404,9 @@ class openai_client:
         
         return token_limit
     
-    # --- Private methods ---   
+   
     @utils.time_it
-    def __get_endpoint(self, llm_api: str) -> str:
+    def _get_endpoint(self, llm_api: str) -> str:
         endpoints = {
             'openai': 'none', # don't set an endpoint, just use the OpenAI default
             'openrouter': 'https://openrouter.ai/api/v1',
@@ -439,7 +434,7 @@ class openai_client:
     
 
     @utils.time_it
-    def __get_model_encoding(self, endpoint: str, llm: str) -> tiktoken.Encoding:
+    def _get_model_encoding(self, endpoint: str, llm: str) -> tiktoken.Encoding:
         chosenmodel = llm
         # if using an alternative API to OpenAI, use encoding for GPT-3.5 by default
         # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
@@ -549,7 +544,7 @@ class function_client(openai_client):
     def __init__(self, config: ConfigLoader, secret_key_file: str, fallback_secret_key: str) -> None:
         super().__init__(config, secret_key_file, skip_api_setup=True)
         
-        endpoint = self.__get_endpoint(config.function_llm_api) 
+        endpoint = self._get_endpoint(config.function_llm_api) 
         if (endpoint == 'none') or ("https" in endpoint):
             #cloud LLM
             self._is_local: bool = False
@@ -563,14 +558,14 @@ class function_client(openai_client):
             self._is_local: bool = True
             self._api_key: str = 'abc123'
             logging.info(f"Running Mantella Function calling with local language model")
-        self._encoding = self.__get_model_encoding(endpoint, config.function_llm)
+        self._encoding = self._get_model_encoding(endpoint, config.function_llm)
         self._token_limit: int = self._get_token_limit(
             config.function_llm, 
             config.function_llm_custom_token_count, 
             self._is_local
         )
         
-        self._base_url: str | None = self._endpoint if self._endpoint != 'none' else None
+        self._base_url: str | None = endpoint if endpoint != 'none' else None
         self._stop: str | List[str] = config.function_llm_stop
         self._temperature: float = config.function_llm_temperature
         self._top_p: float = config.function_llm_top_p
