@@ -6,6 +6,12 @@ from fastapi import FastAPI, Request
 from src.config.config_loader import ConfigLoader
 from src.http.routes.routeable import routeable
 from src.stt import Transcriber
+from src import utils
+
+'''
+    NOTE: This route is being deprecated. 
+    Player mic input is now handled within game_manager.py's player_input() function
+'''
 
 class stt_route(routeable):
     """Route that can be called to get a transcribe from the mic
@@ -24,15 +30,18 @@ class stt_route(routeable):
     KEY_REPLYTYPE: str = PREFIX + "reply_type"
     KEY_TRANSCRIBE: str = PREFIX + "transcribe"
 
-    def __init__(self, config: ConfigLoader, secret_key_file: str, show_debug_messages: bool = False) -> None:
+    def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str, show_debug_messages: bool = False) -> None:
         super().__init__(config, show_debug_messages)
         self.__stt: Transcriber | None = None
+        self.__stt_secret_key_file = stt_secret_key_file
         self.__secret_key_file = secret_key_file
 
+    @utils.time_it
     def _setup_route(self):
         if not self.__stt:
-            self.__stt = Transcriber(self._config, self.__secret_key_file)
+            self.__stt = Transcriber(self._config, self.__stt_secret_key_file, self.__secret_key_file)
 
+    @utils.time_it
     def add_route_to_server(self, app: FastAPI):
         @app.post("/stt")
         async def stt(request: Request):
@@ -56,6 +65,7 @@ class stt_route(routeable):
             
             return self.construct_return_json("*Complete gibberish*")
     
+    @utils.time_it
     def construct_return_json(self, transcribe: str) -> dict:
         reply = {
             self.KEY_REPLYTYPE: self.KEY_REQUESTTYPE_TTS,

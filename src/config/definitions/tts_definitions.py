@@ -31,16 +31,16 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
         return ConfigValuePath("xtts_server_folder", "XTTS Folder", "The folder you have the XTTS server downloaded to (the folder that contains xtts-api-server-mantella.exe).", "C:\\Games\\Steam\\steamapps\\common\\XTTS","xtts-api-server-mantella.exe")
     
     @staticmethod
-    def get_piper_folder_config_value() -> ConfigValue:
+    def get_piper_folder_config_value(is_hidden: bool = False) -> ConfigValue:
         #Note(Leidtier): Because this is a Frankenparameter, I just set it to be a string. It SHOULD be a path, but this would require a different handling of the default empty state
-        return ConfigValueString("piper_folder", "Piper Folder", "The folder where Piper is installed (where piper.exe exists).", "")
+        return ConfigValueString("piper_folder", "Piper Folder", "The folder where Piper is installed (where piper.exe exists).", "", is_hidden=is_hidden)
 
     @staticmethod
-    def get_facefx_folder_config_value() -> ConfigValue:
+    def get_facefx_folder_config_value(is_hidden: bool = False) -> ConfigValue:
         #Note(Leidtier): Because this is a Frankenparameter, I just set it to be a string. It SHOULD be a path, but this would require a different handling of the default empty state
         facefx_discription = """The FaceFXWrapper program converts WAV files to LIP files required by Bethesda games to accurately lip sync.
                             Leaving this empty will default to the xVASynth lip_fuz plugin folder location, which is xVASynth\\resources\\app\\plugins\\lip_fuz\\"""
-        return ConfigValueString("facefx_folder", "FaceFXWrapper Folder", facefx_discription, "")
+        return ConfigValueString("facefx_folder", "FaceFXWrapper Folder", facefx_discription, "", is_hidden=is_hidden)
     
     @staticmethod
     def get_tts_service_config_value() -> ConfigValue:
@@ -52,6 +52,12 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
                         If you encounter audio artifacts at the end of sentences, try increasing this number.
                         Be aware, the higher the number, the longer the TTS audio processing time will take."""
         return ConfigValueInt("number_words_tts","Number of Words TTS",description, 3, 1, 999999)
+    
+    @staticmethod
+    def get_lip_generation_config_value() -> ConfigValue:
+        description = """Whether to generate lip sync files for spoken voicelines. Disable this setting to improve response times.
+                        Set to 'Lazy' to skip lip syncing only for the first sentence spoken of every response."""
+        return ConfigValueSelection("lip_generation","Lip File Generation",description,"Enabled",["Enabled","Lazy","Disabled"],tags=[ConvigValueTag.advanced])
     
     # XTTS Section
 
@@ -95,7 +101,9 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     
     @staticmethod
     def get_xtts_accent_config_value() -> ConfigValue:
-        return ConfigValueBool("xtts_accent","XTTS Accent","Changes the 'accent' of NPCs by sending the language value from data/Skyrim/skyrim_characters.csv's lang_override column to XTTS.\nThis helps give NPC's unique-sounding voices, even when they use the same base voice model. Note that this setting is only available for Skyrim.", False, tags=[ConvigValueTag.advanced])
+        description = """Changes the 'accent' of NPCs by sending the language value from data/Skyrim/skyrim_characters.csv's lang_override column to XTTS.\nThis helps give NPC's unique-sounding voices, even when they use the same base voice model. Note that this setting is only available for Skyrim.
+                    If running XTTS locally, this setting requires XTTS Mantella API Server v1.3.2 or later: https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files"""
+        return ConfigValueBool("xtts_accent", "XTTS Accent", description, False, tags=[ConvigValueTag.advanced])
     
     # xVASynth section
     @staticmethod

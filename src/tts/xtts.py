@@ -5,11 +5,13 @@ import requests
 from typing import Any
 import soundfile as sf
 import numpy as np
-import csv
 import io
 import json
 from subprocess import Popen
 import time
+from src.tts.synthesization_options import SynthesizationOptions
+from src import utils
+from threading import Thread
 
 class TTSServiceFailure(Exception):
     pass
@@ -17,6 +19,7 @@ class TTSServiceFailure(Exception):
 class xtts(ttsable):
     """XTTS TTS handler
     """
+    @utils.time_it
     def __init__(self, config: ConfigLoader, game) -> None:
         super().__init__(config)
         self.__xtts_default_model = config.xtts_default_model
@@ -27,6 +30,7 @@ class xtts(ttsable):
         self.__xtts_data = config.xtts_data
         self.__xtts_server_path = config.xtts_server_path
         self.__xtts_accent = config.xtts_accent
+        self._language = self._language if self._language != 'zh' else 'zh-cn'
         self.__voice_accent = self._language
         self.__official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
         self.__xtts_synthesize_url = f'{self.__xtts_url}/tts_to_audio/'
@@ -34,44 +38,32 @@ class xtts(ttsable):
         self.__xtts_set_tts_settings = f'{self.__xtts_url}/set_tts_settings'
         self.__xtts_get_models_list = f'{self.__xtts_url}/get_models_list'
         self.__xtts_get_speakers_list = f'{self.__xtts_url}/speakers_list'
-        self.__advanced_voice_model_data = list(set(game.character_df['advanced_voice_model'].fillna('').apply(str).tolist()))
-        self.__voice_model_data = list(set(game.character_df['voice_model'].fillna('').apply(str).tolist()))
-        self.__csv_voice_folder_data = list(set(game.character_df['skyrim_voice_folder'].tolist())) if 'skyrim' in config.game.lower() else list(set(game.character_df['fallout4_voice_folder'].tolist()))
-        self.__speaker_type = ''
         if not self._facefx_path :
             self._facefx_path = self.__xtts_server_path + "/plugins/lip_fuz"
 
         logging.log(self._loglevel, f'Connecting to XTTS...')
         self._check_if_xtts_is_running()
 
-        self.__available_models = self._get_available_models()
+        if self.__xtts_default_model in ['main','v2.0.2']:
+            self.__available_models = ['v2.0.2']
+        else:
+            self.__available_models = self._get_available_models()
         self.__available_speakers = self._get_available_speakers()
-        self._generate_filtered_speaker_dicts()
+        self.__available_speakers = [self._sanitize_voice_name(speaker) for speaker in self.__available_speakers]
         self.__last_model = self._get_first_available_official_model()
+        self._set_xtts_settings()
 
 
-    def tts_synthesize(self, voiceline, final_voiceline_file, aggro):
+    @utils.time_it
+    def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         self._synthesize_line_xtts(voiceline, final_voiceline_file)
     
 
+    @utils.time_it
     def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None):
         logging.log(self._loglevel, 'Loading voice model...')
 
-        selected_voice: str | None = None
-    
-        # Determine the most suitable voice model to use
-        if advanced_voice_model and self._voice_exists(advanced_voice_model, 'advanced'):
-            selected_voice = advanced_voice_model
-            self.__speaker_type = 'advanced_voice_model'
-        elif voice and self._voice_exists(voice, 'regular'):
-            selected_voice = voice
-            self.__speaker_type = 'voice_model'
-        elif in_game_voice and self._voice_exists(in_game_voice, 'regular'):
-            selected_voice = in_game_voice
-            self.__speaker_type = 'game_voice_folder'
-        elif csv_in_game_voice and self._voice_exists(csv_in_game_voice, 'csv_voice_folder'):
-            selected_voice = csv_in_game_voice
-            self.__speaker_type = 'csv_game_voice_folder'
+        selected_voice: str | None = self._select_voice_type(voice, in_game_voice, csv_in_game_voice, advanced_voice_model)
 
         if (selected_voice and selected_voice.lower() in ['maleeventoned','femaleeventoned']) and (self._game == 'Fallout4'):
             selected_voice = 'fo4_'+ selected_voice
@@ -86,19 +78,26 @@ class xtts(ttsable):
         # Format the voice string to match the model naming convention
         voice = f"{voice.lower().replace(' ', '')}"
         if voice in self.__available_models and voice != self.__last_model :
-            requests.post(self.__xtts_switch_model, json={"model_name": voice})
+            thread = Thread(target=self._send_request, args=(self.__xtts_switch_model, {"model_name": voice}), daemon=True)
+            thread.start()
             self.__last_model = voice
         elif self.__last_model not in self.__official_model_list and voice != self.__last_model :
             first_available_voice_model = self._get_first_available_official_model()
             if first_available_voice_model:
                 voice = f"{first_available_voice_model.lower().replace(' ', '')}"
-                requests.post(self.__xtts_switch_model, json={"model_name": voice})
+                thread = Thread(target=self._send_request, args=(self.__xtts_switch_model, {"model_name": voice}), daemon=True)
+                thread.start()
                 self.__last_model = voice
 
         if (self.__xtts_accent == 1) and (voice_accent != None):
-            self.__voice_accent = voice_accent
+            if voice_accent == '':
+                self.__voice_accent = self._language
+            else:
+                voice_accent = voice_accent if voice_accent != 'zh' else 'zh-cn'
+                self.__voice_accent = voice_accent
 
 
+    @utils.time_it
     def _get_available_models(self):
         # Code to request and return the list of available models
         try:
@@ -113,76 +112,36 @@ class xtts(ttsable):
             return []
         
         
+    @utils.time_it
     def _get_available_speakers(self) -> dict[str, Any]:
         # Code to request and return the list of available models
         try:
             response = requests.get(self.__xtts_get_speakers_list)
-            return response.json() if response.status_code == 200 else {}
+            if response.status_code == 200:
+                all_speakers = response.json()
+                current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
+                if len(current_language_speakers) == 0: # if there are no speakers for the chosen language, fall back to English voice models
+                    logging.warning(f"No voice models found in XTTS's speakers/{self._language} folder. Attempting to load English voice models instead...")
+                    self._language = 'en'
+                    current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
+                return current_language_speakers
+            else:
+                return {}
         except requests.exceptions.ConnectionError as e:
             logging.warning(e)
             return {}
     
     
+    @utils.time_it
     def _get_first_available_official_model(self):
         # Check in the available models list if there is an official model
         for model in self.__official_model_list:
             if model in self.__available_models:
                 return model
         return None
-    
-    
-    def _generate_filtered_speaker_dicts(self):
-        def filter_and_log_speakers(voice_model_list, log_file_name, available_speakers, sanitize_voice_name_func):
-            # Initialize filtered speakers dictionary with all languages
-            filtered_speakers = {lang: {'speakers': []} for lang in available_speakers}
-            # Prepare the header for the CSV log
-            languages = sorted(available_speakers.keys())
-            log_data = [["Voice Model"] + languages]
-
-            # Set to keep track of added (sanitized) voice models to avoid duplicates
-            added_voice_models = set()
-
-            # Iterate over each voice model in the list and sanitize
-            for voice_model in voice_model_list:
-                sanitized_vm = sanitize_voice_name_func(voice_model)
-                # Skip if this sanitized voice model has already been processed
-                if sanitized_vm in added_voice_models:
-                    continue
-
-                # Add to tracking set
-                added_voice_models.add(sanitized_vm)
-
-                # Initialize log row with sanitized name
-                row = [sanitized_vm] + [''] * len(languages)
-                # Check each language for the presence of the sanitized voice model
-                for i, lang in enumerate(languages, start=1):
-                    available_lang_speakers = [sanitize_voice_name_func(speaker) for speaker in available_speakers[lang]['speakers']]
-                    if sanitized_vm in available_lang_speakers:
-                        # Append sanitized voice model name to the filtered speakers list for the language
-                        filtered_speakers[lang]['speakers'].append(sanitized_vm)
-                        # Mark as found in this language in the log row
-                        row[i] = 'X'
-
-                # Append row to log data
-                log_data.append(row)
-
-            # Write log data to CSV file
-            with open(f"{self.config.save_folder}data/{log_file_name}_xtts.csv", 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerows(log_data)
-
-            return filtered_speakers
-        
-        # Filter and log advanced voice models
-        self.advanced_filtered_speakers = filter_and_log_speakers(self.__advanced_voice_model_data, "advanced_voice_model_data_log", self.__available_speakers, self._sanitize_voice_name)
-        
-        # Filter and log regular voice models
-        self.voice_filtered_speakers = filter_and_log_speakers(self.__voice_model_data, "voice_model_data_log", self.__available_speakers, self._sanitize_voice_name)
-
-        # Filter and log voice folder names according to CSV
-        self.csv_voice_folder_speakers = filter_and_log_speakers(self.__csv_voice_folder_data, "csv_voice_folder_data_log", self.__available_speakers, self._sanitize_voice_name)
 
     
+    @utils.time_it
     def _convert_to_16bit(self, input_file, output_file=None):
         if output_file is None:
             output_file = input_file
@@ -206,21 +165,18 @@ class xtts(ttsable):
         sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
 
 
-    def _voice_exists(self, voice_name, speaker_type):
-        """Checks if the sanitized voice name exists in the specified filtered speakers."""
-        sanitized_voice_name = self._sanitize_voice_name(voice_name)
-        speakers = []
-        
-        if speaker_type == 'advanced':
-            speakers = self.advanced_filtered_speakers.get(self._language, {}).get('speakers', [])
-        elif speaker_type == 'regular':
-            speakers = self.voice_filtered_speakers.get(self._language, {}).get('speakers', [])
-        elif speaker_type == 'csv_voice_folder':
-            speakers = self.csv_voice_folder_speakers.get(self._language, {}).get('speakers', [])
-
-        return sanitized_voice_name in [self._sanitize_voice_name(speaker) for speaker in speakers]
+    @utils.time_it
+    def _select_voice_type(self, voice: str, in_game_voice: str | None, csv_in_game_voice: str | None, advanced_voice_model: str | None):
+        # check if model name in each CSV column exists, with advanced_voice_model taking precedence over other columns
+        for voice_type in [advanced_voice_model, voice, in_game_voice, csv_in_game_voice]:
+            if voice_type:
+                voice_cleaned = self._sanitize_voice_name(voice_type)
+                if voice_cleaned in self.__available_speakers:
+                    return voice_cleaned
+        logging.error(f'Could not find voice model {voice} in XTTS models list')
     
 
+    @utils.time_it
     def _synthesize_line_xtts(self, line, save_path):
         def get_voiceline(voice_name):
             voice_path = f"{self._sanitize_voice_name(voice_name)}"
@@ -236,33 +192,34 @@ class xtts(ttsable):
         if response and response.status_code == 200:
             self._convert_to_16bit(io.BytesIO(response.content), save_path)
         elif response:
-            logging.error(f"Failed with {self.__speaker_type}: '{self._last_voice}'. HTTP Error: {response.status_code}")
+            logging.error(f"Failed with '{self._last_voice}'. HTTP Error: {response.status_code}")
 
 
-    def _check_if_xtts_is_running(self):
-        self._times_checked += 1
+    @utils.time_it
+    def _set_xtts_settings(self):
         tts_data_dict = json.loads(self.__xtts_data.replace('\n', ''))
-        
-        try:
-            if (self._times_checked > 10):
-                # break loop
-                logging.error(f'Could not connect to XTTS after {self._times_checked} attempts. Ensure that xtts-api-server is running and restart Mantella.')
-                raise TTSServiceFailure()
+        thread = Thread(target=self._send_request, args=(self.__xtts_set_tts_settings, tts_data_dict), daemon=True)
+        thread.start()
 
+    
+    @utils.time_it
+    def _check_if_xtts_is_running(self):
+        try:
             # contact local XTTS server; ~2 second timeout
-            response = requests.post(self.__xtts_set_tts_settings, json=tts_data_dict)
-            response.raise_for_status() 
-            
+            response = requests.get(self.__xtts_url, timeout=2)
+            if response.status_code >= 500:
+                logging.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
+                self._run_xtts_server()
         except requests.exceptions.RequestException as err:
             if ('Connection aborted' in err.__str__()):
                 # so it is alive
                 return
 
-            if (self._times_checked == 1):
-                logging.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
-                self._run_xtts_server()
+            logging.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
+            self._run_xtts_server()
         
 
+    @utils.time_it
     def _run_xtts_server(self):
         try:
             # Start the server
@@ -281,16 +238,15 @@ class xtts(ttsable):
                 command += ' --lowvram'
 
             Popen(command, cwd=self.__xtts_server_path, stdout=None, stderr=None, shell=True)
-            tts_data_dict = json.loads(self.__xtts_data.replace('\n', ''))
             # Wait for the server to be up and running
             server_ready = False
-            for _ in range(120):  # try for up to 10 seconds
+            for _ in range(180):  # try for up to three minutes
                 try:
-                    response = requests.post(self.__xtts_set_tts_settings, json=tts_data_dict)
-                    if response.status_code == 200:
+                    response = requests.get(self.__xtts_url, timeout=2)
+                    if response.status_code < 500:
                         server_ready = True
                         break
-                except ConnectionError:
+                except Exception:
                     pass  # Server not up yet
                 time.sleep(1)
         

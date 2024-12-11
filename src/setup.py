@@ -1,14 +1,16 @@
 import logging
 import os
+import platform
 from typing import Hashable
+import winreg
 import src.color_formatter as cf
 import src.utils as utils
 import pandas as pd
 import sys
 from pathlib import Path
-import src.config.config_loader as config_loader
+from src.config.config_loader import ConfigLoader
 
-def initialise(config_file, logging_file, language_file) -> tuple[config_loader.ConfigLoader, dict[Hashable, str]]:
+def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, dict[Hashable, str]]:
     
     def set_cwd_to_exe_dir():
         if getattr(sys, 'frozen', False): # if exe and not Python script
@@ -16,13 +18,23 @@ def initialise(config_file, logging_file, language_file) -> tuple[config_loader.
             os.chdir(os.path.dirname(sys.executable))
 
     def get_my_games_directory():
-            home = Path.home()
-            save_dir = home / "Documents" / "My Games" / "Mantella"
-            save_dir.mkdir(parents=True, exist_ok=True)
-            return str(save_dir)+'\\'
+        documents_path = ""
+        if platform.system() == "Windows":
+            reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders")
+            documents_path = winreg.QueryValueEx(reg_key, "Personal")[0]
+            winreg.CloseKey(reg_key)
+        else:
+            homepath = os.getenv('HOMEPATH')
+            if homepath:
+                documents_path = os.path.realpath(homepath+'/Documents')
+        if documents_path == "":
+            print("ERROR: Could not find 'Documents' folder or equivalent!")
+        save_dir = Path(os.path.join(documents_path,"My Games","Mantella"))
+        save_dir.mkdir(parents=True, exist_ok=True)
+        return str(save_dir)+'\\'
     
-    def setup_logging(file_name):
-        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[])
+    def setup_logging(file_name, config: ConfigLoader):
+        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[], encoding='utf-8')
 
         # create custom formatter
         formatter = cf.CustomFormatter()
@@ -36,7 +48,7 @@ def initialise(config_file, logging_file, language_file) -> tuple[config_loader.
         file_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
 
         # Create a file handler and set the formatter
-        file_handler = logging.FileHandler(file_name)
+        file_handler = logging.FileHandler(file_name, encoding='utf-8')
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(file_formatter)
 
@@ -70,9 +82,9 @@ def initialise(config_file, logging_file, language_file) -> tuple[config_loader.
         #logging.log(28, "Large Language Model related")
         #logging.log(29, "Text-To-Speech related")
 
-        logging.addLevelName(40, "HTTP-in")
-        logging.addLevelName(41, "HTTP-out")
-        logging.addLevelName(42, "Queue")
+        logging.addLevelName(41, "HTTP-in")
+        logging.addLevelName(42, "HTTP-out")
+        logging.addLevelName(43, "Queue")
         # logging.log(40, "JSON coming from game")
         # logging.log(41, "JSON sent back to game")
         # logging.log(42, "Sentence queue access")
@@ -85,14 +97,17 @@ def initialise(config_file, logging_file, language_file) -> tuple[config_loader.
         except:
             logging.error(f"Could not load language '{config.language}'. Please set a valid language in config.ini\n")
             return {}
-
     set_cwd_to_exe_dir()
     save_folder = get_my_games_directory()
-    setup_logging(save_folder+logging_file)
-    config = config_loader.ConfigLoader(save_folder+config_file)
-    config.save_folder = save_folder
-    logging.log(23, f'Mantella.exe running in {os.getcwd()}. config.ini, logging.log, and conversation histories available in {save_folder}.')
-    logging.log(23, f'Mantella currently running for {config.game}. Mantella mod files located in {config.mod_path}.')
+    config = ConfigLoader(save_folder, config_file)    
+    setup_logging(os.path.join(save_folder,logging_file), config)
+    
+    logging.log(23, f'''Mantella.exe running in: 
+{os.getcwd()}
+config.ini, logging.log, and conversation histories available in:
+{save_folder}''')
+    logging.log(23, f'''Mantella currently running for {config.game}. Mantella mod files located in: 
+{config.mod_path}''')
     if not config.have_all_config_values_loaded_correctly:
         logging.error("Cannot start Mantella. Not all settings that are required are set to correct values. Please check the above error messages and correct the corresponding settings!")
 

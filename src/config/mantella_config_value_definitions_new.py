@@ -1,4 +1,5 @@
 from typing import Any, Callable
+from src.conversation.action import action
 from src.config.config_values import ConfigValues
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value import ConfigValue
@@ -11,49 +12,43 @@ from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
 from src.config.definitions.image_llm_definitions import ImageLLMDefinitions
+from src.config.definitions.vision_definitions import VisionDefinitions
 import sys
 
 
 class MantellaConfigValueDefinitionsNew:
     @staticmethod
-    def get_config_values(on_value_change_callback: Callable[..., Any] | None = None) -> ConfigValues:
+    def get_config_values(is_integrated: bool, actions: list[action], on_value_change_callback: Callable[..., Any] | None = None) -> ConfigValues:
         result: ConfigValues = ConfigValues()
-
+        is_integrated = "--integrated" in sys.argv
         # hidden_category= ConfigValueGroup("Hidden", "Hidden", "Don't show these on the UI", on_value_change_callback, is_hidden=True)
         # hidden_category.add_config_value(ConfigValueBool("show_advanced","","", False, is_hidden=True))
         # result.add_base_group(hidden_category)
 
-        if "--integrated" not in sys.argv: # if integrated, these paths are all relative so do not need to be manually set
-            game_category = ConfigValueGroup("Game", "Game", "Settings for the games Mantella supports.", on_value_change_callback)
-            game_category.add_config_value(GameDefinitions.get_game_config_value())
-            game_category.add_config_value(GameDefinitions.get_skyrim_mod_folder_config_value())
-            game_category.add_config_value(GameDefinitions.get_skyrimvr_mod_folder_config_value())
-            game_category.add_config_value(GameDefinitions.get_fallout4_mod_folder_config_value())
-            game_category.add_config_value(GameDefinitions.get_fallout4vr_mod_folder_config_value())
-            game_category.add_config_value(GameDefinitions.get_fallout4vr_folder_config_value())
-            result.add_base_group(game_category)
+        # if "--integrated" not in sys.argv: # if integrated, these paths are all relative so do not need to be manually set
+        game_category = ConfigValueGroup("Game", "Game", "Settings for the games Mantella supports.", on_value_change_callback, is_integrated)
+        game_category.add_config_value(GameDefinitions.get_game_config_value())
+        game_category.add_config_value(GameDefinitions.get_skyrim_mod_folder_config_value())
+        game_category.add_config_value(GameDefinitions.get_skyrimvr_mod_folder_config_value())
+        game_category.add_config_value(GameDefinitions.get_fallout4_mod_folder_config_value())
+        game_category.add_config_value(GameDefinitions.get_fallout4vr_mod_folder_config_value())
+        game_category.add_config_value(GameDefinitions.get_fallout4vr_folder_config_value())
+        result.add_base_group(game_category)
         
         llm_category = ConfigValueGroup("LLM", "Large Language Model", "Settings for the LLM providers and the LLMs themselves.", on_value_change_callback)
-        llm_category.add_config_value(LLMDefinitions.get_model_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_max_response_sentences_config_value())
-        llm_category.add_config_value(PromptDefinitions.get_skyrim_prompt_config_value())
-        llm_category.add_config_value(PromptDefinitions.get_skyrim_multi_npc_prompt_config_value())
-        llm_category.add_config_value(PromptDefinitions.get_fallout4_prompt_config_value())
-        llm_category.add_config_value(PromptDefinitions.get_fallout4_multi_npc_prompt_config_value())
-        llm_category.add_config_value(PromptDefinitions.get_radiant_start_prompt_config_value())
-        llm_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
-        llm_category.add_config_value(PromptDefinitions.get_memory_prompt_config_value())
-        llm_category.add_config_value(PromptDefinitions.get_resummarize_prompt_config_value())
         llm_category.add_config_value(LLMDefinitions.get_llm_api_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_llm_custom_service_url_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_model_config_value())
         llm_category.add_config_value(LLMDefinitions.get_custom_token_count_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_automatic_greeting_folder_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_max_response_sentences_config_value())
+        #llm_category.add_config_value(LLMDefinitions.get_llm_custom_service_url_config_value())
         llm_category.add_config_value(LLMDefinitions.get_wait_time_buffer_config_value())
         llm_category.add_config_value(LLMDefinitions.get_temperature_config_value())
         llm_category.add_config_value(LLMDefinitions.get_top_p_config_value())
         llm_category.add_config_value(LLMDefinitions.get_stop_config_value())
         llm_category.add_config_value(LLMDefinitions.get_frequency_penalty_config_value())
         llm_category.add_config_value(LLMDefinitions.get_max_tokens_config_value())
+        # llm_category.add_config_value(LLMDefinitions.get_stop_llm_generation_on_assist_keyword())
+        llm_category.add_config_value(LLMDefinitions.get_try_filter_narration())
         result.add_base_group(llm_category)
 
         image_llm_category = ConfigValueGroup("Image LLM", "Image Analysis", "Settings for the Image analysis LLM providers and the LLMs themselves.", on_value_change_callback)
@@ -81,8 +76,9 @@ class MantellaConfigValueDefinitionsNew:
         tts_category.add_config_value(TTSDefinitions.get_tts_service_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xvasynth_folder_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_folder_config_value())
-        tts_category.add_config_value(TTSDefinitions.get_piper_folder_config_value())
-        tts_category.add_config_value(TTSDefinitions.get_facefx_folder_config_value())
+        tts_category.add_config_value(TTSDefinitions.get_piper_folder_config_value(is_integrated))
+        tts_category.add_config_value(TTSDefinitions.get_facefx_folder_config_value(is_integrated))
+        tts_category.add_config_value(TTSDefinitions.get_lip_generation_config_value())
         tts_category.add_config_value(TTSDefinitions.get_number_words_tts_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_url_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_default_model_config_value())
@@ -108,25 +104,51 @@ class MantellaConfigValueDefinitionsNew:
         stt_category.add_config_value(STTDefinitions.get_stt_language_config_value())
         stt_category.add_config_value(STTDefinitions.get_stt_translate_config_value())
         stt_category.add_config_value(STTDefinitions.get_process_device_config_value())
-        stt_category.add_config_value(STTDefinitions.get_whisper_type_config_value())
+        stt_category.add_config_value(STTDefinitions.get_external_whisper_service_config_value())
         stt_category.add_config_value(STTDefinitions.get_whisper_url_config_value())
         result.add_base_group(stt_category)
+
+        vision_category = ConfigValueGroup("Vision", "Vision", "Vision settings.", on_value_change_callback)
+        vision_category.add_config_value(VisionDefinitions.get_vision_enabled_config_value())
+        vision_category.add_config_value(VisionDefinitions.get_low_resolution_mode_config_value())
+        vision_category.add_config_value(VisionDefinitions.get_save_screenshot_config_value())
+        vision_category.add_config_value(VisionDefinitions.get_image_quality_config_value())
+        vision_category.add_config_value(VisionDefinitions.get_resize_method_config_value())
+        vision_category.add_config_value(VisionDefinitions.get_capture_offset_config_value())
+        result.add_base_group(vision_category)
 
         language_category = ConfigValueGroup("Language", "Language", "Change the language used by Mantella as well as keywords.", on_value_change_callback)
         language_category.add_config_value(LanguageDefinitions.get_language_config_value())
         language_category.add_config_value(LanguageDefinitions.get_end_conversation_keyword_config_value())
         language_category.add_config_value(LanguageDefinitions.get_goodbye_npc_response())
         language_category.add_config_value(LanguageDefinitions.get_collecting_thoughts_npc_response())
-        language_category.add_config_value(LanguageDefinitions.get_offended_npc_response())
-        language_category.add_config_value(LanguageDefinitions.get_forgiven_npc_response())
-        language_category.add_config_value(LanguageDefinitions.get_follow_npc_response())
+        for action in actions:
+            language_category.add_config_value(LanguageDefinitions.get_action_keyword_override(action))
         result.add_base_group(language_category)
+
+        prompts_category = ConfigValueGroup("Prompts", "Prompts", "Change the basic prompts used by Mantella.", on_value_change_callback)
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_multi_npc_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_radiant_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_fallout4_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_fallout4_multi_npc_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_fallout4_radiant_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_radiant_start_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_memory_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_resummarize_prompt_config_value())
+        result.add_base_group(prompts_category)
 
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
         other_category.add_config_value(OtherDefinitions.get_auto_launch_ui_config_value())
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         other_category.add_config_value(OtherDefinitions.get_remove_mei_folders_config_value())
+        other_category.add_config_value(OtherDefinitions.get_active_actions(actions))
+        other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
+        other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
+        other_category.add_config_value(OtherDefinitions.get_hourly_time_config_value())
+        other_category.add_config_value(OtherDefinitions.get_player_character_description())
         other_category.add_config_value(OtherDefinitions.get_voice_player_input())
         other_category.add_config_value(OtherDefinitions.get_player_voice_model())
         # other_category.add_config_value(OtherDefinitions.get_debugging_config_value())

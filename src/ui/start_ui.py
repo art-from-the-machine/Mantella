@@ -21,6 +21,13 @@ class StartUI(routeable):
             #     self.__generate_chat_page()
             # with gr.Tab("NPC editor", interactive=False):
             #     self.__generate_character_editor_page()
+
+            with gr.Row(elem_classes="custom-footer"):
+                gr.HTML("""
+                    <div class="custom-footer">
+                        <a href="https://art-from-the-machine.github.io/Mantella/" target="_blank">Mantella Installation Guide</a>
+                    </div>
+                """)
         return main_block
 
     def __generate_settings_page(self) -> gr.Column:
@@ -59,9 +66,12 @@ class StartUI(routeable):
                             path="/ui")
         
         link = f'http://localhost:{str(self._config.port)}/ui?__theme=dark'
-        logging.info(f'Mantella settings can be changed via this link: {link}')
+        logging.log(24, f'\nMantella settings can be changed via this link:')
+        logging.log(25, link)
         if self._config.auto_launch_ui == True:
-            webbrowser.open(link, new=2)
+            if not webbrowser.open(link, new=2):
+                logging.warning('\nFailed to open Mantella settings UI automatically. To edit settings, see here:')
+                logging.log(25, link)
     
     def __load_css(self):
         with open('src/ui/style.css', 'r') as file:

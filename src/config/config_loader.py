@@ -2,26 +2,32 @@ import configparser
 import logging
 import os
 import sys
+from src.conversation.action import action
 from src.config.config_values import ConfigValues
 from src.config.mantella_config_value_definitions_new import MantellaConfigValueDefinitionsNew
 from src.config.config_json_writer import ConfigJsonWriter
 from src.config.config_file_writer import ConfigFileWriter
 import src.utils as utils
 from pathlib import Path
+import json
 
 class ConfigLoader:
-    def __init__(self, file_name='config.ini'):
-        self.__has_any_value_changed: bool = False
+    def __init__(self, mygame_folder_path: str, file_name='config.ini'):
+        self.is_run_integrated = "--integrated" in sys.argv
+        self.save_folder = mygame_folder_path
+        self.__has_any_value_changed: bool = False        
         self.__is_initial_load: bool = True
-        self.__file_name = file_name
-        self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.__on_config_value_change)
+        self.__file_name = os.path.join(mygame_folder_path, file_name)
+        path_to_actions = os.path.join(utils.resolve_path(),"data","actions")
+        self.__actions = self.load_actions_from_json(path_to_actions)
+        self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.is_run_integrated, self.__actions, self.__on_config_value_change)
         if not os.path.exists(self.__file_name):
             logging.log(24,"Cannot find 'config.ini'. Assuming first time usage of MantellaSoftware and creating it.")
             self.__write_config_state(self.__definitions)
 
         config = configparser.ConfigParser()
         try:
-            config.read(file_name, encoding='utf-8')
+            config.read(self.__file_name, encoding='utf-8')
         except Exception as e:
             logging.error(repr(e))
             logging.error(f'Unable to read / open config.ini. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters.')
@@ -35,13 +41,14 @@ class ConfigLoader:
                     config_value.parse(each_value)
                 except:
                     create_back_up_configini = True
+                    # TODO: filter out warnings for ['game', 'skyrim_mod_folder', 'skyrimvr_mod_folder', 'fallout4_mod_folder', 'fallout4vr_mod_folder', fallout4vr_folder]
                     logging.warning(f"Could not identify config value '{each_key} = {each_value}' in current config.ini. Value will not be loaded. A backup of this config.ini will be created.")
 
         if create_back_up_configini:
             self.__write_config_state(self.__definitions, True)
         
         self.__is_initial_load = False
-        self.__update_config_values_from_current_state()     
+        self.__update_config_values_from_current_state()
     
     @property
     def have_all_config_values_loaded_correctly(self) -> bool:
@@ -119,15 +126,23 @@ class ConfigLoader:
 
                 self.facefx_path = self.__definitions.get_string_value("facefx_folder")
 
+            self.mod_path_base = self.mod_path
             self.mod_path += "\\Sound\\Voice\\Mantella.esp"
+
+            selected_actions = self.__definitions.get_string_list_value("active_actions")
+            self.actions = [a for a in self.__actions if a.name in selected_actions]
 
             self.language = self.__definitions.get_string_value("language")
             self.end_conversation_keyword = self.__definitions.get_string_value("end_conversation_keyword")
             self.goodbye_npc_response = self.__definitions.get_string_value("goodbye_npc_response")
             self.collecting_thoughts_npc_response = self.__definitions.get_string_value("collecting_thoughts_npc_response")
-            self.offended_npc_response = self.__definitions.get_string_value("offended_npc_response")
-            self.forgiven_npc_response = self.__definitions.get_string_value("forgiven_npc_response")
-            self.follow_npc_response = self.__definitions.get_string_value("follow_npc_response")
+            for a in self.__actions:
+                identifier = a.identifier.lstrip("mantella_").lstrip("npc_")
+                a.keyword = self.__definitions.get_string_value(f"{identifier}_npc_response")
+            # self.offended_npc_response = self.__definitions.get_string_value("offended_npc_response")
+            # self.forgiven_npc_response = self.__definitions.get_string_value("forgiven_npc_response")
+            # self.follow_npc_response = self.__definitions.get_string_value("follow_npc_response")
+            # self.inventory_npc_response = self.__definitions.get_string_value("inventory_npc_response")
 
             #TTS
             self.tts_service = self.__definitions.get_string_value("tts_service").strip().lower()
@@ -153,6 +168,8 @@ class ConfigLoader:
                     self.piper_path = self.__definitions.get_string_value("piper_folder")
                 self.xvasynth_path = ""
                 self.xtts_server_path = ""
+
+            self.lip_generation = self.__definitions.get_string_value("lip_generation").strip().lower()
 
             #Added from xTTS implementation
             self.xtts_default_model = self.__definitions.get_string_value("xtts_default_model")
@@ -184,16 +201,17 @@ class ConfigLoader:
                 self.audio_threshold = str(self.__definitions.get_int_value("audio_threshold"))
             self.pause_threshold = self.__definitions.get_float_value("pause_threshold")
             self.listen_timeout = self.__definitions.get_int_value("listen_timeout")
-            self.whisper_type = self.__definitions.get_string_value("whisper_type")
+            self.external_whisper_service = self.__definitions.get_bool_value("external_whisper_service")
             self.whisper_url = self.__definitions.get_string_value("whisper_url")
 
             #LLM
             self.max_response_sentences = self.__definitions.get_int_value("max_response_sentences")
             self.llm = self.__definitions.get_string_value("model")
+            self.llm = self.llm.split(' |')[0] if ' |' in self.llm else self.llm
             self.wait_time_buffer = self.__definitions.get_float_value("wait_time_buffer")
             self.llm_api = self.__definitions.get_string_value("llm_api")
-            if self.llm_api == "Custom":
-                self.llm_api = self.__definitions.get_string_value("llm_custom_service_url")
+            # if self.llm_api == "Custom":
+            #     self.llm_api = self.__definitions.get_string_value("llm_custom_service_url")
             self.custom_token_count = self.__definitions.get_int_value("custom_token_count")
             self.temperature = self.__definitions.get_float_value("temperature")
             self.top_p = self.__definitions.get_float_value("top_p")
@@ -236,6 +254,10 @@ class ConfigLoader:
             self.image_llm_max_tokens = self.__definitions.get_int_value("image_llm_max_tokens")
             self.delete_steam_screenshots_after_use = self.__definitions.get_bool_value("delete_steam_screenshots_after_use")
 
+            # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
+            self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
+
+            
 
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
             #Debugging
@@ -256,16 +278,21 @@ class ConfigLoader:
 
             #Conversation
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
-            self.use_voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
+            self.max_count_events = self.__definitions.get_int_value("max_count_events")
+            self.hourly_time = self.__definitions.get_bool_value("hourly_time")
+            self.player_character_description: str = self.__definitions.get_string_value("player_character_description")
+            self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
             self.player_voice_model: str = self.__definitions.get_string_value("player_voice_model")
 
             #new separate prompts for Fallout 4 have been added 
             if self.game == "Fallout4" or self.game == "Fallout4VR":
                 self.prompt = self.__definitions.get_string_value("fallout4_prompt")
                 self.multi_npc_prompt = self.__definitions.get_string_value("fallout4_multi_npc_prompt")
+                self.radiant_prompt = self.__definitions.get_string_value("fallout4_radiant_prompt")
             else:
                 self.prompt = self.__definitions.get_string_value("skyrim_prompt")
                 self.multi_npc_prompt = self.__definitions.get_string_value("skyrim_multi_npc_prompt")
+                self.radiant_prompt = self.__definitions.get_string_value("skyrim_radiant_prompt")
 
             self.radiant_start_prompt = self.__definitions.get_string_value("radiant_start_prompt")
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")
@@ -273,16 +300,56 @@ class ConfigLoader:
             self.resummarize_prompt = self.__definitions.get_string_value("resummarize_prompt")
             self.image_llm_direct_prompt = self.__definitions.get_string_value("image_llm_direct_prompt")
             self.image_llm_iterative_prompt = self.__definitions.get_string_value("image_llm_iterative_prompt")
+
+            # Vision
+            self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')
+            self.low_resolution_mode = self.__definitions.get_bool_value("low_resolution_mode")
+            self.save_screenshot = self.__definitions.get_bool_value('save_screenshot')
+            self.image_quality = self.__definitions.get_int_value("image_quality")
+            self.resize_method = self.__definitions.get_string_value("resize_method")
+            self.capture_offset = json.loads(self.__definitions.get_string_value("capture_offset"))
+            
             pass
         except Exception as e:
             logging.error('Parameter missing/invalid in config.ini file!')
             raise e
     
-    def get_config_value_json(self) -> str:
-        json_writer = ConfigJsonWriter()
-        for definition in self.__definitions.base_groups:
-            definition.accept_visitor(json_writer)
-        return json_writer.get_Json()
+    def load_actions_from_json(self, actions_folder: str) -> list[action]:
+        result = []
+        if not os.path.exists(actions_folder):
+            os.makedirs(actions_folder)
+        override_files: list[str] = os.listdir(actions_folder)
+        for file in override_files:
+            try:
+                filename, extension = os.path.splitext(file)
+                full_path_file = os.path.join(actions_folder,file)
+                if extension == ".json":
+                    with open(full_path_file) as fp:
+                        json_object = json.load(fp)
+                        if isinstance(json_object, dict):#Otherwise it is already a list
+                            json_object = [json_object]
+                        for json_content in json_object:
+                            content: dict[str, str] = json_content
+                            identifier: str = content.get("identifier", "")
+                            name: str = content.get("name", "")
+                            key: str = content.get("key", "")
+                            description: str = content.get("description", "")
+                            prompt: str = content.get("prompt", "")
+                            is_interrupting: bool = bool(content.get("is-interrupting", ""))
+                            one_on_one: bool = bool(content.get("one-on-one", ""))
+                            multi_npc: bool = bool(content.get("multi-npc", ""))
+                            radiant: bool = bool(content.get("radiant", ""))
+                            info_text: str = content.get("info-text", "")
+                            result.append(action(identifier, name, key,description,prompt,is_interrupting, one_on_one,multi_npc,radiant,info_text))
+            except Exception as e:
+                logging.log(logging.WARNING, f"Could not load action definition file '{file}' in '{actions_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
+        return result
+    
+    # def get_config_value_json(self) -> str:
+    #     json_writer = ConfigJsonWriter()
+    #     for definition in self.__definitions.base_groups:
+    #         definition.accept_visitor(json_writer)
+    #     return json_writer.get_Json()
 
         
 

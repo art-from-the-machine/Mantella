@@ -11,6 +11,7 @@ import requests
 from subprocess import Popen, DEVNULL
 import time
 import sys
+from src.tts.synthesization_options import SynthesizationOptions
 
 class TTSServiceFailure(Exception):
     pass
@@ -21,6 +22,7 @@ class VoiceModelNotFound(Exception):
 class xvasynth(ttsable):
     """xVASynth TTS handler
     """
+    @utils.time_it
     def __init__(self, config: ConfigLoader) -> None:
         super().__init__(config)
         self.__xvasynth_path = config.xvasynth_path
@@ -42,7 +44,8 @@ class xvasynth(ttsable):
         self._check_if_xvasynth_is_running()
 
 
-    def tts_synthesize(self, voiceline, final_voiceline_file, aggro):
+    @utils.time_it
+    def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         phrases = self._split_voiceline(voiceline)
         voiceline_files = []
         for phrase in phrases:
@@ -50,7 +53,7 @@ class xvasynth(ttsable):
             voiceline_files.append(voiceline_file)
 
         if len(phrases) == 1:
-            self._synthesize_line(phrases[0], final_voiceline_file, aggro)
+            self._synthesize_line(phrases[0], final_voiceline_file, synth_options.aggro)
         else:
             # TODO: include batch synthesis for v3 models (batch not needed very often)
             if self.__model_type != 'xVAPitch':
@@ -61,6 +64,7 @@ class xvasynth(ttsable):
             self._merge_audio_files(voiceline_files, final_voiceline_file)
     
 
+    @utils.time_it
     def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None):
         logging.log(self._loglevel, 'Loading voice model...')
  
@@ -137,6 +141,7 @@ class xvasynth(ttsable):
                 sys.exit(0)
     
 
+    @utils.time_it
     def _split_voiceline(self, voiceline, max_length=150):
         """Split voiceline into phrases by commas, 'and', and 'or'"""
         def group_sentences(voiceline_sentences, max_length=150):
@@ -200,6 +205,7 @@ class xvasynth(ttsable):
         return result
     
 
+    @utils.time_it
     def _merge_audio_files(self, audio_files, voiceline_file_name):
         merged_audio = np.array([])
 
@@ -207,12 +213,12 @@ class xvasynth(ttsable):
             try:
                 audio, samplerate = sf.read(audio_file)
                 merged_audio = np.concatenate((merged_audio, audio))
+                sf.write(voiceline_file_name, merged_audio, samplerate)
             except:
                 logging.error(f'Could not find voiceline file: {audio_file}')
 
-        sf.write(voiceline_file_name, merged_audio, samplerate)
 
-
+    @utils.time_it
     def _synthesize_line(self, line, save_path, aggro: bool = False, voicemodelversion='3.0'):
         pluginsContext = {}
         # in combat
@@ -242,13 +248,14 @@ class xvasynth(ttsable):
                 if attempt < max_attempts - 1:  # if not the last attempt
                     logging.warning(f"Connection error while synthesizing voiceline. Restarting xVASynth server... ({attempt})")
                     if voicemodelversion!='1.0':
-                        self.run_xvasynth_server()
+                        self._run_xvasynth_server()
                         self.change_voice(self._last_voice)
                 else:
                     logging.error(f"Failed to synthesize line after {max_attempts} attempts. Skipping voiceline: {line}")
                     break
 
 
+    @utils.time_it
     def _batch_synthesize(self, grouped_sentences, voiceline_files):
         # line = [text, unknown 1, unknown 2, pace, output_path, unknown 5, unknown 6, pitch_amp]
         linesBatch = [[grouped_sentences[i], '', '', 1, voiceline_files[i], '', '', 1] for i in range(len(grouped_sentences))]
@@ -272,17 +279,18 @@ class xvasynth(ttsable):
             except ConnectionError as e:
                 if attempt < max_attempts - 1:  # Not the last attempt
                     logging.warning(f"Connection error while synthesizing voiceline. Restarting xVASynth server... ({attempt})")
-                    self.run_xvasynth_server()
+                    self._run_xvasynth_server()
                     self.change_voice(self._last_voice)
                 else:
                     logging.error(f"Failed to synthesize line after {max_attempts} attempts. Skipping voiceline: {linesBatch}")
                     break
 
 
+    @utils.time_it
     def _check_if_xvasynth_is_running(self):
         self._times_checked += 1
         try:
-            if (self._times_checked > 10):
+            if (self._times_checked > 15):
                 # break loop
                 logging.error(f'Could not connect to xVASynth after {self._times_checked} attempts. Ensure that xVASynth is running and restart Mantella.')
                 raise TTSServiceFailure()
@@ -301,6 +309,7 @@ class xvasynth(ttsable):
             return self._check_if_xvasynth_is_running()
         
 
+    @utils.time_it
     def _run_xvasynth_server(self):
         try:
             # start the process without waiting for a response
@@ -317,6 +326,7 @@ class xvasynth(ttsable):
             raise TTSServiceFailure()
         
 
+    @utils.time_it
     def _run_backup_model(self, voice):
         logging.log(self._loglevel, f'Attempting to load backup model {voice}.')
         #This function exists only to force XVASynth to play older models properly by resetting them by loading models in sequence

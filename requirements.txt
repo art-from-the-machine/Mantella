@@ -3,7 +3,7 @@ pandas==1.5.3
 tiktoken==0.4.0
 openai==1.6.0
 aiohttp==3.8.4
-faster-whisper==0.6.0
+faster-whisper==1.0.3
 speechrecognition==3.10.1
 requests==2.31.0
 pyaudio==0.2.13
@@ -19,4 +19,7 @@ myst-parser==2.0.0
 sphinx-design==0.5.0
 sphinxcontrib-youtube==1.4.1
 furo==2023.9.10
-pillow==10.4.0 
+#pillow==10.4.0 
+pywin32==306
+mss==9.0.1
+opencv-python==4.10.0.84

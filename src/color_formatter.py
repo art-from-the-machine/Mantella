@@ -31,6 +31,12 @@ class CustomFormatter(logging.Formatter):
     BGwhite = "\x1b[47m"
     BGLightBlue = "\x1b[104m"
 
+    dim_red = "\x1b[31m\x1b[2m"
+    dim_blue = "\x1b[34m\x1b[2m"
+    dim_green = "\x1b[32m\x1b[2m"
+
+    hyperlink = blue + underscore
+
     format_string: str = "%(asctime)s.%(msecs)03d %(levelname)s: %(message)s"
 
     FORMATS = {
@@ -49,6 +55,8 @@ class CustomFormatter(logging.Formatter):
         23: dim + "%(message)s" + reset,
         # Startup
         24: white + "%(message)s" + reset,
+        # Hyperlink
+        25: hyperlink + "%(message)s" + reset,
 
         # STT
         27: blue + format_string + reset,
@@ -61,11 +69,11 @@ class CustomFormatter(logging.Formatter):
         # 30:
 
         # HTTP in
-        40: orange + format_string + reset,
+        41: dim_blue + format_string + reset,
         # HTTP out
-        41: bold_red + format_string + reset,
+        42: dim_green + format_string + reset,
         # sentence queue
-        42: black + BGLightBlue + format_string + reset,
+        43: black + BGLightBlue + format_string + reset,
     }
 
     def format(self, record):

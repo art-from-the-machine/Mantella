@@ -14,15 +14,15 @@ def main():
             logging_file='logging.log', 
             language_file='data/language_support.csv')
 
-        mantella_version = '0.11.4'
+        mantella_version = '0.12'
         logging.log(24, f'\nMantella v{mantella_version}')
         should_debug_http = config.show_http_debug_messages
 
         mantella_http_server = http_server()
 
         #start the http server
-        conversation = mantella_route(config, 'GPT_SECRET_KEY.txt','IMAGE_GPT_SECRET_KEY.txt', language_info, should_debug_http)
-        stt = stt_route(config, 'GPT_SECRET_KEY.txt', should_debug_http)
+        conversation = mantella_route(config, 'IMAGE_SECRET_KEY.txt', 'STT_SECRET_KEY.txt', 'GPT_SECRET_KEY.txt', language_info, should_debug_http)
+        stt = stt_route(config, 'STT_SECRET_KEY.txt', 'GPT_SECRET_KEY.txt', should_debug_http)
         ui = StartUI(config)
         routes: list[routeable] = [conversation, stt, ui]
             

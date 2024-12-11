@@ -13,7 +13,7 @@ def time_it(func):
         start = time.time()
         result = func(*args, **kwargs)
         end = time.time()
-        logging.debug(f"Function {func.__name__} took {round(end - start, 5)} seconds to execute")
+        logging.debug(f"Function {func.__module__}.{func.__name__} took {round(end - start, 5)} seconds to execute")
         return result
     return wrapper
 
@@ -22,10 +22,21 @@ def clean_text(text):
     # Remove all punctuation from the sentence
     text_cleaned = text.translate(str.maketrans('', '', string.punctuation))
     # Remove any extra whitespace
-    text_cleaned = re.sub('\s+', ' ', text_cleaned).strip()
+    text_cleaned = remove_extra_whitespace(text_cleaned)
     text_cleaned = text_cleaned.lower()
 
     return text_cleaned
+
+
+def remove_extra_whitespace(text):
+    return re.sub('\\s+', ' ', text).strip()
+
+
+def remove_trailing_number(s):
+    try:
+        return re.sub(r'\d+$', '', s).strip()
+    except:
+        return s
 
 
 def resolve_path():
@@ -37,6 +48,7 @@ def resolve_path():
     return resolved_path
 
 
+@time_it
 def get_file_encoding(file_path) -> str | None:
     with open(file_path,'rb') as f:
         data = f.read()
@@ -88,7 +100,12 @@ def cleanup_mei(remove_mei_folders: bool):
             else:
                 logging.warn(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in {dir_mei}. See MantellaSoftware/config.ini's remove_mei_folders setting for more information.")
         
-
+def convert_to_skyrim_hex_format(identifier: str) -> str:
+    intID = int(identifier)
+    if intID < 0:
+        intID += 2**32
+    hex_format = f'{intID:x}'.upper()
+    return hex_format.rjust(8,"0")
 
 def get_time_group(in_game_time):
     in_game_time = int(in_game_time)
@@ -113,6 +130,76 @@ def get_time_group(in_game_time):
         time_group = 'at night'
     
     return time_group
+
+
+def format_context_size(num):
+    if num < 100_000:
+        return f"{num:,}"
+    elif num < 1_000_000:
+        return f"{num // 1_000}k"
+    elif num < 1_00_0000_000:
+        return f"{num // 1_000_000}m"
+    else:
+        return f"{num // 1_000_000_000}b"
+
+
+def format_price(price):
+    if price < 0:
+        return 'unknown'
+    elif price == 0:
+        return 'free'
+    elif price.is_integer():
+        return f"${price:.0f}"
+    else:
+        return f"${price:.2f}"
+    
+
+def get_openai_model_list():
+    '''Get list of OpenAI models in the same format passed by OpenRouter
+    At the time of this function creation, OpenAI models do not pass the same level of information as OpenRouter
+    such as cost and context length, so these details need to be maintained manually.
+    Prices are not stored to avoid sharing outdated information.
+    '''
+    openai_models = [
+        {
+            "id": "gpt-4o-mini",
+            "model_extra": {
+                "context_length": 128_000,
+                "pricing": {"prompt": -1, "completion": -1},
+                "architecture": {"modality": "text+image->text"}
+            }
+        },
+        {
+            "id": "gpt-4o",
+            "model_extra": {
+                "context_length": 128_000,
+                "pricing": {"prompt": -1, "completion": -1},
+                "architecture": {"modality": "text+image->text"}
+            }
+        },
+        {
+            "id": "gpt-4-turbo",
+            "model_extra": {
+                "context_length": 128_000,
+                "pricing": {"prompt": -1, "completion": -1},
+                "architecture": {"modality": "text+image->text"}
+            }
+        },
+    ]
+    
+    # Convert the dictionary to a structure similar to what OpenRouter returns
+    class Model:
+        def __init__(self, id, model_extra):
+            self.id = id
+            self.model_extra = model_extra
+
+    class SyncPage:
+        def __init__(self, data):
+            self.data = data
+
+    models = [Model(**model) for model in openai_models]
+
+    return SyncPage(data=models)
 
 
 def get_model_token_limits():

@@ -1,373 +1,247 @@
-
+from datetime import datetime
 import logging
-import time
-import os
-import re
-from threading import Thread
-from src.output_manager import ChatManager
-from src.llm.messages import image_message, image_description_message 
-from src.conversation.context import context
-from src.llm.message_thread import message_thread
-from pathlib import Path
-from datetime import datetime, timedelta
 import base64
-from PIL import Image
-from io import BytesIO
+import os
+import src.utils as utils
+import numpy as np
+import win32gui
+import mss
+import cv2
+from openai.types.chat import ChatCompletionMessageParam
+import ctypes
 
-class ImageToDelete:
-    def __init__(self, image_path: Path):
-        self.image_path = image_path
-
-class ImageManager:
-    KEY_CONTEXT_CUSTOMVALUES_VISION_READY: str = "mantella_vision_ready"
-    KEY_CONTEXT_CUSTOMVALUES_VISION_RES: str = "mantella_vision_resolution"
-    KEY_CONTEXT_CUSTOMVALUES_VISION_RESIZE: int = "mantella_vision_resize"
-    KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY: str = "mantella_vision_hints_names"
-    KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY: str = "mantella_vision_hints_distance"
-    KEY_CONTEXT_CUSTOMVALUES_VISION_ISUSINGSTEAMSCREENSHOT : str = "mantella_vision_is_using_steam_screenshot"
-    KEY_CONTEXT_CUSTOMVALUES_VISION_STEAMSCREENSHOTDELAY : str = "mantella_vision_steam_screenshot_delay"
-
-    def __init__(self, context_for_conversation, output_manager, generation_thread) -> None:
-        
-        self.__context: context = context_for_conversation 
-        self.__output_manager: ChatManager = output_manager
-        #self.__game = self.__output_manager.__game #Check if this is working correctly
-        self.__direct_prompt =self.__context.config.image_llm_direct_prompt
-        self.__iterative_prompt =self.__context.config.image_llm_iterative_prompt
-        self.__generation_thread = generation_thread  # Ensure this is always initialized
-        self.__images_to_delete = []  # Initialize as an empty list of ImageToDelete objects
-
-    def __add_image_to_delete(self, image_path: str):
-        '''Build up the array of steam screenshots to eventually delete'''
-        try:
-            path_obj = Path(image_path)
-            if path_obj.is_file():
-                self.__images_to_delete.append(ImageToDelete(path_obj))
-                #logging.info(f"Image {image_path} added to delete list.")
-            else:
-                logging.debug(f"The file {image_path} does not exist.")
-        except Exception as e:
-            logging.debug(f"An error occurred while adding image to delete list: {e}")
-
-    def process_vision_hints(self):
-        # Fetch the string data
-        names_str = str(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY))
-        distances_str = str(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY))
-        # Initialize the default empty output
-        formatted_output = ""  # Default message if no data is available
-        
-        # Check if both strings are not empty
-        if names_str and distances_str:
-            # Convert and sort the data
-            sorted_pairs = self.create_and_sort_array(names_str, distances_str)
-
-            # Dictionaries to hold names categorized by distance
-            categories = {
-                "Very close": [],
-                "Close": [],
-                "Medium distance": [],
-                "Far": [],
-                "Very far": []
-            }
-            
-            # Categorize each pair
-            for name, distance in sorted_pairs:
-                if distance < 150:
-                    categories["Very close"].append(name)
-                elif 150 <= distance < 500:
-                    categories["Close"].append(name)
-                elif 500 <= distance < 1000:
-                    categories["Medium distance"].append(name)
-                elif 1000 <= distance < 2500:
-                    categories["Far"].append(name)
-                elif distance >= 2500:
-                    categories["Very far"].append(name)
-            
-            # Format the output
-            output = []
-            for category, names in categories.items():
-                if names:  # Only include categories with names
-                    formatted_names = ";".join(names)
-                    output.append(f"{category}: {formatted_names}")
-            
-            # Join all categories with a new line
-            if output:  # Check if there's any output to include
-                formatted_output = "Here are the list of NPCs or creatures that might be shown on the image and their approximate distance from the player : \n" +"\n".join(output)
-        return formatted_output
-   
-    def create_and_sort_array(self,names_str, distances_str):
-        # Use regex to find all elements inside brackets
-        names = re.findall(r'\[(.*?)\]', names_str)
-        distances = re.findall(r'\[(.*?)\]', distances_str)
-        
-        # Convert distance strings to floats
-        distances = [float(distance) for distance in distances]
-        
-        # Create a list of tuples from names and distances
-        name_distance_pairs = list(zip(names, distances))
-        
-        # Sort the list of tuples by the distance
-        name_distance_pairs.sort(key=lambda x: x[1])
-        
-        return name_distance_pairs
-
-    def getSteamScreenshotDelay(self):
-        steamScreenshotDelay = 120
-        try:
-            steamScreenshotDelay = int(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_STEAMSCREENSHOTDELAY))
-        except:
-            logging.debug("No json value for steamScreenshotDelay found")
-        return steamScreenshotDelay
-        
-        
-
-    def delete_images_from_file(self):
-        '''Delete steam screenshots that were analyzed after the conversation is ended'''
-        if self.__context.config.delete_steam_screenshots_after_use :
-            for image in self.__images_to_delete:
-                try:
-                    # Regular image deletion
-                    if image.image_path.is_file():
-                        image.image_path.unlink()  # Delete the file
-                        logging.debug( f"Deleted image {image.image_path}")
-                    else:
-                        logging.debug(f"The file {image.image_path} does not exist.")
-
-                    # Prepare the VR image path
-                    vr_image_path = image.image_path.with_name(image.image_path.stem + '_vr.jpg')
-                    
-                    # VR image deletion
-                    if vr_image_path.is_file():
-                        vr_image_path.unlink()  # Delete the VR file
-                        logging.debug( f"Deleted VR image {vr_image_path}")
-                    else:
-                        logging.debug(f"The VR file {vr_image_path} does not exist.")
-                except Exception as e:
-                    logging.error(f"An error occurred while deleting images: {e}")
-
-            # Clear the list after attempting to delete all images
-            self.__images_to_delete.clear()
-
-    def attempt_to_add_most_recent_image_to_deletion_array(self):
-        '''This is called by the conversation.py to remove a screenshot that was sent at the end of a conversation to avoid having a screenshot sticking around
-        in the next conversation.'''
-        try:
-             if self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_READY)==True:
-                most_recent_image_path, is_vr = self.__output_manager.get_image_filepath()
-                if is_vr: 
-                    try:
-                        is_steam_screenshot = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_ISUSINGSTEAMSCREENSHOT)
-                    except AttributeError:
-                        is_steam_screenshot = None
-                    if is_steam_screenshot:
-                        most_recent_image_path = self.find_most_recent_jpg(str(most_recent_image_path))
-                        self.__add_image_to_delete(str(most_recent_image_path))
-        except Exception as e:
-            logging.error(f"An error occurred while adding the latest image to deletion array: {e}")
-
-    @staticmethod
-    def resize_image(image_path, target_width):
-        """
-        Resize the image at the specified path to the target width while preserving the aspect ratio.
-        Parameters:
-        - image_path: Path to the image to be resized.
-        - target_width: Desired width of the image. If None or the original width is smaller, no resizing is performed.
-        """
-        try:
-            with Image.open(image_path) as img:
-                original_width, original_height = img.size
-
-                # If resizing is not needed
-                if target_width is None or original_width <= target_width:
-                    # Return the original image without resizing
-                    return img
-
-                # Calculate new dimensions while preserving aspect ratio
-                aspect_ratio = original_height / original_width
-                new_height = int(target_width * aspect_ratio)
-
-                # Convert to 'RGB' if the image has an alpha channel (RGBA)
-                if img.mode == 'RGBA':
-                    img = img.convert('RGB')
-
-                # Resize the image
-                resized_img = img.resize((target_width, new_height), Image.LANCZOS)
-
-                # Save the resized image back to the same path (or overwrite)
-                resized_img.save(image_path)
-
-                # Return the resized image
-                return resized_img
-        except Exception as e:
-            logging.warning(f"Failed to resize image {image_path}: {str(e)}")
-            return None
-
-        # Example usage
-        # resized_image = resize_image('path/to/your/image.jpg', 1900)
-        # if resized_image is None:
-        #     print("Image resizing failed.")
-
-    @staticmethod
-    def image_to_base64(pil_img, format='JPEG'):
-        """
-        Convert a PIL Image object to a base64-encoded string.
-        
-        Parameters:
-            pil_img (PIL.Image): A PIL Image object.
-            format (str): The format to save the image in memory. Defaults to 'JPEG'.
-            
-        Returns:
-            str: A base64-encoded string of the image.
-        """
-        # If the image has an alpha channel, convert it to RGB (removing alpha channel)
-        if pil_img.mode == 'RGBA':
-            pil_img = pil_img.convert('RGB')
-            
-        # Create a bytes buffer for the in-memory image
-        img_buffer = BytesIO()
-        
-        # Save the image to the buffer in JPEG format
-        pil_img.save(img_buffer, format=format)
-        
-        # Get the byte data from the buffer
-        byte_data = img_buffer.getvalue()
-        
-        # Encode this byte data to base64
-        base64_str = base64.b64encode(byte_data).decode('utf-8')
-        
-        return base64_str
-
-    def __create_message_from_image(self,description):
-        '''Attempts to create an image object by checking the filepath, once the object is created it retrieves custom context to resize the object and/or send 
-        instructions to the LLM to let it do the resizing (less efficient than doing it in python). Once that done it encodes the image to base64 and generates
-        a image_message class object'''
-        try:
-            is_steam_screenshot = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_ISUSINGSTEAMSCREENSHOT)
-        except AttributeError:
-            is_steam_screenshot = None
-        try:
-            # Create an instance of the image_message class
-            image_path, is_vr = self.__output_manager.get_image_filepath()
-            image_path = Path(image_path) 
-            #if is_steam_screenshot then search for the most recent jpg in the filepath : 
-            if is_steam_screenshot : 
-                recent_image_path = self.find_most_recent_jpg(str(image_path))
-                if recent_image_path:
-                    image_path = Path(recent_image_path) 
-                else:
-                    logging.warning(f"No jpg file created in the last {int(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_STEAMSCREENSHOTDELAY))} seconds was found in {str(image_path)} .")
-                    return None
-                self.__add_image_to_delete(str(image_path))
-            else:
-                image_path = Path(image_path) / "Mantella_Vision.jpg" 
-            # Check if the file exists
-            if not image_path.is_file():
-                image_path, is_vr  = self.__output_manager.get_image_filepath()
-                image_path = Path(image_path) / "MantellaVision.png" 
-                if not image_path.is_file():
-                    logging.debug(f"The file {str(image_path)} does not exist.")
-                    return None
-            resolution = str(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_RES)).lower() or "auto"
-            resize_value = int(self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_RESIZE)) or 1024
-            image_object = self.resize_image(image_path, resize_value) 
-            encoded_image_str = self.image_to_base64(image_object)
-            image_msg_instance = image_message(encoded_image_str, description, resolution, True)  # Need to put player name back in eventually
-            return image_msg_instance
-                   
-        except Exception as e:
-            logging.error(f"An error occurred while creating the user image: {e}")
-            return None
+class PythonImageManager:
+    '''
+    Manages game window capture and image processing from the Python side (ie capture image using Python)
+    '''
     
-    def __clean_message_thread_from_images(self, messages):
-        if messages.has_message_type(image_message):
-                messages.delete_all_message_type(image_message)
-        if messages.has_message_type(image_description_message):
-            messages.delete_all_message_type(image_description_message)
+    @utils.time_it
+    def __init__(self, game: str, save_folder: str, save_screenshot: bool, image_quality: int, low_resolution_mode: bool, resize_method: str, capture_offset: dict[str, int]) -> None:
+        WINDOW_TITLES = {
+            'Skyrim': 'Skyrim Special Edition',
+            'SkyrimVR': 'Skyrim VR',
+            'Fallout4': 'Fallout4',
+            'Fallout4VR': 'Fallout4VR'
+        }
+        self.__window_title: str = WINDOW_TITLES.get(game, game)
+        self.__save_screenshot: bool = save_screenshot
+        self.__image_quality: int = image_quality
+        self.__capture_offset: dict[str, int] = capture_offset
+        self.__low_resolution_mode: bool = low_resolution_mode
+        self.__detail = "low" if self.__low_resolution_mode else "high"
 
-    def process_image_analysis(self, messages: message_thread):
-        '''Main workhorse of the image_manager, this checks the context values to see if a screenshot is ready to analyze and will attempt to process it according
-          to the option selected in iterative query in the config. If iterative query is disabled it will attempt to send the image directly to the LLM along 
-          with the rest of the prompt. If iterative query is selected it will instead send a request to the image_client and once it gets the response back it
-            will create a new image description message in the message_thread.
-        If no image is ready it removes all encoded images and image descriptions from the message thread to avoid overloading the LLM.
-        It also insures that there's only one image or only one image description present at any time in the message_thread to avoid overloading the LLM with info'''
+        RESIZING_METHODS = {
+            'Nearest': cv2.INTER_NEAREST,
+            'Linear': cv2.INTER_LINEAR,
+            'Cubic': cv2.INTER_CUBIC,
+            'Lanczos': cv2.INTER_LANCZOS4
+        }
+        self.__resize_method: int = RESIZING_METHODS.get(resize_method, cv2.INTER_NEAREST)
+
+        if self.__save_screenshot:
+            self.__image_path: str = save_folder+'data\\tmp\\images'
+            os.makedirs(self.__image_path, exist_ok=True)
+
+        self.__capture_params = None
+
         try:
-            vision_ready = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_READY)
-        except AttributeError:
-            vision_ready = None
+            ctypes.windll.user32.SetProcessDPIAware()
+        except:
+            logging.warning('Failed to read monitor DPI. Images may not be saved in the correct dimensions.')
+
+
+    @property
+    def capture_params(self):
+        if self.__capture_params is None:
+            self.__capture_params = self._calculate_capture_params()
+        return self.__capture_params
+    
+
+    def reset_capture_params(self):
+        self.__capture_params = None
+
+
+    @utils.time_it
+    def _calculate_capture_params(self) -> dict[str, int]:
+        '''Calculate the capture parameters / coordinates of the game window
+
+        Returns:
+            dict[str,int]: A dictionary containing window locations and their coordinates
+        '''
+        hwnd = win32gui.FindWindow(None, self.__window_title)
+        if not hwnd:
+            logging.error(f"Window '{self.__window_title}' not found")
+            self.__capture_params = None
+            return None
+
+        window_rect = win32gui.GetWindowRect(hwnd)
+        client_rect = win32gui.GetClientRect(hwnd)
+        client_left, client_top = win32gui.ClientToScreen(hwnd, (0, 0))
         
-        if vision_ready:
-        #if self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_VISION_READY):
-            vision_hints_prompt = self.process_vision_hints()
-            if self.__context.config.image_analysis_iterative_querying == False:
-                logging.info("'Vision ready' Returned true, attempting direct image query")
-                image_prompt = self.__direct_prompt+vision_hints_prompt
-                image_instance = self.__create_message_from_image(image_prompt)
-                if image_instance:
-                    messages.replace_or_add_message(image_instance, image_message)
-                else:
-                    logging.debug("No valid image instance created for direct querying.")
-            else:
-                logging.info("'Vision ready' Returned true, attempting iterative query")
-                iterative_prompt_instance= self.__iterative_prompt.format(
-                        game=self.__context.config.game
-                    )
-                image_prompt=iterative_prompt_instance+vision_hints_prompt
-                image_instance = self.__create_message_from_image(image_prompt)
-                if image_instance:
-                    logging.info("Waiting for image_description_response to be filled")
-                    self.__generation_thread = Thread(target=self.__output_manager.generate_simple_response, args=[image_instance])
-                    self.__generation_thread.start()
-                    self.__generation_thread.join()
-                    self.__generation_thread = None
-                    if self.__output_manager.generated_simple_result:
-                        new_image_description_message = image_description_message(self.__output_manager.generated_simple_result+vision_hints_prompt, False)
-                        messages.replace_or_add_message(new_image_description_message, image_description_message)
-                    else:
-                        logging.warning("Generated simple response did not produce a valid result.")
-                else:
-                    logging.debug("No valid image instance created for iterative querying.")
+        left_border = client_left - window_rect[0]
+        top_border = client_top - window_rect[1]
+
+        capture_left = max(window_rect[0] + left_border + self.__capture_offset.get('left', 0), 0)
+        capture_top = max(window_rect[1] + top_border + self.__capture_offset.get('top', 0), 0)
+        capture_width = client_rect[2] + self.__capture_offset.get('right', 0)
+        capture_height = client_rect[3] + self.__capture_offset.get('bottom', 0)
+
+        return {"left": capture_left, "top": capture_top, "width": capture_width, "height": capture_height}
+    
+
+    @utils.time_it
+    def add_image_to_messages(self, openai_messages: list[ChatCompletionMessageParam]) -> list[ChatCompletionMessageParam]:
+        '''Adds a captured image to the latest user message
+
+        Args:
+            openai_messages (list[ChatCompletionMessageParam]): The existing list of messages in the OpenAI format
+
+        Returns:
+            list[ChatCompletionMessageParam]: The updated list of messages with the image added
+        '''
+        image = self._get_image()
+        if image is None:
+            return openai_messages
+        
+        # Add the image to the last user message or create a new message if needed
+        if openai_messages and openai_messages[-1]['role'] == 'user':
+            openai_messages[-1]['content'] = [
+                {"type": "text", "text": openai_messages[-1]['content']},
+                {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}", "detail": self.__detail}}
+            ]
         else:
-            self.__clean_message_thread_from_images(messages)
+            openai_messages.append({
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}", "detail": self.__detail}}
+                ]
+            })
 
-    def find_most_recent_jpg(self, directory):
-        '''This will attempt to find the most recent image that was generated within the last few minutes, it will avoid using images that end in _vr cause those
-        are two duplicated sets of image due to VR. it will also avoid return and image that was already used in the conversation'''
-        # Convert the directory to a Path object
-        time.sleep(0.5)
-        dir_path = Path(directory)
-        
-        # Check if the directory exists
-        if not dir_path.is_dir():
-            logging.error(f"The directory {directory} for image search does not exist or is not a directory.")
-            return None
-        
+        return openai_messages
+
+
+    @utils.time_it
+    def _resize_image(self, image: np.ndarray, width: int, height: int) -> np.ndarray:
+        '''Resize the image to the target resolution specified here: 
+        https://platform.openai.com/docs/guides/vision/managing-images
+
+        In summary:
+            "low" detail images should have a resolution of 512x512
+            "high" detail images should have a maximum length of 768 for the short side and 2048 for the long side
+
+        Args:
+            image (numpy.ndarray): The image to resize
+            width (int): The width of the screenshot
+            height (int): The height of the screenshot
+
+        Returns:
+            numpy.ndarray: The resized image
+        '''
+
+        if self.__low_resolution_mode:
+            target_size = 512
+            if height < width:
+                scale_factor = target_size / height
+                new_height = target_size
+                new_width = int(width * scale_factor)
+            else:
+                scale_factor = target_size / width
+                new_width = target_size
+                new_height = int(height * scale_factor)
+
+            resized_image = cv2.resize(image, (new_width, new_height), interpolation=self.__resize_method)
+
+            start_x = (new_width - target_size) // 2
+            start_y = (new_height - target_size) // 2
+
+            cropped_image = resized_image[start_y:start_y + target_size, start_x:start_x + target_size]
+
+            return cropped_image
+        else:
+            max_short_side = 768
+            max_long_side = 2_000
+
+            short_side = min(height, width)
+            long_side = max(height, width)
+            
+            if short_side <= max_short_side and long_side <= max_long_side:
+                return image
+            
+            scale_factor = min(max_short_side / short_side, max_long_side / long_side)
+            
+            new_width = int(width * scale_factor)
+            new_height = int(height * scale_factor)
+            
+            resized_image = cv2.resize(image, (new_width, new_height), interpolation=self.__resize_method)
+            
+            return resized_image
+    
+
+    @utils.time_it
+    def _take_screenshot(self, params: dict[str, int]) -> np.ndarray:
+        '''Take a screenshot within the area specified by params
+
+        Args:
+            params (dict[str, int]): The capture parameters
+
+        Returns:
+            image (numpy.ndarray): The captured screenshot as a numpy array
+            width (int): The width of the screenshot
+            height (int): The height of the screenshot
+        '''
+        with mss.mss() as sct:
+            screenshot = sct.grab(params)
+        return np.array(screenshot), screenshot.width, screenshot.height
+    
+
+    @utils.time_it
+    def _encode_image_to_jpeg(self, screenshot):
+        return cv2.imencode('.jpg', screenshot, [cv2.IMWRITE_JPEG_QUALITY, self.__image_quality])[1]
+    
+
+    @utils.time_it
+    def _get_image(self) -> str | None:
+        '''Capture, process, and encode an image of the game window
+
+        Returns:
+            str: Base64 encoded JPEG image, or None if capture fails
+        '''
         try:
-            # Get the current time
-            now = datetime.now()
-            
-            # Get a list of all .jpg files in the directory
-            jpg_files = list(dir_path.glob('*.jpg'))
-            
-            # Filter the files to include only those modified in the last 2 minutes
-            steamScreenshotDelay = self.getSteamScreenshotDelay()
-            recent_files = [f for f in jpg_files if datetime.fromtimestamp(f.stat().st_mtime) > now - timedelta(seconds=steamScreenshotDelay)]
-            
-            # Sort files by modification time, most recent first
-            recent_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+            params = self.capture_params
+            if not params:
+                return None
+  
+            # Capture
+            screenshot, width, height = self._take_screenshot(params)
 
-            # Filter out the files based on conditions
-            for file in recent_files:
-                # Check if file ends with '_vr.jpg'
-                if not file.name.endswith('_vr.jpg'):
-                    # Check if file is in the deletion list
-                    if file not in (x.image_path for x in self.__images_to_delete):
-                        logging.debug( f"Returning most recent jpg file {file}.")
-                        return str(file)
+            # Process
+            screenshot = self._resize_image(screenshot, width, height)
 
-            # If no suitable file found
-            logging.debug(f"No suitable .jpg file found in the directory {directory}.")
-            return None
+            # Encode
+            buffer = self._encode_image_to_jpeg(screenshot)
+            img_str = base64.b64encode(buffer).decode()
+
+            # Optionally, save the image to disk
+            if self.__save_screenshot:
+                self._save_screenshot_to_file(buffer)
+            
+            return img_str
+        
         except Exception as e:
-            logging.error(f"Error checking most recent jpg: {e}")
+            logging.error(f"An error occurred: {e}")
+            self.reset_capture_params() # reset the window capture coordinates
             return None
+        
+
+    @utils.time_it
+    def _save_screenshot_to_file(self, screenshot: bytes):
+        '''Save the screenshot to a file
+        
+        Args:
+            screenshot (bytes): The screenshot data to save
+        '''
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{self.__image_path}/{self.__window_title.replace(' ', '_')}_{timestamp}.jpg"
+
+        with open(filename, 'wb') as f:
+            f.write(screenshot)

@@ -1,10 +1,12 @@
 from typing import Any
+from src.games.equipment import Equipment
 
 class Character:
     """Representation of a character in the game
     """
-    def __init__(self, character_id:str, name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, custom_character_values: dict[str, Any]):
-        self.__id: str = character_id
+    def __init__(self, base_id: str, ref_id: str,  name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, equipment:Equipment, custom_character_values: dict[str, Any]):
+        self.__base_id: str = base_id
+        self.__ref_id: str = ref_id
         self.__name: str = name
         self.__gender: int = gender
         self.__race: str = race
@@ -19,15 +21,24 @@ class Character:
         self.__csv_in_game_voice_model = csv_in_game_voice_model # info['skyrim_voice_folder'] if 'skyrim' in game.lower() else info['fallout4_voice_folder']
         self.__advanced_voice_model = advanced_voice_model
         self.__voice_accent = voice_accent #info.get('voice_accent', None)
+        self.__equipment = equipment
         self.__custom_character_values: dict[str, Any] = custom_character_values
 
     @property
-    def id(self) -> str:
-        return self.__id
+    def base_id(self) -> str:
+        return self.__base_id
     
-    @id.setter
-    def id(self, value: str):
-        self.__id = value
+    @base_id.setter
+    def base_id(self, value: str):
+        self.__base_id = value
+
+    @property
+    def ref_id(self) -> str:
+        return self.__ref_id
+    
+    @ref_id.setter
+    def ref_id(self, value: str):
+        self.__ref_id = value
 
     @property
     def name(self) -> str:
@@ -153,6 +164,18 @@ class Character:
     def voice_accent(self, value: str):
         self.__voice_accent = value
 
+    @property
+    def custom_character_values(self) -> dict[str, Any]:
+        return self.__custom_character_values
+    
+    @custom_character_values.setter
+    def custom_character_values(self, value: dict[str, Any]):
+        self.__custom_character_values = value
+    
+    @property
+    def equipment(self) -> Equipment:
+        return self.__equipment
+
     def get_custom_character_value(self, key: str) -> Any:
         if self.__custom_character_values.__contains__(key):
             return self.__custom_character_values[key]
@@ -163,7 +186,7 @@ class Character:
 
     def __eq__(self, other):
         if isinstance(self, type(other)):
-            return self.name == other.name
+            return self.name == other.name and self.base_id == other.base_id and self.ref_id == other.ref_id and self.race == other.race
         return NotImplemented
     
     def __hash__(self):
