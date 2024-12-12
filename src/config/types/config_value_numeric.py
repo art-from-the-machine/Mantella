@@ -11,6 +11,7 @@ class ConfigValueNumeric(ConfigValue[T], ABC):
         super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
         self.__min_value: T = min_value
         self.__max_value: T = max_value
+        self.__name: T = name
 
     @property
     def min_value(self) -> T:
