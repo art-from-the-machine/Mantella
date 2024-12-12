@@ -10,9 +10,9 @@ import cv2
 from openai.types.chat import ChatCompletionMessageParam
 import ctypes
 
-class ImageManager:
+class PythonImageManager:
     '''
-    Manages game window capture and image processing
+    Manages game window capture and image processing from the Python side (ie capture image using Python)
     '''
     
     @utils.time_it

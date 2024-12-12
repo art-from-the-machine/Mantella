@@ -7,9 +7,9 @@ import time
 import tiktoken
 import requests
 from src.llm.message_thread import message_thread
-from src.llm.messages import message
+from src.llm.messages import message, image_message
 from src.config.config_loader import ConfigLoader
-from src.image.image_manager import ImageManager
+from image.python_image_manager import PythonImageManager
 import os
 from pathlib import Path
 
@@ -48,7 +48,7 @@ class openai_client:
     os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
 
     @utils.time_it
-    def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
+    def __init__(self, config: ConfigLoader, secret_key_file: str, image_secret_key_file: str) -> None:
         self.__generation_lock: Lock = Lock()
 
         endpoint = self.__get_endpoint(config.llm_api)
@@ -81,13 +81,7 @@ class openai_client:
 
         self.__vision_enabled = config.vision_enabled
         if self.__vision_enabled:
-            self.__image_manager = ImageManager(config.game, 
-                                                config.save_folder, 
-                                                config.save_screenshot, 
-                                                config.image_quality, 
-                                                config.low_resolution_mode, 
-                                                config.resize_method, 
-                                                config.capture_offset)
+            self.__image_manager = PythonImageManager(config, secret_key_file, image_secret_key_file)
     
     @property
     def token_limit(self) -> int:
@@ -212,6 +206,28 @@ class openai_client:
             finally:
                 await async_client.close()
 
+    async def streaming_one_message_call(self, message) -> AsyncGenerator[str | None, None]: 
+        async_client = self.generate_async_client()
+        logging.info('Getting LLM simple response...')
+        try:
+            async for chunk in await async_client.chat.completions.create(
+                model=self.__model_name, 
+                messages = [message.get_openai_message()],
+                stream=True,
+                stop=self.__stop,
+                temperature=self.__temperature,
+                top_p=self.__top_p,
+                frequency_penalty=self.__frequency_penalty, 
+                max_tokens=self.__max_tokens):
+                if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
+                    yield chunk.choices[0].delta.content
+                else:
+                    break
+        except Exception as e:
+            logging.error(f"LLM API Error: {e}")
+        finally:
+            await async_client.close()
+
     @utils.time_it
     def request_call(self, messages: message_thread) -> str | None:
         """A standard sync request call to the LLM. 
@@ -302,7 +318,6 @@ class openai_client:
     def are_messages_too_long(self, messages: message_thread, token_limit_percent: float) -> bool:
         countTokens: int = self.calculate_tokens_from_messages(messages)
         return countTokens > self.token_limit * token_limit_percent
-            
     
     # --- Private methods ---    
     @utils.time_it
@@ -329,7 +344,6 @@ class openai_client:
         
         return token_limit
     
-
     @utils.time_it
     def __get_endpoint(self, llm_api: str) -> str:
         endpoints = {
@@ -357,7 +371,6 @@ class openai_client:
 
         return endpoint
     
-
     @utils.time_it
     def __get_model_encoding(self, endpoint: str, llm: str) -> tiktoken.Encoding:
         chosenmodel = llm
@@ -378,7 +391,6 @@ class openai_client:
         
         return encoding
 
-    
     @staticmethod
     @utils.time_it
     def get_secret_key(secret_key_file: str) -> str | None:
@@ -449,3 +461,41 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         except Exception as e:
             error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required. The file is in your mod folder of Mantella. Error: {e}"
             return LLMModelList([(error,"error")], "error", allows_manual_model_input=False)
+
+
+class image_client(openai_client):
+    """Setup for sync and async access to image generation models"""
+    def __init__(self, config: ConfigLoader, secret_key_file: str) -> None:
+        super().__init__(config, secret_key_file, skip_api_setup=True)
+
+        self._set_llm_api_and_key(config.game, config.image_llm, config.image_llm_api, self._endpoints,secret_key_file)
+        self._token_limit: int = self._get_token_limit(config.image_llm, config.image_llm_custom_token_count, self._local)
+        self._base_url: str | None = self._endpoint if self._endpoint != 'none' else None
+        self._stop: str | List[str] = config.image_llm_stop
+        self._temperature: float = config.image_llm_temperature
+        self._top_p: float = config.image_llm_top_p
+        self._frequency_penalty: float = config.image_llm_frequency_penalty
+        self._max_tokens: int = config.image_llm_max_tokens
+        self._model_name: str = config.image_llm
+
+    #maybe rename single message call
+    async def streaming_one_message_call(self, message) -> AsyncGenerator[str | None, None]: 
+        async_client = self.generate_async_client()
+        logging.info('Getting LLM image response...')
+        try:
+            async for chunk in await async_client.chat.completions.create(model=self._model_name, 
+                                                                            messages = [message.get_openai_message()],
+                                                                            stream=True,
+                                                                            stop=self._stop,
+                                                                            temperature=self._temperature,
+                                                                            top_p=self._top_p,
+                                                                            frequency_penalty=self._frequency_penalty, 
+                                                                            max_tokens=self._max_tokens):
+                if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
+                    yield chunk.choices[0].delta.content
+                else:
+                    break
+        except Exception as e:
+            logging.error(f"Image LLM API Error: {e}")
+        finally:
+            await async_client.close()

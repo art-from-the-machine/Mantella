@@ -227,6 +227,33 @@ class ConfigLoader:
             self.frequency_penalty = self.__definitions.get_float_value("frequency_penalty")
             self.max_tokens = self.__definitions.get_int_value("max_tokens")
 
+            #IMAGE_LLM
+            self.image_analysis_skyrim_filepath = self.__definitions.get_string_value("image_analysis_skyrim_filepath")
+            self.image_analysis_skyrim_vr_filepath = self.__definitions.get_string_value("image_analysis_skyrim_vr_filepath")
+            self.image_analysis_fallout4_filepath = self.__definitions.get_string_value("image_analysis_fallout4_filepath")
+            self.image_analysis_fallout4_vr_filepath = self.__definitions.get_string_value("image_analysis_fallout4_vr_filepath")
+            self.image_analysis_iterative_querying = self.__definitions.get_bool_value("image_analysis_iterative_querying")
+            self.image_max_response_sentences = self.__definitions.get_int_value("image_max_response_sentences")
+            self.image_llm = self.__definitions.get_string_value("image_llm_model")
+            self.image_llm_api = self.__definitions.get_string_value("image_llm_api")
+            if self.image_llm_api == "Custom":
+                self.image_llm_api = self.__definitions.get_string_value("image_llm_custom_service_url")
+            self.image_llm_custom_token_count = self.__definitions.get_int_value("image_llm_custom_token_count")
+            self.image_llm_temperature = self.__definitions.get_float_value("image_llm_temperature")
+            self.image_llm_top_p = self.__definitions.get_float_value("image_llm_top_p")
+
+            image_llm_stop_value = self.__definitions.get_string_value("image_llm_stop")
+            if ',' in image_llm_stop_value:
+                # If there are commas in the stop value, split the string by commas and store the values in a list
+                self.image_llm_stop = image_llm_stop_value.split(',')
+            else:
+                # If there are no commas, put the single value into a list
+                self.image_llm_stop = [stop_value]
+
+            self.image_llm_frequency_penalty = self.__definitions.get_float_value("image_llm_frequency_penalty")
+            self.image_llm_max_tokens = self.__definitions.get_int_value("image_llm_max_tokens")
+            self.delete_steam_screenshots_after_use = self.__definitions.get_bool_value("delete_steam_screenshots_after_use")
+
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
             self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
 
@@ -271,6 +298,8 @@ class ConfigLoader:
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")
             self.memory_prompt = self.__definitions.get_string_value("memory_prompt")
             self.resummarize_prompt = self.__definitions.get_string_value("resummarize_prompt")
+            self.image_llm_direct_prompt = self.__definitions.get_string_value("image_llm_direct_prompt")
+            self.image_llm_iterative_prompt = self.__definitions.get_string_value("image_llm_iterative_prompt")
 
             # Vision
             self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')

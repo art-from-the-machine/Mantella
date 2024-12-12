@@ -27,7 +27,8 @@ class skyrim(gameable):
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
-        
+        self.__image_analysis_filepath = config.image_analysis_skyrim_vr_filepath if self.is_vr else config.image_analysis_skyrim_filepath 
+
         try:
             weather_file = 'data/Skyrim/skyrim_weather.csv'
             encoding = utils.get_file_encoding(weather_file)
@@ -35,6 +36,9 @@ class skyrim(gameable):
         except:
             logging.error(f'Unable to read / open "data/Skyrim/skyrim_weather.csv". If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
+
+    def get_image_filepath(self):
+        return self.__image_analysis_filepath, self.is_vr
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
