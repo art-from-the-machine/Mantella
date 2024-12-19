@@ -50,7 +50,7 @@ class Transcriber:
         self.task = "translate" if config.stt_translate == 1 else "transcribe"
         self.model = config.whisper_model
         self.process_device = config.whisper_process_device
-        self.audio_threshold = int(config.audio_threshold)
+        self.audio_threshold = config.audio_threshold
         self.listen_timeout = config.listen_timeout
         self.external_whisper_service = config.external_whisper_service
         self.whisper_service = config.whisper_url
@@ -86,7 +86,7 @@ class Transcriber:
                 self.recognizer.adjust_for_ambient_noise(source, duration=5)
         else:
             self.recognizer.dynamic_energy_threshold = False
-            self.recognizer.energy_threshold = self.audio_threshold
+            self.recognizer.energy_threshold = int(self.audio_threshold)
             logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this `Speech-to-Text`->`Audio Threshold` value in the Mantella UI. If the mic is picking up too much background noise, try increasing this value.\n")
 
         self.transcribe_model: WhisperModel | None = None
