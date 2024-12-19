@@ -12,14 +12,7 @@ Click below or [here](https://youtu.be/FLmbd48r2Wo?si=QLe2_E1CogpxlaS1) to see t
 " target="_blank"><img src="./img/mantella_trailer.gif"
 alt="Mantella trailer link" width="auto" height="220"/></a>
 
-# Installation
-See [art-from-the-machine.github.io/Mantella](https://art-from-the-machine.github.io/Mantella/)
-
-# Issues Q&A
-See [art-from-the-machine.github.io/Mantella/pages/issues_qna.html](https://art-from-the-machine.github.io/Mantella/pages/issues_qna.html)
-
-# Skyrim
-See [art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim](https://art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim)
+For more details, see [here](https://art-from-the-machine.github.io/Mantella/index.html).
 
 # Contribute
 The source code for Mantella is included in this repo. Please note that this development version of Mantella is prone to error and is not recommended for general use. See [here](https://www.nexusmods.com/skyrimspecialedition/mods/98631) for the latest stable release.
