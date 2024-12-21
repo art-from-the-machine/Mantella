@@ -314,7 +314,7 @@ class openai_client:
                 time.sleep(5)
             finally:
                 sync_client.close()
-
+            
             if not chat_completion or chat_completion.choices.__len__() < 1 or not chat_completion.choices[0].message.content:
                 logging.info(f"LLM Response failed")
                 return None
@@ -610,7 +610,7 @@ class function_client(openai_client):
                     params['tools'] = tools_list  # Include tools only if self._base_url is False or None
 
                 chat_completion = sync_client.chat.completions.create(**params)
-       
+
             except Exception as e:
                     if isinstance(e, APIConnectionError):
                         if e.code in [401, 'invalid_api_key']: # incorrect API key
@@ -630,8 +630,15 @@ class function_client(openai_client):
                         logging.error(f"LLM API Error: {e}")
             finally:
                 sync_client.close()
-            
-            if not chat_completion or chat_completion.choices.__len__() < 1 :
+            if (
+                not chat_completion
+                or not hasattr(chat_completion, 'choices')
+                or not chat_completion.choices
+                or not hasattr(chat_completion.choices[0], 'message')
+                or not hasattr(chat_completion.choices[0].message, 'content')
+                or not chat_completion.choices[0].message.content
+            ):
+            #if not chat_completion :
             #if not chat_completion or chat_completion.choices.__len__() < 1 or not chat_completion.choices[0].message.content:
                 logging.info(f"LLM Response failed")
                 return None           

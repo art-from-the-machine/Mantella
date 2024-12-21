@@ -6,6 +6,7 @@ import time
 import re
 import unicodedata
 import json
+import ast
 from openai import APIConnectionError
 from src.games.gameable import gameable
 from src.conversation.action import action
@@ -460,16 +461,15 @@ class ChatManager:
         else:
             print("Missing function details in tool call")
 
-    def process_pseudo_tool_call(self,tool_call_string):
-        # Ensure that <tool_call> is at the very beginning of the string
-        if not tool_call_string.strip().startswith('<tool_call>'):
-            print("Error: <tool_call> not at the beginning of the output.")
+    def process_pseudo_tool_call(self, tool_call_string):
+        print("Processing pseudo tool call")
+        # Find the first occurrence of <tool_call> and remove everything before it
+        start_index = tool_call_string.find('<tool_call>')
+        if start_index == -1:
+            print("Error: <tool_call> substring not found in the output.")
             return None
 
-        call_type = 'function'  # As specified, call_type is always 'function'
-
-        # Remove the '<tool_call>' prefix and any surrounding whitespace
-        content = tool_call_string.strip()[len('<tool_call>'):].strip()
+        content = tool_call_string[start_index + len('<tool_call>'):].strip()
 
         # Patterns to match different possible formats, including self-closing tags
         patterns = [
@@ -489,30 +489,48 @@ class ChatManager:
                     # Extract function name and arguments
                     function_name = match.group(1)
                     arguments_str = match.group(2)
-                    try:
-                        arguments = json.loads(arguments_str)
-                    except json.JSONDecodeError as e:
-                        print("Failed to parse arguments as JSON:", e)
-                        arguments = arguments_str  # Return arguments as string if parsing fails
+                    arguments = self._try_parse_json(arguments_str)
                 else:
                     # Try to parse the entire content as JSON
                     json_like_str = match.group(1)
-                    try:
-                        data = json.loads(json_like_str)
+                    data = self._try_parse_json(json_like_str)
+                    if data:
+                        # First attempt: check top-level
                         function_name = data.get('name')
                         arguments = data.get('arguments')
-                    except json.JSONDecodeError as e:
-                        print("Failed to parse JSON-like dictionary:", e)
-                        return None
-                break  # Exit the loop since we've successfully parsed
+
+                        # If not found at top-level, try inside 'properties'
+                        if not function_name or not arguments:
+                            properties = data.get('properties', {})
+                            if 'name' in properties and 'arguments' in properties:
+                                function_name = properties['name']
+                                arguments = properties['arguments']
+                break  # Exit the loop since we've found a match
 
         if function_name and arguments is not None:
-            return call_type, function_name, arguments
+            return 'function', function_name, arguments
         else:
             print("Failed to parse the tool call string.")
             return None
+
+    def _try_parse_json(self, json_like_str):
+        """Attempt to parse a string as JSON. If that fails because of single quotes,
+        use ast.literal_eval to convert it to a Python object and then back to JSON."""
+        try:
+            # Try parsing as valid JSON
+            return json.loads(json_like_str)
+        except json.JSONDecodeError:
+            # Try using literal_eval to handle single quotes
+            try:
+                python_obj = ast.literal_eval(json_like_str)
+                # Convert Python object to JSON string
+                json_str = json.dumps(python_obj)
+                return json.loads(json_str)
+            except Exception as e:
+                print("Failed to parse using literal_eval:", e)
+                return None
         
-    def process_unlabeled_function_content(self,content):
+    def process_unlabeled_function_content(self, content):
         print("Attempting to process unlabeled function content")
         call_type = 'function'  # As specified, call_type is always 'function'
 
@@ -544,16 +562,29 @@ class ChatManager:
 
         # Attempt to parse the JSON string
         try:
-            # Replace single quotes with double quotes to make it valid JSON
+            # Replace single quotes with double quotes
             json_str = json_str.replace("'", '"')
+            # Replace Python booleans with JSON booleans
+            json_str = json_str.replace("True", "true").replace("False", "false")
+
             data = json.loads(json_str)
+
+            # Try top-level extraction first
             function_name = data.get('name')
             arguments = data.get('arguments')
+
+            # If not found at the top-level, try fallback under 'properties'
+            if function_name is None or arguments is None:
+                properties = data.get('properties', {})
+                function_name = function_name or properties.get('name')
+                arguments = arguments or properties.get('arguments')
+
             if function_name and arguments is not None:
                 return call_type, function_name, arguments
             else:
                 print("Function name or arguments missing in content.")
                 return None
+
         except json.JSONDecodeError as e:
             print("Failed to parse content as JSON:", e)
             return None

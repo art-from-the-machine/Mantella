@@ -1,5 +1,5 @@
 {
-    "GPT_func_name": "mantella_heal_me",
+    "GPT_func_name": "heal_me",
     "GPT_func_description": "Use this function to heal the user.",
     "function_parameters": {
         "is_healing": {
@@ -9,7 +9,7 @@
     },
     "system_prompt_info" : "`{GPT_func_name}` if requested to heal the user.",
     "GPT_required": ["is_healing"],
-    "allowed_games": [""],
+    "allowed_games": ["fallout4"],
     "is_generic_npc_function": false,
     "is_follower_function": true,
     "is_settler_function": false,

@@ -44,7 +44,7 @@ class sentence:
         return self.__error_message
 
     @property
-    def target_ids(self) -> list[int] | None:
+    def target_ids(self) -> list[str] | None:
         return self.__target_ids
 
     @property

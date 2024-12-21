@@ -156,23 +156,30 @@ class FunctionManager:
         #self.build_loot_items_function()
         #toolsToSend = self.__tools_manager.list_all_functions()
         if toolsToSend:
+            characters = self.context.npcs_in_conversation.get_all_characters()
+            # Iterate through the characters to find the first non-player character
+            for character in characters:
+                if character.is_player_character:
+                    playerName = character.name
+                if not character.is_player_character:
+                    speakerName = character.name
             system_prompt_LLMFunction_instructions = self.format_system_prompt_instructions(system_prompt_array)
             print(f"toolstosend is {toolsToSend}")
             tooltipsToAppend = self.__tools_manager.list_all_tooltips()
             print(f"tooltipsToAppend is {tooltipsToAppend}")
             #the message below will need to be customized dynamically according to what is sent to the LLM.
             if self.__context.config.function_llm_api == 'OpenAI':
-                initial_system_message = f"You are a helpful assistant. Please analyze the input and respond by calling only one function. {system_prompt_LLMFunction_instructions} Do not call more than one function. If no function seems applicable or the command isn't clear then do not return any function."
+                initial_system_message = f"You are a helpful assistant named {speakerName}. Please analyze the input and respond by calling only one function. {system_prompt_LLMFunction_instructions}. The user might refer to {playerName} as 'me' or 'I'. Do not call more than one function. If no function seems applicable or the command isn't clear then do not return any function."
             else:
-                initial_system_message = f"You are a function calling AI model. You are provided with function signatures within <tools> </tools> XML tags. You may call one or more functions to assist with the user query. If available tools are not relevant in assisting with user query, just respond in natural conversational language. Don't make assumptions about what values to plug into functions. {system_prompt_LLMFunction_instructions}<tools>{toolsToSend} </tools>"
+                initial_system_message = f"You are a function calling AI model named {speakerName}. You are provided with function signatures within <tools> </tools> XML tags. You may call one or more functions to assist with the user query. If available tools are not relevant in assisting with user query, just respond in natural conversational language. Don't make assumptions about what values to plug into functions. The user might refer to {playerName} as 'me' or 'I'. {system_prompt_LLMFunction_instructions}<tools>{toolsToSend} </tools>"
                 #initial_system_message += '''For each function call return a JSON object, with the following pydantic model json schema:
         #{'title': 'FunctionCall', 'type': 'object', 'properties': {'name': {'title': 'Name', 'type': 'string'}, 'arguments': {'title': 'Arguments', 'type': 'object'}}, 'required': ['arguments', 'name']}
         #Each function call should be enclosed within <tool_call> </tool_call> XML tags'''
                 initial_system_message += '''For each function call return a JSON object, with the following pydantic model json schema:
         <tool_call>{'title': 'FunctionCall', 'type': 'object', 'properties': {'name': {'title': 'Name', 'type': 'string'}, 'arguments': {'title': 'Arguments', 'type': 'object'}}, 'required': ['arguments', 'name']}</tool_call>'''
             self.__messages = message_thread(initial_system_message)
-            self.__messages.add_message(user_message(lastUserMessage)) 
             self.__messages.add_message(user_message(tooltipsToAppend)) 
+            self.__messages.add_message(user_message(lastUserMessage)) 
             self.__generation_thread = Thread(target=self.__output_manager.generate_simple_response_from_message_thread, args=[self.__messages, "function", toolsToSend])
             self.__generation_thread.start()
             self.__generation_thread.join()
@@ -191,51 +198,28 @@ class FunctionManager:
                         self.clear_llm_output_data()  
 
                 if isinstance(self.llm_output_arguments, dict):
-                    returned_LLMFunction = self.__tools_manager.get_function_object(self.llm_output_function_name)
+                    returned_LLMFunction=None
+                    if isinstance(self.llm_output_function_name, str): #check if it's really a string in case that the LLM spout out gibberish
+                        returned_LLMFunction = self.__tools_manager.get_function_object(self.llm_output_function_name)
                     if returned_LLMFunction :
-                        #print("NPC name retrieved:", self.llm_output_target_name)
-                        characters = self.context.npcs_in_conversation.get_all_characters()
-                        # Iterate through the characters to find the first non-player character
-                        for character in characters:
-                            if character.is_player_character:
-                                playerName = character.name
-                            if not character.is_player_character:
-                                speakerName = character.name
-                        if returned_LLMFunction.parameter_package_key == self.KEY_TOOLTIPS_NPC_TARGETING :
-                            if all(len(arg_list) == 1 for arg_list in self.llm_output_arguments.values()):
-                                try:
-                                    self.llm_output_target_id = self.llm_output_arguments['npc_id'][0]  # Directly pull the NPC ID
-                                    #print("NPC ID retrieved:", self.llm_output_target_id)
-                                    self.llm_output_target_name = self.llm_output_arguments['npc_name'][0]  # Directly pull the NPC name
-                                except:
-                                    logging.error("Error retrieving function call arguments, ignoring function call: {e}")
-                                    self.clear_llm_output_data()
-                                    return
-                                formatted_LLM_warning = self.format_LLM_warning(
-                                    returned_LLMFunction,
-                                    speakerName=speakerName,
-                                    playerName=playerName,
-                                    llm_output_target_name=self.llm_output_target_name
-                                )
-                                return formatted_LLM_warning
-                        elif returned_LLMFunction.parameter_package_key == self.KEY_TOOLTIPS_LOOT_ITEMS :
-                            try:
-                                if all(len(arg_list) == 1 for arg_list in self.llm_output_arguments.values()):
-                                    self.llm_output_target_id = self.llm_output_arguments['item_type'][0]  # Directly pull the item type
-                                    print("Found valid item type.")
-                                    formatted_LLM_warning = self.format_LLM_warning(
-                                        returned_LLMFunction,
-                                        speakerName=speakerName,
-                                        playerName=playerName,
-                                        llm_output_arguments=self.llm_output_arguments
-                                    )
-                                    return formatted_LLM_warning
-                                else:
-                                    print("Issue with the return item output")
-                                    self.clear_llm_output_data()
-                            except:
-                                logging.error("Error retrieving function call arguments, ignoring function call: {e}")
-                                self.clear_llm_output_data()
+                        if returned_LLMFunction.parameter_package_key == self.KEY_TOOLTIPS_NPC_TARGETING:
+                            # NPC targeting: needs npc_id and npc_name
+                            return self.handle_function_call_arguments(
+                                returned_LLMFunction,
+                                speakerName=speakerName,
+                                playerName=playerName,
+                                target_id_key='npc_id',
+                                target_name_key='npc_name'
+                            )
+
+                        elif returned_LLMFunction.parameter_package_key == self.KEY_TOOLTIPS_LOOT_ITEMS:
+                            # Loot items: needs item_type as target_id
+                            return self.handle_function_call_arguments(
+                                returned_LLMFunction,
+                                speakerName=speakerName,
+                                playerName=playerName,
+                                target_id_key='item_type'
+                            )
                         elif returned_LLMFunction.parameter_package_key == "":
                             formatted_LLM_warning = self.format_LLM_warning(
                                 returned_LLMFunction,
@@ -246,6 +230,8 @@ class FunctionManager:
                         else:
                             print("Unrecognized Parameter key for LLM function. Try using an empty string : \"\"")
                             self.clear_llm_output_data()
+                    else:
+                       print("llm_output_function_name is not a string.") 
             
                 else:
                     print("llm_output_arguments is not a valid dictionary.")
@@ -300,7 +286,7 @@ class FunctionManager:
             tooltips_intro = "Here are the values for loot items functions: "
 
             tooltips_arrays = [
-                ('Possible item types to loot:', ["any", "weapon", "armor"])
+                ('Possible item types to loot:', ["any", "weapons", "armor","junk","consumables"])
             ]
             tooltips_outro = ""
             tooltips = self.__tools_manager.format_with_multiple_arrays(tooltips_intro, tooltips_arrays, tooltips_outro)
@@ -460,8 +446,89 @@ class FunctionManager:
             logging.error(f"Unexpected error while parsing LLM warning: {e}. Returning unformatted string.")
             return formatted_output
 
+    def extract_single_value_argument(self, argument_name: str) -> str:
+        """
+        Attempts to extract a single value argument from self.llm_output_arguments.
+        If the argument is a list with one element, return that element.
+        If it's a scalar (string/int), return it directly.
+        If it doesn't exist or is not single-valued, return None.
+        """
+        value = self.llm_output_arguments.get(argument_name)
+        if isinstance(value, list):
+            return value[0] if len(value) == 1 else None
+        return value
+
+    def handle_function_call_arguments(self, returned_LLMFunction, speakerName, playerName, target_id_key=None, target_name_key=None):
+        """
+        Generic handler for extracting target ID, target name, and then formatting the LLM warning.
+        If target_id_key or target_name_key are provided, extract them.
+        If extraction fails, clear llm_output_data and return None.
+        Ensures all arguments (strings or ints) are wrapped with apostrophes ('').
+        """
+        try:
+            # Check if all arguments are single-valued
+            def is_single_valued(arg):
+                if isinstance(arg, list):
+                    return len(arg) == 1
+                return True
+
+            if not all(is_single_valued(arg) for arg in self.llm_output_arguments.values()):
+                print("Arguments are not single-valued as expected.")
+                self.clear_llm_output_data()
+                return None
+
+            # Ensure all arguments are properly formatted with apostrophes
+            self.llm_output_arguments = {
+                key: ensure_string(value[0] if isinstance(value, list) else value)
+                for key, value in self.llm_output_arguments.items()
+            }
+
+            # Extract target ID if requested
+            if target_id_key:
+                self.llm_output_target_id = self.extract_single_value_argument(target_id_key)
+                if self.llm_output_target_id is None:
+                    raise ValueError(f"Missing or invalid argument for {target_id_key}")
+                self.llm_output_target_id = ensure_string(self.llm_output_target_id)
+
+            # Extract target name if requested
+            if target_name_key:
+                self.llm_output_target_name = self.extract_single_value_argument(target_name_key)
+                if self.llm_output_target_name is None:
+                    raise ValueError(f"Missing or invalid argument for {target_name_key}")
+                self.llm_output_target_name = ensure_string(self.llm_output_target_name)
+
+            # Format and return the LLM warning
+            formatted_LLM_warning = self.format_LLM_warning(
+                returned_LLMFunction,
+                speakerName=speakerName,
+                playerName=playerName,
+                llm_output_target_id=self.llm_output_target_id,
+                llm_output_target_name=getattr(self, 'llm_output_target_name', None)
+            )
+            return formatted_LLM_warning
+
+        except Exception as e:
+            logging.error(f"Error retrieving function call arguments, ignoring function call: {e}")
+            self.clear_llm_output_data()
+            return None
+
 def get_function_manager_instance():
     return FunctionManager()
+
+@staticmethod
+def is_single_valued(arg):
+    if isinstance(arg, list):
+        return len(arg) == 1
+    # If it's not a list, treat it as a single value by default
+    return True
+
+@staticmethod
+def ensure_string(value):
+    if isinstance(value, int):
+        return f"{value}"  # Convert integer to a string wrapped in apostrophes
+    return value 
+
+
 
 
 

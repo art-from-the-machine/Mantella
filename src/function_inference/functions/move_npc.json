@@ -19,7 +19,7 @@
         }
     },
     "system_prompt_info": "`{GPT_func_name}` if requested to move or follow",
-    "GPT_required": ["npc_name", "npc_distance", "npc_id"],
+    "GPT_required": ["npc_name", "npc_id"],
     "allowed_games": ["fallout4"],
     "is_generic_npc_function": true,
     "is_follower_function": true,
