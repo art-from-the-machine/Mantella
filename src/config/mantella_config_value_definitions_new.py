@@ -11,6 +11,7 @@ from src.config.definitions.other_definitions import OtherDefinitions
 from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
+from src.config.definitions.image_llm_definitions import ImageLLMDefinitions
 from src.config.definitions.vision_definitions import VisionDefinitions
 import sys
 
@@ -50,6 +51,27 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_try_filter_narration())
         result.add_base_group(llm_category)
 
+        image_llm_category = ConfigValueGroup("Image LLM", "Image Analysis", "Settings for the Image analysis LLM providers and the LLMs themselves.", on_value_change_callback)
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_analysis_skyrim_filepath_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_analysis_skyrim_vr_filepath_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_analysis_fallout4_filepath_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_analysis_fallout4_vr_filepath_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_analysis_iterative_querying_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_model_config_value())
+        image_llm_category.add_config_value(PromptDefinitions.get_image_llm_direct_prompt_config_value())
+        image_llm_category.add_config_value(PromptDefinitions.get_image_llm_iterative_prompt_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_max_response_sentences_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_api_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_custom_service_url_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_custom_token_count_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_temperature_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_top_p_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_stop_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_frequency_penalty_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_llm_max_tokens_config_value())
+        image_llm_category.add_config_value(ImageLLMDefinitions.delete_steam_images_after_use())
+
+        result.add_base_group(image_llm_category)
         tts_category = ConfigValueGroup("TTS", "Text-to-Speech", "Settings for the TTS methods Mantella supports.", on_value_change_callback)
         tts_category.add_config_value(TTSDefinitions.get_tts_service_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xvasynth_folder_config_value())
