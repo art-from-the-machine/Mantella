@@ -11,14 +11,14 @@ class LLMDefinitions:
     def get_llm_api_config_value() -> ConfigValue:
         description = """Selects the LLM service to connect to (either local or via an API).
             If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
-            After selecting a service, select the model using the option below. Press the *Update list* button to load a list of models available from the service.
+            After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
 
             **If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.**"""
         return ConfigValueSelection("llm_api","LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"], allows_free_edit=True)
 
     @staticmethod
     def get_model_config_value() -> ConfigValue:
-        model_description = """Select the model to use. Press the *Update list* button to load a list of models available from the service selected above.
+        model_description = """Select the model to use. Press the *Update* button to load a list of models available from the service selected above.
                             **If you are using OpenRouter or OpenAI updating the list requires a correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.**
                             The list does not provide all details about the models. For additional information please refer to the corresponsing sites:
                             - OpenRouter: https://openrouter.ai/docs#models

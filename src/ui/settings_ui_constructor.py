@@ -3,7 +3,7 @@ import gradio as gr
 from typing import Any, Callable, TypeVar
 import logging
 
-from src.llm.openai_client import openai_client
+from src.llm.openai_client import openai_client # TODO: add this back with the vision PR: from src.llm.client_base import ClientBase
 from src.config.types.config_value_path import ConfigValuePath
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_float import ConfigValueFloat
@@ -40,15 +40,36 @@ class SettingsUIConstructor(ConfigValueVisitor):
             config_value.value = config_value.default_value
             return create_input_component(config_value)
         
-        with gr.Column(variant="panel") as panel:
-            self.__construct_name_description_constraints(config_value)
-            with gr.Row(equal_height=True):
-                input_ui = create_input_component(config_value)
-                for btn in additional_buttons:
-                    gr.Button(btn[0], variant="primary", scale=0).click(btn[1], outputs=input_ui)
-                reset_button = gr.Button("Default", scale=0)
-                if hasattr(reset_button, "_id"):
-                    reset_button.click(on_reset_click, outputs=input_ui)
+        with gr.Column(variant="panel", scale=1) as panel:
+            # Special handling for boolean values as their input title sits next to the checkbox
+            if isinstance(config_value, ConfigValueBool):
+                with gr.Row(elem_classes="setting-bool-container"):
+                    input_ui = create_input_component(config_value)
+                    # Add tooltip next to checkbox label
+                    tooltip_html = f"""
+                    <div class="tooltip-container" role="tooltip" aria-label="{config_value.name} help">
+                        <span class="tooltip-icon" tabindex="0">?</span>
+                        <div class="tooltip-content">
+                            <p>{config_value.description}</p>
+                            {'<p class="constraints">' + '<br>'.join(c.description for c in config_value.constraints) + '</p>' if config_value.constraints else ''}
+                        </div>
+                    </div>
+                    """
+                    gr.HTML(tooltip_html)
+            else:
+                # Regular layout for non-boolean values
+                self.__construct_name_description_constraints(config_value)
+                with gr.Row(equal_height=True, elem_classes="setting-controls"):
+                    input_ui = create_input_component(config_value)
+                    input_ui.scale = 999 # input fields should take up all space in the row aside from the default / browse / update buttons
+                    with gr.Row(elem_classes="button-container"):
+                        for btn in additional_buttons:
+                            gr.Button(btn[0], variant="primary", size='sm').click(btn[1], outputs=input_ui)
+                        if len(additional_buttons) == 0: # add a "default" button if there are no special buttons
+                            reset_button = gr.Button("Default", size='sm')
+                            if hasattr(reset_button, "_id"):
+                                reset_button.click(on_reset_click, outputs=input_ui)
+            
             error_message = self.__construct_initial_error_message(config_value)
             if hasattr(input_ui, "_id"):
                 if update_on_change:
@@ -80,18 +101,23 @@ class SettingsUIConstructor(ConfigValueVisitor):
             with gr.Row():
                 for tag in config_value.tags:
                     gr.HTML(f"<b>{str(tag).upper()}</b>", elem_classes=["badge",f"badge-{tag}"])
-                gr.Column(scale=1)
-    
+                gr.Column()
+
     def __construct_name_description_constraints(self, config_value: ConfigValue):
         with gr.Row():
-            gr.Markdown(f"## {config_value.name}", elem_classes="setting-title")
-            gr.Column(scale=1)
-        gr.Markdown(value=config_value.description, line_breaks=True)
-        constraints_text = ""
-        for constraint in config_value.constraints:
-            constraints_text += constraint.description + "\n"
-        if len(constraints_text) > 0:
-            gr.Markdown(value=constraints_text, line_breaks=True)
+            tooltip_html = f"""
+            <div style="display: flex; align-items: center;">
+                <h3 style="margin: 0; font-size: 1.25em;">{config_value.name}</h3>
+                <div class="tooltip-container" role="tooltip" aria-label="{config_value.name} help">
+                    <span class="tooltip-icon">?</span>
+                    <div class="tooltip-content">
+                        <p>{config_value.description}</p>
+                        {'<p>' + '<br>'.join(c.description for c in config_value.constraints) + '</p>' if config_value.constraints else ''}
+                    </div>
+                </div>
+            </div>
+            """
+            gr.HTML(tooltip_html)
         
     def __construct_initial_error_message(self, config_value: ConfigValue) -> gr.Markdown:
         result: ConfigValueConstraintResult = config_value.does_value_cause_error(config_value.value)
@@ -151,7 +177,8 @@ class SettingsUIConstructor(ConfigValueVisitor):
             if count_rows == 1:
                 return gr.Text(value=config_value.value,
                         show_label=False, 
-                        container=False)
+                        container=False,
+                        max_lines=1)
             else:
                 return gr.Text(value=config_value.value,
                         show_label=False, 
@@ -182,7 +209,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
                     container=False)
             else: #special treatment for 'model' because the content of the dropdown needs to reload on change of 'llm_api'
                 service: str = self.__identifier_to_config_value["llm_api"].value
-                model_list = openai_client.get_model_list(service)
+                model_list = openai_client.get_model_list(service) # TODO: switch to this code with the vision PR: ClientBase.get_model_list(service)
                 selected_model = config_value.value
                 if not model_list.is_model_in_list(selected_model):
                     selected_model = model_list.default_model
@@ -195,7 +222,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
         
         additional_buttons: list[tuple[str, Callable[[], Any]]] = []
         if config_value.identifier == "model":
-            additional_buttons = [("Update list", update_model_list)]
+            additional_buttons = [("Update", update_model_list)]
         self.__create_config_value_ui_element(config_value, create_input_component,additional_buttons=additional_buttons)
 
     def visit_ConfigValueMultiSelection(self, config_value: ConfigValueMultiSelection):
@@ -219,7 +246,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
 
         def create_input_component(raw_config_value: ConfigValue) -> gr.Text:
             config_value = typing.cast(ConfigValuePath, raw_config_value)
-            return gr.Text(value=config_value.value, show_label=False, container=False)
+            return gr.Text(value=config_value.value, show_label=False, container=False, max_lines=1)
         
-        self.__create_config_value_ui_element(config_value, create_input_component, True, True, True, [("Pick", on_pick_click)])
+        self.__create_config_value_ui_element(config_value, create_input_component, True, True, True, [("Browse...", on_pick_click)])
 
