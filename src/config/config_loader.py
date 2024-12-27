@@ -184,8 +184,6 @@ class ConfigLoader:
             self.pace = self.__definitions.get_float_value("pace")
             self.use_cleanup = self.__definitions.get_bool_value("use_cleanup")
             self.use_sr = self.__definitions.get_bool_value("use_sr")
-
-            self.FO4Volume = self.__definitions.get_int_value("fo4_npc_response_volume")
             self.tts_print = self.__definitions.get_bool_value("tts_print")
 
             #STT

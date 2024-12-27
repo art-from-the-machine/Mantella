@@ -259,7 +259,7 @@ class ChatManager:
                                             logging.log(28, f"Switched to {character_switched_to.name}")
                                             active_character = character_switched_to
                                             full_reply += f"{keyword_extraction}: "
-                                            self.__tts.change_voice(active_character.tts_voice_model, active_character.in_game_voice_model, active_character.csv_in_game_voice_model, active_character.advanced_voice_model, voice_accent=active_character.voice_accent)
+                                            self.__tts.change_voice(active_character.tts_voice_model, active_character.in_game_voice_model, active_character.csv_in_game_voice_model, active_character.advanced_voice_model, voice_accent=active_character.voice_accent, voice_gender=active_character.gender, voice_race=active_character.race)
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:

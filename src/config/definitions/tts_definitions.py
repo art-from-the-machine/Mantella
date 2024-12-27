@@ -130,11 +130,7 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
         return ConfigValueBool("use_sr","xVASynth Super Resolution",description, False, tags=[ConvigValueTag.advanced])
     
     # audio playback by MantellaSoftware
-
-    @staticmethod
-    def get_FO4_NPC_response_volume_config_value() -> ConfigValue:
-        return ConfigValueInt("fo4_npc_response_volume","FO4 NPC Response Volume","Use this to adjust the volume of Fallout 4 NPC responses.", 100, 0, 100, tags=[ConvigValueTag.advanced])
-    
+  
     @staticmethod
     def get_tts_print_config_value() -> ConfigValue:
         return ConfigValueBool("tts_print","Print TTS Output","Print the output from the TTS service in the Mantella.exe window.", False, tags=[ConvigValueTag.advanced])
