@@ -1,6 +1,6 @@
 import typing
 import gradio as gr
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TypeVar, NamedTuple
 import logging
 
 from src.llm.openai_client import openai_client # TODO: add this back with the vision PR: from src.llm.client_base import ClientBase
@@ -16,70 +16,142 @@ from src.config.types.config_value_group import ConfigValueGroup
 from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_visitor import ConfigValueVisitor
 
+class SettingUIComponents(NamedTuple):
+    input_ui: Any
+    error_message: gr.Markdown
+
+class SettingConfig(NamedTuple):
+    config_value: ConfigValue
+    create_input: Callable[[ConfigValue], Any]
+    update_on_change: bool
+    update_on_submit: bool
+    update_on_blur: bool
+    additional_buttons: list[tuple[str, Callable[[], Any]]]
+
 class SettingsUIConstructor(ConfigValueVisitor):
     def __init__(self) -> None:
         super().__init__()
         self.__identifier_to_config_value: dict[str, ConfigValue] = {}
         self.__config_value_to_ui_element: dict[ConfigValue, Any] = {}
+        self.__pending_shared_setting: SettingConfig | None = None
     
     @property
     def config_value_to_ui_element(self) -> dict[ConfigValue, gr.Column]:
         return self.__config_value_to_ui_element
     
-    def __create_config_value_ui_element(self, config_value: ConfigValue, create_input_component: Callable[[ConfigValue],Any], update_on_change: bool = True, update_on_submit: bool = False, update_on_blur: bool = False, additional_buttons: list[tuple[str, Callable[[], Any]]] = []):
-        def on_change(new_value) -> gr.Markdown:
-            return self.__on_change(config_value, new_value)
+    def __create_tooltip(self, config_value: ConfigValue) -> str:
+        """Creates the tooltip HTML for a config value"""
+        constraints_html = (f'<p class="constraints">' + 
+                          '<br>'.join(c.description for c in config_value.constraints) + 
+                          '</p>' if config_value.constraints else '')
         
-        def on_submit(new_value:str) -> gr.Markdown:
-            return self.__on_change(config_value, new_value)
-       
-        def on_blur(new_value:str) -> gr.Markdown: #aka lose focus
-            return self.__on_change(config_value, new_value)
+        return f"""
+        <div class="tooltip-container" role="tooltip" aria-label="{config_value.name} help">
+            <span class="tooltip-icon" tabindex="0">?</span>
+            <div class="tooltip-content">
+                <p>{config_value.description}</p>
+                {constraints_html}
+            </div>
+        </div>
+        """
+
+    def __create_buttons(self, config_value: ConfigValue, 
+                        create_input_component: Callable[[ConfigValue], Any],
+                        input_ui: Any,
+                        additional_buttons: list[tuple[str, Callable[[], Any]]]) -> None:
+        """Creates the buttons for a setting"""
+        with gr.Row(elem_classes="button-container"):
+            for btn_label, btn_action in additional_buttons:
+                gr.Button(btn_label, variant="primary", size='sm').click(btn_action, outputs=input_ui)
+            if not additional_buttons:
+                reset_button = gr.Button("Default", size='sm')
+                if hasattr(reset_button, "_id"):
+                    reset_button.click(
+                        lambda: self.__on_reset_click(config_value, create_input_component), 
+                        outputs=input_ui
+                    )
+
+    def __setup_event_handlers(self, config_value: ConfigValue, 
+                             input_ui: Any,
+                             error_message: gr.Markdown,
+                             update_on_change: bool,
+                             update_on_submit: bool,
+                             update_on_blur: bool) -> None:
+        """Sets up the event handlers for an input component"""
+        if hasattr(input_ui, "_id"):
+            if update_on_change:
+                input_ui.change(lambda x: self.__on_change(config_value, x), input_ui, error_message)
+            if update_on_submit:
+                input_ui.submit(lambda x: self.__on_change(config_value, x), input_ui, error_message)
+            if update_on_blur:
+                input_ui.blur(lambda x: self.__on_change(config_value, x), input_ui, error_message)
+
+    def __create_setting_components(self, setting: SettingConfig) -> SettingUIComponents:
+        """Creates the UI components for a single setting"""
+        if isinstance(setting.config_value, ConfigValueBool):
+            # dynamically change width of bool title depending on whether the setting shares a row with another setting
+            elem_class = "setting-bool-container-wide" if ConvigValueTag.share_row in setting.config_value.tags else "setting-bool-container-narrow"
+            with gr.Row(elem_classes=elem_class):
+                input_ui = setting.create_input(setting.config_value)
+                gr.HTML(self.__create_tooltip(setting.config_value))
+        else:
+            self.__construct_name_description_constraints(setting.config_value)
+            with gr.Row(equal_height=True, elem_classes="setting-controls"):
+                input_ui = setting.create_input(setting.config_value)
+                input_ui.scale = 999
+                self.__create_buttons(setting.config_value, setting.create_input, 
+                                    input_ui, setting.additional_buttons)
+
+        error_message = self.__construct_initial_error_message(setting.config_value)
         
-        def on_reset_click():
-            config_value.value = config_value.default_value
-            return create_input_component(config_value)
+        self.__setup_event_handlers(
+            setting.config_value, input_ui, error_message,
+            setting.update_on_change, setting.update_on_submit, setting.update_on_blur
+        )
         
-        with gr.Column(variant="panel", scale=1) as panel:
-            # Special handling for boolean values as their input title sits next to the checkbox
-            if isinstance(config_value, ConfigValueBool):
-                with gr.Row(elem_classes="setting-bool-container"):
-                    input_ui = create_input_component(config_value)
-                    # Add tooltip next to checkbox label
-                    tooltip_html = f"""
-                    <div class="tooltip-container" role="tooltip" aria-label="{config_value.name} help">
-                        <span class="tooltip-icon" tabindex="0">?</span>
-                        <div class="tooltip-content">
-                            <p>{config_value.description}</p>
-                            {'<p class="constraints">' + '<br>'.join(c.description for c in config_value.constraints) + '</p>' if config_value.constraints else ''}
-                        </div>
-                    </div>
-                    """
-                    gr.HTML(tooltip_html)
+        return SettingUIComponents(input_ui, error_message)
+
+    def __create_paired_settings(self, setting1: SettingConfig, setting2: SettingConfig):
+        """Creates two settings side by side in the same row"""
+        with gr.Row():
+            for setting in [setting1, setting2]:
+                with gr.Column(variant="panel", scale=1):
+                    components = self.__create_setting_components(setting)
+                    self.__identifier_to_config_value[setting.config_value.identifier] = setting.config_value
+                    self.__config_value_to_ui_element[setting.config_value] = components.input_ui
+
+    def __create_single_setting(self, setting: SettingConfig):
+        """Creates a single setting taking up the full row"""
+        with gr.Column(variant="panel", scale=1):
+            components = self.__create_setting_components(setting)
+            self.__identifier_to_config_value[setting.config_value.identifier] = setting.config_value
+            self.__config_value_to_ui_element[setting.config_value] = components.input_ui
+
+    def __create_config_value_ui_element(self, config_value: ConfigValue, 
+                                       create_input_component: Callable[[ConfigValue], Any],
+                                       update_on_change: bool = True, 
+                                       update_on_submit: bool = False,
+                                       update_on_blur: bool = False,
+                                       additional_buttons: list[tuple[str, Callable[[], Any]]] = []):
+        current_setting = SettingConfig(
+            config_value, create_input_component,
+            update_on_change, update_on_submit, update_on_blur,
+            additional_buttons
+        )
+
+        if ConvigValueTag.share_row in config_value.tags:
+            if self.__pending_shared_setting is not None:
+                self.__create_paired_settings(self.__pending_shared_setting, current_setting)
+                self.__pending_shared_setting = None
             else:
-                # Regular layout for non-boolean values
-                self.__construct_name_description_constraints(config_value)
-                with gr.Row(equal_height=True, elem_classes="setting-controls"):
-                    input_ui = create_input_component(config_value)
-                    input_ui.scale = 999 # input fields should take up all space in the row aside from the default / browse / update buttons
-                    with gr.Row(elem_classes="button-container"):
-                        for btn in additional_buttons:
-                            gr.Button(btn[0], variant="primary", size='sm').click(btn[1], outputs=input_ui)
-                        if len(additional_buttons) == 0: # add a "default" button if there are no special buttons
-                            reset_button = gr.Button("Default", size='sm')
-                            if hasattr(reset_button, "_id"):
-                                reset_button.click(on_reset_click, outputs=input_ui)
+                self.__pending_shared_setting = current_setting
+            return
+
+        if self.__pending_shared_setting is not None:
+            self.__create_single_setting(self.__pending_shared_setting)
+            self.__pending_shared_setting = None
             
-            error_message = self.__construct_initial_error_message(config_value)
-            if hasattr(input_ui, "_id"):
-                if update_on_change:
-                    input_ui.change(on_change, input_ui, error_message)
-                if update_on_submit:
-                    input_ui.submit(on_submit, input_ui, error_message)
-                if update_on_blur:
-                    input_ui.blur(on_blur, input_ui, error_message)                
-        self.__identifier_to_config_value[config_value.identifier] = config_value
-        self.__config_value_to_ui_element[config_value] = input_ui
+        self.__create_single_setting(current_setting)
 
     T = TypeVar('T')
     def __on_change(self, config_value: ConfigValue[T], new_value: T) -> gr.Markdown:
@@ -126,18 +198,23 @@ class SettingsUIConstructor(ConfigValueVisitor):
     def visit_ConfigValueGroup(self, config_value: ConfigValueGroup):
         if not config_value.is_hidden:            
             has_advanced_values = False
+            regular_settings = []
+            advanced_settings = []
             for cf in config_value.value:
                 if not cf.is_hidden:
-                    if not ConvigValueTag.advanced in cf.tags:
-                        cf.accept_visitor(self)
-                    else:
+                    if ConvigValueTag.advanced in cf.tags:
+                        advanced_settings.append(cf)
                         has_advanced_values = True
+                    else:
+                        regular_settings.append(cf)
+
+            for i, cf in enumerate(regular_settings):
+                cf.accept_visitor(self)
+            
             if has_advanced_values:
                 with gr.Accordion(label="Advanced", open=False):
-                    for cf in config_value.value:
-                        if not cf.is_hidden:
-                            if ConvigValueTag.advanced in cf.tags:
-                                cf.accept_visitor(self)
+                    for cf in advanced_settings:
+                        cf.accept_visitor(self)
 
     def visit_ConfigValueInt(self, config_value: ConfigValueInt):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Number:

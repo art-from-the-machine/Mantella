@@ -36,26 +36,33 @@
     padding: 0 !important;
 }
 
-.setting-bool-container {
+[class^="setting-bool-container"] {
     display: flex !important;
     align-items: center !important;
+}
+
+.setting-bool-container-wide {
+    width: 80% !important;
+}
+
+.setting-bool-container-narrow {
     width: 50% !important;
 }
 
-.setting-bool-container label {
+[class^="setting-bool-container"] label {
     display: flex !important;
     align-items: center !important;
     gap: 5px !important;
 }
 
 /* Format checkbox text to match input titles */
-.setting-bool-container label span {
+[class^="setting-bool-container"] label span {
     font-size: 1.1rem !important;
     font-weight: 500 !important;
 }
 
 /* Ensure tooltip stays with label */
-.setting-bool-container .tooltip-container {
+[class^="setting-bool-container"] .tooltip-container {
     margin-left: 5px !important;
     flex-shrink: 0 !important;
 }

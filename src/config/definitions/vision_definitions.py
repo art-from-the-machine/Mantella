@@ -14,19 +14,23 @@ class VisionDefinitions:
     
     @staticmethod
     def get_low_resolution_mode_config_value() -> ConfigValue:
-        return ConfigValueBool("low_resolution_mode", "Low Resolution Mode", "Resizes the image to 512x512 pixels (cropping the edges of the longest side). Enable this setting to lower API costs and improve performance.", True)
+        description = "Resizes the image to 512x512 pixels (cropping the edges of the longest side). Enable this setting to lower API costs and improve performance."
+        return ConfigValueBool("low_resolution_mode", "Low Resolution Mode", description, True, tags=[ConvigValueTag.share_row])
     
     @staticmethod
     def get_save_screenshot_config_value() -> ConfigValue:
-        return ConfigValueBool("save_screenshot", "Save Screenshots", "Whether to save screenshots to Documents/My Games/Mantella/data/tmp/images/. Disable this setting to improve performance.", True)  
+        description = "Whether to save screenshots to Documents/My Games/Mantella/data/tmp/images/. Disable this setting to improve performance."
+        return ConfigValueBool("save_screenshot", "Save Screenshots", description, True, tags=[ConvigValueTag.share_row])  
 
     @staticmethod
     def get_image_quality_config_value() -> ConfigValue:
-        return ConfigValueInt("image_quality", "Screenshot Quality", "The quality of the image passed to the LLM from 1-100. Higher values improve the LLM's understanding of passed images. Lower values slightly improve performance. This setting has no affect on API costs.", 50, 1, 100, tags=[ConvigValueTag.advanced])
+        description = "The quality of the image passed to the LLM from 1-100. Higher values improve the LLM's understanding of passed images. Lower values slightly improve performance. This setting has no affect on API costs."
+        return ConfigValueInt("image_quality", "Screenshot Quality", description, 50, 1, 100, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
 
     @staticmethod
     def get_resize_method_config_value() -> ConfigValue:
-        return ConfigValueSelection("resize_method", "Resize Method", "The image scaling algorithm used to resize in-game screenshots to match the target resolution. Algorithms are sorted from fastest / lowest quality (Nearest) to slowest / highest quality (Lanczos).", "Nearest", ["Nearest", "Linear", "Cubic", "Lanczos"], tags=[ConvigValueTag.advanced])
+        description = "The image scaling algorithm used to resize in-game screenshots to match the target resolution. Algorithms are sorted from fastest / lowest quality (Nearest) to slowest / highest quality (Lanczos)."
+        return ConfigValueSelection("resize_method", "Resize Method", description, "Nearest", ["Nearest", "Linear", "Cubic", "Lanczos"], tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
     
     @staticmethod
     def get_capture_offset_config_value() -> ConfigValue:

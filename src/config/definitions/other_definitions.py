@@ -17,33 +17,42 @@ class OtherDefinitions:
     def get_auto_launch_ui_config_value() -> ConfigValue:
         auto_launch_ui_description = """Whether the Mantella UI should launch automatically in your browser."""
         return ConfigValueBool("auto_launch_ui","Auto Launch UI",auto_launch_ui_description,True)
+    
+    @staticmethod
+    def get_automatic_greeting_config_value() -> ConfigValue:
+        automatic_greeting_description = """Should a conversation be started with an automatic greeting from the LLM / NPC.
+                                        - If enabled: Conversations are always started by the LLM.
+                                        - If disabled: The LLM will not respond until the player speaks first."""
+        return ConfigValueBool("automatic_greeting","Automatic Greeting",automatic_greeting_description,True,tags=[ConvigValueTag.share_row])
+    
+    @staticmethod
+    def get_remove_mei_folders_config_value() -> ConfigValue:
+        remove_mei_folders_description = """Clean up older instances of Mantella runtime folders from /data/tmp/_MEIxxxxxx.
+                                            These folders build up over time when Mantella.exe is run.
+                                            Enable this option to clean up these previous folders automatically when Mantella.exe is run.
+                                            Disable this option if running this cleanup inteferes with other Python exes.
+                                            For more details on what this is, see here: https://github.com/pyinstaller/pyinstaller/issues/2379"""
+        return ConfigValueBool("remove_mei_folders","Cleanup MEI Folders",remove_mei_folders_description,True,tags=[ConvigValueTag.share_row])
 
     #Conversation        
     @staticmethod
     def get_active_actions(actions: list[action]) -> ConfigValue:
         description = "The actions Mantella will provide."
         default_value:list[str] = [a.name for a in actions]
-        return ConfigValueMultiSelection("active_actions","Actions to use",description, default_value, default_value)
-
-    @staticmethod
-    def get_automatic_greeting_config_value() -> ConfigValue:
-        automatic_greeting_description = """Should a conversation be started with an automatic greeting from the LLM / NPC.
-                                        - If enabled: Conversations are always started by the LLM.
-                                        - If disabled: The LLM will not respond until the player speaks first."""
-        return ConfigValueBool("automatic_greeting","Automatic Greeting",automatic_greeting_description,True)
+        return ConfigValueMultiSelection("active_actions","Actions",description, default_value, default_value)
     
     @staticmethod
     def get_max_count_events_config_value() -> ConfigValue:
         max_count_events_description = """Maximum number of in-game events that can are sent to the LLM with one player message. 
                                     If the maximum number is reached, the oldest events will be dropped.
                                     Increasing this number will cost more prompt tokens and lead to the context limit being reached faster."""
-        return ConfigValueInt("max_count_events","Max Count Events",max_count_events_description,5,0,999999)
+        return ConfigValueInt("max_count_events","Max Count Events",max_count_events_description,5,0,999999,tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
     
     @staticmethod
     def get_hourly_time_config_value() -> ConfigValue:
         description = """If enabled, NPCs will be made aware of the time every in-game hour. Otherwise, time updates will be less granular (eg 'The conversation now takes place in the morning' / 'at night' etc).
                         To remove mentions of the hour entirely, prompts also need to be edited from 'The time is {time} {time_group}.' to 'The conversation takes place {time_group}.'"""
-        return ConfigValueBool("hourly_time","Report In-Game Time Hourly",description,False)
+        return ConfigValueBool("hourly_time","Report In-Game Time Hourly",description,False,tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
     
     #Player Character
     @staticmethod
@@ -52,38 +61,28 @@ class OtherDefinitions:
                                                     This is not meant to be a bio but rather a description how the NPC(s) perceive the player character when they speak to them.
                                                     e.g. 'A tall man with long red hair.'
                                                     If the in-game MCM offers to set this option the text sent from the game takes precendence over this."""
-        return ConfigValueString("player_character_description","Player Character Description",player_character_description_description,"")
+        return ConfigValueString("player_character_description","Player Character Description",player_character_description_description,"",tags=[ConvigValueTag.advanced])
 
     @staticmethod
     def get_voice_player_input() -> ConfigValue:
         voice_player_input_description = """Should the input of the player (both by text or voice) be spoken by the player character in-game?
                                             Can be used for immersion or to fill the initial gap between input and reply.
                                             Use the 'Player Voice Model' setting to select the voice model of the TTS for the player character."""
-        return ConfigValueBool("voice_player_input","Voice Player Input",voice_player_input_description,False)
+        return ConfigValueBool("voice_player_input","Voice Player Input",voice_player_input_description,False,tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
     
     @staticmethod
     def get_player_voice_model() -> ConfigValue:
         player_voice_model_description = """The voice model for the player character to use if 'Voice player input' is activated."""
-        return ConfigValueString("player_voice_model","Player Voice Model",player_voice_model_description,"")
-
-    #MEI
-    @staticmethod
-    def get_remove_mei_folders_config_value() -> ConfigValue:
-        remove_mei_folders_description = """Clean up older instances of Mantella runtime folders from /data/tmp/_MEIxxxxxx.
-                                            These folders build up over time when Mantella.exe is run.
-                                            Enable this option to clean up these previous folders automatically when Mantella.exe is run.
-                                            Disable this option if running this cleanup inteferes with other Python exes.
-                                            For more details on what this is, see here: https://github.com/pyinstaller/pyinstaller/issues/2379"""
-        return ConfigValueBool("remove_mei_folders","Cleanup MEI Folders",remove_mei_folders_description,True)
+        return ConfigValueString("player_voice_model","Player Voice Model",player_voice_model_description,"",tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
     
     #HTTP
     @staticmethod
     def get_port_config_value() -> ConfigValue:
-        return ConfigValueInt("port","Port","The port for the Mantella HTTP server to use.",4999, 0, 65535, tags=[ConvigValueTag.advanced])
+        return ConfigValueInt("port","Port","The port for the Mantella HTTP server to use.",4999, 0, 65535, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
     
     @staticmethod
     def get_show_http_debug_messages_config_value() -> ConfigValue:
-        return ConfigValueBool("show_http_debug_messages","Show HTTP Debug Messages","Display the JSON going in and out of the server in Mantella.exe's log.", False, tags=[ConvigValueTag.advanced])
+        return ConfigValueBool("show_http_debug_messages","Show HTTP Debug Messages","Display the JSON going in and out of the server in Mantella.exe's log.", False, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
     
     #Debugging
     @staticmethod
@@ -114,11 +113,3 @@ class OtherDefinitions:
         description = """Whether to end the conversation after the first back and forth exchange.
                         Enable this value if testing conversation saving on exit functionality."""
         return ConfigValueBool("exit_on_first_exchange","Exit on First Exchange",description, False, tags=[ConvigValueTag.advanced])
-    
-    @staticmethod
-    def get_add_voicelines_to_all_voice_folders_config_value() -> ConfigValue:
-        description = """Whether to add all generated voicelines to all Skyrim voice folders.
-                        If you are experiencing issues with some NPCs not speaking, try enabling this value."""
-        return ConfigValueBool("add_voicelines_to_all_voice_folders","Add Voicelines to All Voice Folders",description, False, tags=[ConvigValueTag.advanced])
-    
-

@@ -16,7 +16,7 @@ class STTDefinitions:
         audio_threshold_description = """Controls how much background noise is filtered out.
                                         If the mic is not picking up speech, try lowering this value.
                                         If the mic is picking up too much background noise, try increasing this value."""
-        return ConfigValueInt("audio_threshold","Audio Threshold",audio_threshold_description, 175, 0, 999)
+        return ConfigValueInt("audio_threshold","Audio Threshold",audio_threshold_description, 175, 0, 999, tags=[ConvigValueTag.share_row])
     
     @staticmethod
     def get_model_size_config_value() -> ConfigValue:
@@ -29,31 +29,31 @@ class STTDefinitions:
                    "medium", "medium.en", "distil-medium.en", 
                    "large-v1", "large-v2", "large-v3", "distil-large-v2", "distil-large-v3", 
                    "whisper-1"]
-        return ConfigValueSelection("model_size", "Model Size", description, "base", options, allows_free_edit=True)
+        return ConfigValueSelection("model_size", "Model Size", description, "base", options, allows_free_edit=True, tags=[ConvigValueTag.share_row])
 
     @staticmethod
     def get_pause_threshold_config_value() -> ConfigValue:
         description = """How long to wait (in seconds) before converting mic input to text.
                     If you feel like you are being cut off before you finish your response, increase this value.
                     If you feel like there is too much of a delay between you finishing your response and the text conversion, decrease this value."""
-        return ConfigValueFloat("pause_threshold","Pause Threshold", description, 1.0, 0.1, 999, tags=[ConvigValueTag.advanced])
+        return ConfigValueFloat("pause_threshold","Pause Threshold", description, 1.0, 0.1, 999, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
 
     @staticmethod
     def get_listen_timeout_config_value() -> ConfigValue:
         description = """How long to wait (in seconds) for the player to speak before retrying.
                     This needs to be set to ensure that Mantella can periodically check if the conversation has ended."""
-        return ConfigValueInt("listen_timeout","Listen Timeout",  description, 30, 0, 999, tags=[ConvigValueTag.advanced])
+        return ConfigValueInt("listen_timeout","Listen Timeout",  description, 30, 0, 999, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
 
     @staticmethod
     def get_stt_language_config_value() -> ConfigValue:
         description = """The player's spoken language."""
-        return ConfigValueSelection("stt_language","STT Language",description,"default",["default","en", "ar", "cs", "da", "de", "el", "es", "fi", "fr", "hi", "hu", "it", "ja", "ko", "nl", "pl", "pt", "ro", "ru", "sv", "sw", "uk", "ha", "tr", "vi", "yo"], tags=[ConvigValueTag.advanced])
+        return ConfigValueSelection("stt_language","STT Language",description,"default",["default","en", "ar", "cs", "da", "de", "el", "es", "fi", "fr", "hi", "hu", "it", "ja", "ko", "nl", "pl", "pt", "ro", "ru", "sv", "sw", "uk", "ha", "tr", "vi", "yo"], tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
 
     @staticmethod
     def get_stt_translate_config_value() -> ConfigValue:
         description = """Translate the transcribed speech to English if supported by the Speech-To-Text engine (only impacts faster_whisper option, no impact on whispercpp, which is controlled by your server).
                         STTs that support this function: Whisper (faster_whisper)."""
-        return ConfigValueBool("stt_translate", "STT Translate",description, False, tags=[ConvigValueTag.advanced])
+        return ConfigValueBool("stt_translate", "STT Translate",description, False, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
 
     @staticmethod
     def get_process_device_config_value() -> ConfigValue:
@@ -62,7 +62,7 @@ class STTDefinitions:
     @staticmethod
     def get_external_whisper_service_config_value() -> ConfigValue:
         description = """Allows running of Whisper externally. When enabled, Mantella will call the 'Whisper URL' provided below instead of running Whisper locally."""
-        return ConfigValueBool("external_whisper_service","External Whisper Service", description, False, tags=[ConvigValueTag.advanced])
+        return ConfigValueBool("external_whisper_service","External Whisper Service", description, False, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
 
     @staticmethod
     def get_whisper_url_config_value() -> ConfigValue:
@@ -73,5 +73,5 @@ class STTDefinitions:
 	                        **OpenAI**: Ensure 'Speech-to-Text'->'Model Size' is set to `whisper-1`. Requires an OpenAI secret key.
                             **Groq**: Ensure 'Speech-to-Text'->'Model Size' is set to one of the following: https://console.groq.com/docs/speech-text#supported-models. Requires a Groq secret key.
                             **whisper.cpp**: whisper.cpp (https://github.com/ggerganov/whisper.cpp) can be connected to when it is run in server mode. No secret key is required. Ensure the server is running before starting Mantella. By default, selecting whisper.cpp will connect to the URL http://127.0.0.1:8080/inference, but you can also manually enter a URL in this field if you have selected a port other than 8080 / are running whisper.cpp on another machine."""
-        return ConfigValueSelection("whisper_url", "Whisper URL", description, "OpenAI", ["OpenAI", "Groq", "whisper.cpp"], allows_free_edit=True, tags=[ConvigValueTag.advanced])
+        return ConfigValueSelection("whisper_url", "Whisper URL", description, "OpenAI", ["OpenAI", "Groq", "whisper.cpp"], allows_free_edit=True, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
     
