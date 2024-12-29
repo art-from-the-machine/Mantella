@@ -1,5 +1,5 @@
 import os
-from src.config.types.config_value import ConfigValue, ConvigValueTag
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_float import ConfigValueFloat
 from src.config.types.config_value_int import ConfigValueInt
@@ -57,7 +57,7 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     def get_lip_generation_config_value() -> ConfigValue:
         description = """Whether to generate lip sync files for spoken voicelines. Disable this setting to improve response times.
                         Set to 'Lazy' to skip lip syncing only for the first sentence spoken of every response."""
-        return ConfigValueSelection("lip_generation","Lip File Generation",description,"Enabled",["Enabled","Lazy","Disabled"],tags=[ConvigValueTag.advanced])
+        return ConfigValueSelection("lip_generation","Lip File Generation",description,"Enabled",["Enabled","Lazy","Disabled"],tags=[ConfigValueTag.advanced])
     
     # XTTS Section
 
@@ -67,25 +67,25 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
                         Examples:
                         http://127.0.0.1:8020 when running XTTS locally.
                         https://{POD_ID}-8020.proxy.runpod.net when running XTTS in a RunPod GPU pod (https://docs.runpod.io/pods/configuration/expose-ports)."""
-        return ConfigValueString("xtts_url","XTTS URL",description, "http://127.0.0.1:8020",tags=[ConvigValueTag.advanced])
+        return ConfigValueString("xtts_url","XTTS URL",description, "http://127.0.0.1:8020",tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_xtts_default_model_config_value() -> ConfigValue:
-        return ConfigValueSelection("xtts_default_model","XTTS Default Model","Official base XTTS-V2 model to use.", "main",["v2.0.0", "v2.0.1", "v2.0.2", "v2.0.3", "main"],tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
+        return ConfigValueSelection("xtts_default_model","XTTS Default Model","Official base XTTS-V2 model to use.", "main",["v2.0.0", "v2.0.1", "v2.0.2", "v2.0.3", "main"],tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
 
     @staticmethod
     def get_xtts_device_config_value() -> ConfigValue:
-        return ConfigValueSelection("xtts_device","XTTS Device","Set to cpu or cuda (default is cpu). You can also specify which GPU to use (cuda:0, cuda:1 etc)", "cpu" ,["cpu", "cuda", "cuda:0", "cuda:1", "cuda:2","cuda:3", "cuda:4", "cuda:5", "cuda:6", "cuda:7"],tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
+        return ConfigValueSelection("xtts_device","XTTS Device","Set to cpu or cuda (default is cpu). You can also specify which GPU to use (cuda:0, cuda:1 etc)", "cpu" ,["cpu", "cuda", "cuda:0", "cuda:1", "cuda:2","cuda:3", "cuda:4", "cuda:5", "cuda:6", "cuda:7"],tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
 
     @staticmethod
     def get_xtts_deepspeed_config_value() -> ConfigValue:
-        return ConfigValueBool("xtts_deepspeed","XTTS DeepSpeed","Allows you to speed up processing by several times (highly recommended for NVIDIA GPU players!).\nOnly usable with an NVIDIA GPU that supports CUDA 11.8+.", False, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
+        return ConfigValueBool("xtts_deepspeed","XTTS DeepSpeed","Allows you to speed up processing by several times (highly recommended for NVIDIA GPU players!).\nOnly usable with an NVIDIA GPU that supports CUDA 11.8+.", False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
 
     @staticmethod
     def get_xtts_lowvram_config_value() -> ConfigValue:
         description = """The mode in which the model will be stored in RAM and when the processing occurs it will move to VRAM. The difference in speed is small.
                     If you don't want to pre-generate the latents for every speaker, enable this setting or else it will generate the latents at every start."""
-        return ConfigValueBool("xtts_lowvram","XTTS Low VRAM", description, True, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
+        return ConfigValueBool("xtts_lowvram","XTTS Low VRAM", description, True, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
     def get_xtts_data_config_value() -> ConfigValue:
@@ -97,42 +97,42 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
                     "speed": 1,
                     "enable_text_splitting": true,
                     "stream_chunk_size": 100}"""
-        return ConfigValueString("xtts_data","XTTS Data","Default settings passed to the XTTS API server.", value,tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
+        return ConfigValueString("xtts_data","XTTS Data","Default settings passed to the XTTS API server.", value,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
     def get_xtts_accent_config_value() -> ConfigValue:
         description = """Changes the 'accent' of NPCs by sending the language value from data/Skyrim/skyrim_characters.csv's lang_override column to XTTS.\nThis helps give NPC's unique-sounding voices, even when they use the same base voice model. Note that this setting is only available for Skyrim.
                     If running XTTS locally, this setting requires XTTS Mantella API Server v1.3.2 or later: https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files"""
-        return ConfigValueBool("xtts_accent", "XTTS Accent", description, False, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
+        return ConfigValueBool("xtts_accent", "XTTS Accent", description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     # xVASynth section
     @staticmethod
     def get_tts_process_device_config_value() -> ConfigValue:
         description = "Whether to run xVASynth server (unless already running) on your CPU or a NVIDIA GPU (with CUDA installed).\nThis setting has a minimal effect on speed."
-        return ConfigValueSelection("tts_process_device","xVASynth Process Device", description, "cpu", ["cpu", "gpu"], tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
+        return ConfigValueSelection("tts_process_device","xVASynth Process Device", description, "cpu", ["cpu", "gpu"], tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
 
     @staticmethod
     def get_pace_config_value() -> ConfigValue:
         description = """The default speed of talking. The effect can vary between voices.
                         0.5 = 2x faster; 2 = 2x slower"""
-        return ConfigValueFloat("pace","xVASynth Pace", description, 1.0, 0.1, 2.0, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
+        return ConfigValueFloat("pace","xVASynth Pace", description, 1.0, 0.1, 2.0, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
     def get_use_cleanup_config_value() -> ConfigValue:
         description = """Whether to try to reduce noise and the robot-sounding nature of xVASynth generated speech.
                         Has a slight impact on processing speed for the CPU.
                         Not meant to be used on voices that have post-effects attached to them (echoes, reverbs, etc)."""
-        return ConfigValueBool("use_cleanup","xVASynth Cleanup",description, False, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
+        return ConfigValueBool("use_cleanup","xVASynth Cleanup",description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
     def get_use_sr_config_value() -> ConfigValue:
         description = """Whether to improve the quality of your audio through Super-resolution of 22050Hz audio into 48000Hz audio.
                         This is a fairly slow process on CPUs, but on some GPUs it can be quick."""
-        return ConfigValueBool("use_sr","xVASynth Super Resolution",description, False, tags=[ConvigValueTag.advanced,ConvigValueTag.share_row])
+        return ConfigValueBool("use_sr","xVASynth Super Resolution",description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
     def get_tts_print_config_value() -> ConfigValue:
-        return ConfigValueBool("tts_print","Print TTS Output","Print the output from the TTS service in the Mantella.exe window.", False, tags=[ConvigValueTag.advanced])
+        return ConfigValueBool("tts_print","Print TTS Output","Print the output from the TTS service in the Mantella.exe window.", False, tags=[ConfigValueTag.advanced])
 
     
 

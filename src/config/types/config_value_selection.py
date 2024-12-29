@@ -1,10 +1,10 @@
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 from src.config.types.config_value_visitor import ConfigValueVisitor
-from src.config.types.config_value import ConfigValue, ConvigValueTag
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 
 class ConfigValueSelection(ConfigValue[str]):
-    def __init__(self, identifier: str, name: str, description: str, default_value: str, options: list[str], allows_free_edit: bool = False, allows_values_not_in_options: bool = False, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConvigValueTag] = []):
+    def __init__(self, identifier: str, name: str, description: str, default_value: str, options: list[str], allows_free_edit: bool = False, allows_values_not_in_options: bool = False, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = []):
         super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
         self.__options: list[str] = options
         self.__allows_free_edit = allows_free_edit

@@ -4,13 +4,13 @@ from typing import Any, Callable, Generic, TypeVar
 from src.config.types.config_value_visitor import ConfigValueVisitor
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 
-class ConvigValueTag(StrEnum):
+class ConfigValueTag(StrEnum):
     advanced = "advanced"
     share_row = "share_row"
 
 T = TypeVar('T')
 class ConfigValue(ABC, Generic[T]):
-    def __init__(self, identifier: str, name: str, description: str, default_value: T, constraints: list[ConfigValueConstraint[T]], is_hidden: bool, tags: list[ConvigValueTag] = []) -> None:
+    def __init__(self, identifier: str, name: str, description: str, default_value: T, constraints: list[ConfigValueConstraint[T]], is_hidden: bool, tags: list[ConfigValueTag] = []) -> None:
         super().__init__()
         self.__identifier = identifier
         self.__name = name
@@ -19,7 +19,7 @@ class ConfigValue(ABC, Generic[T]):
         self.__default_value:T = default_value
         self.__constraints: list[ConfigValueConstraint[T]] = constraints
         self.__is_hidden: bool = is_hidden
-        self.__tags: list[ConvigValueTag] = tags
+        self.__tags: list[ConfigValueTag] = tags
         self._on_value_change_callback: Callable[..., Any] | None = None
     
     @property
@@ -57,7 +57,7 @@ class ConfigValue(ABC, Generic[T]):
         return self.__is_hidden
     
     @property
-    def tags(self) -> list[ConvigValueTag]:
+    def tags(self) -> list[ConfigValueTag]:
         return self.__tags
     
     def set_on_value_change_callback(self, on_value_change_callback: Callable[..., Any] | None):

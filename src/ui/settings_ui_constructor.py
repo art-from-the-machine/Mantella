@@ -11,7 +11,7 @@ from src.config.types.config_value_selection import ConfigValueSelection
 from src.config.types.config_value_multi_selection import ConfigValueMultiSelection
 from src.config.types.config_value_string import ConfigValueString
 from src.config.config_value_constraint import ConfigValueConstraintResult
-from src.config.types.config_value import ConfigValue, ConvigValueTag
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_group import ConfigValueGroup
 from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_visitor import ConfigValueVisitor
@@ -90,7 +90,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
         """Creates the UI components for a single setting"""
         if isinstance(setting.config_value, ConfigValueBool):
             # dynamically change width of bool title depending on whether the setting shares a row with another setting
-            elem_class = "setting-bool-container-wide" if ConvigValueTag.share_row in setting.config_value.tags else "setting-bool-container-narrow"
+            elem_class = "setting-bool-container-wide" if ConfigValueTag.share_row in setting.config_value.tags else "setting-bool-container-narrow"
             with gr.Row(elem_classes=elem_class):
                 input_ui = setting.create_input(setting.config_value)
                 gr.HTML(self.__create_tooltip(setting.config_value))
@@ -139,7 +139,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
             additional_buttons
         )
 
-        if ConvigValueTag.share_row in config_value.tags:
+        if ConfigValueTag.share_row in config_value.tags:
             if self.__pending_shared_setting is not None:
                 self.__create_paired_settings(self.__pending_shared_setting, current_setting)
                 self.__pending_shared_setting = None
@@ -202,7 +202,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
             advanced_settings = []
             for cf in config_value.value:
                 if not cf.is_hidden:
-                    if ConvigValueTag.advanced in cf.tags:
+                    if ConfigValueTag.advanced in cf.tags:
                         advanced_settings.append(cf)
                         has_advanced_values = True
                     else:
