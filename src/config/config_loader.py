@@ -179,14 +179,13 @@ class ConfigLoader:
             self.number_words_tts = self.__definitions.get_int_value("number_words_tts")
             self.xtts_data = self.__definitions.get_string_value("xtts_data")
             self.xtts_accent = self.__definitions.get_bool_value("xtts_accent")
+
+            self.tts_print = self.__definitions.get_bool_value("tts_print")
         
             self.xvasynth_process_device = self.__definitions.get_string_value("tts_process_device")
             self.pace = self.__definitions.get_float_value("pace")
             self.use_cleanup = self.__definitions.get_bool_value("use_cleanup")
             self.use_sr = self.__definitions.get_bool_value("use_sr")
-
-            self.FO4Volume = self.__definitions.get_int_value("fo4_npc_response_volume")
-            self.tts_print = self.__definitions.get_bool_value("tts_print")
 
             #STT
             self.whisper_model = self.__definitions.get_string_value("model_size")
@@ -267,11 +266,6 @@ class ConfigLoader:
             # self.debug_use_default_player_response = self.__definitions.get_bool_value("use_default_player_response")
             # self.default_player_response = self.__definitions.get_string_value("default_player_response")
             # self.debug_exit_on_first_exchange = self.__definitions.get_bool_value("exit_on_first_exchange")
-            self.add_voicelines_to_all_voice_folders = self.__definitions.get_bool_value("add_voicelines_to_all_voice_folders")
-
-            #HTTP
-            self.port = self.__definitions.get_int_value("port")
-            self.show_http_debug_messages: bool = self.__definitions.get_bool_value("show_http_debug_messages")
 
             #UI
             self.auto_launch_ui = self.__definitions.get_bool_value("auto_launch_ui")
@@ -283,6 +277,10 @@ class ConfigLoader:
             self.player_character_description: str = self.__definitions.get_string_value("player_character_description")
             self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
             self.player_voice_model: str = self.__definitions.get_string_value("player_voice_model")
+
+            #HTTP
+            self.port = self.__definitions.get_int_value("port")
+            self.show_http_debug_messages: bool = self.__definitions.get_bool_value("show_http_debug_messages")
 
             #new separate prompts for Fallout 4 have been added 
             if self.game == "Fallout4" or self.game == "Fallout4VR":

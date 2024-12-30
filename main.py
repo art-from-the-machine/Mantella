@@ -14,7 +14,7 @@ def main():
             logging_file='logging.log', 
             language_file='data/language_support.csv')
 
-        mantella_version = '0.12'
+        mantella_version = '0.13 Preview 1'
         logging.log(24, f'\nMantella v{mantella_version}')
         should_debug_http = config.show_http_debug_messages
 

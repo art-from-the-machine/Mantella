@@ -50,9 +50,8 @@ class StartUI(routeable):
                             neutral_hue="zinc",
                             font=['Montserrat', 'ui-sans-serif', 'system-ui', 'sans-serif'],
                             font_mono=['IBM Plex Mono', 'ui-monospace', 'Consolas', 'monospace']).set(
-                                input_text_size='*text_xl',
-                                input_padding='*spacing_lg',
-                                checkbox_label_text_size='*text_xl'
+                                input_text_size='*text_md',
+                                input_padding='*spacing_md',
                             )
 
     
