@@ -69,7 +69,6 @@ class MantellaConfigValueDefinitionsNew:
         tts_category.add_config_value(TTSDefinitions.get_pace_config_value())
         tts_category.add_config_value(TTSDefinitions.get_use_cleanup_config_value())
         tts_category.add_config_value(TTSDefinitions.get_use_sr_config_value())
-        tts_category.add_config_value(TTSDefinitions.get_FO4_NPC_response_volume_config_value())
         tts_category.add_config_value(TTSDefinitions.get_tts_print_config_value())
         result.add_base_group(tts_category)
 

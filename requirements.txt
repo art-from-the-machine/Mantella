@@ -1,6 +1,7 @@
 # python 3.11
 pandas==1.5.3
 tiktoken==0.4.0
+httpx==0.27.2
 openai==1.6.0
 aiohttp==3.8.4
 faster-whisper==1.0.3
@@ -11,7 +12,6 @@ soundfile==0.12.1
 numpy==1.25.0
 scipy==1.11.1
 charset-normalizer==3.2.0
-pygame==2.5.2
 fastapi==0.110.2
 gradio==4.28.3
 sphinx==7.2.6
