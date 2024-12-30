@@ -197,7 +197,7 @@ class skyrim(gameable):
     MALE_VOICE_MODELS_XVASYNTH: dict[str, str] = {
         'ArgonianRace': 'Male Argonian',
         'BretonRace': 'Male Even Toned',
-        'DarkElfRace': 'Male Dark Elf Commoner',
+        'DarkElfRace': 'Male Dunmer',
         'HighElfRace': 'Male Elf Haughty',
         'ImperialRace': 'Male Even Toned',
         'KhajiitRace': 'Male Khajiit',
@@ -209,7 +209,7 @@ class skyrim(gameable):
     FEMALE_VOICE_MODELS_XVASYNTH: dict[str, str]  = {
         'ArgonianRace': 'Female Argonian',
         'BretonRace': 'Female Even Toned',
-        'DarkElfRace': 'Female Dark Elf Commoner',
+        'DarkElfRace': 'Female Dark Elf',
         'HighElfRace': 'Female Elf Haughty',
         'ImperialRace': 'Female Even Toned',
         'KhajiitRace': 'Female Khajiit',
@@ -221,7 +221,7 @@ class skyrim(gameable):
     MALE_VOICE_MODELS_XTTS: dict[str, str] = {
         'ArgonianRace': 'Male Argonian',
         'BretonRace': 'Male Even Toned',
-        'DarkElfRace': 'Male Dark Elf Commoner',
+        'DarkElfRace': 'Male Dark Elf',
         'HighElfRace': 'Male Elf Haughty',
         'ImperialRace': 'Male Even Toned',
         'KhajiitRace': 'Male Khajiit',
@@ -233,7 +233,7 @@ class skyrim(gameable):
     FEMALE_VOICE_MODELS_XTTS: dict[str, str]  = {
         'ArgonianRace': 'Female Argonian',
         'BretonRace': 'Female Even Toned',
-        'DarkElfRace': 'Female Dark Elf Commoner',
+        'DarkElfRace': 'Female Dark Elf',
         'HighElfRace': 'Female Elf Haughty',
         'ImperialRace': 'Female Even Toned',
         'KhajiitRace': 'Female Khajiit',
