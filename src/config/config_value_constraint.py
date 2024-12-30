@@ -19,7 +19,7 @@ class ConfigValueConstraintResult:
 
 T = TypeVar('T')
 class ConfigValueConstraint(Generic[T], ABC):
-    def __init__(self, description: str) -> None:
+    def __init__(self, description: str | None = None) -> None:
         super().__init__()
         self.__description: str = description
     

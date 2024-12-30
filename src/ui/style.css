@@ -1,9 +1,3 @@
-.multiline-textbox textarea
-{
-    font-size: 16px !important;
-    overflow: scroll !important;
-}
-
 .setting-title
 {
     background: var(--primary-500) !important;
@@ -14,26 +8,163 @@
     text-overflow: ellipsis !important;
 }
 
-.constraint-violation
-{
-    border-width: 3px !important;
-    border-color: red !important;
+.setting-controls {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 5px !important;
+    width: 100% !important;
 }
 
-.badge
-{
-    display: inline-block !important;
-    border-radius: var(--radius-xxl) !important;
-    font-size: 14px !important;
-    padding: var(--spacing-sm) !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+.setting-controls input,
+.setting-controls textarea {
+    padding-left: 8px !important;
+    padding-top: 6px !important;
+    width: 100% !important;
+    min-width: 0 !important;
 }
 
-.badge-advanced
-{
-    background: cornflowerblue !important;
+/* Dropdown wrapper */
+.setting-controls .svelte-1sk0pyu .wrap-inner {
+    padding-left: 4px !important;
+    padding-top: 1px !important;
+    padding-bottom: 3px !important;
+}
+
+/* Remove padding from dropdown input */
+.setting-controls .svelte-1sk0pyu input[role="listbox"] {
+    padding: 0 !important;
+}
+
+[class^="setting-bool-container"] {
+    display: flex !important;
+    align-items: center !important;
+}
+
+.setting-bool-container-wide {
+    width: 80% !important;
+}
+
+.setting-bool-container-narrow {
+    width: 50% !important;
+}
+
+[class^="setting-bool-container"] label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+}
+
+/* Format checkbox text to match input titles */
+[class^="setting-bool-container"] label span {
+    font-size: 1.1rem !important;
+    font-weight: 500 !important;
+}
+
+/* Ensure tooltip stays with label */
+[class^="setting-bool-container"] .tooltip-container {
+    margin-left: 5px !important;
+    flex-shrink: 0 !important;
+}
+
+/* Align buttons at the end of the row */
+.button-container {
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: stretch !important;
+    gap: 5px !important;
+    max-width: 80px !important;
+    min-width: 80px !important;
+    height: 32px !important;
+}
+
+.button-container button {
+    height: 100% !important;
+    max-width: 80px !important;
+    min-width: 80px !important;
+}
+
+.tooltip-container {
+    position: relative;
+    display: inline-flex;
+    margin-left: 5px;
+    margin-top: 0px;
+}
+
+.tooltip-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background-color: #4CAF50;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: help;
+}
+
+[class^="tooltip-content"] {
+    visibility: hidden;
+    position: absolute;
+    z-index: 1000;
+    min-width: 50px;
+    width: max-content;
+    background-color: #333;
+    color: #fff;
+    text-align: left;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 14px;
+    line-height: 1.4;
+    opacity: 0;
+    transition: opacity 0.2s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    top: 100%;
+    margin-top: 10px;
+    white-space: normal; /* Allow text wrapping */
+}
+
+.tooltip-content-left {
+    max-width: 800px;
+    left: 0px;
+}
+
+.tooltip-content-right {
+    max-width: 400px;
+    left: -100px;
+}
+
+[class^="tooltip-content"]::after {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #333 transparent; /* Arrow pointing down */
+}
+
+.tooltip-content-left::after {
+    left: 4px;
+}
+
+.tooltip-content-right::after {
+    left: 104px;
+}
+
+/* Show tooltip on hover */
+.tooltip-container:hover [class^="tooltip-content"] {
+    visibility: visible;
+    opacity: 1;
+}
+
+.constraint-violation.block {
+    border: none !important;
+}
+
+.constraint-violation {
+    border: 1px solid red !important;
 }
 
 .custom-footer {

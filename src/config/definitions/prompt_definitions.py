@@ -43,7 +43,7 @@ class PromptDefinitions:
                                 "actions"]
     
     BASE_PROMPT_DESCRIPTION = """The starting prompt sent to the LLM when an NPC is selected.
-                                If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
+                                The following are dynamic variables that need to be contained in curly brackets {}:
                                 name = the NPC's name
                                 names = the names of all NPCs in the conversation
                                 names_w_player = the names of all NPCs in the conversation and the name of the player character
@@ -63,7 +63,7 @@ class PromptDefinitions:
                                 actions = instructions for the LLM how to trigger actions"""
     
     BASE_RADIANT_DESCRIPTION = """The starting prompt sent to the LLM when a radiant conversation is started.
-                                If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
+                                The following are dynamic variables that need to be contained in curly brackets {}:
                                 name = the NPC's name
                                 names = the names of all NPCs in the conversation
                                 game = the selected game
@@ -79,7 +79,7 @@ class PromptDefinitions:
         
     class PromptChecker(ConfigValueConstraint[str]):
         def __init__(self, allowed_prompt_variables: list[str]) -> None:
-            super().__init__("Only variables from list of allowed variables may be used!")
+            super().__init__()
             self.__allowed_prompt_variables = allowed_prompt_variables
 
         def apply_constraint(self, prompt: str) -> ConfigValueConstraintResult:
@@ -175,21 +175,6 @@ class PromptDefinitions:
                             Remember, you can only respond as {names}. Ensure to use their full name when responding.
                             The conversation takes place in {language}."""
         return ConfigValueString("fallout4_radiant_prompt","Fallout 4 Radiant Conversation Prompt",PromptDefinitions.BASE_RADIANT_DESCRIPTION,fallout4_radiant_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_RADIANT)])
-
-    @staticmethod
-    def get_radiant_start_prompt_config_value() -> ConfigValue:
-        radiant_start_prompt_description = """Once a radiant conversation has started and the radiant prompt has been passed to the LLM, the below text is passed in replace of the player response.
-                                        This prompt is used to steer the radiant conversation.""" 
-        radiant_start_prompt = """Please begin / continue a conversation topic (greetings are not needed). Ensure to change the topic if the current one is losing steam. 
-                            The conversation should steer towards topics which reveal information about the characters and who they are, or instead drive forward previous conversations in their memory."""
-        return ConfigValueString("radiant_start_prompt","Radiant Start Prompt",radiant_start_prompt_description,radiant_start_prompt,[PromptDefinitions.PromptChecker([])])
-
-    @staticmethod
-    def get_radiant_end_prompt_config_value() -> ConfigValue:
-        radiant_end_prompt_description = """The final prompt sent to the LLM before ending a radiant conversation.
-                                            This prompt is used to guide the LLM to end the conversation naturally.""" 
-        radiant_end_prompt = """Please wrap up the current topic between the NPCs in a natural way. Nobody is leaving, so there is no need for formal goodbyes."""
-        return ConfigValueString("radiant_end_prompt","Radiant End Prompt",radiant_end_prompt_description,radiant_end_prompt,[PromptDefinitions.PromptChecker([])])
     
     @staticmethod
     def get_memory_prompt_config_value() -> ConfigValue:
@@ -215,3 +200,18 @@ class PromptDefinitions:
         resummarize_prompt = """You are tasked with summarizing the conversation history between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}.
                                             Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {language}."""
         return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
+    
+    @staticmethod
+    def get_radiant_start_prompt_config_value() -> ConfigValue:
+        radiant_start_prompt_description = """Once a radiant conversation has started and the radiant prompt has been passed to the LLM, the below text is passed in replace of the player response.
+                                        This prompt is used to steer the radiant conversation.""" 
+        radiant_start_prompt = """Please begin / continue a conversation topic (greetings are not needed). Ensure to change the topic if the current one is losing steam. 
+                            The conversation should steer towards topics which reveal information about the characters and who they are, or instead drive forward previous conversations in their memory."""
+        return ConfigValueString("radiant_start_prompt","Radiant Start Prompt",radiant_start_prompt_description,radiant_start_prompt,[PromptDefinitions.PromptChecker([])])
+
+    @staticmethod
+    def get_radiant_end_prompt_config_value() -> ConfigValue:
+        radiant_end_prompt_description = """The final prompt sent to the LLM before ending a radiant conversation.
+                                            This prompt is used to guide the LLM to end the conversation naturally.""" 
+        radiant_end_prompt = """Please wrap up the current topic between the NPCs in a natural way. Nobody is leaving, so there is no need for formal goodbyes."""
+        return ConfigValueString("radiant_end_prompt","Radiant End Prompt",radiant_end_prompt_description,radiant_end_prompt,[PromptDefinitions.PromptChecker([])])
