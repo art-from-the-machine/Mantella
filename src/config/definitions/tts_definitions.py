@@ -38,8 +38,7 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     @staticmethod
     def get_facefx_folder_config_value(is_hidden: bool = False) -> ConfigValue:
         #Note(Leidtier): Because this is a Frankenparameter, I just set it to be a string. It SHOULD be a path, but this would require a different handling of the default empty state
-        facefx_discription = """The FaceFXWrapper program converts WAV files to LIP files required by Bethesda games to accurately lip sync.
-                            Leaving this empty will default to the xVASynth lip_fuz plugin folder location, which is xVASynth\\resources\\app\\plugins\\lip_fuz\\"""
+        facefx_discription = """The FaceFXWrapper program is required by Bethesda games to accurately lip sync voicelines."""
         return ConfigValueString("facefx_folder", "FaceFXWrapper Folder", facefx_discription, "", is_hidden=is_hidden)
     
     @staticmethod
@@ -48,9 +47,8 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     
     @staticmethod
     def get_number_words_tts_config_value() -> ConfigValue:
-        description = """Minimum number of words per sentence sent to the TTS.
-                        If you encounter audio artifacts at the end of sentences, try increasing this number.
-                        Be aware, the higher the number, the longer the TTS audio processing time will take."""
+        description = """Minimum threshold of words in a sentence needed before sending to the TTS service.
+                        TTS services often struggle with synthesizing short voicelines, so increasing this threshold can improve quality."""
         return ConfigValueInt("number_words_tts","Number of Words TTS",description, 3, 1, 999999)
     
     @staticmethod
@@ -66,7 +64,7 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
         description = """The URL that your XTTS server is running on.
                         Examples:
                         http://127.0.0.1:8020 when running XTTS locally.
-                        https://{POD_ID}-8020.proxy.runpod.net when running XTTS in a RunPod GPU pod (https://docs.runpod.io/pods/configuration/expose-ports)."""
+                        https://{POD_ID}-8020.proxy.runpod.net when running XTTS in a RunPod GPU pod."""
         return ConfigValueString("xtts_url","XTTS URL",description, "http://127.0.0.1:8020",tags=[ConfigValueTag.advanced])
     
     @staticmethod
@@ -75,7 +73,7 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
 
     @staticmethod
     def get_xtts_device_config_value() -> ConfigValue:
-        return ConfigValueSelection("xtts_device","XTTS Device","Set to cpu or cuda (default is cpu). You can also specify which GPU to use (cuda:0, cuda:1 etc)", "cpu" ,["cpu", "cuda", "cuda:0", "cuda:1", "cuda:2","cuda:3", "cuda:4", "cuda:5", "cuda:6", "cuda:7"],tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+        return ConfigValueSelection("xtts_device","XTTS Device","Set to cpu or cuda (NVIDIA GPUs only). You can also specify which NVIDIA GPU to use (cuda:0, cuda:1 etc)", "cpu" ,["cpu", "cuda", "cuda:0", "cuda:1", "cuda:2","cuda:3", "cuda:4", "cuda:5", "cuda:6", "cuda:7"],tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
 
     @staticmethod
     def get_xtts_deepspeed_config_value() -> ConfigValue:
@@ -101,14 +99,14 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     
     @staticmethod
     def get_xtts_accent_config_value() -> ConfigValue:
-        description = """Changes the 'accent' of NPCs by sending the language value from data/Skyrim/skyrim_characters.csv's lang_override column to XTTS.\nThis helps give NPC's unique-sounding voices, even when they use the same base voice model. Note that this setting is only available for Skyrim.
-                    If running XTTS locally, this setting requires XTTS Mantella API Server v1.3.2 or later: https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files"""
+        description = """Note that this setting is only available for Skyrim.
+        Changes the 'accent' of NPCs by sending the language value from data/Skyrim/skyrim_characters.csv's lang_override column to XTTS.\nThis helps give NPC's unique-sounding voices, even when they use the same base voice model."""
         return ConfigValueBool("xtts_accent", "XTTS Accent", description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     # xVASynth section
     @staticmethod
     def get_tts_process_device_config_value() -> ConfigValue:
-        description = "Whether to run xVASynth server (unless already running) on your CPU or a NVIDIA GPU (with CUDA installed).\nThis setting has a minimal effect on speed."
+        description = "Whether to run xVASynth server (unless already running) on your CPU or a NVIDIA GPU (with CUDA installed).\nThis setting has a minimal effect on response times."
         return ConfigValueSelection("tts_process_device","xVASynth Process Device", description, "cpu", ["cpu", "gpu"], tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
 
     @staticmethod
@@ -127,7 +125,7 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     @staticmethod
     def get_use_sr_config_value() -> ConfigValue:
         description = """Whether to improve the quality of your audio through Super-resolution of 22050Hz audio into 48000Hz audio.
-                        This is a fairly slow process on CPUs, but on some GPUs it can be quick."""
+                        This is a fairly slow process on CPUs, but on some GPUs it can be relatively fast."""
         return ConfigValueBool("use_sr","xVASynth Super Resolution",description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod

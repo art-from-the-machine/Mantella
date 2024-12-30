@@ -39,17 +39,19 @@ class SettingsUIConstructor(ConfigValueVisitor):
     def config_value_to_ui_element(self) -> dict[ConfigValue, gr.Column]:
         return self.__config_value_to_ui_element
     
-    def __create_tooltip(self, config_value: ConfigValue) -> str:
+    def __create_tooltip(self, config_value: ConfigValue, is_second_setting: bool = False) -> str:
         """Creates the tooltip HTML for a config value"""
         constraints_html = (f'<p class="constraints">' + 
                           '<br>'.join(c.description for c in config_value.constraints) + 
                           '</p>' if config_value.constraints else '')
+        tooltip_content = 'tooltip-content-right' if is_second_setting else 'tooltip-content-left'
+        description_html = (config_value.description or "").replace("\n", "<br>")
         
         return f"""
         <div class="tooltip-container" role="tooltip" aria-label="{config_value.name} help">
             <span class="tooltip-icon" tabindex="0">?</span>
-            <div class="tooltip-content">
-                <p>{config_value.description}</p>
+            <div class={tooltip_content}>
+                <p>{description_html}</p>
                 {constraints_html}
             </div>
         </div>
@@ -86,16 +88,16 @@ class SettingsUIConstructor(ConfigValueVisitor):
             if update_on_blur:
                 input_ui.blur(lambda x: self.__on_change(config_value, x), input_ui, error_message)
 
-    def __create_setting_components(self, setting: SettingConfig) -> SettingUIComponents:
+    def __create_setting_components(self, setting: SettingConfig, is_second_setting: bool = False) -> SettingUIComponents:
         """Creates the UI components for a single setting"""
         if isinstance(setting.config_value, ConfigValueBool):
             # dynamically change width of bool title depending on whether the setting shares a row with another setting
             elem_class = "setting-bool-container-wide" if ConfigValueTag.share_row in setting.config_value.tags else "setting-bool-container-narrow"
             with gr.Row(elem_classes=elem_class):
                 input_ui = setting.create_input(setting.config_value)
-                gr.HTML(self.__create_tooltip(setting.config_value))
+                gr.HTML(self.__create_tooltip(setting.config_value, is_second_setting))
         else:
-            self.__construct_name_description_constraints(setting.config_value)
+            self.__construct_name_description_constraints(setting.config_value, is_second_setting)
             with gr.Row(equal_height=True, elem_classes="setting-controls"):
                 input_ui = setting.create_input(setting.config_value)
                 input_ui.scale = 999
@@ -114,9 +116,11 @@ class SettingsUIConstructor(ConfigValueVisitor):
     def __create_paired_settings(self, setting1: SettingConfig, setting2: SettingConfig):
         """Creates two settings side by side in the same row"""
         with gr.Row():
+            is_second_setting = False
             for setting in [setting1, setting2]:
                 with gr.Column(variant="panel", scale=1):
-                    components = self.__create_setting_components(setting)
+                    components = self.__create_setting_components(setting, is_second_setting)
+                    is_second_setting = True
                     self.__identifier_to_config_value[setting.config_value.identifier] = setting.config_value
                     self.__config_value_to_ui_element[setting.config_value] = components.input_ui
 
@@ -175,16 +179,18 @@ class SettingsUIConstructor(ConfigValueVisitor):
                     gr.HTML(f"<b>{str(tag).upper()}</b>", elem_classes=["badge",f"badge-{tag}"])
                 gr.Column()
 
-    def __construct_name_description_constraints(self, config_value: ConfigValue):
+    def __construct_name_description_constraints(self, config_value: ConfigValue, is_second_setting: bool = False):
         with gr.Row():
+            description_html = (config_value.description or "").replace("\n", "<br>")
+            tooltip_content = 'tooltip-content-right' if is_second_setting else 'tooltip-content-left'
             tooltip_html = f"""
             <div style="display: flex; align-items: center;">
                 <h3 style="margin: 0; font-size: 1.25em;">{config_value.name}</h3>
                 <div class="tooltip-container" role="tooltip" aria-label="{config_value.name} help">
                     <span class="tooltip-icon">?</span>
-                    <div class="tooltip-content">
-                        <p>{config_value.description}</p>
-                        {'<p>' + '<br>'.join(c.description for c in config_value.constraints) + '</p>' if config_value.constraints else ''}
+                    <div class={tooltip_content}>
+                        <p>{description_html}</p>
+                        {'<p>' + '<br>'.join(c.description for c in config_value.constraints if c.description is not None) + '</p>' if config_value.constraints else ''}
                     </div>
                 </div>
             </div>

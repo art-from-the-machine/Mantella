@@ -10,17 +10,17 @@ class LLMDefinitions:
     @staticmethod
     def get_llm_api_config_value() -> ConfigValue:
         description = """Selects the LLM service to connect to (either local or via an API).
+        
             If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
             After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
 
-            **If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.**"""
+            If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using."""
         return ConfigValueSelection("llm_api","LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"], allows_free_edit=True)
 
     @staticmethod
     def get_model_config_value() -> ConfigValue:
         model_description = """Select the model to use. Press the *Update* button to load a list of models available from the service selected above.
-                            **If you are using OpenRouter or OpenAI updating the list requires a correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.**
-                            The list does not provide all details about the models. For additional information please refer to the corresponsing sites:
+                            The list does not provide all details about the models. For additional information please refer to the corresponding sites:
                             - OpenRouter: https://openrouter.ai/docs#models
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
         return ConfigValueSelection("model","Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True)
@@ -46,7 +46,7 @@ class LLMDefinitions:
     @staticmethod
     def get_wait_time_buffer_config_value() -> ConfigValue:
         description = """Time to wait (in seconds) before generating the next voiceline.
-                        Mantella waits for the duration of a given voiceline's .wav file + an extra buffer to account for processing overhead within Skyrim.
+                        Mantella waits for the duration of a given voiceline's .wav file + an extra buffer to account for processing overhead.
                         If you are noticing that some voicelines are not being said in-game, try increasing this buffer."""
         return ConfigValueFloat("wait_time_buffer","Wait Time Buffer",description, -1.0, -999, 999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
@@ -81,8 +81,7 @@ class LLMDefinitions:
     
     @staticmethod
     def get_try_filter_narration() -> ConfigValue:
-        try_filter_narration_description = """Should Mantella try to filter narrations out of the output of the LLM?
-                                            If checked, tries to filter out sentences containing asterisks (*)."""
+        try_filter_narration_description = """If checked, sentences containing asterisks (*) will not be spoken aloud."""
         return ConfigValueBool("try_filter_narration","Filter Narration",try_filter_narration_description,True,tags=[ConfigValueTag.advanced])
 
     

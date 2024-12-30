@@ -43,7 +43,7 @@ class OtherDefinitions:
     
     @staticmethod
     def get_max_count_events_config_value() -> ConfigValue:
-        max_count_events_description = """Maximum number of in-game events that can are sent to the LLM with one player message. 
+        max_count_events_description = """Maximum number of in-game events that are sent to the LLM per player message. 
                                     If the maximum number is reached, the oldest events will be dropped.
                                     Increasing this number will cost more prompt tokens and lead to the context limit being reached faster."""
         return ConfigValueInt("max_count_events","Max Count Events",max_count_events_description,5,0,999999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
@@ -57,7 +57,7 @@ class OtherDefinitions:
     #Player Character
     @staticmethod
     def get_player_character_description() -> ConfigValue:
-        player_character_description_description = """A description of your player character ingame. This is sent to the LLM as part of the prompt using the '{{player_description}}' variable.
+        player_character_description_description = """A description of your player character in-game. This is sent to the LLM as part of the prompt using the '{player_description}' variable.
                                                     This is not meant to be a bio but rather a description how the NPC(s) perceive the player character when they speak to them.
                                                     e.g. 'A tall man with long red hair.'
                                                     If the in-game MCM offers to set this option the text sent from the game takes precendence over this."""

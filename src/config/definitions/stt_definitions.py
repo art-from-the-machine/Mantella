@@ -4,12 +4,26 @@ from src.config.types.config_value_float import ConfigValueFloat
 from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_selection import ConfigValueSelection
 from src.config.types.config_value_string import ConfigValueString
+from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 
 
 class STTDefinitions:
+    class WhisperProcessDeviceChecker(ConfigValueConstraint[str]):
+        def __init__(self) -> None:
+            super().__init__()
+
+        def apply_constraint(self, value_to_apply_to: str) -> ConfigValueConstraintResult:
+            if value_to_apply_to == 'cuda':
+                return ConfigValueConstraintResult(f'''
+Depending on your NVIDIA CUDA version, setting the Whisper process device to `cuda` may cause errors!''')
+            else:
+                return ConfigValueConstraintResult()
+    
     @staticmethod
     def get_use_automatic_audio_threshold_folder_config_value() -> ConfigValue:
-        return ConfigValueBool("use_automatic_audio_threshold", "Automatic Audio Threshold","Should the microphone automatically try to adjust for background noise?\nIf you get stuck at 'Listening...', disable this setting and manually set the audio threshold in the setting below.", False)
+        description = """Sets whether the microphone should automatically try to adjust for background noise.
+        If you get stuck at 'Listening...', disable this setting and manually set the audio threshold in the setting below."""
+        return ConfigValueBool("use_automatic_audio_threshold", "Automatic Audio Threshold", description, False)
     
     @staticmethod
     def get_audio_threshold_folder_config_value() -> ConfigValue:
@@ -30,6 +44,22 @@ class STTDefinitions:
                    "large-v1", "large-v2", "large-v3", "distil-large-v2", "distil-large-v3", 
                    "whisper-1"]
         return ConfigValueSelection("model_size", "Model Size", description, "base", options, allows_free_edit=True, tags=[ConfigValueTag.share_row])
+    
+    @staticmethod
+    def get_external_whisper_service_config_value() -> ConfigValue:
+        description = """Allows running of Whisper externally. When enabled, Mantella will call the URL set in 'Whisper URL' instead of running Whisper locally."""
+        return ConfigValueBool("external_whisper_service","External Whisper Service", description, False, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_whisper_url_config_value() -> ConfigValue:
+        description = """The external Whisper service URL Mantella will connect to (if 'External Whisper Service' is enabled). 
+                        Some services require an API secret key. This secret key either needs to be set in your `GPT_SECRET_KEY.txt` file, or by creating a new text file called `STT_SECRET_KEY.txt` in the same folder as `GPT_SECRET_KEY.txt` and adding the API key there. If you don't see the service you would like to connect to in the dropdown list, you can also manually enter a URL to connect to.
+                        
+                        Known services:
+	                        OpenAI: Ensure 'Speech-to-Text'->'Model Size' is set to `whisper-1`. Requires an OpenAI secret key.
+                            Groq: Ensure 'Speech-to-Text'->'Model Size' is set to one of the following: https://console.groq.com/docs/speech-text#supported-models. Requires a Groq secret key.
+                            whisper.cpp: whisper.cpp (https://github.com/ggerganov/whisper.cpp) can be connected to when it is run in server mode. No secret key is required. Ensure the server is running before starting Mantella. By default, selecting whisper.cpp will connect to the URL http://127.0.0.1:8080/inference, but you can also manually enter a URL in this field if you have selected a port other than 8080 or are running whisper.cpp on another machine."""
+        return ConfigValueSelection("whisper_url", "Whisper URL", description, "OpenAI", ["OpenAI", "Groq", "whisper.cpp"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
 
     @staticmethod
     def get_pause_threshold_config_value() -> ConfigValue:
@@ -57,21 +87,5 @@ class STTDefinitions:
 
     @staticmethod
     def get_process_device_config_value() -> ConfigValue:
-        return ConfigValueSelection("process_device", "Process Device", "Whether to run Whisper on your CPU or NVIDIA GPU (with CUDA installed) (only impacts faster_whisper option, no impact on whispercpp, which is controlled by your server).","cpu",["cpu","cuda"], tags=[ConfigValueTag.advanced])
-
-    @staticmethod
-    def get_external_whisper_service_config_value() -> ConfigValue:
-        description = """Allows running of Whisper externally. When enabled, Mantella will call the 'Whisper URL' provided below instead of running Whisper locally."""
-        return ConfigValueBool("external_whisper_service","External Whisper Service", description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
-
-    @staticmethod
-    def get_whisper_url_config_value() -> ConfigValue:
-        description = """The external Whisper service URL Mantella will connect to (if 'External Whisper Service' is enabled above). 
-                        Some services require an API secret key. This secret key either needs to be set in your `GPT_SECRET_KEY.txt` file, or by creating a new text file called `STT_SECRET_KEY.txt` in the same folder as `GPT_SECRET_KEY.txt` and adding the API key there. If you don't see the service you would like to connect to in the dropdown list, you can also manually enter a URL to connect to.
-                        
-                        **Known services**:
-	                        **OpenAI**: Ensure 'Speech-to-Text'->'Model Size' is set to `whisper-1`. Requires an OpenAI secret key.
-                            **Groq**: Ensure 'Speech-to-Text'->'Model Size' is set to one of the following: https://console.groq.com/docs/speech-text#supported-models. Requires a Groq secret key.
-                            **whisper.cpp**: whisper.cpp (https://github.com/ggerganov/whisper.cpp) can be connected to when it is run in server mode. No secret key is required. Ensure the server is running before starting Mantella. By default, selecting whisper.cpp will connect to the URL http://127.0.0.1:8080/inference, but you can also manually enter a URL in this field if you have selected a port other than 8080 / are running whisper.cpp on another machine."""
-        return ConfigValueSelection("whisper_url", "Whisper URL", description, "OpenAI", ["OpenAI", "Groq", "whisper.cpp"], allows_free_edit=True, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
-    
+        description = "Whether to run Whisper on your CPU or NVIDIA GPU (with CUDA installed) (only impacts faster_whisper option, no impact on whispercpp, which is controlled by your server)."
+        return ConfigValueSelection("process_device", "Process Device", description,"cpu",["cpu","cuda"], constraints=[STTDefinitions.WhisperProcessDeviceChecker()], tags=[ConfigValueTag.advanced])

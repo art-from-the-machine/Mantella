@@ -6,15 +6,14 @@ from src.config.config_value_constraint import ConfigValueConstraint, ConfigValu
 
 
 class GameDefinitions:
-    MOD_FOLDER_DESCRIPTION = """This is the path to the Mantella mod. 
-        If you are using Mod Organizer 2, this path can be found by right-clicking the Mantella mod in your mod list and selecting 'Open in Explorer'.
+    MOD_FOLDER_DESCRIPTION = """If you are using Mod Organizer 2, this path can be found by right-clicking the Mantella mod in your mod list and selecting 'Open in Explorer'.
         If you are using Vortex, this path needs to be set to your {0}\\Data folder.
         eg C:\\Games\\Steam\\steamapps\\common\\{0}\\Data.
         If this path is incorrect, NPCs will say the same voiceline on repeat."""
     
     class ProgramFilesChecker(ConfigValueConstraint[str]):
         def __init__(self, game_name: str) -> None:
-            super().__init__(f"{game_name} may not be installed in 'ProgramFiles'!")
+            super().__init__()
             self.__game_name = game_name
 
         def apply_constraint(self, value_to_apply_to: str) -> ConfigValueConstraintResult:
@@ -27,7 +26,7 @@ See here to learn how to move your game's installation folder: https://art-from-
     
     class ModFolderChecker(ConfigValueConstraint[str]):
         def __init__(self, mod_folder_config_value: str) -> None:
-            super().__init__(f"Mod folder must contain '\\Sound\\Voice\\Mantella.esp\\' subfolders.")
+            super().__init__()
             self.__mod_folder_config_value = mod_folder_config_value
 
         def apply_constraint(self, value_to_apply_to: str) -> ConfigValueConstraintResult:
