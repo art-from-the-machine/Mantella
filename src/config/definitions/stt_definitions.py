@@ -15,7 +15,7 @@ class STTDefinitions:
         def apply_constraint(self, value_to_apply_to: str) -> ConfigValueConstraintResult:
             if value_to_apply_to == 'cuda':
                 return ConfigValueConstraintResult(f'''
-Depending on your NVIDIA CUDA version, setting the Whisper process device to `cuda` may cause errors!''')
+Depending on your NVIDIA CUDA version, setting the Whisper process device to `cuda` may cause errors! For more information, see here: [github.com/SYSTRAN/faster-whisper#gpu](https://github.com/SYSTRAN/faster-whisper#gpu)''')
             else:
                 return ConfigValueConstraintResult()
     
