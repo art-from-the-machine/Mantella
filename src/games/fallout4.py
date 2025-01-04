@@ -31,15 +31,10 @@ class fallout4(gameable):
         self.__FO4_Voice_folder_and_models_df = pd.read_csv(fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)
         #self.__playback: audio_playback = audio_playback(config)
         self.__last_played_voiceline: str | None = None
+        self.__image_analysis_filepath = config.image_analysis_fallout4_vr_filepath if self.is_vr else config.image_analysis_fallout4_filepath 
     
     def get_image_filepath(self):
-        is_vr = self.__config.game == "Fallout4VR"
-        filepath = (
-            self.__config.image_analysis_fallout4_vr_filepath
-            if is_vr
-            else self.__config.image_analysis_fallout4_filepath
-        )
-        return filepath, is_vr
+        return self.__image_analysis_filepath, self.is_vr
 
 
     @utils.time_it

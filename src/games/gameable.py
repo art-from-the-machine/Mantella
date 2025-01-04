@@ -28,7 +28,8 @@ class gameable(ABC):
         except:
             logging.error(f'Unable to read / open {path_to_character_df}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
-
+        
+        self._is_vr: bool = 'vr' in config.game.lower()
         #Apply character overrides
         mod_overrides_folder = os.path.join(*[config.mod_path_base, self.extender_name, "Plugins","MantellaSoftware","data",f"{mantella_game_folder_path}","character_overrides"])
         self.__apply_character_overrides(mod_overrides_folder, self.__character_df.columns.values.tolist())
@@ -42,6 +43,10 @@ class gameable(ABC):
     @property
     def character_df(self) -> pd.DataFrame:
         return self.__character_df
+    
+    @property
+    def is_vr(self) -> bool:
+        return self._is_vr
     
     @property
     @abstractmethod
@@ -107,7 +112,7 @@ class gameable(ABC):
         pass
 
     @abstractmethod
-    def get_image_filepath(self) -> bool:
+    def get_image_filepath(self) -> tuple[str, bool]:
         """Checks the game that is running and returns a filepath where the game screenshots are located
 
         Args:
