@@ -9,9 +9,12 @@ import requests
 from src.llm.message_thread import message_thread
 from src.llm.messages import message, image_message
 from src.config.config_loader import ConfigLoader
-from image.python_image_manager import PythonImageManager
+from src.image.python_image_manager import PythonImageManager
 import os
 from pathlib import Path
+
+
+# TODO: remove this file as it is deprecated
 
         
 class LLMModelList:            

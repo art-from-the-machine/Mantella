@@ -16,12 +16,12 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.llm.messages import message, image_message
 from src.llm.message_thread import message_thread
-from src.llm.openai_client import openai_client, image_client  
+from src.llm.llm_client import LLMClient
 from src.tts.ttsable import ttsable
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ChatManager:
-    def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: openai_client, image_client_instance: image_client):
+    def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: LLMClient):
         self.loglevel = 28
         self.__game: gameable = game
         self.__config: ConfigLoader = config
@@ -29,8 +29,7 @@ class ChatManager:
         # self.language = config.language
         # self.wait_time_buffer = config.wait_time_buffer
         self.__tts: ttsable = tts
-        self.__client: openai_client = client
-        self.__image_client: image_client = image_client_instance 
+        self.__client: LLMClient = client
         self.__is_generating: bool = False
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
@@ -403,7 +402,7 @@ class ChatManager:
             sentence = ''
             full_reply = ''
             if isinstance(message, image_message):
-                response_client = self.__image_client
+                response_client = self.__client # should be self.__image_client
             else:
                 response_client = self.__client
             while True:

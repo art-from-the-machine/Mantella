@@ -212,45 +212,18 @@ class ConfigLoader:
             # if self.llm_api == "Custom":
             #     self.llm_api = self.__definitions.get_string_value("llm_custom_service_url")
             self.custom_token_count = self.__definitions.get_int_value("custom_token_count")
-            self.temperature = self.__definitions.get_float_value("temperature")
-            self.top_p = self.__definitions.get_float_value("top_p")
-
-            stop_value = self.__definitions.get_string_value("stop")
-            if ',' in stop_value:
-                # If there are commas in the stop value, split the string by commas and store the values in a list
-                self.stop = stop_value.split(',')
-            else:
-                # If there are no commas, put the single value into a list
-                self.stop = [stop_value]
-
-            self.frequency_penalty = self.__definitions.get_float_value("frequency_penalty")
-            self.max_tokens = self.__definitions.get_int_value("max_tokens")
+            try:
+                self.llm_params = json.loads(self.__definitions.get_string_value("llm_params").replace('\n', ''))
+            except Exception as e:
+                logging.error(f"""Error in parsing LLM parameter list: {e}
+LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+                self.llm_params = None
 
             #IMAGE_LLM
             self.image_analysis_skyrim_filepath = self.__definitions.get_string_value("image_analysis_skyrim_filepath")
             self.image_analysis_skyrim_vr_filepath = self.__definitions.get_string_value("image_analysis_skyrim_vr_filepath")
             self.image_analysis_fallout4_filepath = self.__definitions.get_string_value("image_analysis_fallout4_filepath")
             self.image_analysis_fallout4_vr_filepath = self.__definitions.get_string_value("image_analysis_fallout4_vr_filepath")
-            self.image_analysis_iterative_querying = self.__definitions.get_bool_value("image_analysis_iterative_querying")
-            self.image_max_response_sentences = self.__definitions.get_int_value("image_max_response_sentences")
-            self.image_llm = self.__definitions.get_string_value("image_llm_model")
-            self.image_llm_api = self.__definitions.get_string_value("image_llm_api")
-            if self.image_llm_api == "Custom":
-                self.image_llm_api = self.__definitions.get_string_value("image_llm_custom_service_url")
-            self.image_llm_custom_token_count = self.__definitions.get_int_value("image_llm_custom_token_count")
-            self.image_llm_temperature = self.__definitions.get_float_value("image_llm_temperature")
-            self.image_llm_top_p = self.__definitions.get_float_value("image_llm_top_p")
-
-            image_llm_stop_value = self.__definitions.get_string_value("image_llm_stop")
-            if ',' in image_llm_stop_value:
-                # If there are commas in the stop value, split the string by commas and store the values in a list
-                self.image_llm_stop = image_llm_stop_value.split(',')
-            else:
-                # If there are no commas, put the single value into a list
-                self.image_llm_stop = [stop_value]
-
-            self.image_llm_frequency_penalty = self.__definitions.get_float_value("image_llm_frequency_penalty")
-            self.image_llm_max_tokens = self.__definitions.get_int_value("image_llm_max_tokens")
             self.delete_steam_screenshots_after_use = self.__definitions.get_bool_value("delete_steam_screenshots_after_use")
 
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
@@ -306,6 +279,18 @@ class ConfigLoader:
             self.image_quality = self.__definitions.get_int_value("image_quality")
             self.resize_method = self.__definitions.get_string_value("resize_method")
             self.capture_offset = json.loads(self.__definitions.get_string_value("capture_offset"))
+            # Custom Vision Model
+            self.custom_vision_model = self.__definitions.get_bool_value("custom_vision_model")
+            self.vision_llm_api = self.__definitions.get_string_value("vision_llm_api")
+            self.vision_llm = self.__definitions.get_string_value("vision_model")
+            self.vision_llm = self.vision_llm.split(' |')[0] if ' |' in self.vision_llm else self.vision_llm
+            self.vision_custom_token_count = self.__definitions.get_int_value("vision_custom_token_count")
+            try:
+                self.vision_llm_params = json.loads(self.__definitions.get_string_value("vision_llm_params").replace('\n', ''))
+            except Exception as e:
+                logging.error(f"""Error in parsing LLM parameter list: {e}
+LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+                self.vision_llm_params = None
             
             pass
         except Exception as e:

@@ -9,7 +9,7 @@ from src import utils
 from src.utils import get_time_group
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
-from src.llm.openai_client import openai_client
+from src.llm.llm_client import LLMClient
 
 class context:
     """Holds the context of a conversation
@@ -17,13 +17,13 @@ class context:
     TOKEN_LIMIT_PERCENT: float = 0.45
 
     @utils.time_it
-    def __init__(self, world_id: str, config: ConfigLoader, client: openai_client, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
+    def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
         self.__world_id = world_id
         self.__hourly_time = config.hourly_time
         self.__prev_game_time: tuple[str | None, str] | None = None
         self.__npcs_in_conversation: Characters = Characters()
         self.__config: ConfigLoader = config
-        self.__client: openai_client = client
+        self.__client: LLMClient = client
         self.__rememberer: remembering = rememberer
         self.__language: dict[Hashable, str] = language
         self.__is_prompt_too_long: Callable[[str, float], bool] = is_prompt_too_long

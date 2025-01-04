@@ -1,4 +1,4 @@
-from src.config.types.config_value import ConfigValue, ConvigValueTag
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_float import ConfigValueFloat
 from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_selection import ConfigValueSelection
@@ -42,69 +42,10 @@ If you're using iterative querying input True (or check the box)
 if you're sending the image and the LLM prompt all at once input False (or uncheck the box) , then the values from [LLM] will be used for image queries except for the prompts
 """
         return ConfigValueBool("image_analysis_iterative_querying","Use iterative querying (two steps image analysis method)",description,False)
- 
-    @staticmethod
-    def get_image_llm_model_config_value() -> ConfigValue:
-        model_description = """ THIS OPTION WILL ONLY BE TAKEN INTO ACCOUNT IF ITERATIVE QUERYING IS ACTIVATED, IF ITERATIVE QUERYING IS DEACTIVATED THE LLM MODEL WILL BE USED FOR IMAGE ANALYSIS
-   Options:
-   - OpenRouter: see https://openrouter.ai/docs#models. Take the value displayed under the model heading, the model must be capable of image analysis on an OpenAI compatible endpoint.
-   - OpenAI: gpt-4-0125-preview, gpt-4o
-   Local model users can ignore this setting as you will instead select your model directly in Kobold / Text generation web UI
-   Remember to change your secret key in IMAGE_GPT_SECRET_KEY.txt when switching between OpenRouter and OpenAI services!"""
-        return ConfigValueString("image_llm_model","Image LLM Model",model_description,"gpt-4o")
-    
-    @staticmethod
-    def get_image_llm_max_response_sentences_config_value() -> ConfigValue:
-        return ConfigValueInt("image_max_response_sentences","Max sentences per response","The maximum number of sentences returned by the image LLM on each response. Lower this value to reduce waffling.\nNote: The setting number_words_tts takes precedence over this setting",999,1,999)
-    
-    @staticmethod
-    def get_image_llm_api_config_value() -> ConfigValue:
-        description = """Selects the LLM service to connect to
-            By default, the service will be automatically determined based on whether Kobold / textgenwebui is running, and if neither are running, based on the model selected
-            If you would prefer to explicitly select the service, you can do so by setting llm_api to one of the options above
-            Ensure that you have the correct secret key set in IMAGE_GPT_SECRET_KEY.txt for the service you are using (if using OpenRouter or OpenAI)
-            Note that for some services, like textgenwebui, you must enable the openai extension and have the model you want to use preloaded before running Mantella
-            Choosing 'Custom' will instead use the URL from the 'LLM Custom Service Url' config value"""
-        return ConfigValueSelection("image_llm_api","LLM service",description, "auto", ["auto", "OpenRouter", "OpenAI", "Kobold", "textgenwebui", "Custom"])
-    
-    @staticmethod
-    def get_image_llm_custom_service_url_config_value() -> ConfigValue:
-        description = """If selected 'Custom' for 'LLM service', you can enter the url to the custom service here. 
-                        A custom LLM service is expected to provide an OpenAI API compatible endpoint"""
-        return ConfigValueString("image_llm_custom_service_url","LLM custom service url",description, "http://127.0.0.1:5001/v1",tags=[ConvigValueTag.advanced])
-    
-    @staticmethod
-    def get_image_llm_custom_token_count_config_value() -> ConfigValue:
-        description = """If the model chosen is not recognized by Mantella, the token count for the given model will default to this number
-                    If this is not the correct token count for your chosen model, you can change it here
-                    Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit"""
-        return ConfigValueInt("image_llm_custom_token_count","Custom token count",description, 4096, 4096, 9999999,tags=[ConvigValueTag.advanced])
-    
-    @staticmethod
-    def get_image_llm_temperature_config_value() -> ConfigValue:
-        return ConfigValueFloat("image_llm_temperature","Temperature","", 1.0, 0, 2,tags=[ConvigValueTag.advanced])
-    
-    @staticmethod
-    def get_image_llm_top_p_config_value() -> ConfigValue:
-        return ConfigValueFloat("image_llm_top_p","Top p","", 1.0, 0, 1,tags=[ConvigValueTag.advanced])
-    
-    @staticmethod
-    def get_image_llm_stop_config_value() -> ConfigValue:
-        description = """A list of up to FOUR strings, by default only # is used
-                        If you want more than one stopping string use this format: string1,string2,string3,string4"""
-        return ConfigValueString("image_llm_stop","Stop",description, "#",tags=[ConvigValueTag.advanced])
-    
-    @staticmethod
-    def get_image_llm_frequency_penalty_config_value() -> ConfigValue:
-        return ConfigValueFloat("image_llm_frequency_penalty","Frequency penalty","", 0, -2, 2,tags=[ConvigValueTag.advanced])
-    
-    @staticmethod
-    def get_image_llm_max_tokens_config_value() -> ConfigValue:
-        return ConfigValueInt("image_llm_max_tokens","Max tokens","Lowering this value can sometimes result in empty responses", 250, 1, 999999,tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def delete_steam_images_after_use() -> ConfigValue:
         description = """Check this to automatically delete steam screenshots taking while Mantella was active. The screenshots will be deleted after the conversation has ended."""
-        return ConfigValueBool("delete_steam_screenshots_after_use","Delete steam screenshots after the conversation has ended",description,True, tags=[ConvigValueTag.advanced])
+        return ConfigValueBool("delete_steam_screenshots_after_use","Delete steam screenshots after the conversation has ended",description,True, tags=[ConfigValueTag.advanced])
     
     

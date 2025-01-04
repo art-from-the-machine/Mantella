@@ -1,0 +1,79 @@
+import src.utils as utils
+import logging
+from openai.types.chat import ChatCompletionMessageParam
+from src.config.config_loader import ConfigLoader
+from src.image.python_image_manager import PythonImageManager
+from src.llm.client_base import ClientBase
+from src.llm.messages import image_message
+
+class ImageClient(ClientBase):
+    '''Image class to handle LLM vision
+    '''
+    @utils.time_it
+    def __init__(self, config: ConfigLoader, secret_key_file: str, image_secret_key_file: str) -> None:
+        self.__custom_vision_model: bool = config.custom_vision_model
+
+        if self.__custom_vision_model: # if using a custom model for vision, load these custom config values
+            setup_values = {'api_url': config.vision_llm_api, 'llm': config.vision_llm, 'llm_params': config.vision_llm_params, 'custom_token_count': config.vision_custom_token_count}
+        else: # default to base LLM config values
+            setup_values = {'api_url': config.llm_api, 'llm': config.llm, 'llm_params': config.llm_params, 'custom_token_count': config.custom_token_count}
+        
+        super().__init__(**setup_values, secret_key_files=[image_secret_key_file, secret_key_file])
+
+        self.__iterative_prompt: str = config.image_llm_iterative_prompt.format(game=config.game)
+        self.__detail: str = "low" if config.low_resolution_mode else "high"
+        self.__image_manager: PythonImageManager | None = PythonImageManager(config.game, 
+                                                config.save_folder, 
+                                                config.save_screenshot, 
+                                                config.image_quality, 
+                                                config.low_resolution_mode, 
+                                                config.resize_method, 
+                                                config.capture_offset)
+    
+    @utils.time_it
+    def add_image_to_messages(self, openai_messages: list[ChatCompletionMessageParam]) -> list[ChatCompletionMessageParam]:
+        '''Adds a captured image to the latest user message
+
+        Args:
+            openai_messages (list[ChatCompletionMessageParam]): The existing list of messages in the OpenAI format
+
+        Returns:
+            list[ChatCompletionMessageParam]: The updated list of messages with the image added
+        '''
+        image = self.__image_manager.get_image()
+        if image is None:
+            return openai_messages
+        
+        if not self.__custom_vision_model:
+            # Add the image to the last user message or create a new message if needed
+            if openai_messages and openai_messages[-1]['role'] == 'user':
+                openai_messages[-1]['content'] = [
+                    {"type": "text", "text": openai_messages[-1]['content']},
+                    {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}", "detail": self.__detail}}
+                ]
+            else:
+                openai_messages.append({
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}", "detail": self.__detail}}
+                    ]
+                })
+        else:
+            image_msg_instance = image_message(image, self.__iterative_prompt, self.__detail, True)
+            image_transcription = self.request_call(image_msg_instance)
+            logging.log(23, f"Image transcription: {image_transcription}")
+
+            # Add the image to the last user message or create a new message if needed
+            if openai_messages and openai_messages[-1]['role'] == 'user':
+                openai_messages[-1]['content'] = [
+                    {"type": "text", "text": f"*{image_transcription}*\n{openai_messages[-1]['content']}"}
+                ]
+            else:
+                openai_messages.append({
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": f"*{image_transcription}*"}
+                    ]
+                })
+
+        return openai_messages

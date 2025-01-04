@@ -205,19 +205,20 @@ class PromptDefinitions:
     def get_image_llm_direct_prompt_config_value() -> ConfigValue:
         image_llm_direct_prompt_description = """The prompt used if all the complete context prompt and image are sent all at once""" 
         image_llm_direct_prompt = """This image is to give context and is from the player's point of view"""
-        return ConfigValueString("image_llm_direct_prompt","Image LLM direct prompt",image_llm_direct_prompt_description,image_llm_direct_prompt,[PromptDefinitions.PromptChecker()])
+        return ConfigValueString("image_llm_direct_prompt","Image LLM direct prompt",image_llm_direct_prompt_description,image_llm_direct_prompt)
     
     @staticmethod
     def get_image_llm_iterative_prompt_config_value() -> ConfigValue:
         image_llm_iterative_prompt_description = """The prompt used if the image and context prompt are sent in sequence""" 
         image_llm_iterative_prompt = """This image is to give context and is from the player's point of view in the game of {game}. Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
-        return ConfigValueString("image_llm_iterative_prompt","Image LLM iterative (two steps) prompt",image_llm_iterative_prompt_description,image_llm_iterative_prompt,[PromptDefinitions.PromptChecker()])
+        return ConfigValueString("image_llm_iterative_prompt","Image LLM iterative (two steps) prompt",image_llm_iterative_prompt_description,image_llm_iterative_prompt)
+    
     def get_radiant_start_prompt_config_value() -> ConfigValue:
         radiant_start_prompt_description = """Once a radiant conversation has started and the radiant prompt has been passed to the LLM, the below text is passed in replace of the player response.
                                         This prompt is used to steer the radiant conversation.""" 
         radiant_start_prompt = """Please begin / continue a conversation topic (greetings are not needed). Ensure to change the topic if the current one is losing steam. 
                             The conversation should steer towards topics which reveal information about the characters and who they are, or instead drive forward previous conversations in their memory."""
-        return ConfigValueString("radiant_start_prompt","Radiant Start Prompt",radiant_start_prompt_description,radiant_start_prompt,[PromptDefinitions.PromptChecker([])])
+        return ConfigValueString("radiant_start_prompt","Radiant Start Prompt",radiant_start_prompt_description,radiant_start_prompt)
 
     @staticmethod
     def get_radiant_end_prompt_config_value() -> ConfigValue:
