@@ -21,7 +21,7 @@ def main():
         mantella_http_server = http_server()
 
         #start the http server
-        conversation = mantella_route(config, 'IMAGE_SECRET_KEY.txt', 'STT_SECRET_KEY.txt', 'GPT_SECRET_KEY.txt', language_info, should_debug_http)
+        conversation = mantella_route(config, 'STT_SECRET_KEY.txt', 'IMAGE_SECRET_KEY.txt', 'GPT_SECRET_KEY.txt', language_info, should_debug_http)
         stt = stt_route(config, 'STT_SECRET_KEY.txt', 'GPT_SECRET_KEY.txt', should_debug_http)
         ui = StartUI(config)
         routes: list[routeable] = [conversation, stt, ui]
