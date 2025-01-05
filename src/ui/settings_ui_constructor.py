@@ -100,8 +100,6 @@ class SettingsUIConstructor(ConfigValueVisitor):
 
     def __create_setting_components(self, setting: SettingConfig, is_second_setting: bool = False) -> SettingUIComponents:
         """Creates the UI components for a single setting"""
-        error_message = self.__construct_initial_error_message(setting.config_value)
-
         if isinstance(setting.config_value, ConfigValueBool):
             # dynamically change width of bool title depending on whether the setting shares a row with another setting
             elem_class = "setting-bool-container-wide" if ConfigValueTag.share_row in setting.config_value.tags else "setting-bool-container-narrow"
@@ -114,7 +112,9 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 input_ui = setting.create_input(setting.config_value)
                 input_ui.scale = 999
                 self.__create_buttons(setting.config_value, setting.create_input, 
-                                    input_ui, error_message, setting.additional_buttons)
+                                    input_ui, gr.Markdown(None), setting.additional_buttons)
+                
+        error_message = self.__construct_initial_error_message(setting.config_value)
         
         self.__setup_event_handlers(
             setting.config_value, input_ui, error_message,
