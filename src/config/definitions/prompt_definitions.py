@@ -202,16 +202,11 @@ class PromptDefinitions:
         return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
     
     @staticmethod
-    def get_image_llm_direct_prompt_config_value() -> ConfigValue:
-        image_llm_direct_prompt_description = """The prompt used if all the complete context prompt and image are sent all at once""" 
-        image_llm_direct_prompt = """This image is to give context and is from the player's point of view"""
-        return ConfigValueString("image_llm_direct_prompt","Image LLM direct prompt",image_llm_direct_prompt_description,image_llm_direct_prompt)
-    
-    @staticmethod
-    def get_image_llm_iterative_prompt_config_value() -> ConfigValue:
-        image_llm_iterative_prompt_description = """The prompt used if the image and context prompt are sent in sequence""" 
-        image_llm_iterative_prompt = """This image is to give context and is from the player's point of view in the game of {game}. Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
-        return ConfigValueString("image_llm_iterative_prompt","Image LLM iterative (two steps) prompt",image_llm_iterative_prompt_description,image_llm_iterative_prompt)
+    def get_vision_prompt_config_value() -> ConfigValue:
+        vision_prompt_description = """The prompt passed to the vision-capable LLM when `Custom Vision Model` is enabled."""
+        vision_prompt = """This image is to give context and is from the player's point of view in the game of {game}. 
+                            Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
+        return ConfigValueString("vision_prompt","Vision Prompt",vision_prompt_description,vision_prompt)
     
     def get_radiant_start_prompt_config_value() -> ConfigValue:
         radiant_start_prompt_description = """Once a radiant conversation has started and the radiant prompt has been passed to the LLM, the below text is passed in replace of the player response.

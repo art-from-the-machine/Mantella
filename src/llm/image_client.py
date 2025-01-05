@@ -20,7 +20,7 @@ class ImageClient(ClientBase):
         
         super().__init__(**setup_values, secret_key_files=[image_secret_key_file, secret_key_file])
 
-        self.__iterative_prompt: str = config.image_llm_iterative_prompt.format(game=config.game)
+        self.__vision_prompt: str = config.vision_prompt.format(game=config.game)
         self.__detail: str = "low" if config.low_resolution_mode else "high"
         self.__image_manager: PythonImageManager | None = PythonImageManager(config.game, 
                                                 config.save_folder, 
@@ -59,7 +59,7 @@ class ImageClient(ClientBase):
                     ]
                 })
         else:
-            image_msg_instance = image_message(image, self.__iterative_prompt, self.__detail, True)
+            image_msg_instance = image_message(image, self.__vision_prompt, self.__detail, True)
             image_transcription = self.request_call(image_msg_instance)
             logging.log(23, f"Image transcription: {image_transcription}")
 

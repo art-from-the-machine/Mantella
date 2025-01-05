@@ -269,8 +269,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")
             self.memory_prompt = self.__definitions.get_string_value("memory_prompt")
             self.resummarize_prompt = self.__definitions.get_string_value("resummarize_prompt")
-            self.image_llm_direct_prompt = self.__definitions.get_string_value("image_llm_direct_prompt")
-            self.image_llm_iterative_prompt = self.__definitions.get_string_value("image_llm_iterative_prompt")
+            self.vision_prompt = self.__definitions.get_string_value("vision_prompt")
 
             # Vision
             self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')

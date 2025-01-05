@@ -52,8 +52,6 @@ class MantellaConfigValueDefinitionsNew:
         image_llm_category.add_config_value(ImageLLMDefinitions.get_image_analysis_skyrim_vr_filepath_config_value())
         image_llm_category.add_config_value(ImageLLMDefinitions.get_image_analysis_fallout4_filepath_config_value())
         image_llm_category.add_config_value(ImageLLMDefinitions.get_image_analysis_fallout4_vr_filepath_config_value())
-        image_llm_category.add_config_value(PromptDefinitions.get_image_llm_direct_prompt_config_value())
-        image_llm_category.add_config_value(PromptDefinitions.get_image_llm_iterative_prompt_config_value())
         image_llm_category.add_config_value(ImageLLMDefinitions.delete_steam_images_after_use())
 
         result.add_base_group(image_llm_category)
@@ -124,6 +122,7 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_radiant_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_memory_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_resummarize_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_vision_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_radiant_start_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
         result.add_base_group(prompts_category)
