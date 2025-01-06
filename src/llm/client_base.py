@@ -9,7 +9,7 @@ import tiktoken
 import os
 from pathlib import Path
 from src.llm.message_thread import message_thread
-from src.llm.messages import message, image_message
+from src.llm.messages import message, image_message, user_message
 
 class LLMModelList:            
     def __init__(self, available_models: list[tuple[str, str]], default_model: str, allows_manual_model_input: bool) -> None:
@@ -195,12 +195,18 @@ class ClientBase(ABC):
                 request_params["max_tokens"] = max(self.max_tokens_param, 250)
             try:
                 # Prepare the messages including the image if provided
+                vision_hints = ''
                 if isinstance(messages, message):
                     openai_messages = [messages.get_openai_message()]
+                    if isinstance(messages, user_message):
+                        vision_hints = messages.get_ingame_events_text()
                 else:
                     openai_messages = messages.get_openai_messages()
+                    last_message = messages.get_last_message()
+                    if isinstance(last_message, user_message):
+                        vision_hints = last_message.get_ingame_events_text()
                 if self._image_client:
-                    openai_messages = self._image_client.add_image_to_messages(openai_messages)
+                    openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
 
                 async for chunk in await async_client.chat.completions.create(
                     model=self.model_name, 
