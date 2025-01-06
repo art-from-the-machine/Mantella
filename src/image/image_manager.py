@@ -12,7 +12,7 @@ from pathlib import Path
 
 class ImageManager:
     '''
-    Manages game window capture and image processing from the Python side (ie capture image using Python)
+    Manages game window capture and image processing
     '''
     
     @utils.time_it
