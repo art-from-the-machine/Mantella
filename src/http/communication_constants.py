@@ -62,6 +62,8 @@ class communication_constants:
     KEY_CONTEXT_TIME: str = PREFIX + "time"
     KEY_CONTEXT_INGAMEEVENTS: str = PREFIX + "ingame_events"
     KEY_CONTEXT_CUSTOMVALUES: str = PREFIX + "custom_context_values"
+    KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY: str = PREFIX + "vision_hints_names"
+    KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY: str = PREFIX + "vision_hints_distance"
 
     # Actions
     ACTION_RELOADCONVERSATION: str = PREFIX + "reload_conversation"
