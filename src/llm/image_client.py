@@ -11,7 +11,7 @@ class ImageClient(ClientBase):
     '''Image class to handle LLM vision
     '''
     @utils.time_it
-    def __init__(self, config: ConfigLoader, secret_key_file: str, image_secret_key_file: str, game_image_path: str) -> None:
+    def __init__(self, config: ConfigLoader, secret_key_file: str, image_secret_key_file: str) -> None:
         self.__custom_vision_model: bool = config.custom_vision_model
 
         if self.__custom_vision_model: # if using a custom model for vision, load these custom config values
@@ -40,7 +40,7 @@ class ImageClient(ClientBase):
                                                 config.resize_method, 
                                                 config.capture_offset,
                                                 config.use_game_screenshots,
-                                                game_image_path)
+                                                config.game_path)
     
     @utils.time_it
     def add_image_to_messages(self, openai_messages: list[ChatCompletionMessageParam], vision_hints: str) -> list[ChatCompletionMessageParam]:

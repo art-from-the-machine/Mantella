@@ -119,10 +119,12 @@ class ConfigLoader:
                     self.mod_path: str = self.__definitions.get_string_value("fallout4vr_mod_folder") #config['Paths']['fallout4vr_mod_folder']
                 elif self.game =="skyrimvr":
                     self.game ="SkyrimVR"
+                    self.game_path = None
                     self.mod_path: str = self.__definitions.get_string_value("skyrimvr_mod_folder") #config['Paths']['skyrimvr_mod_folder']
                 #if the game is not recognized Mantella will assume it's Skyrim since that's the most frequent one.
                 else:
                     self.game ="Skyrim"
+                    self.game_path = None
                     self.mod_path: str = self.__definitions.get_string_value("skyrim_mod_folder") #config['Paths']['skyrim_mod_folder']
 
                 self.facefx_path = self.__definitions.get_string_value("facefx_folder")
