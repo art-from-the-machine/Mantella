@@ -213,7 +213,7 @@ class PromptDefinitions:
                                         This prompt is used to steer the radiant conversation.""" 
         radiant_start_prompt = """Please begin / continue a conversation topic (greetings are not needed). Ensure to change the topic if the current one is losing steam. 
                             The conversation should steer towards topics which reveal information about the characters and who they are, or instead drive forward previous conversations in their memory."""
-        return ConfigValueString("radiant_start_prompt","Radiant Start Prompt",radiant_start_prompt_description,radiant_start_prompt)
+        return ConfigValueString("radiant_start_prompt","Radiant Start Prompt",radiant_start_prompt_description,radiant_start_prompt,[PromptDefinitions.PromptChecker([])])
 
     @staticmethod
     def get_radiant_end_prompt_config_value() -> ConfigValue:

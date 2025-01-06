@@ -3,7 +3,7 @@ import logging
 from openai.types.chat import ChatCompletionMessageParam
 import unicodedata
 from src.config.config_loader import ConfigLoader
-from src.image.python_image_manager import PythonImageManager
+from src.image.image_manager import ImageManager
 from src.llm.client_base import ClientBase
 from src.llm.messages import image_message
 
@@ -32,7 +32,7 @@ class ImageClient(ClientBase):
 
         self.__vision_prompt: str = config.vision_prompt.format(game=config.game)
         self.__detail: str = "low" if config.low_resolution_mode else "high"
-        self.__image_manager: PythonImageManager | None = PythonImageManager(config.game, 
+        self.__image_manager: ImageManager | None = ImageManager(config.game, 
                                                 config.save_folder, 
                                                 config.save_screenshot, 
                                                 config.image_quality, 

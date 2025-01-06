@@ -9,7 +9,7 @@ class VisionDefinitions:
     @staticmethod
     def get_vision_enabled_config_value() -> ConfigValue:
         description = """If enabled, in-game screenshots are passed to the chosen LLM with each player response. 
-                        This feature is only compatible with LLMs that accept image as well as text input, unless Custom Vision Model is enabled.
+                        This feature is only compatible with LLMs that accept image as well as text input, unless `Custom Vision Model` is enabled.
                         Please ensure your game window is visible on screen when running and is not blocked by other windows!"""
         return ConfigValueBool("vision_enabled", "Vision", description, False)
     

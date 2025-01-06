@@ -222,13 +222,6 @@ class ConfigLoader:
 LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.llm_params = None
 
-            #IMAGE_LLM
-            self.image_analysis_skyrim_filepath = self.__definitions.get_string_value("image_analysis_skyrim_filepath")
-            self.image_analysis_skyrim_vr_filepath = self.__definitions.get_string_value("image_analysis_skyrim_vr_filepath")
-            self.image_analysis_fallout4_filepath = self.__definitions.get_string_value("image_analysis_fallout4_filepath")
-            self.image_analysis_fallout4_vr_filepath = self.__definitions.get_string_value("image_analysis_fallout4_vr_filepath")
-            self.delete_steam_screenshots_after_use = self.__definitions.get_bool_value("delete_steam_screenshots_after_use")
-
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
             self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
 

@@ -19,7 +19,6 @@ from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
 import src.utils as utils
-from src.image.game_image_manager import GameImageManager
 
 class conversation_continue_type(Enum):
     NPC_TALK = 1
@@ -49,7 +48,6 @@ class conversation:
         self.__sentences: sentence_queue = sentence_queue()
         self.__generation_thread: Thread | None = None
         self.__generation_start_lock: Lock = Lock()
-        self.__image_manager : GameImageManager = GameImageManager(context_for_conversation, output_manager)
         # self.__actions: list[action] = actions
         self.last_sentence_audio_length = 0
         self.last_sentence_start_time = time.time()
@@ -202,10 +200,8 @@ class conversation:
             self.__prepare_eject_npc_from_conversation(ejected_npc)
         elif self.__has_conversation_ended(text):
             new_message.is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
-            self.__image_manager.attempt_to_add_most_recent_image_to_deletion_array()
             self.initiate_end_sequence()
         else:
-            self.__image_manager.process_image_analysis(self.__messages)
             self.__start_generating_npc_sentences()
 
     def __get_mic_prompt(self):
@@ -324,7 +320,6 @@ class conversation:
         self.__has_already_ended = True
         self.__stop_generation()
         self.__sentences.clear()        
-        self.__image_manager.delete_images_from_file()     
         self.__save_conversation(is_reload=False)
     
     @utils.time_it

@@ -11,7 +11,6 @@ from src.config.definitions.other_definitions import OtherDefinitions
 from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
-from src.config.definitions.image_llm_definitions import ImageLLMDefinitions
 from src.config.definitions.vision_definitions import VisionDefinitions
 import sys
 
@@ -48,14 +47,6 @@ class MantellaConfigValueDefinitionsNew:
         # llm_category.add_config_value(LLMDefinitions.get_stop_llm_generation_on_assist_keyword())
         result.add_base_group(llm_category)
 
-        image_llm_category = ConfigValueGroup("Image LLM", "Image Analysis", "Settings for the Image analysis LLM providers and the LLMs themselves.", on_value_change_callback)
-        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_analysis_skyrim_filepath_config_value())
-        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_analysis_skyrim_vr_filepath_config_value())
-        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_analysis_fallout4_filepath_config_value())
-        image_llm_category.add_config_value(ImageLLMDefinitions.get_image_analysis_fallout4_vr_filepath_config_value())
-        image_llm_category.add_config_value(ImageLLMDefinitions.delete_steam_images_after_use())
-
-        result.add_base_group(image_llm_category)
         tts_category = ConfigValueGroup("TTS", "Text-to-Speech", "Settings for the TTS methods Mantella supports.", on_value_change_callback)
         tts_category.add_config_value(TTSDefinitions.get_tts_service_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xvasynth_folder_config_value())

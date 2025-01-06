@@ -7,16 +7,26 @@ import numpy as np
 import win32gui
 import mss
 import cv2
-from openai.types.chat import ChatCompletionMessageParam
 import ctypes
+from pathlib import Path
 
-class PythonImageManager:
+class ImageManager:
     '''
     Manages game window capture and image processing from the Python side (ie capture image using Python)
     '''
     
     @utils.time_it
-    def __init__(self, game: str, save_folder: str, save_screenshot: bool, image_quality: int, low_resolution_mode: bool, resize_method: str, capture_offset: dict[str, int]) -> None:
+    def __init__(self, 
+                 game: str, 
+                 save_folder: str, 
+                 save_screenshot: bool, 
+                 image_quality: int, 
+                 low_resolution_mode: bool, 
+                 resize_method: str, 
+                 capture_offset: dict[str, int], 
+                 use_game_screenshots: bool,
+                 game_image_path: str | None) -> None:
+        
         WINDOW_TITLES = {
             'Skyrim': 'Skyrim Special Edition',
             'SkyrimVR': 'Skyrim VR',
@@ -28,7 +38,6 @@ class PythonImageManager:
         self.__image_quality: int = image_quality
         self.__capture_offset: dict[str, int] = capture_offset
         self.__low_resolution_mode: bool = low_resolution_mode
-        self.__detail = "low" if self.__low_resolution_mode else "high"
 
         RESIZING_METHODS = {
             'Nearest': cv2.INTER_NEAREST,
@@ -37,6 +46,15 @@ class PythonImageManager:
             'Lanczos': cv2.INTER_LANCZOS4
         }
         self.__resize_method: int = RESIZING_METHODS.get(resize_method, cv2.INTER_NEAREST)
+
+        self.__use_game_screenshots: bool = use_game_screenshots
+        self.__game_image_file_path = None
+        if game_image_path:
+            self.__game_image_file_path: str = str(Path(game_image_path) / "Mantella_Vision.jpg")
+            if self.__use_game_screenshots:
+                if os.path.exists(self.__game_image_file_path):
+                    logging.log(23, f'Removing leftover in-game vision screenshot from previous run...')
+                    os.remove(self.__game_image_file_path)
 
         if self.__save_screenshot:
             self.__image_path: str = save_folder+'data\\tmp\\images'
@@ -87,37 +105,6 @@ class PythonImageManager:
         capture_height = client_rect[3] + self.__capture_offset.get('bottom', 0)
 
         return {"left": capture_left, "top": capture_top, "width": capture_width, "height": capture_height}
-    
-
-    @utils.time_it
-    def add_image_to_messages(self, openai_messages: list[ChatCompletionMessageParam]) -> list[ChatCompletionMessageParam]:
-        '''Adds a captured image to the latest user message
-
-        Args:
-            openai_messages (list[ChatCompletionMessageParam]): The existing list of messages in the OpenAI format
-
-        Returns:
-            list[ChatCompletionMessageParam]: The updated list of messages with the image added
-        '''
-        image = self._get_image()
-        if image is None:
-            return openai_messages
-        
-        # Add the image to the last user message or create a new message if needed
-        if openai_messages and openai_messages[-1]['role'] == 'user':
-            openai_messages[-1]['content'] = [
-                {"type": "text", "text": openai_messages[-1]['content']},
-                {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}", "detail": self.__detail}}
-            ]
-        else:
-            openai_messages.append({
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}", "detail": self.__detail}}
-                ]
-            })
-
-        return openai_messages
 
 
     @utils.time_it
@@ -178,7 +165,7 @@ class PythonImageManager:
     
 
     @utils.time_it
-    def _take_screenshot(self, params: dict[str, int]) -> np.ndarray:
+    def _take_screenshot(self, params: dict[str, int]) -> tuple[np.ndarray, int, int]:
         '''Take a screenshot within the area specified by params
 
         Args:
@@ -195,12 +182,28 @@ class PythonImageManager:
     
 
     @utils.time_it
+    def _get_screenshot(self) -> tuple[np.ndarray, int, int]:
+        '''Search for saved screenshots that have been taken in-game, removing them once loaded
+
+        Returns:
+            image (numpy.ndarray): The saved screenshot as a numpy array
+            width (int): The width of the screenshot
+            height (int): The height of the screenshot
+        '''
+        screenshot = cv2.imread(self.__game_image_file_path)
+        os.remove(self.__game_image_file_path)
+
+        height, width = screenshot.shape[:2]
+        return np.array(screenshot), width, height
+    
+
+    @utils.time_it
     def _encode_image_to_jpeg(self, screenshot):
         return cv2.imencode('.jpg', screenshot, [cv2.IMWRITE_JPEG_QUALITY, self.__image_quality])[1]
     
 
     @utils.time_it
-    def _get_image(self) -> str | None:
+    def get_image(self) -> str | None:
         '''Capture, process, and encode an image of the game window
 
         Returns:
@@ -212,7 +215,13 @@ class PythonImageManager:
                 return None
   
             # Capture
-            screenshot, width, height = self._take_screenshot(params)
+            if self.__use_game_screenshots and self.__game_image_file_path is not None:
+                if os.path.exists(self.__game_image_file_path):
+                    screenshot, width, height = self._get_screenshot()
+                else:
+                    return None
+            else:
+                screenshot, width, height = self._take_screenshot(params)
 
             # Process
             screenshot = self._resize_image(screenshot, width, height)
