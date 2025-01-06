@@ -27,7 +27,7 @@ class skyrim(gameable):
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
-        self.__image_analysis_filepath = config.image_analysis_skyrim_vr_filepath if self.is_vr else config.image_analysis_skyrim_filepath 
+        self.__image_analysis_filepath = None
 
         try:
             weather_file = 'data/Skyrim/skyrim_weather.csv'
@@ -37,8 +37,17 @@ class skyrim(gameable):
             logging.error(f'Unable to read / open "data/Skyrim/skyrim_weather.csv". If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
 
-    def get_image_filepath(self):
-        return self.__image_analysis_filepath, self.is_vr
+    @property
+    def extender_name(self) -> str:
+        return 'SKSE'
+    
+    @property
+    def game_name_in_filepath(self) -> str:
+        return 'skyrim'
+
+    @property
+    def image_path(self) -> str:
+        return self.__image_analysis_filepath
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
@@ -152,15 +161,6 @@ class skyrim(gameable):
             if weather_classification >= 0 and weather_classification < len(self.WEATHER_CLASSIFICATIONS):
                 return self.WEATHER_CLASSIFICATIONS[weather_classification]
         return ""
-
-    @property
-    def extender_name(self) -> str:
-        return 'SKSE'
-    
-    @property
-    def game_name_in_filepath(self) -> str:
-        return 'skyrim'
-
 
     MALE_VOICE_MODELS: dict[str, str] = {
         'ArgonianRace': 'Male Argonian',

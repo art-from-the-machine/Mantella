@@ -39,6 +39,7 @@ class VisionDefinitions:
         description = '''The number of pixels to offset the capture window. Adjust these numbers with either positive or negative values if the game window is not being captured in the correct dimensions.'''
         return ConfigValueString("capture_offset", "Capture Offset", description, value, tags=[ConfigValueTag.advanced])
     
+    @staticmethod
     def get_custom_vision_model_config_value() -> ConfigValue:
         description = """Whether to call a separate vision-capable LLM for image handling (NPCs will still respond using the model chosen in the `Large Language Model` tab).
                         If enabled, please configure the vision-capable LLM to connect to below.
@@ -74,7 +75,7 @@ class VisionDefinitions:
     @staticmethod
     def get_vision_llm_params_config_value() -> ConfigValue:
         value = """{
-                        "max_tokens": 50,
+                        "max_tokens": 100,
                         "temperature": 1.0,
                         "stop": ["#"]
                     }"""
@@ -82,3 +83,10 @@ class VisionDefinitions:
                         A list of the most common parameters can be found here: https://openrouter.ai/docs/parameters.
                         Note that available parameters can vary per LLM provider."""
         return ConfigValueString("vision_llm_params", "Custom Vision Model Parameters", description, value, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_use_game_screenshots_config_value() -> ConfigValue:
+        description = """Whether to use screenshots taken in-game instead of relying on Mantella to capture the game window (Fallout 4 only).
+                        Enable this setting to improve screenshot capture reliability. Otherwise please ensure your game window is visible on screen when running and is not blocked by other windows.
+                        If enabled, please ensure you configure screenshot capture settings in the Mantella Pip-Boy settings window."""
+        return ConfigValueBool("use_game_screenshots", "Use Game Screenshots", description, False, tags=[ConfigValueTag.advanced])

@@ -111,6 +111,7 @@ class ConfigLoader:
                 self.game = str(self.game).lower().replace(' ', '').replace('_', '')
                 if self.game =="fallout4":
                     self.game ="Fallout4"
+                    self.game_path: str = self.__definitions.get_string_value("fallout4_folder")
                     self.mod_path: str = self.__definitions.get_string_value("fallout4_mod_folder") #config['Paths']['fallout4_mod_folder']
                 elif self.game =="fallout4vr":
                     self.game ="Fallout4VR"
@@ -278,6 +279,8 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.image_quality = self.__definitions.get_int_value("image_quality")
             self.resize_method = self.__definitions.get_string_value("resize_method")
             self.capture_offset = json.loads(self.__definitions.get_string_value("capture_offset"))
+            self.use_game_screenshots = self.__definitions.get_bool_value("use_game_screenshots")
+
             # Custom Vision Model
             self.custom_vision_model = self.__definitions.get_bool_value("custom_vision_model")
             self.vision_llm_api = self.__definitions.get_string_value("vision_llm_api")

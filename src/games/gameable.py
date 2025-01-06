@@ -37,7 +37,6 @@ class gameable(ABC):
         self.__apply_character_overrides(personal_overrides_folder, self.__character_df.columns.values.tolist())
 
         self.__conversation_folder_path = config.save_folder + f"data/{mantella_game_folder_path}/conversations"
-        
         conversation_log.game_path = self.__conversation_folder_path
     
     @property
@@ -63,6 +62,12 @@ class gameable(ABC):
     @property
     def conversation_folder_path(self) -> str:
         return self.__conversation_folder_path
+    
+    @property
+    @abstractmethod
+    def image_path(self) -> str:
+        """ Return the path to the image file created by in-game screenshots"""
+        pass
     
     @utils.time_it
     def __get_character_df(self, file_name: str) -> pd.DataFrame:
@@ -108,18 +113,6 @@ class gameable(ABC):
 
         Returns:
             bool: True if sentence is allowed, False otherwise
-        """
-        pass
-
-    @abstractmethod
-    def get_image_filepath(self) -> tuple[str, bool]:
-        """Checks the game that is running and returns a filepath where the game screenshots are located
-
-        Args:
-            none
-
-        Returns:
-            String: The screenshot filepath for the current loaded game
         """
         pass
 

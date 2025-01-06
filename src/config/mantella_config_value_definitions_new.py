@@ -32,6 +32,7 @@ class MantellaConfigValueDefinitionsNew:
         game_category.add_config_value(GameDefinitions.get_skyrimvr_mod_folder_config_value())
         game_category.add_config_value(GameDefinitions.get_fallout4_mod_folder_config_value())
         game_category.add_config_value(GameDefinitions.get_fallout4vr_mod_folder_config_value())
+        game_category.add_config_value(GameDefinitions.get_fallout4_folder_config_value())
         game_category.add_config_value(GameDefinitions.get_fallout4vr_folder_config_value())
         result.add_base_group(game_category)
         
@@ -102,6 +103,7 @@ class MantellaConfigValueDefinitionsNew:
         vision_category.add_config_value(VisionDefinitions.get_vision_model_config_value())
         vision_category.add_config_value(VisionDefinitions.get_vision_custom_token_count_config_value())
         vision_category.add_config_value(VisionDefinitions.get_vision_llm_params_config_value())
+        vision_category.add_config_value(VisionDefinitions.get_use_game_screenshots_config_value())
         result.add_base_group(vision_category)
 
         language_category = ConfigValueGroup("Language", "Language", "Change the language used by Mantella as well as keywords.", on_value_change_callback)
