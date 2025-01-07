@@ -178,7 +178,17 @@ class piper(ttsable):
         try:
             command = f'{self.__piper_path}\\piper.exe'
 
-            self.process = subprocess.Popen(command, cwd=self._voiceline_folder, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, bufsize=1, close_fds=ON_POSIX)
+            self.process = subprocess.Popen(
+                command, 
+                cwd=self._voiceline_folder, 
+                stdin=subprocess.PIPE, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, 
+                universal_newlines=True, 
+                encoding='utf-8',
+                bufsize=1, 
+                close_fds=ON_POSIX,
+            )
 
             self.q = Queue()
             self.stop_thread = False
