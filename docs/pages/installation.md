@@ -246,10 +246,10 @@ Mantella has the ability to support other language model services, although thes
 **Other Known Services**:
 | Service | URL | Models List |
 |:----------|:----------|:----------|
-| Alibaba | https://dashscope-intl.aliyuncs.com/compatible-mode/v1 | https://www.alibabacloud.com/help/en/model-studio/getting-started/models |
-| Cerebras | https://api.cerebras.ai/v1 | https://inference-docs.cerebras.ai/introduction |
-| Google | https://generativelanguage.googleapis.com/v1beta/openai/ | https://ai.google.dev/gemini-api/docs/models/gemini |
-| Groq | https://api.groq.com/openai/v1 | https://console.groq.com/docs/models |
+| Alibaba | https://dashscope-intl.aliyuncs.com/compatible-mode/v1 | [https://www.alibabacloud.com/help/en/model-studio/getting-started/models](https://www.alibabacloud.com/help/en/model-studio/getting-started/models) |
+| Cerebras | https://api.cerebras.ai/v1 | [https://inference-docs.cerebras.ai/introduction](https://inference-docs.cerebras.ai/introduction) |
+| Google | https://generativelanguage.googleapis.com/v1beta/openai/ | [https://ai.google.dev/gemini-api/docs/models/gemini](https://ai.google.dev/gemini-api/docs/models/gemini) |
+| Groq | https://api.groq.com/openai/v1 | [https://console.groq.com/docs/models](https://console.groq.com/docs/models) |
 
 ____________________________________
 
