@@ -63,6 +63,13 @@ class ConfigFileWriter(ConfigValueVisitor):
         lines_to_write.extend(self.__generate_default_and_config_value_lines(config_value))
         self.write_setting_block_to_file(lines_to_write)
 
+    def visit_ConfigValueMultiSelection(self, config_value: ConfigValueSelection):
+        lines_to_write = self.__generate_name_and_description_lines(config_value)
+        lines_to_write.append(f";   Options: {', '.join(config_value.options[:])}{self.NEWLINE}")
+        lines_to_write.append(f";   default = {', '.join(config_value.default_value[:])}{self.NEWLINE}")
+        lines_to_write.append(f"{config_value.identifier} = {', '.join(config_value.value[:])}{self.NEWLINE}")
+        self.write_setting_block_to_file(lines_to_write)
+
     def visit_ConfigValuePath(self, config_value: ConfigValuePath):
         lines_to_write = self.__generate_name_and_description_lines(config_value)
         required_target_text = ""
@@ -111,7 +118,7 @@ class ConfigFileWriter(ConfigValueVisitor):
     
     @staticmethod
     def parse_multi_line_string(potential_multi_line_string: str, prefix: str) -> list[str]:
-        if len(potential_multi_line_string) < 1:
+        if (potential_multi_line_string is None) or (len(potential_multi_line_string) < 1):
             return []
         result = []
         split = potential_multi_line_string.split("\n")

@@ -11,6 +11,7 @@ from subprocess import Popen
 import time
 from src.tts.synthesization_options import SynthesizationOptions
 from src import utils
+from threading import Thread
 
 class TTSServiceFailure(Exception):
     pass
@@ -18,6 +19,7 @@ class TTSServiceFailure(Exception):
 class xtts(ttsable):
     """XTTS TTS handler
     """
+    @utils.time_it
     def __init__(self, config: ConfigLoader, game) -> None:
         super().__init__(config)
         self.__xtts_default_model = config.xtts_default_model
@@ -28,6 +30,7 @@ class xtts(ttsable):
         self.__xtts_data = config.xtts_data
         self.__xtts_server_path = config.xtts_server_path
         self.__xtts_accent = config.xtts_accent
+        self._language = self._language if self._language != 'zh' else 'zh-cn'
         self.__voice_accent = self._language
         self.__official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
         self.__xtts_synthesize_url = f'{self.__xtts_url}/tts_to_audio/'
@@ -41,15 +44,22 @@ class xtts(ttsable):
         logging.log(self._loglevel, f'Connecting to XTTS...')
         self._check_if_xtts_is_running()
 
-        self.__available_models = self._get_available_models()
+        if self.__xtts_default_model in ['main','v2.0.2']:
+            self.__available_models = ['v2.0.2']
+        else:
+            self.__available_models = self._get_available_models()
         self.__available_speakers = self._get_available_speakers()
+        self.__available_speakers = [self._sanitize_voice_name(speaker) for speaker in self.__available_speakers]
         self.__last_model = self._get_first_available_official_model()
+        self._set_xtts_settings()
 
 
+    @utils.time_it
     def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         self._synthesize_line_xtts(voiceline, final_voiceline_file)
     
 
+    @utils.time_it
     def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None):
         logging.log(self._loglevel, 'Loading voice model...')
 
@@ -68,22 +78,26 @@ class xtts(ttsable):
         # Format the voice string to match the model naming convention
         voice = f"{voice.lower().replace(' ', '')}"
         if voice in self.__available_models and voice != self.__last_model :
-            requests.post(self.__xtts_switch_model, json={"model_name": voice})
+            thread = Thread(target=self._send_request, args=(self.__xtts_switch_model, {"model_name": voice}), daemon=True)
+            thread.start()
             self.__last_model = voice
         elif self.__last_model not in self.__official_model_list and voice != self.__last_model :
             first_available_voice_model = self._get_first_available_official_model()
             if first_available_voice_model:
                 voice = f"{first_available_voice_model.lower().replace(' ', '')}"
-                requests.post(self.__xtts_switch_model, json={"model_name": voice})
+                thread = Thread(target=self._send_request, args=(self.__xtts_switch_model, {"model_name": voice}), daemon=True)
+                thread.start()
                 self.__last_model = voice
 
         if (self.__xtts_accent == 1) and (voice_accent != None):
             if voice_accent == '':
                 self.__voice_accent = self._language
             else:
+                voice_accent = voice_accent if voice_accent != 'zh' else 'zh-cn'
                 self.__voice_accent = voice_accent
 
 
+    @utils.time_it
     def _get_available_models(self):
         # Code to request and return the list of available models
         try:
@@ -98,6 +112,7 @@ class xtts(ttsable):
             return []
         
         
+    @utils.time_it
     def _get_available_speakers(self) -> dict[str, Any]:
         # Code to request and return the list of available models
         try:
@@ -105,6 +120,10 @@ class xtts(ttsable):
             if response.status_code == 200:
                 all_speakers = response.json()
                 current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
+                if len(current_language_speakers) == 0: # if there are no speakers for the chosen language, fall back to English voice models
+                    logging.warning(f"No voice models found in XTTS's speakers/{self._language} folder. Attempting to load English voice models instead...")
+                    self._language = 'en'
+                    current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
                 return current_language_speakers
             else:
                 return {}
@@ -113,6 +132,7 @@ class xtts(ttsable):
             return {}
     
     
+    @utils.time_it
     def _get_first_available_official_model(self):
         # Check in the available models list if there is an official model
         for model in self.__official_model_list:
@@ -121,6 +141,7 @@ class xtts(ttsable):
         return None
 
     
+    @utils.time_it
     def _convert_to_16bit(self, input_file, output_file=None):
         if output_file is None:
             output_file = input_file
@@ -150,11 +171,12 @@ class xtts(ttsable):
         for voice_type in [advanced_voice_model, voice, in_game_voice, csv_in_game_voice]:
             if voice_type:
                 voice_cleaned = self._sanitize_voice_name(voice_type)
-                if voice_cleaned in [self._sanitize_voice_name(speaker) for speaker in self.__available_speakers]:
+                if voice_cleaned in self.__available_speakers:
                     return voice_cleaned
         logging.error(f'Could not find voice model {voice} in XTTS models list')
     
 
+    @utils.time_it
     def _synthesize_line_xtts(self, line, save_path):
         def get_voiceline(voice_name):
             voice_path = f"{self._sanitize_voice_name(voice_name)}"
@@ -173,30 +195,31 @@ class xtts(ttsable):
             logging.error(f"Failed with '{self._last_voice}'. HTTP Error: {response.status_code}")
 
 
-    def _check_if_xtts_is_running(self):
-        self._times_checked += 1
+    @utils.time_it
+    def _set_xtts_settings(self):
         tts_data_dict = json.loads(self.__xtts_data.replace('\n', ''))
-        
-        try:
-            if (self._times_checked > 10):
-                # break loop
-                logging.error(f'Could not connect to XTTS after {self._times_checked} attempts. Ensure that xtts-api-server is running and restart Mantella.')
-                raise TTSServiceFailure()
+        thread = Thread(target=self._send_request, args=(self.__xtts_set_tts_settings, tts_data_dict), daemon=True)
+        thread.start()
 
+    
+    @utils.time_it
+    def _check_if_xtts_is_running(self):
+        try:
             # contact local XTTS server; ~2 second timeout
-            response = requests.post(self.__xtts_set_tts_settings, json=tts_data_dict)
-            response.raise_for_status() 
-            
+            response = requests.get(self.__xtts_url, timeout=2)
+            if response.status_code >= 500:
+                logging.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
+                self._run_xtts_server()
         except requests.exceptions.RequestException as err:
             if ('Connection aborted' in err.__str__()):
                 # so it is alive
                 return
 
-            if (self._times_checked == 1):
-                logging.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
-                self._run_xtts_server()
+            logging.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
+            self._run_xtts_server()
         
 
+    @utils.time_it
     def _run_xtts_server(self):
         try:
             # Start the server
@@ -215,13 +238,12 @@ class xtts(ttsable):
                 command += ' --lowvram'
 
             Popen(command, cwd=self.__xtts_server_path, stdout=None, stderr=None, shell=True)
-            tts_data_dict = json.loads(self.__xtts_data.replace('\n', ''))
             # Wait for the server to be up and running
             server_ready = False
             for _ in range(180):  # try for up to three minutes
                 try:
-                    response = requests.post(self.__xtts_set_tts_settings, json=tts_data_dict)
-                    if response.status_code == 200:
+                    response = requests.get(self.__xtts_url, timeout=2)
+                    if response.status_code < 500:
                         server_ready = True
                         break
                 except Exception:
