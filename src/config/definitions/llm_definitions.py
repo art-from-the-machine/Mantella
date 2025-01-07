@@ -51,37 +51,25 @@ class LLMDefinitions:
         return ConfigValueFloat("wait_time_buffer","Wait Time Buffer",description, -1.0, -999, 999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
-    def get_temperature_config_value() -> ConfigValue:
-        return ConfigValueFloat("temperature","Temperature","", 1.0, 0, 2,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    def get_try_filter_narration() -> ConfigValue:
+        try_filter_narration_description = """If checked, sentences containing asterisks (*) will not be spoken aloud."""
+        return ConfigValueBool("try_filter_narration","Filter Narration",try_filter_narration_description,True,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
-    def get_top_p_config_value() -> ConfigValue:
-        return ConfigValueFloat("top_p","Top P","", 1.0, 0, 1,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
-    
-    @staticmethod
-    def get_stop_config_value() -> ConfigValue:
-        description = """A list of up to FOUR strings, by default only # is used.
-                        If you want more than one stopping string use this format: string1,string2,string3,string4"""
-        return ConfigValueString("stop","Stop",description, "#",tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
-    
-    @staticmethod
-    def get_frequency_penalty_config_value() -> ConfigValue:
-        return ConfigValueFloat("frequency_penalty","Frequency Penalty","", 0, -2, 2,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
-    
-    @staticmethod
-    def get_max_tokens_config_value() -> ConfigValue:
-        return ConfigValueInt("max_tokens","Max Tokens","Lowering this value can sometimes result in empty responses.", 250, 1, 999999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    def get_llm_params_config_value() -> ConfigValue:
+        value = """{
+                        "max_tokens": 250,
+                        "temperature": 1.0,
+                        "stop": ["#"]
+                    }"""
+        description = """Parameters passed as part of the request to the LLM.
+                        A list of the most common parameters can be found here: https://openrouter.ai/docs/parameters.
+                        Note that available parameters can vary per LLM provider."""
+        return ConfigValueString("llm_params", "Parameters", description, value, tags=[ConfigValueTag.advanced])
 
     # @staticmethod
     # def get_stop_llm_generation_on_assist_keyword() -> ConfigValue:
     #     stop_llm_generation_on_assist_keyword_description = """Should the generation of the LLM be stopped if the word 'assist' is found?
     #                                                             A lot of LLMs are trained to be virtual assistants use the word excessively.
     #                                                             Default: Checked"""
-    #     return ConfigValueBool("stop_llm_generation_on_assist_keyword","Stop LLM generation if 'assist' keyword is found",stop_llm_generation_on_assist_keyword_description,True,tags=[ConfigValueTag.advanced])
-    
-    @staticmethod
-    def get_try_filter_narration() -> ConfigValue:
-        try_filter_narration_description = """If checked, sentences containing asterisks (*) will not be spoken aloud."""
-        return ConfigValueBool("try_filter_narration","Filter Narration",try_filter_narration_description,True,tags=[ConfigValueTag.advanced])
-
-    
+    #     return ConfigValueBool("stop_llm_generation_on_assist_keyword","Stop LLM generation if 'assist' keyword is found",stop_llm_generation_on_assist_keyword_description,True,tags=[ConfigValueTag.advanced])    

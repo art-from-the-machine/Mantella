@@ -16,13 +16,12 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.llm.messages import message
 from src.llm.message_thread import message_thread
-from src.llm.openai_client import openai_client
+from src.llm.llm_client import LLMClient
 from src.tts.ttsable import ttsable
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ChatManager:
-    @utils.time_it
-    def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: openai_client):
+    def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: LLMClient):
         self.loglevel = 28
         self.__game: gameable = game
         self.__config: ConfigLoader = config
@@ -30,7 +29,7 @@ class ChatManager:
         # self.language = config.language
         # self.wait_time_buffer = config.wait_time_buffer
         self.__tts: ttsable = tts
-        self.__client: openai_client = client
+        self.__client: LLMClient = client
         self.__is_generating: bool = False
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()

@@ -202,6 +202,12 @@ class PromptDefinitions:
         return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
     
     @staticmethod
+    def get_vision_prompt_config_value() -> ConfigValue:
+        vision_prompt_description = """The prompt passed to the vision-capable LLM when `Custom Vision Model` is enabled."""
+        vision_prompt = """This image is to give context and is from the player's point of view in the game of {game}. 
+                            Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
+        return ConfigValueString("vision_prompt","Vision Prompt",vision_prompt_description,vision_prompt)
+    
     def get_radiant_start_prompt_config_value() -> ConfigValue:
         radiant_start_prompt_description = """Once a radiant conversation has started and the radiant prompt has been passed to the LLM, the below text is passed in replace of the player response.
                                         This prompt is used to steer the radiant conversation.""" 

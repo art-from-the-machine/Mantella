@@ -1,5 +1,5 @@
 import os
-from src.config.types.config_value import ConfigValue
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_path import ConfigValuePath
 from src.config.types.config_value_selection import ConfigValueSelection
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
@@ -64,9 +64,15 @@ Please see here to learn where to set this value: https://art-from-the-machine.g
         identifier = "fallout4vr_mod_folder"
         game_folder = "Fallout 4 VR"
         return ConfigValuePath(identifier, f"{game_folder}: Path to Mantella Gun Mod", GameDefinitions.MOD_FOLDER_DESCRIPTION.format(game_folder), "C:\\Modding\\MO2\\Fallout4VR\\mods\\Mantella","Sound",[GameDefinitions.ProgramFilesChecker(game_folder), GameDefinitions.ModFolderChecker(identifier)])
+    
+    @staticmethod
+    def get_fallout4_folder_config_value() -> ConfigValue:
+        description = """The filepath of the Fallout 4 (desktop) directory where the executable is located.
+                        This path only needs to be set if `Vision`->`Use Game Screenshots` is enabled."""
+        return ConfigValuePath("fallout4_folder", "Fallout 4: Path to Fallout 4 Folder", description, "C:\Games\Steam\steamapps\common\Fallout 4", "Fallout4.exe", [GameDefinitions.ProgramFilesChecker("Fallout4")], tags=[ConfigValueTag.advanced])
 
     @staticmethod
     def get_fallout4vr_folder_config_value() -> ConfigValue:
-        fallout4vr_folder_description = """If your game is Fallout 4 VR, point this to the folder containing the Fallout4VR.exe that is run to start the game.
-        Due to compatibility reasons, communication with Fallout 4 VR needs to happen via reading and writing to a file that is located in your Fallout4 VR main game folder."""
-        return ConfigValuePath("fallout4vr_folder", "Fallout 4 VR: Path Fallout 4 VR Folder", fallout4vr_folder_description, "C:\\Games\\Steam\\steamapps\\common\\Fallout4VR","Fallout4VR.exe",[GameDefinitions.ProgramFilesChecker("Fallout4VR")])
+        fallout4vr_folder_description = """The filepath of the Fallout 4 VR directory where the executable is located.
+                        This path only needs to be set if `Vision`->`Use Game Screenshots` is enabled."""
+        return ConfigValuePath("fallout4vr_folder", "Fallout 4 VR: Path to Fallout 4 VR Folder", fallout4vr_folder_description, "C:\\Games\\Steam\\steamapps\\common\\Fallout4VR","Fallout4VR.exe",[GameDefinitions.ProgramFilesChecker("Fallout4VR")], tags=[ConfigValueTag.advanced])

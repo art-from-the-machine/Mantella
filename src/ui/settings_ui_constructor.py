@@ -1,9 +1,9 @@
 import typing
 import gradio as gr
-from typing import Any, Callable, TypeVar, NamedTuple
+from typing import Any, Callable, TypeVar, NamedTuple, Dict, TypedDict, Optional
 import logging
 
-from src.llm.openai_client import openai_client # TODO: add this back with the vision PR: from src.llm.client_base import ClientBase
+from src.llm.client_base import ClientBase
 from src.config.types.config_value_path import ConfigValuePath
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_float import ConfigValueFloat
@@ -27,6 +27,10 @@ class SettingConfig(NamedTuple):
     update_on_submit: bool
     update_on_blur: bool
     additional_buttons: list[tuple[str, Callable[[], Any]]]
+
+class ModelConfig(TypedDict):
+    dependent_config: str  # The config value this model depends on (e.g., "llm_api")
+    model_list_getter: Callable[[str], Any]  # Function to get model list based on service
 
 class SettingsUIConstructor(ConfigValueVisitor):
     def __init__(self) -> None:
@@ -60,6 +64,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
     def __create_buttons(self, config_value: ConfigValue, 
                         create_input_component: Callable[[ConfigValue], Any],
                         input_ui: Any,
+                        error_message: gr.Markdown,
                         additional_buttons: list[tuple[str, Callable[[], Any]]]) -> None:
         """Creates the buttons for a setting"""
         with gr.Row(elem_classes="button-container"):
@@ -70,8 +75,13 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 if hasattr(reset_button, "_id"):
                     reset_button.click(
                         lambda: self.__on_reset_click(config_value, create_input_component), 
-                        outputs=input_ui
+                        outputs = [input_ui, error_message]
                     )
+
+    def __on_reset_click(self, config_value: ConfigValue, create_input_component: Callable[[ConfigValue], Any]):
+        error_message = self.__on_change(config_value, config_value.default_value)
+        new_input = create_input_component(config_value)
+        return [new_input, error_message]
 
     def __setup_event_handlers(self, config_value: ConfigValue, 
                              input_ui: Any,
@@ -102,8 +112,8 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 input_ui = setting.create_input(setting.config_value)
                 input_ui.scale = 999
                 self.__create_buttons(setting.config_value, setting.create_input, 
-                                    input_ui, setting.additional_buttons)
-
+                                    input_ui, gr.Markdown(None), setting.additional_buttons)
+                
         error_message = self.__construct_initial_error_message(setting.config_value)
         
         self.__setup_event_handlers(
@@ -277,36 +287,67 @@ class SettingsUIConstructor(ConfigValueVisitor):
         return count_CRLF + (count_newline - count_CRLF) + 1
 
     def visit_ConfigValueSelection(self, config_value: ConfigValueSelection):
+        # Define special handlers for different identifiers
+        special_handlers: Dict[str, ModelConfig] = {
+            "model": {
+                "dependent_config": "llm_api",
+                "model_list_getter": ClientBase.get_model_list,
+            },
+            "vision_model": {
+                "dependent_config": "vision_llm_api",
+                "model_list_getter": ClientBase.get_model_list,
+            }
+        }
+
         def update_model_list() -> gr.Dropdown:
-            config_value = self.__identifier_to_config_value["model"]
-            return create_input_component(config_value)
+            current_config = self.__identifier_to_config_value[config_value.identifier]
+            return create_input_component(current_config)
 
         def create_input_component(raw_config_value: ConfigValue) -> gr.Dropdown:
             config_value = typing.cast(ConfigValueSelection, raw_config_value)
-            if config_value.identifier != "model":
-                return gr.Dropdown(value=config_value.value,                        
-                    choices=config_value.options, # type: ignore
-                    multiselect=False,
-                    allow_custom_value=config_value.allows_custom_value, 
-                    show_label=False,
-                    container=False)
-            else: #special treatment for 'model' because the content of the dropdown needs to reload on change of 'llm_api'
-                service: str = self.__identifier_to_config_value["llm_api"].value
-                model_list = openai_client.get_model_list(service) # TODO: switch to this code with the vision PR: ClientBase.get_model_list(service)
+            
+            # Handle special cases
+            handler = special_handlers.get(config_value.identifier)
+            if handler:
+                service: str = self.__identifier_to_config_value[handler["dependent_config"]].value
+                secret_key_file = 'IMAGE_SECRET_KEY.txt' if config_value.identifier == 'vision_model' else 'GPT_SECRET_KEY.txt'
+                default_model = 'meta-llama/llama-3.2-11b-vision-instruct:free' if config_value.identifier == 'vision_model' else 'google/gemma-2-9b-it:free'
+                is_vision = True if config_value.identifier == 'vision_model' else False
+                model_list = handler["model_list_getter"](service, secret_key_file, default_model, is_vision)
                 selected_model = config_value.value
+                
                 if not model_list.is_model_in_list(selected_model):
                     selected_model = model_list.default_model
-                return gr.Dropdown(value=selected_model,                        
-                    choices= model_list.available_models, # type: ignore
+                    
+                return gr.Dropdown(
+                    value=selected_model,                        
+                    choices=model_list.available_models,
                     multiselect=False,
                     allow_custom_value=model_list.allows_manual_model_input,
                     show_label=False,
-                    container=False)
-        
+                    container=False
+                )
+            
+            # Default handling for non-special cases
+            return gr.Dropdown(
+                value=config_value.value,                        
+                choices=config_value.options,
+                multiselect=False,
+                allow_custom_value=config_value.allows_custom_value,
+                show_label=False,
+                container=False
+            )
+
+        # Add update button only for special cases
         additional_buttons: list[tuple[str, Callable[[], Any]]] = []
-        if config_value.identifier == "model":
+        if config_value.identifier in special_handlers:
             additional_buttons = [("Update", update_model_list)]
-        self.__create_config_value_ui_element(config_value, create_input_component,additional_buttons=additional_buttons)
+
+        self.__create_config_value_ui_element(
+            config_value,
+            create_input_component,
+            additional_buttons=additional_buttons
+        )
 
     def visit_ConfigValueMultiSelection(self, config_value: ConfigValueMultiSelection):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Dropdown:

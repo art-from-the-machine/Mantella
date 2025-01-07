@@ -31,7 +31,19 @@ class fallout4(gameable):
         self.__FO4_Voice_folder_and_models_df = pd.read_csv(fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)
         #self.__playback: audio_playback = audio_playback(config)
         self.__last_played_voiceline: str | None = None
+        self.__image_analysis_filepath = config.game_path
 
+    @property
+    def extender_name(self) -> str:
+        return 'F4SE'
+
+    @property
+    def game_name_in_filepath(self) -> str:
+        return 'fallout4'
+    
+    @property
+    def image_path(self) -> str:
+        return self.__image_analysis_filepath
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
@@ -166,14 +178,6 @@ class fallout4(gameable):
             str: A prose description of the weather for the LLM
         """
         return ""
-    
-    @property
-    def extender_name(self) -> str:
-        return 'F4SE'
-
-    @property
-    def game_name_in_filepath(self) -> str:
-        return 'fallout4'
 
     MALE_VOICE_MODELS: dict[str, str] = {
         'AssaultronRace':	'robot_assaultron',
