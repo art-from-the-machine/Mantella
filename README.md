@@ -1,4 +1,4 @@
-# Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank" style="padding-right: 4px;"><img src="./img/nexus_mods_link.png" alt="Mantella Skyrim Nexus Mods link" width="auto" height="28"/></a><a href="https://www.nexusmods.com/fallout4/mods/79747" target="_blank"><img src="./img/nexus_mods_fallout4_link.png" alt="Mantella Fallout 4 Nexus Mods link" width="auto" height="28"/></a>
+# Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank" style="padding-right: 8px;"><img src="./img/nexus_mods_link.png" alt="Mantella Skyrim Nexus Mods link" width="auto" height="28"/></a><a href="https://www.nexusmods.com/fallout4/mods/79747" target="_blank"><img src="./img/nexus_mods_fallout4_link.png" alt="Mantella Fallout 4 Nexus Mods link" width="auto" height="28"/></a>
 
 <img src="./img/mantella_logo_github.png" align="right" alt="Mantella logo" width="150" height="auto">
 
