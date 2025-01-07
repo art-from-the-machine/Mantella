@@ -2,7 +2,7 @@ import logging
 import os
 import time
 from src.games.gameable import gameable
-from src.llm.openai_client import openai_client
+from src.llm.llm_client import LLMClient
 from src.llm.message_thread import message_thread
 from src.llm.messages import user_message
 from src.characters_manager import Characters
@@ -14,12 +14,12 @@ class summaries(remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, game: gameable, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.3) -> None:
+    def __init__(self, game: gameable, memory_prompt: str, resummarize_prompt: str, client: LLMClient, language_name: str, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
         self.__game: gameable = game
         self.__summary_limit_pct: float = summary_limit_pct
-        self.__client: openai_client = client
+        self.__client: LLMClient = client
         self.__language_name: str = language_name
         self.__memory_prompt: str = memory_prompt
         self.__resummarize_prompt:str = resummarize_prompt

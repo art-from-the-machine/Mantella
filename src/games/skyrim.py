@@ -27,7 +27,9 @@ class skyrim(gameable):
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
-        self.__config: ConfigLoader = config
+        self.__tts_service: str = config.tts_service
+        self.__image_analysis_filepath = None
+
         try:
             weather_file = 'data/Skyrim/skyrim_weather.csv'
             encoding = utils.get_file_encoding(weather_file)
@@ -35,6 +37,18 @@ class skyrim(gameable):
         except:
             logging.error(f'Unable to read / open "data/Skyrim/skyrim_weather.csv". If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
+
+    @property
+    def extender_name(self) -> str:
+        return 'SKSE'
+    
+    @property
+    def game_name_in_filepath(self) -> str:
+        return 'skyrim'
+
+    @property
+    def image_path(self) -> str:
+        return self.__image_analysis_filepath
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
@@ -65,10 +79,10 @@ class skyrim(gameable):
         else:
             actor_race = actor_race
 
-        if self.__config.tts_service=="xvasynth": 
+        if self.__tts_service=="xvasynth": 
             male_voice_model_dictionary=skyrim.MALE_VOICE_MODELS_XVASYNTH
             female_voice_model_dictionary = skyrim.FEMALE_VOICE_MODELS_XVASYNTH
-        elif self.__config.tts_service=="piper":
+        elif self.__tts_service=="piper":
             male_voice_model_dictionary=skyrim.MALE_VOICE_MODELS_PIPERTTS
             female_voice_model_dictionary = skyrim.FEMALE_VOICE_MODELS_PIPERTTS
         else: #Assume XTTS or another voice model that is not yet implemented at this time
@@ -184,14 +198,6 @@ class skyrim(gameable):
             if weather_classification >= 0 and weather_classification < len(self.WEATHER_CLASSIFICATIONS):
                 return self.WEATHER_CLASSIFICATIONS[weather_classification]
         return ""
-
-    @property
-    def extender_name(self) -> str:
-        return 'SKSE'
-    
-    @property
-    def game_name_in_filepath(self) -> str:
-        return 'skyrim'
 
 
     MALE_VOICE_MODELS_XVASYNTH: dict[str, str] = {

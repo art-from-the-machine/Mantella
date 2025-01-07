@@ -9,7 +9,7 @@ from src import utils
 from src.utils import get_time_group
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
-from src.llm.openai_client import openai_client
+from src.llm.llm_client import LLMClient
 
 class context:
     """Holds the context of a conversation
@@ -17,13 +17,13 @@ class context:
     TOKEN_LIMIT_PERCENT: float = 0.45
 
     @utils.time_it
-    def __init__(self, world_id: str, config: ConfigLoader, client: openai_client, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
+    def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
         self.__world_id = world_id
         self.__hourly_time = config.hourly_time
         self.__prev_game_time: tuple[str | None, str] | None = None
         self.__npcs_in_conversation: Characters = Characters()
         self.__config: ConfigLoader = config
-        self.__client: openai_client = client
+        self.__client: LLMClient = client
         self.__rememberer: remembering = rememberer
         self.__language: dict[Hashable, str] = language
         self.__is_prompt_too_long: Callable[[str, float], bool] = is_prompt_too_long
@@ -31,6 +31,7 @@ class context:
         self.__custom_context_values: dict[str, Any] = {}
         self.__ingame_time: int = 12
         self.__ingame_events: list[str] = []
+        self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
         self.__game = config.game
 
@@ -84,6 +85,31 @@ class context:
     def have_actors_changed(self, value: bool):
         self.__have_actors_changed = value
 
+    @property
+    def vision_hints(self) -> dict[Hashable, str]:
+        return self.__vision_hints
+    
+    @utils.time_it
+    def set_vision_hints(self, names: str, distances: str):
+        def get_category(distance):
+            if distance < 150:
+                return "very close"
+            elif distance < 500:
+                return "close"
+            elif distance < 1000:
+                return "medium distance"
+            elif distance < 2500:
+                return "far"
+            else:
+                return "very far"
+        
+        names = [x.strip('[]') for x in names.split(',')]
+        distances = [float(x.strip('[]')) for x in distances.split(',')]
+
+        pairs = sorted(zip(distances, names))
+        descriptions = [f"{name} ({get_category(dist)})" for dist, name in pairs]
+        self.__vision_hints = "Characters currently in view: " + ", ".join(descriptions)
+
     @utils.time_it
     def get_custom_context_value(self, key: str) -> Any | None:
         if self.__custom_context_values.__contains__(key):
@@ -133,13 +159,8 @@ class context:
     
     @utils.time_it
     def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str, custom_context_values: dict[str, Any]):
-        if custom_ingame_events:
-            self.__ingame_events.extend(custom_ingame_events)
-        if weather != self.__weather:
-            if self.__weather != "":
-                self.__ingame_events.append(weather)
-            self.__weather = weather
         self.__custom_context_values = custom_context_values
+
         if location:
             if location != '':
                 self.__location = location
@@ -166,6 +187,21 @@ class context:
                     self.__ingame_events.append(f"The time is {current_time[0]} {current_time[1]}.")
                 else:
                     self.__ingame_events.append(f"The conversation now takes place {current_time[1]}.")
+
+        if weather != self.__weather:
+            if self.__weather != "":
+                self.__ingame_events.append(weather)
+            self.__weather = weather
+
+        self.__vision_hints = ''
+        if self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY) and self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY):
+            self.set_vision_hints(
+                str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY)), 
+                str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY)))
+            self.__ingame_events.append(self.__vision_hints)
+
+        if custom_ingame_events:
+            self.__ingame_events.extend(custom_ingame_events)
     
     @utils.time_it
     def __update_ingame_events_on_npc_change(self, npc: Character):

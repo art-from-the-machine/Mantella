@@ -2,12 +2,12 @@ from abc import ABC, abstractmethod
 from typing import TypeVar
 
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
-from src.config.types.config_value import ConfigValue, ConvigValueTag
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 
 T = TypeVar('T', int, float)
 class ConfigValueNumeric(ConfigValue[T], ABC):
-    def __init__(self, identifier: str, name: str, description: str, default_value: T, min_value: T, max_value: T, constraints: list[ConfigValueConstraint[T]] = [],is_hidden: bool = False, tags: list[ConvigValueTag] = []):
+    def __init__(self, identifier: str, name: str, description: str, default_value: T, min_value: T, max_value: T, constraints: list[ConfigValueConstraint[T]] = [],is_hidden: bool = False, tags: list[ConfigValueTag] = []):
         super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
         self.__min_value: T = min_value
         self.__max_value: T = max_value
