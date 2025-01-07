@@ -30,14 +30,14 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
         except Exception as e:
             logging.error(repr(e))
             logging.error(f"Unable to read / open '{file_name}'. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters.")
-            logging.log(logging.WARNING, "Using default user folder in '../Documents/my games/Mantella/'.")
+            logging.log(logging.WARNING, "Using default user folder in '../Documents/My Games/Mantella/'.")
             return ""      
         
         try:
             return user_folder_config.get("UserFolder","custom_user_folder")
         except Exception as e:
             logging.error(f"Could not find option 'custom_user_folder' in section 'UserFolder' in '{file_name}'.")
-            logging.log(logging.WARNING, "Using default user folder in '../Documents/my games/Mantella/'.")
+            logging.log(logging.WARNING, "Using default user folder in '../Documents/My Games/Mantella/'.")
             return ""   
 
     def get_my_games_directory():
