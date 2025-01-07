@@ -8,7 +8,7 @@
     <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank">
       <img src="./_static/img/nexus_mods_link_transparent.png" alt="Skyrim SE Nexus banner that links to Mantella" style="max-width:25%;height:auto;">
     </a>
-    <a href="https://www.nexusmods.com/fallout4" target="_blank">
+    <a href="https://www.nexusmods.com/fallout4/mods/79747" target="_blank">
       <img src="./_static/img/nexus_mods_fallout4_link_transparent.png" alt="Fallout 4 Nexus banner that links to Mantella" style="max-width:25%;height:auto;">
     </a>
   </div>
