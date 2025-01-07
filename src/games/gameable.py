@@ -144,7 +144,7 @@ class gameable(ABC):
         pass
 
     @abstractmethod
-    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str) -> str:
+    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str, library_search:bool = True) -> str:
         """Returns the voice model which most closely matches the NPC
 
         Args:
@@ -216,7 +216,7 @@ class gameable(ABC):
         character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
         matcher = self._get_matching_df_rows_matcher(base_id, character_name, character_race)
         if isinstance(matcher, type(None)):
-            logging.info(f"Could not find {character_name} in skyrim_characters.csv. Loading as a generic NPC.")
+            logging.info(f"Could not find {character_name} in {self.game_name_in_filepath}_characters.csv. Loading as a generic NPC.")
             character_info = self.load_unnamed_npc(character_name, character_race, gender, ingame_voice_model)
             is_generic_npc = True
         else:
