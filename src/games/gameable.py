@@ -35,7 +35,7 @@ class gameable(ABC):
         self.__apply_character_overrides(mod_overrides_folder, self.__character_df.columns.values.tolist())
         personal_overrides_folder = os.path.join(config.save_folder, f"data/{mantella_game_folder_path}/character_overrides")     
         self.__apply_character_overrides(personal_overrides_folder, self.__character_df.columns.values.tolist())
-        self.__config = config
+
         self.__conversation_folder_path = config.save_folder + f"data/{mantella_game_folder_path}/conversations"
         conversation_log.game_path = self.__conversation_folder_path
     

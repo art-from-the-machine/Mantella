@@ -26,7 +26,7 @@ class fallout4(gameable):
         super().__init__(config, 'data/Fallout4/fallout4_characters.csv', "Fallout4")
         if config.game == "Fallout4VR":
             self.__compatibility = file_communication_compatibility(config.game_path, int(config.port))# <- creating an object of this starts the listen thread
-        self.__config: ConfigLoader = config
+        self.__tts_service: str = config.tts_service
         encoding = utils.get_file_encoding(fallout4.FO4_XVASynth_file)
         self.__FO4_Voice_folder_and_models_df = pd.read_csv(fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)
         #self.__playback: audio_playback = audio_playback(config)
@@ -75,7 +75,7 @@ class fallout4(gameable):
             actor_race = actor_race
 
         #make the substitutions below to bypass non-functional XVASynth voice models: RobotCompanionMaleDefault, RobotCompanionMaleProcessed,Gen1Synth02 & Gen1Synth03 
-        if self.__config.tts_service=="xvasynth": #only necessary for XVASynth
+        if self.__tts_service=="xvasynth": #only necessary for XVASynth
             male_voice_model_dictionary=fallout4.MALE_VOICE_MODELS_XVASYNTH
             female_voice_model_dictionary = fallout4.FEMALE_VOICE_MODELS_XVASYNTH
             if actor_voice_model_name in  ("DLC01RobotCompanionMaleDefault", "DLC01RobotCompanionMaleProcessed"):
