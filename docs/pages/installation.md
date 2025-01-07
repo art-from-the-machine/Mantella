@@ -231,14 +231,28 @@ Make sure LM Studio is running when Mantella is running!
 <br>
 
 #### Other LLM Services
-Mantella has the ability to support other language model services, although these services do need to support outputs in the OpenAI format (like text-generation-webui does via the "--extensions openai" option above).
+Mantella has the ability to support other language model services, although these services do need to support outputs in the OpenAI format (like text-generation-webui does via the "--extensions openai" option above). You can connect to any OpenAI-API-compatible service by following these steps:
+
+1. Paste the OpenAI-API-compatible URL of the service into the `LLM Service` textbox of the `Large Language Model` tab in the [Mantella UI](#mantella-ui). These URLs typically end with `/v1`.
+
+2. (Only needed for non-local services) Paste the name of a given model of the service into the `Model` textbox of the `Large Language Model` tab.
+
+3. (Only needed for non-local services) Paste a secret key to connect to the service in your `GPT_SECRET_KEY.txt` file (see the [quick start guide](#quick-start) to learn where `GPT_SECRET_KEY.txt` is stored).  
+
+**Other Known Services**:
+| Service | URL | Models List |
+|:----------|:----------|:----------|
+| Alibaba | https://dashscope-intl.aliyuncs.com/compatible-mode/v1 | https://www.alibabacloud.com/help/en/model-studio/getting-started/models |
+| Cerebras | https://api.cerebras.ai/v1 | https://inference-docs.cerebras.ai/introduction |
+| Google | https://generativelanguage.googleapis.com/v1beta/openai/ | https://ai.google.dev/gemini-api/docs/models/gemini |
+| Groq | https://api.groq.com/openai/v1 | https://console.groq.com/docs/models |
 
 ____________________________________
 
 ### Vision
 LLM vision can be enabled in the `Vision` tab of the [Mantella UI](#mantella-ui). If the selected model in the `Large Language Model` tab has vision capabilities, a screenshot of your game window will be passed to the model every time you respond to an NPC.
 
-Vision capabilities can also be run locally via koboldcpp. To get started, download the required [mmproj file](https://huggingface.co/koboldcpp/mmproj/tree/main) for your local LLM (as an example, [Toppy](https://huggingface.co/TheBloke/Toppy-M-7B-GGUF/tree/main?not-for-all-audiences=true) requires `llama-7b-mmproj-v1.5-Q4_0.gguf`). In the koboldcpp launch window, under the `Model Files` tab, set the path to your mmproj file via the `LLaVa mmproj` setting. When koboldcpp is launched, and vision is enabled in the [Mantella UI](#mantella-ui), your local LLM will support vision.
+Vision capabilities can also be run locally via koboldcpp. To get started, download the required [mmproj file](https://huggingface.co/koboldcpp/mmproj/tree/main) for your local LLM (as an example, [Toppy](https://huggingface.co/TheBloke/Toppy-M-7B-GGUF/tree/main?not-for-all-audiences=true) requires `mistral-7b-mmproj-v1.5-Q4_1.gguf`). In the koboldcpp launch window, under the `Model Files` tab, set the path to your mmproj file via the `LLaVa mmproj` setting. When koboldcpp is launched, and vision is enabled in the [Mantella UI](#mantella-ui), your local LLM will support vision.
 
 ____________________________________
 

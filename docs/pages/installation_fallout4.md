@@ -266,8 +266,22 @@ Make sure LM Studio is running when Mantella is running!
 </details>
 <br>
 
-### Other LLM Services
-Mantella has the ability to support other language model services, although these services do need to support outputs in the OpenAI format (like text-generation-webui does via the "--extensions openai" option above).
+#### Other LLM Services
+Mantella has the ability to support other language model services, although these services do need to support outputs in the OpenAI format (like text-generation-webui does via the "--extensions openai" option above). You can connect to any OpenAI-API-compatible service by following these steps:
+
+1. Paste the OpenAI-API-compatible URL of the service into the `LLM Service` textbox of the `Large Language Model` tab in the [Mantella UI](#mantella-ui). These URLs typically end with `/v1`.
+
+2. (Only needed for non-local services) Paste the name of a given model of the service into the `Model` textbox of the `Large Language Model` tab.
+
+3. (Only needed for non-local services) Paste a secret key to connect to the service in your `GPT_SECRET_KEY.txt` file (see the [quick start guide](#quick-start) to learn where `GPT_SECRET_KEY.txt` is stored).  
+
+**Other Known Services**:
+| Service | URL | Models List |
+|:----------|:----------|:----------|
+| Alibaba | https://dashscope-intl.aliyuncs.com/compatible-mode/v1 | https://www.alibabacloud.com/help/en/model-studio/getting-started/models |
+| Cerebras | https://api.cerebras.ai/v1 | https://inference-docs.cerebras.ai/introduction |
+| Google | https://generativelanguage.googleapis.com/v1beta/openai/ | https://ai.google.dev/gemini-api/docs/models/gemini |
+| Groq | https://api.groq.com/openai/v1 | https://console.groq.com/docs/models |
 
 ## Whisper
 <details>
