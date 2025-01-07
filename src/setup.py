@@ -135,7 +135,7 @@ config.ini, logging.log, and conversation histories available in:
     logging.log(23, f'''Mantella currently running for {config.game}. Mantella mod files located in: 
 {config.mod_path}''')
     if not config.have_all_config_values_loaded_correctly:
-        logging.error("Cannot start Mantella. Not all settings that are required are set to correct values. Please check the above error messages and correct the corresponding settings!")
+        logging.error("Cannot start Mantella. Not all settings that are required are set to correct values. This error often occurs when you start Mantella.exe manually without setting up the `Game` tab in the Mantella UI.")
 
     # clean up old instances of exe runtime files
     utils.cleanup_mei(config.remove_mei_folders)
