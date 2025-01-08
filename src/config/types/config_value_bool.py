@@ -1,10 +1,10 @@
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 from src.config.types.config_value_visitor import ConfigValueVisitor
-from src.config.types.config_value import ConfigValue, ConvigValueTag
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 
 class ConfigValueBool(ConfigValue[bool]):
-    def __init__(self, identifier: str, name: str, description: str, default_value: bool, constraints: list[ConfigValueConstraint[bool]] = [], is_hidden: bool = False, tags: list[ConvigValueTag] = []):
+    def __init__(self, identifier: str, name: str, description: str, default_value: bool, constraints: list[ConfigValueConstraint[bool]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = []):
         super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
     
     def parse(self, config_value: str) -> ConfigValueConstraintResult:

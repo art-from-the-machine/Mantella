@@ -10,7 +10,7 @@ from src.output_manager import ChatManager
 from src.remember.remembering import remembering
 from src.remember.summaries import summaries
 from src.config.config_loader import ConfigLoader
-from src.llm.openai_client import openai_client
+from src.llm.llm_client import LLMClient
 from src.conversation.conversation import conversation
 from src.conversation.context import context
 from src.character_manager import Character
@@ -28,11 +28,11 @@ class GameStateManager:
     WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
     @utils.time_it
-    def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: openai_client, stt_api_file: str, api_file: str):        
+    def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, stt_api_file: str, api_file: str):        
         self.__game: gameable = game
         self.__config: ConfigLoader = config
         self.__language_info: dict[Hashable, str] = language_info 
-        self.__client: openai_client = client
+        self.__client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
         self.__rememberer: remembering = summaries(game, config.memory_prompt, config.resummarize_prompt, client, language_info['language'])
         self.__talk: conversation | None = None
@@ -64,7 +64,7 @@ class GameStateManager:
         self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
         self.__update_context(input_json)
         character_to_talk = self.__talk.context.npcs_in_conversation.last_added_character
-        self.__talk.output_manager.tts.change_voice(character_to_talk.tts_voice_model, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.advanced_voice_model, character_to_talk.voice_accent)
+        self.__talk.output_manager.tts.change_voice(character_to_talk.tts_voice_model, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.advanced_voice_model, character_to_talk.voice_accent, voice_gender=character_to_talk.gender, voice_race=character_to_talk.race)
         self.__talk.start_conversation()
         
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED}

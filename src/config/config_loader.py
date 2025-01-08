@@ -111,6 +111,7 @@ class ConfigLoader:
                 self.game = str(self.game).lower().replace(' ', '').replace('_', '')
                 if self.game =="fallout4":
                     self.game ="Fallout4"
+                    self.game_path: str = self.__definitions.get_string_value("fallout4_folder")
                     self.mod_path: str = self.__definitions.get_string_value("fallout4_mod_folder") #config['Paths']['fallout4_mod_folder']
                 elif self.game =="fallout4vr":
                     self.game ="Fallout4VR"
@@ -118,10 +119,12 @@ class ConfigLoader:
                     self.mod_path: str = self.__definitions.get_string_value("fallout4vr_mod_folder") #config['Paths']['fallout4vr_mod_folder']
                 elif self.game =="skyrimvr":
                     self.game ="SkyrimVR"
+                    self.game_path = None
                     self.mod_path: str = self.__definitions.get_string_value("skyrimvr_mod_folder") #config['Paths']['skyrimvr_mod_folder']
                 #if the game is not recognized Mantella will assume it's Skyrim since that's the most frequent one.
                 else:
                     self.game ="Skyrim"
+                    self.game_path = None
                     self.mod_path: str = self.__definitions.get_string_value("skyrim_mod_folder") #config['Paths']['skyrim_mod_folder']
 
                 self.facefx_path = self.__definitions.get_string_value("facefx_folder")
@@ -179,14 +182,13 @@ class ConfigLoader:
             self.number_words_tts = self.__definitions.get_int_value("number_words_tts")
             self.xtts_data = self.__definitions.get_string_value("xtts_data")
             self.xtts_accent = self.__definitions.get_bool_value("xtts_accent")
+
+            self.tts_print = self.__definitions.get_bool_value("tts_print")
         
             self.xvasynth_process_device = self.__definitions.get_string_value("tts_process_device")
             self.pace = self.__definitions.get_float_value("pace")
             self.use_cleanup = self.__definitions.get_bool_value("use_cleanup")
             self.use_sr = self.__definitions.get_bool_value("use_sr")
-
-            self.FO4Volume = self.__definitions.get_int_value("fo4_npc_response_volume")
-            self.tts_print = self.__definitions.get_bool_value("tts_print")
 
             #STT
             self.whisper_model = self.__definitions.get_string_value("model_size")
@@ -213,19 +215,12 @@ class ConfigLoader:
             # if self.llm_api == "Custom":
             #     self.llm_api = self.__definitions.get_string_value("llm_custom_service_url")
             self.custom_token_count = self.__definitions.get_int_value("custom_token_count")
-            self.temperature = self.__definitions.get_float_value("temperature")
-            self.top_p = self.__definitions.get_float_value("top_p")
-
-            stop_value = self.__definitions.get_string_value("stop")
-            if ',' in stop_value:
-                # If there are commas in the stop value, split the string by commas and store the values in a list
-                self.stop = stop_value.split(',')
-            else:
-                # If there are no commas, put the single value into a list
-                self.stop = [stop_value]
-
-            self.frequency_penalty = self.__definitions.get_float_value("frequency_penalty")
-            self.max_tokens = self.__definitions.get_int_value("max_tokens")
+            try:
+                self.llm_params = json.loads(self.__definitions.get_string_value("llm_params").replace('\n', ''))
+            except Exception as e:
+                logging.error(f"""Error in parsing LLM parameter list: {e}
+LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+                self.llm_params = None
 
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
             self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
@@ -240,11 +235,6 @@ class ConfigLoader:
             # self.debug_use_default_player_response = self.__definitions.get_bool_value("use_default_player_response")
             # self.default_player_response = self.__definitions.get_string_value("default_player_response")
             # self.debug_exit_on_first_exchange = self.__definitions.get_bool_value("exit_on_first_exchange")
-            self.add_voicelines_to_all_voice_folders = self.__definitions.get_bool_value("add_voicelines_to_all_voice_folders")
-
-            #HTTP
-            self.port = self.__definitions.get_int_value("port")
-            self.show_http_debug_messages: bool = self.__definitions.get_bool_value("show_http_debug_messages")
 
             #UI
             self.auto_launch_ui = self.__definitions.get_bool_value("auto_launch_ui")
@@ -256,6 +246,10 @@ class ConfigLoader:
             self.player_character_description: str = self.__definitions.get_string_value("player_character_description")
             self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
             self.player_voice_model: str = self.__definitions.get_string_value("player_voice_model")
+
+            #HTTP
+            self.port = self.__definitions.get_int_value("port")
+            self.show_http_debug_messages: bool = self.__definitions.get_bool_value("show_http_debug_messages")
 
             #new separate prompts for Fallout 4 have been added 
             if self.game == "Fallout4" or self.game == "Fallout4VR":
@@ -271,6 +265,7 @@ class ConfigLoader:
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")
             self.memory_prompt = self.__definitions.get_string_value("memory_prompt")
             self.resummarize_prompt = self.__definitions.get_string_value("resummarize_prompt")
+            self.vision_prompt = self.__definitions.get_string_value("vision_prompt")
 
             # Vision
             self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')
@@ -279,6 +274,20 @@ class ConfigLoader:
             self.image_quality = self.__definitions.get_int_value("image_quality")
             self.resize_method = self.__definitions.get_string_value("resize_method")
             self.capture_offset = json.loads(self.__definitions.get_string_value("capture_offset"))
+            self.use_game_screenshots = self.__definitions.get_bool_value("use_game_screenshots")
+
+            # Custom Vision Model
+            self.custom_vision_model = self.__definitions.get_bool_value("custom_vision_model")
+            self.vision_llm_api = self.__definitions.get_string_value("vision_llm_api")
+            self.vision_llm = self.__definitions.get_string_value("vision_model")
+            self.vision_llm = self.vision_llm.split(' |')[0] if ' |' in self.vision_llm else self.vision_llm
+            self.vision_custom_token_count = self.__definitions.get_int_value("vision_custom_token_count")
+            try:
+                self.vision_llm_params = json.loads(self.__definitions.get_string_value("vision_llm_params").replace('\n', ''))
+            except Exception as e:
+                logging.error(f"""Error in parsing LLM parameter list: {e}
+LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+                self.vision_llm_params = None
             
             pass
         except Exception as e:

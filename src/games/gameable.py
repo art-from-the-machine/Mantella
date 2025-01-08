@@ -28,7 +28,8 @@ class gameable(ABC):
         except:
             logging.error(f'Unable to read / open {path_to_character_df}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
-
+        
+        self._is_vr: bool = 'vr' in config.game.lower()
         #Apply character overrides
         mod_overrides_folder = os.path.join(*[config.mod_path_base, self.extender_name, "Plugins","MantellaSoftware","data",f"{mantella_game_folder_path}","character_overrides"])
         self.__apply_character_overrides(mod_overrides_folder, self.__character_df.columns.values.tolist())
@@ -36,12 +37,15 @@ class gameable(ABC):
         self.__apply_character_overrides(personal_overrides_folder, self.__character_df.columns.values.tolist())
 
         self.__conversation_folder_path = config.save_folder + f"data/{mantella_game_folder_path}/conversations"
-        
         conversation_log.game_path = self.__conversation_folder_path
     
     @property
     def character_df(self) -> pd.DataFrame:
         return self.__character_df
+    
+    @property
+    def is_vr(self) -> bool:
+        return self._is_vr
     
     @property
     @abstractmethod
@@ -58,6 +62,12 @@ class gameable(ABC):
     @property
     def conversation_folder_path(self) -> str:
         return self.__conversation_folder_path
+    
+    @property
+    @abstractmethod
+    def image_path(self) -> str:
+        """ Return the path to the image file created by in-game screenshots"""
+        pass
     
     @utils.time_it
     def __get_character_df(self, file_name: str) -> pd.DataFrame:
@@ -134,7 +144,7 @@ class gameable(ABC):
         pass
 
     @abstractmethod
-    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str) -> str:
+    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str, library_search:bool = True) -> str:
         """Returns the voice model which most closely matches the NPC
 
         Args:
@@ -206,7 +216,7 @@ class gameable(ABC):
         character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
         matcher = self._get_matching_df_rows_matcher(base_id, character_name, character_race)
         if isinstance(matcher, type(None)):
-            logging.info(f"Could not find {character_name} in skyrim_characters.csv. Loading as a generic NPC.")
+            logging.info(f"Could not find {character_name} in {self.game_name_in_filepath}_characters.csv. Loading as a generic NPC.")
             character_info = self.load_unnamed_npc(character_name, character_race, gender, ingame_voice_model)
             is_generic_npc = True
         else:

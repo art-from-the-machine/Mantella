@@ -3,7 +3,7 @@ import logging
 from threading import Thread, Lock
 import time
 from typing import Any
-from src.llm.openai_client import openai_client
+from src.llm.llm_client import LLMClient
 from src.characters_manager import Characters
 from src.conversation.conversation_log import conversation_log
 from src.conversation.action import action
@@ -29,7 +29,7 @@ class conversation:
     TOKEN_LIMIT_PERCENT: float = 0.9
     TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
     """Controls the flow of a conversation."""
-    def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, openai_client: openai_client, stt: Transcriber, mic_input: bool, mic_ptt: bool) -> None:
+    def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, openai_client: LLMClient, stt: Transcriber, mic_input: bool, mic_ptt: bool) -> None:
         
         self.__context: context = context_for_conversation
         self.__mic_input: bool = mic_input
@@ -135,7 +135,7 @@ class conversation:
                 logging.info(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
             # before immediately sending the next voiceline, give the player the chance to interrupt
             while time.time() - self.last_sentence_start_time < self.last_sentence_audio_length:
-                if self.__stt.has_player_spoken():
+                if self.__stt and self.__stt.has_player_spoken():
                     self.__stop_generation()
                     self.__sentences.clear()
                     return comm_consts.KEY_REQUESTTYPE_TTS, None

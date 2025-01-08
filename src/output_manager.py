@@ -16,13 +16,12 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.llm.messages import message
 from src.llm.message_thread import message_thread
-from src.llm.openai_client import openai_client
+from src.llm.llm_client import LLMClient
 from src.tts.ttsable import ttsable
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ChatManager:
-    @utils.time_it
-    def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: openai_client):
+    def __init__(self, game: gameable, config: ConfigLoader, tts: ttsable, client: LLMClient):
         self.loglevel = 28
         self.__game: gameable = game
         self.__config: ConfigLoader = config
@@ -30,7 +29,7 @@ class ChatManager:
         # self.language = config.language
         # self.wait_time_buffer = config.wait_time_buffer
         self.__tts: ttsable = tts
-        self.__client: openai_client = client
+        self.__client: LLMClient = client
         self.__is_generating: bool = False
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
@@ -259,7 +258,7 @@ class ChatManager:
                                             logging.log(28, f"Switched to {character_switched_to.name}")
                                             active_character = character_switched_to
                                             full_reply += f"{keyword_extraction}: "
-                                            self.__tts.change_voice(active_character.tts_voice_model, active_character.in_game_voice_model, active_character.csv_in_game_voice_model, active_character.advanced_voice_model, voice_accent=active_character.voice_accent)
+                                            self.__tts.change_voice(active_character.tts_voice_model, active_character.in_game_voice_model, active_character.csv_in_game_voice_model, active_character.advanced_voice_model, voice_accent=active_character.voice_accent, voice_gender=active_character.gender, voice_race=active_character.race)
                                     else:
                                         action_to_take: action | None = self.__matching_action_keyword(keyword_extraction, actions)
                                         if action_to_take:

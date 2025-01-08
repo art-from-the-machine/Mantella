@@ -6,14 +6,14 @@ from tkinter import Tk, filedialog
 from threading import Thread
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 from src.config.types.config_value_visitor import ConfigValueVisitor
-from src.config.types.config_value import ConfigValue, ConvigValueTag
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 class FileOrFolder(Enum):
     FILE = 1
     FOLDER = 2
 
 class ConfigValuePath(ConfigValue[str]):
-    def __init__(self, identifier: str, name: str, description: str, default_value: str, file_or_folder_that_must_be_present: str | None, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConvigValueTag] = []):
+    def __init__(self, identifier: str, name: str, description: str, default_value: str, file_or_folder_that_must_be_present: str | None, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = []):
         super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
         self.__file_or_folder_that_must_be_present: str | None = file_or_folder_that_must_be_present
     

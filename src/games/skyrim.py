@@ -27,7 +27,9 @@ class skyrim(gameable):
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
-        
+        self.__tts_service: str = config.tts_service
+        self.__image_analysis_filepath = None
+
         try:
             weather_file = 'data/Skyrim/skyrim_weather.csv'
             encoding = utils.get_file_encoding(weather_file)
@@ -35,6 +37,18 @@ class skyrim(gameable):
         except:
             logging.error(f'Unable to read / open "data/Skyrim/skyrim_weather.csv". If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
+
+    @property
+    def extender_name(self) -> str:
+        return 'SKSE'
+    
+    @property
+    def game_name_in_filepath(self) -> str:
+        return 'skyrim'
+
+    @property
+    def image_path(self) -> str:
+        return self.__image_analysis_filepath
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
@@ -44,34 +58,70 @@ class skyrim(gameable):
         return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None))
     
     @utils.time_it
-    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str) -> str:
+    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str, library_search:bool = True) -> str:
         voice_model = ''
 
+
         actor_voice_model = ingame_voice_model
-        actor_voice_model_id = actor_voice_model.split('(')[1].split(')')[0]
-        actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
+        if '(' in actor_voice_model and ')' in actor_voice_model:
+            actor_voice_model_id = actor_voice_model.split('(')[1].split(')')[0]
+        else:
+            actor_voice_model_id = actor_voice_model  
+        if '<' in actor_voice_model:
+            actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
+        else:
+            actor_voice_model_name = actor_voice_model 
+        #Filtering out endsdiwth Race because depending on the source of the method call it may be present.
+        if 'Race <' in actor_race:
+            actor_race = actor_race.split('Race <', 1)[1]
+            if actor_race.endswith('Race'):
+                actor_race = actor_race[:actor_race.rfind('Race')].strip()
+        else:
+            actor_race = actor_race
 
-        for key in skyrim.VOICE_MODEL_IDS:
-            # using endswith because sometimes leading zeros are ignored
-            if actor_voice_model_id.endswith(key):
-                voice_model = skyrim.VOICE_MODEL_IDS[key]
-                return voice_model
+        if self.__tts_service=="xvasynth": 
+            male_voice_model_dictionary=skyrim.MALE_VOICE_MODELS_XVASYNTH
+            female_voice_model_dictionary = skyrim.FEMALE_VOICE_MODELS_XVASYNTH
+        elif self.__tts_service=="piper":
+            male_voice_model_dictionary=skyrim.MALE_VOICE_MODELS_PIPERTTS
+            female_voice_model_dictionary = skyrim.FEMALE_VOICE_MODELS_PIPERTTS
+        else: #Assume XTTS or another voice model that is not yet implemented at this time
+            male_voice_model_dictionary=skyrim.MALE_VOICE_MODELS_XTTS
+            female_voice_model_dictionary = skyrim.FEMALE_VOICE_MODELS_XTTS
 
-        # if voice_model not found in the voice model ID list
-        try: # search for voice model in skyrim_characters.csv
-            voice_model = self.character_df.loc[self.character_df['skyrim_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
-        except: # guess voice model based on sex and race
-            modified_race_key = actor_race + "Race"
-            if actor_sex == 1:
-                try:
-                    voice_model = self.FEMALE_VOICE_MODELS[modified_race_key]
-                except:
-                    voice_model = 'Female Nord'
-            else:
-                try:
-                    voice_model = self.MALE_VOICE_MODELS[modified_race_key]
-                except:
-                    voice_model = 'Male Nord'
+
+        if library_search:
+            for key in skyrim.VOICE_MODEL_IDS:
+                # using endswith because sometimes leading zeros are ignored
+                if actor_voice_model_id.endswith(key):
+                    voice_model = skyrim.VOICE_MODEL_IDS[key]
+                    return voice_model
+            # if voice_model not found in the voice model ID list
+            try: # search for voice model in skyrim_characters.csv
+                voice_model = self.character_df.loc[self.character_df['skyrim_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
+            except: # guess voice model based on sex and race
+                voice_model=self.dictionary_match(voice_model,female_voice_model_dictionary, male_voice_model_dictionary,actor_race,actor_sex)
+        else:
+            voice_model=self.dictionary_match(voice_model,female_voice_model_dictionary, male_voice_model_dictionary,actor_race,actor_sex)
+
+        return voice_model
+    
+    def dictionary_match(self,voice_model:str,female_voice_model_dictionary:dict,male_voice_model_dictionary:dict,actor_race:str, actor_sex:int) -> str: 
+        if actor_race is None:
+            actor_race = "Nord"
+        if actor_sex is None:
+            actor_sex = 0
+        modified_race_key = actor_race + "Race"
+        if actor_sex == 1:
+            try:
+                voice_model = female_voice_model_dictionary[modified_race_key]
+            except:
+                voice_model = 'Female Nord'
+        else:
+            try:
+                voice_model = male_voice_model_dictionary[modified_race_key]
+            except:
+                voice_model = 'Male Nord'
 
         return voice_model
 
@@ -149,39 +199,82 @@ class skyrim(gameable):
                 return self.WEATHER_CLASSIFICATIONS[weather_classification]
         return ""
 
-    @property
-    def extender_name(self) -> str:
-        return 'SKSE'
-    
-    @property
-    def game_name_in_filepath(self) -> str:
-        return 'skyrim'
 
-
-    MALE_VOICE_MODELS: dict[str, str] = {
+    MALE_VOICE_MODELS_XVASYNTH: dict[str, str] = {
         'ArgonianRace': 'Male Argonian',
         'BretonRace': 'Male Even Toned',
-        'DarkElfRace': 'Male Dark Elf Commoner',
+        'DarkElfRace': 'Male Dunmer',
         'HighElfRace': 'Male Elf Haughty',
         'ImperialRace': 'Male Even Toned',
-        'KhajiitRace': 'Male Khajit',
+        'KhajiitRace': 'Male Khajiit',
         'NordRace': 'Male Nord',
         'OrcRace': 'Male Orc',
         'RedguardRace': 'Male Even Toned',
         'WoodElfRace': 'Male Young Eager',
     }
-    FEMALE_VOICE_MODELS: dict[str, str]  = {
+    FEMALE_VOICE_MODELS_XVASYNTH: dict[str, str]  = {
         'ArgonianRace': 'Female Argonian',
         'BretonRace': 'Female Even Toned',
-        'DarkElfRace': 'Female Dark Elf Commoner',
+        'DarkElfRace': 'Female Dark Elf',
         'HighElfRace': 'Female Elf Haughty',
         'ImperialRace': 'Female Even Toned',
-        'KhajiitRace': 'Female Khajit',
+        'KhajiitRace': 'Female Khajiit',
         'NordRace': 'Female Nord',
         'OrcRace': 'Female Orc',
         'RedguardRace': 'Female Sultry',
         'WoodElfRace': 'Female Young Eager',
     }
+    MALE_VOICE_MODELS_XTTS: dict[str, str] = {
+        'ArgonianRace': 'Male Argonian',
+        'BretonRace': 'Male Even Toned',
+        'DarkElfRace': 'Male Dark Elf',
+        'HighElfRace': 'Male Elf Haughty',
+        'ImperialRace': 'Male Even Toned',
+        'KhajiitRace': 'Male Khajiit',
+        'NordRace': 'Male Nord',
+        'OrcRace': 'Male Orc',
+        'RedguardRace': 'Male Even Toned',
+        'WoodElfRace': 'Male Young Eager',
+    }
+    FEMALE_VOICE_MODELS_XTTS: dict[str, str]  = {
+        'ArgonianRace': 'Female Argonian',
+        'BretonRace': 'Female Even Toned',
+        'DarkElfRace': 'Female Dark Elf',
+        'HighElfRace': 'Female Elf Haughty',
+        'ImperialRace': 'Female Even Toned',
+        'KhajiitRace': 'Female Khajiit',
+        'NordRace': 'Female Nord',
+        'OrcRace': 'Female Orc',
+        'RedguardRace': 'Female Sultry',
+        'WoodElfRace': 'Female Young Eager',
+    }
+    MALE_VOICE_MODELS_PIPERTTS: dict[str, str] = {
+        'ArgonianRace': 'Male Argonian',
+        'BretonRace': 'Male Even Toned',
+        'DarkElfRace': 'Male Dark Elf',
+        'HighElfRace': 'Male Elf Haughty',
+        'ImperialRace': 'Male Even Toned',
+        'KhajiitRace': 'Male Khajiit',
+        'NordRace': 'Male Nord',
+        'OrcRace': 'Male Orc',
+        'RedguardRace': 'Male Even Toned',
+        'WoodElfRace': 'Male Young Eager',
+    }
+    FEMALE_VOICE_MODELS_PIPERTTS: dict[str, str]  = {
+        'ArgonianRace': 'Female Argonian',
+        'BretonRace': 'Female Even Toned',
+        'DarkElfRace': 'Female Dark Elf',
+        'HighElfRace': 'Female Elf Haughty',
+        'ImperialRace': 'Female Even Toned',
+        'KhajiitRace': 'Female Khajiit',
+        'NordRace': 'Female Nord',
+        'OrcRace': 'Female Orc',
+        'RedguardRace': 'Female Sultry',
+        'WoodElfRace': 'Female Young Eager',
+    }
+
+
+
     VOICE_MODEL_IDS = {
         '0002992B':	'Dragon',
         '2470000': 'Male Dark Elf Commoner',

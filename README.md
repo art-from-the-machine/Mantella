@@ -1,4 +1,4 @@
-# Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank"><img src="./img/nexus_mods_link.png" alt="Mantella Nexus Mods link" width="auto" height="28"/></a>
+# Mantella <a href="https://www.nexusmods.com/skyrimspecialedition/mods/98631" target="_blank" style="padding-right: 8px;"><img src="./img/nexus_mods_link.png" alt="Mantella Skyrim Nexus Mods link" width="auto" height="28"/></a><a href="https://www.nexusmods.com/fallout4/mods/79747" target="_blank"><img src="./img/nexus_mods_fallout4_link.png" alt="Mantella Fallout 4 Nexus Mods link" width="auto" height="28"/></a>
 
 <img src="./img/mantella_logo_github.png" align="right" alt="Mantella logo" width="150" height="auto">
 
@@ -12,14 +12,7 @@ Click below or [here](https://youtu.be/FLmbd48r2Wo?si=QLe2_E1CogpxlaS1) to see t
 " target="_blank"><img src="./img/mantella_trailer.gif"
 alt="Mantella trailer link" width="auto" height="220"/></a>
 
-# Installation
-See [art-from-the-machine.github.io/Mantella](https://art-from-the-machine.github.io/Mantella/)
-
-# Issues Q&A
-See [art-from-the-machine.github.io/Mantella/pages/issues_qna.html](https://art-from-the-machine.github.io/Mantella/pages/issues_qna.html)
-
-# Skyrim
-See [art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim](https://art-from-the-machine.github.io/Mantella/pages/installation.html#skyrim)
+For more details, see [here](https://art-from-the-machine.github.io/Mantella/index.html).
 
 # Contribute
 The source code for Mantella is included in this repo. Please note that this development version of Mantella is prone to error and is not recommended for general use. See [here](https://www.nexusmods.com/skyrimspecialedition/mods/98631) for the latest stable release.

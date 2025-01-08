@@ -26,12 +26,24 @@ class fallout4(gameable):
         super().__init__(config, 'data/Fallout4/fallout4_characters.csv', "Fallout4")
         if config.game == "Fallout4VR":
             self.__compatibility = file_communication_compatibility(config.game_path, int(config.port))# <- creating an object of this starts the listen thread
-        self.__config: ConfigLoader = config
+        self.__tts_service: str = config.tts_service
         encoding = utils.get_file_encoding(fallout4.FO4_XVASynth_file)
         self.__FO4_Voice_folder_and_models_df = pd.read_csv(fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)
         #self.__playback: audio_playback = audio_playback(config)
         self.__last_played_voiceline: str | None = None
+        self.__image_analysis_filepath = config.game_path
 
+    @property
+    def extender_name(self) -> str:
+        return 'F4SE'
+
+    @property
+    def game_name_in_filepath(self) -> str:
+        return 'fallout4'
+    
+    @property
+    def image_path(self) -> str:
+        return self.__image_analysis_filepath
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
@@ -41,56 +53,90 @@ class fallout4(gameable):
         return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None)) 
     
     @utils.time_it
-    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str) -> str:
+    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str, library_search:bool = True) -> str:
         voice_model = ''
 
         actor_voice_model = ingame_voice_model
-        actor_voice_model_id = actor_voice_model.split('(')[1].split(')')[0]
-        actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
+        if '(' in actor_voice_model and ')' in actor_voice_model:
+            actor_voice_model_id = actor_voice_model.split('(')[1].split(')')[0]
+        else:
+            actor_voice_model_id = actor_voice_model  
+        if '<' in actor_voice_model:
+            actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
+        else:
+            actor_voice_model_name = actor_voice_model  
+        #Filtering out endsdiwth Race because depending on the source of the method call it may be present.
+        if 'Race <' in actor_race:
+            actor_race = actor_race.split('Race <', 1)[1]
+
+            if actor_race.endswith('Race'):
+                actor_race = actor_race[:actor_race.rfind('Race')].strip()
+        else:
+            actor_race = actor_race
 
         #make the substitutions below to bypass non-functional XVASynth voice models: RobotCompanionMaleDefault, RobotCompanionMaleProcessed,Gen1Synth02 & Gen1Synth03 
-        if actor_voice_model_name in  ("DLC01RobotCompanionMaleDefault", "DLC01RobotCompanionMaleProcessed"):
-            actor_voice_model_name='robot_assaultron'
-            actor_voice_model_id='robot_assaultron'
-        if actor_voice_model_name in  ("SynthGen1Male02", "SynthGen1Male03"):
-            actor_voice_model_name='gen1synth01'
-            actor_voice_model_id='000BBBF0'
-
+        if self.__tts_service=="xvasynth": #only necessary for XVASynth
+            male_voice_model_dictionary=fallout4.MALE_VOICE_MODELS_XVASYNTH
+            female_voice_model_dictionary = fallout4.FEMALE_VOICE_MODELS_XVASYNTH
+            if actor_voice_model_name in  ("DLC01RobotCompanionMaleDefault", "DLC01RobotCompanionMaleProcessed"):
+                actor_voice_model_name='robot_assaultron'
+                actor_voice_model_id='robot_assaultron'
+            if actor_voice_model_name in  ("SynthGen1Male02", "SynthGen1Male03"):
+                actor_voice_model_name='gen1synth01'
+                actor_voice_model_id='000BBBF0'
+        else:
+            male_voice_model_dictionary=fallout4.MALE_VOICE_MODELS_NONXVASYNTH
+            female_voice_model_dictionary = fallout4.FEMALE_VOICE_MODELS_NONXVASYNTH
         matching_row=''
         # Search for the Matching 'voice_ID'
-        matching_row = self.__FO4_Voice_folder_and_models_df[self.__FO4_Voice_folder_and_models_df['voice_ID'] == actor_voice_model_id]
+        if library_search:
+            matching_row = self.__FO4_Voice_folder_and_models_df[self.__FO4_Voice_folder_and_models_df['voice_ID'] == actor_voice_model_id]
 
-        # Return the Matching Row's Values
-        if not matching_row.empty:
-            # Assuming there's only one match, get the value from the 'voice_model' column
-            voice_model = matching_row['voice_model'].iloc[0]
-        else:
-            logging.log(23, "No matching voice ID found. Attempting voice_file_name match.")
+            # Return the Matching Row's Values
+            if not matching_row.empty:
+                # Assuming there's only one match, get the value from the 'voice_model' column
+                voice_model = matching_row['voice_model'].iloc[0]
+            else:
+                logging.log(23, "No matching voice ID found. Attempting voice_file_name match.")
       
+        
+
         if voice_model == '':
             # If no match by 'voice_ID' and not found in , search by 'voice_model' (actor_voice_model_name)
-            matching_row_by_name = self.__FO4_Voice_folder_and_models_df[self.__FO4_Voice_folder_and_models_df['voice_file_name'].str.lower() == actor_voice_model_name.lower()]
-            if not matching_row_by_name.empty:
-                # If there is a match, set 'voice_model' to 'actor_voice_model_name'
-                voice_model = matching_row_by_name['voice_model'].iloc[0]
+            if library_search:
+                matching_row_by_name = self.__FO4_Voice_folder_and_models_df[self.__FO4_Voice_folder_and_models_df['voice_file_name'].str.lower() == actor_voice_model_name.lower()]
+                if not matching_row_by_name.empty:
+                    # If there is a match, set 'voice_model' to 'actor_voice_model_name'
+                    voice_model = matching_row_by_name['voice_model'].iloc[0]
             else:
                 try: # search for voice model in fallout4_characters.csv
-                    voice_model = self.character_df.loc[self.character_df['fallout4_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
-                except: 
-                    modified_race_key = actor_race + "Race"
-                    #except then try to match using gender and race with pre-established dictionaries
-                    if actor_sex == 1:
-                        try:
-                            voice_model = fallout4.FEMALE_VOICE_MODELS[modified_race_key]
-                        except:
-                            voice_model = 'femaleboston'
+                    if library_search:
+                        voice_model = self.character_df.loc[self.character_df['fallout4_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
                     else:
-                        try:
-                            voice_model = fallout4.MALE_VOICE_MODELS[modified_race_key]
-                        except:
-                            voice_model = 'maleboston'
-
+                        voice_model =self.dictionary_match(voice_model,female_voice_model_dictionary, male_voice_model_dictionary, actor_race,actor_sex)
+                except: 
+                    voice_model =self.dictionary_match(voice_model,female_voice_model_dictionary, male_voice_model_dictionary,actor_race,actor_sex)
         return voice_model
+
+    def dictionary_match(self,voice_model:str,female_voice_model_dictionary:dict,male_voice_model_dictionary:dict,actor_race:str, actor_sex:int) -> str:
+        if actor_race is None:
+            actor_race = "Human"
+        if actor_sex is None:
+            actor_sex = 0
+        modified_race_key = actor_race + "Race"
+        #except then try to match using gender and race with pre-established dictionaries
+        if actor_sex == 1:
+            try:
+                voice_model = female_voice_model_dictionary[modified_race_key]
+            except:
+                voice_model = 'femaleboston'
+        else:
+            try:
+                voice_model = male_voice_model_dictionary[modified_race_key]
+            except:
+                voice_model = 'maleboston'
+        return voice_model
+
 
     @utils.time_it
     def load_unnamed_npc(self, name: str, actor_race: str, actor_sex: int, ingame_voice_model:str) -> dict[str, Any]:
@@ -166,16 +212,8 @@ class fallout4(gameable):
             str: A prose description of the weather for the LLM
         """
         return ""
-    
-    @property
-    def extender_name(self) -> str:
-        return 'F4SE'
 
-    @property
-    def game_name_in_filepath(self) -> str:
-        return 'fallout4'
-
-    MALE_VOICE_MODELS: dict[str, str] = {
+    MALE_VOICE_MODELS_XVASYNTH: dict[str, str] = {
         'AssaultronRace':	'robot_assaultron',
         'DLC01RoboBrainRace':	'robot_mrgutsy',
         'DLC02HandyRace':	'robot_mrhandy',
@@ -196,7 +234,7 @@ class fallout4(gameable):
         'TurretTripodRace':	'Dima',
         'TurretWorkshopRace':	'Dima',
     }
-    FEMALE_VOICE_MODELS: dict[str, str]  = {
+    FEMALE_VOICE_MODELS_XVASYNTH: dict[str, str]  = {
         'AssaultronRace':	'robotcompanionfemalprocessed',
         'DLC01RoboBrainRace':	'robotcompanionfemaledefault',
         'DLC02HandyRace':	'robotcompanionfemaledefault',
@@ -216,4 +254,46 @@ class fallout4(gameable):
         'TurretBubbleRace':	'Dima',
         'TurretTripodRace':	'Dima',
         'TurretWorkshopRace':	'Dima',
+    }
+    MALE_VOICE_MODELS_NONXVASYNTH: dict[str, str] = {
+        'AssaultronRace':	'robotassaultron',
+        'DLC01RoboBrainRace':	'robotmrgutsy',
+        'DLC02HandyRace':	'robotmrhandy',
+        'DLC02FeralGhoulRace':	'maleghoul',
+        'DLC03_SynthGen2RaceDiMa':	'dlc03maledima',
+        'DLC03RoboBrainRace':	'robotmrgutsy',
+        'EyeBotRace':	'robotassaultron',
+        'GhoulRace':	'maleghoul',
+        'FeralGhoulRace':	'maleghoul',
+        'FeralGhoulGlowingRace':	'maleghoul',
+        'HumanRace':	'maleboston',
+        'ProtectronRace':	'robotassaultron',
+        'SupermutantBehemothRace':	'crsupermutant03',
+        'SuperMutantRace':	'crsupermutant',
+        'SynthGen1Race':	'synthgen1male01',
+        'SynthGen2Race':	'synthgen1male02',
+        'TurretBubbleRace':	'dlc03maledima',
+        'TurretTripodRace':	'dlc03maledima',
+        'TurretWorkshopRace':	'dlc03maledima',
+    }
+    FEMALE_VOICE_MODELS_NONXVASYNTH: dict[str, str] = {
+        'AssaultronRace':	'dlc01robotcompanionfemaleprocessed',
+        'DLC01RoboBrainRace':	'dlc01robotcompanionfemaledefault',
+        'DLC02HandyRace':	'dlc01robotcompanionfemaledefault',
+        'DLC02FeralGhoulRace':	'femaleghoul',
+        'DLC03_SynthGen2RaceDiMa':	'dlc01robotcompanionfemaledefault',
+        'DLC03RoboBrainRace':	'dlc01robotcompanionfemaledefault',
+        'EyeBotRace':	'dlc01robotcompanionfemaleprocessed',
+        'GhoulRace':	'femaleghoul',
+        'FeralGhoulRace':	'femaleghoul',
+        'FeralGhoulGlowingRace':	'femaleghoul',
+        'HumanRace':	'femaleboston',
+        'ProtectronRace':	'dlc01robotcompanionfemaleprocessed',
+        'SupermutantBehemothRace':	'crsupermutant03',
+        'SuperMutantRace':	'crsupermutant',
+        'SynthGen1Race':	'synthgen1male01',
+        'SynthGen2Race':	'synthgen1male02',
+        'TurretBubbleRace':	'dlc03maledima',
+        'TurretTripodRace':	'dlc03maledima',
+        'TurretWorkshopRace':	'dlc03maledima',
     }
