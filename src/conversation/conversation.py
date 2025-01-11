@@ -44,7 +44,8 @@ class conversation:
         self.__output_manager: ChatManager = output_manager
         self.__rememberer: remembering = rememberer
         self.__openai_client = openai_client
-        self.__has_already_ended: bool = False        
+        self.__has_already_ended: bool = False
+        self.__allow_mic_input: bool = True # this flag ensures mic input is disabled on conversation end
         self.__sentences: sentence_queue = sentence_queue()
         self.__generation_thread: Thread | None = None
         self.__generation_start_lock: Lock = Lock()
@@ -120,7 +121,7 @@ class conversation:
             return comm_consts.KEY_REQUESTTYPE_TTS, None
         
         # restart mic listening as soon as NPC's first sentence is processed
-        if self.__mic_input and not self.__mic_ptt and self.__stt.stopped_listening:
+        if self.__mic_input and not self.__mic_ptt and self.__stt.stopped_listening and self.__allow_mic_input:
             mic_prompt = self.__get_mic_prompt()
             self.__stt.start_listening(mic_prompt)
         
@@ -175,7 +176,7 @@ class conversation:
 
             if self.__mic_input:
                 player_text = None
-                if self.__stt.stopped_listening:
+                if self.__stt.stopped_listening and self.__allow_mic_input:
                     self.__stt.start_listening(self.__get_mic_prompt())
                 while not player_text:
                     player_text = self.__stt.get_latest_transcription()
@@ -290,7 +291,10 @@ class conversation:
         if not self.__has_already_ended:
             config = self.__context.config            
             self.__stop_generation()
-            self.__sentences.clear()            
+            self.__sentences.clear()
+            if self.__stt:
+                self.__stt.stop_listening()
+                self.__allow_mic_input = False
             # say goodbyes
             npc = self.__context.npcs_in_conversation.last_added_character
             if npc:
@@ -319,7 +323,7 @@ class conversation:
         """
         self.__has_already_ended = True
         self.__stop_generation()
-        self.__sentences.clear()        
+        self.__sentences.clear()
         self.__save_conversation(is_reload=False)
     
     @utils.time_it
@@ -436,7 +440,3 @@ class conversation:
         if game_value == None:
             return self.__context.config.voice_player_input
         return game_value
-
-            
-
-               
