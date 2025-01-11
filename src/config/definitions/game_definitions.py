@@ -69,7 +69,7 @@ Please see here to learn where to set this value: https://art-from-the-machine.g
     def get_fallout4_folder_config_value() -> ConfigValue:
         description = """The filepath of the Fallout 4 (desktop) directory where the executable is located.
                         This path only needs to be set if `Vision`->`Use Game Screenshots` is enabled."""
-        return ConfigValuePath("fallout4_folder", "Fallout 4: Path to Fallout 4 Folder", description, "C:\Games\Steam\steamapps\common\Fallout 4", "Fallout4.exe", [GameDefinitions.ProgramFilesChecker("Fallout4")], tags=[ConfigValueTag.advanced])
+        return ConfigValuePath("fallout4_folder", "Fallout 4: Path to Fallout 4 Folder", description, "C:\\Games\\Steam\\steamapps\\common\\Fallout 4", "Fallout4.exe", [GameDefinitions.ProgramFilesChecker("Fallout4")], tags=[ConfigValueTag.advanced])
 
     @staticmethod
     def get_fallout4vr_folder_config_value() -> ConfigValue:
