@@ -145,7 +145,8 @@ class piper(ttsable):
                         return voice_cleaned
             logging.info(f'Could not find voice model {in_game_voice}.onnx in {self.__models_path} attempting to load a backup model')
             voice_type=self.__game.find_best_voice_model(voice_race, voice_gender, in_game_voice, library_search=False)
-            voice_cleaned = voice_type.lower().replace(' ', '')
+            if voice_type:
+                voice_cleaned = voice_type.lower().replace(' ', '')
             return voice_cleaned    
         except Exception as e :
             logging.error(f'Could not find a backup voice model {in_game_voice}.onnx in {self.__models_path}. Error :{e}')

@@ -11,6 +11,7 @@ import subprocess
 import time
 from src.tts.synthesization_options import SynthesizationOptions
 import requests
+import shutil
 
 class ttsable(ABC):
     """Base class for different TTS services
@@ -63,10 +64,11 @@ class ttsable(ABC):
         if not os.path.exists(final_voiceline_file):
             logging.error(f'TTS failed to generate voiceline at: {Path(final_voiceline_file)}')
             raise FileNotFoundError()
-        
-        if (self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response):
+        if ((self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response)):
             self._generate_lip_file(final_voiceline_file, voiceline)
-
+        elif (self._lip_generation_enabled == 'disabled' and self._game == "Fallout4"):
+            self._generate_lip_file(final_voiceline_file, voiceline, bypass=True)
+        
         #rename to unique name        
         if (os.path.exists(final_voiceline_file)):
             try:
@@ -128,7 +130,7 @@ class ttsable(ABC):
 
 
     @utils.time_it
-    def _generate_lip_file(self, wav_file, voiceline, attempts=0):
+    def _generate_lip_file(self, wav_file, voiceline, attempts=0, bypass=False):
         @utils.time_it
         def run_facefx_command(command, facefx_path):
             startupinfo = STARTUPINFO()
@@ -139,45 +141,68 @@ class ttsable(ABC):
                 file.write(f"@echo off\n{command} >nul 2>&1")
 
             subprocess.run(batch_file_path, cwd=facefx_path, creationflags=subprocess.CREATE_NO_WINDOW)
-        
-        try:
-            # check if FonixData.cdf file is besides FaceFXWrapper.exe
-            cdf_path = Path(self._facefx_path) / 'FonixData.cdf' 
-            if not cdf_path.exists():
-                logging.error(f'Could not find FonixData.cdf in "{cdf_path.parent}" required by FaceFXWrapper.')
-                raise FileNotFoundError()
 
-            # generate .lip file from the .wav file with FaceFXWrapper
-            face_wrapper_executable = Path(self._facefx_path) / "FaceFXWrapper.exe"
-            if not face_wrapper_executable.exists():
-                logging.error(f'Could not find FaceFXWrapper.exe in "{face_wrapper_executable.parent}" with which to create a lip sync file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
-                raise FileNotFoundError()
-        
-            # Run FaceFXWrapper.exe
-            r_wav = wav_file.replace(".wav", "_r.wav")
-            lip = wav_file.replace(".wav", ".lip")
-            commands = [
-                face_wrapper_executable.name,
-                self._game,
-                "USEnglish",
-                cdf_path.name,
-                f'"{wav_file}"',
-                f'"{r_wav}"',
-                f'"{lip}"',
-                f'"{voiceline}"'
-            ]
-            command = " ".join(commands)
-            run_facefx_command(command, self._facefx_path)
-
-            # remove file created by FaceFXWrapper
-            if os.path.exists(wav_file.replace(".wav", "_r.wav")):
-                os.remove(wav_file.replace(".wav", "_r.wav"))
-            
-            if (not os.path.exists(lip)) and attempts < 5:
+        def retry_run_facefx(self,wav_file, lip, voiceline,attempts):
+            if (not os.path.exists(lip)) and attempts < 2:
                 logging.warning('Could not generate .lip file. Retrying...')
                 time.sleep(0.1)
                 attempts += 1
                 self._generate_lip_file(wav_file, voiceline, attempts)
+            elif (not os.path.exists(lip)) and attempts < 5 and self._game== "Fallout4":
+                logging.warning('Issue with facefxwrapper.exe, attempting bypass using a dummy lip file. Lip sync may be off. Try turning off lip generation in the Web Browser User Interface if the problem persists.')
+                time.sleep(0.1)
+                attempts += 1
+                self._generate_lip_file(wav_file, voiceline, attempts, bypass=True)
+            elif (not os.path.exists(lip)) and attempts < 5 and self._game== "Skyrim":
+                logging.warning('Could not generate .lip file. Retrying...')
+                time.sleep(0.1)
+                attempts += 1
+                self._generate_lip_file(wav_file, voiceline, attempts)
+
+        
+        try:
+            if not bypass:
+                # check if FonixData.cdf file is besides FaceFXWrapper.exe
+                cdf_path = Path(self._facefx_path) / 'FonixData.cdf' 
+                if not cdf_path.exists():
+                    logging.error(f'Could not find FonixData.cdf in "{cdf_path.parent}" required by FaceFXWrapper.')
+                    raise FileNotFoundError()
+
+                # generate .lip file from the .wav file with FaceFXWrapper
+                face_wrapper_executable = Path(self._facefx_path) / "FaceFXWrapper.exe"
+                if not face_wrapper_executable.exists():
+                    logging.error(f'Could not find FaceFXWrapper.exe in "{face_wrapper_executable.parent}" with which to create a lip sync file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
+                    raise FileNotFoundError()
+            
+                # Run FaceFXWrapper.exe
+                r_wav = wav_file.replace(".wav", "_r.wav")
+                lip = wav_file.replace(".wav", ".lip")
+                commands = [
+                    face_wrapper_executable.name,
+                    self._game,
+                    "USEnglish",
+                    cdf_path.name,
+                    f'"{wav_file}"',
+                    f'"{r_wav}"',
+                    f'"{lip}"',
+                    f'"{voiceline}"'
+                ]
+                command = " ".join(commands)
+                run_facefx_command(command, self._facefx_path)
+
+                # remove file created by FaceFXWrapper
+                if os.path.exists(wav_file.replace(".wav", "_r.wav")):
+                    os.remove(wav_file.replace(".wav", "_r.wav"))
+                
+                retry_run_facefx(self,wav_file, lip, voiceline,attempts)
+            else: #Attempting bypass
+                lip_placeholder_path = Path(utils.resolve_path()) / "data" / self._game / "placeholder"/ "placeholder.lip"
+                lip = wav_file.replace(".wav", ".lip")
+                if not lip_placeholder_path.exists():
+                    raise FileNotFoundError(f"The source file does not exist: {lip_placeholder_path}")
+                else:
+                    shutil.copy(lip_placeholder_path, lip)
+                retry_run_facefx(self,wav_file, lip, voiceline,attempts)            
             
             #Fallout: generate FUZ file
             if self._game == "Fallout4":    
@@ -210,6 +235,6 @@ class ttsable(ABC):
                     ]
                 fuz_command = " ".join(fuzcmds)
                 run_facefx_command(fuz_command, self._facefx_path)
-           
+        
         except Exception as e:
             logging.warning(e)
