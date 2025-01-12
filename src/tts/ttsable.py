@@ -67,8 +67,8 @@ class ttsable(ABC):
         
         if (self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response):
             self._generate_voiceline_files(final_voiceline_file, voiceline)
-        elif (self._lip_generation_enabled == 'disabled' and self._game == "Fallout4"):
-            self._generate_voiceline_files(final_voiceline_file, voiceline, bypass=True)
+        elif (self._lip_generation_enabled in ['lazy', 'disabled'] and self._game == "Fallout4"):
+            self._generate_voiceline_files(final_voiceline_file, voiceline, skip_lip_generation=True)
         
         #rename to unique name        
         if (os.path.exists(final_voiceline_file)):
