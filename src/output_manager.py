@@ -42,6 +42,11 @@ class ChatManager:
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
         self.__generated_function_results_lock = Lock()
         self.__generated_function_results = None
+        self.__has_character_switch_occurred = None
+
+    @property
+    def is_generating(self):
+        return self.__is_generating
 
     @property
     def generated_function_results(self):
@@ -56,6 +61,10 @@ class ChatManager:
     @property
     def tts(self) -> ttsable:
         return self.__tts
+    
+    @property
+    def has_character_switch_occurred(self):
+        return self.__has_character_switch_occurred
 
     @utils.time_it
     def generate_sentence(self, text: str, character_to_talk: Character, is_first_line_of_response: bool = False, is_system_generated_sentence: bool = False) -> mantella_sentence:
@@ -214,6 +223,7 @@ class ChatManager:
             actions_in_sentence: list[action] = []
             first_token = True
             is_first_line_of_response = True
+            self.__has_character_switch_occurred = False
             while True:
                 try:
                     start_time = time.time()
@@ -274,6 +284,7 @@ class ChatManager:
                                         break
                                     character_switched_to: Character | None = self.__character_switched_to(keyword_extraction, characters)
                                     if character_switched_to:
+                                        self.__has_character_switch_occurred=True
                                         if character_switched_to.is_player_character:
                                             logging.log(28, f"Stopped LLM from speaking on behalf of the player")
                                             break
@@ -440,6 +451,7 @@ class ChatManager:
                 logging.error("No valid response received from LLM")
         else:
             logging.error("Unsupported response type for direct calls")
+        self.__is_generating = False
 
     def process_tool_call(self,tool_call):
         # Check if 'function' and required fields are in tool_call

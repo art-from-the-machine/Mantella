@@ -134,21 +134,9 @@ class conversation:
             if comm_consts.ACTION_REMOVECHARACTER in next_sentence.actions:
                 self.__context.remove_character(next_sentence.speaker)
             #check if the next function call has been vetoed by the LLm, if so then the function doesn't occur
-            if self.__context.config.function_enable_inference:
-                if next_sentence.has_veto:
-                    print(f"Cancelling function call {self.__function_manager.llm_output_function_name } due to <veto> tag")
-                    self.__function_manager.clear_llm_output_data() 
-                if self.__function_manager.is_initialized() and self.__function_manager.llm_output_call_type == "function":
-                    # Prefix the function name with "mantella_" and add it to the actions list
-                    mantella_function_name = "mantella_" + self.__function_manager.llm_output_function_name
-                    next_sentence.actions.append(mantella_function_name)
-                    if self.__function_manager.llm_output_target_id:
-                        next_sentence.target_ids.append(self.__function_manager.llm_output_target_id)
-                    if self.__function_manager.llm_output_target_name:
-                        next_sentence.target_names.append(self.__function_manager.llm_output_target_name)
-                    self.__function_manager.clear_llm_output_data() 
-                if self.__context.config.function_enable_veto:
-                    self.__messages.remove_LLM_warnings()
+            if self.__function_manager.is_initialized() :
+                if self.__function_manager.check_LLM_functions_enabled():
+                    next_sentence= self.__function_manager.take_post_response_actions(next_sentence)
             #if there is a next sentence and it actually has content, return it as something for an NPC to say 
             if self.last_sentence_audio_length > 0:
                 logging.info(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
@@ -216,12 +204,14 @@ class conversation:
 
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
         ConversationIsEnded =self.__has_conversation_ended(text)
-        if ConversationIsEnded==False and self.__function_manager.is_initialized() and not self.__context.npcs_in_conversation.contains_multiple_npcs() and self.__context.config.function_enable_inference: #No actions for multi NPC conversations
-            returnedLLMFunctionOutput=self.__function_manager.process_function_call(self.__messages,text)
-            print(f"function enable veto is {self.__context.config.function_enable_veto}")
-            print(f"Returned function output is {returnedLLMFunctionOutput}")              
-            warning_message: user_message = user_message(returnedLLMFunctionOutput, player_character.name, True, is_LLM_warning = True) #Sends a warning message to the LLM so it roughly knows what the NPC is going to do and has a chance to stop it
-            self.__messages.add_message(warning_message)  #consider making this a one of a singleton message
+        if ConversationIsEnded==False and self.__function_manager.is_initialized(): #No actions for multi NPC conversations
+            if self.__function_manager.check_LLM_functions_enabled():
+                returnedLLMFunctionOutput=self.__function_manager.process_function_call(self.__messages,text)
+                if returnedLLMFunctionOutput:
+                    print(f"function enable veto is {self.__context.config.function_enable_veto}")
+                    print(f"Returned function output is {returnedLLMFunctionOutput}")              
+                    warning_message: user_message = user_message(returnedLLMFunctionOutput, player_character.name, True, is_LLM_warning = True) #Sends a warning message to the LLM so it roughly knows what the NPC is going to do and has a chance to stop it
+                    self.__messages.add_message(warning_message)  #consider making this a one of a singleton message
 
         if ejected_npc:
             self.__prepare_eject_npc_from_conversation(ejected_npc)

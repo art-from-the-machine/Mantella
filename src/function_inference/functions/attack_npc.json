@@ -12,18 +12,18 @@
             "description": "The distance from the target NPC.",
             "items": {"type": "number"}
         },
-        "npc_id": {
+        "target_npc_id": {
             "type": "array",
             "description": "The ID of the target NPC.",
             "items": {"type": "string"}
         }
     },
     "system_prompt_info" : "`{GPT_func_name}` if requested to attack or shoot at another NPC",
-    "GPT_required": ["npc_name", "npc_distance", "npc_id"],
+    "GPT_required": ["target_npc_id"],
     "allowed_games": ["fallout4"],
-    "is_generic_npc_function": false,
+    "is_generic_npc_function": true,
     "is_follower_function": true,
-    "is_settler_function": false,
+    "is_settler_function": true,
     "is_pre_dialogue": true,
     "is_post_dialogue": false,
     "key": "attack_npc",
@@ -32,6 +32,6 @@
     "is_multi_npc": false,
     "is_radiant": false,
     "llm_feedback": "{speakerName} is about to attack {llm_output_target_name} at {playerName}'s request. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
-    "parameter_package_key": "npc_targeting_tooltip", 
-    "veto_warning" : "{speakerName} is about to attack {llm_output_target_name} at {playerName}'s request. Begin your response with <veto> if {speakerName} would refuse to do that then explain in first person in character why."
+    "parameter_package_key": ["npc_targeting_tooltip"], 
+    "veto_warning" : "{speakerName} is about to attack {llm_output_target_name} at {playerName}'s request. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why."
 }

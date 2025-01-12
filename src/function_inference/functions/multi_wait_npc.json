@@ -1,0 +1,32 @@
+{
+    "GPT_func_name": "multi_make_npc_wait",
+    "GPT_func_description": "Use this function to make one or more NPCs wait or stop moving by returning true for is_waiting.",
+    "function_parameters": {
+        "is_waiting": {
+            "type": "boolean",
+            "description": "Set to true to make the NPC wait at their current position."
+        
+        },
+        "source_npc_ids": {
+            "type": "array",
+            "description": "An array containing the IDs of one or more NPCs that will be waiting. ",
+            "items": {"type": "number"}
+        }
+    },
+    "system_prompt_info": "`{GPT_func_name}` if requested to wait or stop",
+    "GPT_required": ["is_waiting","source_npc_ids"],
+    "allowed_games": ["fallout4"],
+    "is_generic_npc_function": true,
+    "is_follower_function": true,
+    "is_settler_function": true,
+    "is_pre_dialogue": true,
+    "is_post_dialogue": false,
+    "key": "wait_npc",
+    "is_interrupting": false,
+    "is_one_on_one": false,
+    "is_multi_npc": true,
+    "is_radiant": false,
+    "llm_feedback": "{llm_output_source_names} are about to wait at their position at {playerName}'s request. {llm_output_source_names} will complete this action to the best of their ability and find a rationalization for the action if needed.",
+    "parameter_package_key": ["npc_participants_playerless_tooltip"],
+    "veto_warning" : "{llm_output_source_names} are about to wait at their position at {playerName}'s request. Begin your response with <veto> if any NPC would refuse to do so then explain in first person in character why."
+}

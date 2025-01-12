@@ -158,6 +158,8 @@ class GameStateManager:
             json_dict[comm_consts.FUNCTION_DATA_TARGET_IDS] = sentence_to_prepare.target_ids
         if sentence_to_prepare.target_names:
             json_dict[comm_consts.FUNCTION_DATA_TARGET_NAMES] = sentence_to_prepare.target_names
+        if sentence_to_prepare.source_ids:
+            json_dict[comm_consts.FUNCTION_DATA_SOURCE_IDS] = sentence_to_prepare.source_ids    
 
         return json_dict
     

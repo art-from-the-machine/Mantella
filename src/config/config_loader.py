@@ -231,10 +231,10 @@ class ConfigLoader:
             self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
 
             #FUNCTION_LLM
-            self.function_enable_inference = self.__definitions.get_bool_value("enable_function_inference")
+            #self.function_enable_inference = self.__definitions.get_bool_value("enable_function_inference")
             self.function_enable_veto = self.__definitions.get_bool_value("enable_function_veto")
-            self.function_llm = self.__definitions.get_string_value("function_llm_model")
             self.function_llm_api = self.__definitions.get_string_value("function_llm_api")
+            self.function_llm = self.__definitions.get_string_value("function_llm_model")
             self.function_llm_custom_token_count = self.__definitions.get_int_value("function_llm_custom_token_count")
             self.function_llm_temperature = self.__definitions.get_float_value("function_llm_temperature")
             self.function_llm_top_p = self.__definitions.get_float_value("function_llm_top_p")

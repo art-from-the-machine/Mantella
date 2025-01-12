@@ -81,3 +81,4 @@ class communication_constants:
     # Function data
     FUNCTION_DATA_TARGET_IDS: str = PREFIX + "function_data_target_ids"
     FUNCTION_DATA_TARGET_NAMES: str = PREFIX + "function_data_target_names"
+    FUNCTION_DATA_SOURCE_IDS: str = PREFIX + "function_data_source_ids"

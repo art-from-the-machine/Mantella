@@ -1,5 +1,5 @@
 import json
-from src.function_inference.LLMFunction_class import LLMFunction,LLMOpenAIfunction
+from src.function_inference.LLMFunction_class import LLMFunction, LLMOpenAIfunction, ContextPayload
 
 class ToolsManager:
     def __init__(self):
@@ -23,16 +23,13 @@ class ToolsManager:
             GPT_func_name (str): The name of the function.
 
         Returns:
-            dict: The formatted function template, or None if the function does not exist.
+            LLMFunction: The LLMFunction instance, or None if it does not exist.
         """
-        llm_function:LLMFunction = self.__tools.get(GPT_func_name, None)
-        if llm_function:
-            return llm_function
-        return None
+        return self.__tools.get(GPT_func_name, None)
 
     def get_function(self, GPT_func_name: str) -> dict:
         """
-        Retrieves a function by its name from the tools storage.
+        Retrieves a formatted function by its name from the tools storage.
 
         Args:
             GPT_func_name (str): The name of the function.
@@ -40,7 +37,7 @@ class ToolsManager:
         Returns:
             dict: The formatted function template, or None if the function does not exist.
         """
-        llm_function:LLMFunction = self.__tools.get(GPT_func_name, None)
+        llm_function = self.__tools.get(GPT_func_name, None)
         if llm_function:
             return llm_function.get_formatted_LLMFunction()
         return None
@@ -68,7 +65,7 @@ class ToolsManager:
         Returns a list of all function objects stored in the tools manager.
 
         Returns:
-            list: A list of all function objects.
+            list: A list of all function objects (LLMFunction instances).
         """
         return list(self.__tools.values())
 
@@ -103,7 +100,6 @@ class ToolsManager:
             dict: A nested dictionary built from the provided key-value pairs.
         """
         nested_dict = {}
-
         for path in pairs:
             # Traverse through the tuple to build the nested structure
             current_level = nested_dict
@@ -114,7 +110,6 @@ class ToolsManager:
                 if key not in current_level:
                     current_level[key] = {}
                 current_level = current_level[key]
-
             # Set the final value at the deepest level
             current_level[keys[-1]] = value
 
@@ -134,7 +129,7 @@ class ToolsManager:
         """
         formatted_sections = [intro_text]
         for description, items in array_descriptions:
-            json_array = json.dumps(items)  # Convert list to JSON formatted string
+            json_array = json.dumps(items)
             formatted_sections.append(f'{description} {json_array}')
         formatted_sections.append(outro_text)
         return "\n".join(formatted_sections)
@@ -186,55 +181,14 @@ class ToolsManager:
         self.__tooltips.clear()
         print("All tooltips have been cleared.")
 
-
-# Example usage of the updated ToolsManager and LLMFunction classes
-
-# Initialize the ToolsManager
-manager = ToolsManager()
-
-# Define the parameters using build_dictionary to make it cleaner
-function_parameters = manager.build_dictionary([
-    ("npc_names", {
-        "type": "array",
-        "description": "A list of names of nearby NPCs.",
-        "items": {"type": "string"}
-    }),
-    ("distances", {
-        "type": "array",
-        "description": "A list of distances to each NPC, corresponding to npc_names.",
-        "items": {"type": "number"}
-    }),
-    ("npc_ids", {
-        "type": "array",
-        "description": "A list of unique IDs for each NPC, corresponding to npc_names.",
-        "items": {"type": "string"}
-    })
-])
-'''
-# Build the function using the LLMFunction class
-move_character_function = LLMFunction(
-    GPT_func_name="move_character_near_npc",
-    GPT_func_description="Determine where to move a character closest to a specific NPC, such as 'the rabbit closest to me'.",
-    function_parameters=function_parameters,
-    GPT_required=["npc_names", "distances", "npc_ids"],  # Required fields
-    is_generic_npc_function=False,
-    is_follower_function=False,
-    is_settler_function=False
-)
-
-# Add the function to the ToolsManager
-manager.add_function(move_character_function)
-
-# Retrieve and print the function
-formatted_function = manager.get_function("move_character_near_npc")
-print(json.dumps(formatted_function, indent=4))
-
-# List all function names
-print("Function names:", manager.list_functions_names())
-
-# List all formatted functions
-all_functions = manager.list_all_functions()
-print("All functions:")
-for func in all_functions:
-    print(json.dumps(func, indent=4))
-'''
+    def clear_all_context_payloads(self):
+        """
+        Iterates over all LLMFunction instances in the manager
+        and clears their context_payload lists.
+        """
+        for llm_function in self.__tools.values():
+            # Access the context_payload (a list) via the property
+            llm_function:LLMFunction
+            llm_function.context_payload=None
+            llm_function.context_payload = ContextPayload()
+        print("All context_payloads have been cleared for every stored LLMFunction.")

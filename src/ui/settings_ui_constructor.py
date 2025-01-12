@@ -3,7 +3,7 @@ import gradio as gr
 from typing import Any, Callable, TypeVar
 import logging
 
-from src.llm.openai_client import openai_client
+from src.llm.openai_client import openai_client, function_client
 from src.config.types.config_value_path import ConfigValuePath
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_float import ConfigValueFloat
@@ -167,21 +167,18 @@ class SettingsUIConstructor(ConfigValueVisitor):
         return count_CRLF + (count_newline - count_CRLF) + 1
 
     def visit_ConfigValueSelection(self, config_value: ConfigValueSelection):
-        def update_model_list() -> gr.Dropdown:
-            config_value = self.__identifier_to_config_value["model"]
+        def update_model_list(config_value_identifier_input) -> gr.Dropdown:
+            config_value = self.__identifier_to_config_value[config_value_identifier_input]
             return create_input_component(config_value)
 
         def create_input_component(raw_config_value: ConfigValue) -> gr.Dropdown:
-            config_value = typing.cast(ConfigValueSelection, raw_config_value)
-            if config_value.identifier != "model":
-                return gr.Dropdown(value=config_value.value,                        
-                    choices=config_value.options, # type: ignore
-                    multiselect=False,
-                    allow_custom_value=config_value.allows_custom_value, 
-                    show_label=False,
-                    container=False)
-            else: #special treatment for 'model' because the content of the dropdown needs to reload on change of 'llm_api'
+            config_value = typing.cast(ConfigValueSelection, raw_config_value) 
+            service: str = ""
+            if config_value.identifier == "model" : #special treatment for 'model' because the content of the dropdown needs to reload on change of 'llm_api'
                 service: str = self.__identifier_to_config_value["llm_api"].value
+            elif config_value.identifier == "function_llm_model": #special treatment for 'model' because the content of the dropdown needs to reload on change of 'llm_api'
+                service: str = self.__identifier_to_config_value["function_llm_api"].value   
+            if service != "":
                 model_list = openai_client.get_model_list(service)
                 selected_model = config_value.value
                 if not model_list.is_model_in_list(selected_model):
@@ -192,10 +189,30 @@ class SettingsUIConstructor(ConfigValueVisitor):
                     allow_custom_value=model_list.allows_manual_model_input,
                     show_label=False,
                     container=False)
+            else :
+                return gr.Dropdown(value=config_value.value,                        
+                    choices=config_value.options, # type: ignore
+                    multiselect=False,
+                    allow_custom_value=config_value.allows_custom_value, 
+                    show_label=False,
+                    container=False)
+            
         
         additional_buttons: list[tuple[str, Callable[[], Any]]] = []
         if config_value.identifier == "model":
-            additional_buttons = [("Update list", update_model_list)]
+            additional_buttons = [
+                (
+                    "Update list", 
+                    lambda: update_model_list("model")  
+                )
+            ]
+        if config_value.identifier == "function_llm_model":
+            additional_buttons = [
+                (
+                    "Update list", 
+                    lambda: update_model_list("function_llm_model")
+                )
+            ]
         self.__create_config_value_ui_element(config_value, create_input_component,additional_buttons=additional_buttons)
 
     def visit_ConfigValueMultiSelection(self, config_value: ConfigValueMultiSelection):

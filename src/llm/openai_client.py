@@ -630,18 +630,24 @@ class function_client(openai_client):
                         logging.error(f"LLM API Error: {e}")
             finally:
                 sync_client.close()
-            if (
-                not chat_completion
-                or not hasattr(chat_completion, 'choices')
-                or not chat_completion.choices
-                or not hasattr(chat_completion.choices[0], 'message')
-                or not hasattr(chat_completion.choices[0].message, 'content')
-                or not chat_completion.choices[0].message.content
-            ):
+            
+            if self._base_url:
+                if (
+                    not chat_completion
+                    or not hasattr(chat_completion, 'choices')
+                    or not chat_completion.choices
+                    or not hasattr(chat_completion.choices[0], 'message')
+                    or not hasattr(chat_completion.choices[0].message, 'content')
+                    or not chat_completion.choices[0].message.content
+                ):
+                    logging.info(f"Non OpenAI LLM Response failed")
+                    return None 
+            else:
             #if not chat_completion :
-            #if not chat_completion or chat_completion.choices.__len__() < 1 or not chat_completion.choices[0].message.content:
-                logging.info(f"LLM Response failed")
-                return None           
+                #if not chat_completion or chat_completion.choices.__len__() < 1 or not chat_completion.choices[0].message.content:
+                if not chat_completion :
+                    logging.info(f"OpenAI LLM Response failed")
+                    return None           
             chat_completion_json = json.dumps(chat_completion, default=lambda o: o.__dict__)
             print(f"chat completion_json is {chat_completion_json}")
             return chat_completion_json

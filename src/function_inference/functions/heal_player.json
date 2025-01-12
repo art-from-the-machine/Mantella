@@ -21,7 +21,7 @@
     "is_multi_npc": false,
     "is_radiant": false,
     "llm_feedback": "{speakerName} is about to heal {playerName} at their request. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
-    "parameter_package_key": "", 
-    "veto_warning" : "{speakerName} is about to heal {playerName} at their request. Begin your response with <veto> if {speakerName} would refuse to do that then explain in first person in character why.",
+    "parameter_package_key": [], 
+    "veto_warning" : "{speakerName} is about to heal {playerName} at their request. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why.",
     "conditions" : ["player_is_damaged","speaker_has_stimpack"]
 }
