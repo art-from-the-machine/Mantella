@@ -64,10 +64,11 @@ class ttsable(ABC):
         if not os.path.exists(final_voiceline_file):
             logging.error(f'TTS failed to generate voiceline at: {Path(final_voiceline_file)}')
             raise FileNotFoundError()
-        if ((self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response)):
-            self._generate_lip_file(final_voiceline_file, voiceline)
+        
+        if (self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response):
+            self._generate_voiceline_files(final_voiceline_file, voiceline)
         elif (self._lip_generation_enabled == 'disabled' and self._game == "Fallout4"):
-            self._generate_lip_file(final_voiceline_file, voiceline, bypass=True)
+            self._generate_voiceline_files(final_voiceline_file, voiceline, bypass=True)
         
         #rename to unique name        
         if (os.path.exists(final_voiceline_file)):
@@ -130,9 +131,15 @@ class ttsable(ABC):
 
 
     @utils.time_it
-    def _generate_lip_file(self, wav_file, voiceline, attempts=0, bypass=False):
+    def _generate_voiceline_files(self, wav_file: str, voiceline: str, skip_lip_generation: bool = False):
+        """Generates .lip files for voicelines using FaceFXWrapper. Additionally generates a .fuz file which is required for Fallout 4
+        Args:
+            wav_file (str): The path to the input .wav file containing the voiceline audio
+            voiceline (str): The corresponding text voiceline used to help lip sync generation
+            skip_lip_generation (bool): Whether to skip the lip file generation process and use a placeholder .lip file instead (useful for when FaceFXWrapper is experiencing issues)
+        """
         @utils.time_it
-        def run_facefx_command(command, facefx_path):
+        def run_facefx_command(command, facefx_path) -> None:
             startupinfo = STARTUPINFO()
             startupinfo.dwFlags |= STARTF_USESHOWWINDOW
             
@@ -142,99 +149,94 @@ class ttsable(ABC):
 
             subprocess.run(batch_file_path, cwd=facefx_path, creationflags=subprocess.CREATE_NO_WINDOW)
 
-        def retry_run_facefx(self,wav_file, lip, voiceline,attempts):
-            if (not os.path.exists(lip)) and attempts < 2:
-                logging.warning('Could not generate .lip file. Retrying...')
-                time.sleep(0.1)
-                attempts += 1
-                self._generate_lip_file(wav_file, voiceline, attempts)
-            elif (not os.path.exists(lip)) and attempts < 5 and self._game== "Fallout4":
-                logging.warning('Issue with facefxwrapper.exe, attempting bypass using a dummy lip file. Lip sync may be off. Try turning off lip generation in the Web Browser User Interface if the problem persists.')
-                time.sleep(0.1)
-                attempts += 1
-                self._generate_lip_file(wav_file, voiceline, attempts, bypass=True)
-            elif (not os.path.exists(lip)) and attempts < 5 and self._game== "Skyrim":
-                logging.warning('Could not generate .lip file. Retrying...')
-                time.sleep(0.1)
-                attempts += 1
-                self._generate_lip_file(wav_file, voiceline, attempts)
 
+        def copy_placeholder_lip_file(lip_file: str, game: str) -> None:
+            """
+            .lip files are needed to generate .fuz files (required by Fallout 4)
+            If generating lip files via FaceFXWrapper fails, this function ensures a .lip file exists by copying from a placeholder file
+            """
+            lip_placeholder_path = Path(utils.resolve_path()) / "data" / game / "placeholder" / "placeholder.lip"
+            if not lip_placeholder_path.exists():
+                raise FileNotFoundError(f"The source file does not exist: {lip_placeholder_path}")
+            else:
+                shutil.copy(lip_placeholder_path, lip_file)
+
+
+        def generate_facefx_lip_file(facefx_path: str, face_wrapper_executable: Path, wav_file: str, lip_file: str, voiceline: str, game: str) -> None:
+            cdf_path = Path(facefx_path) / 'FonixData.cdf' 
+            if not cdf_path.exists():
+                logging.error(f'Could not find FonixData.cdf in "{cdf_path.parent}" required by FaceFXWrapper.')
+                raise FileNotFoundError()
         
-        try:
-            if not bypass:
-                # check if FonixData.cdf file is besides FaceFXWrapper.exe
-                cdf_path = Path(self._facefx_path) / 'FonixData.cdf' 
-                if not cdf_path.exists():
-                    logging.error(f'Could not find FonixData.cdf in "{cdf_path.parent}" required by FaceFXWrapper.')
-                    raise FileNotFoundError()
+            # Run FaceFXWrapper.exe
+            r_wav = wav_file.replace(".wav", "_r.wav")
+            commands = [
+                face_wrapper_executable.name,
+                game,
+                "USEnglish",
+                cdf_path.name,
+                f'"{wav_file}"',
+                f'"{r_wav}"',
+                f'"{lip_file}"',
+                f'"{voiceline}"'
+            ]
+            command = " ".join(commands)
+            run_facefx_command(command, facefx_path)
 
-                # generate .lip file from the .wav file with FaceFXWrapper
-                face_wrapper_executable = Path(self._facefx_path) / "FaceFXWrapper.exe"
-                if not face_wrapper_executable.exists():
-                    logging.error(f'Could not find FaceFXWrapper.exe in "{face_wrapper_executable.parent}" with which to create a lip sync file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
-                    raise FileNotFoundError()
-            
-                # Run FaceFXWrapper.exe
-                r_wav = wav_file.replace(".wav", "_r.wav")
-                lip = wav_file.replace(".wav", ".lip")
-                commands = [
-                    face_wrapper_executable.name,
-                    self._game,
-                    "USEnglish",
-                    cdf_path.name,
-                    f'"{wav_file}"',
-                    f'"{r_wav}"',
-                    f'"{lip}"',
-                    f'"{voiceline}"'
+            # remove file created by FaceFXWrapper
+            if os.path.exists(wav_file.replace(".wav", "_r.wav")):
+                os.remove(wav_file.replace(".wav", "_r.wav"))
+
+
+        def generate_fuz_file(facefx_path: str, face_wrapper_executable: Path, wav_file: str, lip_file: str) -> None:
+            fuz_extractor_executable = Path(facefx_path) / "Fuz_extractor.exe"
+            if not fuz_extractor_executable.exists():
+                logging.error(f'Could not find Fuz_extractor.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
+                raise FileNotFoundError()
+        
+            xWMAEncode_executable = Path(facefx_path) / "xWMAEncode.exe"
+            if not xWMAEncode_executable.exists():
+                logging.error(f'Could not find xWMAEncode.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
+                raise FileNotFoundError()
+
+            xwm_file = wav_file.replace(".wav", ".xwm")
+            xwmcmds = [
+                xWMAEncode_executable.name,
+                f'"{wav_file}"',
+                f'"{xwm_file}"'
                 ]
-                command = " ".join(commands)
-                run_facefx_command(command, self._facefx_path)
+            xwm_command = " ".join(xwmcmds)
+            run_facefx_command(xwm_command, facefx_path)
 
-                # remove file created by FaceFXWrapper
-                if os.path.exists(wav_file.replace(".wav", "_r.wav")):
-                    os.remove(wav_file.replace(".wav", "_r.wav"))
-                
-                retry_run_facefx(self,wav_file, lip, voiceline,attempts)
-            else: #Attempting bypass
-                lip_placeholder_path = Path(utils.resolve_path()) / "data" / self._game / "placeholder"/ "placeholder.lip"
-                lip = wav_file.replace(".wav", ".lip")
-                if not lip_placeholder_path.exists():
-                    raise FileNotFoundError(f"The source file does not exist: {lip_placeholder_path}")
-                else:
-                    shutil.copy(lip_placeholder_path, lip)
-                retry_run_facefx(self,wav_file, lip, voiceline,attempts)            
+            fuzfile = wav_file.replace(".wav", ".fuz")
+            fuzcmds = [
+                fuz_extractor_executable.name,
+                "-c",
+                f'"{fuzfile}"',
+                f'"{lip_file}"',
+                f'"{xwm_file}"'
+                ]
+            fuz_command = " ".join(fuzcmds)
+            run_facefx_command(fuz_command, facefx_path)
+
+
+        try:
+            face_wrapper_executable: Path = Path(self._facefx_path) / "FaceFXWrapper.exe"
+            if not face_wrapper_executable.exists():
+                logging.error(f'Could not find FaceFXWrapper.exe in "{face_wrapper_executable.parent}" with which to create a lip sync file, download it from: https://github.com/Nukem9/FaceFXWrapper/releases')
+                raise FileNotFoundError()
             
-            #Fallout: generate FUZ file
+            # path to store .lip file (next to voiceline .wav)
+            lip_file: str = wav_file.replace(".wav", ".lip")
+            
+            if not skip_lip_generation:
+                generate_facefx_lip_file(self._facefx_path, face_wrapper_executable, wav_file, lip_file, voiceline, self._game)
+            else:
+                copy_placeholder_lip_file(lip_file, self._game)
+            
+            # Fallout 4 requires voicelines in a .fuz format
             if self._game == "Fallout4":    
-                fuz_extractor_executable = Path(self._facefx_path) / "Fuz_extractor.exe"
-                if not fuz_extractor_executable.exists():
-                    logging.error(f'Could not find Fuz_extractor.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
-                    raise FileNotFoundError()
-            
-                xWMAEncode_executable = Path(self._facefx_path) / "xWMAEncode.exe"
-                if not xWMAEncode_executable.exists():
-                    logging.error(f'Could not find xWMAEncode.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
-                    raise FileNotFoundError()
-
-                xwm_file = wav_file.replace(".wav", ".xwm")
-                xwmcmds = [
-                    xWMAEncode_executable.name,
-                    f'"{wav_file}"',
-                    f'"{xwm_file}"'
-                    ]
-                xwm_command = " ".join(xwmcmds)
-                run_facefx_command(xwm_command, self._facefx_path)
-
-                fuzfile = wav_file.replace(".wav", ".fuz")
-                fuzcmds = [
-                    fuz_extractor_executable.name,
-                    "-c",
-                    f'"{fuzfile}"',
-                    f'"{lip}"',
-                    f'"{xwm_file}"'
-                    ]
-                fuz_command = " ".join(fuzcmds)
-                run_facefx_command(fuz_command, self._facefx_path)
+                generate_fuz_file(self._facefx_path, face_wrapper_executable, wav_file, lip_file)
         
         except Exception as e:
             logging.warning(e)
