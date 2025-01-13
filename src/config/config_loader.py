@@ -76,6 +76,7 @@ class ConfigLoader:
             writer: ConfigFileWriter = ConfigFileWriter()
             writer.write(self.__file_name, definitions, create_back_up_configini)
         except Exception as e:
+            utils.play_error_sound()
             logging.error(24, f"Failed to write default 'config.ini'. Possible reason: MantellaSoftware does not have rights to write at its location. Exception: {repr(e)}")    
 
     def __update_config_values_from_current_state(self):
@@ -295,6 +296,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             
             pass
         except Exception as e:
+            utils.play_error_sound()
             logging.error('Parameter missing/invalid in config.ini file!')
             raise e
     
@@ -326,6 +328,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                             info_text: str = content.get("info-text", "")
                             result.append(action(identifier, name, key,description,prompt,is_interrupting, one_on_one,multi_npc,radiant,info_text))
             except Exception as e:
+                utils.play_error_sound()
                 logging.log(logging.WARNING, f"Could not load action definition file '{file}' in '{actions_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
         return result
     

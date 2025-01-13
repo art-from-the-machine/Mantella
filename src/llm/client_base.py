@@ -219,6 +219,7 @@ class ClientBase(ABC):
                     else:
                         break
             except Exception as e:
+                utils.play_error_sound()
                 if isinstance(e, APIConnectionError):
                     if e.code in [401, 'invalid_api_key']: # incorrect API key
                         if self._base_url == 'https://api.openai.com/v1':
@@ -461,5 +462,6 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             
             return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
         except Exception as e:
+            utils.play_error_sound()
             error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required. The file is in your mod folder of Mantella. Error: {e}"
             return LLMModelList([(error,"error")], "error", allows_manual_model_input=False)
