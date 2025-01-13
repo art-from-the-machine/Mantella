@@ -124,6 +124,7 @@ class MantellaConfigValueDefinitionsNew:
 
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
         other_category.add_config_value(OtherDefinitions.get_auto_launch_ui_config_value())
+        other_category.add_config_value(OtherDefinitions.get_play_startup_sound_config_value())
         other_category.add_config_value(OtherDefinitions.get_remove_mei_folders_config_value())
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
         other_category.add_config_value(OtherDefinitions.get_active_actions(actions))

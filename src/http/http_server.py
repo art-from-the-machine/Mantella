@@ -3,6 +3,7 @@ import click
 from fastapi import FastAPI
 import uvicorn
 from src.http.routes.routeable import routeable
+from src import utils
 
 class http_server:
     """A simple http server using FastAPI. Can be started using different routes.
@@ -28,7 +29,7 @@ class http_server:
     def app(self) -> FastAPI:
         return self.__app
 
-    def start(self, port: int, routes: list[routeable], show_debug: bool = False):
+    def start(self, port: int, routes: list[routeable], play_startup_sound: bool, show_debug: bool = False):
         """Starts the server and sets up the provided routes
 
         Args:
@@ -38,6 +39,9 @@ class http_server:
         for route in routes:
             route.add_route_to_server(self.__app)
 
+        if play_startup_sound:
+            utils.play_mantella_ready_sound()
+        
         logging.log(24, '\nConversations not starting when you select an NPC? See here:')
         logging.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
         logging.log(24, '\nWaiting for player to select an NPC...')
