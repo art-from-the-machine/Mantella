@@ -189,6 +189,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             try:
                 response_data = client.audio.transcriptions.create(model=self.whisper_model, language=self.language, file=audio, prompt=prompt)
             except Exception as e:
+                utils.play_error_sound()
                 if e.code in [404, 'model_not_found']:
                     if self.whisper_service == 'OpenAI':
                         logging.error(f"Selected Whisper model '{self.whisper_model}' does not exist in the OpenAI service. Try changing 'Speech-to-Text'->'Model Size' to 'whisper-1' in the Mantella UI")
@@ -287,6 +288,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             except queue.Empty:
                 continue
             except Exception as e:
+                utils.play_error_sound()
                 logging.error(f'Error processing mic input: {str(e)}')
                 time.sleep(0.1)
     
@@ -321,6 +323,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                         self.show_mic_warning = False
                     continue
                 except Exception as e:
+                    utils.play_error_sound()
                     logging.error(f'Error in microphone input: {e}')
                     time.sleep(0.1)
 

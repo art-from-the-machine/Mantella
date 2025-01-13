@@ -56,6 +56,13 @@ def play_mantella_ready_sound():
         pass
 
 
+def play_error_sound():
+    try:
+        winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
+    except:
+        pass
+
+
 @time_it
 def get_file_encoding(file_path) -> str | None:
     with open(file_path,'rb') as f:
