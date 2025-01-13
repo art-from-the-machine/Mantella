@@ -1,5 +1,6 @@
 **/__pycache__/
 data/**/*.wav
+!data/mantella_ready.wav
 data/**/*.lip
 data/**/*.json
 data/**/*.txt
