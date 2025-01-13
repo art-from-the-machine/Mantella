@@ -241,6 +241,8 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             #UI
             self.auto_launch_ui = self.__definitions.get_bool_value("auto_launch_ui")
 
+            self.play_startup_sound = self.__definitions.get_bool_value("play_startup_sound")
+
             #Conversation
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
             self.max_count_events = self.__definitions.get_int_value("max_count_events")
