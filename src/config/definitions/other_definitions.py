@@ -21,7 +21,7 @@ class OtherDefinitions:
     @staticmethod
     def get_play_startup_sound_config_value() -> ConfigValue:
         description = """Whether to play a startup sound when Mantella is ready."""
-        return ConfigValueBool("play_startup_sound", "Play Startup Sound", description, True, tags=[ConfigValueTag.share_row])
+        return ConfigValueBool("play_startup_sound", "Play Startup Sound", description, False, tags=[ConfigValueTag.share_row])
     
     @staticmethod
     def get_automatic_greeting_config_value() -> ConfigValue:
