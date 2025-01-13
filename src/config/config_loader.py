@@ -191,7 +191,9 @@ class ConfigLoader:
             self.use_sr = self.__definitions.get_bool_value("use_sr")
 
             #STT
-            self.whisper_model = self.__definitions.get_string_value("model_size")
+            self.stt_service = self.__definitions.get_string_value("stt_service").lower()
+            self.moonshine_model = self.__definitions.get_string_value("moonshine_model_size")
+            self.whisper_model = self.__definitions.get_string_value("whisper_model_size")
             self.whisper_process_device = self.__definitions.get_string_value("process_device")
             self.stt_language = self.__definitions.get_string_value("stt_language")
             if (self.stt_language == 'default'):

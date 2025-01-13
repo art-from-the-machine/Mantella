@@ -22,3 +22,4 @@ furo==2023.9.10
 pywin32==306
 mss==9.0.1
 opencv-python==4.10.0.84
+git+https://github.com/usefulsensors/moonshine.git@6a0846b556ca1c1f2f373996fe53b0b79e23cc17#subdirectory=moonshine-onnx
