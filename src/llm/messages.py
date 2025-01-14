@@ -134,7 +134,8 @@ class user_message(message):
 
     def add_event(self, events: list[str]):
         for event in events:
-            self.__ingame_events.append(event)
+            if len(event) > 0:
+                self.__ingame_events.append(event)
     
     def count_ingame_events(self) -> int:
         return len(self.__ingame_events)

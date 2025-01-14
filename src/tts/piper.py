@@ -51,8 +51,10 @@ class piper(ttsable):
             models = [f.replace('.onnx','') for f in os.listdir(folder_path) if f.endswith('.onnx')]
             return models
         except FileNotFoundError:
+            utils.play_error_sound()
             raise FileNotFoundError
         except PermissionError:
+            utils.play_error_sound()
             raise PermissionError
 
     
@@ -140,14 +142,16 @@ class piper(ttsable):
         try:
             for voice_type in [advanced_voice_model, voice, in_game_voice, csv_in_game_voice]:
                 if voice_type:
-                    voice_cleaned = voice_type.lower().replace(' ', '')
+                    voice_cleaned = str(voice_type).lower().replace(' ', '')
                     if voice_cleaned in self.__available_models:
                         return voice_cleaned
             logging.info(f'Could not find voice model {in_game_voice}.onnx in {self.__models_path} attempting to load a backup model')
             voice_type=self.__game.find_best_voice_model(voice_race, voice_gender, in_game_voice, library_search=False)
-            voice_cleaned = voice_type.lower().replace(' ', '')
+            if voice_type:
+                voice_cleaned = str(voice_type).lower().replace(' ', '')
             return voice_cleaned    
         except Exception as e :
+            utils.play_error_sound()
             logging.error(f'Could not find a backup voice model {in_game_voice}.onnx in {self.__models_path}. Error :{e}')
             return None
 
@@ -197,6 +201,7 @@ class piper(ttsable):
             self.t.start()
         
         except Exception as e:
+            utils.play_error_sound()
             logging.error(f'Could not run Piper. Ensure that the path "{self.__piper_path}" is correct. Error: {e}')
             raise TTSServiceFailure()
 

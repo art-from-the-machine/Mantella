@@ -219,6 +219,7 @@ class ClientBase(ABC):
                     else:
                         break
             except Exception as e:
+                utils.play_error_sound()
                 if isinstance(e, APIConnectionError):
                     if e.code in [401, 'invalid_api_key']: # incorrect API key
                         if self._base_url == 'https://api.openai.com/v1':
@@ -265,7 +266,7 @@ class ClientBase(ABC):
 
     @utils.time_it
     @staticmethod
-    def get_api_key(key_files: str | list[str]) -> str:
+    def get_api_key(key_files: str | list[str], show_error: bool = True) -> str:
         '''
         Attempts to read an API key from a list of files in order of priority.
 
@@ -298,11 +299,13 @@ class ClientBase(ABC):
                 pass
 
         if not api_key or api_key == '':
-                logging.critical(f'''No secret key found in GPT_SECRET_KEY.txt.
+                if show_error:
+                    utils.play_error_sound()
+                    logging.critical(f'''No secret key found in GPT_SECRET_KEY.txt.
 Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
-If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is selected and running.
+If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is selected and running via: http://localhost:4999/ui
 For more information, see here: https://art-from-the-machine.github.io/Mantella/''')
                 return None
 
@@ -421,7 +424,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             elif service == "OpenRouter":
                 default_model = default_model
                 secret_key_files = [secret_key_file, 'GPT_SECRET_KEY.txt'] if secret_key_file != 'GPT_SECRET_KEY.txt' else [secret_key_file]
-                secret_key = ClientBase.get_api_key(secret_key_files)
+                secret_key = ClientBase.get_api_key(secret_key_files, not is_vision)
                 if not secret_key:
                     return LLMModelList([(f"No secret key found in {secret_key_file}", "Custom model")], "Custom model", allows_manual_model_input=True)
                 # NOTE: while a secret key is not needed for this request, this may change in the future
@@ -461,5 +464,6 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             
             return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
         except Exception as e:
+            utils.play_error_sound()
             error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required. The file is in your mod folder of Mantella. Error: {e}"
             return LLMModelList([(error,"error")], "error", allows_manual_model_input=False)

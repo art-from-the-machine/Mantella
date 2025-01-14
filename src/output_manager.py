@@ -58,6 +58,7 @@ class ChatManager:
                 synth_options = SynthesizationOptions(character_to_talk.is_in_combat, is_first_line_of_response)
                 audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
             except Exception as e:
+                utils.play_error_sound()
                 error_text = f"Text-to-Speech Error: {e}"
                 logging.log(29, error_text)
                 return mantella_sentence(character_to_talk, text, "", 0, True, error_text)
@@ -331,6 +332,7 @@ class ChatManager:
 
                     break
                 except Exception as e:
+                    utils.play_error_sound()
                     logging.error(f"LLM API Error: {e}")                    
                     error_response = "I can't find the right words at the moment."
                     new_sentence = self.generate_sentence(error_response, active_character)
@@ -354,12 +356,14 @@ class ChatManager:
                         full_reply += accumulated_sentence
                         accumulated_sentence = ''
                     except Exception as e:
+                        utils.play_error_sound()
                         accumulated_sentence = ''
                         logging.error(f"TTS Error: {e}")
 
             # Mark the end of the response
             # await sentence_queue.put(None)
         except Exception as e:
+            utils.play_error_sound()
             if isinstance(e, APIConnectionError):
                 if (hasattr(e, 'code')) and (e.code in [401, 'invalid_api_key']): # incorrect API key
                     logging.error(f"Invalid API key. Please ensure you have selected the right model for your service (OpenAI / OpenRouter) via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")

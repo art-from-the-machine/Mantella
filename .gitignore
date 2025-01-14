@@ -1,8 +1,10 @@
 **/__pycache__/
 data/**/*.wav
+!data/mantella_ready.wav
 data/**/*.lip
 data/**/*.json
 data/**/*.txt
+!data/Fallout4/placeholder/*.lip
 data/tmp/
 *SECRET_KEY.txt
 logging.log

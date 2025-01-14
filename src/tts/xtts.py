@@ -255,5 +255,6 @@ class xtts(ttsable):
                 raise TTSServiceFailure()
         
         except Exception as e:
+            utils.play_error_sound()
             logging.error(f'Could not run XTTS. Ensure that the path "{self.__xtts_server_path}" is correct. Error: {e}')
             #raise TTSServiceFailure()

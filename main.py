@@ -25,7 +25,7 @@ def main():
         ui = StartUI(config)
         routes: list[routeable] = [conversation, stt, ui]
         
-        mantella_http_server.start(int(config.port), routes, should_debug_http)
+        mantella_http_server.start(int(config.port), routes, config.play_startup_sound, should_debug_http)
 
     except Exception as e:
         logging.error("".join(traceback.format_exception(e)))
