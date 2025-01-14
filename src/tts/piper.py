@@ -135,7 +135,7 @@ class piper(ttsable):
             self.change_voice(self.__selected_voice)
 
     @utils.time_it
-    def _select_voice_type(self, voice: str, in_game_voice: str | None, csv_in_game_voice: str | None, advanced_voice_model: str | None, voice_gender: str | None, voice_race: str | None):
+    def _select_voice_type(self, voice: str, in_game_voice: str | None, csv_in_game_voice: str | None, advanced_voice_model: str | None, voice_gender: int | None, voice_race: str | None):
         # check if model name in each CSV column exists, with advanced_voice_model taking precedence over other columns
         try:
             for voice_type in [advanced_voice_model, voice, in_game_voice, csv_in_game_voice]:

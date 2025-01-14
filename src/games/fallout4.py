@@ -44,6 +44,10 @@ class fallout4(gameable):
     @property
     def image_path(self) -> str:
         return self.__image_analysis_filepath
+    
+    @property
+    def maximum_subtitle_length(self) -> int:
+        return 148
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
@@ -188,7 +192,7 @@ class fallout4(gameable):
             logging.warning(e)
 
         self.__last_played_voiceline = queue_output.voice_file
-        logging.info(f"{speaker.name}: {queue_output.sentence}")
+        logging.info(f"{speaker.name}: {queue_output.text}")
 
     @utils.time_it
     def __delete_last_played_voiceline(self):

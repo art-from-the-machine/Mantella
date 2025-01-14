@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from openai.types.chat import ChatCompletionMessageParam
+from src.llm.sentence_content import sentence_content
 from src.character_manager import Character
 
 from src.llm.sentence import sentence
@@ -77,10 +78,10 @@ class assistant_message(message):
     """
     def __init__(self, is_system_generated_message: bool = False):
         super().__init__("", is_system_generated_message)
-        self.__sentences: list[sentence] = []
+        self.__sentences: list[sentence_content] = []
     
     def add_sentence(self, new_sentence: sentence):
-        self.__sentences.append(new_sentence)
+        self.__sentences.append(new_sentence.content)
 
     def get_formatted_content(self) -> str:
         if len(self.__sentences) < 1:
@@ -88,12 +89,20 @@ class assistant_message(message):
         
         result = ""
         lastActor: Character | None = None
-        for sentence in self.__sentences: 
+        was_last_sentence_narration: bool = False
+        for sentence in self.__sentences:
             if self.is_multi_npc_message and lastActor != sentence.speaker:
                 lastActor = sentence.speaker
-                result += "\n" + lastActor.name +': '+ sentence.sentence
+                was_last_sentence_narration = False
+                result += "\n" + lastActor.name +':'
+            if not was_last_sentence_narration and sentence.is_narration:
+                result += " *"
+            elif was_last_sentence_narration and not sentence.is_narration:
+                result += "* "
             else:
-                result += sentence.sentence
+                result += " "
+            was_last_sentence_narration = sentence.is_narration
+            result += sentence.text.strip()
         result = utils.remove_extra_whitespace(result)
         return result
 

@@ -65,7 +65,7 @@ class xvasynth(ttsable):
     
 
     @utils.time_it
-    def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None, voice_gender: str | None = None, voice_race: str | None = None):
+    def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None, voice_gender: int | None = None, voice_race: str | None = None):
         logging.log(self._loglevel, 'Loading voice model...')
  
         # this is a game check for Fallout4/Skyrim to correctly search the XVASynth voice models for the right game.

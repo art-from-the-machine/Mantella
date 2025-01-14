@@ -60,6 +60,12 @@ class gameable(ABC):
         pass
 
     @property
+    @abstractmethod
+    def maximum_subtitle_length(self) -> int:
+        """ The maximum number of characters the game can display as subtitles for one sentence """
+        pass
+
+    @property
     def conversation_folder_path(self) -> str:
         return self.__conversation_folder_path
     

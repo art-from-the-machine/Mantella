@@ -147,6 +147,7 @@ class ConfigLoader:
             # self.follow_npc_response = self.__definitions.get_string_value("follow_npc_response")
             # self.inventory_npc_response = self.__definitions.get_string_value("inventory_npc_response")
 
+
             #TTS
             self.tts_service = self.__definitions.get_string_value("tts_service").strip().lower()
             if self.tts_service == "xtts":
@@ -223,8 +224,10 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 self.llm_params = None
 
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
-            self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
+            # self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
 
+            self.narration_handling = self.__definitions.get_string_value("narration_handling").strip().lower()
+            self.narrator_voice = self.__definitions.get_string_value("narrator_voice")
             
 
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")

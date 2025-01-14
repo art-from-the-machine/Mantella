@@ -28,7 +28,7 @@ class skyrim(gameable):
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
         self.__tts_service: str = config.tts_service
-        self.__image_analysis_filepath = None
+        self.__image_analysis_filepath = ""
 
         try:
             weather_file = 'data/Skyrim/skyrim_weather.csv'
@@ -49,6 +49,10 @@ class skyrim(gameable):
     @property
     def image_path(self) -> str:
         return self.__image_analysis_filepath
+    
+    @property
+    def maximum_subtitle_length(self) -> int:
+        return 300
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
