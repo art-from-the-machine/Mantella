@@ -59,10 +59,9 @@ class gameable(ABC):
         """ Return name of the appropriate script extender (SKSE/F4SE) """
         pass
 
-    @property
     @abstractmethod
-    def maximum_subtitle_length(self) -> int:
-        """ The maximum number of characters the game can display as subtitles for one sentence """
+    def modify_sentence_text_for_game(self, text:str) -> str:
+        """Modifies the text of a sentence before it is sent to the game."""
         pass
 
     @property

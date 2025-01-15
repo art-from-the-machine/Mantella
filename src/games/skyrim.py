@@ -49,10 +49,14 @@ class skyrim(gameable):
     @property
     def image_path(self) -> str:
         return self.__image_analysis_filepath
-    
-    @property
-    def maximum_subtitle_length(self) -> int:
-        return 300
+       
+    def modify_sentence_text_for_game(self, text:str) -> str:
+        skyrim_max_character = 500
+        if len(text) > skyrim_max_character:
+            abbreviated = text[0:skyrim_max_character-4] + "..."
+            return abbreviated
+        else:
+            return text
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:

@@ -159,11 +159,7 @@ class GameStateManager:
         }
     
     def __abbreviate_text(self, text_to_abbreviate: str) -> str:
-        if len(text_to_abbreviate) > self.__game.maximum_subtitle_length:
-            abbreviated = text_to_abbreviate[0:self.__game.maximum_subtitle_length-4] + "..."
-            return abbreviated
-        else:
-            return text_to_abbreviate
+        return self.__game.modify_sentence_text_for_game(text_to_abbreviate)
 
     ##### utils #######
 

@@ -44,10 +44,35 @@ class fallout4(gameable):
     @property
     def image_path(self) -> str:
         return self.__image_analysis_filepath
-    
-    @property
-    def maximum_subtitle_length(self) -> int:
-        return 148
+        
+    def modify_sentence_text_for_game(self, text:str) -> str:
+        """Modifies the text of a sentence before it is sent to the game.
+            148 bytes is max for Fallout 4."""
+        byte_string = text.encode('utf-8')
+        count_bytes_in_string = len(byte_string)			# Count bytes and not chars
+        if count_bytes_in_string < 148:
+            return text
+        
+        cut_bytes = byte_string[1:144]
+        if cut_bytes[-1] & 0b10000000:
+            last_11xxxxxx_index = [i for i in range(-1, -5, -1)
+                                if cut_bytes[i] & 0b11000000 == 0b11000000][0]
+            # note that last_11xxxxxx_index is negative
+
+            last_11xxxxxx = cut_bytes[last_11xxxxxx_index]
+            if not last_11xxxxxx & 0b00100000:
+                last_char_length = 2
+            elif not last_11xxxxxx & 0b0010000:
+                last_char_length = 3
+            elif not last_11xxxxxx & 0b0001000:
+                last_char_length = 4
+
+            if last_char_length > -last_11xxxxxx_index:
+                # remove the incomplete character
+                cut_bytes = cut_bytes[:last_11xxxxxx_index]
+
+        result = cut_bytes.decode('utf-8')
+        return result + "..." #Dots should be part of ASCII and thus only 1 byte long 
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
