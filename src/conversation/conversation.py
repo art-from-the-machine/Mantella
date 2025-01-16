@@ -34,6 +34,7 @@ class conversation:
         self.__context: context = context_for_conversation
         self.__mic_input: bool = mic_input
         self.__mic_ptt: bool = mic_ptt
+        self.__allow_interruption: bool = context_for_conversation.config.allow_interruption # allow mic interruption
         self.__stt: Transcriber | None = stt
         self.__transcribed_text: str | None = None
         if not self.__context.npcs_in_conversation.contains_player_character(): # TODO: fix this being set to a radiant conversation because of NPCs in conversation not yet being added
@@ -121,7 +122,7 @@ class conversation:
             return comm_consts.KEY_REQUESTTYPE_TTS, None
         
         # restart mic listening as soon as NPC's first sentence is processed
-        if self.__mic_input and not self.__mic_ptt and self.__stt.stopped_listening and self.__allow_mic_input:
+        if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and self.__stt.stopped_listening and self.__allow_mic_input:
             mic_prompt = self.__get_mic_prompt()
             self.__stt.start_listening(mic_prompt)
         
