@@ -1,6 +1,7 @@
 **/__pycache__/
 data/**/*.wav
 !data/mantella_ready.wav
+!data/no_mic_input_detected.wav
 data/**/*.lip
 data/**/*.json
 data/**/*.txt

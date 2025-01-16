@@ -56,6 +56,13 @@ def play_mantella_ready_sound():
         pass
 
 
+def play_no_mic_input_detected_sound():
+    try:
+        winsound.PlaySound(os.path.join(resolve_path(),'data','no_mic_input_detected.wav'), winsound.SND_FILENAME | winsound.SND_ASYNC)
+    except:
+        pass
+
+
 def play_error_sound():
     try:
         winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)

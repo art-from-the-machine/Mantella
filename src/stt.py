@@ -375,8 +375,9 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     self.__latest_capture = None
                 
                 if transcript:
-                    logging.log(self.loglevel, f"Player said '{transcript}'")
+                    logging.log(self.loglevel, f"Player said '{transcript.strip()}'")
                 else:
+                    utils.play_no_mic_input_detected_sound()
                     logging.warning('Could not detect speech from mic input')
                     if self.__stop_listening:
                         self.start_listening()
