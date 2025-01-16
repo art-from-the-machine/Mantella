@@ -18,6 +18,8 @@ from datetime import datetime
 import queue
 import threading
 import time
+import os
+import wave
 from moonshine_onnx import MoonshineOnnxModel, load_tokenizer
 
 @dataclass
@@ -28,6 +30,29 @@ class TranscriptionJob:
     started_at: datetime = datetime.now()
     prompt: str = ''
     completed: bool = False
+
+    @utils.time_it
+    def save_audio(self, output_path: str) -> None:
+        """
+        Save the captured mic input to a WAV file.
+        
+        Args:
+            output_path (str): Directory where the captured mic input should be saved
+        """
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"mic_input_{timestamp}.wav"
+        filepath = os.path.join(output_path, filename)
+        
+        sample_width = self.audio_data.sample_width
+        sample_rate = self.audio_data.sample_rate
+
+        wav_data = self.audio_data.get_wav_data()
+
+        with wave.open(filepath, 'wb') as wav_file:
+            wav_file.setnchannels(1) # mono audio
+            wav_file.setsampwidth(sample_width)
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(wav_data)
 
 class TranscriptionQueue:
     """Thread-safe queue for managing transcriptions"""
@@ -72,6 +97,11 @@ class Transcriber:
         self.end_conversation_keyword = config.end_conversation_keyword
         self.radiant_start_prompt = config.radiant_start_prompt
         self.radiant_end_prompt = config.radiant_end_prompt
+
+        self.__save_mic_input = config.save_mic_input
+        if self.__save_mic_input:
+            self.__mic_input_path: str = config.save_folder+'data\\tmp\\mic'
+            os.makedirs(self.__mic_input_path, exist_ok=True)
 
         self.call_count = 0
         self.__stt_secret_key_file = stt_secret_key_file
@@ -266,6 +296,9 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 if not capture:
                     time.sleep(0.01)
                     continue
+
+                if self.__save_mic_input:
+                    capture.save_audio(self.__mic_input_path)
 
                 audio_data = capture.audio_data.get_wav_data(convert_rate=16_000)
 
