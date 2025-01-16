@@ -72,6 +72,7 @@ class MantellaConfigValueDefinitionsNew:
         stt_category = ConfigValueGroup("STT", "Speech-to-Text", "Settings for the STT methods Mantella supports.", on_value_change_callback)
         stt_category.add_config_value(STTDefinitions.get_use_automatic_audio_threshold_folder_config_value())
         stt_category.add_config_value(STTDefinitions.get_audio_threshold_folder_config_value())
+        stt_category.add_config_value(STTDefinitions.get_allow_interruption_config_value())
         stt_category.add_config_value(STTDefinitions.get_stt_service_config_value())
         stt_category.add_config_value(STTDefinitions.get_pause_threshold_config_value())
         stt_category.add_config_value(STTDefinitions.get_listen_timeout_config_value())
