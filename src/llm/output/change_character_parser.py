@@ -1,4 +1,5 @@
 import logging
+from typing import Callable
 from src.character_manager import Character
 from src.characters_manager import Characters
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
@@ -7,8 +8,9 @@ from src.llm.sentence_content import sentence_content
 
 class change_character_parser(output_parser):
     """Class to check if character change is in the current output of the LLM."""
-    def __init__(self, characters_in_conversation: Characters) -> None:
+    def __init__(self, characters_in_conversation: Characters, change_character_callback: Callable[[Character], None]) -> None:
         super().__init__()
+        self.__change_character_callback = change_character_callback
         self.__dict_name_permutations: dict[str, Character] = {} #Dictionary to hold permutations of the name for easy checks. e.g. "Svana Far-Shield" -> ["Svana Far-Shield", "Svana", "Far-Shield"]
         for actor in characters_in_conversation.get_all_characters():
             if actor.is_player_character:
@@ -39,6 +41,7 @@ class change_character_parser(output_parser):
                         current_settings.stop_generation = True
                         return None, ""
                     current_settings.current_speaker = character
+                    self.__change_character_callback(character)
                     current_settings.is_narration = False #Character change always resets narration tracker to False, i.e. don't actually carry forward potentially non-closed narrations from the last speaker
                     return None, parts[1]
 
