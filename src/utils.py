@@ -6,6 +6,7 @@ import sys
 import os
 from shutil import rmtree
 from charset_normalizer import detect
+import winsound
 
 
 def time_it(func):
@@ -46,6 +47,27 @@ def resolve_path():
         resolved_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     return resolved_path
+
+
+def play_mantella_ready_sound():
+    try:
+        winsound.PlaySound(os.path.join(resolve_path(),'data','mantella_ready.wav'), winsound.SND_FILENAME | winsound.SND_ASYNC)
+    except:
+        pass
+
+
+def play_no_mic_input_detected_sound():
+    try:
+        winsound.PlaySound(os.path.join(resolve_path(),'data','no_mic_input_detected.wav'), winsound.SND_FILENAME | winsound.SND_ASYNC)
+    except:
+        pass
+
+
+def play_error_sound():
+    try:
+        winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
+    except:
+        pass
 
 
 @time_it

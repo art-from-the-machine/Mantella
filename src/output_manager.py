@@ -68,11 +68,16 @@ class ChatManager:
                     synth_options = SynthesizationOptions(character_to_talk.is_in_combat, self.__is_first_sentence)
                     audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
             except Exception as e:
+                utils.play_error_sound()
                 error_text = f"Text-to-Speech Error: {e}"
                 logging.log(29, error_text)
                 return mantella_sentence(sentence_content(character_to_talk, text, content.is_narration, True), "", 0, error_text)
             self.__is_first_sentence = False
             return mantella_sentence(sentence_content(character_to_talk, text, content.is_narration, content.is_system_generated_sentence), audio_file, self.get_audio_duration(audio_file))
+
+    @utils.time_it
+    def change_speaker(self, npc: Character):
+        self.__tts.change_voice(npc.tts_voice_model, npc.in_game_voice_model, npc.csv_in_game_voice_model, npc.advanced_voice_model, voice_accent=npc.voice_accent, voice_gender=npc.gender, voice_race=npc.race)
 
     @utils.time_it
     def num_tokens(self, content_to_measure: message | str | message_thread | list[message]) -> int:
@@ -135,7 +140,7 @@ class ChatManager:
         sentence_end: sentence_end_parser = sentence_end_parser(self.__config.number_words_tts, max_character_per_sentence)
         parser_chain: list[output_parser] = [
             clean_sentence_parser(),
-            change_character_parser(characters),
+            change_character_parser(characters, self.change_speaker), #Hand the change_speaker function to the character parser to get an immediate update of the character
             narration_parser(),
             sentence_end,
             actions_parser(actions)
@@ -189,6 +194,7 @@ class ChatManager:
                     break #if the streaming_call() completed without exception, break the while loop
                             
                 except Exception as e:
+                    utils.play_error_sound()
                     logging.error(f"LLM API Error: {e}")                    
                     error_response = "I can't find the right words at the moment."
                     new_sentence = self.generate_sentence(sentence_content(active_character, error_response, False, True))
@@ -202,6 +208,7 @@ class ChatManager:
                     time.sleep(5)
 
         except Exception as e:
+            utils.play_error_sound()
             if isinstance(e, APIConnectionError):
                 if (hasattr(e, 'code')) and (e.code in [401, 'invalid_api_key']): # incorrect API key
                     logging.error(f"Invalid API key. Please ensure you have selected the right model for your service (OpenAI / OpenRouter) via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")

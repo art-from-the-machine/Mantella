@@ -1,4 +1,5 @@
 import sys
+import numpy as np
 from faster_whisper import WhisperModel
 import speech_recognition as sr
 import logging
@@ -17,6 +18,9 @@ from datetime import datetime
 import queue
 import threading
 import time
+import os
+import wave
+from moonshine_onnx import MoonshineOnnxModel, load_tokenizer
 
 @dataclass
 class TranscriptionJob:
@@ -26,6 +30,29 @@ class TranscriptionJob:
     started_at: datetime = datetime.now()
     prompt: str = ''
     completed: bool = False
+
+    @utils.time_it
+    def save_audio(self, output_path: str) -> None:
+        """
+        Save the captured mic input to a WAV file.
+        
+        Args:
+            output_path (str): Directory where the captured mic input should be saved
+        """
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"mic_input_{timestamp}.wav"
+        filepath = os.path.join(output_path, filename)
+        
+        sample_width = self.audio_data.sample_width
+        sample_rate = self.audio_data.sample_rate
+
+        wav_data = self.audio_data.get_wav_data()
+
+        with wave.open(filepath, 'wb') as wav_file:
+            wav_file.setnchannels(1) # mono audio
+            wav_file.setsampwidth(sample_width)
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(wav_data)
 
 class TranscriptionQueue:
     """Thread-safe queue for managing transcriptions"""
@@ -48,7 +75,9 @@ class Transcriber:
         # self.mic_enabled = config.mic_enabled
         self.language = config.stt_language
         self.task = "translate" if config.stt_translate == 1 else "transcribe"
-        self.model = config.whisper_model
+        self.stt_service = config.stt_service
+        self.moonshine_model = config.moonshine_model
+        self.whisper_model = config.whisper_model
         self.process_device = config.whisper_process_device
         self.audio_threshold = config.audio_threshold
         self.listen_timeout = config.listen_timeout
@@ -57,19 +86,29 @@ class Transcriber:
         self.whisper_url = self.__get_endpoint(config.whisper_url)
         self.pause_threshold = config.pause_threshold
         # heavy-handed fix to non_speaking_duration as it it always required to be less than pause_threshold
-        self.non_speaking_duration = 0.5 if self.pause_threshold > 0.5 else self.pause_threshold - 0.01
+        if self.pause_threshold > 0.5:
+            self.non_speaking_duration = 0.5
+        elif self.pause_threshold == 0:
+            self.non_speaking_duration = 0
+        else:
+            self.non_speaking_duration = self.pause_threshold - 0.0001
         self.show_mic_warning = True
 
         self.end_conversation_keyword = config.end_conversation_keyword
         self.radiant_start_prompt = config.radiant_start_prompt
         self.radiant_end_prompt = config.radiant_end_prompt
 
+        self.__save_mic_input = config.save_mic_input
+        if self.__save_mic_input:
+            self.__mic_input_path: str = config.save_folder+'data\\tmp\\mic'
+            os.makedirs(self.__mic_input_path, exist_ok=True)
+
         self.call_count = 0
         self.__stt_secret_key_file = stt_secret_key_file
         self.__secret_key_file = secret_key_file
         self.__api_key: str | None = self.__get_api_key()
         self.__initial_client: OpenAI | None = None
-        if (self.__api_key) and ('openai' in self.whisper_url):
+        if (self.__api_key) and ('openai' in self.whisper_url) and (self.external_whisper_service):
             self.__initial_client = self.__generate_sync_client() # initialize first client in advance to save time
         
         self.__ignore_list = ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much', "thank you for watching and i'll see you in the next video", "we'll see you in the next video", 'see you next time']
@@ -89,13 +128,18 @@ class Transcriber:
             self.recognizer.energy_threshold = int(self.audio_threshold)
             logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this `Speech-to-Text`->`Audio Threshold` value in the Mantella UI. If the mic is picking up too much background noise, try increasing this value.\n")
 
-        self.transcribe_model: WhisperModel | None = None
-        # if using faster_whisper, load model selected by player, otherwise skip this step
-        if not self.external_whisper_service:
-            if self.process_device == 'cuda':
-                self.transcribe_model = WhisperModel(self.model, device=self.process_device)
-            else:
-                self.transcribe_model = WhisperModel(self.model, device=self.process_device, compute_type="float32")
+        self.transcribe_model: WhisperModel | MoonshineOnnxModel | None = None
+
+        if self.stt_service == 'whisper':
+            # if using faster_whisper, load model selected by player, otherwise skip this step
+            if not self.external_whisper_service:
+                if self.process_device == 'cuda':
+                    self.transcribe_model = WhisperModel(self.whisper_model, device=self.process_device)
+                else:
+                    self.transcribe_model = WhisperModel(self.whisper_model, device=self.process_device, compute_type="float32")
+        else:
+            self.transcribe_model = MoonshineOnnxModel(model_name=self.moonshine_model)
+            self.tokenizer = load_tokenizer()
 
         # Thread management
         self.__listen_thread: Optional[threading.Thread] = None
@@ -173,22 +217,23 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         elif 'openai' in self.whisper_url: # OpenAI compatible endpoint
             client = self.__generate_sync_client()
             try:
-                response_data = client.audio.transcriptions.create(model=self.model, language=self.language, file=audio, prompt=prompt)
+                response_data = client.audio.transcriptions.create(model=self.whisper_model, language=self.language, file=audio, prompt=prompt)
             except Exception as e:
+                utils.play_error_sound()
                 if e.code in [404, 'model_not_found']:
                     if self.whisper_service == 'OpenAI':
-                        logging.error(f"Selected Whisper model '{self.model}' does not exist in the OpenAI service. Try changing 'Speech-to-Text'->'Model Size' to 'whisper-1' in the Mantella UI")
+                        logging.error(f"Selected Whisper model '{self.whisper_model}' does not exist in the OpenAI service. Try changing 'Speech-to-Text'->'Model Size' to 'whisper-1' in the Mantella UI")
                     elif self.whisper_service == 'Groq':
-                        logging.error(f"Selected Whisper model '{self.model}' does not exist in the Groq service. Try changing 'Speech-to-Text'->'Model Size' to one of the following models in the Mantella UI: https://console.groq.com/docs/speech-text#supported-models")
+                        logging.error(f"Selected Whisper model '{self.whisper_model}' does not exist in the Groq service. Try changing 'Speech-to-Text'->'Model Size' to one of the following models in the Mantella UI: https://console.groq.com/docs/speech-text#supported-models")
                     else:
-                        logging.error(f"Selected Whisper model '{self.model}' does not exist in the selected service {self.whisper_service}. Try changing 'Speech-to-Text'->'Model Size' to a compatible model in the Mantella UI")
+                        logging.error(f"Selected Whisper model '{self.whisper_model}' does not exist in the selected service {self.whisper_service}. Try changing 'Speech-to-Text'->'Model Size' to a compatible model in the Mantella UI")
                 else:
                     logging.error(f'STT error: {e}')
                 input("Press Enter to exit.")
             client.close()
             return response_data.text.strip()
         else: # custom server model
-            data = {'model': self.model, 'prompt': prompt}
+            data = {'model': self.whisper_model, 'prompt': prompt}
             files = {'file': ('audio.wav', audio, 'audio/wav')}
             response = requests.post(self.whisper_url, files=files, data=data)
             if response.status_code != 200:
@@ -196,6 +241,19 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             response_data = json.loads(response.text)
             if 'text' in response_data:
                 return response_data['text'].strip()
+            
+
+    @utils.time_it
+    def moonshine_transcribe(self, audio_data: bytes) -> str:
+        """Transcribe audio using Moonshine model"""
+        # Convert wav data to numpy array
+        audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+        
+        # Generate transcription
+        tokens = self.transcribe_model.generate(audio_np[np.newaxis, :])
+        text = self.tokenizer.decode_batch(tokens)[0]
+        
+        return text.strip()
 
 
     @utils.time_it
@@ -239,11 +297,17 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     time.sleep(0.01)
                     continue
 
+                if self.__save_mic_input:
+                    capture.save_audio(self.__mic_input_path)
+
                 audio_data = capture.audio_data.get_wav_data(convert_rate=16_000)
-                #transcript = base64.b64encode(audio_data).decode('utf-8')
-                audio_file = io.BytesIO(audio_data)
-                audio_file.name = 'out.wav'
-                transcript = self.whisper_transcribe(audio_file, capture.prompt)
+
+                if self.stt_service == 'whisper':
+                    audio_file = io.BytesIO(audio_data)
+                    audio_file.name = 'out.wav' # audio file needs a name or else Whisper gets angry
+                    transcript = self.whisper_transcribe(audio_file, capture.prompt)
+                else:
+                    transcript = self.moonshine_transcribe(audio_data)
 
                 transcript_cleaned = utils.clean_text(transcript)
 
@@ -257,6 +321,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             except queue.Empty:
                 continue
             except Exception as e:
+                utils.play_error_sound()
                 logging.error(f'Error processing mic input: {str(e)}')
                 time.sleep(0.1)
     
@@ -291,6 +356,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                         self.show_mic_warning = False
                     continue
                 except Exception as e:
+                    utils.play_error_sound()
                     logging.error(f'Error in microphone input: {e}')
                     time.sleep(0.1)
 
@@ -309,8 +375,9 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     self.__latest_capture = None
                 
                 if transcript:
-                    logging.log(self.loglevel, f"Player said '{transcript}'")
+                    logging.log(self.loglevel, f"Player said '{transcript.strip()}'")
                 else:
+                    utils.play_no_mic_input_detected_sound()
                     logging.warning('Could not detect speech from mic input')
                     if self.__stop_listening:
                         self.start_listening()

@@ -237,6 +237,7 @@ class ImageManager:
             return img_str
         
         except Exception as e:
+            utils.play_error_sound()
             logging.error(f"An error occurred: {e}")
             self.reset_capture_params() # reset the window capture coordinates
             return None

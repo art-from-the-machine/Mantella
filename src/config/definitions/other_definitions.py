@@ -16,7 +16,12 @@ class OtherDefinitions:
     @staticmethod
     def get_auto_launch_ui_config_value() -> ConfigValue:
         auto_launch_ui_description = """Whether the Mantella UI should launch automatically in your browser."""
-        return ConfigValueBool("auto_launch_ui","Auto Launch UI",auto_launch_ui_description,True)
+        return ConfigValueBool("auto_launch_ui","Auto Launch UI",auto_launch_ui_description,True,tags=[ConfigValueTag.share_row])
+    
+    @staticmethod
+    def get_play_startup_sound_config_value() -> ConfigValue:
+        description = """Whether to play a startup sound when Mantella is ready."""
+        return ConfigValueBool("play_startup_sound", "Play Startup Sound", description, False, tags=[ConfigValueTag.share_row])
     
     @staticmethod
     def get_automatic_greeting_config_value() -> ConfigValue:

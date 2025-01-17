@@ -48,7 +48,7 @@ class LLMDefinitions:
         description = """Time to wait (in seconds) before generating the next voiceline.
                         Mantella waits for the duration of a given voiceline's .wav file + an extra buffer to account for processing overhead.
                         If you are noticing that some voicelines are not being said in-game, try increasing this buffer."""
-        return ConfigValueFloat("wait_time_buffer","Wait Time Buffer",description, -1.0, -999, 999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+        return ConfigValueFloat("wait_time_buffer","Wait Time Buffer",description, 0, -999, 999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     # @staticmethod
     # def get_try_filter_narration() -> ConfigValue:
