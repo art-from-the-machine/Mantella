@@ -146,6 +146,7 @@ class ChatManager:
             actions_parser(actions)
         ]
         full_reply: str = ''
+        first_token = True
         last_generated_sentence_content: sentence_content | None = None
         self.__is_first_sentence = True
         try:
@@ -153,12 +154,16 @@ class ChatManager:
             settings: sentence_generation_settings = sentence_generation_settings(active_character)
             while True:
                 try:
-                    # start_time = time.time()
+                    start_time = time.time()
                     async for content in self.__client.streaming_call(messages=messages, is_multi_npc=characters.contains_multiple_npcs()):
                         if self.__stop_generation.is_set():
                             break
                         if not content:
                             continue
+
+                        if first_token:
+                            logging.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to respond")
+                            first_token = False
                         
                         sentence += content
                         cut_sentence_content: sentence_content | None = None
