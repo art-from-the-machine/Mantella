@@ -67,7 +67,9 @@ class GameStateManager:
         self.__talk.output_manager.tts.change_voice(character_to_talk.tts_voice_model, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.advanced_voice_model, character_to_talk.voice_accent, voice_gender=character_to_talk.gender, voice_race=character_to_talk.race)
         self.__talk.start_conversation()
         
-        return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED}
+        return {
+            comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED,
+            comm_consts.KEY_STARTCONVERSATION_USENARRATOR: self.__config.narration_handling == "use narrator"}
     
     @utils.time_it
     def continue_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
@@ -149,11 +151,15 @@ class GameStateManager:
     def sentence_to_json(self, sentence_to_prepare: sentence) -> dict[str, Any]:
         return {
             comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.speaker.name,
-            comm_consts.KEY_ACTOR_LINETOSPEAK: sentence_to_prepare.sentence.strip(),
+            comm_consts.KEY_ACTOR_LINETOSPEAK: self.__abbreviate_text(sentence_to_prepare.text.strip()),
+            comm_consts.KEY_ACTOR_ISNARRATION: sentence_to_prepare.is_narration,
             comm_consts.KEY_ACTOR_VOICEFILE: sentence_to_prepare.voice_file,
             comm_consts.KEY_ACTOR_DURATION: sentence_to_prepare.voice_line_duration,
             comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions
         }
+    
+    def __abbreviate_text(self, text_to_abbreviate: str) -> str:
+        return self.__game.modify_sentence_text_for_game(text_to_abbreviate)
 
     ##### utils #######
 
