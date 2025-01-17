@@ -13,6 +13,8 @@ class message(ABC):
         self.__text: str = text
         self.__is_multi_npc_message: bool = False
         self.__is_system_generated_message = is_system_generated_message
+        self.__narration_start: str = "("
+        self.__narration_end: str = ")"
 
     @property
     def text(self) -> str:
@@ -21,6 +23,14 @@ class message(ABC):
     @text.setter
     def text(self, text: str):
         self.__text = text
+
+    @property
+    def narration_start(self) -> str:
+        return self.__narration_start
+    
+    @property
+    def narration_end(self) -> str:
+        return self.__narration_end
 
     @property
     def is_multi_npc_message(self) -> bool:
@@ -96,9 +106,9 @@ class assistant_message(message):
                 was_last_sentence_narration = False
                 result += "\n" + lastActor.name +':'
             if not was_last_sentence_narration and sentence.is_narration:
-                result += " *"
+                result += " " + self.narration_start
             elif was_last_sentence_narration and not sentence.is_narration:
-                result += "* "
+                result += self.narration_end + " "
             else:
                 result += " "
             was_last_sentence_narration = sentence.is_narration
@@ -122,15 +132,18 @@ class user_message(message):
         self.__player_character_name: str = player_character_name
         self.__ingame_events: list[str] = []
         self.__time: tuple[str,str] | None = None
+        
 
     def get_formatted_content(self) -> str:
         result = ""
         result += self.get_ingame_events_text()
         if self.__time:
-            result += f"*The time is {self.__time[0]} {self.__time[1]}.*\n"
+            result += f"{self.narration_start}The time is {self.__time[0]} {self.__time[1]}.{self.narration_end}\n"
         if self.is_multi_npc_message:
             result += f"{self.__player_character_name}: "
         result += f"{self.text}"
+        # if self.is_multi_npc_message:
+        #     result += f"\n[Please respond with replies for as many of your characters as possible.]"
         result = utils.remove_extra_whitespace(result)
         return result
     
@@ -151,7 +164,7 @@ class user_message(message):
     def get_ingame_events_text(self) -> str:
         result = ""
         for event in self.__ingame_events:
-            result += f"*{event}*\n"
+            result += f"{self.narration_start}{event}{self.narration_end}\n"
         return result
     
     def set_ingame_time(self, time: str, time_group: str):
