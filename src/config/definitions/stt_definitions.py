@@ -33,6 +33,19 @@ Depending on your NVIDIA CUDA version, setting the Whisper process device to `cu
         return ConfigValueInt("audio_threshold","Audio Threshold",audio_threshold_description, 175, 0, 999)
     
     @staticmethod
+    def get_allow_interruption_config_value() -> ConfigValue:
+        description = """Sets whether the player can interrupt NPCs mid-response. 
+                        Disable this setting if your microphone tends to pick up background noise or is picking up in-game speech. Alternatively, try increasing `Audio Threshold`."""
+        return ConfigValueBool("allow_interruption", "Allow Interruption", description, True, tags=[ConfigValueTag.share_row])
+    
+    @staticmethod
+    def get_save_mic_input_config_value() -> ConfigValue:
+        description = """Whether to save captured mic input to Documents/My Games/Mantella/data/tmp/mic/.
+                        Enable this setting to test your mic quality.
+                        Disable this setting to improve performance."""
+        return ConfigValueBool("save_mic_input", "Save Mic Input", description, False, tags=[ConfigValueTag.share_row])
+    
+    @staticmethod
     def get_stt_service_config_value() -> ConfigValue:
         description = """Choose between running Moonshine or Whisper as your speech to text service.
                         Moonshine runs faster than Whisper on a CPU, but only support English.

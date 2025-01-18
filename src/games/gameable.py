@@ -59,6 +59,11 @@ class gameable(ABC):
         """ Return name of the appropriate script extender (SKSE/F4SE) """
         pass
 
+    @abstractmethod
+    def modify_sentence_text_for_game(self, text:str) -> str:
+        """Modifies the text of a sentence before it is sent to the game."""
+        pass
+
     @property
     def conversation_folder_path(self) -> str:
         return self.__conversation_folder_path

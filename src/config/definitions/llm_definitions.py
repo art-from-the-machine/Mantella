@@ -48,13 +48,30 @@ class LLMDefinitions:
         description = """Time to wait (in seconds) before generating the next voiceline.
                         Mantella waits for the duration of a given voiceline's .wav file + an extra buffer to account for processing overhead.
                         If you are noticing that some voicelines are not being said in-game, try increasing this buffer."""
-        return ConfigValueFloat("wait_time_buffer","Wait Time Buffer",description, -1.0, -999, 999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+        return ConfigValueFloat("wait_time_buffer","Wait Time Buffer",description, 0, -999, 999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    
+    # @staticmethod
+    # def get_try_filter_narration() -> ConfigValue:
+    #     try_filter_narration_description = """If checked, sentences containing asterisks (*) will not be spoken aloud."""
+    #     return ConfigValueBool("try_filter_narration","Filter Narration",try_filter_narration_description,True,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
-    def get_try_filter_narration() -> ConfigValue:
-        try_filter_narration_description = """If checked, sentences containing asterisks (*) will not be spoken aloud."""
-        return ConfigValueBool("try_filter_narration","Filter Narration",try_filter_narration_description,True,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    def get_narration_handling() -> ConfigValue:
+        narration_handling_description = """How to handle narrations in the output of the LLM.
+                                            - Cut narrations: Removes narrations from the output.
+                                            - Respective character speaks its narrations: The currently active character will speak it's actions out aloud.
+                                            - Use narrator: Narrations will be spoken by a special narrator. The voice model can be set by the config value *Narrator voice* below.
+                                            
+                                            Note: The seperation of narration and speech is experimental and may not work if the LLM output is not formatted well."""
+        options = ["Cut narrations", "Respective character speaks its narrations", "Use narrator"]
+        return ConfigValueSelection("narration_handling","Narration Handling",narration_handling_description,options[0], options, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
+    @staticmethod
+    def get_narrator_voice() -> ConfigValue:
+        description = """Which voice model to use if *Narration Handling* is set to 'Use narrator'.
+                        Must be a valid voice model from the current TTS. Same rules apply as for choosing a voice for the player."""
+        return ConfigValueString("narrator_voice","Narrator voice",description,"", tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+
     @staticmethod
     def get_llm_params_config_value() -> ConfigValue:
         value = """{

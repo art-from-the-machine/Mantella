@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from openai.types.chat import ChatCompletionMessageParam
+from src.llm.sentence_content import sentence_content
 from src.character_manager import Character
 
 from src.llm.sentence import sentence
@@ -12,6 +13,8 @@ class message(ABC):
         self.__text: str = text
         self.__is_multi_npc_message: bool = False
         self.__is_system_generated_message = is_system_generated_message
+        self.__narration_start: str = "("
+        self.__narration_end: str = ")"
 
     @property
     def text(self) -> str:
@@ -20,6 +23,14 @@ class message(ABC):
     @text.setter
     def text(self, text: str):
         self.__text = text
+
+    @property
+    def narration_start(self) -> str:
+        return self.__narration_start
+    
+    @property
+    def narration_end(self) -> str:
+        return self.__narration_end
 
     @property
     def is_multi_npc_message(self) -> bool:
@@ -77,10 +88,10 @@ class assistant_message(message):
     """
     def __init__(self, is_system_generated_message: bool = False):
         super().__init__("", is_system_generated_message)
-        self.__sentences: list[sentence] = []
+        self.__sentences: list[sentence_content] = []
     
     def add_sentence(self, new_sentence: sentence):
-        self.__sentences.append(new_sentence)
+        self.__sentences.append(new_sentence.content)
 
     def get_formatted_content(self) -> str:
         if len(self.__sentences) < 1:
@@ -88,12 +99,20 @@ class assistant_message(message):
         
         result = ""
         lastActor: Character | None = None
-        for sentence in self.__sentences: 
+        was_last_sentence_narration: bool = False
+        for sentence in self.__sentences:
             if self.is_multi_npc_message and lastActor != sentence.speaker:
                 lastActor = sentence.speaker
-                result += "\n" + lastActor.name +': '+ sentence.sentence
+                was_last_sentence_narration = False
+                result += "\n" + lastActor.name +':'
+            if not was_last_sentence_narration and sentence.is_narration:
+                result += " " + self.narration_start
+            elif was_last_sentence_narration and not sentence.is_narration:
+                result += self.narration_end + " "
             else:
-                result += sentence.sentence
+                result += " "
+            was_last_sentence_narration = sentence.is_narration
+            result += sentence.text.strip()
         result = utils.remove_extra_whitespace(result)
         return result
 
@@ -113,15 +132,18 @@ class user_message(message):
         self.__player_character_name: str = player_character_name
         self.__ingame_events: list[str] = []
         self.__time: tuple[str,str] | None = None
+        
 
     def get_formatted_content(self) -> str:
         result = ""
         result += self.get_ingame_events_text()
         if self.__time:
-            result += f"*The time is {self.__time[0]} {self.__time[1]}.*\n"
+            result += f"{self.narration_start}The time is {self.__time[0]} {self.__time[1]}.{self.narration_end}\n"
         if self.is_multi_npc_message:
             result += f"{self.__player_character_name}: "
         result += f"{self.text}"
+        # if self.is_multi_npc_message:
+        #     result += f"\n[Please respond with replies for as many of your characters as possible.]"
         result = utils.remove_extra_whitespace(result)
         return result
     
@@ -143,7 +165,7 @@ class user_message(message):
     def get_ingame_events_text(self) -> str:
         result = ""
         for event in self.__ingame_events:
-            result += f"*{event}*\n"
+            result += f"{self.narration_start}{event}{self.narration_end}\n"
         return result
     
     def set_ingame_time(self, time: str, time_group: str):

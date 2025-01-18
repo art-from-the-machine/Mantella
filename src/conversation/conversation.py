@@ -3,6 +3,7 @@ import logging
 from threading import Thread, Lock
 import time
 from typing import Any
+from src.llm.sentence_content import sentence_content
 from src.llm.llm_client import LLMClient
 from src.characters_manager import Characters
 from src.conversation.conversation_log import conversation_log
@@ -34,6 +35,7 @@ class conversation:
         self.__context: context = context_for_conversation
         self.__mic_input: bool = mic_input
         self.__mic_ptt: bool = mic_ptt
+        self.__allow_interruption: bool = context_for_conversation.config.allow_interruption # allow mic interruption
         self.__stt: Transcriber | None = stt
         self.__transcribed_text: str | None = None
         if not self.__context.npcs_in_conversation.contains_player_character(): # TODO: fix this being set to a radiant conversation because of NPCs in conversation not yet being added
@@ -121,14 +123,14 @@ class conversation:
             return comm_consts.KEY_REQUESTTYPE_TTS, None
         
         # restart mic listening as soon as NPC's first sentence is processed
-        if self.__mic_input and not self.__mic_ptt and self.__stt.stopped_listening and self.__allow_mic_input:
+        if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and self.__stt.stopped_listening and self.__allow_mic_input:
             mic_prompt = self.__get_mic_prompt()
             self.__stt.start_listening(mic_prompt)
         
         #Grab the next sentence from the queue
         next_sentence: sentence | None = self.retrieve_sentence_from_queue()
         
-        if next_sentence and len(next_sentence.sentence) > 0:
+        if next_sentence and len(next_sentence.text) > 0:
             if comm_consts.ACTION_REMOVECHARACTER in next_sentence.actions:
                 self.__context.remove_character(next_sentence.speaker)
             #if there is a next sentence and it actually has content, return it as something for an NPC to say
@@ -189,9 +191,10 @@ class conversation:
             self.update_game_events(new_message)
             self.__messages.add_message(new_message)            
             if self.__should_voice_player_input(player_character):
-                player__character_voiced_sentence = self.__output_manager.generate_sentence(player_text, player_character, False)
+                player__character_voiced_sentence = self.__output_manager.generate_sentence(sentence_content(player_character, player_text, False, False))
                 if player__character_voiced_sentence.error_message:
-                    player__character_voiced_sentence = sentence(player_character, player_text, "" , 2.0, False)
+                    player_message_content: sentence_content = sentence_content(player_character, player_text, False, False)
+                    player__character_voiced_sentence = sentence(player_message_content, "" , 2.0)
                 self.__sentences.put(player__character_voiced_sentence)
             text = new_message.text
             logging.log(23, f"Text passed to NPC: {text}")
@@ -298,7 +301,7 @@ class conversation:
             # say goodbyes
             npc = self.__context.npcs_in_conversation.last_added_character
             if npc:
-                goodbye_sentence = self.__output_manager.generate_sentence(config.goodbye_npc_response, npc, True)
+                goodbye_sentence = self.__output_manager.generate_sentence(sentence_content(npc, config.goodbye_npc_response, False, True))
                 if goodbye_sentence:
                     goodbye_sentence.actions.append(comm_consts.ACTION_ENDCONVERSATION)
                     self.__sentences.put(goodbye_sentence)
@@ -349,7 +352,7 @@ class conversation:
             self.__stop_generation()
             self.__sentences.clear()            
             # say goodbye
-            goodbye_sentence = self.__output_manager.generate_sentence(self.__context.config.goodbye_npc_response, npc, False)
+            goodbye_sentence = self.__output_manager.generate_sentence(sentence_content(npc, self.__context.config.goodbye_npc_response, False, False))
             if goodbye_sentence:
                 goodbye_sentence.actions.append(comm_consts.ACTION_REMOVECHARACTER)
                 self.__sentences.put(goodbye_sentence)        
@@ -378,7 +381,7 @@ class conversation:
         
         # Play gather thoughts
         collecting_thoughts_text = self.__context.config.collecting_thoughts_npc_response
-        collecting_thoughts_sentence = self.__output_manager.generate_sentence(collecting_thoughts_text, latest_npc, True)        
+        collecting_thoughts_sentence = self.__output_manager.generate_sentence(sentence_content(latest_npc, collecting_thoughts_text, False, True))
         if collecting_thoughts_sentence:
             collecting_thoughts_sentence.actions.append(comm_consts.ACTION_RELOADCONVERSATION)
             self.__sentences.put_at_front(collecting_thoughts_sentence)
