@@ -123,7 +123,7 @@ class conversation:
             return comm_consts.KEY_REQUESTTYPE_TTS, None
         
         # restart mic listening as soon as NPC's first sentence is processed
-        if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and self.__stt.stopped_listening and self.__allow_mic_input:
+        if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and self.__stt.stopped_listening and self.__allow_mic_input and not isinstance(self.__conversation_type, radiant):
             mic_prompt = self.__get_mic_prompt()
             self.__stt.start_listening(mic_prompt)
         
