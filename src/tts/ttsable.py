@@ -195,7 +195,7 @@ class ttsable(ABC):
                 commands = [
                     face_wrapper_executable.name,
                     game,
-                    "USEnglish",
+                    "USEnglish",            #TODO: Use supported languages here: FR, DE, ES, IT, KO, JP
                     cdf_path.name,
                     f'"{wav_file}"',
                     f'"{r_wav}"',
