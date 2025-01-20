@@ -1,5 +1,5 @@
 import logging
-from typing import Callable
+from typing import Callable, OrderedDict
 from src.character_manager import Character
 from src.characters_manager import Characters
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
@@ -11,16 +11,22 @@ class change_character_parser(output_parser):
     def __init__(self, characters_in_conversation: Characters, change_character_callback: Callable[[Character], None]) -> None:
         super().__init__()
         self.__change_character_callback = change_character_callback
-        self.__dict_name_permutations: dict[str, Character] = {} #Dictionary to hold permutations of the name for easy checks. e.g. "Svana Far-Shield" -> ["Svana Far-Shield", "Svana", "Far-Shield"]
+        self.__dict_name_permutations: OrderedDict[str, Character] = OrderedDict() #Dictionary to hold permutations of the name for easy checks. e.g. "Svana Far-Shield" -> ["Svana Far-Shield", "Svana", "Far-Shield"]
         for actor in characters_in_conversation.get_all_characters():
             if actor.is_player_character:
                 self.__dict_name_permutations["player"] = actor
-                self.__dict_name_permutations["Player"] = actor
             self.__dict_name_permutations[actor.name] = actor
-            split_name = actor.name.split()
+        
+        split_names_to_add: OrderedDict[str, Character] = OrderedDict()
+        for name, character in self.__dict_name_permutations.items():
+            split_name = character.name.split()        
             if len(split_name) > 1:
                 for name in split_name:
-                    self.__dict_name_permutations[name] = actor
+                    if not split_names_to_add.__contains__(name):
+                        split_names_to_add[name] = character
+        
+        for name, character in split_names_to_add.items():
+            self.__dict_name_permutations[name] = character
         
 
     def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[sentence_content | None, str]:
@@ -29,8 +35,8 @@ class change_character_parser(output_parser):
         
         parts = output.split(':', 1)
         for name, character in self.__dict_name_permutations.items():
-            if parts[0].endswith(name):
-                character_switch_removed = parts[0].removesuffix(name)
+            if parts[0].lower().endswith(name.lower()):
+                character_switch_removed = parts[0][:-len(name)]
                 cleaned_prefix_rest = character_switch_removed.strip()
                 if not len(cleaned_prefix_rest) == 0: #Special case where there is still text in front of a character change that needs to be processed first somehow
                     rest = str.join("", [name, ":", parts[1]])
