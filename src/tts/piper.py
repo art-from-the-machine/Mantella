@@ -123,7 +123,7 @@ class piper(ttsable):
                 try:  
                     line = self.q.get_nowait() # or q.get(timeout=.1)
                     if "Model loaded" in line:
-                        logging.info(f'Model {self.__selected_voice} loaded')
+                        logging.log(self._loglevel, f'Model {self.__selected_voice} loaded')
                         self.__waiting_for_voice_load = False
                         self._last_voice = self.__selected_voice
                         return
@@ -145,7 +145,7 @@ class piper(ttsable):
                     voice_cleaned = str(voice_type).lower().replace(' ', '')
                     if voice_cleaned in self.__available_models:
                         return voice_cleaned
-            logging.info(f'Could not find voice model {in_game_voice}.onnx in {self.__models_path} attempting to load a backup model')
+            logging.log(self._loglevel, f'Could not find voice model {in_game_voice}.onnx in {self.__models_path} attempting to load a backup model')
             voice_type=self.__game.find_best_voice_model(voice_race, voice_gender, in_game_voice, library_search=False)
             if voice_type:
                 voice_cleaned = str(voice_type).lower().replace(' ', '')

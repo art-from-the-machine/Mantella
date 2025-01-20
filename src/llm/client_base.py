@@ -139,7 +139,7 @@ class ClientBase(ABC):
         with self._generation_lock:
             sync_client = self.generate_sync_client()        
             chat_completion = None
-            logging.info('Getting LLM response...')
+            logging.log(28, 'Getting LLM response...')
 
             if isinstance(messages, message) or isinstance(messages, image_message):
                 openai_messages = [messages.get_openai_message()]
@@ -182,7 +182,7 @@ class ClientBase(ABC):
             Iterator[AsyncGenerator[str | None, None]]: Yields the return of the 'client.chat.completions.create' method immediately
         """
         with self._generation_lock:
-            logging.info('Getting LLM response...')
+            logging.log(28, 'Getting LLM response...')
 
             if self._startup_async_client:
                 async_client = self._startup_async_client
