@@ -31,7 +31,7 @@ class ttsable(ABC):
         self._language = config.language
         self._last_voice = '' # last active voice model
         self._lip_generation_enabled = config.lip_generation
-        self._exepath = config.game_path
+        self._exepath = config.mod_path_base + '/..'
         # determines whether the voiceline should play internally
         #self.debug_mode = config.debug_mode
         #self.play_audio_from_script = config.play_audio_from_script
