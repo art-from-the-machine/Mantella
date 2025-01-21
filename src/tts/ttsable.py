@@ -170,6 +170,7 @@ class ttsable(ABC):
             LipGen_path = f"{self._exepath}/Tools/LipGen/LipGenerator/LipGenerator.exe"
 
             if os.path.exists(LipGen_path):
+                #TODO: Use supported languages here: FR, DE, ES, IT, KO, JP
                 commands = [
                     f'"{LipGen_path}"',
                     f'"{wav_file}"',
@@ -195,7 +196,7 @@ class ttsable(ABC):
                 commands = [
                     face_wrapper_executable.name,
                     game,
-                    "USEnglish",            #TODO: Use supported languages here: FR, DE, ES, IT, KO, JP
+                    "USEnglish",
                     cdf_path.name,
                     f'"{wav_file}"',
                     f'"{r_wav}"',
