@@ -9,18 +9,18 @@ class CustomFormatter(logging.Formatter):
     reverse = "\x1b[7m"
     hidden = "\x1b[8m"
 
-    black = "\x1b[30m"
-    red = "\x1b[31m"
-    bold_red = "\x1b[31m;1"
-    green = "\x1b[32m"
-    yellow = "\x1b[33m"
-    orange = "\x1b[33m"
-    blue = "\x1b[34m"
-    magenta = "\x1b[35m"
-    cyan = "\x1b[36m"
-    grey = "\x1b[38;20m"
-    white = "\x1b[37m"
+    # Foreground colors
+    black = "\x1b[90m"
+    red = "\x1b[91m"
+    green = "\x1b[92m"
+    yellow = "\x1b[93m"
+    blue = "\x1b[94m"
+    magenta = "\x1b[95m"
+    cyan = "\x1b[96m"
+    white = "\x1b[97m"
+    grey = "\x1b[37m"
 
+    # Background colors
     BGblack = "\x1b[40m"
     BGred = "\x1b[41m"
     BGgreen = "\x1b[42m"
@@ -31,49 +31,54 @@ class CustomFormatter(logging.Formatter):
     BGwhite = "\x1b[47m"
     BGLightBlue = "\x1b[104m"
 
-    dim_red = "\x1b[31m\x1b[2m"
-    dim_blue = "\x1b[34m\x1b[2m"
-    dim_green = "\x1b[32m\x1b[2m"
+    # Custom combinations - avoiding dim for better visibility
+    error_style = bright + red
+    warning_style = bright + yellow
+    info_style = white
+    debug_style = cyan + dim
 
-    hyperlink = blue + underscore
+    # Special purpose combinations
+    player_style = magenta
+    tts_style = green + dim
+    npc_voice_style = green
+    npc_info_style = dim
+    startup_style = white
+    hyperlink_style = blue + underscore
 
     format_string: str = "%(asctime)s.%(msecs)03d %(levelname)s: %(message)s"
 
     FORMATS = {
-        logging.DEBUG: dim + format_string + reset,
-        logging.INFO: grey + format_string + reset,
-        logging.WARNING: yellow + format_string + reset,
-        logging.ERROR: red + format_string + reset,
-        logging.CRITICAL: white + BGred + format_string + reset,
+        logging.DEBUG: debug_style + format_string + reset,
+        logging.INFO: info_style + format_string + reset,
+        logging.WARNING: warning_style + format_string + reset,
+        logging.ERROR: error_style + format_string + reset,
+        logging.CRITICAL: white + BGred + bright + format_string + reset,
 
         # INFO level
         # player
-        21: green + "%(message)s" + reset,
+        21: player_style + "%(message)s" + reset,
         # NPC voiceline
-        22: yellow + "%(message)s" + reset,
+        22: npc_voice_style + "%(message)s" + reset,
         # NPC info
-        23: dim + "%(message)s" + reset,
+        23: npc_info_style + "%(message)s" + reset,
         # Startup
-        24: white + "%(message)s" + reset,
+        24: startup_style + "%(message)s" + reset,
         # Hyperlink
-        25: hyperlink + "%(message)s" + reset,
+        25: hyperlink_style + "%(message)s" + reset,
 
         # STT
         27: blue + format_string + reset,
         # LLM
         28: cyan + format_string + reset,
-        # STT
-        29: magenta + format_string + reset,
-
-        # WARNING level
-        # 30:
+        # TTS
+        29: tts_style + format_string + reset,
 
         # HTTP in
-        41: dim_blue + format_string + reset,
+        41: blue + format_string + reset,
         # HTTP out
-        42: dim_green + format_string + reset,
+        42: green + format_string + reset,
         # sentence queue
-        43: black + BGLightBlue + format_string + reset,
+        43: white + BGblue + format_string + reset,
     }
 
     def format(self, record):

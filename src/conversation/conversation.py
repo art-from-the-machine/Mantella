@@ -123,7 +123,7 @@ class conversation:
             return comm_consts.KEY_REQUESTTYPE_TTS, None
         
         # restart mic listening as soon as NPC's first sentence is processed
-        if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and self.__stt.stopped_listening and self.__allow_mic_input:
+        if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and self.__stt.stopped_listening and self.__allow_mic_input and not isinstance(self.__conversation_type, radiant):
             mic_prompt = self.__get_mic_prompt()
             self.__stt.start_listening(mic_prompt)
         
@@ -135,7 +135,7 @@ class conversation:
                 self.__context.remove_character(next_sentence.speaker)
             #if there is a next sentence and it actually has content, return it as something for an NPC to say
             if self.last_sentence_audio_length > 0:
-                logging.info(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
+                logging.debug(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
             # before immediately sending the next voiceline, give the player the chance to interrupt
             while time.time() - self.last_sentence_start_time < self.last_sentence_audio_length:
                 if self.__stt and self.__stt.has_player_spoken():
