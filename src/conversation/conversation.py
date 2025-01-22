@@ -37,6 +37,7 @@ class conversation:
         self.__mic_ptt: bool = mic_ptt
         self.__allow_interruption: bool = context_for_conversation.config.allow_interruption # allow mic interruption
         self.__stt: Transcriber | None = stt
+        self.__events_refresh_time: float = context_for_conversation.config.events_refresh_time  # Time in seconds before events are considered stale
         self.__transcribed_text: str | None = None
         if not self.__context.npcs_in_conversation.contains_player_character(): # TODO: fix this being set to a radiant conversation because of NPCs in conversation not yet being added
             self.__conversation_type: conversation_type = radiant(context_for_conversation.config)
@@ -162,26 +163,40 @@ class conversation:
                     return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
 
     @utils.time_it
-    def process_player_input(self, player_text: str):
+    def process_player_input(self, player_text: str) -> tuple[str, bool]:
         """Submit the input of the player to the conversation
 
         Args:
-            player_text (str): The input text / voice transcribe of what the player character is supposed to say
+            player_text (str): The input text / voice transcribe of what the player character is supposed to say. Can be empty if mic input has not yet been parsed
+
+        Returns:
+            tuple[str, bool]: Returns a tuple consisting of updated player text (if using mic input) and whether or not in-game events need to be refreshed (depending on how much time has passed)
         """
         player_character = self.__context.npcs_in_conversation.get_player_character()
         if not player_character:
-            return #If there is no player in the conversation, exit here
+            return '', False # If there is no player in the conversation, exit here
+        
+        events_need_updating: bool = False
 
         with self.__generation_start_lock: #This lock makes sure no new generation by the LLM is started while we clear this
             self.__stop_generation() # Stop generation of additional sentences right now
             self.__sentences.clear() # Clear any remaining sentences from the list
 
-            if self.__mic_input:
+            # If the player's input does not already exist, parse mic input if mic is enabled
+            if self.__mic_input and len(player_text) == 0:
                 player_text = None
                 if self.__stt.stopped_listening and self.__allow_mic_input:
                     self.__stt.start_listening(self.__get_mic_prompt())
+                
+                # Start tracking how long it has taken to receive a player response
+                input_wait_start_time = time.time()
                 while not player_text:
                     player_text = self.__stt.get_latest_transcription()
+                if time.time() - input_wait_start_time >= self.__events_refresh_time:
+                    # If too much time has passed, in-game events need to be updated
+                    events_need_updating = True
+                    return player_text, events_need_updating
+                
                 if self.__mic_ptt:
                     # only start listening when push-to-talk button pressed again
                     self.__stt.stop_listening()
@@ -207,6 +222,8 @@ class conversation:
             self.initiate_end_sequence()
         else:
             self.__start_generating_npc_sentences()
+
+        return player_text, events_need_updating
 
     def __get_mic_prompt(self):
         mic_prompt = f"This is a conversation with {self.__context.get_character_names_as_text(False)} in {self.__context.location}."

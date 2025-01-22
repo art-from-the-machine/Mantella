@@ -107,11 +107,13 @@ class GameStateManager:
         if(not self.__talk ):
             return self.error_message("No running conversation.")
         
-        player_text: str = input_json[comm_consts.KEY_REQUESTTYPE_PLAYERINPUT]
+        player_text: str = input_json.get(comm_consts.KEY_REQUESTTYPE_PLAYERINPUT, '')
         self.__update_context(input_json)
-        self.__talk.process_player_input(player_text)
+        updated_player_text, update_events = self.__talk.process_player_input(player_text)
+        if update_events:
+            return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REQUESTTYPE_TTS, comm_consts.KEY_TRANSCRIBE: updated_player_text}
 
-        cleaned_player_text = utils.clean_text(player_text)
+        cleaned_player_text = utils.clean_text(updated_player_text)
         npcs_in_conversation = self.__talk.context.npcs_in_conversation
         if not npcs_in_conversation.contains_multiple_npcs(): # actions are only enabled in 1-1 conversations
             for action in self.__config.actions:
