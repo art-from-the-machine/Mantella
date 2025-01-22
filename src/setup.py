@@ -142,6 +142,7 @@ config.ini, logging.log, and conversation histories available in:
     # clean up old instances of exe runtime files
     utils.cleanup_mei(config.remove_mei_folders)
     utils.cleanup_tmp(config.save_folder+'data\\tmp')
+    utils.cleanup_tmp(os.getenv('TMP')+'\\voicelines') # cleanup temp voicelines
 
     language_info = get_language_info(language_file)
     
