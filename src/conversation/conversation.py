@@ -124,7 +124,7 @@ class conversation:
             return comm_consts.KEY_REQUESTTYPE_TTS, None
         
         # restart mic listening as soon as NPC's first sentence is processed
-        if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and self.__stt.stopped_listening and self.__allow_mic_input and not isinstance(self.__conversation_type, radiant):
+        if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and not self.__stt.is_listening and self.__allow_mic_input and not isinstance(self.__conversation_type, radiant):
             mic_prompt = self.__get_mic_prompt()
             self.__stt.start_listening(mic_prompt)
         
@@ -185,7 +185,7 @@ class conversation:
             # If the player's input does not already exist, parse mic input if mic is enabled
             if self.__mic_input and len(player_text) == 0:
                 player_text = None
-                if self.__stt.stopped_listening and self.__allow_mic_input:
+                if not self.__stt.is_listening and self.__allow_mic_input:
                     self.__stt.start_listening(self.__get_mic_prompt())
                 
                 # Start tracking how long it has taken to receive a player response
@@ -195,6 +195,7 @@ class conversation:
                 if time.time() - input_wait_start_time >= self.__events_refresh_time:
                     # If too much time has passed, in-game events need to be updated
                     events_need_updating = True
+                    logging.debug('Updating game events...')
                     return player_text, events_need_updating
                 
                 if self.__mic_ptt:
