@@ -74,11 +74,17 @@ class communication_constants:
     ACTION_NPC_INVENTORY: str = PREFIX + "npc_inventory"
     ACTION_NPC_MOVETO_NPC: str = PREFIX + "npc_move_character_near_npc"
     ACTION_MAKE_NPC_WAIT: str = PREFIX + "make_npc_wait"
+    ACTION_MULTI_MAKE_NPC_WAIT: str = PREFIX +"multi_make_npc_wait" 
     ACTION_NPC_ATTACK_OTHER_NPC: str = PREFIX + "npc_attack_other_npc"
+    ACTION_MULTI_NPC_ATTACK_OTHER_NPC: str = PREFIX +"multi_npc_attack_other_npc"
     ACTION_NPC_LOOT_ITEMS: str = PREFIX + "npc_loot_items"
+    ACTION_MULTI_NPC_LOOT_ITEMS: str = PREFIX + "multi_npc_loot_items"
+    ACTION_NPC_HEAL_PLAYER: str = PREFIX +"heal_me" 
+
 
 
     # Function data
     FUNCTION_DATA_TARGET_IDS: str = PREFIX + "function_data_target_ids"
     FUNCTION_DATA_TARGET_NAMES: str = PREFIX + "function_data_target_names"
     FUNCTION_DATA_SOURCE_IDS: str = PREFIX + "function_data_source_ids"
+    FUNCTION_DATA_MODES: str = PREFIX + "function_data_modes"

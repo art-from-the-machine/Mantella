@@ -273,7 +273,7 @@ class FunctionManager:
 
             if conversation_is_multi_npc:
                 if self.__context.config.function_llm_api == 'OpenAI':
-                    initial_system_message = f"You are a helpful assistant tasked with executing actions on NPCs in a program. Please analyze the input and respond by calling only one function. {system_prompt_LLMFunction_instructions}. The user might refer to {playerName} as 'me' or 'I'. Do not call more than one function. If no function seems applicable or the command isn't clear then do not return any function."
+                    initial_system_message = f"You are a helpful assistant {speakerName} tasked with executing actions on NPCs in a program. Please analyze the input and respond by calling only one function. {system_prompt_LLMFunction_instructions}. The user might refer to {playerName} as 'me' or 'I'. Do not call more than one function. If no function seems applicable or the command isn't clear then do not return any function."
                 else:
                     initial_system_message = f"You are a function calling AI model named {speakerName}. You are provided with function signatures within <tools> </tools> XML tags. You may call one or more functions to assist with the user query. If available tools are not relevant in assisting with user query, just respond in natural conversational language. Don't make assumptions about what values to plug into functions. The user might refer to {playerName} as 'me' or 'I'. {system_prompt_LLMFunction_instructions}<tools>{toolsToSend} </tools>"
                     #initial_system_message += '''For each function call return a JSON object, with the following pydantic model json schema:
@@ -338,7 +338,11 @@ class FunctionManager:
                                 speakerName=speakerName,
                                 playerName=playerName,
                             )
-                            return formatted_LLM_warning
+                            if formatted_LLM_warning:
+                                return formatted_LLM_warning
+                            else:
+                                print("Issue encountered with formatting LLM Warning")
+                                self.clear_llm_output_data()
                         else:
                             print("Unrecognized Parameter key for LLM function. Try using an empty string : \"\"")
                             self.clear_llm_output_data()
@@ -381,12 +385,11 @@ class FunctionManager:
         npc_distances = [float(distance) for distance in npc_distances]
         npc_ids = [int(npc_id) for npc_id in npc_ids]
 
-
-        if exclude_player:
-            characters = self.context.npcs_in_conversation.get_all_characters()
-            for character in characters:
-                if character.is_player_character:
-                    player_name=character.name
+        player_name=""
+        characters = self.context.npcs_in_conversation.get_all_characters()
+        for character in characters:
+            if character.is_player_character:
+                player_name=character.name
 
         for npc_name, npc_id, npc_distance in zip(npc_names, npc_ids, npc_distances):
             if exclude_player and (npc_name==player_name):             #continue to the next NPC if this is the player and exclude_player is turned on
@@ -403,7 +406,7 @@ class FunctionManager:
                 npc_tooltips += f"{i+1}. target name: {target.name}, distance: {target.distance}, target npc ID: {target.dec_id}\n"
 
             
-            tooltips_outro = ""
+            tooltips_outro = f"The distances are calculated from {player_name}'s position"
             tooltips = tooltips_intro + npc_tooltips + tooltips_outro
             self.__tools_manager.add_tooltip(self.KEY_TOOLTIPS_NPC_TARGETING, tooltips)
         return True
@@ -751,6 +754,8 @@ class FunctionManager:
                 return formatted_LLM_warning
             else:
                 print(f"Function {returned_LLMFunction.GPT_func_name} couldn't be formatted")
+                self.clear_llm_output_data()
+                
 
         except Exception as e:
             logging.error(f"Error retrieving function call arguments, ignoring function call: {e}")
@@ -782,6 +787,8 @@ class FunctionManager:
             if output_function.context_payload.sources:
                 source_dec_ids_output = output_function.context_payload.get_sources_dec_ids()
                 sentence_receiving_output.source_ids.extend(source_dec_ids_output)
+            if output_function.context_payload.modes:
+                sentence_receiving_output.function_call_modes.extend(output_function.context_payload.get_modes())
             #if self.__context.npcs_in_conversation.contains_multiple_npcs() and self.__output_manager.is_generating :
                 #self.llm_output_pending_character_switch=True
             #else:

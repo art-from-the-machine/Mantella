@@ -2,7 +2,7 @@
     "GPT_func_name": "npc_loot_items",
     "GPT_func_description": "Use this function to loot items. If the type of item to loot is unspecified, then use 'any'.",
     "function_parameters": {
-        "item_type": {
+        "item_mode": {
             "type": "string",
             "description": "The type of item to loot."
         }
@@ -11,8 +11,8 @@
     "GPT_required": ["item_mode"],
     "allowed_games": ["fallout4"],
     "is_generic_npc_function": true,
-    "is_follower_function": false,
-    "is_settler_function": false,
+    "is_follower_function": true,
+    "is_settler_function": true,
     "is_pre_dialogue": true,
     "is_post_dialogue": false,
     "key": "loot_items",
@@ -22,8 +22,5 @@
     "is_radiant": false,
     "llm_feedback": "{speakerName} is about to scavenge {llm_output_mode} items at {playerName}'s request. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
     "parameter_package_key": ["loot_items_tooltip"],
-    "additionalProperties": false,
-    "strict": false,
-    "parallel_tool_calls": false,
     "veto_warning" : "{speakerName} is about to scavenge {llm_output_mode} items at {playerName}'s request. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why."
 }
