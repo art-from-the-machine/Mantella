@@ -54,10 +54,17 @@ class OtherDefinitions:
         return ConfigValueInt("max_count_events","Max Count Events",max_count_events_description,5,0,999999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
+    def get_events_refresh_time_config_value() -> ConfigValue:
+        max_count_events_description = """Determines how much time (in seconds) can pass between the last NPC's response and the player's input before in-game events need to be refreshed.
+                                        Note that updating in-game events increases response times. If the player responds before this set number in seconds, response times will be reduced.
+                                        Increase this value to allow more time for the player to respond before events need to be refreshed. Decrease this value to make in-game events more up to date."""
+        return ConfigValueInt("events_refresh_time","Time to Wait before Updating Events",max_count_events_description,10,0,999999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    
+    @staticmethod
     def get_hourly_time_config_value() -> ConfigValue:
         description = """If enabled, NPCs will be made aware of the time every in-game hour. Otherwise, time updates will be less granular (eg 'The conversation now takes place in the morning' / 'at night' etc).
                         To remove mentions of the hour entirely, prompts also need to be edited from 'The time is {time} {time_group}.' to 'The conversation takes place {time_group}.'"""
-        return ConfigValueBool("hourly_time","Report In-Game Time Hourly",description,False,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+        return ConfigValueBool("hourly_time","Report In-Game Time Hourly",description,False,tags=[ConfigValueTag.advanced])
     
     #Player Character
     @staticmethod

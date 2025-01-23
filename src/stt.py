@@ -152,8 +152,9 @@ class Transcriber:
         self._speech_started = threading.Event()
 
     @property
-    def stopped_listening(self):
-        return self.__stop_listening
+    def is_listening(self) -> bool:
+        """Returns True if actively listening."""
+        return self.__listen_thread is not None and self.__listen_thread.is_alive()
 
     @utils.time_it
     def __generate_sync_client(self):
@@ -259,31 +260,31 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
     @utils.time_it
     def start_listening(self, prompt: str = ''):
         '''Start background listening thread'''
-        with self.__latest_capture_lock:
-            if self.__listen_thread and self.__listen_thread.is_alive():
-                return
-            
-            self._speech_started.clear()
-            self.__stop_listening.clear()
-            self.__stop_transcribing.clear()
-            self.__transcription_queue.is_more_to_come = True
-            
-            # Start listening thread
-            self.__listen_thread = threading.Thread(
-                target=self.__background_listen,
-                daemon=True,
-                args=[prompt]
-            )
-            self.__listen_thread.start()
-            
-            # Start transcription thread
-            self.__transcribe_thread = threading.Thread(
-                target=self.__process_transcriptions,
-                daemon=True
-            )
-            self.__transcribe_thread.start()
-            
-            logging.log(self.loglevel, 'Started speech recognition threads')
+        if self.is_listening:
+            logging.info('already listening')
+            return
+        
+        self._speech_started.clear()
+        self.__stop_listening.clear()
+        self.__stop_transcribing.clear()
+        self.__transcription_queue.is_more_to_come = True
+        
+        # Start listening thread
+        self.__listen_thread = threading.Thread(
+            target=self.__background_listen,
+            daemon=True,
+            args=[prompt]
+        )
+        self.__listen_thread.start()
+        
+        # Start transcription thread
+        self.__transcribe_thread = threading.Thread(
+            target=self.__process_transcriptions,
+            daemon=True
+        )
+        self.__transcribe_thread.start()
+        
+        logging.log(self.loglevel, 'Started speech recognition threads')
     
     
     @utils.time_it
@@ -366,24 +367,22 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         ''' Get the transcription of the most recent speech detection'''
         while True:
             with self.__latest_capture_lock:
-                latest_capture = self.__latest_capture
-
-            if latest_capture and latest_capture.completed:
-                transcript = latest_capture.transcript
-                
-                with self.__latest_capture_lock:
+                if self.__latest_capture and self.__latest_capture.completed:
+                    transcript = self.__latest_capture.transcript
                     self.__latest_capture = None
-                
-                if transcript:
-                    logging.log(self.loglevel, f"Player said '{transcript.strip()}'")
+                    needs_restart = False
+                    
+                    if not transcript:
+                        utils.play_no_mic_input_detected_sound()
+                        logging.warning('Could not detect speech from mic input')
+                        needs_restart = not self.is_listening
+                    else:
+                        logging.log(self.loglevel, f"Player said '{transcript.strip()}'")
+                        return transcript
                 else:
-                    utils.play_no_mic_input_detected_sound()
-                    logging.warning('Could not detect speech from mic input')
-                    if self.__stop_listening:
-                        self.start_listening()
-                
-                return transcript
-            
+                    needs_restart = (not self.is_listening) and (self.__latest_capture is None)
+            if needs_restart:
+                self.start_listening()
             time.sleep(0.01)
 
 

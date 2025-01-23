@@ -101,8 +101,8 @@ class ConfigLoader:
                     else: # default to Skyrim
                         self.game = 'Skyrim'
 
-                self.facefx_path = str(Path(utils.resolve_path()).parent.parent.parent)
-                self.facefx_path += "\\Sound\\Voice\\Processing\\"
+                self.lipgen_path = self.game_path
+                self.facefx_path = self.mod_path+"\\Sound\\Voice\\Processing\\"
                 #self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
                 self.piper_path = str(Path(utils.resolve_path())) + "\\piper"
 
@@ -128,6 +128,7 @@ class ConfigLoader:
                     self.game_path = None
                     self.mod_path: str = self.__definitions.get_string_value("skyrim_mod_folder") #config['Paths']['skyrim_mod_folder']
 
+                self.lipgen_path = self.__definitions.get_string_value("lipgen_folder")
                 self.facefx_path = self.__definitions.get_string_value("facefx_folder")
 
             self.mod_path_base = self.mod_path
@@ -252,6 +253,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             #Conversation
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
             self.max_count_events = self.__definitions.get_int_value("max_count_events")
+            self.events_refresh_time = self.__definitions.get_int_value("events_refresh_time")
             self.hourly_time = self.__definitions.get_bool_value("hourly_time")
             self.player_character_description: str = self.__definitions.get_string_value("player_character_description")
             self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
