@@ -54,6 +54,7 @@ class MantellaConfigValueDefinitionsNew:
         tts_category.add_config_value(TTSDefinitions.get_xvasynth_folder_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_folder_config_value())
         tts_category.add_config_value(TTSDefinitions.get_piper_folder_config_value(is_integrated))
+        tts_category.add_config_value(TTSDefinitions.get_lipgen_folder_config_value(is_integrated))
         tts_category.add_config_value(TTSDefinitions.get_facefx_folder_config_value(is_integrated))
         tts_category.add_config_value(TTSDefinitions.get_lip_generation_config_value())
         tts_category.add_config_value(TTSDefinitions.get_number_words_tts_config_value())

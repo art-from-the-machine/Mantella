@@ -21,17 +21,18 @@ class ttsable(ABC):
         super().__init__()
         self._config: ConfigLoader = config
         self._loglevel = 29
+        self._lipgen_path = config.lipgen_path
+        self.__has_lipgen_warning_happened = False
         self._facefx_path = config.facefx_path
         self._times_checked = 0
         self._tts_print = config.tts_print # to print output to console
         self._save_folder = config.save_folder
         self._output_path = os.getenv('TMP')
         self._voiceline_folder = f"{self._output_path}/voicelines"
-        os.makedirs(f"{self._voiceline_folder}/save", exist_ok=True)
+        os.makedirs(self._voiceline_folder, exist_ok=True)
         self._language = config.language
         self._last_voice = '' # last active voice model
         self._lip_generation_enabled = config.lip_generation
-        self._exepath = config.mod_path_base + '/..'
         # determines whether the voiceline should play internally
         #self.debug_mode = config.debug_mode
         #self.play_audio_from_script = config.play_audio_from_script
@@ -74,9 +75,8 @@ class ttsable(ABC):
         #rename to unique name        
         if (os.path.exists(final_voiceline_file)):
             try:
-                #Rename and move old voice files into a different directory
                 timestamp: str = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f_")
-                new_wav_file_name = f"{self._voiceline_folder}/save/{timestamp}sav.wav" 
+                new_wav_file_name = f"{self._voiceline_folder}/{timestamp + final_voiceline_file_name}.wav" 
                 new_lip_file_name = new_wav_file_name.replace(".wav", ".lip")
                 new_fuz_file_name = new_wav_file_name.replace(".wav", ".fuz")
                 os.rename(final_voiceline_file, new_wav_file_name)
@@ -167,7 +167,7 @@ class ttsable(ABC):
 
         def generate_facefx_lip_file(facefx_path: str, wav_file: str, lip_file: str, voiceline: str, game: str) -> None:
             # Bethesda's LipGen:
-            LipGen_path = f"{self._exepath}/Tools/LipGen/LipGenerator/LipGenerator.exe"
+            LipGen_path = Path(self._lipgen_path) / "Tools/LipGen/LipGenerator/LipGenerator.exe"
 
             if os.path.exists(LipGen_path):
                 #TODO: Use supported languages here: FR, DE, ES, IT, KO, JP
@@ -179,7 +179,9 @@ class ttsable(ABC):
                 command = " ".join(commands)
                 run_facefx_command(command, facefx_path)
             else:
-                logging.warning('Could not find LipGenerator.exe: please install or update the creation kit from Steam')
+                if not self.__has_lipgen_warning_happened:
+                    logging.warning('Could not find LipGenerator.exe. Please install or update the Creation Kit from Steam for faster lip sync generation')
+                    self.__has_lipgen_warning_happened = True
                 # Fall back to using FaceFXWrapper if LipGen not detected
                 face_wrapper_executable: Path = Path(self._facefx_path) / "FaceFXWrapper.exe"
                 if not face_wrapper_executable.exists():
@@ -213,7 +215,7 @@ class ttsable(ABC):
         def generate_fuz_file(facefx_path: str, wav_file: str, lip_file: str) -> None:
             #Fuz files needed for Fallout only
             #LipFuzer is Bethesda's official fuz creator
-            LipFuz_path = f"{self._exepath}/Tools/LipGen/LipFuzer/LipFuzer.exe"
+            LipFuz_path = Path(self._lipgen_path) / "Tools/LipGen/LipFuzer/LipFuzer.exe"
 
             if os.path.exists(LipFuz_path):
                 commands = [
@@ -230,12 +232,12 @@ class ttsable(ABC):
                 logging.warning('Could not find LipFuzer.exe: please install or update the creation kit from Steam')
                 fuz_extractor_executable = Path(facefx_path) / "Fuz_extractor.exe"
                 if not fuz_extractor_executable.exists():
-                    logging.error(f'Could not find Fuz_extractor.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
+                    logging.error(f'Could not find Fuz_extractor.exe in "{facefx_path}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
                     raise FileNotFoundError()
         
                 xWMAEncode_executable = Path(facefx_path) / "xWMAEncode.exe"
                 if not xWMAEncode_executable.exists():
-                    logging.error(f'Could not find xWMAEncode.exe in "{face_wrapper_executable.parent}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
+                    logging.error(f'Could not find xWMAEncode.exe in "{facefx_path}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
                     raise FileNotFoundError()
 
                 xwm_file = wav_file.replace(".wav", ".xwm")
