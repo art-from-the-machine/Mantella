@@ -101,8 +101,8 @@ class ConfigLoader:
                     else: # default to Skyrim
                         self.game = 'Skyrim'
 
-                self.facefx_path = str(Path(utils.resolve_path()).parent.parent.parent)
-                self.facefx_path += "\\Sound\\Voice\\Processing\\"
+                self.lipgen_path = self.game_path
+                self.facefx_path = self.mod_path+"\\Sound\\Voice\\Processing\\"
                 #self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
                 self.piper_path = str(Path(utils.resolve_path())) + "\\piper"
 
@@ -128,6 +128,7 @@ class ConfigLoader:
                     self.game_path = None
                     self.mod_path: str = self.__definitions.get_string_value("skyrim_mod_folder") #config['Paths']['skyrim_mod_folder']
 
+                self.lipgen_path = self.__definitions.get_string_value("lipgen_folder")
                 self.facefx_path = self.__definitions.get_string_value("facefx_folder")
 
             self.mod_path_base = self.mod_path
