@@ -29,7 +29,7 @@ class ttsable(ABC):
         self._save_folder = config.save_folder
         self._output_path = os.getenv('TMP')
         self._voiceline_folder = f"{self._output_path}/voicelines"
-        os.makedirs(self._voiceline_folder, exist_ok=True)
+        os.makedirs(f"{self._voiceline_folder}/save", exist_ok=True)
         self._language = config.language
         self._last_voice = '' # last active voice model
         self._lip_generation_enabled = config.lip_generation
@@ -76,7 +76,7 @@ class ttsable(ABC):
         if (os.path.exists(final_voiceline_file)):
             try:
                 timestamp: str = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f_")
-                new_wav_file_name = f"{self._voiceline_folder}/{timestamp + final_voiceline_file_name}.wav" 
+                new_wav_file_name = f"{self._voiceline_folder}/save/{timestamp}sav.wav"
                 new_lip_file_name = new_wav_file_name.replace(".wav", ".lip")
                 new_fuz_file_name = new_wav_file_name.replace(".wav", ".fuz")
                 os.rename(final_voiceline_file, new_wav_file_name)
