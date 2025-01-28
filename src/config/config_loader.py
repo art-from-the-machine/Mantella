@@ -91,7 +91,7 @@ class ConfigLoader:
                 # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> F4SE/SKSE -> Data (mod folder)
                 self.mod_path = str(exe_folder.parent.parent.parent)
 
-                self.lipgen_path = self.game_path
+                self.lipgen_path = self.game_path+"\\Tools\\LipGen\\"
                 self.facefx_path = self.mod_path+"\\Sound\\Voice\\Processing\\"
                 self.piper_path = str(Path(utils.resolve_path())) + "\\piper"
 
@@ -102,13 +102,19 @@ class ConfigLoader:
                         # Fallout 4 VR uses the same creation kit as Fallout 4, so the lip gen folder needs to be set to the Fallout 4 folder
                         # Note that this path assumes that both Fallout 4 versions are installed in the same directory
                         # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> F4SE -> Data -> Fallout 4 VR -> common (Steam folder for all games)
-                        self.lipgen_path = str(exe_folder.parent.parent.parent.parent.parent)+"\\Fallout 4"
+                        if not os.path.exists(self.lipgen_path):
+                            self.lipgen_path = str(exe_folder.parent.parent.parent.parent.parent)+"\\Fallout 4"+"\\Tools\\LipGen\\"
+                            if not os.path.exists(self.lipgen_path):
+                                self.lipgen_path = ''
                     elif 'skyrim' in game_parent_folder_name:
                         self.game = 'SkyrimVR'
                         # Skyrim VR uses the same creation kit as Skyrim Special Edition, so the lip gen folder needs to be set to the Skyrim Special Edition folder
                         # Note that this path assumes that both Skyrim versions are installed in the same directory
                         # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> SKSE -> Data -> Skyrim VR -> common (Steam folder for all games)
-                        self.lipgen_path = str(exe_folder.parent.parent.parent.parent.parent)+"\\Skyrim Special Edition"
+                        if not os.path.exists(self.lipgen_path):
+                            self.lipgen_path = str(exe_folder.parent.parent.parent.parent.parent)+"\\Skyrim Special Edition"+"\\Tools\\LipGen\\"
+                            if not os.path.exists(self.lipgen_path):
+                                self.lipgen_path = ''
                 else:
                     if 'fallout' in game_parent_folder_name:
                         self.game = 'Fallout4'
