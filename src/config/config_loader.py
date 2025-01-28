@@ -84,15 +84,37 @@ class ConfigLoader:
         try:
             # if the exe is being run by another process, replace config.ini paths with relative paths
             if "--integrated" in sys.argv:
-                self.game_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)
-                self.mod_path = str(Path(utils.resolve_path()).parent.parent.parent)
+                # Plugins/MantellaSoftware folder
+                exe_folder = Path(utils.resolve_path())
+                # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> F4SE/SKSE -> Data (mod folder) -> Game
+                self.game_path = str(exe_folder.parent.parent.parent.parent)
+                # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> F4SE/SKSE -> Data (mod folder)
+                self.mod_path = str(exe_folder.parent.parent.parent)
+
+                self.lipgen_path = self.game_path+"\\Tools\\LipGen\\"
+                self.facefx_path = self.mod_path+"\\Sound\\Voice\\Processing\\"
+                self.piper_path = str(Path(utils.resolve_path())) + "\\piper"
 
                 game_parent_folder_name = os.path.basename(self.game_path).lower()
                 if 'vr' in game_parent_folder_name:
                     if 'fallout' in game_parent_folder_name:
                         self.game = 'Fallout4VR'
+                        # Fallout 4 VR uses the same creation kit as Fallout 4, so the lip gen folder needs to be set to the Fallout 4 folder
+                        # Note that this path assumes that both Fallout 4 versions are installed in the same directory
+                        # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> F4SE -> Data -> Fallout 4 VR -> common (Steam folder for all games)
+                        if not os.path.exists(self.lipgen_path):
+                            self.lipgen_path = str(exe_folder.parent.parent.parent.parent.parent)+"\\Fallout 4"+"\\Tools\\LipGen\\"
+                            if not os.path.exists(self.lipgen_path):
+                                self.lipgen_path = ''
                     elif 'skyrim' in game_parent_folder_name:
                         self.game = 'SkyrimVR'
+                        # Skyrim VR uses the same creation kit as Skyrim Special Edition, so the lip gen folder needs to be set to the Skyrim Special Edition folder
+                        # Note that this path assumes that both Skyrim versions are installed in the same directory
+                        # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> SKSE -> Data -> Skyrim VR -> common (Steam folder for all games)
+                        if not os.path.exists(self.lipgen_path):
+                            self.lipgen_path = str(exe_folder.parent.parent.parent.parent.parent)+"\\Skyrim Special Edition"+"\\Tools\\LipGen\\"
+                            if not os.path.exists(self.lipgen_path):
+                                self.lipgen_path = ''
                 else:
                     if 'fallout' in game_parent_folder_name:
                         self.game = 'Fallout4'
@@ -100,11 +122,6 @@ class ConfigLoader:
                         self.game = 'Skyrim'
                     else: # default to Skyrim
                         self.game = 'Skyrim'
-
-                self.lipgen_path = self.game_path
-                self.facefx_path = self.mod_path+"\\Sound\\Voice\\Processing\\"
-                #self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
-                self.piper_path = str(Path(utils.resolve_path())) + "\\piper"
 
             else:
                 #Adjusting game and mod paths according to the game being ran
