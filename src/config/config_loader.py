@@ -326,8 +326,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
     
     def load_actions_from_json(self, actions_folder: str) -> list[action]:
         result = []
-        if not os.path.exists(actions_folder):
-            os.makedirs(actions_folder)
+        os.makedirs(actions_folder, exist_ok=True)
         override_files: list[str] = os.listdir(actions_folder)
         for file in override_files:
             try:

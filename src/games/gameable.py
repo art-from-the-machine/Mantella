@@ -235,8 +235,7 @@ class gameable(ABC):
     
     @utils.time_it
     def __apply_character_overrides(self, overrides_folder: str, character_df_column_headers: list[str]):
-        if not os.path.exists(overrides_folder):
-            os.makedirs(overrides_folder)
+        os.makedirs(overrides_folder, exist_ok=True)
         override_files: list[str] = os.listdir(overrides_folder)
         for file in override_files:
             try:
