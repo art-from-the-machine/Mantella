@@ -12,11 +12,13 @@ from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
 import src.utils as utils
 
-
 class skyrim(gameable):
     WAV_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
     FUZ_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.fuz'
     LIP_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
+    WAV_FILE2 = f'MantellaDi_MantellaDialogu_001A9C49_1.wav'
+    FUZ_FILE2 = f'MantellaDi_MantellaDialogu_001A9C49_1.fuz'
+    LIP_FILE2 = f'MantellaDi_MantellaDialogu_001A9C49_1.lip'
     #Weather constants
     KEY_CONTEXT_WEATHER_ID = "mantella_weather_id"
     KEY_CONTEXT_WEATHER_CLASSIFICATION = "mantella_weather_classification"
@@ -156,7 +158,7 @@ class skyrim(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int):
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file = queue_output.voice_file
@@ -166,10 +168,15 @@ class skyrim(gameable):
         # subtitle = queue_output.sentence
         speaker: Character = queue_output.speaker
         voice_folder_path = f"{mod_folder}/MantellaVoice00"
-        os.makedirs(voice_folder_path, exist_ok=True)
-        shutil.copyfile(audio_file, f"{voice_folder_path}/{self.WAV_FILE}")
+        os.makedirs(voice_folder_path, exist_ok=True)        
+        wav_file_name = self.WAV_FILE
+        lip_file_name = self.LIP_FILE
+        if topicID == 2:
+            wav_file_name = self.WAV_FILE2
+            lip_file_name = self.LIP_FILE2
+        shutil.copyfile(audio_file, f"{voice_folder_path}/{wav_file_name}")
         try:
-            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{self.LIP_FILE}")
+            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{lip_file_name}")
         except Exception as e:
             # only warn on failure
             pass
