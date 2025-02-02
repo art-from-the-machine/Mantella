@@ -8,11 +8,8 @@ import requests
 import json
 import io
 from pathlib import Path
-import base64
 from openai import OpenAI
-import uuid
-from typing import Dict, Optional, Tuple, Any
-from dataclasses import dataclass
+from typing import Optional
 from datetime import datetime
 import queue
 import threading
@@ -21,9 +18,7 @@ import os
 import wave
 from moonshine_onnx import MoonshineOnnxModel, load_tokenizer
 import onnxruntime as ort
-from numpy.typing import NDArray
 from scipy.io import wavfile
-
 from sounddevice import InputStream
 from silero_vad import VADIterator, load_silero_vad
 
