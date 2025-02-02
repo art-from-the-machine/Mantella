@@ -45,6 +45,7 @@ class Transcriber:
         self.external_whisper_service = config.external_whisper_service
         self.whisper_service = config.whisper_url
         self.whisper_url = self.__get_endpoint(config.whisper_url)
+        self.prompt = ''
         self.show_mic_warning = True
         self.log_interim_transcriptions = False
         self.transcription_times = []
@@ -171,14 +172,14 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
 
     @utils.time_it
-    def _transcribe(self, audio: np.ndarray, prompt: str = '') -> str:
+    def _transcribe(self, audio: np.ndarray) -> str:
         """Transcribe audio using Moonshine model."""
         # Count speech end time from when the last transcribe is called
         self._speech_end_time = time.time()
         if self.stt_service == 'moonshine':
             transcription = self.moonshine_transcribe(audio)
         else:
-            transcription = self.whisper_transcribe(audio, '') # TODO: add prompt
+            transcription = self.whisper_transcribe(audio, self.prompt)
 
         self.transcription_times.append((time.time() - self._speech_end_time))
         if len(self.transcription_times) % 5 == 0:
@@ -258,6 +259,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             
         self._running = True
         self._reset_state()
+        self.prompt = prompt
         
         # Start audio stream
         self._stream = InputStream(
@@ -281,7 +283,6 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
     def _process_audio(self) -> None:
         """Process audio data in a separate thread."""
-        # TODO: figure out how to save recorded audio
         lookback_size = self.LOOKBACK_CHUNKS * self.CHUNK_SIZE
         chunk_count = 0
         
