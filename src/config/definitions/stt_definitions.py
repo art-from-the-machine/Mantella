@@ -30,7 +30,7 @@ Depending on your NVIDIA CUDA version, setting the Whisper process device to `cu
         audio_threshold_description = """Controls how much background noise is filtered out.
                                         If the mic is not picking up speech, try lowering this value.
                                         If the mic is picking up too much background noise, try increasing this value."""
-        return ConfigValueInt("audio_threshold","Audio Threshold",audio_threshold_description, 175, 0, 999)
+        return ConfigValueFloat("audio_threshold","Audio Threshold",audio_threshold_description, 0.5, 0, 1)
     
     @staticmethod
     def get_allow_interruption_config_value() -> ConfigValue:

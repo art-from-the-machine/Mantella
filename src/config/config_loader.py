@@ -222,7 +222,7 @@ class ConfigLoader:
             if self.__definitions.get_bool_value("use_automatic_audio_threshold"):
                 self.audio_threshold = "auto"
             else:
-                self.audio_threshold = str(self.__definitions.get_int_value("audio_threshold"))
+                self.audio_threshold = float(self.__definitions.get_float_value("audio_threshold"))
             self.allow_interruption = self.__definitions.get_bool_value("allow_interruption")
             self.save_mic_input = self.__definitions.get_bool_value("save_mic_input")
             self.pause_threshold = self.__definitions.get_float_value("pause_threshold")
