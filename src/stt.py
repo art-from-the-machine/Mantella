@@ -37,8 +37,6 @@ class Transcriber:
     CHUNK_SIZE = 512  # Required chunk size for Silero VAD
     CHUNK_DURATION = CHUNK_SIZE / SAMPLING_RATE  # Explicit calculation of chunk duration in seconds
     LOOKBACK_CHUNKS = 5  # Number of chunks to keep in buffer when not recording
-    MIN_REFRESH_SECS = 0.9  # Minimum time between transcription updates # TODO: add to config
-    REFRESH_FREQ = MIN_REFRESH_SECS // CHUNK_DURATION # Number of chunks between transcription updates
     
     def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str):
         self.loglevel = 27
@@ -54,6 +52,9 @@ class Transcriber:
         self.whisper_url = self.__get_endpoint(config.whisper_url)
         self.show_mic_warning = True
         self.log_interim_transcriptions = False
+        self.transcription_times = []
+        self.min_refresh_secs = config.min_refresh_secs # Minimum time between transcription updates
+        self.refresh_freq = self.min_refresh_secs // self.CHUNK_DURATION # Number of chunks between transcription updates
         self.pause_threshold = config.pause_threshold
         self.audio_threshold = config.audio_threshold
         logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this `Speech-to-Text`->`Audio Threshold` value in the Mantella UI. If the mic is picking up too much background noise, try increasing this value.\n")
@@ -184,6 +185,12 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         else:
             transcription = self.whisper_transcribe(audio, '') # TODO: add prompt
 
+        self.transcription_times.append((time.time() - self._speech_end_time))
+        if len(self.transcription_times) % 5 == 0:
+            max_transcription_time = max(self.transcription_times[-5:])
+            if max_transcription_time > self.min_refresh_secs:
+                logging.warn(f'Mic transcription took {round(max_transcription_time,3)} to process. To improve performance, try setting `Speech-to-Text`->`Refresh Frequency` to a value slightly higher than {round(max_transcription_time,3)} in the Mantella UI')
+
         if self.stt_service != 'moonshine' or self.log_interim_transcriptions: # Do not log when Moonshine calls its warmup transcription
             logging.log(self.loglevel, f'Interim transcription: {transcription}')
         self.log_interim_transcriptions = True
@@ -312,7 +319,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                         if "end" in speech_dict and self._speech_detected:
                             logging.log(self.loglevel, 'Speech ended')
                             # Only refresh transcription if transcription frequency is higher than silence length
-                            # if self.pause_threshold < (self.CHUNK_DURATION * self.REFRESH_FREQ):
+                            # if self.pause_threshold < (self.CHUNK_DURATION * self.refresh_freq):
                             #     self._current_transcription = self._transcribe(self._audio_buffer)
                             if self.__save_mic_input:
                                 self._save_audio(self._audio_buffer)
@@ -333,8 +340,8 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                             self._reset_state()
                             self._soft_reset_vad()
                         # Regular update during speech
-                        elif chunk_count >= self.REFRESH_FREQ:
-                            logging.debug(f'Transcribing {self.MIN_REFRESH_SECS} of mic input...')
+                        elif chunk_count >= self.refresh_freq:
+                            logging.debug(f'Transcribing {self.min_refresh_secs} of mic input...')
                             self._current_transcription = self._transcribe(self._audio_buffer)
 
                             chunk_count = 0  # Reset counter

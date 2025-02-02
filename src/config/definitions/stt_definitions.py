@@ -20,17 +20,18 @@ Depending on your NVIDIA CUDA version, setting the Whisper process device to `cu
                 return ConfigValueConstraintResult()
     
     @staticmethod
-    def get_use_automatic_audio_threshold_folder_config_value() -> ConfigValue:
-        description = """Sets whether the microphone should automatically try to adjust for background noise.
-        If you get stuck at 'Listening...', disable this setting and manually set the audio threshold in the setting below."""
-        return ConfigValueBool("use_automatic_audio_threshold", "Automatic Audio Threshold", description, False)
-    
-    @staticmethod
-    def get_audio_threshold_folder_config_value() -> ConfigValue:
-        audio_threshold_description = """Controls how much background noise is filtered out.
+    def get_audio_threshold_config_value() -> ConfigValue:
+        audio_threshold_description = """Controls how much background noise is filtered out (from 0-1).
                                         If the mic is not picking up speech, try lowering this value.
                                         If the mic is picking up too much background noise, try increasing this value."""
-        return ConfigValueFloat("audio_threshold","Audio Threshold",audio_threshold_description, 0.5, 0, 1)
+        return ConfigValueFloat("audio_threshold","Audio Threshold",audio_threshold_description, 0.4, 0, 1, tags=[ConfigValueTag.share_row])
+    
+    @staticmethod
+    def get_min_refresh_secs_config_value() -> ConfigValue:
+        description = """Controls how frequently mic input is transcribed by Moonshine / Whisper.
+                        Increase this value if the frequency is too intense for your hardware.
+                        Decrease this value to improve response times."""
+        return ConfigValueFloat("min_refresh_secs", "Refresh Frequency", description, 0.3, 0.01, 999, tags=[ConfigValueTag.share_row])
     
     @staticmethod
     def get_allow_interruption_config_value() -> ConfigValue:
@@ -59,7 +60,7 @@ Depending on your NVIDIA CUDA version, setting the Whisper process device to `cu
                     If you feel like you are being cut off before you finish your response, increase this value.
                     If you feel like there is too much of a delay between you finishing your response and the text conversion, decrease this value.
                     It is recommended to set to this value to at least 0.1."""
-        return ConfigValueFloat("pause_threshold","Pause Threshold", description, 1.0, 0, 999, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+        return ConfigValueFloat("pause_threshold","Pause Threshold", description, 0.1, 0, 999, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
 
     @staticmethod
     def get_listen_timeout_config_value() -> ConfigValue:
