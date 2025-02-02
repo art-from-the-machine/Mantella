@@ -78,6 +78,8 @@ class Transcriber:
                 else:
                     self.transcribe_model = WhisperModel(self.whisper_model, device=self.process_device, compute_type="float32")
         else:
+            if self.language != 'en':
+                logging.warning(f"Selected language is '{self.language}', but Moonshine only supports English. Please change the selected speech-to-text model to Whisper in `Speech-to-Text`->`STT Service` in the Mantella UI")
             self.transcribe_model = MoonshineOnnxModel(model_name=self.moonshine_model)
             self.tokenizer = load_tokenizer()
             # Warm up the model
@@ -185,7 +187,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         if len(self.transcription_times) % 5 == 0:
             max_transcription_time = max(self.transcription_times[-5:])
             if max_transcription_time > self.min_refresh_secs:
-                logging.warn(f'Mic transcription took {round(max_transcription_time,3)} to process. To improve performance, try setting `Speech-to-Text`->`Refresh Frequency` to a value slightly higher than {round(max_transcription_time,3)} in the Mantella UI')
+                logging.warning(f'Mic transcription took {round(max_transcription_time,3)} to process. To improve performance, try setting `Speech-to-Text`->`Refresh Frequency` to a value slightly higher than {round(max_transcription_time,3)} in the Mantella UI')
 
         if self.stt_service != 'moonshine' or self.log_interim_transcriptions: # Do not log when Moonshine calls its warmup transcription
             logging.log(self.loglevel, f'Interim transcription: {transcription}')
