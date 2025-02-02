@@ -314,8 +314,10 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                             # Only refresh transcription if transcription frequency is higher than silence length
                             # if self.pause_threshold < (self.CHUNK_DURATION * self.REFRESH_FREQ):
                             #     self._current_transcription = self._transcribe(self._audio_buffer)
-                            self._transcription_ready.set()
+                            if self.__save_mic_input:
+                                self._save_audio(self._audio_buffer)
 
+                            self._transcription_ready.set()
                             self._reset_state()
                     
                     # Update transcription periodically during speech
@@ -379,6 +381,19 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         """Reset internal state."""
         self._audio_buffer = np.array([], dtype=np.float32)
         self.vad_iterator = self._create_vad_iterator()
+
+
+    @utils.time_it
+    def _save_audio(self, audio: np.ndarray) -> None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        audio_path = os.path.join(self.__mic_input_path, f'mic_input_{timestamp}.wav')
+        with wave.open(audio_path, 'wb') as wf:
+            wf.setnchannels(1)  # Mono audio
+            wf.setsampwidth(2)  # 16-bit audio
+            wf.setframerate(self.SAMPLING_RATE)
+            # Convert float32 to int16
+            audio_int16 = (audio * 32767).astype(np.int16)
+            wf.writeframes(audio_int16.tobytes())
 
 
     @utils.time_it
