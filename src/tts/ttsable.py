@@ -181,7 +181,7 @@ class ttsable(ABC):
 
         def generate_facefx_lip_file(facefx_path: str, wav_file: str, lip_file: str, voiceline: str, game: str) -> None:
             # Bethesda's LipGen:
-            LipGen_path = Path(self._lipgen_path) / "Tools/LipGen/LipGenerator/LipGenerator.exe"
+            LipGen_path = Path(self._lipgen_path) / "LipGenerator/LipGenerator.exe"
             languages = {
                 "fr" : 'French',
                 'es' : 'Spanish',
@@ -236,7 +236,7 @@ class ttsable(ABC):
         def generate_fuz_file(facefx_path: str, wav_file: str, lip_file: str) -> None:
             #Fuz files needed for Fallout only
             #LipFuzer is Bethesda's official fuz creator
-            LipFuz_path = Path(self._lipgen_path) / "Tools/LipGen/LipFuzer/LipFuzer.exe"
+            LipFuz_path = Path(self._lipgen_path) / "LipFuzer/LipFuzer.exe"
 
             if os.path.exists(LipFuz_path):
                 args: str = f'"{LipFuz_path}" -s "{self._voiceline_folder}" -d "{self._voiceline_folder}" -a wav --norec'

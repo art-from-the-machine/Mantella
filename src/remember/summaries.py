@@ -34,13 +34,15 @@ class summaries(remembering):
         Returns:
             str: a concatenation of the summaries as a single string
         """
-        paragraphs = set()
+        paragraphs = []
         for character in npcs_in_conversation.get_all_characters():
             if not character.is_player_character:          
                 conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)      
                 if os.path.exists(conversation_summary_file):
                     with open(conversation_summary_file, 'r', encoding='utf-8') as f:
-                        paragraphs.update(line.strip() for line in f if line.strip())
+                        for line in f:
+                            if line.strip():
+                                paragraphs.append(line.strip())
         if paragraphs:
             result = "\n".join(paragraphs)
             return f"Below is a summary of past events:\n{result}"

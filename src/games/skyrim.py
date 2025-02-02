@@ -166,8 +166,7 @@ class skyrim(gameable):
         # subtitle = queue_output.sentence
         speaker: Character = queue_output.speaker
         voice_folder_path = f"{mod_folder}/MantellaVoice00"
-        if not os.path.exists(voice_folder_path):
-            os.makedirs(voice_folder_path)
+        os.makedirs(voice_folder_path, exist_ok=True)
         shutil.copyfile(audio_file, f"{voice_folder_path}/{self.WAV_FILE}")
         try:
             shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{self.LIP_FILE}")

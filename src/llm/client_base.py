@@ -7,6 +7,7 @@ import logging
 import time
 import tiktoken
 import os
+import time
 from pathlib import Path
 from src.llm.message_thread import message_thread
 from src.llm.messages import message, image_message, user_message
@@ -307,7 +308,9 @@ If you are using OpenRouter (default), you can create a secret key in Account ->
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
 If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is selected and running via: http://localhost:4999/ui
 For more information, see here: https://art-from-the-machine.github.io/Mantella/''')
-                return None
+                    # Keep the Mantella window open and display the above message until the window is closed
+                    while True:
+                        time.sleep(1000)
 
         return api_key
     
