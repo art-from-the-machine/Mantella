@@ -22,6 +22,7 @@ import wave
 from moonshine_onnx import MoonshineOnnxModel, load_tokenizer
 import onnxruntime as ort
 from numpy.typing import NDArray
+from scipy.io import wavfile
 
 from sounddevice import InputStream
 from silero_vad import VADIterator, load_silero_vad
@@ -36,7 +37,7 @@ class Transcriber:
     CHUNK_SIZE = 512  # Required chunk size for Silero VAD
     CHUNK_DURATION = CHUNK_SIZE / SAMPLING_RATE  # Explicit calculation of chunk duration in seconds
     LOOKBACK_CHUNKS = 5  # Number of chunks to keep in buffer when not recording
-    MIN_REFRESH_SECS = 0.25  # Minimum time between transcription updates # TODO: add to config
+    MIN_REFRESH_SECS = 0.9  # Minimum time between transcription updates # TODO: add to config
     REFRESH_FREQ = MIN_REFRESH_SECS // CHUNK_DURATION # Number of chunks between transcription updates
     
     def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str):
@@ -52,6 +53,7 @@ class Transcriber:
         self.whisper_service = config.whisper_url
         self.whisper_url = self.__get_endpoint(config.whisper_url)
         self.show_mic_warning = True
+        self.log_interim_transcriptions = False
         self.pause_threshold = config.pause_threshold
         self.audio_threshold = config.audio_threshold
         logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this `Speech-to-Text`->`Audio Threshold` value in the Mantella UI. If the mic is picking up too much background noise, try increasing this value.\n")
@@ -173,29 +175,41 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
 
     @utils.time_it
-    def _transcribe(self, audio: np.ndarray) -> str:
+    def _transcribe(self, audio: np.ndarray, prompt: str = '') -> str:
         """Transcribe audio using Moonshine model."""
         # Count speech end time from when the last transcribe is called
         self._speech_end_time = time.time()
-        # Ensure audio is at least 1 second (SAMPLING_RATE samples)
-        # if len(audio) < self.SAMPLING_RATE:
-        #     logging.info('Padding audio...')
-        #     audio = np.pad(audio, (0, self.SAMPLING_RATE - len(audio)))
+        if self.stt_service == 'moonshine':
+            transcription = self.moonshine_transcribe(audio)
+        else:
+            transcription = self.whisper_transcribe(audio, '') # TODO: add prompt
+
+        if self.stt_service != 'moonshine' or self.log_interim_transcriptions: # Do not log when Moonshine calls its warmup transcription
+            logging.log(self.loglevel, f'Interim transcription: {transcription}')
+        self.log_interim_transcriptions = True
         
-        tokens = self.transcribe_model.generate(audio[np.newaxis, :].astype(np.float32))
-        return self.tokenizer.decode_batch(tokens)[0]
+        return transcription
 
 
     @utils.time_it
-    def whisper_transcribe(self, audio, prompt: str):
+    def whisper_transcribe(self, audio: np.ndarray, prompt: str):
         if self.transcribe_model: # local model
-            segments, info = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=5, vad_filter=True, initial_prompt=prompt)
+            segments, _ = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=5, vad_filter=False, initial_prompt=prompt)
             result_text = ' '.join(segment.text for segment in segments)
+            if utils.clean_text(result_text) in self.__ignore_list: # common phrases hallucinated by Whisper
+                return ''
             return result_text
-        elif 'openai' in self.whisper_url: # OpenAI compatible endpoint
+        
+        # Server versions of Whisper require the audio data to be a file type
+        audio_file = io.BytesIO()
+        wavfile.write(audio_file, self.SAMPLING_RATE, audio)
+        # Audio file needs a name or else Whisper gets angry
+        audio_file.name = 'out.wav'
+
+        if 'openai' in self.whisper_url: # OpenAI compatible endpoint
             client = self.__generate_sync_client()
             try:
-                response_data = client.audio.transcriptions.create(model=self.whisper_model, language=self.language, file=audio, prompt=prompt)
+                response_data = client.audio.transcriptions.create(model=self.whisper_model, language=self.language, file=audio_file, prompt=prompt)
             except Exception as e:
                 utils.play_error_sound()
                 if e.code in [404, 'model_not_found']:
@@ -209,29 +223,29 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     logging.error(f'STT error: {e}')
                 input("Press Enter to exit.")
             client.close()
+            if utils.clean_text(response_data.text) in self.__ignore_list: # common phrases hallucinated by Whisper
+                return ''
             return response_data.text.strip()
         else: # custom server model
             data = {'model': self.whisper_model, 'prompt': prompt}
-            files = {'file': ('audio.wav', audio, 'audio/wav')}
+            files = {'file': ('audio.wav', audio_file, 'audio/wav')}
             response = requests.post(self.whisper_url, files=files, data=data)
             if response.status_code != 200:
                 logging.error(f'STT Error: {response.content}')
             response_data = json.loads(response.text)
             if 'text' in response_data:
+                if utils.clean_text(response_data['text']) in self.__ignore_list: # common phrases hallucinated by Whisper
+                    return ''
                 return response_data['text'].strip()
             
 
-    # @utils.time_it
-    # def moonshine_transcribe(self, audio_data: bytes) -> str:
-    #     """Transcribe audio using Moonshine model"""
-    #     # Convert wav data to numpy array
-    #     audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+    @utils.time_it
+    def moonshine_transcribe(self, audio: np.ndarray) -> str:
+        """Transcribe audio using Moonshine model"""
+        tokens = self.transcribe_model.generate(audio[np.newaxis, :].astype(np.float32))
+        text = self.tokenizer.decode_batch(tokens)[0]
         
-    #     # Generate transcription
-    #     tokens = self.transcribe_model.generate(audio_np[np.newaxis, :])
-    #     text = self.tokenizer.decode_batch(tokens)[0]
-        
-    #     return text.strip()
+        return text
 
 
     @utils.time_it
