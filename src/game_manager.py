@@ -63,8 +63,9 @@ class GameStateManager:
         context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
         self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
         self.__update_context(input_json)
-        character_to_talk = self.__talk.context.npcs_in_conversation.last_added_character
-        self.__talk.output_manager.tts.change_voice(character_to_talk.tts_voice_model, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.advanced_voice_model, character_to_talk.voice_accent, voice_gender=character_to_talk.gender, voice_race=character_to_talk.race)
+        if not self.__talk.context.npcs_in_conversation.contains_multiple_npcs():
+            character_to_talk = self.__talk.context.npcs_in_conversation.last_added_character
+            self.__talk.output_manager.tts.change_voice(character_to_talk.tts_voice_model, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.advanced_voice_model, character_to_talk.voice_accent, voice_gender=character_to_talk.gender, voice_race=character_to_talk.race)
         self.__talk.start_conversation()
         
         return {
