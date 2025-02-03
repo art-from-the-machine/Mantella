@@ -42,6 +42,7 @@ class ConfigLoader:
                 except:
                     create_back_up_configini = True
                     # TODO: filter out warnings for ['game', 'skyrim_mod_folder', 'skyrimvr_mod_folder', 'fallout4_mod_folder', 'fallout4vr_mod_folder', fallout4vr_folder]
+                    utils.play_error_sound()
                     logging.warning(f"Could not identify config value '{each_key} = {each_value}' in current config.ini. Value will not be loaded. A backup of this config.ini will be created.")
 
         if create_back_up_configini:
@@ -219,10 +220,8 @@ class ConfigLoader:
             if (self.stt_language == 'default'):
                 self.stt_language = self.language
             self.stt_translate = self.__definitions.get_bool_value("stt_translate")
-            if self.__definitions.get_bool_value("use_automatic_audio_threshold"):
-                self.audio_threshold = "auto"
-            else:
-                self.audio_threshold = str(self.__definitions.get_int_value("audio_threshold"))
+            self.audio_threshold = self.__definitions.get_float_value("audio_threshold")
+            self.min_refresh_secs = self.__definitions.get_float_value("min_refresh_secs")
             self.allow_interruption = self.__definitions.get_bool_value("allow_interruption")
             self.save_mic_input = self.__definitions.get_bool_value("save_mic_input")
             self.pause_threshold = self.__definitions.get_float_value("pause_threshold")
