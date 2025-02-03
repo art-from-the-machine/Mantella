@@ -197,7 +197,8 @@ class ttsable(ABC):
                 args: str = f'"{LipGen_path}" "{wav_file}" "{voiceline}" -Language:{language_parm} -Automated'
                 run_result: subprocess.CompletedProcess = subprocess.run(args, cwd=facefx_path, stderr=DEVNULL, stdout=DEVNULL,
                                                                          creationflags=subprocess.CREATE_NO_WINDOW)
-                if run_result.returncode != 0:
+                if run_result.returncode != 0 and len(voiceline) > 11 :
+                    #Very short sentences sometimes fail to generate a .lip file, so skip warning
                     logging.warning(f'Lipgen returned {run_result.returncode}')
             else:
                 if not self.__has_lipgen_warning_happened:
