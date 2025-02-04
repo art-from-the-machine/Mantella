@@ -78,9 +78,9 @@ class ttsable(ABC):
             #new_wav_file_name = f"{self._voiceline_folder}/save/{timestamp + final_voiceline_file_name}.wav" 
 
             #Use a sanitized version of the voice text as filename
-            unique_name: str  = f'{voice}_{voiceline.strip()}'
+            unique_name: str  = f'{voice} {voiceline.strip()}'[:150]
             new_name: str = "".join(c for c in unique_name if c not in r'\/:*?"<>|.')
-            new_wav_file_name = f'{self._voiceline_folder}/save/{new_name.strip()}.wav'[:250]
+            new_wav_file_name = f'{self._voiceline_folder}/save/{new_name.strip()}.wav'
 
             new_lip_file_name = new_wav_file_name.replace(".wav", ".lip")
             new_fuz_file_name = new_wav_file_name.replace(".wav", ".fuz")
