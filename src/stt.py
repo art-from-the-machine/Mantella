@@ -190,7 +190,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             if max_transcription_time > self.min_refresh_secs:
                 logging.warning(f'Mic transcription took {round(max_transcription_time,3)} to process. To improve performance, try setting `Speech-to-Text`->`Refresh Frequency` to a value slightly higher than {round(max_transcription_time,3)} in the Mantella UI')
 
-        if self.stt_service != 'moonshine' or self.log_interim_transcriptions: # Do not log when Moonshine calls its warmup transcription
+        if (self.proactive_mic_mode) and (self.stt_service != 'moonshine' or self.log_interim_transcriptions): # Do not log when Moonshine calls its warmup transcription
             logging.log(self.loglevel, f'Interim transcription: {transcription}')
         self.log_interim_transcriptions = True
         
