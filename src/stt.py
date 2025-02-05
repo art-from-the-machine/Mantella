@@ -49,6 +49,7 @@ class Transcriber:
         self.show_mic_warning = True
         self.log_interim_transcriptions = False
         self.transcription_times = []
+        self.proactive_mic_mode = config.proactive_mic_mode
         self.min_refresh_secs = config.min_refresh_secs # Minimum time between transcription updates
         self.refresh_freq = self.min_refresh_secs // self.CHUNK_DURATION # Number of chunks between transcription updates
         self.pause_threshold = config.pause_threshold
@@ -184,7 +185,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             transcription = self.whisper_transcribe(audio, self.prompt)
 
         self.transcription_times.append((time.time() - self._speech_end_time))
-        if len(self.transcription_times) % 5 == 0:
+        if (self.proactive_mic_mode) and (len(self.transcription_times) % 5 == 0):
             max_transcription_time = max(self.transcription_times[-5:])
             if max_transcription_time > self.min_refresh_secs:
                 logging.warning(f'Mic transcription took {round(max_transcription_time,3)} to process. To improve performance, try setting `Speech-to-Text`->`Refresh Frequency` to a value slightly higher than {round(max_transcription_time,3)} in the Mantella UI')
@@ -316,9 +317,9 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                         
                         if "end" in speech_dict and self._speech_detected:
                             logging.log(self.loglevel, 'Speech ended')
-                            # Only refresh transcription if transcription frequency is higher than silence length
-                            # if self.pause_threshold < (self.CHUNK_DURATION * self.refresh_freq):
-                            #     self._current_transcription = self._transcribe(self._audio_buffer)
+                            # If proactive mode is disabled, transcribe mic input only when speech end has been detected
+                            if not self.proactive_mic_mode:
+                                self._current_transcription = self._transcribe(self._audio_buffer)
                             if self.__save_mic_input:
                                 self._save_audio(self._audio_buffer)
 
@@ -338,7 +339,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                             self._reset_state()
                             self._soft_reset_vad()
                         # Regular update during speech
-                        elif chunk_count >= self.refresh_freq:
+                        elif (self.proactive_mic_mode) and (chunk_count >= self.refresh_freq):
                             logging.debug(f'Transcribing {self.min_refresh_secs} of mic input...')
                             self._current_transcription = self._transcribe(self._audio_buffer)
 
@@ -348,8 +349,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 logging.debug('Queue is empty')
                 continue
             except Exception as e:
-                utils.play_error_sound()
-                logging.error(f'Error processing mic input: {str(e)}')
+                logging.warning(f'Error processing mic input: {str(e)}')
                 self._reset_state()
                 time.sleep(0.1)
 

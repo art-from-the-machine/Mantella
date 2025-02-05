@@ -24,14 +24,7 @@ Depending on your NVIDIA CUDA version, setting the Whisper process device to `cu
         audio_threshold_description = """Controls how much background noise is filtered out (from 0-1).
                                         If the mic is not picking up speech, try lowering this value.
                                         If the mic is picking up too much background noise, try increasing this value."""
-        return ConfigValueFloat("audio_threshold","Audio Threshold",audio_threshold_description, 0.4, 0, 1, tags=[ConfigValueTag.share_row])
-    
-    @staticmethod
-    def get_min_refresh_secs_config_value() -> ConfigValue:
-        description = """Controls how frequently mic input is transcribed by Moonshine / Whisper.
-                        Increase this value if the frequency is too intense for your hardware.
-                        Decrease this value to improve response times."""
-        return ConfigValueFloat("min_refresh_secs", "Refresh Frequency", description, 0.3, 0.01, 999, tags=[ConfigValueTag.share_row])
+        return ConfigValueFloat("audio_threshold","Audio Threshold",audio_threshold_description, 0.4, 0, 1)
     
     @staticmethod
     def get_allow_interruption_config_value() -> ConfigValue:
@@ -59,7 +52,7 @@ Depending on your NVIDIA CUDA version, setting the Whisper process device to `cu
         description = """How long to wait (in seconds) before converting mic input to text.
                     If you feel like you are being cut off before you finish your response, increase this value.
                     If you feel like there is too much of a delay between you finishing your response and the text conversion, decrease this value.
-                    It is recommended to set to this value to at least 0.1."""
+                    Set this value to 0 for faster response times."""
         return ConfigValueFloat("pause_threshold","Pause Threshold", description, 0.1, 0, 999, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
 
     @staticmethod
@@ -86,6 +79,20 @@ Depending on your NVIDIA CUDA version, setting the Whisper process device to `cu
                    "large-v1", "large-v2", "large-v3", "distil-large-v2", "distil-large-v3", 
                    "whisper-1"]
         return ConfigValueSelection("whisper_model_size", "Whisper Model", description, "base", options, allows_free_edit=True, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    
+    @staticmethod
+    def get_proactive_mic_mode_config_value() -> ConfigValue:
+        description = """If enabled, mic input will be transcribed continuously (every `Refresh Frequency` seconds) as long as speech is detected.
+                        Enable this setting to improve response times.
+                        Disable this setting to improve performance."""
+        return ConfigValueBool("proactive_mic_mode", "Proactive Mode", description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    
+    @staticmethod
+    def get_min_refresh_secs_config_value() -> ConfigValue:
+        description = """Controls how frequently mic input is transcribed by Moonshine / Whisper.
+                        Increase this value if the frequency is too intense for your hardware.
+                        Decrease this value to improve response times."""
+        return ConfigValueFloat("min_refresh_secs", "Refresh Frequency", description, 0.3, 0.01, 999, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
     def get_external_whisper_service_config_value() -> ConfigValue:
