@@ -266,7 +266,7 @@ class conversation:
             if len(self.__messages) == 0:
                 self.__messages: message_thread = message_thread(new_prompt)
             else:
-                self.__conversation_type.adjust_existing_message_thread(self.__messages, self.__context)
+                self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
                 self.__messages.reload_message_thread(new_prompt, self.__openai_client.calculate_tokens_from_text, int(self.__openai_client.token_limit * self.TOKEN_LIMIT_RELOAD_MESSAGES))
 
     @utils.time_it
