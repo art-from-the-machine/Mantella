@@ -1,6 +1,6 @@
 
 from regex import Regex
-from src.config.types.config_value import ConfigValue
+from src.config.types.config_value import ConfigValue, ConvigValueTag
 from src.config.types.config_value_string import ConfigValueString
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 
@@ -42,6 +42,12 @@ class PromptDefinitions:
                                 "conversation_summaries",
                                 "actions"]
     
+    ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM = [
+                                "speakerName",
+                                "system_prompt_LLMFunction_instructions",
+                                "playerName",                                
+                                "toolsToSend"]
+    
     BASE_PROMPT_DESCRIPTION = """The starting prompt sent to the LLM when an NPC is selected.
                                 If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
                                 name = the NPC's name
@@ -76,6 +82,44 @@ class PromptDefinitions:
                                 conversation_summary = reads the latest conversation summaries for the NPCs stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt
                                 equipment = a basic description of the equipment the NPCs carry
                                 actions = instructions for the LLM to trigger actions"""
+    
+    BASE_FUNCTION_LLM_OPENAI_SINGLE_NPC_DESCRIPTION = """IMPORTANT : This is for OpenAI ONLY. This is the system prompt sent to the LLM when a function is used with a single NPC.
+                                    If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
+                                    speakerName = The name of the NPC that you're currently speaking to. Optional but may be useful to guide a function LLM in single player conversations
+                                    "system_prompt_LLMFunction_instructions" = Mandatory. Contains function specific instructions that the LLM will need to make their decisions. Those can be edited in the function json files.
+                                    "playerName" = Name of the player character. Useful to the LLM to understand who you're talking about when making "me" or "I" statements.                            
+                                    "toolsToSend" = For NON-OPEN AI LLMs ONLY : This is necessary and will contain all the formatted functions that will be sent to the LLM.
+                                    """
+    
+    BASE_FUNCTION_LLM_OPENAI_MULTI_NPC_DESCRIPTION = """IMPORTANT : This is for OpenAI ONLY. This is the system prompt sent to the LLM when a function is used with multiple NPCs.
+                                    If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
+                                    speakerName = The name of the NPC that you're currently speaking to. Optional but may be useful to guide a function LLM in single player conversations
+                                    "system_prompt_LLMFunction_instructions" = Mandatory. Contains function specific instructions that the LLM will need to make their decisions. Those can be edited in the function json files.
+                                    "playerName" = Name of the player character. Useful to the LLM to understand who you're talking about when making "me" or "I" statements.                            
+                                    "toolsToSend" = For NON-OPEN AI LLMs ONLY : This is necessary and will contain all the formatted functions that will be sent to the LLM.
+                                    """
+
+    BASE_FUNCTION_LLM_SINGLE_NPC_DESCRIPTION = """IMPORTANT : This is for all LLM services EXCELPT directly using OpenAI (and yes that includes using OpenAI through other LLM services like Openrouter).
+                                     This is the system prompt sent to the LLM when a function is used with a single NPC.
+                                     Any bracketed values after NO_REGEX_FORMATTING_PAST_THIS_POINT will not be taking into account so use this part of the prompt for formatting examples.
+                                    If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
+                                    speakerName = The name of the NPC that you're currently speaking to. Optional but may be useful to guide a function LLM in single player conversations
+                                    "system_prompt_LLMFunction_instructions" = Mandatory. Contains function specific instructions that the LLM will need to make their decisions. Those can be edited in the function json files.
+                                    "playerName" = Name of the player character. Useful to the LLM to understand who you're talking about when making "me" or "I" statements.                            
+                                    "toolsToSend" = For NON-OPEN AI LLMs ONLY : This is necessary and will contain all the formatted functions that will be sent to the LLM.
+                                    """
+
+    BASE_FUNCTION_LLM_MULTI_NPC_DESCRIPTION = """IMPORTANT : This is for ALL LLM services EXCELPT directly using OpenAI (and yes that includes using OpenAI through other LLM services like Openrouter).
+                                     This is the system prompt sent to the LLM when a function is used with a multiple NPCs.
+                                     Any bracketed values after NO_REGEX_FORMATTING_PAST_THIS_POINT will not be taking into account so use this part of the prompt for formatting examples.
+                                    If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
+                                    speakerName = The name of the NPC that you're currently speaking to. Optional but may be useful to guide a function LLM in single player conversations
+                                    "system_prompt_LLMFunction_instructions" = Mandatory. Contains function specific instructions that the LLM will need to make their decisions. Those can be edited in the function json files.
+                                    "playerName" = Name of the player character. Useful to the LLM to understand who you're talking about when making "me" or "I" statements.                            
+                                    "toolsToSend" = For NON-OPEN AI LLMs ONLY : This is necessary and will contain all the formatted functions that will be sent to the LLM.
+                                    """
+
+
         
     class PromptChecker(ConfigValueConstraint[str]):
         def __init__(self, allowed_prompt_variables: list[str]) -> None:
@@ -83,14 +127,26 @@ class PromptDefinitions:
             self.__allowed_prompt_variables = allowed_prompt_variables
 
         def apply_constraint(self, prompt: str) -> ConfigValueConstraintResult:
+            stop_marker = "NO_REGEX_FORMATTING_PAST_THIS_POINT"
+            # Split the prompt at the stop marker
+            prompt_before_marker = prompt.split(stop_marker, 1)[0]
+
             check_regex = Regex("{(?P<variable>.*?)}")
-            matches = check_regex.findall(prompt)
+            matches = check_regex.findall(prompt_before_marker)
             allowed = self.__allowed_prompt_variables
+
             for m in matches:
                 if not m in allowed:
                     if len(allowed) == 0:
-                        return ConfigValueConstraintResult("Found variable '{" + m + "}' in text. No variables allowed.")
-                    return ConfigValueConstraintResult("Found variable '{" + m + "}'" + f" in prompt which is not part of the allowed variables {', '.join(allowed[:-1]) + ' or ' + allowed[-1]}")
+                        return ConfigValueConstraintResult(
+                            f"Found variable '{{{m}}}' in text. No variables allowed."
+                        )
+                    allowed_vars_msg = (
+                        f"{', '.join(allowed[:-1])} or {allowed[-1]}" if len(allowed) > 1 else allowed[0]
+                    )
+                    return ConfigValueConstraintResult(
+                        f"Found variable '{{{m}}}' in prompt which is not part of the allowed variables {allowed_vars_msg}"
+                    )
             return ConfigValueConstraintResult()
     
     @staticmethod
@@ -215,3 +271,26 @@ class PromptDefinitions:
         resummarize_prompt = """You are tasked with summarizing the conversation history between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}.
                                             Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {language}."""
         return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
+    
+    @staticmethod
+    def get_function_LLM_OpenAI_single_prompt_config_value() -> ConfigValue: 
+        function_LLM_OpenAI_Single_NPC_prompt = """You are a helpful assistant named {speakerName}. Please analyze the input and respond by calling only one function. {system_prompt_LLMFunction_instructions}
+                                         The user might refer to {playerName} as 'me' or 'I' If no function seems applicable or the command isn't clear then do not return any function."""
+        return ConfigValueString("function_llm_openai_single_npc_prompt","Function LLM OpenAI single NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_OPENAI_SINGLE_NPC_DESCRIPTION,function_LLM_OpenAI_Single_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConvigValueTag.advanced])
+    
+    @staticmethod
+    def get_function_LLM_OpenAI_multi_prompt_config_value() -> ConfigValue: 
+        function_LLM_OpenAI_Multi_NPC_prompt = """You are a helpful assistant tasked with executing actions on NPCs in a program. Please analyze the input and respond by calling only one function.
+                                                         {system_prompt_LLMFunction_instructions} The user might refer to {playerName} as 'me' or 'I'. If no function seems applicable or the command isn't clear then do not return any function."""
+        return ConfigValueString("function_llm_openai_multi_npc_prompt","Function LLM OpenAI single NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_OPENAI_MULTI_NPC_DESCRIPTION,function_LLM_OpenAI_Multi_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConvigValueTag.advanced])
+    
+    @staticmethod
+    def get_function_LLM_single_prompt_config_value() -> ConfigValue: 
+        function_LLM_Single_NPC_prompt = """You are a function calling AI model named {speakerName}. You are provided with function signatures within <tools> </tools> XML tags. You may call one or more functions to assist with the user query. If available tools are not relevant in assisting with user query, just respond in natural conversational language. Don't make assumptions about what values to plug into functions. The user might refer to {playerName} as 'me' or 'I'. {system_prompt_LLMFunction_instructions}<tools>{toolsToSend} </tools>. NO_REGEX_FORMATTING_PAST_THIS_POINT For each function call return a JSON object, with the following pydantic model json schema: <tool_call>{'title': 'FunctionCall', 'type': 'object', 'properties': {'name': {'title': 'Name', 'type': 'string'}, 'arguments': {'title': 'Arguments', 'type': 'object'}}, 'required': ['arguments', 'name']}</tool_call>"""
+        return ConfigValueString("function_llm_single_npc_prompt","Function LLM single NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_SINGLE_NPC_DESCRIPTION,function_LLM_Single_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConvigValueTag.advanced])
+    
+    @staticmethod
+    def get_function_LLM_multi_prompt_config_value() -> ConfigValue: 
+        function_LLM_Multi_NPC_prompt = """You are a function calling AI model. You are provided with function signatures within <tools> </tools> XML tags. You may call one or more functions to assist with the user query. If available tools are not relevant in assisting with user query, just respond in natural conversational language. Don't make assumptions about what values to plug into functions. The user might refer to {playerName} as 'me' or 'I'. {system_prompt_LLMFunction_instructions}<tools>{toolsToSend} </tools>. NO_REGEX_FORMATTING_PAST_THIS_POINT For each function call return a JSON object, with the following pydantic model json schema: <tool_call>{'title': 'FunctionCall', 'type': 'object', 'properties': {'name': {'title': 'Name', 'type': 'string'}, 'arguments': {'title': 'Arguments', 'type': 'object'}}, 'required': ['arguments', 'name']}</tool_call>"""
+        return ConfigValueString("function_llm_multi_npc_prompt","Function LLM multi NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_MULTI_NPC_DESCRIPTION,function_LLM_Multi_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConvigValueTag.advanced])
+    

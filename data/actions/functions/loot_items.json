@@ -22,5 +22,6 @@
     "is_radiant": false,
     "llm_feedback": "{speakerName} is about to scavenge {llm_output_mode} items at {playerName}'s request. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
     "parameter_package_key": ["loot_items_tooltip"],
-    "veto_warning" : "{speakerName} is about to scavenge {llm_output_mode} items at {playerName}'s request. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why."
+    "veto_warning" : "{speakerName} is about to scavenge {llm_output_mode} items at {playerName}'s request. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why.",
+    "conditions" : []
 }

@@ -1,0 +1,12 @@
+{
+    "condition_name" : "test _condition",
+    "condition_type" : "boolean_check",
+    "operator_type" : "and",
+    "keys_to_check" : [
+        "key1_name",
+        "key2_name", 
+        "key3_name", 
+        "key4_name",
+        "key5_name"
+    ]
+}

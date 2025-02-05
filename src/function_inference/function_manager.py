@@ -2,6 +2,7 @@ import logging
 import json
 import os
 import re
+from typing import List
 from threading import Lock
 from threading import Thread
 from src.output_manager import ChatManager
@@ -9,7 +10,8 @@ from src.llm.message_thread import message_thread
 from src.llm.messages import user_message, system_message
 from src.conversation.context import context
 from src.function_inference.tools_manager import ToolsManager
-from src.function_inference.LLMFunction_class import LLMFunction,LLMOpenAIfunction, Source, ContextPayload, Target
+from src.function_inference.llm_function_class import LLMFunction,LLMOpenAIfunction, Source, ContextPayload, Target, LLMFunctionCondition
+from src.function_inference.llm_tooltip_class import TargetInfo, Tooltip, ModeInfo
 from src.llm.sentence import sentence
 
 
@@ -24,11 +26,19 @@ class FunctionManager:
     KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_FOLLOWERS : bool = "mantella_actors_all_followers"
     KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_SETTLERS : bool = "mantella_actors_all_settlers"
     KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_GENERICNPCS : bool = "mantella_actors_all_generic_npcs"
+    KEY_ACTOR_CUSTOMVALUES_ACTORS_AT_LEAST_ONE_FOLLOWER: bool = "mantella_actors_one_follower"
+    KEY_ACTOR_CUSTOMVALUES_ACTORS_AT_LEAST_ONE_SETTLER: bool = "mantella_actors_one_settler"
+    KEY_ACTOR_CUSTOMVALUES_ACTORS_AT_LEAST_ONE_GENERIC: bool = "mantella_actors_one_generic"
+    KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_STIMPAK_ACTOR_LIST: str  = "mantella_function_npc_stimpak_list"
+    KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_RADAWAY_ACTOR_LIST: str  = "mantella_function_npc_radaway_list"
 
+
+    #The tooltips below are part of the dictionary create_tooltip_dict()
     KEY_TOOLTIPS_NPC_TARGETING : str = "npc_targeting_tooltip"
     KEY_TOOLTIPS_LOOT_ITEMS : str = "loot_items_tooltip"
     KEY_TOOLTIPS_PARTICIPANTS_NPCS_PLAYERLESS:str = "npc_participants_playerless_tooltip"
     KEY_TOOLTIPS_PARTICIPANTS_NPCS:str = "npc_participants_tooltip"
+    KEY_TOOLTIPS_FO4_NPC_CARRY_ITEM_LIST_TOOLTIP:str = "fo4_npc_carry_item_list_tooltip"
     
 
     _instance = None
@@ -60,14 +70,26 @@ class FunctionManager:
             self.__llm_output_pending_character_switch_lock = Lock()
             self.__llm_output_source_ids = None ###################TO REMOVE ###########################
             self.__llm_output_source_ids_lock = Lock()  ###################TO REMOVE ###########################
+            self.__standard_tooltips = self.create_tooltip_dict()
             self.initialized = True  # Mark the instance as initialized
-            functions_folder = 'src/function_inference/functions'
+            functions_folder = 'data/actions/functions'
             loaded_functions = self.load_functions_from_json(functions_folder)
             for function in loaded_functions:
                 self.__tools_manager.add_function(function)
                 print("function loaded from json test")
                 print(function.get_formatted_LLMFunction())
-
+            conditions_folder = 'data/actions/conditions'
+            loaded_conditions = self.load_conditions_from_json(conditions_folder)
+            for condition in loaded_conditions:
+                self.__tools_manager.add_condition(condition)
+                print("condition loaded from json test")
+                print(condition.__repr__())
+            custom_tooltips_folder = 'data/actions/tooltips'
+            loaded_custom_tooltips = self.load_custom_tooltips_from_json(custom_tooltips_folder)
+            for custom_tooltip in loaded_custom_tooltips:
+                self.__tools_manager.add_custom_tooltip(custom_tooltip)
+                print("custom_tooltip loaded from json test")
+                print(custom_tooltip.tooltip_name)
 
     
     def is_initialized(self):
@@ -208,23 +230,33 @@ class FunctionManager:
         for current_function in self.__tools_manager.get_all_functions(): 
             if any(processed_game_name.startswith(game_name.lower().replace(" ", "")) 
                 for game_name in current_function.allowed_games if game_name.strip()):
-                    load_function:bool = False
-
-
+                    load_function:bool = True
                     #sequential series of check that filters out functions according to NPC type, conversation type and parameter packages
                     #checking follower or generic variables first
-                    if current_function.is_follower_function:
-                        if self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_FOLLOWERS):
-                            print(f"Accepting function {current_function.GPT_func_name} because attribute follower_function is {current_function.is_follower_function} and custom value all followers is {self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_FOLLOWERS):}  ")
-                            load_function=True
-                    if current_function.is_settler_function:
-                        if self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_SETTLERS):
-                            print(f"Accepting function {current_function.GPT_func_name} because attribute settler_function is {current_function.is_settler_function} and custom value all settlers is {self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_SETTLERS):}  ")
-                            load_function=True
-                    if current_function.is_generic_npc_function:
-                        if self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_GENERICNPCS):
-                            print(f"Accepting function {current_function.GPT_func_name} because attribute generic_function is {current_function.is_generic_npc_function} and custom value all generic is {self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_GENERICNPCS):}  ")
-                            load_function=True
+                    if self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_AT_LEAST_ONE_FOLLOWER):
+                        if not current_function.is_follower_function:
+                            print(f"Rejecting function {current_function.GPT_func_name} because attribute follower_function is {current_function.is_follower_function} and custom value at least one follower is {self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_AT_LEAST_ONE_FOLLOWER):}  ")
+                            load_function=False
+                    if self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_AT_LEAST_ONE_SETTLER):
+                        if not current_function.is_settler_function:
+                            print(f"Rejecting function {current_function.GPT_func_name} because attribute settler function is {current_function.is_settler_function} and custom value at least one follower is {self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_AT_LEAST_ONE_SETTLER):}  ")
+                            load_function=False
+                    if self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_AT_LEAST_ONE_GENERIC):
+                        if not current_function.is_generic_npc_function:
+                            print(f"Rejecting function {current_function.GPT_func_name} because attribute generic function is {current_function.is_generic_npc_function} and custom value at least one follower is {self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_AT_LEAST_ONE_GENERIC):}  ")
+                            load_function=False
+                    #if current_function.is_follower_function:
+                    #    if self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_FOLLOWERS):
+                    #        print(f"Accepting function {current_function.GPT_func_name} because attribute follower_function is {current_function.is_follower_function} and custom value all followers is {self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_FOLLOWERS):}  ")
+                    #        load_function=True
+                    #if current_function.is_settler_function:
+                    #    if self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_SETTLERS):
+                    #        print(f"Accepting function {current_function.GPT_func_name} because attribute settler_function is {current_function.is_settler_function} and custom value all settlers is {self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_SETTLERS):}  ")
+                    #        load_function=True
+                    #if current_function.is_generic_npc_function:
+                    #    if self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_GENERICNPCS):
+                    #        print(f"Accepting function {current_function.GPT_func_name} because attribute generic_function is {current_function.is_generic_npc_function} and custom value all generic is {self.check_context_value(self.KEY_ACTOR_CUSTOMVALUES_ACTORS_ALL_GENERICNPCS):}  ")
+                    #        load_function=True
                     if load_function==True:
                         #checking if the conversation is multi, radiant or one_on_one and rejecting based on that
                         if conversation_is_multi_npc and not self.__context.npcs_in_conversation.contains_player_character(): #basically checking for radiant conversation here
@@ -244,18 +276,41 @@ class FunctionManager:
                             if self.KEY_TOOLTIPS_NPC_TARGETING in current_function.parameter_package_key :
                                 if not self.build_npc_targeting_tooltip(current_function,False):
                                     load_function=False
-                                    print(f"Rejecting function {current_function.GPT_func_name} of an issue with build_npc_targeting_tooltip() ")
+                                    print(f"Rejecting function {current_function.GPT_func_name} due to  an issue with build_npc_targeting_tooltip() ")
                             if self.KEY_TOOLTIPS_LOOT_ITEMS in current_function.parameter_package_key :
                                 if not self.build_loot_items_tooltips(current_function):
                                     load_function=False
-                                    print(f"Rejecting function {current_function.GPT_func_name} of an issue with build_loot_items_tooltips() ")
+                                    print(f"Rejecting function {current_function.GPT_func_name} due to  an issue with build_loot_items_tooltips() ")
                             if  self.KEY_TOOLTIPS_PARTICIPANTS_NPCS_PLAYERLESS in current_function.parameter_package_key:
                                 if not self.build_npc_participants_tooltip(current_function,True):
                                     load_function=False
-                                    print(f"Rejecting function {current_function.GPT_func_name} of an issue with build_npc_participants_tooltip() ")
-                            if  load_function==True:
-                                toolsToSend.append(current_function.get_formatted_LLMFunction())
-                                system_prompt_array.append(current_function.system_prompt_info)
+                                    print(f"Rejecting function {current_function.GPT_func_name} due to  an issue with build_npc_participants_tooltip() ")
+                            if  self.KEY_TOOLTIPS_FO4_NPC_CARRY_ITEM_LIST_TOOLTIP in current_function.parameter_package_key:
+                                if not self.build_fo4_npc_carry_item_list_tooltip(current_function):
+                                    load_function=False
+                                    print(f"Rejecting function {current_function.GPT_func_name} due to an issue with build_fo4_npc_carry_item_list_tooltip() ")
+                            for parameter_package in current_function.parameter_package_key:
+                                if (parameter_package not in self.__standard_tooltips.values()):
+                                    print(f"{parameter_package} not in self.__standard_tooltips")
+                                    current_parameter_package=self.__tools_manager.get_custom_tooltip(parameter_package)
+                                    if current_parameter_package:
+                                        print(f"{parameter_package} found in tools_manager custom_tooltips")
+                                        if not self.build_custom_tooltip(current_parameter_package,current_function):
+                                            load_function=False
+                                            print(f"Rejecting function {current_function.GPT_func_name} due to an issue with custom parameter package {current_parameter_package} ")
+
+                            if load_function==True:
+                                if current_function.conditions:
+                                    for function_condition in current_function.conditions:
+                                        if self.__tools_manager.evaluate_condition(function_condition, self.__context) is not True:
+                                            print(f"Rejecting function {current_function.GPT_func_name} due to an issue with condition {function_condition} ")
+                                            load_function=False
+
+                                if  load_function==True:
+                                    toolsToSend.append(current_function.get_formatted_LLMFunction())
+                                    system_prompt_array.append(current_function.system_prompt_info)
+
+                            
 
                         
         #self.build_move_function()
@@ -273,17 +328,38 @@ class FunctionManager:
 
             if conversation_is_multi_npc:
                 if self.__context.config.function_llm_api == 'OpenAI':
-                    initial_system_message = f"You are a helpful assistant {speakerName} tasked with executing actions on NPCs in a program. Please analyze the input and respond by calling only one function. {system_prompt_LLMFunction_instructions}. The user might refer to {playerName} as 'me' or 'I'. Do not call more than one function. If no function seems applicable or the command isn't clear then do not return any function."
+                    initial_system_message = self.__context.config.function_LLM_OpenAI_multi_NPC_prompt
                 else:
-                    initial_system_message = f"You are a function calling AI model named {speakerName}. You are provided with function signatures within <tools> </tools> XML tags. You may call one or more functions to assist with the user query. If available tools are not relevant in assisting with user query, just respond in natural conversational language. Don't make assumptions about what values to plug into functions. The user might refer to {playerName} as 'me' or 'I'. {system_prompt_LLMFunction_instructions}<tools>{toolsToSend} </tools>"
+                    initial_system_message = self.__context.config.function_LLM_multi_NPC_prompt
+            else:
+                if self.__context.config.function_llm_api == 'OpenAI':
+                    initial_system_message = self.__context.config.function_LLM_OpenAI_single_NPC_prompt
+                else:
+                    initial_system_message = self.__context.config.function_LLM_single_NPC_prompt
+            
+            kwargs={
+                "speakerName": speakerName,
+                "playerName": playerName,
+                "system_prompt_LLMFunction_instructions": system_prompt_LLMFunction_instructions,
+                "toolsToSend": toolsToSend
+            }
+            initial_system_message = self.format_with_stop_marker(initial_system_message, "NO_REGEX_FORMATTING_PAST_THIS_POINT", **kwargs)
+            #######################################################
+            """
+            if conversation_is_multi_npc:
+                if self.__context.config.function_llm_api == 'OpenAI':
+                    initial_system_message = f"You are a helpful assistant tasked with executing actions on NPCs in a program. Please analyze the input and respond by calling only one function. {system_prompt_LLMFunction_instructions}. The user might refer to {playerName} as 'me' or 'I'. If no function seems applicable or the command isn't clear then do not return any function."
+                else:
+                    initial_system_message = f"You are a function calling AI model. You are provided with function signatures within <tools> </tools> XML tags. You may call one or more functions to assist with the user query. If available tools are not relevant in assisting with user query, just respond in natural conversational language. Don't make assumptions about what values to plug into functions. The user might refer to {playerName} as 'me' or 'I'. {system_prompt_LLMFunction_instructions}<tools>{toolsToSend} </tools>"
                     #initial_system_message += '''For each function call return a JSON object, with the following pydantic model json schema:
+            
             #{'title': 'FunctionCall', 'type': 'object', 'properties': {'name': {'title': 'Name', 'type': 'string'}, 'arguments': {'title': 'Arguments', 'type': 'object'}}, 'required': ['arguments', 'name']}
             #Each function call should be enclosed within <tool_call> </tool_call> XML tags'''
                     initial_system_message += '''For each function call return a JSON object, with the following pydantic model json schema:
             <tool_call>{'title': 'FunctionCall', 'type': 'object', 'properties': {'name': {'title': 'Name', 'type': 'string'}, 'arguments': {'title': 'Arguments', 'type': 'object'}}, 'required': ['arguments', 'name']}</tool_call>'''
             else:
                 if self.__context.config.function_llm_api == 'OpenAI':
-                    initial_system_message = f"You are a helpful assistant named {speakerName}. Please analyze the input and respond by calling only one function. {system_prompt_LLMFunction_instructions}. The user might refer to {playerName} as 'me' or 'I'. Do not call more than one function. If no function seems applicable or the command isn't clear then do not return any function."
+                    initial_system_message = f"You are a helpful assistant named {speakerName}. Please analyze the input and respond by calling only one function. {system_prompt_LLMFunction_instructions}. The user might refer to {playerName} as 'me' or 'I'. If no function seems applicable or the command isn't clear then do not return any function."
                 else:
                     initial_system_message = f"You are a function calling AI model named {speakerName}. You are provided with function signatures within <tools> </tools> XML tags. You may call one or more functions to assist with the user query. If available tools are not relevant in assisting with user query, just respond in natural conversational language. Don't make assumptions about what values to plug into functions. The user might refer to {playerName} as 'me' or 'I'. {system_prompt_LLMFunction_instructions}<tools>{toolsToSend} </tools>"
                     #initial_system_message += '''For each function call return a JSON object, with the following pydantic model json schema:
@@ -291,6 +367,8 @@ class FunctionManager:
             #Each function call should be enclosed within <tool_call> </tool_call> XML tags'''
                     initial_system_message += '''For each function call return a JSON object, with the following pydantic model json schema:
             <tool_call>{'title': 'FunctionCall', 'type': 'object', 'properties': {'name': {'title': 'Name', 'type': 'string'}, 'arguments': {'title': 'Arguments', 'type': 'object'}}, 'required': ['arguments', 'name']}</tool_call>'''
+            """
+            #######################################################
             self.__messages = message_thread(initial_system_message)
             self.__messages.add_message(user_message(tooltipsToAppend)) 
             self.__messages.add_message(user_message(lastUserMessage)) 
@@ -365,21 +443,9 @@ class FunctionManager:
         if npc_ids_str is None:
             return False
 
-        # Parse the strings into lists
-        def parse_items(s):
-            # Remove leading/trailing whitespace and split the string
-            items = s.strip().split('],[')
-            # Clean up each item
-            cleaned_items = []
-            for item in items:
-                item = item.strip('[]')  # Remove any leading/trailing brackets
-                item = item.strip()      # Remove leading/trailing whitespace
-                cleaned_items.append(item)
-            return cleaned_items
-
-        npc_names = parse_items(npc_names_str)
-        npc_distances = parse_items(npc_distances_str)
-        npc_ids = parse_items(npc_ids_str)
+        npc_names = self.parse_items(npc_names_str)
+        npc_distances = self.parse_items(npc_distances_str)
+        npc_ids = self.parse_items(npc_ids_str)
 
         # Convert distances to floats and IDs to integers
         npc_distances = [float(distance) for distance in npc_distances]
@@ -394,6 +460,8 @@ class FunctionManager:
         for npc_name, npc_id, npc_distance in zip(npc_names, npc_ids, npc_distances):
             if exclude_player and (npc_name==player_name):             #continue to the next NPC if this is the player and exclude_player is turned on
                 continue
+            # Ensure distance is at least 1 to prevent the LLM AI from refusing to move towards the player who distance is always 0.
+            npc_distance = max(npc_distance, 1.0)
             npc_id=(str(npc_id))
             LLMFunction_target = Target(dec_id=npc_id, name=npc_name, distance=npc_distance)
             current_LLM_function.context_payload.targets.append(LLMFunction_target)
@@ -421,20 +489,8 @@ class FunctionManager:
         if npc_ids_str is None:
             return False
 
-        # Parse the strings into lists
-        def parse_items(s):
-            # Remove leading/trailing whitespace and split the string
-            items = s.strip().split('],[')
-            # Clean up each item
-            cleaned_items = []
-            for item in items:
-                item = item.strip('[]')  # Remove any leading/trailing brackets
-                item = item.strip()      # Remove leading/trailing whitespace
-                cleaned_items.append(item)
-            return cleaned_items
-
-        npc_names = parse_items(npc_names_str)
-        npc_ids = parse_items(npc_ids_str)
+        npc_names = self.parse_items(npc_names_str)
+        npc_ids = self.parse_items(npc_ids_str)
 
         # Logic to match names and collect IDs
         characters = self.context.npcs_in_conversation.get_all_characters()
@@ -484,6 +540,296 @@ class FunctionManager:
             return False  
         
 
+    def build_fo4_npc_carry_item_list_tooltip(self, current_LLM_function: LLMFunction):
+        #This tooltip needs to run with playerless to function properly.
+        try:
+            npc_with_stimpaks_names_str = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_STIMPAK_ACTOR_LIST)
+            npc_with_radaway_names_str = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_RADAWAY_ACTOR_LIST)
+        except AttributeError as e:
+            print(f"build_npc_source_tooltip: AttributeError encountered: {e}")
+            return 
+        if (npc_with_stimpaks_names_str is None or npc_with_stimpaks_names_str == "") and (npc_with_radaway_names_str is None or npc_with_radaway_names_str == ""):
+            return False
+
+        
+        if not self.__tools_manager.get_tooltip(self.KEY_TOOLTIPS_FO4_NPC_CARRY_ITEM_LIST_TOOLTIP):
+            tooltips_intro = "This is the tooltip for item use: \n"
+            available_items_tooltip = "List of available items: "
+            npc_radaway_tooltip = ""
+            npc_stimpak_tooltip = ""
+            item_modes:list = []
+            if npc_with_radaway_names_str and npc_with_radaway_names_str != "":
+                available_items_tooltip+="radaway"
+                item_modes.append("radaway")
+            if (npc_with_stimpaks_names_str and npc_with_stimpaks_names_str != "") and (npc_with_radaway_names_str and npc_with_radaway_names_str != ""):  
+                available_items_tooltip+=", "
+            if npc_with_stimpaks_names_str and npc_with_stimpaks_names_str != "":
+                available_items_tooltip+="stimpak"
+                item_modes.append("stimpak")
+            if npc_with_radaway_names_str and npc_with_radaway_names_str != "":
+                npc_radaway_tooltip = f"\nList NPC(s) carrying RadAway : {npc_with_stimpaks_names_str}\n"
+            if npc_with_stimpaks_names_str and npc_with_stimpaks_names_str != "":
+                npc_stimpak_tooltip = f"\nList NPC(s) carrying Stimpaks : {npc_with_stimpaks_names_str}\n"
+
+            if item_modes :
+                current_LLM_function.context_payload.modes.extend(item_modes)
+            tooltips = tooltips_intro + available_items_tooltip + npc_radaway_tooltip + npc_stimpak_tooltip 
+            self.__tools_manager.add_tooltip(self.KEY_TOOLTIPS_FO4_NPC_CARRY_ITEM_LIST_TOOLTIP, tooltips)
+            print(f"Tooltip {self.KEY_TOOLTIPS_FO4_NPC_CARRY_ITEM_LIST_TOOLTIP} built!")
+        return True  
+
+    from src.function_inference.llm_function_class import Target
+
+    def build_custom_tooltip(self, custom_tooltip: Tooltip, current_LLM_function: LLMFunction) -> bool:
+        """
+        Builds a custom tooltip string from the given Tooltip object (custom_tooltip)
+        and updates current_LLM_function.context_payload.targets and .modes.
+        
+        For Targets:
+        -----------
+        - Uses the description fields from TargetInfo (target_names, target_distances, target_ids).
+        - If name or ID is empty, skip that entry.
+        - Distance defaults to 1.0 if missing or empty, clamped to >= 1.0.
+        
+        For Modes:
+        ----------
+        - Pulls data from ModeInfo's function_modes in the same way:
+        uses context_key if present; otherwise static_values.
+        - If empty and 'cancel_tooltip_if_empty' is True, returns False (cancels the tooltip).
+        - Adds each valid mode string to current_LLM_function.context_payload.modes.
+        
+        Finally:
+        --------
+        - Combines the intros, enumerated lines, and outros for both Targets and Modes into one
+        final string (with a blank line separating them).
+        - Only adds the tooltip to ToolsManager if send_info_to_llm is True for either
+        target_info or mode_info.
+        
+        :param custom_tooltip: The Tooltip object containing target_info and mode_info.
+        :param current_LLM_function: The LLMFunction object to be updated with new targets/modes.
+        :return: True if tooltip was successfully built (and not canceled), False otherwise.
+        """
+        print(f"Attempting to build_custom_tooltip : {custom_tooltip.tooltip_name}")
+        
+        # 1. Check if a tooltip of this name already exists
+        existing_tooltip = self.__tools_manager.get_tooltip(custom_tooltip.tooltip_name)
+        if existing_tooltip is not None:
+            # Already exists, no need to re-build
+            return True
+
+        t_info = custom_tooltip.target_info
+        m_info = custom_tooltip.mode_info  # ModeInfo
+
+        # 2. Helper function that returns a list of parsed string values or None if canceled
+        def resolve_values(field_dict: dict) -> list:
+            """
+            Returns a list of parsed string values from context_key or static_values.
+            Returns None if canceled due to 'cancel_tooltip_if_empty' logic.
+            Uses parse_items() to handle bracketed data (like "[Lucy],[Maisie]").
+            """
+            if not field_dict:
+                return []
+
+            context_key = field_dict.get("context_key", "")
+            static_values = field_dict.get("static_values", [])
+            cancel_if_empty = field_dict.get("cancel_tooltip_if_empty", False)
+
+            # Try context key
+            if context_key:
+                try:
+                    context_data = self.__context.get_custom_context_value(context_key)
+                    print(f"resolve_values() : context_data now {context_data}")
+                except AttributeError:
+                    context_data = []
+            else:
+                context_data = []
+
+            # Fallback to static_values if empty
+            if not context_data:
+                context_data = static_values
+
+            # If still empty, and cancel_tooltip_if_empty is true => None
+            if (not context_data) and cancel_if_empty:
+                return None
+
+            # Convert to a single flat list of strings
+            final_list = []
+
+            def parse_string_to_list(input_str):
+                return self.parse_items(input_str.strip())
+
+            if isinstance(context_data, str):
+                # Single string
+                parsed = parse_string_to_list(context_data)
+                final_list.extend(parsed)
+            elif isinstance(context_data, list):
+                for item in context_data:
+                    if isinstance(item, str):
+                        parsed = parse_string_to_list(item)
+                        final_list.extend(parsed)
+                    else:
+                        final_list.append(str(item).strip())
+            else:
+                final_list.append(str(context_data).strip())
+
+            # If final_list is empty and cancel is true => None
+            if not final_list and cancel_if_empty:
+                return None
+
+            return final_list
+
+        # -------------------------------------
+        # TARGETS SECTION
+        # -------------------------------------
+
+        from src.function_inference.llm_function_class import Target
+
+        # 3. Resolve each field for Targets
+        target_names_list = resolve_values(t_info.target_names)
+        if target_names_list is None:
+            print("target_names_list is None (canceled).")
+            return False
+
+        target_distances_list = resolve_values(t_info.target_distances)
+        if target_distances_list is None:
+            print("target_distances_list is None (canceled).")
+            return False
+
+        target_ids_list = resolve_values(t_info.target_ids)
+        if target_ids_list is None:
+            print("target_ids_list is None (canceled).")
+            return False
+
+        # 4. Grab the 'description' strings (fallback if missing)
+        desc_name = t_info.target_names.get("description", "target name: ")
+        desc_distance = t_info.target_distances.get("description", "distance: ")
+        desc_id = t_info.target_ids.get("description", "target id: ")
+
+        target_lines = []  # We'll store lines for the targets block
+        valid_target_tuples = []
+
+        for name_val, dist_val, id_val in zip(target_names_list, target_distances_list, target_ids_list):
+            if not name_val or not id_val:
+                # Skip if name or id is empty
+                print(f"Skipping target entry with empty name or id => name: {name_val}, id: {id_val}")
+                continue
+
+            # If distance is empty, default to "1"
+            if not dist_val:
+                dist_val = "1"
+
+            try:
+                distance_float = float(dist_val)
+                distance_float = max(distance_float, 1.0)
+            except ValueError:
+                print(f"Skipping unparseable distance '{dist_val}'")
+                continue
+
+            # Create the target object and append to LLMFunction
+            new_target = Target(dec_id=str(id_val), name=name_val, distance=distance_float)
+            current_LLM_function.context_payload.targets.append(new_target)
+            valid_target_tuples.append((name_val, distance_float, id_val))
+
+        # If no valid targets and 'cancel_tooltip_if_empty' is True => cancel
+        if not valid_target_tuples and t_info.target_names.get("cancel_tooltip_if_empty", False):
+            print("No valid targets, 'cancel_tooltip_if_empty' is True => returning False")
+            return False
+
+        # 5. Build lines for the valid targets
+        for i, (name_val, dist_val, id_val) in enumerate(valid_target_tuples, start=1):
+            line_parts = [
+                f"{desc_name}{name_val}",
+                f"{desc_distance}{dist_val}",
+                f"{desc_id}{id_val}"
+            ]
+            line_str = f"{i}. " + ", ".join(line_parts)
+            target_lines.append(line_str)
+
+        # We'll keep the final target block as a string
+        target_block = "\n".join([t_info.targeting_intro or "", *target_lines, t_info.targeting_outro or ""]).strip()
+
+        # -------------------------------------
+        # MODES SECTION
+        # -------------------------------------
+
+        # 6. Resolve the function_modes data similarly
+        function_modes_dict = m_info.function_modes  # This is a dict with possible 'context_key', 'static_values', etc.
+        modes_list = resolve_values(function_modes_dict)
+        if modes_list is None:
+            print("modes_list is None (canceled).")
+            return False
+
+        # 7. Convert each mode to string, store in LLMFunction's context_payload
+        # If we want to skip empty strings, do so.
+        valid_modes = []
+        for mode_val in modes_list:
+            mode_val = mode_val.strip()
+            if not mode_val:
+                # Skip empties
+                continue
+            valid_modes.append(mode_val)
+            current_LLM_function.context_payload.modes.append(mode_val)
+
+        # If no valid modes and 'cancel_tooltip_if_empty' is True => cancel
+        if not valid_modes and function_modes_dict.get("cancel_tooltip_if_empty", False):
+            print("No valid modes, 'cancel_tooltip_if_empty' is True => returning False")
+            return False
+
+        # 8. Build lines for modes
+        mode_lines = []
+        desc_mode = function_modes_dict.get("description", "mode: ")
+
+        for i, mode_val in enumerate(valid_modes, start=1):
+            line_str = f"{i}. {desc_mode}{mode_val}"
+            mode_lines.append(line_str)
+
+        mode_block = "\n".join([m_info.modes_intro or "", *mode_lines, m_info.modes_outro or ""]).strip()
+
+        # -------------------------------------
+        # FINAL COMBINED TOOLTIP TEXT
+        # -------------------------------------
+
+        # We'll join the two blocks with a blank line
+        # If either block is empty, that portion just won't show up
+        blocks = []
+        if target_block:
+            blocks.append(target_block)
+        if mode_block:
+            blocks.append(mode_block)
+
+        final_tooltip_str = "\n\n".join(blocks).strip()
+
+        # 9. Only add the tooltip if send_info_to_llm is True for either target_info or mode_info
+        if t_info.send_info_to_llm or m_info.send_info_to_llm:
+            self.__tools_manager.add_tooltip(custom_tooltip.tooltip_name, final_tooltip_str)
+            print(f"Added tooltip '{custom_tooltip.tooltip_name}' to ToolsManager:\n{final_tooltip_str}")
+        else:
+            print(f"Tooltip '{custom_tooltip.tooltip_name}' not added; send_info_to_llm is False for both target and mode.")
+
+        return True
+
+
+
+    def create_tooltip_dict(self) -> dict:
+        """
+        Creates a dictionary that maps tooltip keys to their respective values dynamically.
+        This ensures that any change in values is accounted for automatically.
+        """
+        return {
+            "KEY_TOOLTIPS_NPC_TARGETING": self.KEY_TOOLTIPS_NPC_TARGETING,
+            "KEY_TOOLTIPS_LOOT_ITEMS": self.KEY_TOOLTIPS_LOOT_ITEMS,
+            "KEY_TOOLTIPS_PARTICIPANTS_NPCS_PLAYERLESS": self.KEY_TOOLTIPS_PARTICIPANTS_NPCS_PLAYERLESS,
+            "KEY_TOOLTIPS_PARTICIPANTS_NPCS": self.KEY_TOOLTIPS_PARTICIPANTS_NPCS,
+            "KEY_TOOLTIPS_FO4_NPC_CARRY_ITEM_LIST_TOOLTIP": self.KEY_TOOLTIPS_FO4_NPC_CARRY_ITEM_LIST_TOOLTIP,
+        }
+    
+    def compare_tooltip_values(self, key: str, value: str) -> bool:
+        """
+        Compare a given key-value pair with the stored dictionary values.
+        """
+        return self.tooltip_dict.get(key) == value
+
+
     def load_functions_from_json(self, functions_folder: str) -> list[LLMFunction]:
         result = []
         if not os.path.exists(functions_folder):
@@ -519,6 +865,7 @@ class FunctionManager:
                             parameter_package_key = content.get("parameter_package_key", "")
                             veto_warning = content.get("veto_warning", "")
                             allowed_games = content.get("allowed_games", [])
+                            conditions = content.get("conditions", [])
 
 
                             # Process dynamic parameters in system_prompt_info
@@ -559,6 +906,7 @@ class FunctionManager:
                                     llm_feedback=llm_feedback,
                                     parameter_package_key=parameter_package_key,
                                     veto_warning=veto_warning,
+                                    conditions=conditions,
                                 )
                             else:
                                 # Create an instance of LLMFunction
@@ -581,7 +929,8 @@ class FunctionManager:
                                     is_radiant=bool(is_radiant),
                                     llm_feedback=llm_feedback,
                                     parameter_package_key=parameter_package_key,
-                                    veto_warning=veto_warning
+                                    veto_warning=veto_warning,
+                                    conditions=conditions,
 
                                 )
                             result.append(function)
@@ -591,6 +940,121 @@ class FunctionManager:
                     f"Most likely there is an error in the formatting of the file. Error: {e}"
                 )
         return result
+    
+    def load_conditions_from_json(self,directory: str) -> list:
+        conditions = []
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        json_files = [f for f in os.listdir(directory) if f.endswith(".json")]
+        
+        for file in json_files:
+            try:
+                with open(os.path.join(directory, file), 'r') as fp:
+                    json_object = json.load(fp)
+                    if isinstance(json_object, dict):
+                        json_object = [json_object]
+                    for content in json_object:
+                        condition = LLMFunctionCondition(
+                            condition_name=content.get("condition_name", ""),
+                            condition_type=content.get("condition_type", "boolean_check"),
+                            operator_type=content.get("operator_type", "and"),
+                            keys_to_check=content.get("keys_to_check", [])
+                        )
+                        conditions.append(condition)
+                        condition_name_str = content.get("condition_name", "")
+            except Exception as e:
+                logging.warning(
+                    f"Could not load condition definition file '{file}' in '{directory}'. "
+                    f"Most likely there is an error in the formatting of the file. Error: {e}"
+                )
+        return conditions
+
+    def load_custom_tooltips_from_json(self, directory: str) -> List[Tooltip]:
+        """
+        Load and parse tooltip JSON files from the given directory into Tooltip objects.
+        
+        :param directory: The path to the directory containing JSON files.
+        :return: A list of Tooltip objects parsed from the JSON files.
+        """
+        tooltips = []
+        
+        # Ensure the directory exists
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        
+        # Gather only .json files
+        json_files = [f for f in os.listdir(directory) if f.endswith(".json")]
+        
+        for file in json_files:
+            file_path = os.path.join(directory, file)
+            try:
+                with open(file_path, 'r') as fp:
+                    data = json.load(fp)
+                    
+                    # If the top-level JSON is a single object, wrap it in a list for consistency
+                    if isinstance(data, dict):
+                        data = [data]
+                    
+                    # Iterate over each object in the JSON file (handle arrays of tooltips)
+                    for content in data:
+                        # Extract top-level fields
+                        tooltip_name = content.get("tooltip_name", "")
+                        
+                        # Safely get the keys_to_check dictionary
+                        keys_to_check = content.get("keys_to_check", {})
+                        
+                        # Extract data for TargetInfo
+                        targeting_keys = keys_to_check.get("targeting_keys", {})
+                        target_names_dict = targeting_keys.get("target_names", {})
+                        target_distances_dict = targeting_keys.get("target_distances", {})
+                        target_ids_dict = targeting_keys.get("target_ids", {})
+                        targeting_intro = targeting_keys.get("targeting_intro", "")
+                        targeting_outro = targeting_keys.get("targeting_outro", "")
+                        targeting_send_info = targeting_keys.get("send_info_to_llm", True)
+                        
+                        # Create a TargetInfo object
+                        target_info_obj = TargetInfo(
+                            target_names=target_names_dict,
+                            target_distances=target_distances_dict,
+                            target_ids=target_ids_dict,
+                            targeting_intro=targeting_intro,
+                            targeting_outro=targeting_outro,
+                            send_info_to_llm=targeting_send_info
+                        )
+                        
+                        # Extract data for ModeInfo
+                        mode_keys = keys_to_check.get("mode_keys", {})
+                        function_modes_dict = mode_keys.get("function_modes", {})
+                        modes_intro = mode_keys.get("modes_intro", "")
+                        modes_outro = mode_keys.get("modes_outro", "")
+                        modes_send_info = mode_keys.get("send_info_to_llm", True)
+                        
+                        mode_info_obj = ModeInfo(
+                            function_modes=function_modes_dict,
+                            modes_intro=modes_intro,
+                            modes_outro=modes_outro,
+                            send_info_to_llm=modes_send_info
+                        )
+                        
+                        # Create the Tooltip object
+                        tooltip_obj = Tooltip(
+                            tooltip_name=tooltip_name,
+                            target_info=target_info_obj,
+                            mode_info=mode_info_obj
+                        )
+                        
+                        # Add to our list of results
+                        tooltips.append(tooltip_obj)
+                        
+            except Exception as e:
+                logging.warning(
+                    f"Could not load custom tooltip file '{file}' in '{directory}'. "
+                    f"Check JSON formatting. Error: {e}"
+                )
+        
+        return tooltips
+
+
 
     def format_system_prompt_instructions(self,elements):
         if not elements:
@@ -688,7 +1152,32 @@ class FunctionManager:
         # If more than two items, join all but the last with commas, 
         # then append '& itemN' at the end.
         return f"{', '.join(str(x) for x in value[:-1])} & {value[-1]}"
-   
+    
+    @staticmethod
+    def parse_items(input_string):
+        # Parse the strings into lists
+        # Remove leading/trailing whitespace and split the string
+        items = input_string.strip().split('],[')
+        # Clean up each item
+        cleaned_items = []
+        for item in items:
+            item = item.strip('[]')  # Remove any leading/trailing brackets
+            item = item.strip()      # Remove leading/trailing whitespace
+            cleaned_items.append(item)
+        return cleaned_items
+
+    @staticmethod
+    def format_with_stop_marker(prompt: str, stop_marker: str, **kwargs) -> str:
+        # Split the string at the stop marker
+        parts = prompt.split(stop_marker, 1)
+        # Format the part before the stop marker
+        formatted_part = parts[0].format(**kwargs)
+        # Combine the formatted part with the unmodified part after the marker
+        if len(parts) > 1:
+            return formatted_part + parts[1].lstrip()  # Optional: .lstrip() to remove leading spaces from the second part
+        else:
+            return formatted_part
+
     def handle_function_call_with_multiple_value_arguments(
         self,
         returned_LLMFunction: LLMFunction,
@@ -747,7 +1236,7 @@ class FunctionManager:
                 llm_output_target_names=returned_LLMFunction.context_payload.get_targets_names(),
                 llm_output_source_name=returned_LLMFunction.context_payload.get_sources_names(),
                 llm_output_source_names=returned_LLMFunction.context_payload.get_sources_names(),
-                llm_output_mode=returned_LLMFunction.context_payload.get_modes(),
+                llm_output_mode=returned_LLMFunction.context_payload.get_modes_lowercase(),
             )
             if formatted_LLM_warning:
                 print(f"LLM warning formatted to : {formatted_LLM_warning}")
@@ -788,7 +1277,7 @@ class FunctionManager:
                 source_dec_ids_output = output_function.context_payload.get_sources_dec_ids()
                 sentence_receiving_output.source_ids.extend(source_dec_ids_output)
             if output_function.context_payload.modes:
-                sentence_receiving_output.function_call_modes.extend(output_function.context_payload.get_modes())
+                sentence_receiving_output.function_call_modes.extend(output_function.context_payload.get_modes_lowercase())
             #if self.__context.npcs_in_conversation.contains_multiple_npcs() and self.__output_manager.is_generating :
                 #self.llm_output_pending_character_switch=True
             #else:

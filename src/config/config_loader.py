@@ -39,10 +39,10 @@ class ConfigLoader:
                 try:
                     config_value = self.__definitions.get_config_value_definition(each_key)
                     config_value.parse(each_value)
-                except:
+                except Exception as e:
                     create_back_up_configini = True
                     # TODO: filter out warnings for ['game', 'skyrim_mod_folder', 'skyrimvr_mod_folder', 'fallout4_mod_folder', 'fallout4vr_mod_folder', fallout4vr_folder]
-                    logging.warning(f"Could not identify config value '{each_key} = {each_value}' in current config.ini. Value will not be loaded. A backup of this config.ini will be created.")
+                    logging.warning(f"Could not identify config value '{each_key} = {each_value}' in current config.ini. Value will not be loaded. A backup of this config.ini will be created. Error : {e}")
 
         if create_back_up_configini:
             self.__write_config_state(self.__definitions, True)
@@ -282,6 +282,10 @@ class ConfigLoader:
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")
             self.memory_prompt = self.__definitions.get_string_value("memory_prompt")
             self.resummarize_prompt = self.__definitions.get_string_value("resummarize_prompt")
+            self.function_LLM_OpenAI_single_NPC_prompt = self.__definitions.get_string_value("function_llm_openai_single_npc_prompt")
+            self.function_LLM_OpenAI_multi_NPC_prompt = self.__definitions.get_string_value("function_llm_openai_multi_npc_prompt")
+            self.function_LLM_single_NPC_prompt = self.__definitions.get_string_value("function_llm_single_npc_prompt")
+            self.function_LLM_multi_NPC_prompt = self.__definitions.get_string_value("function_llm_multi_npc_prompt")
 
             # Vision
             self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')

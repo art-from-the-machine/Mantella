@@ -70,6 +70,10 @@ class MantellaConfigValueDefinitionsClassic:
         prompt_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
         prompt_category.add_config_value(PromptDefinitions.get_memory_prompt_config_value())
         prompt_category.add_config_value(PromptDefinitions.get_resummarize_prompt_config_value())
+        prompt_category.add_config_value(PromptDefinitions.get_function_LLM_OpenAI_single_prompt_config_value())
+        prompt_category.add_config_value(PromptDefinitions.get_function_LLM_OpenAI_multi_prompt_config_value())
+        prompt_category.add_config_value(PromptDefinitions.get_function_LLM_single_prompt_config_value())
+        prompt_category.add_config_value(PromptDefinitions.get_function_LLM_multi_prompt_config_value())
         result.append(prompt_category)
         
         language_advanced_category = ConfigValueGroup("Language.Advanced", "Language advanced", "More advanced language settings.\nIf you are changing the base language to something else than 'en' you will most likely also want to adjust some of these ", on_value_change_callback)

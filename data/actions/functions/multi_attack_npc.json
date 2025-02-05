@@ -38,5 +38,6 @@
     "is_radiant": false,
     "llm_feedback": "{llm_output_source_names} are about to attack {llm_output_target_name} at {playerName}'s request. {llm_output_source_names} will complete this action to the best of their ability and find a rationalization for the action if needed.",
     "parameter_package_key": ["npc_targeting_tooltip", "npc_participants_playerless_tooltip"], 
-    "veto_warning" : "{llm_output_source_names} are about to attack {llm_output_target_name} at {playerName}'s request. Begin your response with <veto> if any NPC would refuse to do so then explain in first person in character why."
+    "veto_warning" : "{llm_output_source_names} are about to attack {llm_output_target_name} at {playerName}'s request. Begin your response with <veto> if any NPC would refuse to do so then explain in first person in character why.",
+    "conditions" : []
 }

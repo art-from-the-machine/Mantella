@@ -1,0 +1,9 @@
+{
+    "condition_name" : "has_generic_and_settler",
+    "condition_type" : "boolean_check",
+    "operator_type" : "and",
+    "keys_to_check" : [
+        "mantella_actors_one_generic",
+        "mantella_actors_one_settler"
+    ]
+}

@@ -1,3 +1,5 @@
+from src.conversation.context import context
+
 class ContextPayload:
     """
     Holds information about context payload such as modes, targets, and sources.
@@ -89,17 +91,17 @@ class ContextPayload:
         """
         return [target.dec_id for target in self.__targets]
     
-    def get_modes(self) -> list:
+    def get_modes_lowercase(self) -> list:
         """
-        Returns a list of names from a list of Target objects.
+        Returns a list of names from a list of Target objects in lowercase.
 
         Args:
             targets (list): A list of Target objects.
 
         Returns:
-            list: A list of names from the targets.
+            list: A list of names from the targets in lowercase. Non-string items are ignored.
         """
-        return [mode for mode in self.__modes]
+        return [mode.lower() for mode in self.__modes if isinstance(mode, str)]
     
     def filter_modes(self, modes_to_keep: list) -> None:
         """
@@ -108,7 +110,8 @@ class ContextPayload:
         Args:
             modes_to_keep (list): A list of modes to keep.
         """
-        self.__modes = [mode for mode in self.__modes if mode in modes_to_keep]
+        modes_to_keep_lower = {mode.lower() for mode in modes_to_keep if isinstance(mode, str)}
+        self.__modes = [mode for mode in self.__modes if isinstance(mode, str) and mode.lower() in modes_to_keep_lower]
 
 class Target:
     """
@@ -206,9 +209,12 @@ class LLMFunction:
         veto_warning: str = '',
         # Context Payload (defaulting to a ContextPayload object)
         context_payload: ContextPayload = None,
+        conditions: list = None,  
     ) -> None:
         if context_payload is None:
             context_payload = ContextPayload()
+        if conditions is None:
+            conditions = []
         
         self.__GPT_func_name: str = GPT_func_name
         self.__GPT_func_description: str = GPT_func_description
@@ -232,9 +238,11 @@ class LLMFunction:
         self.__parameter_package_key: list = parameter_package_key
         self.__system_prompt_info: str = system_prompt_info
         self.__veto_warning: str = veto_warning
+        self.__conditions = conditions
         
         # Context Payload
         self.__context_payload: ContextPayload = context_payload
+        
 
     @property
     def GPT_func_name(self) -> str:
@@ -314,6 +322,17 @@ class LLMFunction:
         return self.__veto_warning
     
     @property
+    def conditions(self) -> list:
+        return self.__conditions
+    
+    @conditions.setter
+    def conditions(self, new_conditions: list) -> None:
+        if isinstance(new_conditions, list):
+            self.__conditions = new_conditions
+        else:
+            raise TypeError("conditions must be a list of LLMFunctionCondition objects")
+
+    @property
     def context_payload(self) -> ContextPayload:
         return self.__context_payload
     
@@ -370,6 +389,7 @@ class LLMOpenAIfunction(LLMFunction):
         parameter_package_key: list = '',
         system_prompt_info: str = '',
         veto_warning: str = '',
+        conditions: list = None,  
         # Context Payload (defaulting to a ContextPayload object)
         context_payload: ContextPayload = None,
     ) -> None:
@@ -395,6 +415,7 @@ class LLMOpenAIfunction(LLMFunction):
             system_prompt_info=system_prompt_info,
             veto_warning=veto_warning,
             context_payload=context_payload,
+            conditions=conditions,
         )
 
         self.__additionalProperties: bool = additionalProperties
@@ -433,3 +454,90 @@ class LLMOpenAIfunction(LLMFunction):
                 "parallel_tool_calls": self.parallel_tool_calls,
             },
         }
+
+class LLMFunctionCondition:
+    def __init__(self, condition_name, condition_type, operator_type, keys_to_check):
+        self.condition_name = condition_name
+        self.condition_type = condition_type
+        self.operator_type = operator_type
+        self.keys_to_check = keys_to_check
+
+    import os
+import json
+import logging
+
+class LLMFunctionCondition:
+    def __init__(self, condition_name, condition_type, operator_type, keys_to_check):
+        self._condition_name = condition_name
+        self._condition_type = condition_type
+        self._operator_type = operator_type
+        self._keys_to_check = keys_to_check
+
+    @property
+    def condition_name(self):
+        return self._condition_name
+
+    @condition_name.setter
+    def condition_name(self, value):
+        self._condition_name = value
+
+    @property
+    def condition_type(self):
+        return self._condition_type
+
+    @condition_type.setter
+    def condition_type(self, value):
+        self._condition_type = value
+
+    @property
+    def operator_type(self):
+        return self._operator_type
+
+    @operator_type.setter
+    def operator_type(self, value):
+        self._operator_type = value
+
+    @property
+    def keys_to_check(self):
+        return self._keys_to_check
+
+    @keys_to_check.setter
+    def keys_to_check(self, value):
+        self._keys_to_check = value
+
+    def evaluate(self, conversation_context:context):
+        """
+        Evaluates the condition based on the provided data.
+        Assumes the condition_type is 'boolean_check' and all keys_to_check exist in data.
+        """
+
+        
+
+        if self.condition_type != "boolean_check":
+            raise ValueError("Unsupported condition type")
+        
+        values = [bool(self.check_context_value(conversation_context, key)) for key in self.keys_to_check]
+        
+        if self.operator_type == "and":
+            print(f"{self.condition_name} evaluates according to 'and' to {all(values)}")
+            return all(values)
+        elif self.operator_type == "or":
+            print(f"{self.condition_name} evaluates according to 'or' to {any(values)}")
+            return any(values)
+        else:
+            raise ValueError("Unsupported operator type")
+        
+    
+    def check_context_value(self, conversation_context:context, context_key):
+    #'''Utility function that adds an extra try block to the context value check before returning it'''
+        try:
+            return conversation_context.get_custom_context_value(context_key)
+        except AttributeError as e:
+            print(f"Missing context value for key {context_key} . Error type : {e}")
+            return False
+
+    def __repr__(self):
+        return (f"LLMFunctionCondition(condition_name='{self.condition_name}', "
+                f"condition_type='{self.condition_type}', "
+                f"operator_type='{self.operator_type}', "
+                f"keys_to_check={self.keys_to_check})")

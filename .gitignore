@@ -2,6 +2,9 @@
 data/**/*.wav
 data/**/*.lip
 data/**/*.json
+!data/actions/conditions/*.json
+!data/actions/functions/*.json
+!data/actions/tooltips/*.json
 data/**/*.txt
 data/tmp/
 *SECRET_KEY.txt

@@ -1,10 +1,16 @@
 import json
-from src.function_inference.LLMFunction_class import LLMFunction, LLMOpenAIfunction, ContextPayload
+from src.function_inference.llm_function_class import LLMFunction, LLMOpenAIfunction, ContextPayload, LLMFunctionCondition
+from src.function_inference.llm_tooltip_class import TargetInfo, Tooltip, ModeInfo
+from src.conversation.context import context
 
 class ToolsManager:
     def __init__(self):
         self.__tools = {}
         self.__tooltips = {}
+        self.__conditions = {}
+        self.__custom_tooltips = {}  
+
+    ######################### LLM Function management ###################################
 
     def add_function(self, llm_function: LLMFunction):
         """
@@ -37,7 +43,7 @@ class ToolsManager:
         Returns:
             dict: The formatted function template, or None if the function does not exist.
         """
-        llm_function = self.__tools.get(GPT_func_name, None)
+        llm_function:LLMFunction = self.__tools.get(GPT_func_name, None)
         if llm_function:
             return llm_function.get_formatted_LLMFunction()
         return None
@@ -134,6 +140,8 @@ class ToolsManager:
         formatted_sections.append(outro_text)
         return "\n".join(formatted_sections)
 
+    ######################### Tooltip management ###################################
+
     def add_tooltip(self, tooltip_name: str, formatted_tooltip: str):
         """
         Stores a pre-formatted tooltip.
@@ -181,6 +189,8 @@ class ToolsManager:
         self.__tooltips.clear()
         print("All tooltips have been cleared.")
 
+    ######################### Context payload management ###################################
+
     def clear_all_context_payloads(self):
         """
         Iterates over all LLMFunction instances in the manager
@@ -192,3 +202,65 @@ class ToolsManager:
             llm_function.context_payload=None
             llm_function.context_payload = ContextPayload()
         print("All context_payloads have been cleared for every stored LLMFunction.")
+
+
+    ######################### Condition management ###################################
+
+    def add_condition(self, condition: LLMFunctionCondition):
+        """
+        Adds an LLMFunctionCondition instance to the conditions storage.
+
+        Args:
+            condition (LLMFunctionCondition): The LLMFunctionCondition instance to store.
+        """
+        self.__conditions[condition.condition_name] = condition
+
+    def evaluate_condition(self, condition_name: str, conversation_context: context) -> bool:
+        """
+        Evaluates a stored condition against the given conversation context.
+
+        Args:
+            condition_name (str): The name of the condition to evaluate.
+            conversation_context (context): The conversation context to use in evaluation.
+
+        Returns:
+            bool: The result of the condition evaluation, or False if the condition does not exist.
+        """
+        condition: LLMFunctionCondition = self.__conditions.get(condition_name, None)
+        if condition:
+            return condition.evaluate(conversation_context)
+        print(f"Condition {condition_name} doesn't exist in tool_manager")
+        return None
+    
+    def get_all_conditions(self) -> list:
+        """
+        Returns a list of all LLMFunctionCondition objects stored in the tools manager.
+
+        Returns:
+            list: A list of all condition objects (LLMFunctionCondition instances).
+        """
+        return list(self.__conditions.values())
+
+    ######################### Custom tooltip management ###################################
+
+    def add_custom_tooltip(self, tooltip_obj: Tooltip):
+        """
+        Stores a custom Tooltip object for later retrieval.
+
+        Args:
+            tooltip_obj (Tooltip): The Tooltip object to store.
+        """
+        tooltip_name = tooltip_obj.get_tooltip_name()
+        self.__custom_tooltips[tooltip_name] = tooltip_obj
+
+    def get_custom_tooltip(self, tooltip_name: str) -> Tooltip:
+        """
+        Retrieves a stored custom Tooltip object by its name.
+
+        Args:
+            tooltip_name (str): The name of the custom tooltip to retrieve.
+
+        Returns:
+            Tooltip: The stored Tooltip object, or None if not found.
+        """
+        return self.__custom_tooltips.get(tooltip_name, None)
