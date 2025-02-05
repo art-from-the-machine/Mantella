@@ -221,6 +221,7 @@ class ConfigLoader:
                 self.stt_language = self.language
             self.stt_translate = self.__definitions.get_bool_value("stt_translate")
             self.audio_threshold = self.__definitions.get_float_value("audio_threshold")
+            self.proactive_mic_mode = self.__definitions.get_bool_value("proactive_mic_mode")
             self.min_refresh_secs = self.__definitions.get_float_value("min_refresh_secs")
             self.allow_interruption = self.__definitions.get_bool_value("allow_interruption")
             self.save_mic_input = self.__definitions.get_bool_value("save_mic_input")

@@ -74,7 +74,6 @@ class MantellaConfigValueDefinitionsNew:
 
         stt_category = ConfigValueGroup("STT", "Speech-to-Text", "Settings for the STT methods Mantella supports.", on_value_change_callback)
         stt_category.add_config_value(STTDefinitions.get_audio_threshold_config_value())
-        stt_category.add_config_value(STTDefinitions.get_min_refresh_secs_config_value())
         stt_category.add_config_value(STTDefinitions.get_allow_interruption_config_value()) 
         stt_category.add_config_value(STTDefinitions.get_save_mic_input_config_value())
         stt_category.add_config_value(STTDefinitions.get_stt_service_config_value())
@@ -82,6 +81,8 @@ class MantellaConfigValueDefinitionsNew:
         stt_category.add_config_value(STTDefinitions.get_listen_timeout_config_value())
         stt_category.add_config_value(STTDefinitions.get_moonshine_model_size_config_value())
         stt_category.add_config_value(STTDefinitions.get_whisper_model_size_config_value())
+        stt_category.add_config_value(STTDefinitions.get_proactive_mic_mode_config_value())
+        stt_category.add_config_value(STTDefinitions.get_min_refresh_secs_config_value())
         stt_category.add_config_value(STTDefinitions.get_external_whisper_service_config_value())
         stt_category.add_config_value(STTDefinitions.get_whisper_url_config_value())
         stt_category.add_config_value(STTDefinitions.get_stt_language_config_value())
