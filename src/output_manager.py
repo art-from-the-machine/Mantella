@@ -36,6 +36,7 @@ class ChatManager:
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
         self.__is_first_sentence: bool = False
+        self.__max_response_sentences: int = config.max_response_sentences
         self.__end_of_sentence_chars = ['.', '?', '!', ':', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
@@ -149,6 +150,7 @@ class ChatManager:
         first_token = True
         last_generated_sentence_content: sentence_content | None = None
         self.__is_first_sentence = True
+        sentences_processed = 0
         try:
             sentence: str = ''
             settings: sentence_generation_settings = sentence_generation_settings(active_character)
@@ -194,7 +196,10 @@ class ChatManager:
                                 if not self.__config.narration_handling == "cut narrations" or not last_generated_sentence_content.is_narration:                                    
                                     new_sentence = self.generate_sentence(last_generated_sentence_content)
                                     blocking_queue.put(new_sentence)
-                                    full_reply += last_generated_sentence_content.text                                
+                                    full_reply += last_generated_sentence_content.text
+                                    sentences_processed += 1
+                                    if (sentences_processed >= self.__max_response_sentences and characters.contains_player_character()) or self.__stop_generation.is_set():
+                                        break
                                 last_generated_sentence_content = cut_sentence_content
                     break #if the streaming_call() completed without exception, break the while loop
                             
@@ -224,7 +229,7 @@ class ChatManager:
             else:
                 logging.error(f"LLM API Error: {e}")
         finally:
-            if last_generated_sentence_content:
+            if last_generated_sentence_content and (not characters.contains_player_character() or sentences_processed < self.__max_response_sentences):
                 new_sentence = self.generate_sentence(last_generated_sentence_content)
                 blocking_queue.put(new_sentence)
                 full_reply += last_generated_sentence_content.text
