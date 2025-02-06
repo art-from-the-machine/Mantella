@@ -85,13 +85,13 @@ class summaries(remembering):
                 latest_file_number = max(file_numbers)
                 logging.info(f"Loaded latest summary file: {character_conversation_folder_path}/{name}_summary_{latest_file_number}.txt")
             else:
-                logging.info(f"{character_conversation_folder_path} does not exist. A new summary file will be created.")
+                logging.info(f"{name_ref_conversation_folder_path} does not exist. A new summary file will be created.")
                 latest_file_number = 1
         else:
-            logging.info(f"{character_conversation_folder_path} does not exist. A new summary file will be created.")
+            logging.info(f"{name_ref_conversation_folder_path} does not exist. A new summary file will be created.")
             latest_file_number = 1
         
-        conversation_summary_file = f"{character_conversation_folder_path}/{name}_summary_{latest_file_number}.txt"
+        conversation_summary_file = f"{name_ref_conversation_folder_path}/{name}_summary_{latest_file_number}.txt"
         return conversation_summary_file
 
     @utils.time_it
