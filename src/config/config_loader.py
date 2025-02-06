@@ -95,6 +95,7 @@ class ConfigLoader:
                 self.lipgen_path = self.game_path+"\\Tools\\LipGen\\"
                 self.facefx_path = self.mod_path+"\\Sound\\Voice\\Processing\\"
                 self.piper_path = str(Path(utils.resolve_path())) + "\\piper"
+                self.moonshine_folder = str(Path(utils.resolve_path()))
 
                 game_parent_folder_name = os.path.basename(self.game_path).lower()
                 if 'vr' in game_parent_folder_name:
@@ -214,6 +215,11 @@ class ConfigLoader:
             #STT
             self.stt_service = self.__definitions.get_string_value("stt_service").lower()
             self.moonshine_model = self.__definitions.get_string_value("moonshine_model_size")
+            if not hasattr(self, 'moonshine_folder'):
+                try:
+                    self.moonshine_folder = str(Path(self.__definitions.get_string_value("moonshine_folder")).parent) # go up one folder since moonshine/ is in the model name
+                except:
+                    self.moonshine_folder = ''
             self.whisper_model = self.__definitions.get_string_value("whisper_model_size")
             self.whisper_process_device = self.__definitions.get_string_value("process_device")
             self.stt_language = self.__definitions.get_string_value("stt_language")
