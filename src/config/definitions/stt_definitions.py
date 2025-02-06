@@ -63,9 +63,15 @@ Depending on your NVIDIA CUDA version, setting the Whisper process device to `cu
     
     @staticmethod
     def get_moonshine_model_size_config_value() -> ConfigValue:
-        description = """The size of the Moonshine model to use. The larger the model, the more accurate the transcription (at the cost of speed)."""
-        options = ["moonshine/tiny", "moonshine/base"]
-        return ConfigValueSelection("moonshine_model_size", "Moonshine Model", description, "moonshine/tiny", options, allows_free_edit=True, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+        description = """The size of the Moonshine model to use (sorted from smallest to largest). The larger the model, the more accurate the transcription (at the cost of speed)."""
+        options = ["moonshine/tiny/quantized_4bit", 
+                   "moonshine/tiny/quantized", 
+                   "moonshine/tiny/float", 
+                   "moonshine/base/quantized_4bit",
+                   "moonshine/base/quantized",
+                   "moonshine/base/float"
+                   ]
+        return ConfigValueSelection("moonshine_model_size", "Moonshine Model", description, "moonshine/tiny/quantized", options, allows_free_edit=True, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
     def get_whisper_model_size_config_value() -> ConfigValue:
@@ -125,3 +131,8 @@ Depending on your NVIDIA CUDA version, setting the Whisper process device to `cu
     def get_process_device_config_value() -> ConfigValue:
         description = "Whether to run Whisper on your CPU or NVIDIA GPU (with CUDA installed) (only impacts faster_whisper option, no impact on whispercpp, which is controlled by your server)."
         return ConfigValueSelection("process_device", "Whisper Process Device", description,"cpu",["cpu","cuda"], constraints=[STTDefinitions.WhisperProcessDeviceChecker()], tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_moonshine_folder_config_value(is_hidden: bool = False) -> ConfigValue:
+        description = "The folder where Moonshine models are installed (where tiny/ and base/ folders exist)."
+        return ConfigValueString("moonshine_folder", "Moonshine Folder", description, "", is_hidden=is_hidden, tags=[ConfigValueTag.advanced])

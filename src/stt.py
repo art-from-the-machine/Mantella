@@ -33,12 +33,16 @@ class Transcriber:
     CHUNK_DURATION = CHUNK_SIZE / SAMPLING_RATE  # Explicit calculation of chunk duration in seconds
     LOOKBACK_CHUNKS = 5  # Number of chunks to keep in buffer when not recording
     
+    @utils.time_it
     def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str):
         self.loglevel = 27
         self.language = config.stt_language
         self.task = "translate" if config.stt_translate == 1 else "transcribe"
         self.stt_service = config.stt_service
-        self.moonshine_model = config.moonshine_model
+        self.full_moonshine_model = config.moonshine_model
+        self.moonshine_model, self.moonshine_precision = self.full_moonshine_model.rsplit('/', 1)
+        self.moonshine_folder = config.moonshine_folder
+        self.moonshine_model_path = os.path.join(self.moonshine_folder, self.full_moonshine_model)
         self.whisper_model = config.whisper_model
         self.process_device = config.whisper_process_device
         self.listen_timeout = config.listen_timeout
@@ -47,7 +51,6 @@ class Transcriber:
         self.whisper_url = self.__get_endpoint(config.whisper_url)
         self.prompt = ''
         self.show_mic_warning = True
-        self.log_interim_transcriptions = False
         self.transcription_times = []
         self.proactive_mic_mode = config.proactive_mic_mode
         self.min_refresh_secs = config.min_refresh_secs # Minimum time between transcription updates
@@ -65,7 +68,7 @@ class Transcriber:
         self.__secret_key_file = secret_key_file
         self.__api_key: str | None = self.__get_api_key()
         self.__initial_client: OpenAI | None = None
-        if (self.__api_key) and ('openai' in self.whisper_url) and (self.external_whisper_service):
+        if (self.stt_service == 'whisper') and (self.__api_key) and ('openai' in self.whisper_url) and (self.external_whisper_service):
             self.__initial_client = self.__generate_sync_client() # initialize first client in advance to save time
 
         self.__ignore_list = ['', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much', "thank you for watching and i'll see you in the next video", "we'll see you in the next video", 'see you next time']
@@ -81,10 +84,14 @@ class Transcriber:
         else:
             if self.language != 'en':
                 logging.warning(f"Selected language is '{self.language}', but Moonshine only supports English. Please change the selected speech-to-text model to Whisper in `Speech-to-Text`->`STT Service` in the Mantella UI")
-            self.transcribe_model = MoonshineOnnxModel(model_name=self.moonshine_model)
+            
+            if os.path.exists(f'{self.moonshine_model_path}/encoder_model.onnx'):
+                logging.log(self.loglevel, 'Loading local Moonshine model...')
+                self.transcribe_model = MoonshineOnnxModel(models_dir=self.moonshine_model_path, model_name=self.moonshine_model)
+            else:
+                logging.log(self.loglevel, 'Loading Moonshine model from Hugging Face...')
+                self.transcribe_model = MoonshineOnnxModel(model_name=self.moonshine_model, model_precision=self.moonshine_precision)
             self.tokenizer = load_tokenizer()
-            # Warm up the model
-            self._transcribe(np.zeros(self.SAMPLING_RATE, dtype=np.float32))
         
         # Initialize VAD
         self.vad_model = load_silero_vad(onnx=True)
@@ -190,9 +197,8 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             if max_transcription_time > self.min_refresh_secs:
                 logging.warning(f'Mic transcription took {round(max_transcription_time,3)} to process. To improve performance, try setting `Speech-to-Text`->`Refresh Frequency` to a value slightly higher than {round(max_transcription_time,3)} in the Mantella UI')
 
-        if (self.proactive_mic_mode) and (self.stt_service != 'moonshine' or self.log_interim_transcriptions): # Do not log when Moonshine calls its warmup transcription
+        if self.proactive_mic_mode:
             logging.log(self.loglevel, f'Interim transcription: {transcription}')
-        self.log_interim_transcriptions = True
         
         return transcription
 
@@ -294,7 +300,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 # Get audio chunk and status from queue
                 chunk, status = self._audio_queue.get(timeout=0.1)
                 if status:
-                    logging.error(f"Processing audio error: {status}")
+                    logging.warning(f"Processing audio error: {status}")
                     continue
 
                 with self._lock:
@@ -369,7 +375,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         """Create callback for audio input stream."""
         def input_callback(indata, frames, time, status):
             if status:
-                logging.error(f"Audio input error: {status}")
+                logging.warning(f"Audio input error: {status}")
             # Store both data and status in queue
             q.put((indata.copy().flatten(), status))
         return input_callback
