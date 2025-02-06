@@ -66,13 +66,14 @@ class summaries(remembering):
         # if multiple NPCs in a conversation have the same name (eg Whiterun Guard) their names are appended with number IDs
         # these IDs need to be removed when saving the conversation
         name: str = utils.remove_trailing_number(character.name)
+        name_ref: str = f'{name} - {character.ref_id}'
         
-        name_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name)
-        if os.path.exists(name_conversation_folder_path): # if a conversation folder already exists for this NPC, use it
+        name_ref_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name_ref)
+        if os.path.exists(name_ref_conversation_folder_path): # search by name and reference number
+            character_conversation_folder_path = name_ref_conversation_folder_path
+        else: # search by just name
+            name_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name)
             character_conversation_folder_path = name_conversation_folder_path
-        else: # else include the NPC's reference ID in the folder name to differentiate generic NPCs
-            name_ref: str = f'{name} - {character.ref_id}'
-            character_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name_ref)
         
         if os.path.exists(character_conversation_folder_path):
             # get all files from the directory
