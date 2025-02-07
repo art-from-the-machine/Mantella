@@ -8,6 +8,7 @@ from src.config.definitions.game_definitions import GameDefinitions
 from src.config.definitions.language_definitions import LanguageDefinitions
 from src.config.definitions.llm_definitions import LLMDefinitions
 from src.config.definitions.other_definitions import OtherDefinitions
+from src.config.definitions.startup_definitions import StartupDefinitions
 from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
@@ -129,10 +130,13 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
         result.add_base_group(prompts_category)
 
+        startup_category = ConfigValueGroup("Startup", "Startup", "Startup settings.", on_value_change_callback)
+        startup_category.add_config_value(StartupDefinitions.get_auto_launch_ui_config_value())
+        startup_category.add_config_value(StartupDefinitions.get_play_startup_sound_config_value())
+        startup_category.add_config_value(StartupDefinitions.get_remove_mei_folders_config_value())
+        result.add_base_group(startup_category)
+
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
-        other_category.add_config_value(OtherDefinitions.get_auto_launch_ui_config_value())
-        other_category.add_config_value(OtherDefinitions.get_play_startup_sound_config_value())
-        other_category.add_config_value(OtherDefinitions.get_remove_mei_folders_config_value())
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
         other_category.add_config_value(OtherDefinitions.get_active_actions(actions))
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
