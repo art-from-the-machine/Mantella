@@ -47,7 +47,6 @@ class change_character_parser(output_parser):
                         current_settings.stop_generation = True
                         return None, ""
                     current_settings.current_speaker = character
-                    self.__change_character_callback(character)
                     current_settings.is_narration = False #Character change always resets narration tracker to False, i.e. don't actually carry forward potentially non-closed narrations from the last speaker
                     return None, parts[1]
 

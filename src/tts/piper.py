@@ -31,6 +31,8 @@ class piper(ttsable):
     @utils.time_it
     def __init__(self, config: ConfigLoader, game: gameable) -> None:
         super().__init__(config)
+        if self._language != 'en':
+            logging.warning(f"Selected language is '{self._language}'', but Piper only supports English. Please change the selected text-to-speech model in `Text-to-Speech`->`TTS Service` in the Mantella UI")
         self.__game: gameable = game
         self.__piper_path = config.piper_path
         self.__models_path = self.__piper_path + f'/models/{self.__game.game_name_in_filepath}/low/' # TODO: change /low parts of the path to dynamic variables
