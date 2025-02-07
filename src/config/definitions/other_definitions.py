@@ -7,38 +7,17 @@ from src.config.types.config_value_multi_selection import ConfigValueMultiSelect
 
 
 class OtherDefinitions:
-    #Base
     @staticmethod
     def get_show_first_time_setup_config_value() -> ConfigValue:
         return ConfigValueBool("first_time_setup","","Show Setup Guide on Startup",True, [], True)
-    
-    #UI
-    @staticmethod
-    def get_auto_launch_ui_config_value() -> ConfigValue:
-        auto_launch_ui_description = """Whether the Mantella UI should launch automatically in your browser."""
-        return ConfigValueBool("auto_launch_ui","Auto Launch UI",auto_launch_ui_description,True,tags=[ConfigValueTag.share_row])
-    
-    @staticmethod
-    def get_play_startup_sound_config_value() -> ConfigValue:
-        description = """Whether to play a startup sound when Mantella is ready."""
-        return ConfigValueBool("play_startup_sound", "Play Startup Sound", description, False, tags=[ConfigValueTag.share_row])
     
     @staticmethod
     def get_automatic_greeting_config_value() -> ConfigValue:
         automatic_greeting_description = """Should a conversation be started with an automatic greeting from the LLM / NPC.
                                         - If enabled: Conversations are always started by the LLM.
                                         - If disabled: The LLM will not respond until the player speaks first."""
-        return ConfigValueBool("automatic_greeting","Automatic Greeting",automatic_greeting_description,True,tags=[ConfigValueTag.share_row])
+        return ConfigValueBool("automatic_greeting","Automatic Greeting",automatic_greeting_description,True)
     
-    @staticmethod
-    def get_remove_mei_folders_config_value() -> ConfigValue:
-        remove_mei_folders_description = """Clean up older instances of Mantella runtime folders from /data/tmp/_MEIxxxxxx.
-                                            These folders build up over time when Mantella.exe is run.
-                                            Enable this option to clean up these previous folders automatically when Mantella.exe is run.
-                                            Disable this option if running this cleanup inteferes with other Python exes.
-                                            For more details on what this is, see here: https://github.com/pyinstaller/pyinstaller/issues/2379"""
-        return ConfigValueBool("remove_mei_folders","Cleanup MEI Folders",remove_mei_folders_description,True,tags=[ConfigValueTag.share_row])
-
     #Conversation        
     @staticmethod
     def get_active_actions(actions: list[action]) -> ConfigValue:

@@ -8,6 +8,7 @@ from src.config.definitions.game_definitions import GameDefinitions
 from src.config.definitions.language_definitions import LanguageDefinitions
 from src.config.definitions.llm_definitions import LLMDefinitions
 from src.config.definitions.other_definitions import OtherDefinitions
+from src.config.definitions.startup_definitions import StartupDefinitions
 from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
@@ -74,7 +75,6 @@ class MantellaConfigValueDefinitionsNew:
 
         stt_category = ConfigValueGroup("STT", "Speech-to-Text", "Settings for the STT methods Mantella supports.", on_value_change_callback)
         stt_category.add_config_value(STTDefinitions.get_audio_threshold_config_value())
-        stt_category.add_config_value(STTDefinitions.get_min_refresh_secs_config_value())
         stt_category.add_config_value(STTDefinitions.get_allow_interruption_config_value()) 
         stt_category.add_config_value(STTDefinitions.get_save_mic_input_config_value())
         stt_category.add_config_value(STTDefinitions.get_stt_service_config_value())
@@ -82,11 +82,14 @@ class MantellaConfigValueDefinitionsNew:
         stt_category.add_config_value(STTDefinitions.get_listen_timeout_config_value())
         stt_category.add_config_value(STTDefinitions.get_moonshine_model_size_config_value())
         stt_category.add_config_value(STTDefinitions.get_whisper_model_size_config_value())
+        stt_category.add_config_value(STTDefinitions.get_proactive_mic_mode_config_value())
+        stt_category.add_config_value(STTDefinitions.get_min_refresh_secs_config_value())
         stt_category.add_config_value(STTDefinitions.get_external_whisper_service_config_value())
         stt_category.add_config_value(STTDefinitions.get_whisper_url_config_value())
         stt_category.add_config_value(STTDefinitions.get_stt_language_config_value())
         stt_category.add_config_value(STTDefinitions.get_stt_translate_config_value())
         stt_category.add_config_value(STTDefinitions.get_process_device_config_value())
+        stt_category.add_config_value(STTDefinitions.get_moonshine_folder_config_value(is_integrated))
         result.add_base_group(stt_category)
 
         vision_category = ConfigValueGroup("Vision", "Vision", "Vision settings.", on_value_change_callback)
@@ -127,10 +130,13 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
         result.add_base_group(prompts_category)
 
+        startup_category = ConfigValueGroup("Startup", "Startup", "Startup settings.", on_value_change_callback)
+        startup_category.add_config_value(StartupDefinitions.get_auto_launch_ui_config_value())
+        startup_category.add_config_value(StartupDefinitions.get_play_startup_sound_config_value())
+        startup_category.add_config_value(StartupDefinitions.get_remove_mei_folders_config_value())
+        result.add_base_group(startup_category)
+
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
-        other_category.add_config_value(OtherDefinitions.get_auto_launch_ui_config_value())
-        other_category.add_config_value(OtherDefinitions.get_play_startup_sound_config_value())
-        other_category.add_config_value(OtherDefinitions.get_remove_mei_folders_config_value())
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
         other_category.add_config_value(OtherDefinitions.get_active_actions(actions))
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())

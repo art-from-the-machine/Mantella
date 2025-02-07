@@ -76,7 +76,6 @@ class LLMDefinitions:
     def get_llm_params_config_value() -> ConfigValue:
         value = """{
                         "max_tokens": 250,
-                        "temperature": 1.0,
                         "stop": ["#"]
                     }"""
         description = """Parameters passed as part of the request to the LLM.

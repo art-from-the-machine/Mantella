@@ -66,13 +66,14 @@ class summaries(remembering):
         # if multiple NPCs in a conversation have the same name (eg Whiterun Guard) their names are appended with number IDs
         # these IDs need to be removed when saving the conversation
         name: str = utils.remove_trailing_number(character.name)
+        name_ref: str = f'{name} - {character.ref_id}'
         
-        name_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name)
-        if os.path.exists(name_conversation_folder_path): # if a conversation folder already exists for this NPC, use it
+        name_ref_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name_ref)
+        if os.path.exists(name_ref_conversation_folder_path): # search by name and reference number
+            character_conversation_folder_path = name_ref_conversation_folder_path
+        else: # search by just name
+            name_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name)
             character_conversation_folder_path = name_conversation_folder_path
-        else: # else include the NPC's reference ID in the folder name to differentiate generic NPCs
-            name_ref: str = f'{name} - {character.ref_id}'
-            character_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name_ref)
         
         if os.path.exists(character_conversation_folder_path):
             # get all files from the directory
@@ -84,13 +85,13 @@ class summaries(remembering):
                 latest_file_number = max(file_numbers)
                 logging.info(f"Loaded latest summary file: {character_conversation_folder_path}/{name}_summary_{latest_file_number}.txt")
             else:
-                logging.info(f"{character_conversation_folder_path} does not exist. A new summary file will be created.")
+                logging.info(f"{name_ref_conversation_folder_path} does not exist. A new summary file will be created.")
                 latest_file_number = 1
         else:
-            logging.info(f"{character_conversation_folder_path} does not exist. A new summary file will be created.")
+            logging.info(f"{name_ref_conversation_folder_path} does not exist. A new summary file will be created.")
             latest_file_number = 1
         
-        conversation_summary_file = f"{character_conversation_folder_path}/{name}_summary_{latest_file_number}.txt"
+        conversation_summary_file = f"{name_ref_conversation_folder_path}/{name}_summary_{latest_file_number}.txt"
         return conversation_summary_file
 
     @utils.time_it

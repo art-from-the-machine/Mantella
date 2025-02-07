@@ -76,7 +76,6 @@ class VisionDefinitions:
     def get_vision_llm_params_config_value() -> ConfigValue:
         value = """{
                         "max_tokens": 100,
-                        "temperature": 1.0,
                         "stop": ["#"]
                     }"""
         description = """Parameters passed as part of the request to the vision model.
