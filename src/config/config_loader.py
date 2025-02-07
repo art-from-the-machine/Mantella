@@ -2,6 +2,7 @@ import configparser
 import logging
 import os
 import sys
+from typing import Any
 from src.conversation.action import action
 from src.config.config_values import ConfigValues
 from src.config.mantella_config_value_definitions_new import MantellaConfigValueDefinitionsNew
@@ -240,7 +241,7 @@ class ConfigLoader:
             #     self.llm_api = self.__definitions.get_string_value("llm_custom_service_url")
             self.custom_token_count = self.__definitions.get_int_value("custom_token_count")
             try:
-                self.llm_params = json.loads(self.__definitions.get_string_value("llm_params").replace('\n', ''))
+                self.llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("llm_params").replace('\n', ''))
             except Exception as e:
                 logging.error(f"""Error in parsing LLM parameter list: {e}
 LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")

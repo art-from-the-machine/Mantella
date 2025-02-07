@@ -5,14 +5,15 @@ import logging
 import time
 import unicodedata
 from openai import APIConnectionError
+from src.llm.output.max_count_sentences_parser import max_count_sentences_parser
+from src.llm.output.sentence_length_parser import sentence_length_parser
 from src.llm.output.actions_parser import actions_parser
 from src.llm.output.change_character_parser import change_character_parser
 from src.llm.output.clean_sentence_parser import clean_sentence_parser
 from src.llm.output.narration_parser import narration_parser
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
 from src.llm.output.sentence_end_parser import sentence_end_parser
-from src.llm.sentence_content import sentence_content
-from src.games.gameable import gameable
+from src.llm.sentence_content import SentenceTypeEnum, sentence_content
 from src.conversation.action import action
 from src.llm.sentence_queue import sentence_queue
 from src.config.config_loader import ConfigLoader
@@ -22,16 +23,16 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.llm.messages import message
 from src.llm.message_thread import message_thread
-from src.llm.llm_client import LLMClient
+from src.llm.ai_client import AIClient
 from src.tts.ttsable import ttsable
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ChatManager:
-    def __init__(self, config: ConfigLoader, tts: ttsable, client: LLMClient):
+    def __init__(self, config: ConfigLoader, tts: ttsable, client: AIClient):
         self.loglevel = 28
         self.__config: ConfigLoader = config
         self.__tts: ttsable = tts
-        self.__client: LLMClient = client
+        self.__client: AIClient = client
         self.__is_generating: bool = False
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
@@ -61,7 +62,7 @@ class ChatManager:
 
         with self.__tts_access_lock:
             try:
-                if self.__config.narration_handling == "use narrator" and content.is_narration:
+                if self.__config.narration_handling == "use narrator" and content.sentence_type == SentenceTypeEnum.NARRATION:
                     synth_options = SynthesizationOptions(False, self.__is_first_sentence)
                     audio_file = self.__tts.synthesize(self.__config.narrator_voice, text, self.__config.narrator_voice, self.__config.narrator_voice, "en", synth_options, self.__config.narrator_voice)
                 else:
@@ -71,28 +72,9 @@ class ChatManager:
                 utils.play_error_sound()
                 error_text = f"Text-to-Speech Error: {e}"
                 logging.log(29, error_text)
-                return mantella_sentence(sentence_content(character_to_talk, text, content.is_narration, True), "", 0, error_text)
+                return mantella_sentence(sentence_content(character_to_talk, text, content.sentence_type, True), "", 0, error_text)
             self.__is_first_sentence = False
-            return mantella_sentence(sentence_content(character_to_talk, text, content.is_narration, content.is_system_generated_sentence), audio_file, self.get_audio_duration(audio_file))
-
-    @utils.time_it
-    def change_speaker(self, npc: Character):
-        self.__tts.change_voice(npc.tts_voice_model, npc.in_game_voice_model, npc.csv_in_game_voice_model, npc.advanced_voice_model, voice_accent=npc.voice_accent, voice_gender=npc.gender, voice_race=npc.race)
-
-    @utils.time_it
-    def num_tokens(self, content_to_measure: message | str | message_thread | list[message]) -> int:
-        """Measures the length of an input in tokens
-
-        Args:
-            content_to_measure (message | str | message_thread | list[message]): the input to measure the tokens of
-
-        Returns:
-            int: count tokens in the input
-        """
-        if isinstance(content_to_measure, message_thread) or isinstance(content_to_measure, list):
-            return self.__client.num_tokens_from_messages(content_to_measure)
-        else:
-            return self.__client.num_tokens_from_message(content_to_measure)
+            return mantella_sentence(sentence_content(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence), audio_file, self.get_audio_duration(audio_file))
 
     @utils.time_it
     def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: sentence_queue, actions: list[action]):
@@ -136,19 +118,21 @@ class ChatManager:
     async def process_response(self, active_character: Character, blocking_queue: sentence_queue, messages : message_thread, characters: Characters, actions: list[action]):
         """Stream response from LLM one sentence at a time"""
 
-        max_character_per_sentence = 148 #Fallout max
-        sentence_end: sentence_end_parser = sentence_end_parser(self.__config.number_words_tts, max_character_per_sentence)
-        parser_chain: list[output_parser] = [
-            clean_sentence_parser(),
-            change_character_parser(characters, self.change_speaker), #Hand the change_speaker function to the character parser to get an immediate update of the character
-            narration_parser(),
-            sentence_end,
-            actions_parser(actions)
-        ]
         full_reply: str = ''
         first_token = True
-        last_generated_sentence_content: sentence_content | None = None
+        last_generated_sentence_content: sentence_content | None = None        
         self.__is_first_sentence = True
+
+        parser_chain: list[output_parser] = [
+            clean_sentence_parser(),
+            change_character_parser(characters), #Hand the change_speaker function to the character parser to get an immediate update of the character voice
+            narration_parser(),
+            sentence_end_parser(),
+            actions_parser(actions),
+            sentence_length_parser(self.__config.number_words_tts),
+            max_count_sentences_parser(self.__config.max_response_sentences)
+        ]
+       
         try:
             sentence: str = ''
             settings: sentence_generation_settings = sentence_generation_settings(active_character)
@@ -167,42 +151,32 @@ class ChatManager:
                         
                         sentence += content
                         cut_sentence_content: sentence_content | None = None
+                        #Apply parsers
                         for parser in parser_chain:
-                            if cut_sentence_content: #If a sentence has been cut by a previous parser in the chain
-                                parser.modify_sentence_content(cut_sentence_content, settings) #Hand it only to the modify methods of subsequent parsers
-                                if settings.stop_generation:
-                                    break
-                            else: #Try to cut until a parser finds a way to cut the output
+                            if not cut_sentence_content: #Try to cut until a parser finds a way to cut the output
                                 cut_sentence_content, sentence = parser.cut_sentence(sentence, settings)
+                            if cut_sentence_content: #If a sentence has been cut by this or a previous parser in the chain
+                                cut_sentence_content, last_generated_sentence_content = parser.modify_sentence_content(cut_sentence_content, last_generated_sentence_content, settings) #Hand it only to the modify methods of subsequent parsers
+                            if settings.stop_generation:
+                                break
                         if settings.stop_generation:
                             break
-
-                        if cut_sentence_content: #If the parsers have produced a new sentence
-                            if not last_generated_sentence_content: #If we don't have a last sentence, set the first one as last and wait for the second
-                                last_generated_sentence_content = cut_sentence_content
-                            else:
-                                if sentence_end.count_words(cut_sentence_content.text) < self.__config.number_words_tts: #narration and character parser max produce sentences shorter than allowed
-                                    if last_generated_sentence_content.speaker == cut_sentence_content.speaker and last_generated_sentence_content.is_narration == cut_sentence_content.is_narration:
-                                        #If the previous sentence was by the same speaker and was/wasn't a narration as well, add the sentence that is too short to the last one
-                                        last_generated_sentence_content.append_other_sentence_content(cut_sentence_content.text, cut_sentence_content.actions)
-                                        cut_sentence_content = None
-                                        continue
-                                    
-                                #If there was a change in speaker or narration flag we can never join them with the next sentence so we just send out the last one
-                                if self.__stop_generation.is_set():
-                                    break
-                                if not self.__config.narration_handling == "cut narrations" or not last_generated_sentence_content.is_narration:                                    
-                                    new_sentence = self.generate_sentence(last_generated_sentence_content)
-                                    blocking_queue.put(new_sentence)
-                                    full_reply += last_generated_sentence_content.text                                
-                                last_generated_sentence_content = cut_sentence_content
+                        
+                        if cut_sentence_content and last_generated_sentence_content: #If the parsers have produced a new sentence
+                            if self.__stop_generation.is_set():
+                                break
+                            if not self.__config.narration_handling == "cut narrations" or not last_generated_sentence_content.sentence_type:
+                                new_sentence = self.generate_sentence(last_generated_sentence_content)
+                                blocking_queue.put(new_sentence)
+                                full_reply += last_generated_sentence_content.text                                
+                            last_generated_sentence_content = cut_sentence_content
                     break #if the streaming_call() completed without exception, break the while loop
                             
                 except Exception as e:
                     utils.play_error_sound()
                     logging.error(f"LLM API Error: {e}")                    
                     error_response = "I can't find the right words at the moment."
-                    new_sentence = self.generate_sentence(sentence_content(active_character, error_response, False, True))
+                    new_sentence = self.generate_sentence(sentence_content(active_character, error_response, SentenceTypeEnum.SPEECH, True))
                     blocking_queue.put(new_sentence)
                     if new_sentence.error_message:
                         break
@@ -228,9 +202,9 @@ class ChatManager:
                 new_sentence = self.generate_sentence(last_generated_sentence_content)
                 blocking_queue.put(new_sentence)
                 full_reply += last_generated_sentence_content.text
-            logging.log(23, f"Full response saved ({self.__client.calculate_tokens_from_text(full_reply)} tokens): {full_reply.strip()}")
+            logging.log(23, f"Full response saved ({self.__client.get_count_tokens(full_reply)} tokens): {full_reply.strip()}")
             blocking_queue.is_more_to_come = False
             # This sentence is required to make sure there is one in case the game is already waiting for it
             # before the ChatManager realises there is not another message coming from the LLM
-            blocking_queue.put(mantella_sentence(sentence_content(active_character,"",False, True),"",0))
+            blocking_queue.put(mantella_sentence(sentence_content(active_character,"",SentenceTypeEnum.SPEECH, True),"",0))
             self.__is_generating = False
