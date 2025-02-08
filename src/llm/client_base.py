@@ -109,7 +109,7 @@ class ClientBase(AIClient):
         with self._generation_lock:
             sync_client = self.generate_sync_client()        
             chat_completion = None
-            logging.info('Getting LLM response...')
+            logging.log(28, 'Getting LLM response...')
 
             if isinstance(messages, message):# or isinstance(messages, image_message):
                 openai_messages = [messages.get_openai_message()]
@@ -143,7 +143,7 @@ class ClientBase(AIClient):
     @utils.time_it
     async def streaming_call(self, messages: message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
         with self._generation_lock:
-            logging.info('Getting LLM response...')
+            logging.log(28, 'Getting LLM response...')
 
             if self._startup_async_client:
                 async_client = self._startup_async_client
@@ -271,7 +271,9 @@ If you are using OpenRouter (default), you can create a secret key in Account ->
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
 If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is selected and running via: http://localhost:4999/ui
 For more information, see here: https://art-from-the-machine.github.io/Mantella/''')
-                return None
+                    # Keep the Mantella window open and display the above message until the window is closed
+                    while True:
+                        time.sleep(1000)
 
         return api_key
     

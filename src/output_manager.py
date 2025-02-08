@@ -125,7 +125,7 @@ class ChatManager:
 
         parser_chain: list[output_parser] = [
             clean_sentence_parser(),
-            change_character_parser(characters), #Hand the change_speaker function to the character parser to get an immediate update of the character voice
+            change_character_parser(characters),
             narration_parser(),
             sentence_end_parser(),
             actions_parser(actions),
