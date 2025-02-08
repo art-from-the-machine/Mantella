@@ -22,7 +22,6 @@ class communication_constants:
 
     KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"
     KEY_STARTCONVERSATION_USENARRATOR: str = PREFIX + "use_narrator"
-    KEY_CONTINUECONVERSATION_TOPICINFOFILE: str = PREFIX + "topicinfofile"
     KEY_INPUTTYPE: str = PREFIX + "input_type"
     KEY_INPUTTYPE_MIC: str = PREFIX + "mic_input"
     KEY_INPUTTYPE_TEXT: str = PREFIX + "text_input"
