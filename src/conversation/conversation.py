@@ -36,6 +36,7 @@ class conversation:
         self.__mic_input: bool = mic_input
         self.__mic_ptt: bool = mic_ptt
         self.__allow_interruption: bool = context_for_conversation.config.allow_interruption # allow mic interruption
+        self.__is_player_interrupting = False
         self.__stt: Transcriber | None = stt
         self.__events_refresh_time: float = context_for_conversation.config.events_refresh_time  # Time in seconds before events are considered stale
         self.__transcribed_text: str | None = None
@@ -118,9 +119,10 @@ class conversation:
             self.__initiate_reload_conversation()
 
         # interrupt response if player has spoken
-        if self.__stt and self.__stt.has_player_spoken():
+        if self.__stt and self.__stt.has_player_spoken:
             self.__stop_generation()
             self.__sentences.clear()
+            self.__is_player_interrupting = True
             return comm_consts.KEY_REQUESTTYPE_TTS, None
         
         # restart mic listening as soon as NPC's first sentence is processed
@@ -139,9 +141,10 @@ class conversation:
                 logging.debug(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
             # before immediately sending the next voiceline, give the player the chance to interrupt
             while time.time() - self.last_sentence_start_time < self.last_sentence_audio_length:
-                if self.__stt and self.__stt.has_player_spoken():
+                if self.__stt and self.__stt.has_player_spoken:
                     self.__stop_generation()
                     self.__sentences.clear()
+                    self.__is_player_interrupting = True
                     return comm_consts.KEY_REQUESTTYPE_TTS, None
                 time.sleep(0.01)
             self.last_sentence_audio_length = next_sentence.voice_line_duration + self.__context.config.wait_time_buffer
@@ -204,7 +207,7 @@ class conversation:
             
             new_message: user_message = user_message(player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
-            self.update_game_events(new_message)
+            new_message = self.update_game_events(new_message)
             self.__messages.add_message(new_message)            
             if self.__should_voice_player_input(player_character):
                 player__character_voiced_sentence = self.__output_manager.generate_sentence(sentence_content(player_character, player_text, SentenceTypeEnum.SPEECH, False))
@@ -266,7 +269,7 @@ class conversation:
             if len(self.__messages) == 0:
                 self.__messages: message_thread = message_thread(new_prompt)
             else:
-                self.__conversation_type.adjust_existing_message_thread(self.__messages, self.__context)
+                self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
                 self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
 
     @utils.time_it
@@ -274,6 +277,9 @@ class conversation:
         """Add in-game events to player's response"""
 
         all_ingame_events = self.__context.get_context_ingame_events()
+        if self.__is_player_interrupting:
+            all_ingame_events.append('Interrupting...')
+            self.__is_player_interrupting = False
         max_events = min(len(all_ingame_events) ,self.__context.config.max_count_events)
         message.add_event(all_ingame_events[-max_events:])
         self.__context.clear_context_ingame_events()        
