@@ -72,8 +72,7 @@ class summaries(remembering):
         if os.path.exists(name_ref_conversation_folder_path): # search by name and reference number
             character_conversation_folder_path = name_ref_conversation_folder_path
         else: # search by just name
-            name_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name)
-            character_conversation_folder_path = name_conversation_folder_path
+            character_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name)
         
         if os.path.exists(character_conversation_folder_path):
             # get all files from the directory
@@ -91,7 +90,7 @@ class summaries(remembering):
             logging.info(f"{name_ref_conversation_folder_path} does not exist. A new summary file will be created.")
             latest_file_number = 1
         
-        conversation_summary_file = f"{name_ref_conversation_folder_path}/{name}_summary_{latest_file_number}.txt"
+        conversation_summary_file = f"{character_conversation_folder_path}/{name}_summary_{latest_file_number}.txt"
         return conversation_summary_file
 
     @utils.time_it
