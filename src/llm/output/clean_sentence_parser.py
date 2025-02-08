@@ -25,9 +25,6 @@ class clean_sentence_parser(output_parser):
         if ('Well, well, well' in sentence):
             sentence = sentence.replace('Well, well, well', 'Well well well')
 
-        sentence = sentence.removeprefix('...')
-        sentence = sentence.removeprefix('..')
-
         sentence = remove_as_a(sentence)
         sentence = sentence.replace('\n', ' ')
         sentence = sentence.replace('[', '(')
