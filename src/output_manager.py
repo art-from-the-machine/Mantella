@@ -130,7 +130,7 @@ class ChatManager:
             sentence_end_parser(),
             actions_parser(actions),
             sentence_length_parser(self.__config.number_words_tts),
-            max_count_sentences_parser(self.__config.max_response_sentences)
+            max_count_sentences_parser(self.__config.max_response_sentences, not characters.contains_player_character())
         ]
        
         try:
@@ -198,7 +198,7 @@ class ChatManager:
             else:
                 logging.error(f"LLM API Error: {e}")
         finally:
-            if last_generated_sentence_content and not characters.contains_player_character() :
+            if last_generated_sentence_content:
                 new_sentence = self.generate_sentence(last_generated_sentence_content)
                 blocking_queue.put(new_sentence)
                 full_reply += last_generated_sentence_content.text
