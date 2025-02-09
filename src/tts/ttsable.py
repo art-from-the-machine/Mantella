@@ -6,7 +6,7 @@ from src.config.config_loader import ConfigLoader
 import src.utils as utils
 import os
 from pathlib import Path
-from subprocess import STARTUPINFO, STARTF_USESHOWWINDOW
+from subprocess import DEVNULL, STARTUPINFO, STARTF_USESHOWWINDOW
 import subprocess
 import time
 from src.tts.synthesization_options import SynthesizationOptions
@@ -74,27 +74,41 @@ class ttsable(ABC):
         
         #rename to unique name        
         if (os.path.exists(final_voiceline_file)):
-            try:
-                timestamp: str = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f_")
-                new_wav_file_name = f"{self._voiceline_folder}/save/{timestamp}sav.wav"
-                new_lip_file_name = new_wav_file_name.replace(".wav", ".lip")
-                new_fuz_file_name = new_wav_file_name.replace(".wav", ".fuz")
-                os.rename(final_voiceline_file, new_wav_file_name)
+            #timestamp: str = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f_")
+            #new_wav_file_name = f"{self._voiceline_folder}/save/{timestamp + final_voiceline_file_name}.wav" 
 
-                if (self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response):
-                    try:
-                        os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
-                    except:
-                        logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".lip")}')
+            #Use a sanitized version of the voice text as filename
+            unique_name: str  = f'{voice} {voiceline.strip()}'[:150]
+            new_name: str = "".join(c for c in unique_name if c not in r'\/:*?"<>|.')
+            new_wav_file_name = f'{self._voiceline_folder}/save/{new_name.strip()}.wav'
+
+            new_lip_file_name = new_wav_file_name.replace(".wav", ".lip")
+            new_fuz_file_name = new_wav_file_name.replace(".wav", ".fuz")
+
+            if os.path.exists(new_wav_file_name):       #Repeated phrase, delete previous file
+                os.remove(new_wav_file_name)
+
+            try:
+                os.rename(final_voiceline_file, new_wav_file_name)
+            except Exception as ex:
+                logging.warning(f'{type(ex).__name__}: {ex.args}')
+
+            if (self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response):
                 try:
-                    fuz_file_name = final_voiceline_file.replace(".wav", ".fuz")
-                    if (os.path.exists(fuz_file_name)):
-                        os.rename(fuz_file_name, new_fuz_file_name)
+                    if os.path.exists(new_lip_file_name):
+                        os.remove(new_lip_file_name)
+                    os.rename(final_voiceline_file.replace(".wav", ".lip"), new_lip_file_name)
                 except:
-                    logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".fuz")}')
-                final_voiceline_file = new_wav_file_name
+                    logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".lip")}')
+            try:
+                fuz_file_name = final_voiceline_file.replace(".wav", ".fuz")
+                if (os.path.exists(fuz_file_name)):
+                    if os.path.exists(new_fuz_file_name):
+                        os.remove(new_fuz_file_name)
+                    os.rename(fuz_file_name, new_fuz_file_name)
             except:
-                logging.error(f'Could not rename {final_voiceline_file} or {final_voiceline_file.replace(".wav", ".lip")}')
+                logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".fuz")}')
+            final_voiceline_file = new_wav_file_name
 
         # if Debug Mode is on, play the audio file
         # if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):
@@ -168,16 +182,23 @@ class ttsable(ABC):
         def generate_facefx_lip_file(facefx_path: str, wav_file: str, lip_file: str, voiceline: str, game: str) -> None:
             # Bethesda's LipGen:
             LipGen_path = Path(self._lipgen_path) / "LipGenerator/LipGenerator.exe"
+            languages = {
+                "fr" : 'French',
+                'es' : 'Spanish',
+                'de' : 'German',
+                'it' : 'Italian',
+                'ko' : 'Korean',
+                'jp' : 'Japanese'}
 
             if os.path.exists(LipGen_path):
-                #TODO: Use supported languages here: FR, DE, ES, IT, KO, JP
-                commands = [
-                    f'"{LipGen_path}"',
-                    f'"{wav_file}"',
-                    f'"{voiceline}"'
-                ]
-                command = " ".join(commands)
-                run_facefx_command(command, facefx_path)
+                language_parm = languages.get(self._language, 'USEnglish')
+
+                #Using subprocess.run to retrieve the exit code
+                args: str = f'"{LipGen_path}" "{wav_file}" "{voiceline}" -Language:{language_parm} -Automated'
+                run_result: subprocess.CompletedProcess = subprocess.run(args, cwd=facefx_path, stderr=DEVNULL, stdout=DEVNULL,
+                                                                         creationflags=subprocess.CREATE_NO_WINDOW)
+                if run_result.returncode != 0:
+                    logging.warning(f'Lipgen returned {run_result.returncode}')
             else:
                 if not self.__has_lipgen_warning_happened:
                     logging.warning('Could not find LipGenerator.exe. Please install or update the Creation Kit from Steam for faster lip sync generation')
@@ -218,15 +239,11 @@ class ttsable(ABC):
             LipFuz_path = Path(self._lipgen_path) / "LipFuzer/LipFuzer.exe"
 
             if os.path.exists(LipFuz_path):
-                commands = [
-                    f'"{LipFuz_path}"',
-                    f'-s "{self._voiceline_folder}"',
-                    f'-d "{self._voiceline_folder}"',
-                    '-a wav',
-                    '--norec'
-                ]
-                command = " ".join(commands)
-                run_facefx_command(command, facefx_path)
+                args: str = f'"{LipFuz_path}" -s "{self._voiceline_folder}" -d "{self._voiceline_folder}" -a wav --norec'
+                run_result: subprocess.CompletedProcess = subprocess.run(args, cwd=facefx_path, stdout=DEVNULL, stderr=DEVNULL,
+                                                                         creationflags=subprocess.CREATE_NO_WINDOW)
+                if run_result.returncode != 0:
+                    logging.warning(f'LipFuzer returned {run_result.returncode}')
             else:
                 #Fall back to using Fuz_extractor and xWMAencode if LipFuzer not found
                 logging.warning('Could not find LipFuzer.exe: please install or update the creation kit from Steam')
@@ -259,7 +276,6 @@ class ttsable(ABC):
                     ]
                 fuz_command = " ".join(fuzcmds)
                 run_facefx_command(fuz_command, facefx_path)
-
 
         try:
             
