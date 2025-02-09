@@ -98,7 +98,7 @@ class gameable(ABC):
         pass    
 
     @abstractmethod
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int):
         """Does what ever is needed to play a sentence ingame
 
         Args:

@@ -86,6 +86,8 @@ class GameStateManager:
             if extra_actions.__contains__(comm_consts.ACTION_RELOADCONVERSATION):
                 self.__talk.reload_conversation()
 
+        topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
+
         self.__update_context(input_json)
 
         while True:
@@ -100,8 +102,8 @@ class GameStateManager:
 
         if sentence_to_play:
             if not sentence_to_play.error_message:
-                self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config)            
-                reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play)
+                self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config, topicInfoID)            
+                reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play, topicInfoID)
             else:
                 self.__talk.end()
                 return self.error_message(sentence_to_play.error_message)
@@ -155,14 +157,15 @@ class GameStateManager:
         }
     
     @utils.time_it
-    def sentence_to_json(self, sentence_to_prepare: sentence) -> dict[str, Any]:
+    def sentence_to_json(self, sentence_to_prepare: sentence, topicID: int) -> dict[str, Any]:
         return {
             comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.speaker.name,
             comm_consts.KEY_ACTOR_LINETOSPEAK: self.__abbreviate_text(sentence_to_prepare.text.strip()),
             comm_consts.KEY_ACTOR_ISNARRATION: sentence_to_prepare.is_narration,
             comm_consts.KEY_ACTOR_VOICEFILE: sentence_to_prepare.voice_file,
             comm_consts.KEY_ACTOR_DURATION: sentence_to_prepare.voice_line_duration,
-            comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions
+            comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions,
+            comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE: topicID
         }
     
     def __abbreviate_text(self, text_to_abbreviate: str) -> str:
