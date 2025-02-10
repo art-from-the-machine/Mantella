@@ -84,6 +84,9 @@ class Transcriber:
         else:
             if self.language != 'en':
                 logging.warning(f"Selected language is '{self.language}', but Moonshine only supports English. Please change the selected speech-to-text model to Whisper in `Speech-to-Text`->`STT Service` in the Mantella UI")
+
+            if self.moonshine_model == 'moonshine/tiny':
+                logging.warning('Speech-to-text model set to Moonshine Tiny. If mic input is being transcribed incorrectly, try switching to a larger model in the `Speech-to-Text` tab of the Mantella UI')
             
             if os.path.exists(f'{self.moonshine_model_path}/encoder_model.onnx'):
                 logging.log(self.loglevel, 'Loading local Moonshine model...')
