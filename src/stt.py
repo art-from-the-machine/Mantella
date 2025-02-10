@@ -461,18 +461,26 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
     @staticmethod
     @utils.time_it
-    def activation_name_exists(transcript_cleaned, activation_name):
+    def activation_name_exists(transcript: str, activation_names: str | list[str]) -> bool:
         """Identifies keyword in the input transcript"""
-
-        keyword_found = False
-        if transcript_cleaned:
-            transcript_words = transcript_cleaned.split()
-            if bool(set(transcript_words).intersection([activation_name])):
-                keyword_found = True
-            elif transcript_cleaned == activation_name:
-                keyword_found = True
+        if not transcript:
+            return False
         
-        return keyword_found
+        # Convert to a list even if there is only one activation name
+        if isinstance(activation_names, str):
+            activation_names = [activation_names]
+
+        # Check for a match among individual words in the transcript
+        transcript_words = transcript.split()
+        if set(transcript_words).intersection(activation_names):
+            return True
+        
+        # Alternatively, if the entire transcript is a keyword, return True
+        for activation_name in activation_names:
+            if transcript == activation_name:
+                return True
+        
+        return False
 
 
     @staticmethod

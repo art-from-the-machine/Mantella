@@ -56,6 +56,7 @@ class conversation:
         # self.__actions: list[action] = actions
         self.last_sentence_audio_length = 0
         self.last_sentence_start_time = time.time()
+        self.__end_conversation_keywords = utils.parse_keywords(context_for_conversation.config.end_conversation_keyword)
 
     @property
     def has_already_ended(self) -> bool:
@@ -434,7 +435,7 @@ class conversation:
         transcript_cleaned = utils.clean_text(last_user_text)
 
         # check if user is ending conversation
-        return Transcriber.activation_name_exists(transcript_cleaned, config.end_conversation_keyword.lower()) or (Transcriber.activation_name_exists(transcript_cleaned, 'good bye'))
+        return Transcriber.activation_name_exists(transcript_cleaned, self.__end_conversation_keywords)
 
     @utils.time_it
     def __does_dismiss_npc_from_conversation(self, last_user_text: str) -> Character | None:
@@ -446,19 +447,16 @@ class conversation:
         Returns:
             bool: true if the conversation has ended, false otherwise
         """
-        # transcriber = self.__stt
-        config = self.__context.config
         transcript_cleaned = utils.clean_text(last_user_text)
 
-        # check if user is ending conversation
-
-        goodbye_phrase = config.end_conversation_keyword.lower()
         words = transcript_cleaned.split()
-        for i in range(len(words)):
-            if words[i] == goodbye_phrase and i < (len(words) - 1):
-                for npc_name in self.__context.npcs_in_conversation.get_all_names():
-                    if words[i+1] in npc_name.lower().split():
-                        return self.__context.npcs_in_conversation.get_character_by_name(npc_name)
+        for i, word in enumerate(words):
+            if word in self.__end_conversation_keywords:
+                if i < (len(words) - 1):
+                    next_word = words[i + 1]
+                    for npc_name in self.__context.npcs_in_conversation.get_all_names():
+                        if next_word in npc_name.lower().split():
+                            return self.__context.npcs_in_conversation.get_character_by_name(npc_name)
         return None
     
     @utils.time_it
