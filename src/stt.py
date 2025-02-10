@@ -71,7 +71,7 @@ class Transcriber:
         if (self.stt_service == 'whisper') and (self.__api_key) and ('openai' in self.whisper_url) and (self.external_whisper_service):
             self.__initial_client = self.__generate_sync_client() # initialize first client in advance to save time
 
-        self.__ignore_list = ['', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much', "thank you for watching and i'll see you in the next video", "we'll see you in the next video", 'see you next time']
+        self.__ignore_list = ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much', "thank you for watching and i'll see you in the next video", "we'll see you in the next video", 'see you next time']
         
         self.transcribe_model: WhisperModel | MoonshineOnnxModel | None = None
         if self.stt_service == 'whisper':
