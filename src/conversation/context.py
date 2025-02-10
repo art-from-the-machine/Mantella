@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Hashable, Callable
+from typing import Any, Hashable
 from src.conversation.action import action
 from src.http.communication_constants import communication_constants
 from src.conversation.conversation_log import conversation_log
@@ -17,7 +17,7 @@ class context:
     TOKEN_LIMIT_PERCENT: float = 0.45
 
     @utils.time_it
-    def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: remembering, language: dict[Hashable, str], is_prompt_too_long: Callable[[str, float], bool]) -> None:
+    def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: remembering, language: dict[Hashable, str]) -> None:
         self.__world_id = world_id
         self.__hourly_time = config.hourly_time
         self.__prev_game_time: tuple[str | None, str] | None = None
@@ -26,7 +26,6 @@ class context:
         self.__client: LLMClient = client
         self.__rememberer: remembering = rememberer
         self.__language: dict[Hashable, str] = language
-        self.__is_prompt_too_long: Callable[[str, float], bool] = is_prompt_too_long
         self.__weather: str = ""
         self.__custom_context_values: dict[str, Any] = {}
         self.__ingame_time: int = 12
@@ -435,7 +434,7 @@ class context:
                 conversation_summaries=content[1],
                 actions = actions
                 )
-            if self.__is_prompt_too_long(result, self.TOKEN_LIMIT_PERCENT):
+            if self.__client.is_too_long(result, self.TOKEN_LIMIT_PERCENT):
                 if content[0] != "":
                     have_summaries_been_dropped = True
                 else:
@@ -443,7 +442,7 @@ class context:
             else:
                 break
         
-        logging.log(23, f'Prompt sent to LLM ({self.__client.calculate_tokens_from_text(result)} tokens): {result.strip()}')
+        logging.log(23, f'Prompt sent to LLM ({self.__client.get_count_tokens(result)} tokens): {result.strip()}')
         if have_summaries_been_dropped and have_bios_been_dropped:
             logging.log(logging.WARNING, f'Both the bios and summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations and will have limited knowledge of who they are.')
         elif have_summaries_been_dropped:

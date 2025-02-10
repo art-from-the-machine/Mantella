@@ -60,17 +60,21 @@ class GameStateManager:
                 if input_json[comm_consts.KEY_INPUTTYPE] == comm_consts.KEY_INPUTTYPE_PTT:
                     self.__mic_ptt = True
                 
-        context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
+        context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
         self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
         self.__update_context(input_json)
         if not self.__talk.context.npcs_in_conversation.contains_multiple_npcs():
             character_to_talk = self.__talk.context.npcs_in_conversation.last_added_character
-            self.__talk.output_manager.tts.change_voice(character_to_talk.tts_voice_model, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.advanced_voice_model, character_to_talk.voice_accent, voice_gender=character_to_talk.gender, voice_race=character_to_talk.race)
+            if character_to_talk:
+                self.__talk.output_manager.tts.change_voice(character_to_talk.tts_voice_model, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.advanced_voice_model, character_to_talk.voice_accent, voice_gender=character_to_talk.gender, voice_race=character_to_talk.race)
+            else:
+                return self.error_message("Could not load initial character to talk to. Please try again.")
         self.__talk.start_conversation()
-        
+            
         return {
             comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED,
             comm_consts.KEY_STARTCONVERSATION_USENARRATOR: self.__config.narration_handling == "use narrator"}
+        
     
     @utils.time_it
     def continue_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
@@ -81,6 +85,8 @@ class GameStateManager:
             extra_actions: list[str] = input_json[comm_consts.KEY_REQUEST_EXTRA_ACTIONS]
             if extra_actions.__contains__(comm_consts.ACTION_RELOADCONVERSATION):
                 self.__talk.reload_conversation()
+
+        topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
 
         self.__update_context(input_json)
 
@@ -96,8 +102,8 @@ class GameStateManager:
 
         if sentence_to_play:
             if not sentence_to_play.error_message:
-                self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config)            
-                reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play)
+                self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config, topicInfoID)            
+                reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play, topicInfoID)
             else:
                 self.__talk.end()
                 return self.error_message(sentence_to_play.error_message)
@@ -151,14 +157,15 @@ class GameStateManager:
         }
     
     @utils.time_it
-    def sentence_to_json(self, sentence_to_prepare: sentence) -> dict[str, Any]:
+    def sentence_to_json(self, sentence_to_prepare: sentence, topicID: int) -> dict[str, Any]:
         return {
             comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.speaker.name,
             comm_consts.KEY_ACTOR_LINETOSPEAK: self.__abbreviate_text(sentence_to_prepare.text.strip()),
             comm_consts.KEY_ACTOR_ISNARRATION: sentence_to_prepare.is_narration,
             comm_consts.KEY_ACTOR_VOICEFILE: sentence_to_prepare.voice_file,
             comm_consts.KEY_ACTOR_DURATION: sentence_to_prepare.voice_line_duration,
-            comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions
+            comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions,
+            comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE: topicID
         }
     
     def __abbreviate_text(self, text_to_abbreviate: str) -> str:

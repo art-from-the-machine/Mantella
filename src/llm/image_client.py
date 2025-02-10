@@ -78,24 +78,24 @@ class ImageClient(ClientBase):
                 vision_prompt = self.__vision_prompt
             image_msg_instance = image_message(image, vision_prompt, self.__detail, True)
             image_transcription = self.request_call(image_msg_instance)
+            if image_transcription:
+                last_punctuation = max(image_transcription.rfind(p) for p in self.__end_of_sentence_chars)
+                # filter transcription to full sentences
+                image_transcription = image_transcription if last_punctuation == -1 else image_transcription[:last_punctuation + 1]
 
-            last_punctuation = max(image_transcription.rfind(p) for p in self.__end_of_sentence_chars)
-            # filter transcription to full sentences
-            image_transcription = image_transcription if last_punctuation == -1 else image_transcription[:last_punctuation + 1]
+                logging.log(23, f"Image transcription: {image_transcription}")
 
-            logging.log(23, f"Image transcription: {image_transcription}")
-
-            # Add the image to the last user message or create a new message if needed
-            if openai_messages and openai_messages[-1]['role'] == 'user':
-                openai_messages[-1]['content'] = [
-                    {"type": "text", "text": f"*{image_transcription}*\n{openai_messages[-1]['content']}"}
-                ]
-            else:
-                openai_messages.append({
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": f"*{image_transcription}*"}
+                # Add the image to the last user message or create a new message if needed
+                if openai_messages and openai_messages[-1]['role'] == 'user':
+                    openai_messages[-1]['content'] = [
+                        {"type": "text", "text": f"*{image_transcription}*\n{openai_messages[-1]['content']}"}
                     ]
-                })
+                else:
+                    openai_messages.append({
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": f"*{image_transcription}*"}
+                        ]
+                    })
 
         return openai_messages

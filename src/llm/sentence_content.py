@@ -1,11 +1,16 @@
+from enum import Enum
 from src.character_manager import Character
+
+class SentenceTypeEnum(Enum):
+    SPEECH = 1
+    NARRATION = 2
 
 class sentence_content:
     """The LLM relevant part of a sentence"""
-    def __init__(self, speaker: Character, text: str, is_narration: bool, is_system_generated_sentence: bool = False) -> None:
+    def __init__(self, speaker: Character, text: str, sentence_type: SentenceTypeEnum, is_system_generated_sentence: bool = False) -> None:
         self.__speaker: Character = speaker
         self.__text: str = text
-        self.__is_narration: bool = is_narration
+        self.__sentence_type: SentenceTypeEnum = sentence_type
         self.__actions: list[str] = []
         self.__is_system_generated_sentence: bool = is_system_generated_sentence
 
@@ -22,8 +27,12 @@ class sentence_content:
         self.__text = text
     
     @property
-    def is_narration(self) -> bool:
-        return self.__is_narration
+    def sentence_type(self) -> SentenceTypeEnum:
+        return self.__sentence_type
+    
+    @sentence_type.setter
+    def sentence_type(self, value: SentenceTypeEnum):
+        self.__sentence_type = value
 
     @property
     def actions(self) -> list[str]:

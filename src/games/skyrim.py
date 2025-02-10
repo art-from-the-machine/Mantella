@@ -14,9 +14,9 @@ import src.utils as utils
 
 
 class skyrim(gameable):
-    WAV_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
-    FUZ_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.fuz'
-    LIP_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
+    DIALOGUELINE1_FILENAME = "MantellaDi_MantellaDialogu_00001D8B_1"
+    DIALOGUELINE2_FILENAME = "MantellaDi_MantellaDialogu_0018B644_1"
+
     #Weather constants
     KEY_CONTEXT_WEATHER_ID = "mantella_weather_id"
     KEY_CONTEXT_WEATHER_CLASSIFICATION = "mantella_weather_classification"
@@ -156,7 +156,7 @@ class skyrim(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int):
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file = queue_output.voice_file
@@ -165,11 +165,14 @@ class skyrim(gameable):
         mod_folder = config.mod_path
         # subtitle = queue_output.sentence
         speaker: Character = queue_output.speaker
-        voice_folder_path = f"{mod_folder}/MantellaVoice00"
+        voice_folder_path = os.path.join(mod_folder,"MantellaVoice00")
         os.makedirs(voice_folder_path, exist_ok=True)
-        shutil.copyfile(audio_file, f"{voice_folder_path}/{self.WAV_FILE}")
+        filename = self.DIALOGUELINE1_FILENAME
+        if topicID == 2:
+            filename = self.DIALOGUELINE2_FILENAME
+        shutil.copyfile(audio_file, os.path.join(voice_folder_path, f"{filename}.wav"))
         try:
-            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{self.LIP_FILE}")
+            shutil.copyfile(audio_file.replace(".wav", ".lip"), os.path.join(voice_folder_path, f"{filename}.lip"))
         except Exception as e:
             # only warn on failure
             pass
