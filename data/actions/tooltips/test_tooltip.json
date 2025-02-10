@@ -1,5 +1,5 @@
 {
-    "tooltip_name" : "test_tooltip",
+    "tooltip_name" : "placeholder_tooltip",
     "keys_to_check" : {
         "targeting_keys":{
             "target_names": {
@@ -7,7 +7,7 @@
                 "description": "target name: ",
                 "items": {"type": "string"},
                 "is_target_name" : true,
-                "context_key": "mantella_function_npc_display_names",
+                "context_key": "mantella_insert_key_here1",
                 "static_values": ["npc_name1","npc_name2"],
                 "cancel_tooltip_if_empty": true
             },
@@ -16,7 +16,7 @@
                 "description": "distance: ",
                 "items": {"type": "number"},
                 "is_target_distance" : true,
-                "context_key": "mantella_function_npc_distances",
+                "context_key": "mantella_insert_key_here2",
                 "static_values": ["20","30"],
                 "cancel_tooltip_if_empty": false
             },
@@ -25,12 +25,12 @@
                 "description": "target npc ID: ",
                 "items": {"type": "string"},
                 "is_target_id" : true,
-                "context_key": "mantella_function_npc_ids",
+                "context_key": "mantella_insert_key_here3",
                 "static_values": ["1114","1113"],
                 "cancel_tooltip_if_empty": true
             },
             "targeting_intro": "Here are the values for insert_specific_value_here functions that require targets: ",
-            "targeting_outro": "The distances are calculated from {player_name}'s position",
+            "targeting_outro": "The distances are calculated from {playerName}'s position",
             "send_info_to_llm" : true
 
         },
@@ -40,7 +40,7 @@
                 "description": "Possible mode types to use: ",
                 "items": {"type": "string"},
                 "is_mode" : true,
-                "context_key": "mantella_key_here",
+                "context_key": "mantella_insert_key_here",
                 "static_values": ["mode1","mode2"],
                 "cancel_tooltip_if_empty": true
             },

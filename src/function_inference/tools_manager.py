@@ -1,4 +1,5 @@
 import json
+import logging
 from src.function_inference.llm_function_class import LLMFunction, LLMOpenAIfunction, ContextPayload, LLMFunctionCondition
 from src.function_inference.llm_tooltip_class import TargetInfo, Tooltip, ModeInfo
 from src.conversation.context import context
@@ -80,7 +81,6 @@ class ToolsManager:
         Clears all function templates from the tools storage.
         """
         self.__tools.clear()
-        print("All function templates have been cleared.")
 
     def build_dictionary(self, pairs: list[tuple[str, str]]) -> dict:
         """
@@ -182,12 +182,11 @@ class ToolsManager:
         """
         return list(self.__tooltips.values())
 
-    def clear_all_tooltips(self):
+    def clear_all_active_tooltips(self):
         """
         Clears all tooltips from the manager.
         """
         self.__tooltips.clear()
-        print("All tooltips have been cleared.")
 
     ######################### Context payload management ###################################
 
@@ -201,8 +200,6 @@ class ToolsManager:
             llm_function:LLMFunction
             llm_function.context_payload=None
             llm_function.context_payload = ContextPayload()
-        print("All context_payloads have been cleared for every stored LLMFunction.")
-
 
     ######################### Condition management ###################################
 
@@ -229,7 +226,7 @@ class ToolsManager:
         condition: LLMFunctionCondition = self.__conditions.get(condition_name, None)
         if condition:
             return condition.evaluate(conversation_context)
-        print(f"Condition {condition_name} doesn't exist in tool_manager")
+        logging.debug(f"Tools Manager : Condition {condition_name} doesn't exist in tool_manager")
         return None
     
     def get_all_conditions(self) -> list:

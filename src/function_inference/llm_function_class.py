@@ -514,18 +514,18 @@ class LLMFunctionCondition:
         
 
         if self.condition_type != "boolean_check":
-            raise ValueError("Unsupported condition type")
+            logging.warning(f"Function Class : Condition Object {self.condition_name} Unsupported condition type")
         
         values = [bool(self.check_context_value(conversation_context, key)) for key in self.keys_to_check]
         
         if self.operator_type == "and":
-            print(f"{self.condition_name} evaluates according to 'and' to {all(values)}")
+            #logging.debug(f"{self.condition_name} evaluates according to 'and' to {all(values)}")
             return all(values)
         elif self.operator_type == "or":
-            print(f"{self.condition_name} evaluates according to 'or' to {any(values)}")
+            #logging.debug(f"{self.condition_name} evaluates according to 'or' to {any(values)}")
             return any(values)
         else:
-            raise ValueError("Unsupported operator type")
+            logging.warning(f"Function class : condition object {self.condition_name} : Unsupported operator type")
         
     
     def check_context_value(self, conversation_context:context, context_key):
@@ -533,7 +533,7 @@ class LLMFunctionCondition:
         try:
             return conversation_context.get_custom_context_value(context_key)
         except AttributeError as e:
-            print(f"Missing context value for key {context_key} . Error type : {e}")
+            logging.warning(f"Function class : condition object {self.condition_name} : Missing context value for key {context_key} . Error type : {e}")
             return False
 
     def __repr__(self):

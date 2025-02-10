@@ -42,7 +42,6 @@ class ChatManager:
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
         self.__generated_function_results_lock = Lock()
         self.__generated_function_results = None
-        self.__has_character_switch_occurred = None
 
     @property
     def is_generating(self):
@@ -61,10 +60,6 @@ class ChatManager:
     @property
     def tts(self) -> ttsable:
         return self.__tts
-    
-    @property
-    def has_character_switch_occurred(self):
-        return self.__has_character_switch_occurred
 
     @utils.time_it
     def generate_sentence(self, text: str, character_to_talk: Character, is_first_line_of_response: bool = False, is_system_generated_sentence: bool = False) -> mantella_sentence:
@@ -223,7 +218,6 @@ class ChatManager:
             actions_in_sentence: list[action] = []
             first_token = True
             is_first_line_of_response = True
-            self.__has_character_switch_occurred = False
             while True:
                 try:
                     start_time = time.time()
@@ -284,7 +278,6 @@ class ChatManager:
                                         break
                                     character_switched_to: Character | None = self.__character_switched_to(keyword_extraction, characters)
                                     if character_switched_to:
-                                        self.__has_character_switch_occurred=True
                                         if character_switched_to.is_player_character:
                                             logging.log(28, f"Stopped LLM from speaking on behalf of the player")
                                             break
@@ -444,13 +437,13 @@ class ChatManager:
                             self.generated_function_results = self.process_unlabeled_function_content(content)
                             return
                         else:
-                            print("No tool calls found in response or tool_calls is not a list")
+                            logging.debug("No tool calls found in Function LLM response or tool_calls is not a list. Aborting function call.")
                 else:
-                    print("No choices found in response")
+                    logging.debug("No choices found in Function LLM response. Aborting function call.")
             else:
-                logging.error("No valid response received from LLM")
+                logging.debug("No valid response received from LLM")
         else:
-            logging.error("Unsupported response type for direct calls")
+            logging.debug("Unsupported response type for direct calls")
         self.__is_generating = False
 
     def process_tool_call(self,tool_call):
@@ -460,25 +453,20 @@ class ChatManager:
             arguments = json.loads(tool_call['function']['arguments'])
             # Safely get 'type' from tool_call or default to 'unknown'
             call_type = tool_call.get('type', 'unknown') if isinstance(tool_call, dict) else 'unknown'
-        
-
-            print("Function Name:", function_name)
-            print("Call Type:", call_type)
-            print("Arguments:", arguments)
             return call_type, function_name, arguments
             # Optional: Store values in variables if further processing is needed
             # function_name_var = function_name
             # call_type_var = call_type
             # arguments_var = arguments
         else:
-            print("Missing function details in tool call")
+            logging.debug("Missing function details in tool call")
 
     def process_pseudo_tool_call(self, tool_call_string):
-        print("Processing pseudo tool call")
+        logging.debug("Processing pseudo tool call")
         # Find the first occurrence of <tool_call> and remove everything before it
         start_index = tool_call_string.find('<tool_call>')
         if start_index == -1:
-            print("Error: <tool_call> substring not found in the output.")
+            logging.debug("Error in pseudo tool call: <tool_call> substring not found in the output.")
             return None
 
         content = tool_call_string[start_index + len('<tool_call>'):].strip()
@@ -522,7 +510,7 @@ class ChatManager:
         if function_name and arguments is not None:
             return 'function', function_name, arguments
         else:
-            print("Failed to parse the tool call string.")
+            logging.debug("Error in pseudo tool call :Failed to parse the tool call string.")
             return None
 
     def _try_parse_json(self, json_like_str):
@@ -539,17 +527,17 @@ class ChatManager:
                 json_str = json.dumps(python_obj)
                 return json.loads(json_str)
             except Exception as e:
-                print("Failed to parse using literal_eval:", e)
+                logging.debug("Function LLM : JSON error. Failed to parse using literal_eval:", e)
                 return None
         
     def process_unlabeled_function_content(self, content):
-        print("Attempting to process unlabeled function content")
+        logging.debug("Attempting to process unlabeled function content")
         call_type = 'function'  # As specified, call_type is always 'function'
 
         # Find the first '{' character
         start_idx = content.find('{')
         if start_idx == -1:
-            print("No JSON object found in content.")
+            logging.debug("Error while processing unlabeled function content from Function LLM : No JSON object found in content.")
             return None
 
         # Initialize brace count and find the matching '}'
@@ -566,7 +554,7 @@ class ChatManager:
                     break
 
         if end_idx == -1:
-            print("No matching closing brace found for JSON object.")
+            logging.debug("Error while processing unlabeled function content from Function LLM : No matching closing brace found for JSON object.")
             return None
 
         # Extract the JSON string
@@ -594,11 +582,11 @@ class ChatManager:
             if function_name and arguments is not None:
                 return call_type, function_name, arguments
             else:
-                print("Function name or arguments missing in content.")
+                logging.debug("Error while processing unlabeled function content from Function LLM : Function name or arguments missing in content.")
                 return None
 
         except json.JSONDecodeError as e:
-            print("Failed to parse content as JSON:", e)
+            logging.debug("Error while processing unlabeled function content from Function LLM : Failed to parse content as JSON:", e)
             return None
 
 

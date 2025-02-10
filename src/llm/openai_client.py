@@ -592,9 +592,8 @@ class function_client(openai_client):
             else:
                 sync_client = self.generate_sync_client()     
             chat_completion = None
-            logging.info('Getting LLM response...')
+            logging.info('Getting Function LLM response...')
             openai_messages = messages.get_openai_messages()
-            print(openai_messages)
             try:            
                 params = {
                 'model': self.model_name,
@@ -649,5 +648,5 @@ class function_client(openai_client):
                     logging.info(f"OpenAI LLM Response failed")
                     return None           
             chat_completion_json = json.dumps(chat_completion, default=lambda o: o.__dict__)
-            print(f"chat completion_json is {chat_completion_json}")
+            logging.debug(f"Function LLM : Received json file :  {chat_completion_json}")
             return chat_completion_json

@@ -95,7 +95,7 @@ class mantella_route(routeable):
                         reply = self.__game.start_conversation(received_json)
                     case comm_consts.KEY_REQUESTTYPE_CONTINUECONVERSATION:
                         reply = self.__game.continue_conversation(received_json)
-                        print(f"reply to MantellaMod is {reply}")
+                        #logging.log(23, f"reply to MantellaMod is {reply}")
                     case comm_consts.KEY_REQUESTTYPE_PLAYERINPUT:
                         reply = self.__game.player_input(received_json)
                     case comm_consts.KEY_REQUESTTYPE_ENDCONVERSATION:

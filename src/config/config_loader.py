@@ -238,11 +238,13 @@ class ConfigLoader:
             self.function_llm_custom_token_count = self.__definitions.get_int_value("function_llm_custom_token_count")
             self.function_llm_temperature = self.__definitions.get_float_value("function_llm_temperature")
             self.function_llm_top_p = self.__definitions.get_float_value("function_llm_top_p")
+            self.function_LLM_timeout = self.__definitions.get_int_value("function_llm_timeout")
 
             self.function_llm_stop = "</tool_call>"
             self.function_llm_frequency_penalty = self.__definitions.get_float_value("function_llm_frequency_penalty")
             self.function_llm_max_tokens = self.__definitions.get_int_value("function_llm_max_tokens")
 
+            #Folder settings
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
             #Debugging
             # self.debug_mode = self.__definitions.get_bool_value("debugging")
@@ -282,6 +284,7 @@ class ConfigLoader:
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")
             self.memory_prompt = self.__definitions.get_string_value("memory_prompt")
             self.resummarize_prompt = self.__definitions.get_string_value("resummarize_prompt")
+
             self.function_LLM_OpenAI_single_NPC_prompt = self.__definitions.get_string_value("function_llm_openai_single_npc_prompt")
             self.function_LLM_OpenAI_multi_NPC_prompt = self.__definitions.get_string_value("function_llm_openai_multi_npc_prompt")
             self.function_LLM_single_NPC_prompt = self.__definitions.get_string_value("function_llm_single_npc_prompt")

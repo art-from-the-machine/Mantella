@@ -208,8 +208,7 @@ class conversation:
             if self.__function_manager.check_LLM_functions_enabled():
                 returnedLLMFunctionOutput=self.__function_manager.process_function_call(self.__messages,text)
                 if returnedLLMFunctionOutput:
-                    print(f"function enable veto is {self.__context.config.function_enable_veto}")
-                    print(f"Returned function output is {returnedLLMFunctionOutput}")              
+                    logging.log(23,f"Function call recognized! Sending message to roleplay LLM : {returnedLLMFunctionOutput}")              
                     warning_message: user_message = user_message(returnedLLMFunctionOutput, player_character.name, True, is_LLM_warning = True) #Sends a warning message to the LLM so it roughly knows what the NPC is going to do and has a chance to stop it
                     self.__messages.add_message(warning_message)  #consider making this a one of a singleton message
 
@@ -237,10 +236,6 @@ class conversation:
             custom_context_values (dict[str, Any]): the current set of context values
         """
         self.__context.update_context(location, time, custom_ingame_events, weather, custom_context_values)
-        print(f"in conversation the custom values are {self.__context.get_custom_context_value('mantella_function_npc_distances')}")
-
-        self.__function_manager.context = self.__context
-        print(f"in conversation the custom values for function manager are {self.__function_manager.context.get_custom_context_value('mantella_function_npc_distances')}")
         if self.__context.have_actors_changed:
             self.__update_conversation_type()
             self.__context.have_actors_changed = False

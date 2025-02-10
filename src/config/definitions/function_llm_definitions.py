@@ -63,6 +63,9 @@ class FunctionLLMDefinitions:
     def get_function_llm_max_tokens_config_value() -> ConfigValue:
         return ConfigValueInt("function_llm_max_tokens","Max tokens","Lowering this value can sometimes result in empty responses", 2000, 1, 999999,tags=[ConvigValueTag.advanced])
     
+    @staticmethod
+    def get_function_llm_timeout_value() -> ConfigValue:
+        return ConfigValueInt("function_llm_timeout","Function LLM Timeout","Use this value to set a max delay that Mantella will wait before continuing with generating a response. Lower this in case of inconsistent response times.", 15, 1, 999999,tags=[ConvigValueTag.advanced])
     
  
 
