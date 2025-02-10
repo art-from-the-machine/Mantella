@@ -68,7 +68,7 @@ class message_thread():
                 self.__messages.append(new_message)
     
     @utils.time_it
-    def reload_message_thread(self, new_prompt: str, text_measurer: Callable[[str], int], max_tokens: int):
+    def reload_message_thread(self, new_prompt: str, is_too_long: Callable[[list[message], float], bool], percent_modifier: float):
         """Reloads this message_thread with a new system_message prompt and drops all but the last X messages
 
         Args:
@@ -78,13 +78,12 @@ class message_thread():
         result: list[message] = []
         result.append(system_message(new_prompt))
         messages_to_keep: list[message]  = []
-        used_tokens = 0
         for talk_message in reversed(self.get_talk_only()):
-            used_tokens += text_measurer(talk_message.get_formatted_content())
-            if used_tokens < max_tokens:
-                messages_to_keep.append(talk_message)
-            else:
+            messages_to_keep.append(talk_message)
+            if is_too_long(messages_to_keep, percent_modifier):
+                messages_to_keep = messages_to_keep[:-1]
                 break
+            
         messages_to_keep.reverse()
         result.extend(messages_to_keep)
         self.__messages = result

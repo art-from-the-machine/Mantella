@@ -41,7 +41,8 @@ class summaries(remembering):
                 if os.path.exists(conversation_summary_file):
                     with open(conversation_summary_file, 'r', encoding='utf-8') as f:
                         for line in f:
-                            if line.strip():
+                            line = line.strip()
+                            if line and line not in paragraphs:
                                 paragraphs.append(line.strip())
         if paragraphs:
             result = "\n".join(paragraphs)
@@ -150,7 +151,7 @@ class summaries(remembering):
 
         summary_limit = round(self.__client.token_limit*self.__summary_limit_pct,0)
 
-        count_tokens_summaries = self.__client.calculate_tokens_from_text(conversation_summaries)
+        count_tokens_summaries = self.__client.get_count_tokens(conversation_summaries)
         # if summaries token limit is reached, summarize the summaries
         if count_tokens_summaries > summary_limit:
             logging.info(f'Token limit of conversation summaries reached ({count_tokens_summaries} / {summary_limit} tokens). Creating new summary file...')
