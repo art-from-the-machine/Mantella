@@ -49,7 +49,7 @@ class FunctionLLMDefinitions:
     
     @staticmethod
     def get_function_llm_temperature_config_value() -> ConfigValue:
-        return ConfigValueFloat("function_llm_temperature","Temperature","", 1.0, 0, 2,tags=[ConvigValueTag.advanced])
+        return ConfigValueFloat("function_llm_temperature","Temperature","", 0.5, 0, 2,tags=[ConvigValueTag.advanced])
     
     @staticmethod
     def get_function_llm_top_p_config_value() -> ConfigValue:
