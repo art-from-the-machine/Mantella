@@ -187,7 +187,7 @@ class fallout4(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int):
         audio_file = queue_output.voice_file
         fuz_file = audio_file.replace(".wav",".fuz")
         speaker = queue_output.speaker
