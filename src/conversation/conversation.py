@@ -56,6 +56,7 @@ class conversation:
         # self.__actions: list[action] = actions
         self.last_sentence_audio_length = 0
         self.last_sentence_start_time = time.time()
+        self.__end_conversation_keywords = utils.parse_keywords(context_for_conversation.config.end_conversation_keyword)
 
     @property
     def has_already_ended(self) -> bool:
@@ -166,7 +167,7 @@ class conversation:
                     return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
 
     @utils.time_it
-    def process_player_input(self, player_text: str) -> tuple[str, bool]:
+    def process_player_input(self, player_text: str) -> tuple[str, bool, sentence|None]:
         """Submit the input of the player to the conversation
 
         Args:
@@ -177,7 +178,7 @@ class conversation:
         """
         player_character = self.__context.npcs_in_conversation.get_player_character()
         if not player_character:
-            return '', False # If there is no player in the conversation, exit here
+            return '', False, None # If there is no player in the conversation, exit here
         
         events_need_updating: bool = False
 
@@ -199,7 +200,7 @@ class conversation:
                     # If too much time has passed, in-game events need to be updated
                     events_need_updating = True
                     logging.debug('Updating game events...')
-                    return player_text, events_need_updating
+                    return player_text, events_need_updating, None
                 
                 if self.__mic_ptt:
                     # only start listening when push-to-talk button pressed again
@@ -208,13 +209,8 @@ class conversation:
             new_message: user_message = user_message(player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
             new_message = self.update_game_events(new_message)
-            self.__messages.add_message(new_message)            
-            if self.__should_voice_player_input(player_character):
-                player__character_voiced_sentence = self.__output_manager.generate_sentence(sentence_content(player_character, player_text, SentenceTypeEnum.SPEECH, False))
-                if player__character_voiced_sentence.error_message:
-                    player_message_content: sentence_content = sentence_content(player_character, player_text, SentenceTypeEnum.SPEECH, False)
-                    player__character_voiced_sentence = sentence(player_message_content, "" , 2.0)
-                self.__sentences.put(player__character_voiced_sentence)
+            self.__messages.add_message(new_message)
+            player_voiceline = self.__get_player_voiceline(player_character, player_text)
             text = new_message.text
             logging.log(23, f"Text passed to NPC: {text}")
 
@@ -227,12 +223,25 @@ class conversation:
         else:
             self.__start_generating_npc_sentences()
 
-        return player_text, events_need_updating
+        return player_text, events_need_updating, player_voiceline
 
     def __get_mic_prompt(self):
         mic_prompt = f"This is a conversation with {self.__context.get_character_names_as_text(False)} in {self.__context.location}."
         #logging.log(23, f'Context for mic transcription: {mic_prompt}')
         return mic_prompt
+    
+    @utils.time_it
+    def __get_player_voiceline(self, player_character: Character | None, player_text: str) -> sentence | None:
+        """Synthesizes the player's input if player voice input is enabled, or else returns None
+        """
+        player_character_voiced_sentence: sentence | None = None
+        if self.__should_voice_player_input(player_character):
+            player_character_voiced_sentence = self.__output_manager.generate_sentence(sentence_content(player_character, player_text, SentenceTypeEnum.SPEECH, False))
+            if player_character_voiced_sentence.error_message:
+                player_message_content: sentence_content = sentence_content(player_character, player_text, SentenceTypeEnum.SPEECH, False)
+                player_character_voiced_sentence = sentence(player_message_content, "" , 2.0)
+
+        return player_character_voiced_sentence
 
     @utils.time_it
     def update_context(self, location: str | None, time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
@@ -434,7 +443,7 @@ class conversation:
         transcript_cleaned = utils.clean_text(last_user_text)
 
         # check if user is ending conversation
-        return Transcriber.activation_name_exists(transcript_cleaned, config.end_conversation_keyword.lower()) or (Transcriber.activation_name_exists(transcript_cleaned, 'good bye'))
+        return Transcriber.activation_name_exists(transcript_cleaned, self.__end_conversation_keywords)
 
     @utils.time_it
     def __does_dismiss_npc_from_conversation(self, last_user_text: str) -> Character | None:
@@ -446,19 +455,16 @@ class conversation:
         Returns:
             bool: true if the conversation has ended, false otherwise
         """
-        # transcriber = self.__stt
-        config = self.__context.config
         transcript_cleaned = utils.clean_text(last_user_text)
 
-        # check if user is ending conversation
-
-        goodbye_phrase = config.end_conversation_keyword.lower()
         words = transcript_cleaned.split()
-        for i in range(len(words)):
-            if words[i] == goodbye_phrase and i < (len(words) - 1):
-                for npc_name in self.__context.npcs_in_conversation.get_all_names():
-                    if words[i+1] in npc_name.lower().split():
-                        return self.__context.npcs_in_conversation.get_character_by_name(npc_name)
+        for i, word in enumerate(words):
+            if word in self.__end_conversation_keywords:
+                if i < (len(words) - 1):
+                    next_word = words[i + 1]
+                    for npc_name in self.__context.npcs_in_conversation.get_all_names():
+                        if next_word in npc_name.lower().split():
+                            return self.__context.npcs_in_conversation.get_character_by_name(npc_name)
         return None
     
     @utils.time_it

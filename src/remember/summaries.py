@@ -62,39 +62,52 @@ class summaries(remembering):
 
     @utils.time_it
     def __get_latest_conversation_summary_file_path(self, character: Character, world_id: str) -> str:
-        """Get latest conversation summary by file name suffix"""
-
-        # if multiple NPCs in a conversation have the same name (eg Whiterun Guard) their names are appended with number IDs
-        # these IDs need to be removed when saving the conversation
-        name: str = utils.remove_trailing_number(character.name)
-        name_ref: str = f'{name} - {character.ref_id}'
+        """
+        Get the path to the latest conversation summary file, prioritizing name_ref folders over legacy name folders.
         
-        name_ref_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name_ref)
-        if os.path.exists(name_ref_conversation_folder_path): # search by name and reference number
-            character_conversation_folder_path = name_ref_conversation_folder_path
-        else: # search by just name
-            name_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name)
-            character_conversation_folder_path = name_conversation_folder_path
+        Args:
+            character: Character object containing name and ref_id
+            world_id: ID of the game world
         
-        if os.path.exists(character_conversation_folder_path):
-            # get all files from the directory
-            files = os.listdir(character_conversation_folder_path)
-            # filter only .txt files
-            txt_files = [f for f in files if f.endswith('.txt')]
-            if len(txt_files) > 0:
-                file_numbers = [int(os.path.splitext(f)[0].split('_')[-1]) for f in txt_files]
-                latest_file_number = max(file_numbers)
-                logging.info(f"Loaded latest summary file: {character_conversation_folder_path}/{name}_summary_{latest_file_number}.txt")
-            else:
-                logging.info(f"{name_ref_conversation_folder_path} does not exist. A new summary file will be created.")
-                latest_file_number = 1
+        Returns:
+            str: Path to the latest conversation summary file
+        """
+        # Remove trailing numbers from character names (e.g., "Whiterun Guard 1" -> "Whiterun Guard")
+        base_name: str = utils.remove_trailing_number(character.name)
+        name_ref: str = f'{base_name} - {character.ref_id}'
+        
+        def get_folder_path(folder_name: str) -> str:
+            return os.path.join(self.__game.conversation_folder_path, world_id, folder_name).replace(os.sep, '/')
+        
+        def get_latest_file_number(folder_path: str) -> int:
+            if not os.path.exists(folder_path):
+                return 1
+                
+            txt_files = [f for f in os.listdir(folder_path) if f.endswith('.txt')]
+            if not txt_files:
+                return 1
+                
+            file_numbers = [int(os.path.splitext(f)[0].split('_')[-1]) for f in txt_files]
+            return max(file_numbers)
+        
+        # Check folders in priority order
+        name_ref_path = get_folder_path(name_ref)
+        name_path = get_folder_path(base_name)
+        
+        # Determine which folder path to use based on existence
+        if os.path.exists(name_ref_path):
+            target_folder = name_ref_path
+            logging.info(f"Loaded latest summary file from: {target_folder}")
+        elif os.path.exists(name_path):
+            target_folder = name_path
+            logging.info(f"Loaded latest summary file from: {target_folder}")
         else:
-            logging.info(f"{name_ref_conversation_folder_path} does not exist. A new summary file will be created.")
-            latest_file_number = 1
+            target_folder = name_ref_path  # Use name_ref format for new folders
+            logging.info(f"{name_ref_path} does not exist. A new summary file will be created.")
         
-        conversation_summary_file = f"{name_ref_conversation_folder_path}/{name}_summary_{latest_file_number}.txt"
-        return conversation_summary_file
-
+        latest_file_number = get_latest_file_number(target_folder)
+        return f"{target_folder}/{base_name}_summary_{latest_file_number}.txt"
+    
     @utils.time_it
     def __create_new_conversation_summary(self, messages: message_thread, npc_name: str) -> str:
         prompt = self.__memory_prompt.format(

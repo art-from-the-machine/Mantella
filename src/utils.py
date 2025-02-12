@@ -154,6 +154,24 @@ def get_time_group(in_game_time):
     return time_group
 
 
+def parse_keywords(keyword_string: str) -> list[str]:
+    """
+    Given a comma-delimited string of keywords, return a list of trimmed, lowercase keywords
+    
+    Args:
+        keyword_string (str): A single keyword or comma-separated list of keywords
+        
+    Returns:
+        list[str]: A list of keywords
+    """
+    # Split on commas if present, or just return the stripped keyword in a list
+    if ',' in keyword_string:
+        keywords = [name.strip().lower() for name in keyword_string.split(',')]
+    else:
+        keywords = [keyword_string.strip().lower()]
+    return keywords
+
+
 def format_context_size(num):
     if num < 100_000:
         return f"{num:,}"

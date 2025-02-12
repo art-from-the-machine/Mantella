@@ -71,7 +71,7 @@ class Transcriber:
         if (self.stt_service == 'whisper') and (self.__api_key) and ('openai' in self.whisper_url) and (self.external_whisper_service):
             self.__initial_client = self.__generate_sync_client() # initialize first client in advance to save time
 
-        self.__ignore_list = ['', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much', "thank you for watching and i'll see you in the next video", "we'll see you in the next video", 'see you next time']
+        self.__ignore_list = ['', 'thank you', 'thank you for watching', 'thanks for watching', 'the transcript is from the', 'the', 'thank you very much', "thank you for watching and i'll see you in the next video", "we'll see you in the next video", 'see you next time']
         
         self.transcribe_model: WhisperModel | MoonshineOnnxModel | None = None
         if self.stt_service == 'whisper':
@@ -84,6 +84,9 @@ class Transcriber:
         else:
             if self.language != 'en':
                 logging.warning(f"Selected language is '{self.language}', but Moonshine only supports English. Please change the selected speech-to-text model to Whisper in `Speech-to-Text`->`STT Service` in the Mantella UI")
+
+            if self.moonshine_model == 'moonshine/tiny':
+                logging.warning('Speech-to-text model set to Moonshine Tiny. If mic input is being transcribed incorrectly, try switching to a larger model in the `Speech-to-Text` tab of the Mantella UI')
             
             if os.path.exists(f'{self.moonshine_model_path}/encoder_model.onnx'):
                 logging.log(self.loglevel, 'Loading local Moonshine model...')
@@ -461,18 +464,26 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
     @staticmethod
     @utils.time_it
-    def activation_name_exists(transcript_cleaned, activation_name):
+    def activation_name_exists(transcript: str, activation_names: str | list[str]) -> bool:
         """Identifies keyword in the input transcript"""
-
-        keyword_found = False
-        if transcript_cleaned:
-            transcript_words = transcript_cleaned.split()
-            if bool(set(transcript_words).intersection([activation_name])):
-                keyword_found = True
-            elif transcript_cleaned == activation_name:
-                keyword_found = True
+        if not transcript:
+            return False
         
-        return keyword_found
+        # Convert to a list even if there is only one activation name
+        if isinstance(activation_names, str):
+            activation_names = [activation_names]
+
+        # Check for a match among individual words in the transcript
+        transcript_words = transcript.split()
+        if set(transcript_words).intersection(activation_names):
+            return True
+        
+        # Alternatively, if the entire transcript is a keyword, return True
+        for activation_name in activation_names:
+            if transcript == activation_name:
+                return True
+        
+        return False
 
 
     @staticmethod
