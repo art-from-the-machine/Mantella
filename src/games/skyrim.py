@@ -1,6 +1,8 @@
 import logging
 import os
 import shutil
+import wave
+import winsound
 from typing import Any
 
 import pandas as pd
@@ -156,18 +158,37 @@ class skyrim(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, isFirstLine: bool = False):
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file = queue_output.voice_file
         if not os.path.exists(audio_file):
             return
+        
+        if isFirstLine:
+            winsound.PlaySound(audio_file, winsound.SND_FILENAME | winsound.SND_ASYNC)
+        
+            # Create a muted version of the wav file
+            with wave.open(audio_file, 'rb') as wav_file:
+                params = wav_file.getparams()
+                frames = wav_file.readframes(wav_file.getnframes())
+            
+            # Create muted frames (all zeros) with same length as original
+            muted_frames = b'\x00' * len(frames)
+        
         mod_folder = config.mod_path
-        # subtitle = queue_output.sentence
         speaker: Character = queue_output.speaker
         voice_folder_path = f"{mod_folder}/MantellaVoice00"
         os.makedirs(voice_folder_path, exist_ok=True)
-        shutil.copyfile(audio_file, f"{voice_folder_path}/{self.WAV_FILE}")
+        
+        if isFirstLine:
+            # Save muted wav file to game folder
+            with wave.open(f"{voice_folder_path}/{self.WAV_FILE}", 'wb') as muted_wav:
+                muted_wav.setparams(params)
+                muted_wav.writeframes(muted_frames)
+        else:
+            shutil.copyfile(audio_file, f"{voice_folder_path}/{self.WAV_FILE}")
+    
         try:
             shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{self.LIP_FILE}")
         except Exception as e:

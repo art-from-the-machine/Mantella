@@ -41,6 +41,7 @@ class GameStateManager:
         self.__stt_api_file: str = stt_api_file
         self.__api_file: str = api_file
         self.__stt: Transcriber | None = None
+        self.__first_line: bool = True
 
     ###### react to calls from the game #######
     @utils.time_it
@@ -96,8 +97,9 @@ class GameStateManager:
 
         if sentence_to_play:
             if not sentence_to_play.error_message:
-                self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config)            
+                self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config, self.__first_line)            
                 reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play)
+                self.__first_line = False
             else:
                 self.__talk.end()
                 return self.error_message(sentence_to_play.error_message)
@@ -107,6 +109,8 @@ class GameStateManager:
     def player_input(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(not self.__talk ):
             return self.error_message("No running conversation.")
+        
+        self.__first_line = True
         
         player_text: str = input_json.get(comm_consts.KEY_REQUESTTYPE_PLAYERINPUT, '')
         self.__update_context(input_json)
