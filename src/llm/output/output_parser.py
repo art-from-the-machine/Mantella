@@ -1,21 +1,47 @@
 from abc import ABC, abstractmethod
+from enum import Enum
 
 from src.character_manager import Character
-from src.llm.sentence_content import sentence_content
+from src.llm.sentence_content import SentenceTypeEnum, sentence_content
+
+class MarkedTextStateEnum(Enum):
+    UNMARKED = 1
+    MARKED_SPEECH = 2
+    MARKED_NARRATION = 3
 
 class sentence_generation_settings:
+    """Data holding class to contain any information that need to be exchanged between parsers
+    """
     def __init__(self, current_speaker: Character) -> None:
-        self.__is_narration = False
+        self.__sentence_type: SentenceTypeEnum = SentenceTypeEnum.SPEECH
+        self.__unmarked_text: SentenceTypeEnum = SentenceTypeEnum.SPEECH
+        self.__current_text_state: MarkedTextStateEnum = MarkedTextStateEnum.UNMARKED
         self.__current_speaker: Character = current_speaker
         self.__stop_generation: bool = False
     
     @property
-    def is_narration(self) -> bool:
-        return self.__is_narration
+    def sentence_type(self) -> SentenceTypeEnum:
+        return self.__sentence_type
     
-    @is_narration.setter
-    def is_narration(self, is_narration: bool):
-        self.__is_narration = is_narration
+    @sentence_type.setter
+    def sentence_type(self, sentence_type: SentenceTypeEnum):
+        self.__sentence_type = sentence_type
+
+    @property
+    def unmarked_text(self) -> SentenceTypeEnum:
+        return self.__unmarked_text
+    
+    @unmarked_text.setter
+    def unmarked_text(self, unmarked_text_is: SentenceTypeEnum):
+        self.__unmarked_text = unmarked_text_is
+
+    @property
+    def current_text_state(self) -> MarkedTextStateEnum:
+        return self.__current_text_state
+    
+    @current_text_state.setter
+    def current_text_state(self, current_text_state: MarkedTextStateEnum):
+        self.__current_text_state = current_text_state
 
     @property
     def current_speaker(self) -> Character:
@@ -42,5 +68,5 @@ class output_parser(ABC):
         pass
 
     @abstractmethod
-    def modify_sentence_content(self, content: sentence_content, settings: sentence_generation_settings) -> bool:
-        pass
+    def modify_sentence_content(self, cut_content: sentence_content, last_content: sentence_content | None, settings: sentence_generation_settings) -> tuple[sentence_content | None, sentence_content | None]:
+        return cut_content, last_content

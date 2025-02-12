@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from openai.types.chat import ChatCompletionMessageParam
-from src.llm.sentence_content import sentence_content
+from src.llm.sentence_content import SentenceTypeEnum, sentence_content
 from src.character_manager import Character
 
 from src.llm.sentence import sentence
@@ -105,13 +105,13 @@ class assistant_message(message):
                 lastActor = sentence.speaker
                 was_last_sentence_narration = False
                 result += "\n" + lastActor.name +':'
-            if not was_last_sentence_narration and sentence.is_narration:
+            if not was_last_sentence_narration and sentence.sentence_type == SentenceTypeEnum.NARRATION:
                 result += " " + self.narration_start
-            elif was_last_sentence_narration and not sentence.is_narration:
+            elif was_last_sentence_narration and sentence.sentence_type == SentenceTypeEnum.SPEECH:
                 result += self.narration_end + " "
             else:
                 result += " "
-            was_last_sentence_narration = sentence.is_narration
+            was_last_sentence_narration = sentence.sentence_type == SentenceTypeEnum.NARRATION
             result += sentence.text.strip()
         result = utils.remove_extra_whitespace(result)
         return result
