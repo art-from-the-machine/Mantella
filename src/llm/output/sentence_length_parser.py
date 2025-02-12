@@ -12,17 +12,34 @@ class sentence_length_parser(output_parser):
     def __count_words(self, text: str) -> int:
         return len(text.split())
 
-    def modify_sentence_content(self, next_content: sentence_content, last_content: sentence_content | None, settings: sentence_generation_settings) -> tuple[sentence_content | None, sentence_content]:
-        new_content: sentence_content | None = next_content
-        if last_content:
-            if self.__count_words(new_content.text) < self.__min_words_tts or self.__count_words(last_content.text) < self.__min_words_tts: #narration and character parser max produce sentences shorter than allowed
-                if last_content.speaker == new_content.speaker and last_content.sentence_type == new_content.sentence_type:
-                    #If the previous sentence was by the same speaker and was/wasn't a narration as well, add the sentence that is too short to the last one
-                    last_content.append_other_sentence_content(new_content.text, new_content.actions)
-                    new_content = None
-            #If there was a change in speaker or narration flag we can never join them with the next sentence so we just send out the last one
-        else:
-            last_content = new_content  #If we don't have a last sentence, set the first one as last and wait for the second
-            new_content = None
+    def modify_sentence_content(self, next_content: sentence_content, last_content: sentence_content | None, settings: sentence_generation_settings) -> tuple[sentence_content | None, sentence_content | None]:
+        """Checks and potentially merges sentences based on word count requirements.
         
-        return new_content, last_content
+        Args:
+            next_content: The newly parsed sentence
+            last_content: The previous sentence that might need merging
+            settings: Current generation settings
+            
+        Returns:
+            tuple: (parsed_sentence, pending_sentence) where:
+                - parsed_sentence is a sentence ready for output
+                - pending_sentence is a sentence being held for potential merging
+        """
+        # First sentence case
+        if not last_content:
+            # Hold short sentences for potential merging
+            if self.__count_words(next_content.text) < self.__min_words_tts:
+                return None, next_content
+            return next_content, None
+        
+        # We have a previous sentence - check if either needs merging
+        if (self.__count_words(next_content.text) < self.__min_words_tts or 
+            self.__count_words(last_content.text) < self.__min_words_tts):
+            # Only merge if same speaker and type
+            if (last_content.speaker == next_content.speaker and 
+                last_content.sentence_type == next_content.sentence_type):
+                last_content.append_other_sentence_content(next_content.text, next_content.actions)
+                return last_content, None
+        
+        # Either both sentences are long enough or they can't be merged
+        return last_content, next_content

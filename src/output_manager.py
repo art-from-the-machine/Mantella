@@ -118,9 +118,10 @@ class ChatManager:
     async def process_response(self, active_character: Character, blocking_queue: sentence_queue, messages : message_thread, characters: Characters, actions: list[action]):
         """Stream response from LLM one sentence at a time"""
 
-        full_reply: str = ''
+        raw_response: str = ''  # Track the raw response
         first_token = True
-        last_generated_sentence_content: sentence_content | None = None        
+        parsed_sentence: sentence_content | None = None
+        pending_sentence: sentence_content | None = None
         self.__is_first_sentence = True
 
         parser_chain: list[output_parser] = [
@@ -134,7 +135,7 @@ class ChatManager:
         ]
        
         try:
-            sentence: str = ''
+            current_sentence: str = ''
             settings: sentence_generation_settings = sentence_generation_settings(active_character)
             while True:
                 try:
@@ -149,27 +150,25 @@ class ChatManager:
                             logging.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to respond")
                             first_token = False
                         
-                        sentence += content
-                        cut_sentence_content: sentence_content | None = None
-                        #Apply parsers
+                        current_sentence += content
+                        raw_response += content
+                        parsed_sentence: sentence_content | None = None
+                        # Apply parsers
                         for parser in parser_chain:
-                            if not cut_sentence_content: #Try to cut until a parser finds a way to cut the output
-                                cut_sentence_content, sentence = parser.cut_sentence(sentence, settings)
-                            if cut_sentence_content: #If a sentence has been cut by this or a previous parser in the chain
-                                cut_sentence_content, last_generated_sentence_content = parser.modify_sentence_content(cut_sentence_content, last_generated_sentence_content, settings) #Hand it only to the modify methods of subsequent parsers
+                            if not parsed_sentence:  # Try to extract a complete sentence
+                                parsed_sentence, current_sentence = parser.cut_sentence(current_sentence, settings)
+                            if parsed_sentence:  # Apply modifications if we already have a sentence
+                                parsed_sentence, pending_sentence = parser.modify_sentence_content(parsed_sentence, pending_sentence, settings)
                             if settings.stop_generation:
                                 break
                         if settings.stop_generation:
                             break
                         
-                        if cut_sentence_content and last_generated_sentence_content: #If the parsers have produced a new sentence
-                            if self.__stop_generation.is_set():
-                                break
-                            if not self.__config.narration_handling == "cut narrations" or not last_generated_sentence_content.sentence_type:
-                                new_sentence = self.generate_sentence(last_generated_sentence_content)
+                        # Process sentences from the parser chain
+                        if parsed_sentence:
+                            if not self.__config.narration_handling == "cut narrations" or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                                new_sentence = self.generate_sentence(parsed_sentence)
                                 blocking_queue.put(new_sentence)
-                                full_reply += last_generated_sentence_content.text                                
-                            last_generated_sentence_content = cut_sentence_content
                     break #if the streaming_call() completed without exception, break the while loop
                             
                 except Exception as e:
@@ -198,11 +197,17 @@ class ChatManager:
             else:
                 logging.error(f"LLM API Error: {e}")
         finally:
-            if last_generated_sentence_content:
-                new_sentence = self.generate_sentence(last_generated_sentence_content)
-                blocking_queue.put(new_sentence)
-                full_reply += last_generated_sentence_content.text
-            logging.log(23, f"Full response saved ({self.__client.get_count_tokens(full_reply)} tokens): {full_reply.strip()}")
+            # Handle any remaining content
+            if parsed_sentence:
+                if not self.__config.narration_handling == "cut narrations" or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                    new_sentence = self.generate_sentence(parsed_sentence)
+                    blocking_queue.put(new_sentence)
+            
+            if pending_sentence:
+                if not self.__config.narration_handling == "cut narrations" or pending_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                    new_sentence = self.generate_sentence(pending_sentence)
+                    blocking_queue.put(new_sentence)
+            logging.log(23, f"Full raw response ({self.__client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")
             blocking_queue.is_more_to_come = False
             # This sentence is required to make sure there is one in case the game is already waiting for it
             # before the ChatManager realises there is not another message coming from the LLM
