@@ -169,6 +169,7 @@ class ChatManager:
                             if not self.__config.narration_handling == "cut narrations" or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
                                 new_sentence = self.generate_sentence(parsed_sentence)
                                 blocking_queue.put(new_sentence)
+                                parsed_sentence = None
                     break #if the streaming_call() completed without exception, break the while loop
                             
                 except Exception as e:
