@@ -111,7 +111,7 @@ class ClientBase(AIClient):
             chat_completion = None
             logging.log(28, 'Getting LLM response...')
 
-            if isinstance(messages, message):# or isinstance(messages, image_message):
+            if isinstance(messages, message) or isinstance(messages, image_message):
                 openai_messages = [messages.get_openai_message()]
             else:
                 openai_messages = messages.get_openai_messages()
