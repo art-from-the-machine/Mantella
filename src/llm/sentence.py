@@ -1,5 +1,5 @@
 from src.character_manager import Character
-from src.llm.sentence_content import sentence_content
+from src.llm.sentence_content import SentenceTypeEnum, sentence_content
 
 class sentence:
     """Collection of all the things that make up a sentence said by a character"""
@@ -23,7 +23,7 @@ class sentence:
     
     @property
     def is_narration(self) -> bool:
-        return self.__content.is_narration
+        return self.__content.sentence_type == SentenceTypeEnum.NARRATION
     
     @property
     def voice_file(self) -> str:

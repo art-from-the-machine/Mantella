@@ -3,8 +3,8 @@ import logging
 from threading import Thread, Lock
 import time
 from typing import Any
-from src.llm.sentence_content import sentence_content
-from src.llm.llm_client import LLMClient
+from src.llm.ai_client import AIClient
+from src.llm.sentence_content import SentenceTypeEnum, sentence_content
 from src.characters_manager import Characters
 from src.conversation.conversation_log import conversation_log
 from src.conversation.action import action
@@ -30,7 +30,7 @@ class conversation:
     TOKEN_LIMIT_PERCENT: float = 0.9
     TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
     """Controls the flow of a conversation."""
-    def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, openai_client: LLMClient, stt: Transcriber, mic_input: bool, mic_ptt: bool) -> None:
+    def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool) -> None:
         
         self.__context: context = context_for_conversation
         self.__mic_input: bool = mic_input
@@ -47,7 +47,7 @@ class conversation:
         self.__messages: message_thread = message_thread(None)
         self.__output_manager: ChatManager = output_manager
         self.__rememberer: remembering = rememberer
-        self.__openai_client = openai_client
+        self.__llm_client = llm_client
         self.__has_already_ended: bool = False
         self.__allow_mic_input: bool = True # this flag ensures mic input is disabled on conversation end
         self.__sentences: sentence_queue = sentence_queue()
@@ -71,11 +71,11 @@ class conversation:
         return self.__output_manager
     
     @property
-    def transcribed_text(self) -> str:
+    def transcribed_text(self) -> str | None:
         return self.__transcribed_text
     
     @property
-    def stt(self) -> Transcriber:
+    def stt(self) -> Transcriber | None:
         return self.__stt
     
     @utils.time_it
@@ -115,7 +115,7 @@ class conversation:
         """
         if self.has_already_ended:
             return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None        
-        if self.__openai_client.are_messages_too_long(self.__messages, self.TOKEN_LIMIT_PERCENT):
+        if self.__llm_client.is_too_long(self.__messages, self.TOKEN_LIMIT_PERCENT):
             # Check if conversation too long and if yes initiate intermittent reload
             self.__initiate_reload_conversation()
 
@@ -236,9 +236,9 @@ class conversation:
         """
         player_character_voiced_sentence: sentence | None = None
         if self.__should_voice_player_input(player_character):
-            player_character_voiced_sentence = self.__output_manager.generate_sentence(sentence_content(player_character, player_text, False, False))
+            player_character_voiced_sentence = self.__output_manager.generate_sentence(sentence_content(player_character, player_text, SentenceTypeEnum.SPEECH, False))
             if player_character_voiced_sentence.error_message:
-                player_message_content: sentence_content = sentence_content(player_character, player_text, False, False)
+                player_message_content: sentence_content = sentence_content(player_character, player_text, SentenceTypeEnum.SPEECH, False)
                 player_character_voiced_sentence = sentence(player_message_content, "" , 2.0)
 
         return player_character_voiced_sentence
@@ -279,7 +279,7 @@ class conversation:
                 self.__messages: message_thread = message_thread(new_prompt)
             else:
                 self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
-                self.__messages.reload_message_thread(new_prompt, self.__openai_client.calculate_tokens_from_text, int(self.__openai_client.token_limit * self.TOKEN_LIMIT_RELOAD_MESSAGES))
+                self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
 
     @utils.time_it
     def update_game_events(self, message: user_message) -> user_message:
@@ -334,7 +334,7 @@ class conversation:
             # say goodbyes
             npc = self.__context.npcs_in_conversation.last_added_character
             if npc:
-                goodbye_sentence = self.__output_manager.generate_sentence(sentence_content(npc, config.goodbye_npc_response, False, True))
+                goodbye_sentence = self.__output_manager.generate_sentence(sentence_content(npc, config.goodbye_npc_response, SentenceTypeEnum.SPEECH, True))
                 if goodbye_sentence:
                     goodbye_sentence.actions.append(comm_consts.ACTION_ENDCONVERSATION)
                     self.__sentences.put(goodbye_sentence)
@@ -385,7 +385,7 @@ class conversation:
             self.__stop_generation()
             self.__sentences.clear()            
             # say goodbye
-            goodbye_sentence = self.__output_manager.generate_sentence(sentence_content(npc, self.__context.config.goodbye_npc_response, False, False))
+            goodbye_sentence = self.__output_manager.generate_sentence(sentence_content(npc, self.__context.config.goodbye_npc_response, SentenceTypeEnum.SPEECH, False))
             if goodbye_sentence:
                 goodbye_sentence.actions.append(comm_consts.ACTION_REMOVECHARACTER)
                 self.__sentences.put(goodbye_sentence)        
@@ -414,7 +414,7 @@ class conversation:
         
         # Play gather thoughts
         collecting_thoughts_text = self.__context.config.collecting_thoughts_npc_response
-        collecting_thoughts_sentence = self.__output_manager.generate_sentence(sentence_content(latest_npc, collecting_thoughts_text, False, True))
+        collecting_thoughts_sentence = self.__output_manager.generate_sentence(sentence_content(latest_npc, collecting_thoughts_text, SentenceTypeEnum.SPEECH, True))
         if collecting_thoughts_sentence:
             collecting_thoughts_sentence.actions.append(comm_consts.ACTION_RELOADCONVERSATION)
             self.__sentences.put_at_front(collecting_thoughts_sentence)
@@ -426,7 +426,7 @@ class conversation:
         self.__save_conversation(is_reload=True)
         # Reload
         new_prompt = self.__conversation_type.generate_prompt(self.__context)
-        self.__messages.reload_message_thread(new_prompt, self.__openai_client.calculate_tokens_from_text, int(self.__openai_client.token_limit * self.TOKEN_LIMIT_RELOAD_MESSAGES))
+        self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
 
     @utils.time_it
     def __has_conversation_ended(self, last_user_text: str) -> bool:

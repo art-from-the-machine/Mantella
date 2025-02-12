@@ -11,13 +11,14 @@ class actions_parser(output_parser):
     def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[sentence_content|None, str|None]:
         return None, output
 
-    def modify_sentence_content(self, content: sentence_content, settings: sentence_generation_settings):
-        if ":" in content.text:
+    def modify_sentence_content(self, cut_content: sentence_content, last_content: sentence_content | None, settings: sentence_generation_settings) -> tuple[sentence_content | None, sentence_content | None]:
+        if ":" in cut_content.text:
             for action in self.__actions:
                 keyword = action.keyword + ":"
-                if keyword in content.text:
-                    content.text = content.text.replace(keyword,"").strip()
-                    content.actions.append(action.identifier)
+                if keyword in cut_content.text:
+                    cut_content.text = cut_content.text.replace(keyword,"").strip()
+                    cut_content.actions.append(action.identifier)
                     logging.log(28, action.info_text)
                     if action.is_interrupting:
                         settings.stop_generation = True
+        return cut_content, last_content
