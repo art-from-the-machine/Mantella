@@ -135,8 +135,9 @@ class GameStateManager:
         
         # if the player response is not an action command, return a regular player reply type
         if player_spoken_sentence:
-            self.__game.prepare_sentence_for_game(player_spoken_sentence, self.__talk.context, self.__config)     
-            return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK, comm_consts.KEY_REPLYTYPE_NPCTALK: self.sentence_to_json(player_spoken_sentence)}
+            topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
+            self.__game.prepare_sentence_for_game(player_spoken_sentence, self.__talk.context, self.__config, topicInfoID)
+            return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK, comm_consts.KEY_REPLYTYPE_NPCTALK: self.sentence_to_json(player_spoken_sentence, topicInfoID)}
         else:
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}
 
