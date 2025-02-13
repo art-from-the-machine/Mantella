@@ -96,6 +96,7 @@ class GameStateManager:
             if replyType == comm_consts.KEY_REQUESTTYPE_TTS:
                 # if player input is detected mid-response, immediately process the player input
                 reply = self.player_input({"mantella_context": {}, "mantella_player_input": "", "mantella_request_type": "mantella_player_input"})
+                self.__first_line = False # since the NPC is already speaking in-game, setting this to True would just cause two voicelines to play at once
                 continue # continue conversation with new player input (ie call self.__talk.continue_conversation() again)
             else:
                 reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
@@ -140,7 +141,8 @@ class GameStateManager:
         # if the player response is not an action command, return a regular player reply type
         if player_spoken_sentence:
             topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
-            self.__game.prepare_sentence_for_game(player_spoken_sentence, self.__talk.context, self.__config, topicInfoID)
+            self.__game.prepare_sentence_for_game(player_spoken_sentence, self.__talk.context, self.__config, topicInfoID, self.__first_line)
+            self.__first_line = False
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK, comm_consts.KEY_REPLYTYPE_NPCTALK: self.sentence_to_json(player_spoken_sentence, topicInfoID)}
         else:
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}
