@@ -41,6 +41,7 @@ class GameStateManager:
         self.__stt_api_file: str = stt_api_file
         self.__api_file: str = api_file
         self.__stt: Transcriber | None = None
+        self.__first_line: bool = True
 
     ###### react to calls from the game #######
     @utils.time_it
@@ -95,6 +96,7 @@ class GameStateManager:
             if replyType == comm_consts.KEY_REQUESTTYPE_TTS:
                 # if player input is detected mid-response, immediately process the player input
                 reply = self.player_input({"mantella_context": {}, "mantella_player_input": "", "mantella_request_type": "mantella_player_input"})
+                self.__first_line = False # since the NPC is already speaking in-game, setting this to True would just cause two voicelines to play at once
                 continue # continue conversation with new player input (ie call self.__talk.continue_conversation() again)
             else:
                 reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
@@ -102,8 +104,9 @@ class GameStateManager:
 
         if sentence_to_play:
             if not sentence_to_play.error_message:
-                self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config, topicInfoID)            
+                self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config, topicInfoID, self.__first_line)            
                 reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play, topicInfoID)
+                self.__first_line = False
             else:
                 self.__talk.end()
                 return self.error_message(sentence_to_play.error_message)
@@ -113,6 +116,8 @@ class GameStateManager:
     def player_input(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(not self.__talk ):
             return self.error_message("No running conversation.")
+        
+        self.__first_line = True
         
         player_text: str = input_json.get(comm_consts.KEY_REQUESTTYPE_PLAYERINPUT, '')
         self.__update_context(input_json)
@@ -136,7 +141,8 @@ class GameStateManager:
         # if the player response is not an action command, return a regular player reply type
         if player_spoken_sentence:
             topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
-            self.__game.prepare_sentence_for_game(player_spoken_sentence, self.__talk.context, self.__config, topicInfoID)
+            self.__game.prepare_sentence_for_game(player_spoken_sentence, self.__talk.context, self.__config, topicInfoID, self.__first_line)
+            self.__first_line = False
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK, comm_consts.KEY_REPLYTYPE_NPCTALK: self.sentence_to_json(player_spoken_sentence, topicInfoID)}
         else:
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}

@@ -156,21 +156,28 @@ class skyrim(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool = False):
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file = queue_output.voice_file
         if not os.path.exists(audio_file):
             return
+        
         mod_folder = config.mod_path
-        # subtitle = queue_output.sentence
         speaker: Character = queue_output.speaker
         voice_folder_path = os.path.join(mod_folder,"MantellaVoice00")
         os.makedirs(voice_folder_path, exist_ok=True)
+
         filename = self.DIALOGUELINE1_FILENAME
         if topicID == 2:
             filename = self.DIALOGUELINE2_FILENAME
-        shutil.copyfile(audio_file, os.path.join(voice_folder_path, f"{filename}.wav"))
+        
+        if config.fast_response_mode and isFirstLine:
+            self.play_audio_async(audio_file, volume=config.fast_response_mode_volume/100)
+            self.send_muted_voiceline_to_game_folder(audio_file, filename, voice_folder_path)
+        else:
+            shutil.copyfile(audio_file, os.path.join(voice_folder_path, f"{filename}.wav"))    
+        
         try:
             shutil.copyfile(audio_file.replace(".wav", ".lip"), os.path.join(voice_folder_path, f"{filename}.lip"))
         except Exception as e:

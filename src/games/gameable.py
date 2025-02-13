@@ -11,6 +11,10 @@ from src.config.config_loader import ConfigLoader
 from src.llm.sentence import sentence
 from src.games.external_character_info import external_character_info
 import src.utils as utils
+import sounddevice as sd
+import soundfile as sf
+import threading
+import wave
 
 class gameable(ABC):
     """Abstract class for different implementations of games to support. 
@@ -98,13 +102,15 @@ class gameable(ABC):
         pass    
 
     @abstractmethod
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool):
         """Does what ever is needed to play a sentence ingame
 
         Args:
             queue_output (sentence): the sentence to play
             context_of_conversation (context): the context of the conversation
             config (ConfigLoader): the current config
+            topicID (int): the Mantella dialogue line to write to
+            isFirstLine (bool): whether this is the first voiceline of a given response
         """
         pass
 
@@ -291,3 +297,45 @@ class gameable(ABC):
         if pd.isna(entry): entry = ""
         elif not isinstance(entry, str): entry = str(entry)
         return entry        
+
+    @staticmethod
+    @utils.time_it
+    def play_audio_async(filename: str, volume: float = 0.5):
+        """
+        Play audio file asynchronously with volume control
+        
+        Args:
+            filename (str): Path to audio file
+            volume (float): Volume multiplier (0.0 to 1.0)
+        """
+        def audio_thread():
+            data, samplerate = sf.read(filename)
+            data = data * volume
+            sd.play(data, samplerate)
+            
+        thread = threading.Thread(target=audio_thread)
+        thread.start()
+
+    @staticmethod
+    @utils.time_it
+    def send_muted_voiceline_to_game_folder(audio_file: str, filename: str, voice_folder_path: str):
+        """
+        Save muted voiceline to game folder, keeping the audio duration of the original file
+        
+        Args:
+            audio_file (str): Path to the audio file
+            filename (str): Name of the audio file to save in the game folder
+            voice_folder_path (str): Game path to save the muted audio file to
+        """
+        # Create a muted version of the wav file
+        with wave.open(audio_file, 'rb') as wav_file:
+            params = wav_file.getparams()
+            frames = wav_file.readframes(wav_file.getnframes())
+        
+        # Create muted frames (all zeros) with same length as original
+        muted_frames = b'\x00' * len(frames)
+
+        # Save muted wav file to game folder
+        with wave.open(os.path.join(voice_folder_path, f"{filename}.wav"), 'wb') as muted_wav:
+            muted_wav.setparams(params)
+            muted_wav.writeframes(muted_frames)
