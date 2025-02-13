@@ -203,7 +203,11 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         if self.proactive_mic_mode:
             logging.log(self.loglevel, f'Interim transcription: {transcription}')
         
-        return transcription
+        # Only update the transcription if it contains a value, otherwise keep the existing transcription
+        if transcription:
+            return transcription
+        else:
+            return self._current_transcription
 
 
     @utils.time_it
@@ -259,6 +263,22 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         """Transcribe audio using Moonshine model"""
         tokens = self.transcribe_model.generate(audio[np.newaxis, :].astype(np.float32))
         text = self.tokenizer.decode_batch(tokens)[0]
+        text = self.ensure_sentence_ending(text)
+        
+        return text
+    
+
+    def ensure_sentence_ending(self, text: str) -> str:
+        '''Moonshine transcriptions tend to be missing sentence-ending characters, which can confuse LLMs'''
+        if not text:  # Handle empty string
+            return text
+        
+        end_chars = {'.', '?', '!', ':', ';', '。'}
+        
+        if text[-1] == ',':
+            return text[:-1] + '.'
+        elif text[-1] not in end_chars:
+            return text + '.'
         
         return text
 
