@@ -102,13 +102,15 @@ class gameable(ABC):
         pass    
 
     @abstractmethod
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool):
         """Does what ever is needed to play a sentence ingame
 
         Args:
             queue_output (sentence): the sentence to play
             context_of_conversation (context): the context of the conversation
             config (ConfigLoader): the current config
+            topicID (int): the Mantella dialogue line to write to
+            isFirstLine (bool): whether this is the first voiceline of a given response
         """
         pass
 

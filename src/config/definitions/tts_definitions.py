@@ -67,7 +67,7 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     
     @staticmethod
     def get_fast_response_mode_config_value() -> ConfigValue:
-        description = """Whether to play the first voiceline of every response directly from the Mantella exe instead of in-game.
+        description = """Whether to play the first voiceline of every response directly from the Mantella exe instead of in-game (Skyrim only).
                         Enable this setting to improve response times.
                         Disable this setting to play all voicelines natively in-game."""
         return ConfigValueBool("fast_response_mode","Fast Response Mode", description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
