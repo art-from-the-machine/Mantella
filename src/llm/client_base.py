@@ -22,7 +22,7 @@ class ClientBase(AIClient):
     def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, llm_priority: str, custom_token_count: int, secret_key_files: list[str]) -> None:
         super().__init__()
         self._generation_lock: Lock = Lock()
-        priority = self.__get_llm_priority(llm_priority, api_url)
+        priority = self.__get_llm_priority(llm, llm_priority, api_url)
         self._model_name: str = llm+priority
         self._base_url = self.__get_endpoint(api_url)
         self._startup_async_client: AsyncOpenAI | None = None
@@ -229,10 +229,14 @@ class ClientBase(AIClient):
         return endpoint
     
 
-    def __get_llm_priority(self, priority: str, api_url: str) -> str:
+    def __get_llm_priority(self, llm: str, priority: str, api_url: str) -> str:
         '''https://openrouter.ai/docs/features/provider-routing'''
         # Priority is only compatible with OpenRouter
         if api_url.strip().lower().replace(' ', '') != 'openrouter':
+            return ''
+        
+        # Free models cannot have a priority
+        if llm.endswith(':free'):
             return ''
         
         priorities = {
