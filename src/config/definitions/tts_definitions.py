@@ -65,6 +65,18 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
                         Set to 'Lazy' to skip lip syncing only for the first sentence spoken of every response."""
         return ConfigValueSelection("lip_generation","Lip File Generation",description,"Enabled",["Enabled","Lazy","Disabled"],tags=[ConfigValueTag.advanced])
     
+    @staticmethod
+    def get_fast_response_mode_config_value() -> ConfigValue:
+        description = """Whether to play the first voiceline of every response directly from the Mantella exe instead of in-game.
+                        Enable this setting to improve response times.
+                        Disable this setting to play all voicelines natively in-game."""
+        return ConfigValueBool("fast_response_mode","Fast Response Mode", description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    
+    @staticmethod
+    def get_fast_response_mode_volume_config_value() -> ConfigValue:
+        description = """Adjust the volume of the first delivered voiceline (from 1-100) if Fast Response Mode is enabled."""
+        return ConfigValueInt("fast_response_mode_volume","Fast Response Mode Volume", description, 40, 1, 100, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    
     # XTTS Section
 
     @staticmethod

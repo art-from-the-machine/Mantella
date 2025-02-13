@@ -1,8 +1,6 @@
 import logging
 import os
 import shutil
-import wave
-import winsound
 from typing import Any
 
 import pandas as pd
@@ -165,17 +163,6 @@ class skyrim(gameable):
         if not os.path.exists(audio_file):
             return
         
-        if isFirstLine:
-            winsound.PlaySound(audio_file, winsound.SND_FILENAME | winsound.SND_ASYNC)
-        
-            # Create a muted version of the wav file
-            with wave.open(audio_file, 'rb') as wav_file:
-                params = wav_file.getparams()
-                frames = wav_file.readframes(wav_file.getnframes())
-            
-            # Create muted frames (all zeros) with same length as original
-            muted_frames = b'\x00' * len(frames)
-        
         mod_folder = config.mod_path
         speaker: Character = queue_output.speaker
         voice_folder_path = os.path.join(mod_folder,"MantellaVoice00")
@@ -185,11 +172,9 @@ class skyrim(gameable):
         if topicID == 2:
             filename = self.DIALOGUELINE2_FILENAME
         
-        if isFirstLine:
-            # Save muted wav file to game folder
-            with wave.open(os.path.join(voice_folder_path, f"{filename}.wav"), 'wb') as muted_wav:
-                muted_wav.setparams(params)
-                muted_wav.writeframes(muted_frames)
+        if config.fast_response_mode and isFirstLine:
+            self.play_audio_async(audio_file, volume=config.fast_response_mode_volume/100)
+            self.send_muted_voiceline_to_game_folder(audio_file, filename, voice_folder_path)
         else:
             shutil.copyfile(audio_file, os.path.join(voice_folder_path, f"{filename}.wav"))    
         

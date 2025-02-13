@@ -11,6 +11,9 @@ from src.config.config_loader import ConfigLoader
 from src.llm.sentence import sentence
 from src.games.external_character_info import external_character_info
 import src.utils as utils
+import sounddevice as sd
+import soundfile as sf
+import threading
 
 class gameable(ABC):
     """Abstract class for different implementations of games to support. 
@@ -291,3 +294,21 @@ class gameable(ABC):
         if pd.isna(entry): entry = ""
         elif not isinstance(entry, str): entry = str(entry)
         return entry        
+
+    @staticmethod
+    @utils.time_it
+    def play_audio_async(filename: str, volume: float = 0.5):
+        """
+        Play audio file asynchronously with volume control
+        
+        Args:
+            filename (str): Path to audio file
+            volume (float): Volume multiplier (0.0 to 1.0)
+        """
+        def audio_thread():
+            data, samplerate = sf.read(filename)
+            data = data * volume
+            sd.play(data, samplerate)
+            
+        thread = threading.Thread(target=audio_thread)
+        thread.start()

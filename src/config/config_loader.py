@@ -196,6 +196,8 @@ class ConfigLoader:
                 self.xtts_server_path = ""
 
             self.lip_generation = self.__definitions.get_string_value("lip_generation").strip().lower()
+            self.fast_response_mode = self.__definitions.get_bool_value("fast_response_mode")
+            self.fast_response_mode_volume = self.__definitions.get_int_value("fast_response_mode_volume")
 
             #Added from xTTS implementation
             self.xtts_default_model = self.__definitions.get_string_value("xtts_default_model")
