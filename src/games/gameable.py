@@ -14,6 +14,7 @@ import src.utils as utils
 import sounddevice as sd
 import soundfile as sf
 import threading
+import wave
 
 class gameable(ABC):
     """Abstract class for different implementations of games to support. 
@@ -312,3 +313,27 @@ class gameable(ABC):
             
         thread = threading.Thread(target=audio_thread)
         thread.start()
+
+    @staticmethod
+    @utils.time_it
+    def send_muted_voiceline_to_game_folder(audio_file: str, filename: str, voice_folder_path: str):
+        """
+        Save muted voiceline to game folder, keeping the audio duration of the original file
+        
+        Args:
+            audio_file (str): Path to the audio file
+            filename (str): Name of the audio file to save in the game folder
+            voice_folder_path (str): Game path to save the muted audio file to
+        """
+        # Create a muted version of the wav file
+        with wave.open(audio_file, 'rb') as wav_file:
+            params = wav_file.getparams()
+            frames = wav_file.readframes(wav_file.getnframes())
+        
+        # Create muted frames (all zeros) with same length as original
+        muted_frames = b'\x00' * len(frames)
+
+        # Save muted wav file to game folder
+        with wave.open(os.path.join(voice_folder_path, f"{filename}.wav"), 'wb') as muted_wav:
+            muted_wav.setparams(params)
+            muted_wav.writeframes(muted_frames)
