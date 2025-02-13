@@ -26,6 +26,15 @@ class LLMDefinitions:
         return ConfigValueSelection("model","Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True)
     
     @staticmethod
+    def get_llm_priority_config_value() -> ConfigValue:
+        description = """(OpenRouter only) Select the priority of choosing an LLM service provider:
+                        - Balanced (default): Prioritize the provider with the lowest price which has not experienced recent outages.
+                        - Price: Prioritize the provider with the lowest price, regardless of recent outages.
+                        - Speed: Prioritize the provider with the fastest response times.
+                        For more information: see here: https://openrouter.ai/docs/features/provider-routing"""
+        return ConfigValueSelection("llm_priority", "Priority", description, "Balanced", ["Balanced", "Price", "Speed"], allows_free_edit=False)
+    
+    @staticmethod
     def get_custom_token_count_config_value() -> ConfigValue:
         description = """If the model chosen is not recognised by Mantella, the token count for the given model will default to this number.
                     If this is not the correct token count for your chosen model, you can change it here.

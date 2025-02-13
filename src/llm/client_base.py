@@ -19,10 +19,11 @@ class ClientBase(AIClient):
     tiktoken_cache_dir = "data"
     os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
 
-    def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, secret_key_files: list[str]) -> None:
+    def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, llm_priority: str, custom_token_count: int, secret_key_files: list[str]) -> None:
         super().__init__()
         self._generation_lock: Lock = Lock()
-        self._model_name: str = llm
+        priority = self.__get_llm_priority(llm_priority, api_url)
+        self._model_name: str = llm+priority
         self._base_url = self.__get_endpoint(api_url)
         self._startup_async_client: AsyncOpenAI | None = None
         self._request_params: dict[str, Any] | None = llm_params
@@ -226,6 +227,20 @@ class ClientBase(AIClient):
             endpoint = api_url_or_name
 
         return endpoint
+    
+
+    def __get_llm_priority(self, priority: str, api_url: str) -> str:
+        '''https://openrouter.ai/docs/features/provider-routing'''
+        # Priority is only compatible with OpenRouter
+        if api_url.strip().lower().replace(' ', '') != 'openrouter':
+            return ''
+        
+        priorities = {
+            'Balanced': '',
+            'Price': ':price', 
+            'Speed': ':nitro'
+        }
+        return priorities.get(priority, '')
     
 
     @utils.time_it
