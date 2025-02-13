@@ -245,6 +245,7 @@ class ConfigLoader:
             self.llm = self.llm.split(' |')[0] if ' |' in self.llm else self.llm
             self.wait_time_buffer = self.__definitions.get_float_value("wait_time_buffer")
             self.llm_api = self.__definitions.get_string_value("llm_api")
+            self.llm_priority = self.__definitions.get_string_value("llm_priority")
             # if self.llm_api == "Custom":
             #     self.llm_api = self.__definitions.get_string_value("llm_custom_service_url")
             self.custom_token_count = self.__definitions.get_int_value("custom_token_count")
