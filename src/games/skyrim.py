@@ -165,7 +165,14 @@ class skyrim(gameable):
         
         mod_folder = config.mod_path
         speaker: Character = queue_output.speaker
-        voice_folder_path = os.path.join(mod_folder,"MantellaVoice00")
+
+        if config.save_audio_data_to_character_folder:
+            voice_folder_path = os.path.join(mod_folder,queue_output.speaker.in_game_voice_model)
+            if not os.path.exists(voice_folder_path):
+                logging.warning(f"{voice_folder_path} has been created for the first time. Please restart Skyrim to interact with this NPC.")
+                # TODO: add dummy files
+        else:
+            voice_folder_path = os.path.join(mod_folder, "MantellaVoice00")
         os.makedirs(voice_folder_path, exist_ok=True)
 
         filename = self.DIALOGUELINE1_FILENAME

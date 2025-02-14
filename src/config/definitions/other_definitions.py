@@ -104,3 +104,9 @@ class OtherDefinitions:
         description = """Whether to end the conversation after the first back and forth exchange.
                         Enable this value if testing conversation saving on exit functionality."""
         return ConfigValueBool("exit_on_first_exchange","Exit on First Exchange",description, False, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_save_audio_data_to_character_folder_config_value() -> ConfigValue:
+        description = """Whether to save audio data to an NPC's voice folder instead of MantellaVoice00.
+                        Enable this value if voicelines are not being played in-game."""
+        return ConfigValueBool("save_audio_data_to_character_folder", "Save Game Audio to Character Folder", description, False, tags=[ConfigValueTag.advanced])
