@@ -323,7 +323,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 # Get audio chunk and status from queue
                 chunk, status = self._audio_queue.get(timeout=0.1)
                 if status:
-                    logging.warning(f"Processing audio error: {status}")
+                    logging.log(23, f"STT WARNING: Processing audio error: {status}")
                     continue
 
                 with self._lock:
@@ -378,7 +378,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 logging.debug('Queue is empty')
                 continue
             except Exception as e:
-                logging.warning(f'Error processing mic input: {str(e)}')
+                logging.log(23, f'STT WAARNING: Error processing mic input: {str(e)}')
                 self._reset_state()
                 time.sleep(0.1)
 
@@ -398,7 +398,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         """Create callback for audio input stream."""
         def input_callback(indata, frames, time, status):
             if status:
-                logging.warning(f"Audio input error: {status}")
+                logging.log(23, f"STT WARNING: Audio input error: {status}")
             # Store both data and status in queue
             q.put((indata.copy().flatten(), status))
         return input_callback
