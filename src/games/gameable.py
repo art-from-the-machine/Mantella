@@ -10,11 +10,13 @@ from src.conversation.context import context
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import sentence
 from src.games.external_character_info import external_character_info
+from src.tts.ttsable import ttsable
 import src.utils as utils
 import sounddevice as sd
 import soundfile as sf
 import threading
 import wave
+import shutil
 
 class gameable(ABC):
     """Abstract class for different implementations of games to support. 
@@ -102,7 +104,7 @@ class gameable(ABC):
         pass    
 
     @abstractmethod
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topic_id: int, is_first_line: bool):
         """Does what ever is needed to play a sentence ingame
 
         Args:
@@ -318,7 +320,7 @@ class gameable(ABC):
 
     @staticmethod
     @utils.time_it
-    def send_muted_voiceline_to_game_folder(audio_file: str, filename: str, voice_folder_path: str):
+    def send_muted_voiceline_to_game_folder(audio_file: str, filename: str, voice_folder_path: str, as_fuz: bool = False, facefx_path: str | None = None, lipgen_path: str | None = None):
         """
         Save muted voiceline to game folder, keeping the audio duration of the original file
         
@@ -326,7 +328,13 @@ class gameable(ABC):
             audio_file (str): Path to the audio file
             filename (str): Name of the audio file to save in the game folder
             voice_folder_path (str): Game path to save the muted audio file to
+            as_fuz (bool): Whether to create a .fuz file (for Fallout 4) instead of a .wav file
         """
+        def create_silent_wav_file(wav_file_path: str):
+            with wave.open(wav_file_path, 'wb') as muted_wav:
+                muted_wav.setparams(params)
+                muted_wav.writeframes(muted_frames)
+
         # Create a muted version of the wav file
         with wave.open(audio_file, 'rb') as wav_file:
             params = wav_file.getparams()
@@ -335,7 +343,20 @@ class gameable(ABC):
         # Create muted frames (all zeros) with same length as original
         muted_frames = b'\x00' * len(frames)
 
-        # Save muted wav file to game folder
-        with wave.open(os.path.join(voice_folder_path, f"{filename}.wav"), 'wb') as muted_wav:
-            muted_wav.setparams(params)
-            muted_wav.writeframes(muted_frames)
+        if not as_fuz:
+            # Save muted wav file directly to game folder
+            create_silent_wav_file(os.path.join(voice_folder_path, f"{filename}.wav"))
+        else:
+            # Save muted wav file directly over existing wav file
+            create_silent_wav_file(audio_file)
+            
+            # Get placeholder lip file
+            placeholder_lip = ttsable.get_lip_placeholder_path("Fallout4")
+            # Generate fuz file from muted wav and placeholder lip
+            ttsable.generate_fuz_file(
+                facefx_path,  # Use audio file's directory for facefx path
+                lipgen_path,  # Use audio file's directory for lipgen path
+                ttsable.get_temp_voiceline_folder(),
+                audio_file,
+                str(placeholder_lip)
+            )

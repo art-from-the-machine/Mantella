@@ -15,6 +15,8 @@ import src.utils as utils
 
 
 class fallout4(gameable):
+    DIALOGUELINE_FILENAME = "00001ED2_1"
+
     FO4_XVASynth_file: str =f"data/Fallout4/FO4_Voice_folder_XVASynth_matches.csv"
     KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSX: str  = "mantella_player_pos_x"
     KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSY: str  = "mantella_player_pos_y"
@@ -187,23 +189,27 @@ class fallout4(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstVoiceLine: bool):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topic_id: int, is_first_line: bool):
+        """Save voicelines and subtitles to the correct game folders"""
+
         audio_file = queue_output.voice_file
-        fuz_file = audio_file.replace(".wav",".fuz")
-        speaker = queue_output.speaker
-
-        lip_name = "00001ED2_1"
-        voice_name = "MantellaVoice00"
-
         if not os.path.exists(audio_file):
             return
-        mod_folder = config.mod_path
         
-        # subtitle = queue_output.sentence
-        # Copy FaceFX generated FUZ file
+        fuz_file = audio_file.replace(".wav",".fuz")
+        mod_folder = config.mod_path
+        speaker: Character = queue_output.speaker
+        voice_folder_path = os.path.join(mod_folder,"MantellaVoice00")
+        os.makedirs(voice_folder_path, exist_ok=True)
+        
+        filename = self.DIALOGUELINE_FILENAME
+
+        if config.fast_response_mode and is_first_line:
+            self.play_audio_async(audio_file, volume=config.fast_response_mode_volume/100)
+            self.send_muted_voiceline_to_game_folder(audio_file, filename, voice_folder_path, as_fuz=True, facefx_path=config.facefx_path, lipgen_path=config.lipgen_path)
+
         try:
-            fuz_filepath = os.path.normpath(f"{mod_folder}/{voice_name}/{lip_name}.fuz")
-            shutil.copyfile(fuz_file, fuz_filepath)
+            shutil.copyfile(fuz_file, os.path.join(voice_folder_path, f"{filename}.fuz"))
         except Exception as e:
             # only warn on failure
             logging.warning(e)

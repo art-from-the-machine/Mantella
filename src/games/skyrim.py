@@ -156,7 +156,7 @@ class skyrim(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool = False):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topic_id: int, is_first_line: bool = False):
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file = queue_output.voice_file
@@ -169,10 +169,10 @@ class skyrim(gameable):
         os.makedirs(voice_folder_path, exist_ok=True)
 
         filename = self.DIALOGUELINE1_FILENAME
-        if topicID == 2:
+        if topic_id == 2:
             filename = self.DIALOGUELINE2_FILENAME
         
-        if config.fast_response_mode and isFirstLine:
+        if config.fast_response_mode and is_first_line:
             self.play_audio_async(audio_file, volume=config.fast_response_mode_volume/100)
             self.send_muted_voiceline_to_game_folder(audio_file, filename, voice_folder_path)
         else:

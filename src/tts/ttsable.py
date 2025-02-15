@@ -27,8 +27,7 @@ class ttsable(ABC):
         self._times_checked = 0
         self._tts_print = config.tts_print # to print output to console
         self._save_folder = config.save_folder
-        self._output_path = os.getenv('TMP')
-        self._voiceline_folder = f"{self._output_path}/voicelines"
+        self._voiceline_folder = ttsable.get_temp_voiceline_folder()
         os.makedirs(f"{self._voiceline_folder}/save", exist_ok=True)
         self._language = config.language
         self._last_voice = '' # last active voice model
@@ -41,6 +40,11 @@ class ttsable(ABC):
             self._game = "Fallout4"
         else: 
             self._game = "Skyrim"
+
+    @staticmethod
+    def get_temp_voiceline_folder():
+        output_path = os.getenv('TMP')
+        return f"{output_path}/voicelines"
 
     @utils.time_it
     def synthesize(self, voice: str, voiceline: str, in_game_voice: str, csv_in_game_voice: str, voice_accent: str, synth_options: SynthesizationOptions, advanced_voice_model: str | None = None):
@@ -146,6 +150,86 @@ class ttsable(ABC):
         requests.post(url, json=data)
 
 
+    @staticmethod
+    def get_lip_placeholder_path(game: str):
+        return Path(utils.resolve_path()) / "data" / game / "placeholder" / "placeholder.lip"
+    
+
+    @staticmethod
+    @utils.time_it
+    def run_facefx_command(command, facefx_path) -> None:
+        startupinfo = STARTUPINFO()
+        startupinfo.dwFlags |= STARTF_USESHOWWINDOW
+        
+        batch_file_path = Path(facefx_path) / "run_mantella_command.bat"
+        with open(batch_file_path, 'w', encoding='utf-8') as file:
+            file.write(f"@echo off\n{command} >nul 2>&1")
+
+        subprocess.run(batch_file_path, cwd=facefx_path, creationflags=subprocess.CREATE_NO_WINDOW)
+    
+
+    @staticmethod
+    @utils.time_it
+    def generate_fuz_file(facefx_path: str, lipgen_path: str, voiceline_folder: str, wav_file: str, lip_file: str) -> None:
+        """
+        Generate a .fuz file (for Fallout 4) from a given .wav audio file and its corresponding .lip file.
+
+        This function first attempts to create the .fuz file using Bethesda's official LipFuzer tool.
+        If LipFuzer.exe is found in the expected location, it is executed with the appropriate parameters.
+        If the tool is not found, the function falls back to a manual method that uses Fuz_extractor.exe and
+        xWMAEncode.exe (both expected to be located in the facefx_path directory).
+
+        Args:
+            facefx_path (str): The directory containing FaceFX-related executables (e.g., Fuz_extractor.exe, xWMAEncode.exe)
+            lipgen_path (str): The base directory where the LipFuzer tool is located
+            voiceline_folder (str): The directory containing the voiceline files
+            wav_file (str): The full path to the input .wav audio file
+            lip_file (str): The full path to the input .lip file
+        """
+        #Fuz files needed for Fallout only
+        #LipFuzer is Bethesda's official fuz creator
+        LipFuz_path = Path(lipgen_path) / "LipFuzer/LipFuzer.exe"
+
+        if os.path.exists(LipFuz_path):
+            args: str = f'"{LipFuz_path}" -s "{voiceline_folder}" -d "{voiceline_folder}" -a wav --norec'
+            run_result: subprocess.CompletedProcess = subprocess.run(args, cwd=facefx_path, stdout=DEVNULL, stderr=DEVNULL,
+                                                                        creationflags=subprocess.CREATE_NO_WINDOW)
+            if run_result.returncode != 0:
+                logging.warning(f'LipFuzer returned {run_result.returncode}')
+        else:
+            #Fall back to using Fuz_extractor and xWMAencode if LipFuzer not found
+            logging.warning('Could not find LipFuzer.exe: please install or update the creation kit from Steam')
+            fuz_extractor_executable = Path(facefx_path) / "Fuz_extractor.exe"
+            if not fuz_extractor_executable.exists():
+                logging.error(f'Could not find Fuz_extractor.exe in "{facefx_path}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
+                raise FileNotFoundError()
+    
+            xWMAEncode_executable = Path(facefx_path) / "xWMAEncode.exe"
+            if not xWMAEncode_executable.exists():
+                logging.error(f'Could not find xWMAEncode.exe in "{facefx_path}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
+                raise FileNotFoundError()
+
+            xwm_file = wav_file.replace(".wav", ".xwm")
+            xwmcmds = [
+                xWMAEncode_executable.name,
+                f'"{wav_file}"',
+                f'"{xwm_file}"'
+                ]
+            xwm_command = " ".join(xwmcmds)
+            ttsable.run_facefx_command(xwm_command, facefx_path)
+
+            fuzfile = wav_file.replace(".wav", ".fuz")
+            fuzcmds = [
+                fuz_extractor_executable.name,
+                "-c",
+                f'"{fuzfile}"',
+                f'"{lip_file}"',
+                f'"{xwm_file}"'
+                ]
+            fuz_command = " ".join(fuzcmds)
+            ttsable.run_facefx_command(fuz_command, facefx_path)
+
+
     @utils.time_it
     def _generate_voiceline_files(self, wav_file: str, voiceline: str, skip_lip_generation: bool = False):
         """Generates .lip files for voicelines using Bethesda's LipGen tool
@@ -155,24 +239,12 @@ class ttsable(ABC):
             voiceline (str): The corresponding text voiceline used to help lip sync generation
             skip_lip_generation (bool): Whether to skip the lip file generation process and use a placeholder .lip file instead (useful for when FaceFXWrapper is experiencing issues)
         """
-        @utils.time_it
-        def run_facefx_command(command, facefx_path) -> None:
-            startupinfo = STARTUPINFO()
-            startupinfo.dwFlags |= STARTF_USESHOWWINDOW
-            
-            batch_file_path = Path(facefx_path) / "run_mantella_command.bat"
-            with open(batch_file_path, 'w', encoding='utf-8') as file:
-                file.write(f"@echo off\n{command} >nul 2>&1")
-
-            subprocess.run(batch_file_path, cwd=facefx_path, creationflags=subprocess.CREATE_NO_WINDOW)
-
-
         def copy_placeholder_lip_file(lip_file: str, game: str) -> None:
             """
             .lip files are needed to generate .fuz files (required by Fallout 4)
             If generating lip files via FaceFXWrapper fails, this function ensures a .lip file exists by copying from a placeholder file
             """
-            lip_placeholder_path = Path(utils.resolve_path()) / "data" / game / "placeholder" / "placeholder.lip"
+            lip_placeholder_path = self.get_lip_placeholder_path(game)
             if not lip_placeholder_path.exists():
                 raise FileNotFoundError(f"The source file does not exist: {lip_placeholder_path}")
             else:
@@ -228,55 +300,12 @@ class ttsable(ABC):
                     f'"{voiceline}"'
                 ]
                 command = " ".join(commands)
-                run_facefx_command(command, facefx_path)
+                ttsable.run_facefx_command(command, facefx_path)
 
                 # remove file created by FaceFXWrapper
                 if os.path.exists(wav_file.replace(".wav", "_r.wav")):
                     os.remove(wav_file.replace(".wav", "_r.wav"))
 
-        def generate_fuz_file(facefx_path: str, wav_file: str, lip_file: str) -> None:
-            #Fuz files needed for Fallout only
-            #LipFuzer is Bethesda's official fuz creator
-            LipFuz_path = Path(self._lipgen_path) / "LipFuzer/LipFuzer.exe"
-
-            if os.path.exists(LipFuz_path):
-                args: str = f'"{LipFuz_path}" -s "{self._voiceline_folder}" -d "{self._voiceline_folder}" -a wav --norec'
-                run_result: subprocess.CompletedProcess = subprocess.run(args, cwd=facefx_path, stdout=DEVNULL, stderr=DEVNULL,
-                                                                         creationflags=subprocess.CREATE_NO_WINDOW)
-                if run_result.returncode != 0:
-                    logging.warning(f'LipFuzer returned {run_result.returncode}')
-            else:
-                #Fall back to using Fuz_extractor and xWMAencode if LipFuzer not found
-                logging.warning('Could not find LipFuzer.exe: please install or update the creation kit from Steam')
-                fuz_extractor_executable = Path(facefx_path) / "Fuz_extractor.exe"
-                if not fuz_extractor_executable.exists():
-                    logging.error(f'Could not find Fuz_extractor.exe in "{facefx_path}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
-                    raise FileNotFoundError()
-        
-                xWMAEncode_executable = Path(facefx_path) / "xWMAEncode.exe"
-                if not xWMAEncode_executable.exists():
-                    logging.error(f'Could not find xWMAEncode.exe in "{facefx_path}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
-                    raise FileNotFoundError()
-
-                xwm_file = wav_file.replace(".wav", ".xwm")
-                xwmcmds = [
-                    xWMAEncode_executable.name,
-                    f'"{wav_file}"',
-                    f'"{xwm_file}"'
-                    ]
-                xwm_command = " ".join(xwmcmds)
-                run_facefx_command(xwm_command, facefx_path)
-
-                fuzfile = wav_file.replace(".wav", ".fuz")
-                fuzcmds = [
-                    fuz_extractor_executable.name,
-                    "-c",
-                    f'"{fuzfile}"',
-                    f'"{lip_file}"',
-                    f'"{xwm_file}"'
-                    ]
-                fuz_command = " ".join(fuzcmds)
-                run_facefx_command(fuz_command, facefx_path)
 
         try:
             
@@ -290,7 +319,7 @@ class ttsable(ABC):
             
             # Fallout 4 requires voicelines in a .fuz format
             if self._game == "Fallout4":    
-                generate_fuz_file(self._facefx_path,wav_file, lip_file)
+                self.generate_fuz_file(self._facefx_path, self._lipgen_path, self._voiceline_folder, wav_file, lip_file)
         
         except Exception as e:
             logging.warning(e)
