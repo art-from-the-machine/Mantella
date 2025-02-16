@@ -15,6 +15,7 @@ import sounddevice as sd
 import soundfile as sf
 import threading
 import wave
+import shutil
 
 class gameable(ABC):
     """Abstract class for different implementations of games to support. 
@@ -25,6 +26,8 @@ class gameable(ABC):
     Args:
         ABC (_type_): _description_
     """
+    MANTELLA_VOICE_FOLDER = "MantellaVoice00"
+
     @utils.time_it
     def __init__(self, config: ConfigLoader, path_to_character_df: str, mantella_game_folder_path: str):
         try:
@@ -289,6 +292,24 @@ class gameable(ABC):
                                     self.character_df.loc[matcher, entry] = value
             except Exception as e:
                 logging.log(logging.WARNING, f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
+
+    @utils.time_it
+    def _create_all_voice_folders(self, mod_path: str, voice_folder_col: str):
+        all_voice_folders = self.character_df[voice_folder_col]
+        all_voice_folders = all_voice_folders.loc[all_voice_folders.notna()]
+        example_folder = os.path.join(mod_path, self.MANTELLA_VOICE_FOLDER)
+        set_of_voice_folders = set()
+        for voice_folder in all_voice_folders:
+            voice_folder = str.strip(voice_folder)
+            if voice_folder and not set_of_voice_folders.__contains__(voice_folder):
+                set_of_voice_folders.add(voice_folder)
+                in_game_voice_folder_path = os.path.join(mod_path, voice_folder)
+                if not os.path.exists(in_game_voice_folder_path):
+                    os.mkdir(in_game_voice_folder_path)
+                    for file_name in os.listdir(example_folder):
+                        source_file_path = os.path.join(example_folder, file_name)
+                        if os.path.isfile(source_file_path):
+                            shutil.copy(source_file_path, in_game_voice_folder_path)
 
     @staticmethod
     @utils.time_it

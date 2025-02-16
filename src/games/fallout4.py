@@ -189,6 +189,10 @@ class fallout4(gameable):
     @utils.time_it
     def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstVoiceLine: bool):
         audio_file = queue_output.voice_file
+        if not os.path.exists(audio_file):
+            return
+        
+        mod_folder = config.mod_path
         fuz_file = audio_file.replace(".wav",".fuz")
         speaker = queue_output.speaker
 
@@ -198,13 +202,11 @@ class fallout4(gameable):
             voice_folder_path = os.path.join(mod_folder,queue_output.speaker.in_game_voice_model)
             if not os.path.exists(voice_folder_path):
                 logging.warning(f"{voice_folder_path} has been created for the first time. Please restart Fallout 4 to interact with this NPC.")
+                logging.info("Creating voice folders...")
+                self._create_all_voice_folders(mod_folder, "fallout4_voice_folder")
         else:
             voice_folder_path = os.path.join(mod_folder, "MantellaVoice00")
         os.makedirs(voice_folder_path, exist_ok=True)
-
-        if not os.path.exists(audio_file):
-            return
-        mod_folder = config.mod_path
         
         # subtitle = queue_output.sentence
         # Copy FaceFX generated FUZ file
