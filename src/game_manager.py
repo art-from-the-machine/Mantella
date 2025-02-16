@@ -43,6 +43,7 @@ class GameStateManager:
         self.__stt: Transcriber | None = None
         self.__first_line: bool = True
         self.__automatic_greeting: bool = config.automatic_greeting
+        self.__conv_has_narrator: bool = config.narration_handling == "use narrator"
 
     ###### react to calls from the game #######
     @utils.time_it
@@ -325,10 +326,17 @@ class GameStateManager:
     @utils.time_it
     def __try_preload_voice_model(self):
         '''
-        If conversation is with a single NPC and the player is not the first to speak, pre-load the NPC's voice model
+        If the conversation has the following conditions:
+
+        1. Single NPC (ie only one possible voice model to load)
+        2. The player is not the first to speak (ie there is no player voice model)
+        3. The conversation does not have a narrator (ie their is no narrator voice model)
+
+        Then pre-load the NPC's voice model
         '''
         is_npc_speaking_first: bool = self.__automatic_greeting
-        if not self.__talk.context.npcs_in_conversation.contains_multiple_npcs() and is_npc_speaking_first:
+
+        if not self.__talk.context.npcs_in_conversation.contains_multiple_npcs() and is_npc_speaking_first and not self.__conv_has_narrator:
             character_to_talk = self.__talk.context.npcs_in_conversation.last_added_character
             if character_to_talk:
                 self.__talk.output_manager.tts.change_voice(
