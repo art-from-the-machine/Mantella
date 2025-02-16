@@ -11,13 +11,6 @@ class STTDefinitions:
     class WhisperProcessDeviceChecker(ConfigValueConstraint[str]):
         def __init__(self) -> None:
             super().__init__()
-
-        def apply_constraint(self, value_to_apply_to: str) -> ConfigValueConstraintResult:
-            if value_to_apply_to == 'cuda':
-                return ConfigValueConstraintResult(f'''
-Depending on your NVIDIA CUDA version, setting the Whisper process device to `cuda` may cause errors! For more information, see here: [github.com/SYSTRAN/faster-whisper#gpu](https://github.com/SYSTRAN/faster-whisper#gpu)''')
-            else:
-                return ConfigValueConstraintResult()
     
     @staticmethod
     def get_audio_threshold_config_value() -> ConfigValue:
@@ -130,7 +123,7 @@ Depending on your NVIDIA CUDA version, setting the Whisper process device to `cu
     @staticmethod
     def get_process_device_config_value() -> ConfigValue:
         description = "Whether to run Whisper on your CPU or NVIDIA GPU (with CUDA installed) (only impacts faster_whisper option, no impact on whispercpp, which is controlled by your server)."
-        return ConfigValueSelection("process_device", "Whisper Process Device", description,"cpu",["cpu","cuda"], constraints=[STTDefinitions.WhisperProcessDeviceChecker()], tags=[ConfigValueTag.advanced])
+        return ConfigValueSelection("process_device", "Whisper Process Device", description,"cpu",["cpu","cuda"], tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_moonshine_folder_config_value(is_hidden: bool = False) -> ConfigValue:

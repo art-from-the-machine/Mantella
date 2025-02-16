@@ -83,7 +83,12 @@ class Transcriber:
             # if using faster_whisper, load model selected by player, otherwise skip this step
             if not self.external_whisper_service:
                 if self.process_device == 'cuda':
-                    self.transcribe_model = WhisperModel(self.whisper_model, device=self.process_device)
+                    logging.error(f'''Depending on your NVIDIA CUDA version, setting the Whisper process device to `cuda` may cause errors! For more information, see here: https://github.com/SYSTRAN/faster-whisper#gpu''')
+                    try:
+                        self.transcribe_model = WhisperModel(self.whisper_model, device=self.process_device)
+                    except Exception as e:
+                        utils.play_error_sound()
+                        raise e
                 else:
                     self.transcribe_model = WhisperModel(self.whisper_model, device=self.process_device, compute_type="float32")
         else:
