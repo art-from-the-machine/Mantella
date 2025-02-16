@@ -88,7 +88,8 @@ class piper(ttsable):
                 if exit_code is not None and exit_code != 0:
                     logging.error(f"Piper process has crashed with exit code: {exit_code}")
                     self._run_piper()
-                    self.change_voice(self._last_voice)
+                    if self.__selected_voice:
+                        self.change_voice(self.__selected_voice)
                     break
                 elif os.path.exists(final_voiceline_file):
                     try: # don't just check if .wav exists, check if it has contents
@@ -105,7 +106,8 @@ class piper(ttsable):
 
             logging.warning(f'Synthesis timed out for voiceline "{voiceline.strip()}". Restarting Piper...')
             self._restart_piper()
-            self.change_voice(self._last_voice)
+            if self.__selected_voice:
+                self.change_voice(self.__selected_voice)
             attempts += 1
     
     @utils.time_it
@@ -209,6 +211,7 @@ class piper(ttsable):
 
     @utils.time_it
     def _restart_piper(self):
+        """Restart the Piper process and reset all states"""
         if self.process:
             self.process.terminate()
 
