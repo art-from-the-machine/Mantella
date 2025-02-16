@@ -59,6 +59,11 @@ class Transcriber:
         self.audio_threshold = config.audio_threshold
         logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this `Speech-to-Text`->`Audio Threshold` value in the Mantella UI. If the mic is picking up too much background noise, try increasing this value.\n")
 
+        self.__audio_input_error_count = 0
+        self.__mic_input_process_error_count = 0
+        self.__processing_audio_error_count = 0
+        self.__warning_frequency = 5
+        
         self.__save_mic_input = config.save_mic_input
         if self.__save_mic_input:
             self.__mic_input_path: str = config.save_folder+'data\\tmp\\mic'
@@ -323,7 +328,9 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 # Get audio chunk and status from queue
                 chunk, status = self._audio_queue.get(timeout=0.1)
                 if status:
-                    logging.log(23, f"STT WARNING: Processing audio error: {status}")
+                    if self.__processing_audio_error_count % self.__warning_frequency == 0:
+                        logging.log(23, f"STT WARNING: Processing audio error: {status}")
+                    self.__processing_audio_error_count += 1
                     continue
 
                 with self._lock:
@@ -378,7 +385,9 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 logging.debug('Queue is empty')
                 continue
             except Exception as e:
-                logging.log(23, f'STT WAARNING: Error processing mic input: {str(e)}')
+                if self.__mic_input_process_error_count % self.__warning_frequency == 0:
+                    logging.log(23, f'STT WARNING: Error processing mic input: {str(e)}')
+                self.__mic_input_process_error_count += 1
                 self._reset_state()
                 time.sleep(0.1)
 
@@ -398,7 +407,9 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         """Create callback for audio input stream."""
         def input_callback(indata, frames, time, status):
             if status:
-                logging.log(23, f"STT WARNING: Audio input error: {status}")
+                if self.__audio_input_error_count % self.__warning_frequency == 0:
+                    logging.log(23, f"STT WARNING: Audio input error: {status}")
+                self.__audio_input_error_count += 1
             # Store both data and status in queue
             q.put((indata.copy().flatten(), status))
         return input_callback
@@ -437,6 +448,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             self._transcription_ready.wait()
             with self._lock:
                 transcription = self._current_transcription
+                self._current_transcription = ''
                 if transcription:
                     self._transcription_ready.clear()
                     self._speech_detected = False
