@@ -42,6 +42,7 @@ class GameStateManager:
         self.__api_file: str = api_file
         self.__stt: Transcriber | None = None
         self.__first_line: bool = True
+        self.__automatic_greeting: bool = config.automatic_greeting
 
     ###### react to calls from the game #######
     @utils.time_it
@@ -64,12 +65,7 @@ class GameStateManager:
         context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
         self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
         self.__update_context(input_json)
-        if not self.__talk.context.npcs_in_conversation.contains_multiple_npcs():
-            character_to_talk = self.__talk.context.npcs_in_conversation.last_added_character
-            if character_to_talk:
-                self.__talk.output_manager.tts.change_voice(character_to_talk.tts_voice_model, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.advanced_voice_model, character_to_talk.voice_accent, voice_gender=character_to_talk.gender, voice_race=character_to_talk.race)
-            else:
-                return self.error_message("Could not load initial character to talk to. Please try again.")
+        self.__try_preload_voice_model()
         self.__talk.start_conversation()
             
         return {
@@ -326,3 +322,23 @@ class GameStateManager:
                 result[slot] = EquipmentItem(itemname)
         return result
 
+    @utils.time_it
+    def __try_preload_voice_model(self):
+        '''
+        If conversation is with a single NPC and the player is not the first to speak, pre-load the NPC's voice model
+        '''
+        is_npc_speaking_first: bool = self.__automatic_greeting
+        if not self.__talk.context.npcs_in_conversation.contains_multiple_npcs() and is_npc_speaking_first:
+            character_to_talk = self.__talk.context.npcs_in_conversation.last_added_character
+            if character_to_talk:
+                self.__talk.output_manager.tts.change_voice(
+                    character_to_talk.tts_voice_model, 
+                    character_to_talk.in_game_voice_model, 
+                    character_to_talk.csv_in_game_voice_model, 
+                    character_to_talk.advanced_voice_model, 
+                    character_to_talk.voice_accent, 
+                    voice_gender=character_to_talk.gender, 
+                    voice_race=character_to_talk.race
+                )
+            else:
+                return self.error_message("Could not load initial character to talk to. Please try again.")
