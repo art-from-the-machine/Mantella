@@ -190,9 +190,10 @@ class GameStateManager:
             if json.__contains__(comm_consts.KEY_ACTORS):
                 actors_in_json: list[Character] = []
                 for actorJson in json[comm_consts.KEY_ACTORS]:
-                    actor: Character | None = self.load_character(actorJson)                
-                    if actor:
-                        actors_in_json.append(actor)
+                    if comm_consts.KEY_ACTOR_BASEID in actorJson:
+                        actor: Character | None = self.load_character(actorJson)                
+                        if actor:
+                            actors_in_json.append(actor)
                 self.__talk.add_or_update_character(actors_in_json)
             
             location = None
