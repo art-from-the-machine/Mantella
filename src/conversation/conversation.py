@@ -202,9 +202,10 @@ class conversation:
                     logging.debug('Updating game events...')
                     return player_text, events_need_updating, None
                 
-                if self.__mic_ptt:
-                    # only start listening when push-to-talk button pressed again
-                    self.__stt.stop_listening()
+                # Stop listening once input has been detected to give the NPC a chance to speak
+                # This also needs to apply when interruptions are allowed, 
+                # otherwise the player could constantly speak over the NPC and never hear a response
+                self.__stt.stop_listening()
             
             new_message: user_message = user_message(player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
