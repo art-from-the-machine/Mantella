@@ -179,9 +179,11 @@ class ClientBase(AIClient):
                     stream=True,
                     **request_params,
                 ):
-                    if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
-                        yield chunk.choices[0].delta.content
-                    else:
+                    try:
+                        if chunk and chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                            yield chunk.choices[0].delta.content
+                    except Exception as e:
+                        logging.error(f"LLM API Connection Error: {e}")
                         break
             except Exception as e:
                 utils.play_error_sound()
