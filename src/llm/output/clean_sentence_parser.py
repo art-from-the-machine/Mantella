@@ -12,7 +12,6 @@ class clean_sentence_parser(output_parser):
     def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[sentence_content | None, str]:
         return None, self.clean_sentence(output)
         
-    @utils.time_it
     def clean_sentence(self, sentence: str) -> str:
         def remove_as_a(sentence: str) -> str:
             """Remove 'As an XYZ,' from beginning of sentence"""
