@@ -19,7 +19,6 @@ class narration_parser(output_parser):
         self.__start_speech_reg = re.compile(base_regex_def.format(chars = "\\" + "\\".join(speech_start_chars))) #Should look like ^.*?[\*\(\[]
         self.__end_speech_reg = re.compile(base_regex_def.format(chars = "\\" + "\\".join(speech_end_chars))) #Should look like ^.*?[\*\)\]]
 
-    @utils.time_it
     def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[sentence_content | None, str]:
         output = output.lstrip()
         while True: #loop will only be run a maximum of two times
