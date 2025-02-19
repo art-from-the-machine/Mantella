@@ -14,9 +14,9 @@ import src.utils as utils
 
 
 class skyrim(gameable):
-    WAV_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.wav'
-    FUZ_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.fuz'
-    LIP_FILE = f'MantellaDi_MantellaDialogu_00001D8B_1.lip'
+    DIALOGUELINE1_FILENAME = "MantellaDi_MantellaDialogu_00001D8B_1"
+    DIALOGUELINE2_FILENAME = "MantellaDi_MantellaDialogu_0018B644_1"
+
     #Weather constants
     KEY_CONTEXT_WEATHER_ID = "mantella_weather_id"
     KEY_CONTEXT_WEATHER_CLASSIFICATION = "mantella_weather_classification"
@@ -28,7 +28,7 @@ class skyrim(gameable):
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
         self.__tts_service: str = config.tts_service
-        self.__image_analysis_filepath = None
+        self.__image_analysis_filepath = ""
 
         try:
             weather_file = 'data/Skyrim/skyrim_weather.csv'
@@ -49,6 +49,14 @@ class skyrim(gameable):
     @property
     def image_path(self) -> str:
         return self.__image_analysis_filepath
+       
+    def modify_sentence_text_for_game(self, text:str) -> str:
+        skyrim_max_character = 500
+        if len(text) > skyrim_max_character:
+            abbreviated = text[0:skyrim_max_character-4] + "..."
+            return abbreviated
+        else:
+            return text
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
@@ -148,21 +156,38 @@ class skyrim(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool = False):
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file = queue_output.voice_file
         if not os.path.exists(audio_file):
             return
+        
         mod_folder = config.mod_path
-        # subtitle = queue_output.sentence
         speaker: Character = queue_output.speaker
-        voice_folder_path = f"{mod_folder}/MantellaVoice00"
-        if not os.path.exists(voice_folder_path):
-            os.makedirs(voice_folder_path)
-        shutil.copyfile(audio_file, f"{voice_folder_path}/{self.WAV_FILE}")
+
+        if config.save_audio_data_to_character_folder:
+            voice_folder_path = os.path.join(mod_folder, queue_output.speaker.in_game_voice_model)
+            if not os.path.exists(voice_folder_path):
+                logging.warning(f"{voice_folder_path} has been created for the first time. Please restart Skyrim to interact with this NPC.")
+                logging.info("Creating voice folders...")
+                self._create_all_voice_folders(mod_folder, "skyrim_voice_folder")
+        else:
+            voice_folder_path = os.path.join(mod_folder, self.MANTELLA_VOICE_FOLDER)
+        os.makedirs(voice_folder_path, exist_ok=True)
+
+        filename = self.DIALOGUELINE1_FILENAME
+        if topicID == 2:
+            filename = self.DIALOGUELINE2_FILENAME
+        
+        if config.fast_response_mode and isFirstLine:
+            self.play_audio_async(audio_file, volume=config.fast_response_mode_volume/100)
+            self.send_muted_voiceline_to_game_folder(audio_file, filename, voice_folder_path)
+        else:
+            shutil.copyfile(audio_file, os.path.join(voice_folder_path, f"{filename}.wav"))    
+        
         try:
-            shutil.copyfile(audio_file.replace(".wav", ".lip"), f"{voice_folder_path}/{self.LIP_FILE}")
+            shutil.copyfile(audio_file.replace(".wav", ".lip"), os.path.join(voice_folder_path, f"{filename}.lip"))
         except Exception as e:
             # only warn on failure
             pass

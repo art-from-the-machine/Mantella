@@ -26,6 +26,15 @@ class LLMDefinitions:
         return ConfigValueSelection("model","Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True)
     
     @staticmethod
+    def get_llm_priority_config_value() -> ConfigValue:
+        description = """(OpenRouter only) Select the priority of choosing an LLM service provider:
+                        - Balanced (default): Prioritize the provider with the lowest price which has not experienced recent outages.
+                        - Price: Prioritize the provider with the lowest price, regardless of recent outages.
+                        - Speed: Prioritize the provider with the fastest response times.
+                        For more information: see here: https://openrouter.ai/docs/features/provider-routing"""
+        return ConfigValueSelection("llm_priority", "Priority", description, "Balanced", ["Balanced", "Price", "Speed"], allows_free_edit=False)
+    
+    @staticmethod
     def get_custom_token_count_config_value() -> ConfigValue:
         description = """If the model chosen is not recognised by Mantella, the token count for the given model will default to this number.
                     If this is not the correct token count for your chosen model, you can change it here.
@@ -48,18 +57,34 @@ class LLMDefinitions:
         description = """Time to wait (in seconds) before generating the next voiceline.
                         Mantella waits for the duration of a given voiceline's .wav file + an extra buffer to account for processing overhead.
                         If you are noticing that some voicelines are not being said in-game, try increasing this buffer."""
-        return ConfigValueFloat("wait_time_buffer","Wait Time Buffer",description, -1.0, -999, 999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+        return ConfigValueFloat("wait_time_buffer","Wait Time Buffer",description, 0, -999, 999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    
+    # @staticmethod
+    # def get_try_filter_narration() -> ConfigValue:
+    #     try_filter_narration_description = """If checked, sentences containing asterisks (*) will not be spoken aloud."""
+    #     return ConfigValueBool("try_filter_narration","Filter Narration",try_filter_narration_description,True,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
-    def get_try_filter_narration() -> ConfigValue:
-        try_filter_narration_description = """If checked, sentences containing asterisks (*) will not be spoken aloud."""
-        return ConfigValueBool("try_filter_narration","Filter Narration",try_filter_narration_description,True,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    def get_narration_handling() -> ConfigValue:
+        narration_handling_description = """How to handle narrations in the output of the LLM.
+                                            - Cut narrations: Removes narrations from the output.
+                                            - Respective character speaks its narrations: The currently active character will speak it's actions out aloud.
+                                            - Use narrator: Narrations will be spoken by a special narrator. The voice model can be set by the config value *Narrator voice* below.
+                                            
+                                            Note: The seperation of narration and speech is experimental and may not work if the LLM output is not formatted well."""
+        options = ["Cut narrations", "Respective character speaks its narrations", "Use narrator"]
+        return ConfigValueSelection("narration_handling","Narration Handling",narration_handling_description,options[0], options, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
+    @staticmethod
+    def get_narrator_voice() -> ConfigValue:
+        description = """Which voice model to use if *Narration Handling* is set to 'Use narrator'.
+                        Must be a valid voice model from the current TTS. Same rules apply as for choosing a voice for the player."""
+        return ConfigValueString("narrator_voice","Narrator voice",description,"", tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+
     @staticmethod
     def get_llm_params_config_value() -> ConfigValue:
         value = """{
                         "max_tokens": 250,
-                        "temperature": 1.0,
                         "stop": ["#"]
                     }"""
         description = """Parameters passed as part of the request to the LLM.

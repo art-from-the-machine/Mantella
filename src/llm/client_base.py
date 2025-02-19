@@ -1,6 +1,4 @@
-from abc import ABC
 from threading import Lock
-import src.utils as utils
 from typing import AsyncGenerator, Any
 from openai import APIConnectionError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
 import logging
@@ -8,54 +6,36 @@ import time
 import tiktoken
 import os
 from pathlib import Path
+from src.llm.ai_client import AIClient
 from src.llm.message_thread import message_thread
 from src.llm.messages import message, image_message, user_message
+from src.llm.llm_model_list import LLMModelList
+import src.utils as utils
 
-class LLMModelList:            
-    def __init__(self, available_models: list[tuple[str, str]], default_model: str, allows_manual_model_input: bool) -> None:
-        self.__available_models = available_models
-        self.__default_model = default_model
-        self.__allows_manual_model_input = allows_manual_model_input
-
-    @property
-    def available_models(self) -> list[tuple[str, str]]:
-        return self.__available_models
-
-    @property
-    def default_model(self) -> str:
-        return self.__default_model
-    
-    @property
-    def allows_manual_model_input(self) -> bool:
-        return self.__allows_manual_model_input
-    
-    def is_model_in_list(self, model: str) -> bool:
-        if self.__allows_manual_model_input:
-            return True
-        for model_in_list in self.__available_models:
-            if model_in_list[1] == model:
-                return True
-        return False
-
-class ClientBase(ABC):
+class ClientBase(AIClient):
     '''Base class for connecting to OpenAI-compatible endpoints
     '''
     api_token_limits = {}
     tiktoken_cache_dir = "data"
     os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
 
-    def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any], custom_token_count: str, secret_key_files: list[str]) -> None:
+    def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, llm_priority: str, custom_token_count: int, secret_key_files: list[str]) -> None:
         super().__init__()
         self._generation_lock: Lock = Lock()
-        self._model_name: str = llm
+        priority = self.__get_llm_priority(llm, llm_priority, api_url)
+        self._model_name: str = llm+priority
         self._base_url = self.__get_endpoint(api_url)
         self._startup_async_client: AsyncOpenAI | None = None
-        self._request_params: dict[str, Any] = llm_params
+        self._request_params: dict[str, Any] | None = llm_params
         self._image_client = None
 
         if 'https' in self._base_url: # Cloud LLM
             self._is_local: bool = False
-            self._api_key = ClientBase.get_api_key(secret_key_files)
+            api_key = ClientBase._get_api_key(secret_key_files)
+            if api_key:
+                self._api_key = api_key
+            else:
+                self._api_key: str = 'abc123'
         else: # Local LLM
             self._is_local: bool = True
             self._api_key: str = 'abc123'
@@ -127,30 +107,25 @@ class ClientBase(ABC):
 
     @utils.time_it
     def request_call(self, messages: message | message_thread) -> str | None:
-        """A standard sync request call to the LLM. 
-        This method generates a new client, calls 'client.chat.completions.create', returns the result and closes when finished
-
-        Args:
-            messages (conversation_thread): The message thread of the conversation
-
-        Returns:
-            str | None: The reply of the LLM
-        """
         with self._generation_lock:
             sync_client = self.generate_sync_client()        
             chat_completion = None
-            logging.info('Getting LLM response...')
+            logging.log(28, 'Getting LLM response...')
 
             if isinstance(messages, message) or isinstance(messages, image_message):
                 openai_messages = [messages.get_openai_message()]
             else:
                 openai_messages = messages.get_openai_messages()
             
+            if self._request_params:
+                request_params = self._request_params
+            else:
+                request_params: dict[str, Any] = {}
             try:
                 chat_completion = sync_client.chat.completions.create(
                     model=self.model_name,
                     messages=openai_messages,
-                    **self._request_params,
+                    **request_params,
                 )
             except RateLimitError:
                 logging.warning('Could not connect to LLM API, retrying in 5 seconds...')
@@ -168,21 +143,8 @@ class ClientBase(ABC):
 
     @utils.time_it
     async def streaming_call(self, messages: message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
-        """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
-        This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
-
-        Args:
-            messages (message_thread): The message thread of the conversation
-            num_characters (int): Number of characters in the conversation
-
-        Returns:
-            AsyncGenerator[str | None, None]: Returns an iterable object. Iterate over this using 'async for'
-
-        Yields:
-            Iterator[AsyncGenerator[str | None, None]]: Yields the return of the 'client.chat.completions.create' method immediately
-        """
         with self._generation_lock:
-            logging.info('Getting LLM response...')
+            logging.log(28, 'Getting LLM response...')
 
             if self._startup_async_client:
                 async_client = self._startup_async_client
@@ -190,7 +152,10 @@ class ClientBase(ABC):
             else:
                 async_client = self.generate_async_client()
 
-            request_params = self._request_params.copy() # copy of self._request_params to allow temporary override
+            if self._request_params:
+                request_params = self._request_params.copy() # copy of self._request_params to allow temporary override
+            else:
+                request_params: dict[str, Any] = {}
             if is_multi_npc: # override max_tokens to be at least 250 in radiant / multi-NPC conversations
                 request_params["max_tokens"] = max(self.max_tokens_param, 250)
             try:
@@ -214,11 +179,14 @@ class ClientBase(ABC):
                     stream=True,
                     **request_params,
                 ):
-                    if chunk and chunk.choices and chunk.choices.__len__() > 0 and chunk.choices[0].delta:
-                        yield chunk.choices[0].delta.content
-                    else:
+                    try:
+                        if chunk and chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                            yield chunk.choices[0].delta.content
+                    except Exception as e:
+                        logging.error(f"LLM API Connection Error: {e}")
                         break
             except Exception as e:
+                utils.play_error_sound()
                 if isinstance(e, APIConnectionError):
                     if e.code in [401, 'invalid_api_key']: # incorrect API key
                         if self._base_url == 'https://api.openai.com/v1':
@@ -263,9 +231,27 @@ class ClientBase(ABC):
         return endpoint
     
 
+    def __get_llm_priority(self, llm: str, priority: str, api_url: str) -> str:
+        '''https://openrouter.ai/docs/features/provider-routing'''
+        # Priority is only compatible with OpenRouter
+        if api_url.strip().lower().replace(' ', '') != 'openrouter':
+            return ''
+        
+        # Free models cannot have a priority
+        if llm.endswith(':free'):
+            return ''
+        
+        priorities = {
+            'Balanced': '',
+            'Price': ':price', 
+            'Speed': ':nitro'
+        }
+        return priorities.get(priority, '')
+    
+
     @utils.time_it
     @staticmethod
-    def get_api_key(key_files: str | list[str]) -> str:
+    def _get_api_key(key_files: str | list[str], show_error: bool = True) -> str | None:
         '''
         Attempts to read an API key from a list of files in order of priority.
 
@@ -298,19 +284,23 @@ class ClientBase(ABC):
                 pass
 
         if not api_key or api_key == '':
-                logging.critical(f'''No secret key found in GPT_SECRET_KEY.txt.
+                if show_error:
+                    utils.play_error_sound()
+                    logging.critical(f'''No secret key found in GPT_SECRET_KEY.txt.
 Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
-If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is selected and running.
+If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is selected and running via: http://localhost:4999/ui
 For more information, see here: https://art-from-the-machine.github.io/Mantella/''')
-                return None
+                    # Keep the Mantella window open and display the above message until the window is closed
+                    while True:
+                        time.sleep(1000)
 
         return api_key
     
 
     @utils.time_it
-    def __get_token_limit(self, llm, custom_token_count, is_local):
+    def __get_token_limit(self, llm, custom_token_count: int, is_local):
         manual_limits = utils.get_model_token_limits()
         token_limit_dict = {**self.api_token_limits, **manual_limits}
 
@@ -322,7 +312,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         else:
             logging.log(23, f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count} (this number can be changed via the `custom_token_count` setting in config.ini)")
             try:
-                token_limit = int(custom_token_count)
+                token_limit = custom_token_count
             except ValueError:
                 logging.error(f"Invalid custom_token_count value: {custom_token_count}. It should be a valid integer. Please update your configuration.")
                 token_limit = 4096  # Default to 4096 in case of an error.
@@ -354,11 +344,22 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         
         return encoding
     
+    @utils.time_it
+    def get_count_tokens(self, messages: message_thread | list[message] | message | str) -> int:
+        if isinstance(messages, message_thread | list) :
+            return self.__num_tokens_from_messages(messages)
+        elif isinstance(messages, message):
+            return self.__num_tokens_from_message(messages)
+        else:
+            return len(self._encoding.encode(messages))
 
     @utils.time_it
-    def num_tokens_from_messages(self, messages: message_thread | list[message]) -> int:
-        """Returns the number of tokens used by a list of messages
-        """
+    def is_too_long(self, messages: message_thread | list[message] | message | str, token_limit_percent: float) -> bool:
+        countTokens: int = self.get_count_tokens(messages)
+        return countTokens > self.token_limit * token_limit_percent
+
+    @utils.time_it
+    def __num_tokens_from_messages(self, messages: message_thread | list[message]) -> int:
         messages_to_check = []
         if isinstance(messages, message_thread):
             messages_to_check = messages.get_openai_messages()
@@ -379,7 +380,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         return num_tokens
     
     @utils.time_it
-    def num_tokens_from_message(self, message_to_measure: message | str) -> int:
+    def __num_tokens_from_message(self, message_to_measure: message | str) -> int:
         text: str = ""
         if isinstance(message_to_measure, message):
             text = message_to_measure.get_formatted_content()
@@ -393,21 +394,6 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         
         return num_tokens
     
-    @utils.time_it
-    def calculate_tokens_from_text(self, text: str) -> int:
-        return len(self._encoding.encode(text))
-    
-    @utils.time_it
-    def is_text_too_long(self, text: str, token_limit_percent: float) -> bool:
-        countTokens: int = self.calculate_tokens_from_text(text)
-        return countTokens > self.token_limit * token_limit_percent
-    
-    @utils.time_it
-    def are_messages_too_long(self, messages: message_thread, token_limit_percent: float) -> bool:
-        countTokens: int = self.num_tokens_from_messages(messages)
-        return countTokens > self.token_limit * token_limit_percent
-    
-
     @staticmethod
     def get_model_list(service: str, secret_key_file: str, default_model: str = "google/gemma-2-9b-it:free", is_vision: bool = False) -> LLMModelList:
         if service not in ['OpenAI', 'OpenRouter']:
@@ -421,7 +407,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             elif service == "OpenRouter":
                 default_model = default_model
                 secret_key_files = [secret_key_file, 'GPT_SECRET_KEY.txt'] if secret_key_file != 'GPT_SECRET_KEY.txt' else [secret_key_file]
-                secret_key = ClientBase.get_api_key(secret_key_files)
+                secret_key = ClientBase._get_api_key(secret_key_files, not is_vision)
                 if not secret_key:
                     return LLMModelList([(f"No secret key found in {secret_key_file}", "Custom model")], "Custom model", allows_manual_model_input=True)
                 # NOTE: while a secret key is not needed for this request, this may change in the future
@@ -461,5 +447,6 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             
             return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
         except Exception as e:
+            utils.play_error_sound()
             error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required. The file is in your mod folder of Mantella. Error: {e}"
             return LLMModelList([(error,"error")], "error", allows_manual_model_input=False)

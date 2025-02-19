@@ -36,9 +36,17 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
         return ConfigValueString("piper_folder", "Piper Folder", "The folder where Piper is installed (where piper.exe exists).", "", is_hidden=is_hidden)
 
     @staticmethod
+    def get_lipgen_folder_config_value(is_hidden: bool = False) -> ConfigValue:
+        #Note(Leidtier): Because this is a Frankenparameter, I just set it to be a string. It SHOULD be a path, but this would require a different handling of the default empty state
+        description = """The LipGenerator program is required by Bethesda games to accurately lip sync voicelines.
+                        Please install the Creation Kit from Steam. Once installed, set this path to be the same path as your game folder (where the exectuable is located)."""
+        return ConfigValueString("lipgen_folder", "LipGenerator Folder", description, "", is_hidden=is_hidden)
+    
+    @staticmethod
     def get_facefx_folder_config_value(is_hidden: bool = False) -> ConfigValue:
         #Note(Leidtier): Because this is a Frankenparameter, I just set it to be a string. It SHOULD be a path, but this would require a different handling of the default empty state
-        facefx_discription = """The FaceFXWrapper program is required by Bethesda games to accurately lip sync voicelines."""
+        facefx_discription = """The FaceFXWrapper is an alternative program to LipGenerator. Lip sync generation is required by Bethesda games to accurately lip sync voicelines.
+                                This path does not need to be set if you have the LipGenerator folder configured."""
         return ConfigValueString("facefx_folder", "FaceFXWrapper Folder", facefx_discription, "", is_hidden=is_hidden)
     
     @staticmethod
@@ -56,6 +64,18 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
         description = """Whether to generate lip sync files for spoken voicelines. Disable this setting to improve response times.
                         Set to 'Lazy' to skip lip syncing only for the first sentence spoken of every response."""
         return ConfigValueSelection("lip_generation","Lip File Generation",description,"Enabled",["Enabled","Lazy","Disabled"],tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_fast_response_mode_config_value() -> ConfigValue:
+        description = """Whether to play the first voiceline of every response directly from the Mantella exe instead of in-game (Skyrim only).
+                        Enable this setting to improve response times.
+                        Disable this setting to play all voicelines natively in-game."""
+        return ConfigValueBool("fast_response_mode","Fast Response Mode", description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    
+    @staticmethod
+    def get_fast_response_mode_volume_config_value() -> ConfigValue:
+        description = """Adjust the volume of the first delivered voiceline (from 1-100) if Fast Response Mode is enabled."""
+        return ConfigValueInt("fast_response_mode_volume","Fast Response Mode Volume", description, 40, 1, 100, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     # XTTS Section
 

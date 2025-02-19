@@ -96,14 +96,14 @@ class PromptDefinitions:
     @staticmethod
     def get_skyrim_prompt_config_value() -> ConfigValue:
         skyrim_prompt_value = """You are {name}, and you live in Skyrim. This is your background: {bio}
-                                Sometimes in-game events will be passed before the player response between ** symbols. You cannot respond with ** symbols yourself, they only exist to give context. Here is an example:
-                                *The player picked up a pair of gloves*
+                                Sometimes in-game events will be passed before the player response within brackets. You cannot respond with brackets yourself, they only exist to give context. Here is an example:
+                                (The player picked up a pair of gloves)
                                 Who do you think these belong to?
                                 You are having a conversation with {player_name} (the player) who is {trust} in {location}. {player_name} {player_description} {player_equipment} {equipment}
                                 This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
                                 The time is {time} {time_group}.
                                 {weather}
-                                You are not an AI language model because there are no AI language models in Skyrim. Do not break character / refer to the fact that you are in a video game.
+                                Remember to stay in character.
                                 {actions}
                                 The conversation takes place in {language}.
                                 {conversation_summary}"""
@@ -112,9 +112,11 @@ class PromptDefinitions:
     @staticmethod
     def get_skyrim_multi_npc_prompt_config_value() -> ConfigValue:
         skyrim_multi_npc_prompt = """The following is a conversation in {location} in Skyrim between {names_w_player}. {player_name} {player_description} {player_equipment}
-                                    Here are their backgrounds: {bios}
+                                    Here are their backgrounds: 
+                                    {bios}
                                     {equipment}
-                                    And here are their conversation histories: {conversation_summaries}
+                                    And here are their conversation histories: 
+                                    {conversation_summaries}
                                     The time is {time} {time_group}.
                                     {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'.
@@ -127,7 +129,8 @@ class PromptDefinitions:
     @staticmethod
     def get_skyrim_radiant_prompt_config_value() -> ConfigValue:
         skyrim_radiant_prompt = """The following is a conversation in {location} in Skyrim between {names}.
-                                    Here are their backgrounds: {bios}                                    
+                                    Here are their backgrounds: 
+                                    {bios}                                    
                                     {conversation_summaries}
                                     The time is {time} {time_group}.
                                     {weather}
@@ -141,8 +144,8 @@ class PromptDefinitions:
     @staticmethod
     def get_fallout4_prompt_config_value() -> ConfigValue:
         fallout4_prompt = """You are {name}, and you live in the post-apocalyptic Commonwealth of Fallout. This is your background: {bio}
-                            Sometimes in-game events will be passed before the player response between ** symbols. You cannot respond with ** symbols yourself, they only exist to give context. Here is an example:
-                            *The player picked up a pair of gloves*
+                            Sometimes in-game events will be passed before the player response within. You cannot respond with brackets yourself, they only exist to give context. Here is an example:
+                            (The player picked up a pair of gloves)
                             Who do you think these belong to?
                             You are having a conversation with {trust} (the player) in {location}.
                             This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
@@ -154,7 +157,8 @@ class PromptDefinitions:
 
     @staticmethod
     def get_fallout4_multi_npc_prompt_config_value() -> ConfigValue:
-        fallout4_multi_npc_prompt = """The following is a conversation in {location} in the post-apocalyptic Commonwealth of Fallout between {names_w_player}. Here are their backgrounds: {bios} 
+        fallout4_multi_npc_prompt = """The following is a conversation in {location} in the post-apocalyptic Commonwealth of Fallout between {names_w_player}. Here are their backgrounds: 
+                            {bios} 
                             And here are their conversation histories: {conversation_summaries} 
                             The time is {time} {time_group}.
                             You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
@@ -184,7 +188,7 @@ class PromptDefinitions:
                                                language = the selected language
                                                game = the game selected""" 
         memory_prompt = """You are tasked with summarizing the conversation between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}. 
-                                            It is not necessary to comment on any mixups in communication such as mishearings. Text contained within asterisks state in-game events. 
+                                            It is not necessary to comment on any mixups in communication such as mishearings. Text contained within brackets state in-game events. 
                                             Please summarize the conversation into a single paragraph in {language}."""
         return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
     

@@ -7,33 +7,17 @@ from src.config.types.config_value_multi_selection import ConfigValueMultiSelect
 
 
 class OtherDefinitions:
-    #Base
     @staticmethod
     def get_show_first_time_setup_config_value() -> ConfigValue:
         return ConfigValueBool("first_time_setup","","Show Setup Guide on Startup",True, [], True)
-    
-    #UI
-    @staticmethod
-    def get_auto_launch_ui_config_value() -> ConfigValue:
-        auto_launch_ui_description = """Whether the Mantella UI should launch automatically in your browser."""
-        return ConfigValueBool("auto_launch_ui","Auto Launch UI",auto_launch_ui_description,True)
     
     @staticmethod
     def get_automatic_greeting_config_value() -> ConfigValue:
         automatic_greeting_description = """Should a conversation be started with an automatic greeting from the LLM / NPC.
                                         - If enabled: Conversations are always started by the LLM.
                                         - If disabled: The LLM will not respond until the player speaks first."""
-        return ConfigValueBool("automatic_greeting","Automatic Greeting",automatic_greeting_description,True,tags=[ConfigValueTag.share_row])
+        return ConfigValueBool("automatic_greeting","Automatic Greeting",automatic_greeting_description,True)
     
-    @staticmethod
-    def get_remove_mei_folders_config_value() -> ConfigValue:
-        remove_mei_folders_description = """Clean up older instances of Mantella runtime folders from /data/tmp/_MEIxxxxxx.
-                                            These folders build up over time when Mantella.exe is run.
-                                            Enable this option to clean up these previous folders automatically when Mantella.exe is run.
-                                            Disable this option if running this cleanup inteferes with other Python exes.
-                                            For more details on what this is, see here: https://github.com/pyinstaller/pyinstaller/issues/2379"""
-        return ConfigValueBool("remove_mei_folders","Cleanup MEI Folders",remove_mei_folders_description,True,tags=[ConfigValueTag.share_row])
-
     #Conversation        
     @staticmethod
     def get_active_actions(actions: list[action]) -> ConfigValue:
@@ -49,10 +33,17 @@ class OtherDefinitions:
         return ConfigValueInt("max_count_events","Max Count Events",max_count_events_description,5,0,999999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
+    def get_events_refresh_time_config_value() -> ConfigValue:
+        max_count_events_description = """Determines how much time (in seconds) can pass between the last NPC's response and the player's input before in-game events need to be refreshed.
+                                        Note that updating in-game events increases response times. If the player responds before this set number in seconds, response times will be reduced.
+                                        Increase this value to allow more time for the player to respond before events need to be refreshed. Decrease this value to make in-game events more up to date."""
+        return ConfigValueInt("events_refresh_time","Time to Wait before Updating Events",max_count_events_description,10,0,999999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    
+    @staticmethod
     def get_hourly_time_config_value() -> ConfigValue:
         description = """If enabled, NPCs will be made aware of the time every in-game hour. Otherwise, time updates will be less granular (eg 'The conversation now takes place in the morning' / 'at night' etc).
                         To remove mentions of the hour entirely, prompts also need to be edited from 'The time is {time} {time_group}.' to 'The conversation takes place {time_group}.'"""
-        return ConfigValueBool("hourly_time","Report In-Game Time Hourly",description,False,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+        return ConfigValueBool("hourly_time","Report In-Game Time Hourly",description,False,tags=[ConfigValueTag.advanced])
     
     #Player Character
     @staticmethod
@@ -113,3 +104,9 @@ class OtherDefinitions:
         description = """Whether to end the conversation after the first back and forth exchange.
                         Enable this value if testing conversation saving on exit functionality."""
         return ConfigValueBool("exit_on_first_exchange","Exit on First Exchange",description, False, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_save_audio_data_to_character_folder_config_value() -> ConfigValue:
+        description = """Whether to save audio data to an NPC's voice folder instead of MantellaVoice00.
+                        Enable this value if voicelines are not being played in-game."""
+        return ConfigValueBool("save_audio_data_to_character_folder", "Save Game Audio to Character Folder", description, False, tags=[ConfigValueTag.advanced])

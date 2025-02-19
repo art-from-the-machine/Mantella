@@ -28,6 +28,7 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
             user_folder_config.read(file_name, encoding='utf-8')
             
         except Exception as e:
+            utils.play_error_sound()
             logging.error(repr(e))
             logging.error(f"Unable to read / open '{file_name}'. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters.")
             logging.log(logging.WARNING, "Using default user folder in '../Documents/My Games/Mantella/'.")
@@ -36,6 +37,7 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
         try:
             return user_folder_config.get("UserFolder","custom_user_folder")
         except Exception as e:
+            utils.play_error_sound()
             logging.error(f"Could not find option 'custom_user_folder' in section 'UserFolder' in '{file_name}'.")
             logging.log(logging.WARNING, "Using default user folder in '../Documents/My Games/Mantella/'.")
             return ""   
@@ -140,6 +142,7 @@ config.ini, logging.log, and conversation histories available in:
     # clean up old instances of exe runtime files
     utils.cleanup_mei(config.remove_mei_folders)
     utils.cleanup_tmp(config.save_folder+'data\\tmp')
+    utils.cleanup_tmp(os.getenv('TMP')+'\\voicelines') # cleanup temp voicelines
 
     language_info = get_language_info(language_file)
     

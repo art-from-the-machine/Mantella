@@ -41,6 +41,9 @@ class GameStateManager:
         self.__stt_api_file: str = stt_api_file
         self.__api_file: str = api_file
         self.__stt: Transcriber | None = None
+        self.__first_line: bool = True
+        self.__automatic_greeting: bool = config.automatic_greeting
+        self.__conv_has_narrator: bool = config.narration_handling == "use narrator"
 
     ###### react to calls from the game #######
     @utils.time_it
@@ -60,14 +63,16 @@ class GameStateManager:
                 if input_json[comm_consts.KEY_INPUTTYPE] == comm_consts.KEY_INPUTTYPE_PTT:
                     self.__mic_ptt = True
                 
-        context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info, self.__client.is_text_too_long)
+        context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
         self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
         self.__update_context(input_json)
-        character_to_talk = self.__talk.context.npcs_in_conversation.last_added_character
-        self.__talk.output_manager.tts.change_voice(character_to_talk.tts_voice_model, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.advanced_voice_model, character_to_talk.voice_accent, voice_gender=character_to_talk.gender, voice_race=character_to_talk.race)
+        self.__try_preload_voice_model()
         self.__talk.start_conversation()
+            
+        return {
+            comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED,
+            comm_consts.KEY_STARTCONVERSATION_USENARRATOR: self.__config.narration_handling == "use narrator"}
         
-        return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED}
     
     @utils.time_it
     def continue_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
@@ -79,6 +84,8 @@ class GameStateManager:
             if extra_actions.__contains__(comm_consts.ACTION_RELOADCONVERSATION):
                 self.__talk.reload_conversation()
 
+        topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
+
         self.__update_context(input_json)
 
         while True:
@@ -86,6 +93,7 @@ class GameStateManager:
             if replyType == comm_consts.KEY_REQUESTTYPE_TTS:
                 # if player input is detected mid-response, immediately process the player input
                 reply = self.player_input({"mantella_context": {}, "mantella_player_input": "", "mantella_request_type": "mantella_player_input"})
+                self.__first_line = False # since the NPC is already speaking in-game, setting this to True would just cause two voicelines to play at once
                 continue # continue conversation with new player input (ie call self.__talk.continue_conversation() again)
             else:
                 reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
@@ -93,8 +101,9 @@ class GameStateManager:
 
         if sentence_to_play:
             if not sentence_to_play.error_message:
-                self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config)            
-                reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play)
+                self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config, topicInfoID, self.__first_line)            
+                reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play, topicInfoID)
+                self.__first_line = False
             else:
                 self.__talk.end()
                 return self.error_message(sentence_to_play.error_message)
@@ -105,11 +114,15 @@ class GameStateManager:
         if(not self.__talk ):
             return self.error_message("No running conversation.")
         
-        player_text: str = input_json[comm_consts.KEY_REQUESTTYPE_PLAYERINPUT]
+        self.__first_line = True
+        
+        player_text: str = input_json.get(comm_consts.KEY_REQUESTTYPE_PLAYERINPUT, '')
         self.__update_context(input_json)
-        self.__talk.process_player_input(player_text)
+        updated_player_text, update_events, player_spoken_sentence = self.__talk.process_player_input(player_text)
+        if update_events:
+            return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REQUESTTYPE_TTS, comm_consts.KEY_TRANSCRIBE: updated_player_text}
 
-        cleaned_player_text = utils.clean_text(player_text)
+        cleaned_player_text = utils.clean_text(updated_player_text)
         npcs_in_conversation = self.__talk.context.npcs_in_conversation
         if not npcs_in_conversation.contains_multiple_npcs(): # actions are only enabled in 1-1 conversations
             for action in self.__config.actions:
@@ -123,7 +136,13 @@ class GameStateManager:
                             }
         
         # if the player response is not an action command, return a regular player reply type
-        return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}
+        if player_spoken_sentence:
+            topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
+            self.__game.prepare_sentence_for_game(player_spoken_sentence, self.__talk.context, self.__config, topicInfoID, self.__first_line)
+            self.__first_line = False
+            return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK, comm_consts.KEY_REPLYTYPE_NPCTALK: self.sentence_to_json(player_spoken_sentence, topicInfoID)}
+        else:
+            return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}
 
     @utils.time_it
     def end_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
@@ -146,14 +165,19 @@ class GameStateManager:
         }
     
     @utils.time_it
-    def sentence_to_json(self, sentence_to_prepare: sentence) -> dict[str, Any]:
+    def sentence_to_json(self, sentence_to_prepare: sentence, topicID: int) -> dict[str, Any]:
         return {
             comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.speaker.name,
-            comm_consts.KEY_ACTOR_LINETOSPEAK: sentence_to_prepare.sentence.strip(),
+            comm_consts.KEY_ACTOR_LINETOSPEAK: self.__abbreviate_text(sentence_to_prepare.text.strip()),
+            comm_consts.KEY_ACTOR_ISNARRATION: sentence_to_prepare.is_narration,
             comm_consts.KEY_ACTOR_VOICEFILE: sentence_to_prepare.voice_file,
             comm_consts.KEY_ACTOR_DURATION: sentence_to_prepare.voice_line_duration,
-            comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions
+            comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions,
+            comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE: topicID
         }
+    
+    def __abbreviate_text(self, text_to_abbreviate: str) -> str:
+        return self.__game.modify_sentence_text_for_game(text_to_abbreviate)
 
     ##### utils #######
 
@@ -163,9 +187,10 @@ class GameStateManager:
             if json.__contains__(comm_consts.KEY_ACTORS):
                 actors_in_json: list[Character] = []
                 for actorJson in json[comm_consts.KEY_ACTORS]:
-                    actor: Character | None = self.load_character(actorJson)                
-                    if actor:
-                        actors_in_json.append(actor)
+                    if comm_consts.KEY_ACTOR_BASEID in actorJson:
+                        actor: Character | None = self.load_character(actorJson)                
+                        if actor:
+                            actors_in_json.append(actor)
                 self.__talk.add_or_update_character(actors_in_json)
             
             location = None
@@ -298,3 +323,30 @@ class GameStateManager:
                 result[slot] = EquipmentItem(itemname)
         return result
 
+    @utils.time_it
+    def __try_preload_voice_model(self):
+        '''
+        If the conversation has the following conditions:
+
+        1. Single NPC (ie only one possible voice model to load)
+        2. The player is not the first to speak (ie there is no player voice model)
+        3. The conversation does not have a narrator (ie their is no narrator voice model)
+
+        Then pre-load the NPC's voice model
+        '''
+        is_npc_speaking_first: bool = self.__automatic_greeting
+
+        if not self.__talk.context.npcs_in_conversation.contains_multiple_npcs() and is_npc_speaking_first and not self.__conv_has_narrator:
+            character_to_talk = self.__talk.context.npcs_in_conversation.last_added_character
+            if character_to_talk:
+                self.__talk.output_manager.tts.change_voice(
+                    character_to_talk.tts_voice_model, 
+                    character_to_talk.in_game_voice_model, 
+                    character_to_talk.csv_in_game_voice_model, 
+                    character_to_talk.advanced_voice_model, 
+                    character_to_talk.voice_accent, 
+                    voice_gender=character_to_talk.gender, 
+                    voice_race=character_to_talk.race
+                )
+            else:
+                return self.error_message("Could not load initial character to talk to. Please try again.")

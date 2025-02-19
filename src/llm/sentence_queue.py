@@ -28,7 +28,7 @@ class sentence_queue:
         with self.__get_lock:
             if self.__queue.qsize() > 0 or self.__is_more_to_come:
                 retrieved_sentence = self.__queue.get()
-                self.log(f"Retrieved '{retrieved_sentence.sentence}'")
+                self.log(f"Retrieved '{retrieved_sentence.text}'")
                 return retrieved_sentence
             else:
                 self.log(f"Nothing to get from queue, returning None")
@@ -36,16 +36,16 @@ class sentence_queue:
     
     @utils.time_it
     def put(self, new_sentence: sentence):
-        self.log(f"Trying to aquire put_lock to put '{new_sentence.sentence}'")
+        self.log(f"Trying to aquire put_lock to put '{new_sentence.text}'")
         with self.__put_lock:
-            self.log(f"Putting '{new_sentence.sentence}'")
+            self.log(f"Putting '{new_sentence.text}'")
             self.__queue.put(new_sentence)
 
     @utils.time_it
     def put_at_front(self, new_sentence: sentence):
-        self.log(f"Trying to aquire get_lock to put_at_front '{new_sentence.sentence}'")
+        self.log(f"Trying to aquire get_lock to put_at_front '{new_sentence.text}'")
         with self.__get_lock:
-            self.log(f"Trying to aquire put_lock to put_at_front '{new_sentence.sentence}'")
+            self.log(f"Trying to aquire put_lock to put_at_front '{new_sentence.text}'")
             with self.__put_lock:            
                 sentence_list: list[sentence] = []
                 try:

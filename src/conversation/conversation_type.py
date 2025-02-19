@@ -27,10 +27,11 @@ class conversation_type(ABC):
         pass
 
     @abstractmethod
-    def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread):
+    def adjust_existing_message_thread(self, prompt: str, message_thread_to_adjust: message_thread):
         """Adjusts a given message_thread to one needed for the conversation type
 
         Args:
+            prompt (str): The new prompt to add
             message_thread_to_adjust (message_thread): The message_thread to adjust
         """
         pass
@@ -72,8 +73,8 @@ class pc_to_npc(conversation_type):
         return context_for_conversation.generate_system_message(self._config.prompt, actions)
     
     @utils.time_it
-    def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
-        message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), multi_npc_conversation=False, remove_system_flagged_messages=True)
+    def adjust_existing_message_thread(self, prompt: str, message_thread_to_adjust: message_thread):
+        message_thread_to_adjust.modify_messages(prompt, multi_npc_conversation=False, remove_system_flagged_messages=True)
     
     @utils.time_it
     def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:
@@ -100,8 +101,8 @@ class multi_npc(conversation_type):
         return context_for_conversation.generate_system_message(self._config.multi_npc_prompt, actions)
     
     @utils.time_it
-    def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
-        message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), True, True)
+    def adjust_existing_message_thread(self, prompt: str, message_thread_to_adjust: message_thread):
+        message_thread_to_adjust.modify_messages(prompt, True, True)
 
 class radiant(conversation_type):
     """ Conversation between two NPCs without the player"""
@@ -116,8 +117,8 @@ class radiant(conversation_type):
         return context_for_conversation.generate_system_message(self._config.radiant_prompt, actions)
     
     @utils.time_it
-    def adjust_existing_message_thread(self, message_thread_to_adjust: message_thread, context_for_conversation: context):
-        message_thread_to_adjust.modify_messages(self.generate_prompt(context_for_conversation), True, True)
+    def adjust_existing_message_thread(self, prompt: str, message_thread_to_adjust: message_thread):
+        message_thread_to_adjust.modify_messages(prompt, True, True)
     
     @utils.time_it
     def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:        

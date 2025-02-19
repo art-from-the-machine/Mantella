@@ -44,6 +44,27 @@ class fallout4(gameable):
     @property
     def image_path(self) -> str:
         return self.__image_analysis_filepath
+        
+    def modify_sentence_text_for_game(self, text:str) -> str:
+        """Modifies the text of a sentence before it is sent to the game.
+            148 bytes is max for Fallout 4."""
+        byte_string: bytes = text.encode('utf-8')
+        count_bytes_in_string = len(byte_string)			# Count bytes and not chars
+        if count_bytes_in_string < 148:
+            return text
+        
+        cut_length:int = 144
+        cut_bytes:bytes = byte_string[0:cut_length]
+        if cut_bytes[-1] & 0b10000000:
+            last_11xxxxxx_index = 0
+            for i in range(-1, -5, -1):
+                if cut_bytes[i] & 0b11000000 == 0b11000000:
+                    last_11xxxxxx_index = i
+                    break
+            cut_bytes = cut_bytes[0:len(cut_bytes)+last_11xxxxxx_index]
+
+        result = cut_bytes.decode('utf-8')
+        return result + "..." #Dots should be part of ASCII and thus only 1 byte long 
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
@@ -166,29 +187,38 @@ class fallout4(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
+    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstVoiceLine: bool):
         audio_file = queue_output.voice_file
+        if not os.path.exists(audio_file):
+            return
+        
+        mod_folder = config.mod_path
         fuz_file = audio_file.replace(".wav",".fuz")
         speaker = queue_output.speaker
 
         lip_name = "00001ED2_1"
-        voice_name = "MantellaVoice00"
 
-        if not os.path.exists(audio_file):
-            return
-        mod_folder = config.mod_path
+        if config.save_audio_data_to_character_folder:
+            voice_folder_path = os.path.join(mod_folder,queue_output.speaker.in_game_voice_model)
+            if not os.path.exists(voice_folder_path):
+                logging.warning(f"{voice_folder_path} has been created for the first time. Please restart Fallout 4 to interact with this NPC.")
+                logging.info("Creating voice folders...")
+                self._create_all_voice_folders(mod_folder, "fallout4_voice_folder")
+        else:
+            voice_folder_path = os.path.join(mod_folder, "MantellaVoice00")
+        os.makedirs(voice_folder_path, exist_ok=True)
         
         # subtitle = queue_output.sentence
         # Copy FaceFX generated FUZ file
         try:
-            fuz_filepath = os.path.normpath(f"{mod_folder}/{voice_name}/{lip_name}.fuz")
+            fuz_filepath = os.path.normpath(f"{voice_folder_path}/{lip_name}.fuz")
             shutil.copyfile(fuz_file, fuz_filepath)
         except Exception as e:
             # only warn on failure
             logging.warning(e)
 
         self.__last_played_voiceline = queue_output.voice_file
-        logging.info(f"{speaker.name}: {queue_output.sentence}")
+        logging.info(f"{speaker.name}: {queue_output.text}")
 
     @utils.time_it
     def __delete_last_played_voiceline(self):

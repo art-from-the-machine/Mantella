@@ -2,6 +2,7 @@ import configparser
 import logging
 import os
 import sys
+from typing import Any
 from src.conversation.action import action
 from src.config.config_values import ConfigValues
 from src.config.mantella_config_value_definitions_new import MantellaConfigValueDefinitionsNew
@@ -42,6 +43,7 @@ class ConfigLoader:
                 except:
                     create_back_up_configini = True
                     # TODO: filter out warnings for ['game', 'skyrim_mod_folder', 'skyrimvr_mod_folder', 'fallout4_mod_folder', 'fallout4vr_mod_folder', fallout4vr_folder]
+                    utils.play_error_sound()
                     logging.warning(f"Could not identify config value '{each_key} = {each_value}' in current config.ini. Value will not be loaded. A backup of this config.ini will be created.")
 
         if create_back_up_configini:
@@ -76,6 +78,7 @@ class ConfigLoader:
             writer: ConfigFileWriter = ConfigFileWriter()
             writer.write(self.__file_name, definitions, create_back_up_configini)
         except Exception as e:
+            utils.play_error_sound()
             logging.error(24, f"Failed to write default 'config.ini'. Possible reason: MantellaSoftware does not have rights to write at its location. Exception: {repr(e)}")    
 
     def __update_config_values_from_current_state(self):
@@ -83,15 +86,38 @@ class ConfigLoader:
         try:
             # if the exe is being run by another process, replace config.ini paths with relative paths
             if "--integrated" in sys.argv:
-                self.game_path = str(Path(utils.resolve_path()).parent.parent.parent.parent)
-                self.mod_path = str(Path(utils.resolve_path()).parent.parent.parent)
+                # Plugins/MantellaSoftware folder
+                exe_folder = Path(utils.resolve_path())
+                # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> F4SE/SKSE -> Data (mod folder) -> Game
+                self.game_path = str(exe_folder.parent.parent.parent.parent)
+                # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> F4SE/SKSE -> Data (mod folder)
+                self.mod_path = str(exe_folder.parent.parent.parent)
+
+                self.lipgen_path = self.game_path+"\\Tools\\LipGen\\"
+                self.facefx_path = self.mod_path+"\\Sound\\Voice\\Processing\\"
+                self.piper_path = str(Path(utils.resolve_path())) + "\\piper"
+                self.moonshine_folder = str(Path(utils.resolve_path()))
 
                 game_parent_folder_name = os.path.basename(self.game_path).lower()
                 if 'vr' in game_parent_folder_name:
                     if 'fallout' in game_parent_folder_name:
                         self.game = 'Fallout4VR'
+                        # Fallout 4 VR uses the same creation kit as Fallout 4, so the lip gen folder needs to be set to the Fallout 4 folder
+                        # Note that this path assumes that both Fallout 4 versions are installed in the same directory
+                        # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> F4SE -> Data -> Fallout 4 VR -> common (Steam folder for all games)
+                        if not os.path.exists(self.lipgen_path):
+                            self.lipgen_path = str(exe_folder.parent.parent.parent.parent.parent)+"\\Fallout 4"+"\\Tools\\LipGen\\"
+                            if not os.path.exists(self.lipgen_path):
+                                self.lipgen_path = ''
                     elif 'skyrim' in game_parent_folder_name:
                         self.game = 'SkyrimVR'
+                        # Skyrim VR uses the same creation kit as Skyrim Special Edition, so the lip gen folder needs to be set to the Skyrim Special Edition folder
+                        # Note that this path assumes that both Skyrim versions are installed in the same directory
+                        # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> SKSE -> Data -> Skyrim VR -> common (Steam folder for all games)
+                        if not os.path.exists(self.lipgen_path):
+                            self.lipgen_path = str(exe_folder.parent.parent.parent.parent.parent)+"\\Skyrim Special Edition"+"\\Tools\\LipGen\\"
+                            if not os.path.exists(self.lipgen_path):
+                                self.lipgen_path = ''
                 else:
                     if 'fallout' in game_parent_folder_name:
                         self.game = 'Fallout4'
@@ -99,11 +125,6 @@ class ConfigLoader:
                         self.game = 'Skyrim'
                     else: # default to Skyrim
                         self.game = 'Skyrim'
-
-                self.facefx_path = str(Path(utils.resolve_path()).parent.parent.parent)
-                self.facefx_path += "\\Sound\\Voice\\Processing\\"
-                #self.xvasynth_path = str(Path(utils.resolve_path())) + "\\xVASynth"
-                self.piper_path = str(Path(utils.resolve_path())) + "\\piper"
 
             else:
                 #Adjusting game and mod paths according to the game being ran
@@ -127,6 +148,7 @@ class ConfigLoader:
                     self.game_path = None
                     self.mod_path: str = self.__definitions.get_string_value("skyrim_mod_folder") #config['Paths']['skyrim_mod_folder']
 
+                self.lipgen_path = self.__definitions.get_string_value("lipgen_folder")
                 self.facefx_path = self.__definitions.get_string_value("facefx_folder")
 
             self.mod_path_base = self.mod_path
@@ -146,6 +168,7 @@ class ConfigLoader:
             # self.forgiven_npc_response = self.__definitions.get_string_value("forgiven_npc_response")
             # self.follow_npc_response = self.__definitions.get_string_value("follow_npc_response")
             # self.inventory_npc_response = self.__definitions.get_string_value("inventory_npc_response")
+
 
             #TTS
             self.tts_service = self.__definitions.get_string_value("tts_service").strip().lower()
@@ -173,6 +196,8 @@ class ConfigLoader:
                 self.xtts_server_path = ""
 
             self.lip_generation = self.__definitions.get_string_value("lip_generation").strip().lower()
+            self.fast_response_mode = self.__definitions.get_bool_value("fast_response_mode")
+            self.fast_response_mode_volume = self.__definitions.get_int_value("fast_response_mode_volume")
 
             #Added from xTTS implementation
             self.xtts_default_model = self.__definitions.get_string_value("xtts_default_model")
@@ -191,16 +216,24 @@ class ConfigLoader:
             self.use_sr = self.__definitions.get_bool_value("use_sr")
 
             #STT
-            self.whisper_model = self.__definitions.get_string_value("model_size")
+            self.stt_service = self.__definitions.get_string_value("stt_service").lower()
+            self.moonshine_model = self.__definitions.get_string_value("moonshine_model_size")
+            if not hasattr(self, 'moonshine_folder'):
+                try:
+                    self.moonshine_folder = str(Path(self.__definitions.get_string_value("moonshine_folder")).parent) # go up one folder since moonshine/ is in the model name
+                except:
+                    self.moonshine_folder = ''
+            self.whisper_model = self.__definitions.get_string_value("whisper_model_size")
             self.whisper_process_device = self.__definitions.get_string_value("process_device")
             self.stt_language = self.__definitions.get_string_value("stt_language")
             if (self.stt_language == 'default'):
                 self.stt_language = self.language
             self.stt_translate = self.__definitions.get_bool_value("stt_translate")
-            if self.__definitions.get_bool_value("use_automatic_audio_threshold"):
-                self.audio_threshold = "auto"
-            else:
-                self.audio_threshold = str(self.__definitions.get_int_value("audio_threshold"))
+            self.audio_threshold = self.__definitions.get_float_value("audio_threshold")
+            self.proactive_mic_mode = self.__definitions.get_bool_value("proactive_mic_mode")
+            self.min_refresh_secs = self.__definitions.get_float_value("min_refresh_secs")
+            self.allow_interruption = self.__definitions.get_bool_value("allow_interruption")
+            self.save_mic_input = self.__definitions.get_bool_value("save_mic_input")
             self.pause_threshold = self.__definitions.get_float_value("pause_threshold")
             self.listen_timeout = self.__definitions.get_int_value("listen_timeout")
             self.external_whisper_service = self.__definitions.get_bool_value("external_whisper_service")
@@ -212,19 +245,22 @@ class ConfigLoader:
             self.llm = self.llm.split(' |')[0] if ' |' in self.llm else self.llm
             self.wait_time_buffer = self.__definitions.get_float_value("wait_time_buffer")
             self.llm_api = self.__definitions.get_string_value("llm_api")
+            self.llm_priority = self.__definitions.get_string_value("llm_priority")
             # if self.llm_api == "Custom":
             #     self.llm_api = self.__definitions.get_string_value("llm_custom_service_url")
             self.custom_token_count = self.__definitions.get_int_value("custom_token_count")
             try:
-                self.llm_params = json.loads(self.__definitions.get_string_value("llm_params").replace('\n', ''))
+                self.llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("llm_params").replace('\n', ''))
             except Exception as e:
                 logging.error(f"""Error in parsing LLM parameter list: {e}
 LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.llm_params = None
 
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
-            self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
+            # self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
 
+            self.narration_handling = self.__definitions.get_string_value("narration_handling").strip().lower()
+            self.narrator_voice = self.__definitions.get_string_value("narrator_voice")
             
 
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
@@ -239,9 +275,12 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             #UI
             self.auto_launch_ui = self.__definitions.get_bool_value("auto_launch_ui")
 
+            self.play_startup_sound = self.__definitions.get_bool_value("play_startup_sound")
+
             #Conversation
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
             self.max_count_events = self.__definitions.get_int_value("max_count_events")
+            self.events_refresh_time = self.__definitions.get_int_value("events_refresh_time")
             self.hourly_time = self.__definitions.get_bool_value("hourly_time")
             self.player_character_description: str = self.__definitions.get_string_value("player_character_description")
             self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
@@ -250,6 +289,8 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             #HTTP
             self.port = self.__definitions.get_int_value("port")
             self.show_http_debug_messages: bool = self.__definitions.get_bool_value("show_http_debug_messages")
+
+            self.save_audio_data_to_character_folder = self.__definitions.get_bool_value("save_audio_data_to_character_folder")
 
             #new separate prompts for Fallout 4 have been added 
             if self.game == "Fallout4" or self.game == "Fallout4VR":
@@ -291,13 +332,13 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             
             pass
         except Exception as e:
+            utils.play_error_sound()
             logging.error('Parameter missing/invalid in config.ini file!')
             raise e
     
     def load_actions_from_json(self, actions_folder: str) -> list[action]:
         result = []
-        if not os.path.exists(actions_folder):
-            os.makedirs(actions_folder)
+        os.makedirs(actions_folder, exist_ok=True)
         override_files: list[str] = os.listdir(actions_folder)
         for file in override_files:
             try:
@@ -322,6 +363,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                             info_text: str = content.get("info-text", "")
                             result.append(action(identifier, name, key,description,prompt,is_interrupting, one_on_one,multi_npc,radiant,info_text))
             except Exception as e:
+                utils.play_error_sound()
                 logging.log(logging.WARNING, f"Could not load action definition file '{file}' in '{actions_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
         return result
     

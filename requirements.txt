@@ -5,7 +5,6 @@ httpx==0.27.2
 openai==1.6.0
 aiohttp==3.8.4
 faster-whisper==1.0.3
-speechrecognition==3.10.1
 requests==2.31.0
 pyaudio==0.2.13
 soundfile==0.12.1
@@ -22,3 +21,6 @@ furo==2023.9.10
 pywin32==306
 mss==9.0.1
 opencv-python==4.10.0.84
+sounddevice==0.5.1
+silero_vad==5.1.2
+git+https://github.com/usefulsensors/moonshine.git@2f6282347950c8d711bd7319287babb87ec5a92d#subdirectory=moonshine-onnx
