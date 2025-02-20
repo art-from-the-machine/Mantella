@@ -49,6 +49,11 @@ class MantellaConfigValueDefinitionsNew:
         # llm_category.add_config_value(LLMDefinitions.get_stop_llm_generation_on_assist_keyword())
         llm_category.add_config_value(LLMDefinitions.get_narration_handling())
         llm_category.add_config_value(LLMDefinitions.get_narrator_voice())
+        llm_category.add_config_value(LLMDefinitions.get_narration_start_indicators())
+        llm_category.add_config_value(LLMDefinitions.get_narration_end_indicators())
+        llm_category.add_config_value(LLMDefinitions.get_speech_start_indicators())
+        llm_category.add_config_value(LLMDefinitions.get_speech_end_indicators())
+        llm_category.add_config_value(LLMDefinitions.get_narration_indicators())
         result.add_base_group(llm_category)
 
         tts_category = ConfigValueGroup("TTS", "Text-to-Speech", "Settings for the TTS methods Mantella supports.", on_value_change_callback)

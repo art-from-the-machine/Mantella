@@ -1,4 +1,5 @@
-from typing import Any, TypeVar
+from enum import Enum
+from typing import Any, Type, TypeVar
 from src.config.types.config_value_multi_selection import ConfigValueMultiSelection
 from src.config.config_value_constraint import ConfigValueConstraintResult
 from src.config.types.config_value import ConfigValue
@@ -21,6 +22,7 @@ class ConfigValues(ConfigValueVisitor):
         self.__bool_values: dict[str, tuple[ConfigValueBool, str]] = {}
         self.__string_values: dict[str, tuple[ConfigValueString, str]] = {}
         self.__selection_values: dict[str, tuple[ConfigValueSelection, str]] = {}
+        self.__selection_enums: dict[Enum, tuple[ConfigValueSelection, Enum]] = {}
         self.__multi_selection_values: dict[str, tuple[ConfigValueMultiSelection, str]] = {}
         self.__path_values: dict[str, tuple[ConfigValuePath, str]] = {}
         self.__constraint_violations: dict[str, list[str]] = {}
@@ -66,6 +68,10 @@ class ConfigValues(ConfigValueVisitor):
                 return self.__get_value(self.__selection_values, identifier)
             except:
                 return self.__get_value(self.__path_values, identifier)
+    
+    EnumTypeVar = TypeVar('EnumTypeVar', bound=Enum)
+    def get_enum_value(self, identifier: str, enum_type: Type[EnumTypeVar]) -> EnumTypeVar:
+        return self.__get_enum(self.__selection_values, identifier, enum_type)
             
     def get_string_list_value(self, identifier: str) -> list[str]:
         return self.__get_value(self.__multi_selection_values, identifier)
@@ -120,6 +126,19 @@ class ConfigValues(ConfigValueVisitor):
             if not result.is_success:
                 self.__add_constraint_violation(config_value, result.error_message)
             return config_value.value
+        raise Exception(f"Could not find config value {identifier} in list of definitions" )
+    
+    def __get_enum(self, dictionary_to_check: dict[str, tuple[Any, str]], identifier: str, enum_type: Type[EnumTypeVar]) -> EnumTypeVar:
+        if dictionary_to_check.__contains__(identifier):
+            config_value, category = dictionary_to_check[identifier]
+            config_value: ConfigValueSelection = config_value
+            result: ConfigValueConstraintResult = config_value.does_value_cause_error(config_value.value)
+            if not result.is_success:
+                self.__add_constraint_violation(config_value, result.error_message)
+            try:
+                return enum_type(config_value.get_corresponding_enum())
+            except:
+                raise Exception(f"Could not cast config value {identifier} to type {enum_type}" )
         raise Exception(f"Could not find config value {identifier} in list of definitions" )
    
     

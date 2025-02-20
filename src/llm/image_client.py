@@ -12,6 +12,7 @@ class ImageClient(ClientBase):
     '''
     @utils.time_it
     def __init__(self, config: ConfigLoader, secret_key_file: str, image_secret_key_file: str) -> None:
+        self.__config = config    
         self.__custom_vision_model: bool = config.custom_vision_model
 
         if self.__custom_vision_model: # if using a custom model for vision, load these custom config values
@@ -76,7 +77,7 @@ class ImageClient(ClientBase):
                 vision_prompt = f"{self.__vision_prompt}\n{vision_hints}"
             else:
                 vision_prompt = self.__vision_prompt
-            image_msg_instance = image_message(image, vision_prompt, self.__detail, True)
+            image_msg_instance = image_message(self.__config, image, vision_prompt, self.__detail, True)
             image_transcription = self.request_call(image_msg_instance)
             if image_transcription:
                 last_punctuation = max(image_transcription.rfind(p) for p in self.__end_of_sentence_chars)

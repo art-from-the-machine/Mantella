@@ -5,6 +5,7 @@ import logging
 import time
 import unicodedata
 from openai import APIConnectionError
+from src.config.definitions.llm_definitions import NarrationHandlingEnum
 from src.llm.output.max_count_sentences_parser import max_count_sentences_parser
 from src.llm.output.sentence_length_parser import sentence_length_parser
 from src.llm.output.actions_parser import actions_parser
@@ -62,7 +63,7 @@ class ChatManager:
 
         with self.__tts_access_lock:
             try:
-                if self.__config.narration_handling == "use narrator" and content.sentence_type == SentenceTypeEnum.NARRATION:
+                if self.__config.narration_handling == NarrationHandlingEnum.USE_NARRATOR and content.sentence_type == SentenceTypeEnum.NARRATION:
                     synth_options = SynthesizationOptions(False, self.__is_first_sentence)
                     audio_file = self.__tts.synthesize(self.__config.narrator_voice, text, self.__config.narrator_voice, self.__config.narrator_voice, "en", synth_options, self.__config.narrator_voice)
                 else:
@@ -126,13 +127,16 @@ class ChatManager:
 
         parser_chain: list[output_parser] = [
             clean_sentence_parser(),
-            change_character_parser(characters),
-            narration_parser(),
+            change_character_parser(characters)]
+        if self.__config.narration_handling != NarrationHandlingEnum.DEACTIVATE_HANDLING_OF_NARRATIONS:
+            parser_chain.append(narration_parser(self.__config.narration_start_indicators, self.__config.narration_end_indicators, 
+                                                 self.__config.speech_start_indicators, self.__config.speech_end_indicators))
+        parser_chain.extend([
             sentence_end_parser(),
             actions_parser(actions),
             sentence_length_parser(self.__config.number_words_tts),
             max_count_sentences_parser(self.__config.max_response_sentences, not characters.contains_player_character())
-        ]
+        ])
        
         try:
             current_sentence: str = ''
@@ -166,7 +170,7 @@ class ChatManager:
                         
                         # Process sentences from the parser chain
                         if parsed_sentence:
-                            if not self.__config.narration_handling == "cut narrations" or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                            if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
                                 new_sentence = self.generate_sentence(parsed_sentence)
                                 blocking_queue.put(new_sentence)
                                 parsed_sentence = None
@@ -200,12 +204,12 @@ class ChatManager:
         finally:
             # Handle any remaining content
             if parsed_sentence:
-                if not self.__config.narration_handling == "cut narrations" or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
                     new_sentence = self.generate_sentence(parsed_sentence)
                     blocking_queue.put(new_sentence)
             
             if pending_sentence:
-                if not self.__config.narration_handling == "cut narrations" or pending_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or pending_sentence.sentence_type != SentenceTypeEnum.NARRATION:
                     new_sentence = self.generate_sentence(pending_sentence)
                     blocking_queue.put(new_sentence)
             logging.log(23, f"Full raw response ({self.__client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")

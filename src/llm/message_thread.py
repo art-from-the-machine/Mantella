@@ -1,4 +1,5 @@
 from copy import deepcopy
+from src.config.config_loader import ConfigLoader
 from src.llm.messages import message, system_message, user_message, assistant_message, image_message, image_description_message
 from typing import Callable
 from openai.types.chat import ChatCompletionMessageParam
@@ -8,12 +9,13 @@ class message_thread():
     """A thread of messages consisting of system-, user- and assistant-messages.
     Central place for adding new messages to the thread and manipulating the existing ones
     """
-    def __init__(self, initial_system_message: str | system_message | None) -> None:
+    def __init__(self, config: ConfigLoader, initial_system_message: str | system_message | None) -> None:
         self.__messages: list[message] = []
+        self.__config = config
         if not initial_system_message:
             return
         if isinstance(initial_system_message, str):
-            initial_system_message = system_message(initial_system_message)        
+            initial_system_message = system_message(initial_system_message, config)
         self.__messages.append(initial_system_message)
     
     def __len__(self) -> int:
@@ -76,7 +78,7 @@ class message_thread():
             last_messages_to_keep (int): how many of the last messages to keep
         """
         result: list[message] = []
-        result.append(system_message(new_prompt))
+        result.append(system_message(new_prompt, self.__config))
         messages_to_keep: list[message]  = []
         for talk_message in reversed(self.get_talk_only()):
             messages_to_keep.append(talk_message)
