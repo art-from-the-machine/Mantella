@@ -13,7 +13,7 @@ class LanguageDefinitions:
     def get_end_conversation_keyword_config_value() -> ConfigValue:
         description = """The keyword(s) Mantella will listen out for to end the conversation (lowercase / uppercase does not matter).
                         To add multiple options, you can split keywords using commas."""
-        return ConfigValueString("end_conversation_keyword","End Conversation Keyword(s)",description,"goodbye, bye, good-bye, good bye, good to buy")
+        return ConfigValueString("end_conversation_keyword","End Conversation Keyword(s)",description,"goodbye, bye, good-bye, good bye, good-by, good by, good to buy")
     
     @staticmethod
     def get_goodbye_npc_response() -> ConfigValue:
