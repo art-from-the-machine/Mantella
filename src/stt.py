@@ -51,6 +51,7 @@ class Transcriber:
         self.whisper_url = self.__get_endpoint(config.whisper_url)
         self.prompt = ''
         self.show_mic_warning = True
+        self.play_cough_sound = config.play_cough_sound
         self.transcription_times = []
         self.proactive_mic_mode = config.proactive_mic_mode
         self.min_refresh_secs = config.min_refresh_secs # Minimum time between transcription updates
@@ -460,7 +461,8 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     logging.log(self.loglevel, f"Player said '{transcription.strip()}'")
                     return transcription
                 
-            utils.play_no_mic_input_detected_sound()
+            if self.play_cough_sound:
+                utils.play_no_mic_input_detected_sound()
             logging.warning('Could not detect speech from mic input')
 
             self._transcription_ready.clear()
