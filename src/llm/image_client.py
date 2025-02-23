@@ -15,9 +15,9 @@ class ImageClient(ClientBase):
         self.__custom_vision_model: bool = config.custom_vision_model
 
         if self.__custom_vision_model: # if using a custom model for vision, load these custom config values
-            setup_values = {'api_url': config.vision_llm_api, 'llm': config.vision_llm, 'llm_params': config.vision_llm_params, 'llm_priority': config.llm_priority, 'custom_token_count': config.vision_custom_token_count}
+            setup_values = {'api_url': config.vision_llm_api, 'llm': config.vision_llm, 'llm_params': config.vision_llm_params, 'custom_token_count': config.vision_custom_token_count}
         else: # default to base LLM config values
-            setup_values = {'api_url': config.llm_api, 'llm': config.llm, 'llm_params': config.llm_params, 'llm_priority': config.llm_priority, 'custom_token_count': config.custom_token_count}
+            setup_values = {'api_url': config.llm_api, 'llm': config.llm, 'llm_params': config.llm_params, 'custom_token_count': config.custom_token_count}
         
         super().__init__(**setup_values, secret_key_files=[image_secret_key_file, secret_key_file])
 

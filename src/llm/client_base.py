@@ -19,11 +19,10 @@ class ClientBase(AIClient):
     tiktoken_cache_dir = "data"
     os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
 
-    def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, llm_priority: str, custom_token_count: int, secret_key_files: list[str]) -> None:
+    def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, secret_key_files: list[str]) -> None:
         super().__init__()
         self._generation_lock: Lock = Lock()
-        priority = self.__get_llm_priority(llm, llm_priority, api_url)
-        self._model_name: str = llm+priority
+        self._model_name: str = llm
         self._base_url = self.__get_endpoint(api_url)
         self._startup_async_client: AsyncOpenAI | None = None
         self._request_params: dict[str, Any] | None = llm_params
