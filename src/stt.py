@@ -128,7 +128,8 @@ class Transcriber:
         self._last_update_time = 0
         self._current_transcription = ""
         self._transcription_ready = threading.Event()
-        
+        self._consecutive_empty_count = 0
+        self._max_consecutive_empty = 10
 
     @property
     def is_listening(self) -> bool:
@@ -218,6 +219,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         if transcription:
             return transcription
         else:
+            self._consecutive_empty_count += 1
             return self._current_transcription
 
 
@@ -385,6 +387,12 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                             logging.debug(f'Transcribing {self.min_refresh_secs} of mic input...')
                             self._current_transcription = self._transcribe(self._audio_buffer)
 
+                            if self._consecutive_empty_count >= self._max_consecutive_empty:
+                                logging.warning(f'Could not transcribe input')
+                                self._transcription_ready.set()
+                                self._reset_state()
+                                self._soft_reset_vad()
+
                             chunk_count = 0  # Reset counter
             
             except queue.Empty:
@@ -432,6 +440,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         """Reset internal state."""
         self._audio_buffer = np.array([], dtype=np.float32)
         self.vad_iterator = self._create_vad_iterator()
+        self._consecutive_empty_count = 0
 
 
     @utils.time_it
@@ -467,6 +476,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
             self._transcription_ready.clear()
             self._speech_detected = False
+            self._current_transcription = ''
 
             time.sleep(0.1)
 
