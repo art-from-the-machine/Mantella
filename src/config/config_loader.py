@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from typing import Any
-from src.config.definitions.llm_definitions import NarrationHandlingEnum, NarrationAndSpeechIndicatorsEnum
+from src.config.definitions.llm_definitions import NarrationHandlingEnum, NarrationIndicatorsEnum
 from src.conversation.action import action
 from src.config.config_values import ConfigValues
 from src.config.mantella_config_value_definitions_new import MantellaConfigValueDefinitionsNew
@@ -266,7 +266,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.narration_end_indicators = self.__definitions.get_string_list_value("narration_end_indicators")
             self.speech_start_indicators = self.__definitions.get_string_list_value("speech_start_indicators")
             self.speech_end_indicators = self.__definitions.get_string_list_value("speech_end_indicators")
-            self.narration_indicators: NarrationAndSpeechIndicatorsEnum = self.__definitions.get_enum_value("narration_indicators", NarrationAndSpeechIndicatorsEnum)
+            self.narration_indicators: NarrationIndicatorsEnum = self.__definitions.get_enum_value("narration_indicators", NarrationIndicatorsEnum)
             
 
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
