@@ -83,9 +83,7 @@ class message_thread():
         result: list[Message] = []
         result.append(SystemMessage(new_prompt, self.__config))
         messages_to_keep: list[Message] = []
-        persistent_messages = self.get_persistent_messages()
-        
-        for talk_message in reversed(persistent_messages):
+        for talk_message in reversed(self.get_messages_except_of_type(SystemMessage)):
             messages_to_keep.append(talk_message)
             if is_too_long(messages_to_keep, percent_modifier):
                 messages_to_keep = messages_to_keep[:-1]
@@ -120,19 +118,27 @@ class message_thread():
         return result
     
     @utils.time_it
+    def get_messages_of_type(self, typesTuple):
+        result = []
+        for message in self.__messages:
+            if isinstance(message, typesTuple):
+                result.append(deepcopy(message))
+        return result
+    
+    @utils.time_it
+    def get_messages_except_of_type(self, typesTuple):
+        result = []
+        for message in self.__messages:
+            if not isinstance(message, typesTuple):
+                result.append(deepcopy(message))
+        return result
+    
+    @utils.time_it
     def get_persistent_messages(self):
         """ Returns a deepcopy of all the messages we want to persist over multiple turns. """
         result = []
         for message in self.__messages:
             if isinstance(message, (assistant_message, user_message, join_message, leave_message)):
-                result.append(deepcopy(message))
-        return result
-    
-    @utils.time_it
-    def get_messages_of_type(self, typesTuple):
-        result = []
-        for message in self.__messages:
-            if isinstance(message, typesTuple):
                 result.append(deepcopy(message))
         return result
     

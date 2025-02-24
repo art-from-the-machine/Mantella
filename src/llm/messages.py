@@ -106,7 +106,7 @@ class Message(ABC):
 class join_message(Message):
     """ A internal message logging that a certain actor has joined the conversation this point (for system use only) """
     def __init__(self, character: Character):
-        super().__init__(f"{character.name} has joined the conversation", True)
+        super().__init__(f"*{character.name} has joined the conversation*", False)
         self._character = character
 
     def get_formatted_content(self) -> str:
@@ -121,9 +121,9 @@ class join_message(Message):
     
 class leave_message(Message):
     """  A internal message logging that a certain actor has left the conversation this point (for system use only) """
-    def __init__(self, actor: Character):
-        super().__init__(f"{actor.name} has left the conversation", True)
-        self._actor = actor
+    def __init__(self, character: Character):
+        super().__init__(f"*{character.name} is no longer part of the conversation*", False)
+        self._character = character
 
     def get_formatted_content(self) -> str:
         return self.text

@@ -150,15 +150,15 @@ class Conversation:
             self.__save_conversation_log_for_characters(all_characters)
             
         for update_message in self.generate_add_or_remove_messages(update_result):
-            self.__messages.add_message(system_message(update_message))
+            self.__messages.add_message(update_message)
 
     @utils.time_it
-    def generate_add_or_remove_messages(update_result: add_or_update_result) -> list[str]:
+    def generate_add_or_remove_messages(self, update_result: add_or_update_result) -> list[str]:
         add_or_remove_messages = []
         for npc in update_result.added_npcs:
-            add_or_remove_messages.append(join_message(npc.name))
+            add_or_remove_messages.append(join_message(npc))
         for npc in update_result.removed_npcs:
-            add_or_remove_messages.append(leave_message(npc.name))
+            add_or_remove_messages.append(leave_message(npc))
         return add_or_remove_messages
 
     @utils.time_it
@@ -485,8 +485,9 @@ class Conversation:
         """Saves all messages of the conversation to a json file for each NPC in the conversation"""
         for npc in characters_to_save_for:
             if not npc.is_player_character:
-                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
-                
+                # TODO: Revert this line, as i included all  messages for debugging 
+                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_messages_of_type((assistant_message, user_message, join_message, leave_message))), self.__context.world_id)
+
     @utils.time_it
     def __save_summary_for_characters(self, messages_to_summarize:message_thread, characters_to_save_for: list[Character], is_reload=False):
         characters_object = Characters()
