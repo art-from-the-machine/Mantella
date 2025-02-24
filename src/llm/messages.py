@@ -74,7 +74,7 @@ class Message(ABC):
     @abstractmethod
     def get_dict_formatted_string(self) -> str:
         pass
-    
+
     @utils.time_it
     def hot_swap_settings(self, config: ConfigLoader) -> bool:
         """Attempts to hot-swap settings without ending the conversation.
@@ -103,11 +103,11 @@ class Message(ABC):
             logging.error(f"Message hot-swap failed: {e}")
             return False
 
-class join_message(message):
+class join_message(Message):
     """ A internal message logging that a certain actor has joined the conversation this point (for system use only) """
-    def __init__(self, character: Character, config:ConfigLoader):
-        super().__init__(f"*{character.name} has joined the conversation*", config, False)
-        self.character = character
+    def __init__(self, character: Character):
+        super().__init__(f"{character.name} has joined the conversation", True)
+        self._character = character
 
     def get_formatted_content(self) -> str:
         return self.text
@@ -119,11 +119,11 @@ class join_message(message):
         dictionary = {"role":"system", "content": self.get_formatted_content(),}
         return f"{dictionary}"
     
-class leave_message(message):
+class leave_message(Message):
     """  A internal message logging that a certain actor has left the conversation this point (for system use only) """
-    def __init__(self, character: Character, config:ConfigLoader):
-        super().__init__(f"*{character.name} is no longer part of the conversation*", config, False)
-        self.character = character
+    def __init__(self, actor: Character):
+        super().__init__(f"{actor.name} has left the conversation", True)
+        self._actor = actor
 
     def get_formatted_content(self) -> str:
         return self.text
@@ -134,8 +134,9 @@ class leave_message(message):
     def get_dict_formatted_string(self) -> str:
         dictionary = {"role":"system", "content": self.get_formatted_content(),}
         return f"{dictionary}"
+    
 
-class SystemMessage(Message):
+class system_message(Message):
     """A message with the role 'system'. Usually used as the initial main prompt of an exchange with the LLM
     """
 

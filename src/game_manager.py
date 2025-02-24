@@ -10,6 +10,8 @@ from src.llm.sentence import Sentence
 from src.output_manager import ChatManager
 from src.remember.remembering import Remembering
 from src.remember.summaries import Summaries
+from src.remember.batch_summaries import batch_summaries
+
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 from src.conversation.conversation import Conversation
@@ -208,7 +210,8 @@ class GameStateManager:
         # Clear per-character client cache to force recreation with new settings
         chat_manager.clear_per_character_client_cache()
             
-        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'], summary_client)
+        self.__rememberer: Remembering = batch_summaries(game, config.memory_prompt, config.resummarize_prompt, summary_client or client, language_info['language'])
+
         self.__talk: Conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk

@@ -12,8 +12,8 @@ from src.llm.sentence_queue import SentenceQueue
 from src.llm.sentence import Sentence
 from src.remember.remembering import Remembering
 from src.output_manager import ChatManager
-from src.llm.messages import AssistantMessage, join_message, leave_message, SystemMessage, UserMessage
-from src.conversation.context import add_or_update_result, Context
+from src.llm.messages import AssistantMessage, join_message, join_message, leave_message, leave_message, SystemMessage, UserMessage
+from src.conversation.context import add_or_update_result, add_or_update_result, Context
 from src.llm.message_thread import message_thread
 from src.conversation.conversation_type import conversation_type, multi_npc, pc_to_npc, radiant
 from src.character_manager import Character
@@ -149,19 +149,16 @@ class Conversation:
             all_characters.extend(update_result.removed_npcs)
             self.__save_conversation_log_for_characters(all_characters)
             
-        # mark the joining / leaving of an npc in the message_thread
-        for update_message in self.create_add_or_remove_messages(update_result):
-            self.__messages.add_message(update_message)
+        for update_message in self.generate_add_or_remove_messages(update_result):
+            self.__messages.add_message(system_message(update_message))
 
     @utils.time_it
-    def create_add_or_remove_messages(self, update_result: add_or_update_result) -> list[str]:
+    def generate_add_or_remove_messages(update_result: add_or_update_result) -> list[str]:
         add_or_remove_messages = []
         for npc in update_result.added_npcs:
-            if not npc.is_player_character:
-                add_or_remove_messages.append(join_message(npc, self.__context.config))
+            add_or_remove_messages.append(join_message(npc.name))
         for npc in update_result.removed_npcs:
-            if not npc.is_player_character:
-                add_or_remove_messages.append(leave_message(npc, self.__context.config))
+            add_or_remove_messages.append(leave_message(npc.name))
         return add_or_remove_messages
 
     @utils.time_it
@@ -503,8 +500,8 @@ class Conversation:
         # Only save conversation state (which triggers summary generation) if summaries are enabled
         if self.__context.config.conversation_summary_enabled:
             # Save the summary
-            self.__rememberer.save_conversation_state(messages_to_summarize, characters_object, self.__context.world_id, is_reload)
-             # Save the log
+            self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload)
+            # Save the log
             self.__save_conversation_log_for_characters(characters_to_save_for)
 
     @utils.time_it
@@ -526,6 +523,13 @@ class Conversation:
     def reload_conversation(self):
         """Reloads the conversation
         """
+        # We now only save write the summary on conversation end. 
+        # This might lead to data loss, if self.__llm_client.is_too_long == true, since we then start truncating old message, but are not summarizing before that
+        # TODO: Remove many messages (not just 10% as we do now) and summarize them
+        # ---------------
+        # self.__save_conversation(is_reload=True)
+        
+        # Reload
         new_prompt = self.__conversation_type.generate_prompt(self.__context)
         self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
 
