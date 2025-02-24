@@ -21,3 +21,5 @@ __pycache__/
 data/advanced_voice_model_data_log_xtts.csv
 data/csv_voice_folder_data_log_xtts.csv
 data/voice_model_data_log_xtts.csv
+.vscode
+run_xtts.bat

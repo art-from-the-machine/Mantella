@@ -92,15 +92,15 @@ class conversation:
             self.__save_conversation_log_for_characters(all_characters)
             
         for update_message in self.generate_add_or_remove_messages(update_result):
-            self.__messages.add_message(system_message(update_message))
+            self.__messages.add_message(update_message)
 
     @utils.time_it
-    def generate_add_or_remove_messages(update_result: add_or_update_result) -> list[str]:
+    def generate_add_or_remove_messages(self, update_result: add_or_update_result) -> list[str]:
         add_or_remove_messages = []
         for npc in update_result.added_npcs:
-            add_or_remove_messages.append(join_message(npc.name))
+            add_or_remove_messages.append(join_message(npc))
         for npc in update_result.removed_npcs:
-            add_or_remove_messages.append(leave_message(npc.name))
+            add_or_remove_messages.append(leave_message(npc))
         return add_or_remove_messages
 
     @utils.time_it
@@ -413,7 +413,7 @@ class conversation:
         for npc in characters_to_save_for:
             if not npc.is_player_character:
                 # TODO: Revert this line, as i included all  messages for debugging 
-                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages), self.__context.world_id)
+                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_messages_of_type((assistant_message, user_message, join_message, leave_message))), self.__context.world_id)
 
     @utils.time_it
     def __save_conversations_for_characters(self, characters_to_save_for: list[Character], is_reload: bool):

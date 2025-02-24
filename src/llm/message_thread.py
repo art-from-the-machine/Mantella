@@ -78,7 +78,7 @@ class message_thread():
         result: list[message] = []
         result.append(system_message(new_prompt))
         messages_to_keep: list[message]  = []
-        for talk_message in reversed(self.get_talk_only()):
+        for talk_message in reversed(self.get_messages_except_of_type(system_message)):
             messages_to_keep.append(talk_message)
             if is_too_long(messages_to_keep, percent_modifier):
                 messages_to_keep = messages_to_keep[:-1]
@@ -105,6 +105,22 @@ class message_thread():
                     result.append(deepcopy(message)) # TODO: Once assistant_message uses Character instead of str, this needs to be improved, don't want deepcopies of Character
                 elif not message.is_system_generated_message:
                     result.append(deepcopy(message))
+        return result
+    
+    @utils.time_it
+    def get_messages_of_type(self, typesTuple):
+        result = []
+        for message in self.__messages:
+            if isinstance(message, typesTuple):
+                result.append(deepcopy(message))
+        return result
+    
+    @utils.time_it
+    def get_messages_except_of_type(self, typesTuple):
+        result = []
+        for message in self.__messages:
+            if not isinstance(message, typesTuple):
+                result.append(deepcopy(message))
         return result
     
     @utils.time_it
