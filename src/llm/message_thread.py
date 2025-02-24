@@ -1,5 +1,5 @@
 from copy import deepcopy
-from src.llm.messages import message, system_message, user_message, assistant_message, image_message, image_description_message
+from src.llm.messages import join_message, leave_message, message, system_message, user_message, assistant_message, image_message, image_description_message
 from typing import Callable
 from openai.types.chat import ChatCompletionMessageParam
 from src import utils
@@ -53,7 +53,7 @@ class message_thread():
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
         return message_thread.transform_to_openai_messages(self.__messages)
 
-    def add_message(self, new_message: user_message | assistant_message | image_message | image_description_message):
+    def add_message(self, new_message: user_message | assistant_message | image_message | image_description_message | join_message | leave_message):
         self.__messages.append(new_message)
 
     @utils.time_it
@@ -78,7 +78,7 @@ class message_thread():
         result: list[message] = []
         result.append(system_message(new_prompt))
         messages_to_keep: list[message]  = []
-        for talk_message in reversed(self.get_talk_only()):
+        for talk_message in reversed(self.get_messages_except_of_type(system_message)):
             messages_to_keep.append(talk_message)
             if is_too_long(messages_to_keep, percent_modifier):
                 messages_to_keep = messages_to_keep[:-1]
@@ -105,6 +105,22 @@ class message_thread():
                     result.append(deepcopy(message)) # TODO: Once assistant_message uses Character instead of str, this needs to be improved, don't want deepcopies of Character
                 elif not message.is_system_generated_message:
                     result.append(deepcopy(message))
+        return result
+    
+    @utils.time_it
+    def get_messages_of_type(self, typesTuple):
+        result = []
+        for message in self.__messages:
+            if isinstance(message, typesTuple):
+                result.append(deepcopy(message))
+        return result
+    
+    @utils.time_it
+    def get_messages_except_of_type(self, typesTuple):
+        result = []
+        for message in self.__messages:
+            if not isinstance(message, typesTuple):
+                result.append(deepcopy(message))
         return result
     
     @utils.time_it
