@@ -6,8 +6,8 @@ from src import utils
 
 class narration_parser(output_parser):
     """Class to track narrations in the current output of the LLM."""
-    def __init__(self, narration_start_chars: list[str] = ["*","(","["], narration_end_chars: list[str] = ["*",")","]"],
-                speech_start_chars: list[str] = ["\""], speech_end_chars: list[str] = ["\""]) -> None:
+    def __init__(self, narration_start_chars: list[str] = ["^"], narration_end_chars: list[str] = ["`"],
+                speech_start_chars: list[str] = ["="], speech_end_chars: list[str] = ["="]) -> None:
         super().__init__()
         base_regex_def = "^.*?[{chars}]"
         self.__narration_start_chars: list[str] = narration_start_chars

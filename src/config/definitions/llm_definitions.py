@@ -26,6 +26,19 @@ class LLMDefinitions:
         return ConfigValueSelection("model","Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True)
     
     @staticmethod
+    def get_summary_model_config_value() -> ConfigValue:
+        summary_model_description = """Select the model to use for creating the summaries of your conversations. Press the *Update* button to load a list of models available from the service selected above.
+                            The list does not provide all details about the models. For additional information please refer to the corresponding sites:
+                            - OpenRouter: https://openrouter.ai/docs#models
+                            - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
+        return ConfigValueSelection("model_summaries","Model for summaries",summary_model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_use_different_model_for_summaries() -> ConfigValue:
+        description = """Enable this to use 'Model for summaries' for creating the summaries of your conversations instead of your primary selected model"""
+        return ConfigValueBool("enable_summaries_model","Use a different model for summarization", description, False, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
     def get_llm_priority_config_value() -> ConfigValue:
         description = """(OpenRouter only) Select the priority of choosing an LLM service provider:
                         - Balanced (default): Prioritize the provider with the lowest price which has not experienced recent outages.

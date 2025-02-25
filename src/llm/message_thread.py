@@ -69,24 +69,33 @@ class message_thread():
     
     @utils.time_it
     def reload_message_thread(self, new_prompt: str, is_too_long: Callable[[list[message], float], bool], percent_modifier: float):
-        """Reloads this message_thread with a new system_message prompt and drops all but the last X messages
+        """Reloads this message_thread with a new system_message prompt and drops all but the last X persistent messages.
+        Returns the persistent messages that were removed.
 
         Args:
-            new_prompt (str): the new prompt for the system_message
-            last_messages_to_keep (int): how many of the last messages to keep
+            new_prompt (str): The new prompt for the system_message.
+            is_too_long (Callable): Function to determine if the list of messages is too long.
+            percent_modifier01 (float): A percentage modifier (clamped between 0 and 1).
         """
         result: list[message] = []
         result.append(system_message(new_prompt))
-        messages_to_keep: list[message]  = []
-        for talk_message in reversed(self.get_messages_except_of_type(system_message)):
+        messages_to_keep: list[message] = []
+        persistent_messages = self.get_persistent_messages()
+        
+        for talk_message in reversed(persistent_messages):
             messages_to_keep.append(talk_message)
             if is_too_long(messages_to_keep, percent_modifier):
                 messages_to_keep = messages_to_keep[:-1]
                 break
-            
+
         messages_to_keep.reverse()
         result.extend(messages_to_keep)
         self.__messages = result
+        
+        kept_count = len(messages_to_keep)
+        # Compute removed persistent messages: all persistent messages except the kept ones.
+        removed_messages: list[message] = persistent_messages if kept_count == 0 else persistent_messages[:len(persistent_messages) - kept_count]
+        return removed_messages
 
     @utils.time_it
     def get_talk_only(self, include_system_generated_messages: bool = False) -> list[message]:
@@ -108,6 +117,15 @@ class message_thread():
         return result
     
     @utils.time_it
+    def get_persistent_messages(self):
+        """ Returns a deepcopy of all the messages we want to persist over multiple turns. """
+        result = []
+        for message in self.__messages:
+            if isinstance(message, (assistant_message, user_message, join_message, leave_message)):
+                result.append(deepcopy(message))
+        return result
+    
+    @utils.time_it
     def get_messages_of_type(self, typesTuple):
         result = []
         for message in self.__messages:
@@ -115,13 +133,16 @@ class message_thread():
                 result.append(deepcopy(message))
         return result
     
-    @utils.time_it
-    def get_messages_except_of_type(self, typesTuple):
-        result = []
-        for message in self.__messages:
-            if not isinstance(message, typesTuple):
-                result.append(deepcopy(message))
-        return result
+    def insert_after_system_messages(self, new_message: user_message | assistant_message | image_message | image_description_message | join_message | leave_message):
+        # find the index of the first message that is not a system_message and has is_system_generated_message == false
+        index = 0
+        for i, message in enumerate(self.__messages):
+            if not isinstance(message, system_message) and not message.is_system_generated_message:
+                index = i
+                break
+        self.__messages.insert(index, new_message)
+        
+    
     
     @utils.time_it
     def get_last_message(self) -> message:

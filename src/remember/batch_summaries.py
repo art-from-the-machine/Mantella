@@ -4,7 +4,7 @@ import os
 import time
 from typing import Dict, List
 from src.games.gameable import gameable
-from src.llm.llm_client import LLMClient
+from src.llm.summary_client import SummaryLLMCLient
 from src.llm.message_thread import message_thread
 from src.llm.messages import assistant_message, join_message, leave_message, user_message
 from src.characters_manager import Characters
@@ -16,12 +16,12 @@ class batch_summaries(remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, game: gameable, memory_prompt: str, resummarize_prompt: str, client: LLMClient, language_name: str, summary_limit_pct: float = 0.3) -> None:
+    def __init__(self, game: gameable, memory_prompt: str, resummarize_prompt: str, client: SummaryLLMCLient, language_name: str, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
         self.__game: gameable = game
         self.__summary_limit_pct: float = summary_limit_pct
-        self.__client: LLMClient = client
+        self.__client: SummaryLLMCLient = client
         self.__language_name: str = language_name
         self.__memory_prompt: str = memory_prompt
         self.__resummarize_prompt:str = resummarize_prompt
@@ -53,52 +53,96 @@ class batch_summaries(remembering):
             return ""
 
     @utils.time_it
+    def may_add_missing_join_leave_messages(self, messages: message_thread) -> bool:
+        """ Adds missing join and leave messages to the beginning / end of the message thread."""
+        hadMissingMessages = False
+        characters_found = {}
+        characters_joined = {}
+        characters_left = {}
+    
+        # check if every join message has a leave message and vice versa
+        for message in messages.get_messages_of_type((join_message)):
+            if not message._character.is_player_character:
+                unique_id = message._character.get_unique_id()
+                characters_joined[unique_id] = message._character
+                characters_found[unique_id] = message._character
+        
+        for message in messages.get_messages_of_type((leave_message)):
+            if not message._character.is_player_character:
+                unique_id = message._character.get_unique_id()
+                characters_left[unique_id] = message._character
+                characters_found[unique_id] = message._character
+
+    
+        # Insert the missing messages at the appropriate places
+        if len(characters_joined) < len(characters_found):
+            for unique_id, character in characters_found.items():
+                if unique_id not in characters_joined:
+                    messages.insert_after_system_messages(join_message(character))
+                    hadMissingMessages = True
+        if len(characters_left) < len(characters_found):
+            for unique_id, character in characters_found.items():
+                if unique_id not in characters_left:
+                    messages.add_message(leave_message(character))
+                    hadMissingMessages = True
+        return hadMissingMessages
+    
+    @utils.time_it
     def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False):
         summary = ''
+        self.may_add_missing_join_leave_messages(messages)
+        
         characters = self.get_character_lookup_dict(messages)
         npc_message_threads = self.get_threads_for_summarization(messages)
         npcs_with_shared_threads = self.group_shared_threads(npc_message_threads)
-        for thread, npc_names in npcs_with_shared_threads.items():
-            summary = self.__create_new_conversation_summary(thread, npc_names[0])
-            for npc_name in npc_names:
-                self.__append_new_conversation_summary(summary, characters[npc_name], world_id)
+        for thread, npc_ids in npcs_with_shared_threads.items():
+            summary = self.__create_new_conversation_summary(thread, npc_ids[0])
+            for npc_id in npc_ids:
+                self.__append_new_conversation_summary(summary, characters[npc_id], world_id)
 
+
+        
     def get_character_lookup_dict(self, all_messages: message_thread) -> dict[str, Character]:
         """Returns a dictionary of character names to Character objects."""
         characters = {}
         for message in all_messages.get_messages_of_type((join_message)):
-            if message._character == None or message._character.is_player_character:
+            if not isinstance(message, (join_message, leave_message)) or message._character == None or message._character.is_player_character:
                 continue
-            characters[message._character.name] = message._character
+            characters[message._character.get_unique_id()] = message._character
         return characters
  
     @utils.time_it
     def get_threads_for_summarization(self, all_messages: message_thread) -> dict[str, message_thread]:
-        """Returns a dictionary of message threads per character name, each containing the messages that should be summarized for that character."""
+        """Returns dict[npcId, messagesForThatNpc]"""
         npcs_in_conversation: dict[str, bool] = {}
+        def set_in_conversation(npc: Character, in_conversation: bool):
+            npcs_in_conversation[npc.get_unique_id()] = in_conversation
+        
         npc_messageThreads: dict[str, message_thread] = {}
 
-        for message in all_messages.get_messages_of_type((user_message, assistant_message, join_message, leave_message)):
+        for message in all_messages.get_persistent_messages():
+            # Mark npc as present when they join
             if isinstance(message, join_message) and not message._character.is_player_character:
-                npcs_in_conversation[message._character.name] = True
+                set_in_conversation(message._character, True)
 
-            # Loop over all NPCs in the conversation where the value is True
-            for char_name, in_conversation in npcs_in_conversation.items():
+            # Add the message for each npc that was in the conversation to hear this message
+            for char_id, in_conversation in npcs_in_conversation.items():
                 if in_conversation:
-                    if char_name not in npc_messageThreads:
-                        npc_messageThreads[char_name] = message_thread(None)
-                    thread: message_thread = npc_messageThreads[char_name]
+                    if char_id not in npc_messageThreads:
+                        npc_messageThreads[char_id] = message_thread(None)
+                    thread: message_thread = npc_messageThreads[char_id]
                     
                     # Mark passage of time, in case a character left and rejoined the conversation
                     if thread.__len__() > 0:
                         npcs_previous_message = thread.get_last_message()
-                        if isinstance(npcs_previous_message, leave_message) and npcs_previous_message._character.name == char_name:
+                        if isinstance(npcs_previous_message, leave_message) and npcs_previous_message._character.get_unique_id() == char_id:
                             thread.add_message(assistant_message("* some time later *"))
                     
                     thread.add_message(message)
             
+            # Mark npc as absent when they leave 
             if isinstance(message, leave_message) and not message._character.is_player_character:
-                npcs_in_conversation[message._character.name] = False
+                set_in_conversation(message._character, False)
 
         return npc_messageThreads
 
@@ -114,16 +158,16 @@ class batch_summaries(remembering):
         """
         # Group NPCs by the exact tuple of message texts from their thread.
         thread_groups = defaultdict(list)
-        for npc_name, thread in npc_threads.items():
+        for npc_id, thread in npc_threads.items():
             messages_tuple = tuple(message.text for message in thread.get_talk_only())
-            thread_groups[messages_tuple].append(npc_name)
+            thread_groups[messages_tuple].append(npc_id)
 
         # Build the result: for each group, select a representative thread.
         result: Dict[message_thread, List[str]] = {}
         for messages, npc_list in thread_groups.items():
-            rep_npc = npc_list[0]
-            rep_thread = npc_threads[rep_npc]
-            result[rep_thread] = npc_list
+            representative_npc_id = npc_list[0]
+            representative_thread = npc_threads[representative_npc_id]
+            result[representative_thread] = npc_list
 
         return result
 

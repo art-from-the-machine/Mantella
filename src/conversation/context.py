@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Hashable
+from typing import Any, Hashable, List
 from src.conversation.action import action
 from src.http.communication_constants import communication_constants
 from src.conversation.conversation_log import conversation_log
@@ -12,9 +12,9 @@ from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 
 class add_or_update_result:
-    def __init__(self, added_npcs, removed_npcs):
-        self.added_npcs = added_npcs
-        self.removed_npcs = removed_npcs
+    def __init__(self, added_npcs: List[Character], removed_npcs: List[Character]):
+        self.added_npcs: List[Character]  = added_npcs
+        self.removed_npcs: List[Character]  = removed_npcs
 
 class context:
     """Holds the context of a conversation
@@ -130,8 +130,8 @@ class context:
 
     @utils.time_it
     def add_or_update_characters(self, new_list_of_npcs: list[Character]) -> add_or_update_result:
-        added_npcs = []
-        removed_npcs = []
+        added_npcs: List[Character] = []
+        removed_npcs: List[Character] = []
         for npc in new_list_of_npcs:
             if not self.__npcs_in_conversation.contains_character(npc):
                 self.__npcs_in_conversation.add_or_update_character(npc)

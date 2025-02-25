@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Hashable
 import regex
+from src.llm.summary_client import SummaryLLMCLient
 from src.games.equipment import Equipment, EquipmentItem
 from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
@@ -8,7 +9,6 @@ from src.conversation.action import action
 from src.llm.sentence import sentence
 from src.output_manager import ChatManager
 from src.remember.remembering import remembering
-from src.remember.summaries import summaries
 from src.remember.batch_summaries import batch_summaries
 
 from src.config.config_loader import ConfigLoader
@@ -30,13 +30,13 @@ class GameStateManager:
     WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
     @utils.time_it
-    def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, stt_api_file: str, api_file: str):        
+    def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, summary_client:SummaryLLMCLient, stt_api_file: str, api_file: str):        
         self.__game: gameable = game
         self.__config: ConfigLoader = config
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
-        self.__rememberer: remembering = batch_summaries(game, config.memory_prompt, config.resummarize_prompt, client, language_info['language'])
+        self.__rememberer: remembering = batch_summaries(game, config.memory_prompt, config.resummarize_prompt, summary_client, language_info['language'])
         self.__talk: conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk

@@ -24,6 +24,9 @@ class Character:
         self.__equipment = equipment
         self.__custom_character_values: dict[str, Any] = custom_character_values
 
+    def get_unique_id(self):
+        return self.name + self.ref_id
+    
     @property
     def base_id(self) -> str:
         return self.__base_id

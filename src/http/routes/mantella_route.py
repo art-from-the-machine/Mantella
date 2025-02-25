@@ -3,6 +3,7 @@ import logging
 from typing import Any, Hashable
 
 from fastapi import FastAPI, Request
+from src.llm.summary_client import SummaryLLMCLient
 from src.config.config_loader import ConfigLoader
 from src.games.fallout4 import fallout4
 from src.games.gameable import gameable
@@ -58,9 +59,10 @@ class mantella_route(routeable):
             tts = piper(self._config, game)
 
         llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
+        summary_client = SummaryLLMCLient(self._config, self.__secret_key_file, self.__image_secret_key_file)
         
         chat_manager = ChatManager(self._config, tts, llm_client)
-        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, self.__stt_secret_key_file, self.__secret_key_file)
+        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, summary_client, self.__stt_secret_key_file, self.__secret_key_file)
 
     @utils.time_it
     def add_route_to_server(self, app: FastAPI):
