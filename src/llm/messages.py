@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from openai.types.chat import ChatCompletionMessageParam
-from src.config.definitions.llm_definitions import NarrationAndSpeechIndicatorsEnum
+from src.config.definitions.llm_definitions import NarrationIndicatorsEnum
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence_content import SentenceTypeEnum, sentence_content
 from src.character_manager import Character
@@ -15,10 +15,10 @@ class message(ABC):
         self.__text: str = text
         self.__is_multi_npc_message: bool = False
         self.__is_system_generated_message = is_system_generated_message
-        if config.narration_indicators == NarrationAndSpeechIndicatorsEnum.BRACKETS:
+        if config.narration_indicators == NarrationIndicatorsEnum.BRACKETS:
             self.__narration_start: str = "["
             self.__narration_end: str = "]"
-        elif config.narration_indicators == NarrationAndSpeechIndicatorsEnum.ASTERISKS:
+        elif config.narration_indicators == NarrationIndicatorsEnum.ASTERISKS:
             self.__narration_start: str = "*"
             self.__narration_end: str = "*"
         else:
