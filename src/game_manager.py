@@ -210,7 +210,7 @@ class GameStateManager:
         # Clear per-character client cache to force recreation with new settings
         chat_manager.clear_per_character_client_cache()
             
-        self.__rememberer: Remembering = batch_summaries(game, config.memory_prompt, config.resummarize_prompt, summary_client or client, language_info['language'])
+        self.__rememberer: remembering = summaries(game, config.memory_prompt, config.resummarize_prompt, summary_client or client, language_info['language'])
 
         self.__talk: Conversation | None = None
         self.__mic_input: bool = False
