@@ -12,7 +12,7 @@ from src.character_manager import Character
 from src.remember.remembering import remembering
 from src import utils
 
-class batch_summaries(remembering):
+class summaries(remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """

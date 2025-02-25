@@ -9,7 +9,7 @@ from src.conversation.action import action
 from src.llm.sentence import sentence
 from src.output_manager import ChatManager
 from src.remember.remembering import remembering
-from src.remember.batch_summaries import batch_summaries
+from remember.summaries import summaries
 
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
@@ -36,7 +36,7 @@ class GameStateManager:
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
-        self.__rememberer: remembering = batch_summaries(game, config.memory_prompt, config.resummarize_prompt, summary_client, language_info['language'])
+        self.__rememberer: remembering = summaries(game, config.memory_prompt, config.resummarize_prompt, summary_client, language_info['language'])
         self.__talk: conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk
