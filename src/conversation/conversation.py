@@ -149,6 +149,7 @@ class Conversation:
             all_characters.extend(update_result.removed_npcs)
             self.__save_conversation_log_for_characters(all_characters)
             
+        # mark the joining / leaving of an npc in the message_thread
         for update_message in self.generate_add_or_remove_messages(update_result):
             self.__messages.add_message(update_message)
 
@@ -156,9 +157,11 @@ class Conversation:
     def generate_add_or_remove_messages(self, update_result: add_or_update_result) -> list[str]:
         add_or_remove_messages = []
         for npc in update_result.added_npcs:
-            add_or_remove_messages.append(join_message(npc))
+            if not npc.is_player_character:
+                add_or_remove_messages.append(join_message(npc))
         for npc in update_result.removed_npcs:
-            add_or_remove_messages.append(leave_message(npc))
+            if not npc.is_player_character:
+                add_or_remove_messages.append(leave_message(npc))
         return add_or_remove_messages
 
     @utils.time_it
@@ -350,7 +353,6 @@ class Conversation:
                 self.__messages: message_thread = message_thread(self.__context.config, new_prompt)
             else:
                 self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
-                self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
                 self.reload_and_cull_thread(new_prompt)
 
     @utils.time_it
@@ -358,7 +360,7 @@ class Conversation:
         """Reloads the message thread and removes old messages if getting close to context limits"""
         removed_messages = self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
         if len(removed_messages) > 0:
-            removed_messages_thread = message_thread(self.__context.config,None)
+            removed_messages_thread = message_thread(None)
             for message in removed_messages:
                 removed_messages_thread.add_message(message)
             # Summarize the removed messages
@@ -485,9 +487,8 @@ class Conversation:
         """Saves all messages of the conversation to a json file for each NPC in the conversation"""
         for npc in characters_to_save_for:
             if not npc.is_player_character:
-                # TODO: Revert this line, as i included all  messages for debugging 
-                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_messages_of_type((assistant_message, user_message, join_message, leave_message))), self.__context.world_id)
-
+                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
+                
     @utils.time_it
     def __save_summary_for_characters(self, messages_to_summarize:message_thread, characters_to_save_for: list[Character], is_reload=False):
         characters_object = Characters()
@@ -501,7 +502,7 @@ class Conversation:
         # Only save conversation state (which triggers summary generation) if summaries are enabled
         if self.__context.config.conversation_summary_enabled:
             # Save the summary
-            self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload)
+            self.__rememberer.save_conversation_state(messages_to_summarize, characters_object, self.__context.world_id, is_reload)
             # Save the log
             self.__save_conversation_log_for_characters(characters_to_save_for)
 
@@ -524,13 +525,6 @@ class Conversation:
     def reload_conversation(self):
         """Reloads the conversation
         """
-        # We now only save write the summary on conversation end. 
-        # This might lead to data loss, if self.__llm_client.is_too_long == true, since we then start truncating old message, but are not summarizing before that
-        # TODO: Remove many messages (not just 10% as we do now) and summarize them
-        # ---------------
-        # self.__save_conversation(is_reload=True)
-        
-        # Reload
         new_prompt = self.__conversation_type.generate_prompt(self.__context)
         self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
 

@@ -71,7 +71,7 @@ class message_thread():
                 self.__messages.append(new_message)
     
     @utils.time_it
-    def reload_message_thread(self, new_prompt: str, is_too_long: Callable[[list[Message], float], bool], percent_modifier: float):
+    def reload_message_thread(self, new_prompt: str, is_too_long: Callable[[list[message], float], bool], percent_modifier: float):
         """Reloads this message_thread with a new system_message prompt and drops all but the last X persistent messages.
         Returns the persistent messages that were removed.
 
@@ -83,7 +83,9 @@ class message_thread():
         result: list[Message] = []
         result.append(SystemMessage(new_prompt, self.__config))
         messages_to_keep: list[Message] = []
-        for talk_message in reversed(self.get_messages_except_of_type(SystemMessage)):
+        persistent_messages = self.get_persistent_messages()
+        
+        for talk_message in reversed(persistent_messages):
             messages_to_keep.append(talk_message)
             if is_too_long(messages_to_keep, percent_modifier):
                 messages_to_keep = messages_to_keep[:-1]
@@ -118,6 +120,15 @@ class message_thread():
         return result
     
     @utils.time_it
+    def get_persistent_messages(self):
+        """ Returns a deepcopy of all the messages we want to persist over multiple turns. """
+        result = []
+        for message in self.__messages:
+            if isinstance(message, (assistant_message, user_message, join_message, leave_message)):
+                result.append(deepcopy(message))
+        return result
+    
+    @utils.time_it
     def get_messages_of_type(self, typesTuple):
         result = []
         for message in self.__messages:
@@ -125,13 +136,16 @@ class message_thread():
                 result.append(deepcopy(message))
         return result
     
-    @utils.time_it
-    def get_messages_except_of_type(self, typesTuple):
-        result = []
-        for message in self.__messages:
-            if not isinstance(message, typesTuple):
-                result.append(deepcopy(message))
-        return result
+    def insert_after_system_messages(self, new_message: user_message | assistant_message | image_message | image_description_message | join_message | leave_message):
+        # find the index of the first message that is not a system_message and has is_system_generated_message == false
+        index = 0
+        for i, message in enumerate(self.__messages):
+            if not isinstance(message, system_message) and not message.is_system_generated_message:
+                index = i
+                break
+        self.__messages.insert(index, new_message)
+        
+    
     
     @utils.time_it
     def get_persistent_messages(self):

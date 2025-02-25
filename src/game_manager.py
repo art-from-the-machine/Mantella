@@ -35,8 +35,8 @@ class GameStateManager:
     WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
     @utils.time_it
-    def __init__(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, summary_client:SummaryLLMCLient, stt_api_file: str, api_file: str):        
-        self.__game: Gameable = game
+    def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, summary_client:SummaryLLMCLient, stt_api_file: str, api_file: str):        
+        self.__game: gameable = game
         self.__config: ConfigLoader = config
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: LLMClient = client
