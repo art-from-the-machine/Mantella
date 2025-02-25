@@ -62,7 +62,8 @@ def initialise(config_file, logging_file, language_file) -> tuple[ConfigLoader, 
         return str(save_dir)+'\\'
     
     def setup_logging(file_name, config: ConfigLoader):
-        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', handlers=[], encoding='utf-8')
+        logging_level = logging.DEBUG if config.advanced_logs else logging.INFO
+        logging.basicConfig(level=logging_level, format='%(levelname)s: %(message)s', handlers=[], encoding='utf-8')
 
         # create custom formatter
         formatter = cf.CustomFormatter()

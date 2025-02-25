@@ -157,6 +157,7 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_save_audio_data_to_character_folder_config_value())
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
+        other_category.add_config_value(OtherDefinitions.get_advanced_logs_config_value())
         # other_category.add_config_value(OtherDefinitions.get_debugging_config_value())
         # other_category.add_config_value(OtherDefinitions.get_play_audio_from_script_config_value())
         # other_category.add_config_value(OtherDefinitions.get_debugging_npc_config_value())

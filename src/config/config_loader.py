@@ -297,6 +297,8 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.port = self.__definitions.get_int_value("port")
             self.show_http_debug_messages: bool = self.__definitions.get_bool_value("show_http_debug_messages")
 
+            self.advanced_logs = self.__definitions.get_bool_value("advanced_logs")
+
             self.save_audio_data_to_character_folder = self.__definitions.get_bool_value("save_audio_data_to_character_folder")
 
             #new separate prompts for Fallout 4 have been added 
