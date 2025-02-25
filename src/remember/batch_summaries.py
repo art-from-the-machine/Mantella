@@ -106,9 +106,9 @@ class batch_summaries(remembering):
         """Returns a dictionary of character names to Character objects."""
         characters = {}
         for message in all_messages.get_messages_of_type((join_message)):
-            if not isinstance(message, (join_message, leave_message)) or message._character == None or message._character.is_player_character:
+            if not isinstance(message, (join_message, leave_message)) or message.character == None or message.character.is_player_character:
                 continue
-            characters[message._character.name] = message._character
+            characters[message.character.name] = message.character
         return characters
  
     @utils.time_it
@@ -122,8 +122,8 @@ class batch_summaries(remembering):
 
         for message in all_messages.get_persistent_messages():
             # Mark npc as present when they join
-            if isinstance(message, join_message) and not message._character.is_player_character:
-                set_in_conversation(message._character, True)
+            if isinstance(message, join_message) and not message.character.is_player_character:
+                set_in_conversation(message.character, True)
 
             # Add the message for each npc that was in the conversation to hear this message
             for npc_name, in_conversation in npcs_in_conversation.items():
@@ -135,14 +135,14 @@ class batch_summaries(remembering):
                     # Mark passage of time, in case a character left and rejoined the conversation
                     if thread.__len__() > 0:
                         npcs_previous_message = thread.get_last_message()
-                        if isinstance(npcs_previous_message, leave_message) and npcs_previous_message._character.name == npc_name:
+                        if isinstance(npcs_previous_message, leave_message) and npcs_previous_message.character.name == npc_name:
                             thread.add_message(assistant_message("* some time later *"))
                     
                     thread.add_message(message)
             
             # Mark npc as absent when they leave 
-            if isinstance(message, leave_message) and not message._character.is_player_character:
-                set_in_conversation(message._character, False)
+            if isinstance(message, leave_message) and not message.character.is_player_character:
+                set_in_conversation(message.character, False)
 
         return npc_messageThreads
 
