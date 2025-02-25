@@ -75,6 +75,12 @@ class OtherDefinitions:
     def get_show_http_debug_messages_config_value() -> ConfigValue:
         return ConfigValueBool("show_http_debug_messages","Show HTTP Debug Messages","Display the JSON going in and out of the server in Mantella.exe's log.", False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
+    @staticmethod
+    def get_advanced_logs_config_value() -> ConfigValue:
+        description = """Save advanced logs to Mantella's My Games/Mantella/logging.log file.
+                        Useful for troubleshooting issues."""
+        return ConfigValueBool("advanced_logs", "Advanced Logs", description, False, tags=[ConfigValueTag.advanced])
+    
     #Debugging
     @staticmethod
     def get_debugging_config_value() -> ConfigValue:
