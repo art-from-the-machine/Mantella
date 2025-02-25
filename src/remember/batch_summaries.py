@@ -62,16 +62,16 @@ class batch_summaries(remembering):
     
         # check if every join message has a leave message and vice versa
         for message in messages.get_messages_of_type((join_message)):
-            if not message._character.is_player_character:
-                name = message._character.name
-                characters_joined[name] = message._character
-                characters_found[name] = message._character
+            if not message.character.is_player_character:
+                name = message.character.name
+                characters_joined[name] = message.character
+                characters_found[name] = message.character
         
         for message in messages.get_messages_of_type((leave_message)):
-            if not message._character.is_player_character:
-                name = message._character.name
-                characters_left[name] = message._character
-                characters_found[name] = message._character
+            if not message.character.is_player_character:
+                name = message.character.name
+                characters_left[name] = message.character
+                characters_found[name] = message.character
 
     
         # Insert the missing messages at the appropriate places
