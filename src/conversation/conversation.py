@@ -44,7 +44,7 @@ class conversation:
             self.__conversation_type: conversation_type = radiant(context_for_conversation.config)
         else:
             self.__conversation_type: conversation_type = pc_to_npc(context_for_conversation.config)        
-        self.__messages: message_thread = message_thread(None)
+        self.__messages: message_thread = message_thread(self.__context.config, None)
         self.__output_manager: ChatManager = output_manager
         self.__rememberer: remembering = rememberer
         self.__llm_client = llm_client
@@ -207,7 +207,7 @@ class conversation:
                 # otherwise the player could constantly speak over the NPC and never hear a response
                 self.__stt.stop_listening()
             
-            new_message: user_message = user_message(player_text, player_character.name, False)
+            new_message: user_message = user_message(self.__context.config, player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
             new_message = self.update_game_events(new_message)
             self.__messages.add_message(new_message)
@@ -277,7 +277,7 @@ class conversation:
 
             new_prompt = self.__conversation_type.generate_prompt(self.__context)        
             if len(self.__messages) == 0:
-                self.__messages: message_thread = message_thread(new_prompt)
+                self.__messages: message_thread = message_thread(self.__context.config, new_prompt)
             else:
                 self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
                 self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
@@ -315,7 +315,7 @@ class conversation:
         if not next_sentence.is_system_generated_sentence and not next_sentence.speaker.is_player_character:
             last_message = self.__messages.get_last_message()
             if not isinstance(last_message, assistant_message):
-                last_message = assistant_message()
+                last_message = assistant_message(self.__context.config)
                 last_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
                 self.__messages.add_message(last_message)
             last_message.add_sentence(next_sentence)

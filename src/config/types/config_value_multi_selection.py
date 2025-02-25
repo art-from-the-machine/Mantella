@@ -22,7 +22,9 @@ class ConfigValueMultiSelection(ConfigValue[list[str]]):
     
     def parse(self, config_value: str) -> ConfigValueConstraintResult:
         try:
-            value_to_use: list[str] = list(x.strip() for x in config_value.split(","))
+            value_to_use: list[str] = []
+            if len(config_value) > 0:
+                value_to_use = list(x.strip() for x in config_value.split(","))
             result = self.does_value_cause_error(value_to_use)
             if result.is_success:
                 self.value = value_to_use

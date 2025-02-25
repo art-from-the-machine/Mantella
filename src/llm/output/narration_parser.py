@@ -10,14 +10,24 @@ class narration_parser(output_parser):
                 speech_start_chars: list[str] = ["\""], speech_end_chars: list[str] = ["\""]) -> None:
         super().__init__()
         base_regex_def = "^.*?[{chars}]"
+        never_match_anything_regex = re.compile("\\b\\B")
         self.__narration_start_chars: list[str] = narration_start_chars
         self.__narration_end_chars: list[str] = narration_end_chars
-        self.__start_narration_reg = re.compile(base_regex_def.format(chars = "\\" + "\\".join(narration_start_chars))) #Should look like ^.*?[\*\(\[]
-        self.__end_narration_reg = re.compile(base_regex_def.format(chars = "\\" + "\\".join(narration_end_chars))) #Should look like ^.*?[\*\)\]]
+        if len(narration_start_chars) > 0 and len(narration_end_chars) > 0:
+            self.__start_narration_reg = re.compile(base_regex_def.format(chars = "\\" + "\\".join(narration_start_chars))) #Should look like ^.*?[\*\(\[]
+            self.__end_narration_reg = re.compile(base_regex_def.format(chars = "\\" + "\\".join(narration_end_chars))) #Should look like ^.*?[\*\)\]]
+        else:
+            self.__start_narration_reg = never_match_anything_regex
+            self.__end_narration_reg = never_match_anything_regex
+        
         self.__speech_start_chars: list[str] = speech_start_chars
         self.__speech_end_chars: list[str] = speech_end_chars
-        self.__start_speech_reg = re.compile(base_regex_def.format(chars = "\\" + "\\".join(speech_start_chars))) #Should look like ^.*?[\*\(\[]
-        self.__end_speech_reg = re.compile(base_regex_def.format(chars = "\\" + "\\".join(speech_end_chars))) #Should look like ^.*?[\*\)\]]
+        if len(speech_start_chars) > 0 and len(speech_end_chars) > 0:
+            self.__start_speech_reg = re.compile(base_regex_def.format(chars = "\\" + "\\".join(speech_start_chars))) #Should look like ^.*?[\*\(\[]
+            self.__end_speech_reg = re.compile(base_regex_def.format(chars = "\\" + "\\".join(speech_end_chars))) #Should look like ^.*?[\*\)\]]
+        else:
+            self.__start_speech_reg = never_match_anything_regex
+            self.__end_speech_reg = never_match_anything_regex
 
     def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[sentence_content | None, str]:
         output = output.lstrip()

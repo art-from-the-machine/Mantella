@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from src.config.config_loader import ConfigLoader
 from src.games.gameable import gameable
 from src.llm.llm_client import LLMClient
 from src.llm.message_thread import message_thread
@@ -14,15 +15,16 @@ class summaries(remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, game: gameable, memory_prompt: str, resummarize_prompt: str, client: LLMClient, language_name: str, summary_limit_pct: float = 0.3) -> None:
+    def __init__(self, game: gameable, config: ConfigLoader, client: LLMClient, language_name: str, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
+        self.__config = config
         self.__game: gameable = game
         self.__summary_limit_pct: float = summary_limit_pct
         self.__client: LLMClient = client
         self.__language_name: str = language_name
-        self.__memory_prompt: str = memory_prompt
-        self.__resummarize_prompt:str = resummarize_prompt
+        self.__memory_prompt: str = config.memory_prompt
+        self.__resummarize_prompt:str = config.resummarize_prompt
 
     @utils.time_it
     def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str) -> str:
@@ -185,8 +187,8 @@ class summaries(remembering):
     def summarize_conversation(self, text_to_summarize: str, prompt: str, npc_name: str) -> str:
         summary = ''
         if len(text_to_summarize) > 5:
-            messages = message_thread(prompt)
-            messages.add_message(user_message(text_to_summarize))
+            messages = message_thread(self.__config, prompt)
+            messages.add_message(user_message(self.__config, text_to_summarize))
             summary = self.__client.request_call(messages)
             if not summary:
                 logging.info(f"Summarizing conversation failed.")

@@ -83,7 +83,7 @@ class pc_to_npc(conversation_type):
             if player_character:
                 for actor in context_for_conversation.npcs_in_conversation.get_all_characters():
                     if not actor.is_player_character:
-                        message = user_message(f"{context_for_conversation.language['hello']} {actor.name}.", player_character.name, True)
+                        message = user_message(context_for_conversation.config, f"{context_for_conversation.language['hello']} {actor.name}.", player_character.name, True)
                         message.is_multi_npc_message = False
                         return message
             return None
@@ -129,7 +129,7 @@ class radiant(conversation_type):
             text = self.__user_end_prompt
         else:
             return None
-        reply = user_message(text, "", True)
+        reply = user_message(context_for_conversation.config, text, "", True)
         reply.is_multi_npc_message = False # Don't flag these as multi-npc messages. Don't want a 'Player:' in front of the instruction messages
         return reply
     
