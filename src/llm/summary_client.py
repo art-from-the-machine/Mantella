@@ -12,8 +12,4 @@ class SummaryLLMCLient(ClientBase):
     def __init__(self, config: ConfigLoader, secret_key_file: str, image_secret_key_file: str) -> None:
         used_llm = config.summary_llm if config.use_summary_llm else config.llm
         super().__init__(config.llm_api, used_llm, config.llm_params, config.custom_token_count, [secret_key_file])
-
         self._startup_async_client: AsyncOpenAI | None = self.generate_async_client() # initialize first client in advance of sending first LLM request to save time
-
-        if config.vision_enabled:
-            self._image_client: ImageClient | None = ImageClient(config, secret_key_file, image_secret_key_file)
