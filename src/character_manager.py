@@ -4,7 +4,7 @@ from src.games.equipment import Equipment
 class Character:
     """Representation of a character in the game
     """
-    def __init__(self, base_id: str, ref_id: str,  name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, equipment:Equipment, custom_character_values: dict[str, Any]):
+    def __init__(self, base_id: str, ref_id: str,  name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_outside_talking_range:bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, equipment:Equipment, custom_character_values: dict[str, Any]):
         self.__base_id: str = base_id
         self.__ref_id: str = ref_id
         self.__name: str = name
@@ -13,6 +13,7 @@ class Character:
         self.__is_player_character: bool = is_player_character
         self.__bio: str = bio
         self.__is_in_combat: bool = is_in_combat
+        self.__is_outside_talking_range: bool = is_outside_talking_range
         self.__is_enemy: bool = is_enemy
         self.__relationship_rank: int = relationship_rank
         self.__is_generic_npc: bool = is_generic_npc
@@ -99,6 +100,14 @@ class Character:
     @is_in_combat.setter
     def is_in_combat(self, value: bool):
         self.__is_in_combat = value
+        
+    @property
+    def is_outside_talking_range(self) -> bool:
+        return self.__is_outside_talking_range
+    
+    @is_outside_talking_range.setter
+    def is_outside_talking_range(self, value: bool):
+        self.__is_outside_talking_range = value
     
     @property
     def is_enemy(self) -> bool:

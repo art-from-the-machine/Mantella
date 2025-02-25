@@ -238,6 +238,7 @@ class GameStateManager:
             actor_voice_model: str = str(json[comm_consts.KEY_ACTOR_VOICETYPE])
             ingame_voice_model: str = actor_voice_model.split('<')[1].split(' ')[0]
             is_in_combat: bool = bool(json[comm_consts.KEY_ACTOR_ISINCOMBAT])
+            is_outside_talking_range: bool = bool(json[comm_consts.KEY_ACTOR_ISOUTSIDETALKINGRANGE])
             is_enemy: bool = bool(json[comm_consts.KEY_ACTOR_ISENEMY])
             relationship_rank: int = int(json[comm_consts.KEY_ACTOR_RELATIONSHIPRANK])
             custom_values: dict[str, Any] = {}
@@ -290,6 +291,7 @@ class GameStateManager:
                             is_player_character,
                             bio,
                             is_in_combat,
+                            is_outside_talking_range,
                             is_enemy,
                             relationship_rank,
                             is_generic_npc,
