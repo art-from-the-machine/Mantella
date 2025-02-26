@@ -212,6 +212,16 @@ class context:
                 self.__ingame_events.append(f"{name} is now in combat!")
             else:
                 self.__ingame_events.append(f"{name} is no longer in combat.")
+        
+        # Npc left / entered talking range in multipi-npc conversation
+        if current_stats.is_outside_talking_range != npc.is_outside_talking_range and not npc.is_player_character:
+            isMultiNpcsConversation = self.__npcs_in_conversation.contains_multiple_npcs() and self.__npcs_in_conversation.contains_player_character()
+            if isMultiNpcsConversation:
+                if npc.is_outside_talking_range:        
+                    self.__ingame_events.append(f"{npc.name} is too far away to talk. They can no longer respond")
+                else:
+                    self.__ingame_events.append(f"{npc.name} is now close enough to talk. They can respond again")
+        
         #update custom  values
         try:
             if (current_stats.get_custom_character_value("mantella_actor_pos_x") is not None and
