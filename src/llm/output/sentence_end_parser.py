@@ -6,7 +6,7 @@ from src.llm.sentence_content import sentence_content
 
 class sentence_end_parser(output_parser):
     """Class to cut the LLM output at the end of a sentence."""
-    def __init__(self, end_of_sentence_chars: list[str] = ['.', '?', '!', ':', ';', '。', '？', '！', '；', '：']) -> None:
+    def __init__(self, end_of_sentence_chars: list[str] = ['.', '?', '!', ';', '。', '？', '！', '；', '：']) -> None:
         super().__init__()
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in end_of_sentence_chars]
         base_regex_def = "^.*?[{sentence_end_chars}]+"

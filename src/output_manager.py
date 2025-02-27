@@ -38,7 +38,7 @@ class ChatManager:
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
         self.__is_first_sentence: bool = False
-        self.__end_of_sentence_chars = ['.', '?', '!', ':', ';', '。', '？', '！', '；', '：']
+        self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
     @property
