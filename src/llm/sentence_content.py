@@ -7,11 +7,11 @@ class SentenceTypeEnum(Enum):
 
 class sentence_content:
     """The LLM relevant part of a sentence"""
-    def __init__(self, speaker: Character, text: str, sentence_type: SentenceTypeEnum, is_system_generated_sentence: bool = False) -> None:
+    def __init__(self, speaker: Character, text: str, sentence_type: SentenceTypeEnum, is_system_generated_sentence: bool = False, actions: list[str] = None) -> None:
         self.__speaker: Character = speaker
         self.__text: str = text
         self.__sentence_type: SentenceTypeEnum = sentence_type
-        self.__actions: list[str] = []
+        self.__actions: list[str] = [] if actions is None else actions
         self.__is_system_generated_sentence: bool = is_system_generated_sentence
 
     @property
@@ -37,6 +37,10 @@ class sentence_content:
     @property
     def actions(self) -> list[str]:
         return self.__actions
+    
+    @actions.setter
+    def actions(self, value: list[str]):
+        self.__actions = value
     
     @property
     def is_system_generated_sentence(self) -> bool:
