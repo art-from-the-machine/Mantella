@@ -60,6 +60,12 @@ class ChatManager:
 
         character_to_talk = content.speaker
         text = ' ' + content.text + ' '
+        
+        # Check for short voicelines before sending to TTS
+        if len(content.text.strip()) < 3:
+            logging.warning(f"Skipping TTS for voiceline that is too-short: '{content.text.strip()}'")
+            # Return a sentence object without audio - skipping TTS entirely
+            return mantella_sentence(sentence_content(character_to_talk, text, content.sentence_type, True), "", 0)
 
         with self.__tts_access_lock:
             try:
