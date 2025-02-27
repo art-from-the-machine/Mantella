@@ -24,7 +24,7 @@
 ```{admonition} Note
 :class: seealso
 
-Mantella's default text-to-speech service, Piper, only supports English. For text-to-speech services that support other languages, see [here](#text-to-speech).
+By default, Mantella is configured to provide a balanced out-of-the-box experience. To learn how to prioritize real-time responses, see <a href="./real_time_npcs.html">here</a>.
 ```
 
 <div style="text-align: center;">

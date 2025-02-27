@@ -45,6 +45,7 @@
 pages/installation
 pages/installation_fallout4
 pages/issues_qna
+pages/real_time_npcs
 pages/adding_modded_npcs
 pages/fine_tuned_models
 pages/contribute
