@@ -24,3 +24,6 @@ class actions_parser(output_parser):
                     # if action.is_interrupting:
                     #     settings.stop_generation = True
         return cut_content, last_content
+    
+    def get_cut_indicators(self) -> list[str]:
+        return [":"]
