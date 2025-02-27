@@ -28,7 +28,7 @@ class ImageClient(ClientBase):
             else:
                 logging.log(23, f"Running Mantella with custom vision model '{config.vision_llm}'")
 
-        self.__end_of_sentence_chars = ['.', '?', '!', ':', ';', '。', '？', '！', '；', '：']
+        self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
         self.__vision_prompt: str = config.vision_prompt.format(game=config.game)
