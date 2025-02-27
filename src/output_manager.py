@@ -75,7 +75,7 @@ class ChatManager:
                 logging.log(29, error_text)
                 return mantella_sentence(sentence_content(character_to_talk, text, content.sentence_type, True), "", 0, error_text)
             self.__is_first_sentence = False
-            return mantella_sentence(sentence_content(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence), audio_file, self.get_audio_duration(audio_file))
+            return mantella_sentence(sentence_content(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, self.get_audio_duration(audio_file))
 
     @utils.time_it
     def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: sentence_queue, actions: list[action]):
