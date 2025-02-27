@@ -18,8 +18,8 @@ Note that changing your provider preferences to prioritize latency or throughput
 
 #### Choose a Fast LLM
 Once you have changed your preferences to either prioritize latency or throughput, you can view and select an OpenRouter model from the lists sorted by latency / throughput here:  
-https://openrouter.ai/models?order=latency-low-to-high  
-https://openrouter.ai/models?order=throughput-high-to-low  
+[https://openrouter.ai/models?order=latency-low-to-high](https://openrouter.ai/models?order=latency-low-to-high)  
+[https://openrouter.ai/models?order=throughput-high-to-low](https://openrouter.ai/models?order=latency-low-to-high)  
 
 ### c. Local Models
 If you have a high-end GPU, running LLMs locally has the advantage of eliminating network latency and providing consistent response times. For setup instructions on running local LLMs, see <a href="./installation.html##local-models">here</a>.
