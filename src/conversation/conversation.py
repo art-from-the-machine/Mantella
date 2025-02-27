@@ -245,6 +245,14 @@ class conversation:
         return player_character_voiced_sentence
 
     @utils.time_it
+    def can_any_npc_reply(self) -> bool:
+        if self.__context.npcs_in_conversation.contains_player_character():
+            for npc in self.__context.npcs_in_conversation.get_all_characters():
+                if not npc.is_player_character and not npc.is_outside_talking_range:
+                    return True
+        return True  
+
+    @utils.time_it
     def update_context(self, location: str | None, time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
         """Updates the context with a new set of values
 

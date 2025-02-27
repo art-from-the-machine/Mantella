@@ -137,7 +137,7 @@ class GameStateManager:
                             }
         
         # if the player response is not an action command, return a regular player reply type
-        if player_spoken_sentence:
+        if player_spoken_sentence and self.__talk.can_any_npc_reply():
             topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
             self.__game.prepare_sentence_for_game(player_spoken_sentence, self.__talk.context, self.__config, topicInfoID, self.__first_line)
             self.__first_line = False
@@ -238,6 +238,7 @@ class GameStateManager:
             actor_voice_model: str = str(json[comm_consts.KEY_ACTOR_VOICETYPE])
             ingame_voice_model: str = actor_voice_model.split('<')[1].split(' ')[0]
             is_in_combat: bool = bool(json[comm_consts.KEY_ACTOR_ISINCOMBAT])
+            is_outside_talking_range: bool = bool(json[comm_consts.KEY_ACTOR_ISOUTSIDETALKINGRANGE])
             is_enemy: bool = bool(json[comm_consts.KEY_ACTOR_ISENEMY])
             relationship_rank: int = int(json[comm_consts.KEY_ACTOR_RELATIONSHIPRANK])
             custom_values: dict[str, Any] = {}
@@ -290,6 +291,7 @@ class GameStateManager:
                             is_player_character,
                             bio,
                             is_in_combat,
+                            is_outside_talking_range,
                             is_enemy,
                             relationship_rank,
                             is_generic_npc,
