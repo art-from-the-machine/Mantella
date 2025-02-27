@@ -137,7 +137,7 @@ class GameStateManager:
                             }
         
         # if the player response is not an action command, return a regular player reply type
-        if player_spoken_sentence:
+        if player_spoken_sentence and self.__talk.can_any_npc_reply():
             topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
             self.__game.prepare_sentence_for_game(player_spoken_sentence, self.__talk.context, self.__config, topicInfoID, self.__first_line)
             self.__first_line = False

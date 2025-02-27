@@ -194,7 +194,7 @@ class conversation:
                 
                 # Start tracking how long it has taken to receive a player response
                 input_wait_start_time = time.time()
-                while not player_text and not self.can_any_npc_reply():
+                while not player_text:
                     player_text = self.__stt.get_latest_transcription()
                 if time.time() - input_wait_start_time >= self.__events_refresh_time:
                     # If too much time has passed, in-game events need to be updated
