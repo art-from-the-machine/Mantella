@@ -33,7 +33,7 @@ class context:
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
         self.__game = config.game
-
+        self.__is_end_sequence_initiated = False
         self.__prev_location: str | None = None
         if self.__game == "Fallout4" or self.__game == "Fallout4VR":
             self.__location: str = 'the Commonwealth'
@@ -83,6 +83,14 @@ class context:
     @have_actors_changed.setter
     def have_actors_changed(self, value: bool):
         self.__have_actors_changed = value
+
+    @property
+    def is_end_sequence_initiated(self) -> bool:
+        return self.__is_end_sequence_initiated
+    
+    @is_end_sequence_initiated.setter
+    def is_end_sequence_initiated(self, value: bool):
+        self.__is_end_sequence_initiated = value
 
     @property
     def vision_hints(self) -> dict[Hashable, str]:

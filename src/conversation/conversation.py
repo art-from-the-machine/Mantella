@@ -221,8 +221,11 @@ class conversation:
         elif self.__has_conversation_ended(text):
             new_message.is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
             self.initiate_end_sequence()
-        else:
+        else: #if self.can_any_npc_reply():
             self.__start_generating_npc_sentences()
+
+        if not self.can_any_npc_reply():
+            logging.info("No NPC is in range to reply")
 
         return player_text, events_need_updating, player_voiceline
 
@@ -250,7 +253,7 @@ class conversation:
             for npc in self.__context.npcs_in_conversation.get_all_characters():
                 if not npc.is_player_character and not npc.is_outside_talking_range:
                     return True
-        return True  
+        return False  
 
     @utils.time_it
     def update_context(self, location: str | None, time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
@@ -347,6 +350,7 @@ class conversation:
                 if goodbye_sentence:
                     goodbye_sentence.actions.append(comm_consts.ACTION_ENDCONVERSATION)
                     self.__sentences.put(goodbye_sentence)
+                    self.context.is_end_sequence_initiated = True
                     
     @utils.time_it
     def contains_character(self, ref_id: str) -> bool:
