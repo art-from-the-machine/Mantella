@@ -103,6 +103,8 @@ class Character:
         
     @property
     def is_outside_talking_range(self) -> bool:
+        if(self.is_player_character):
+            return False
         return self.__is_outside_talking_range
     
     @is_outside_talking_range.setter
