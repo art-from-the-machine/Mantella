@@ -220,7 +220,7 @@ class gameable(ABC):
         for matcher in ordered_matchers:
             view = self.character_df.loc[ordered_matchers[matcher]]
             if view.shape[0] == 1: #If there is exactly one match
-                logging.info(f'Matched {character_name} in CSV by {matcher}')
+                #logging.info(f'Matched {character_name} in CSV by {matcher}')
                 return ordered_matchers[matcher]
             
         return None

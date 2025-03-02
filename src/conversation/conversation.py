@@ -12,8 +12,8 @@ from src.llm.sentence_queue import sentence_queue
 from src.llm.sentence import sentence
 from src.remember.remembering import remembering
 from src.output_manager import ChatManager
-from src.llm.messages import assistant_message, system_message, user_message
-from src.conversation.context import context
+from src.llm.messages import assistant_message, join_message, leave_message, system_message, user_message
+from src.conversation.context import add_or_update_result, context
 from src.llm.message_thread import message_thread
 from src.conversation.conversation_type import conversation_type, multi_npc, pc_to_npc, radiant
 from src.character_manager import Character
@@ -85,11 +85,26 @@ class conversation:
         Args:
             new_character (Character): the character to add or update
         """
-        characters_removed_by_update = self.__context.add_or_update_characters(new_character)
-        if len(characters_removed_by_update) > 0:
+        update_result = self.__context.add_or_update_characters(new_character)
+        if len(update_result.removed_npcs) > 0:
             all_characters = self.__context.npcs_in_conversation.get_all_characters()
-            all_characters.extend(characters_removed_by_update)
-            self.__save_conversations_for_characters(all_characters, is_reload=True)
+            all_characters.extend(update_result.removed_npcs)
+            self.__save_conversation_log_for_characters(all_characters)
+            
+        # mark the joining / leaving of an npc in the message_thread
+        for update_message in self.create_add_or_remove_messages(update_result):
+            self.__messages.add_message(update_message)
+
+    @utils.time_it
+    def create_add_or_remove_messages(self, update_result: add_or_update_result) -> list[str]:
+        add_or_remove_messages = []
+        for npc in update_result.added_npcs:
+            if not npc.is_player_character:
+                add_or_remove_messages.append(join_message(npc, self.__context.config))
+        for npc in update_result.removed_npcs:
+            if not npc.is_player_character:
+                add_or_remove_messages.append(leave_message(npc, self.__context.config))
+        return add_or_remove_messages
 
     @utils.time_it
     def start_conversation(self) -> tuple[str, sentence | None]:
@@ -280,7 +295,20 @@ class conversation:
                 self.__messages: message_thread = message_thread(self.__context.config, new_prompt)
             else:
                 self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
-                self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
+                self.reload_and_cull_thread(new_prompt)
+
+    @utils.time_it
+    def reload_and_cull_thread(self, new_prompt):
+        """Reloads the message thread and removes old messages if getting close to context limits"""
+        removed_messages = self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
+        if len(removed_messages) > 0:
+            removed_messages_thread = message_thread(self.__context.config,None)
+            for message in removed_messages:
+                removed_messages_thread.add_message(message)
+            # Summarize the removed messages
+            self.__save_summary_for_characters(removed_messages_thread, self.__context.npcs_in_conversation.get_all_characters(), true)
+            conversation_log.save_conversation_log(self.__context.npcs_in_conversation.get_all_characters(), removed_messages, self.__context.world_id)
+        
 
     @utils.time_it
     def update_game_events(self, message: user_message) -> user_message:
@@ -361,7 +389,7 @@ class conversation:
         self.__has_already_ended = True
         self.__stop_generation()
         self.__sentences.clear()
-        self.__save_conversation(is_reload=False)
+        self.__save_summary()
     
     @utils.time_it
     def __start_generating_npc_sentences(self):
@@ -392,18 +420,27 @@ class conversation:
                 self.__sentences.put(goodbye_sentence)        
 
     @utils.time_it
-    def __save_conversation(self, is_reload: bool):
+    def __save_summary(self):
         """Saves conversation log and state for each NPC in the conversation"""
-        self.__save_conversations_for_characters(self.__context.npcs_in_conversation.get_all_characters(), is_reload)
+        self.__save_summary_for_characters(self.__messages, self.__context.npcs_in_conversation.get_all_characters())
 
     @utils.time_it
-    def __save_conversations_for_characters(self, characters_to_save_for: list[Character], is_reload: bool):
+    def __save_conversation_log_for_characters(self, characters_to_save_for: list[Character] ):
+        """Saves all messages of the conversation to a json file for each NPC in the conversation"""
+        for npc in characters_to_save_for:
+            if not npc.is_player_character:
+                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
+                
+    @utils.time_it
+    def __save_summary_for_characters(self, messages_to_summarize:message_thread, characters_to_save_for: list[Character], is_reload=False):
         characters_object = Characters()
         for npc in characters_to_save_for:
             if not npc.is_player_character:
                 characters_object.add_or_update_character(npc)
-                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
-        self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload)
+        # Save the summary
+        self.__rememberer.save_conversation_state(messages_to_summarize, characters_object, self.__context.world_id, is_reload)
+        # Save the log
+        self.__save_conversation_log_for_characters(characters_to_save_for)
 
     @utils.time_it
     def __initiate_reload_conversation(self):
@@ -424,8 +461,6 @@ class conversation:
     def reload_conversation(self):
         """Reloads the conversation
         """
-        self.__save_conversation(is_reload=True)
-        # Reload
         new_prompt = self.__conversation_type.generate_prompt(self.__context)
         self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
 

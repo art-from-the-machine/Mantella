@@ -6,6 +6,7 @@ class Characters:
     """
     def __init__(self):
         self.__active_characters: dict[str, Character] = {}
+        self.__all_characters: dict[str, Character] = {} # Actives characters + those that were removed
         self.__last_added_character: Character | None = None
         self.__player_character: Character | None = None
     
@@ -30,6 +31,7 @@ class Characters:
     def add_or_update_character(self, new_character: Character):
         if not self.__active_characters.__contains__(new_character.name): #Is add
             self.__active_characters[new_character.name] = new_character   
+            self.__all_characters[new_character.name] = new_character
             if new_character.is_player_character:
                 self.__player_character = new_character
             else:
