@@ -122,9 +122,9 @@ class GameStateManager:
         updated_player_text, update_events, player_spoken_sentence = self.__talk.process_player_input(player_text)
         if update_events:
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REQUESTTYPE_TTS, comm_consts.KEY_TRANSCRIBE: updated_player_text}
-      
-       # if not self.__talk.can_any_npc_reply() and not context.is_end_sequence_initiated:
-       #     return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_PLAYERTALK}   
+        canReply =  self.__talk.can_any_npc_reply()
+        if not canReply and not self.__talk.context.is_end_sequence_initiated:
+            return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_PLAYERTALK}   
         
         cleaned_player_text = utils.clean_text(updated_player_text)
         npcs_in_conversation = self.__talk.context.npcs_in_conversation

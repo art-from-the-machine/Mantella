@@ -88,8 +88,25 @@ class conversation:
         characters_removed_by_update = self.__context.add_or_update_characters(new_character)
         if len(characters_removed_by_update) > 0:
             all_characters = self.__context.npcs_in_conversation.get_all_characters()
-            all_characters.extend(characters_removed_by_update)
-            self.__save_conversations_for_characters(all_characters, is_reload=True)
+            all_characters.extend(update_result.removed_npcs)
+            self.__save_conversation_log_for_characters(all_characters)
+
+
+    
+        # mark the joining / leaving of an npc in the message_thread
+        for update_message in self.generate_add_or_remove_messages(update_result):
+            self.__messages.add_message(update_message)
+
+    @utils.time_it
+    def generate_add_or_remove_messages(self, update_result: add_or_update_result) -> list[str]:
+        add_or_remove_messages = []
+        for npc in update_result.added_npcs:
+            if not npc.is_player_character:
+                add_or_remove_messages.append(join_message(npc, self.__context.config))
+        for npc in update_result.removed_npcs:
+            if not npc.is_player_character:
+                add_or_remove_messages.append(leave_message(npc, self.__context.config))
+        return add_or_remove_messages
 
     @utils.time_it
     def start_conversation(self) -> tuple[str, sentence | None]:
@@ -221,7 +238,7 @@ class conversation:
         elif self.__has_conversation_ended(text):
             new_message.is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
             self.initiate_end_sequence()
-        else: #if self.can_any_npc_reply():
+        elif self.can_any_npc_reply():
             self.__start_generating_npc_sentences()
 
         if not self.can_any_npc_reply():

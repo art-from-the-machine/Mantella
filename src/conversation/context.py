@@ -147,7 +147,11 @@ class context:
             if not npc in new_list_of_npcs:
                 removed_npcs.append(npc)
                 self.__remove_character(npc)
-        return removed_npcs
+        
+        if len(added_npcs) > 0:
+            self.add_out_of_range_events()      
+        
+        return add_or_update_result(added_npcs, removed_npcs)
     
     @utils.time_it
     def remove_character(self, npc: Character):
@@ -223,17 +227,7 @@ class context:
         
         # Npc left / entered talking range in multipi-npc conversation
         if current_stats.is_outside_talking_range != npc.is_outside_talking_range and not npc.is_player_character:
-            isMultiNpcsConversation = self.__npcs_in_conversation.contains_multiple_npcs() and self.__npcs_in_conversation.contains_player_character()  
-            if npc.is_outside_talking_range:        
-                logging.info(f"{npc.name} is too far away to talk. They can no longer respond")
-            else:
-                logging.info(f"{npc.name} is now close enough to talk. They can respond again") 
-        
-            if isMultiNpcsConversation:
-                if npc.is_outside_talking_range:        
-                    self.__ingame_events.append(f"{npc.name} is too far away to talk. They can no longer respond") 
-                else:
-                    self.__ingame_events.append(f"{npc.name} is now close enough to talk. They can respond again")
+            self.may_add_talking_range_change_events()
         
         #update custom  values
         try:
@@ -264,6 +258,29 @@ class context:
             if current_stats.relationship_rank != npc.relationship_rank:
                 trust = self.__get_trust(npc)
                 self.__ingame_events.append(f"{player_name} is now {trust} to {npc.name}.")
+    
+    @utils.time_it
+    def may_add_talking_range_change_events(self):
+        isMultiNpcsConversation = self.__npcs_in_conversation.contains_multiple_npcs() and self.__npcs_in_conversation.contains_player_character()  
+        for npc in self.__npcs_in_conversation.get_all_characters():
+            if npc.is_outside_talking_range:        
+                logging.info(f"{npc.name} is too far away to talk. They can no longer respond")
+            else:
+                logging.info(f"{npc.name} is now close enough to talk. They can respond again") 
+        
+            if isMultiNpcsConversation:
+                if npc.is_outside_talking_range:        
+                    self.__ingame_events.append(f"{npc.name} is too far away to talk. They can no longer respond") 
+                else:
+                    self.__ingame_events.append(f"{npc.name} is now close enough to talk. They can respond again")
+    @utils.time_it
+    def add_out_of_range_events(self):
+        # When a 1-1 conversation becomes a multi-npc conversation, we need to let the model know who can speak
+        isMultiNpcsConversation = self.__npcs_in_conversation.contains_multiple_npcs() and self.__npcs_in_conversation.contains_player_character()  
+        for npc in self.__npcs_in_conversation.get_all_characters():      
+            if isMultiNpcsConversation:
+                if npc.is_outside_talking_range:        
+                    self.__ingame_events.append(f"{npc.name} is too far away to talk. They can no longer respond") 
     
     @staticmethod
     def format_listing(listing: list[str]) -> str:
