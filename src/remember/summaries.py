@@ -181,7 +181,8 @@ class summaries(remembering):
                     if len(thread) > 0:
                         npcs_previous_message = thread.get_last_message()
                         if isinstance(npcs_previous_message, leave_message) and npcs_previous_message.character.name == npc_name:
-                            thread.add_message(assistant_message("* some time later *"))
+                            narration_start, narration_end = self.__config.get_narration_indicators()
+                            thread.add_message(user_message(self.__config, narration_start + "some time later*" + narration_end))
                     
                     thread.add_message(message)
             
