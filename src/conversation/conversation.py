@@ -314,9 +314,10 @@ class conversation:
     
     def __may_add_out_of_range_event(self, message:user_message):
         if self.__context.npcs_in_conversation.contains_multiple_npcs() and any([npc.is_outside_talking_range for npc in self.__context.npcs_in_conversation.get_all_characters()]):
-            out_of_range_npcs = ",".join([npc.name for npc in self.__context.npcs_in_conversation.get_all_characters() if npc.is_outside_talking_range])
+            out_of_range_npcs = [npc.name for npc in self.__context.npcs_in_conversation.get_all_characters() if npc.is_outside_talking_range]
+            npc_names = ", ".join(out_of_range_npcs)
             is_are = "is" if len(out_of_range_npcs) == 1 else "are"
-            message.add_event([f"{out_of_range_npcs} {is_are} too far away and cannot reply"])
+            message.add_event([f"{npc_names} {is_are} too far away and cannot reply"])
             
     @utils.time_it
     def update_game_events(self, message: user_message) -> user_message:
