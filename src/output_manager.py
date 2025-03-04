@@ -11,7 +11,6 @@ from src.llm.output.max_count_sentences_parser import max_count_sentences_parser
 from src.llm.output.sentence_length_parser import sentence_length_parser
 from src.llm.output.actions_parser import actions_parser
 from src.llm.output.change_character_parser import change_character_parser
-from src.llm.output.clean_sentence_parser import clean_sentence_parser
 from src.llm.output.narration_parser import narration_parser
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
 from src.llm.output.sentence_end_parser import sentence_end_parser
@@ -133,7 +132,6 @@ class ChatManager:
         self.__is_first_sentence = True
 
         parser_chain: list[output_parser] = [
-            clean_sentence_parser(),
             change_character_parser(characters)]
         if self.__config.narration_handling != NarrationHandlingEnum.DEACTIVATE_HANDLING_OF_NARRATIONS:
             parser_chain.append(narration_parser(self.__config.narration_start_indicators, self.__config.narration_end_indicators, 
