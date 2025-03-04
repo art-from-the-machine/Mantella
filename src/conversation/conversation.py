@@ -88,8 +88,25 @@ class conversation:
         characters_removed_by_update = self.__context.add_or_update_characters(new_character)
         if len(characters_removed_by_update) > 0:
             all_characters = self.__context.npcs_in_conversation.get_all_characters()
-            all_characters.extend(characters_removed_by_update)
-            self.__save_conversations_for_characters(all_characters, is_reload=True)
+            all_characters.extend(update_result.removed_npcs)
+            self.__save_conversation_log_for_characters(all_characters)
+
+
+    
+        # mark the joining / leaving of an npc in the message_thread
+        for update_message in self.generate_add_or_remove_messages(update_result):
+            self.__messages.add_message(update_message)
+
+    @utils.time_it
+    def generate_add_or_remove_messages(self, update_result: add_or_update_result) -> list[str]:
+        add_or_remove_messages = []
+        for npc in update_result.added_npcs:
+            if not npc.is_player_character:
+                add_or_remove_messages.append(join_message(npc, self.__context.config))
+        for npc in update_result.removed_npcs:
+            if not npc.is_player_character:
+                add_or_remove_messages.append(leave_message(npc, self.__context.config))
+        return add_or_remove_messages
 
     @utils.time_it
     def start_conversation(self) -> tuple[str, sentence | None]:
@@ -221,10 +238,15 @@ class conversation:
         elif self.__has_conversation_ended(text):
             new_message.is_system_generated_message = True # Flag message containing goodbye as a system message to exclude from summary
             self.initiate_end_sequence()
-        else:
+        elif self.can_any_npc_reply():
             self.__start_generating_npc_sentences()
 
+        if not self.can_any_npc_reply():
+            logging.info("No NPC is in range to reply")
+
         return player_text, events_need_updating, player_voiceline
+
+
 
     def __get_mic_prompt(self):
         mic_prompt = f"This is a conversation with {self.__context.get_character_names_as_text(False)} in {self.__context.location}."
@@ -243,6 +265,14 @@ class conversation:
                 player_character_voiced_sentence = sentence(player_message_content, "" , 2.0)
 
         return player_character_voiced_sentence
+
+    @utils.time_it
+    def can_any_npc_reply(self) -> bool:
+        if self.__context.npcs_in_conversation.contains_player_character():
+            for npc in self.__context.npcs_in_conversation.get_all_characters():
+                if not npc.is_player_character and not npc.is_outside_talking_range:
+                    return True
+        return False  
 
     @utils.time_it
     def update_context(self, location: str | None, time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
@@ -281,7 +311,14 @@ class conversation:
             else:
                 self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
                 self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
-
+    
+    def __may_add_out_of_range_event(self, message:user_message):
+        if self.__context.npcs_in_conversation.contains_multiple_npcs() and any([npc.is_outside_talking_range for npc in self.__context.npcs_in_conversation.get_all_characters()]):
+            out_of_range_npcs = [npc.name for npc in self.__context.npcs_in_conversation.get_all_characters() if npc.is_outside_talking_range]
+            npc_names = ", ".join(out_of_range_npcs)
+            is_are = "is" if len(out_of_range_npcs) == 1 else "are"
+            message.add_event([f"{npc_names} {is_are} too far away and cannot reply"])
+            
     @utils.time_it
     def update_game_events(self, message: user_message) -> user_message:
         """Add in-game events to player's response"""
@@ -290,6 +327,7 @@ class conversation:
         if self.__is_player_interrupting:
             all_ingame_events.append('Interrupting...')
             self.__is_player_interrupting = False
+        self.__may_add_out_of_range_event(message)
         max_events = min(len(all_ingame_events) ,self.__context.config.max_count_events)
         message.add_event(all_ingame_events[-max_events:])
         self.__context.clear_context_ingame_events()        
@@ -339,6 +377,7 @@ class conversation:
                 if goodbye_sentence:
                     goodbye_sentence.actions.append(comm_consts.ACTION_ENDCONVERSATION)
                     self.__sentences.put(goodbye_sentence)
+                    self.context.is_end_sequence_initiated = True
                     
     @utils.time_it
     def contains_character(self, ref_id: str) -> bool:

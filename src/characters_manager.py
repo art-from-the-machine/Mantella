@@ -37,6 +37,7 @@ class Characters:
         else: #Is update: update transient stats + custom values
             self.__active_characters[new_character.name].is_enemy = new_character.is_enemy
             self.__active_characters[new_character.name].is_in_combat = new_character.is_in_combat
+            self.__active_characters[new_character.name].is_outside_talking_range = new_character.is_outside_talking_range
             self.__active_characters[new_character.name].relationship_rank = new_character.relationship_rank
             self.__active_characters[new_character.name].custom_character_values = new_character.custom_character_values
     

@@ -33,7 +33,7 @@ class context:
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
         self.__game = config.game
-
+        self.__is_end_sequence_initiated = False
         self.__prev_location: str | None = None
         if self.__game == "Fallout4" or self.__game == "Fallout4VR":
             self.__location: str = 'the Commonwealth'
@@ -83,6 +83,14 @@ class context:
     @have_actors_changed.setter
     def have_actors_changed(self, value: bool):
         self.__have_actors_changed = value
+
+    @property
+    def is_end_sequence_initiated(self) -> bool:
+        return self.__is_end_sequence_initiated
+    
+    @is_end_sequence_initiated.setter
+    def is_end_sequence_initiated(self, value: bool):
+        self.__is_end_sequence_initiated = value
 
     @property
     def vision_hints(self) -> dict[Hashable, str]:
@@ -138,8 +146,9 @@ class context:
         for npc in self.__npcs_in_conversation.get_all_characters():
             if not npc in new_list_of_npcs:
                 removed_npcs.append(npc)
-                self.__remove_character(npc)
-        return removed_npcs
+                self.__remove_character(npc) 
+        
+        return add_or_update_result(added_npcs, removed_npcs)
     
     @utils.time_it
     def remove_character(self, npc: Character):
@@ -212,6 +221,7 @@ class context:
                 self.__ingame_events.append(f"{name} is now in combat!")
             else:
                 self.__ingame_events.append(f"{name} is no longer in combat.")
+        
         #update custom  values
         try:
             if (current_stats.get_custom_character_value("mantella_actor_pos_x") is not None and
