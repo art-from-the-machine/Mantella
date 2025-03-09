@@ -135,8 +135,9 @@ class conversation:
                 self.__context.remove_character(next_sentence.speaker)
             #check if the next function call has been vetoed by the LLm, if so then the function doesn't occur
             if self.__function_manager.is_initialized() :
-                if self.__function_manager.check_LLM_functions_enabled():
+                if self.__function_manager.check_LLM_functions_enabled() or self.__function_manager.llm_output_call_type == "function":
                     next_sentence= self.__function_manager.take_post_response_actions(next_sentence)
+                    self.__messages.remove_LLM_warnings()
             #if there is a next sentence and it actually has content, return it as something for an NPC to say 
             if self.last_sentence_audio_length > 0:
                 logging.info(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
@@ -204,7 +205,7 @@ class conversation:
 
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
         ConversationIsEnded =self.__has_conversation_ended(text)
-        if ConversationIsEnded==False and self.__function_manager.is_initialized(): #No actions for multi NPC conversations
+        if ConversationIsEnded==False and self.__function_manager.is_initialized():
             if self.__function_manager.check_LLM_functions_enabled():
                 returnedLLMFunctionOutput=self.__function_manager.process_function_call(self.__messages,text)
                 if returnedLLMFunctionOutput:
@@ -309,8 +310,7 @@ class conversation:
             self.__sentences.clear()            
             # say goodbyes
             npc = self.__context.npcs_in_conversation.last_added_character
-            if self.__context.config.function_enable_veto:
-                self.__messages.remove_LLM_warnings() #remove vote warning to prevent those from being part of the summary
+            self.__messages.remove_LLM_warnings() #remove vote warning to prevent those from being part of the summary
             if npc:
                 goodbye_sentence = self.__output_manager.generate_sentence(config.goodbye_npc_response, npc, True)
                 if goodbye_sentence:

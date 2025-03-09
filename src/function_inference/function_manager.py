@@ -145,6 +145,7 @@ class FunctionManager:
     def process_function_call(self, mainConversationThreadMessages, lastUserMessage):
         '''Main workhorse for the function call handling this function will parse the context and json files to build a tools set and a prompt to send to the LLM.
         Then it will parse the results and send those back to the conversation script'''
+        logging.debug(f"Intiating function call preparation")
         self.__tools_manager.clear_all_active_tooltips()
         self.clear_llm_output_data()  # Initialize to None for safety
         processed_game_name = self.__context.config.game.lower().replace(" ", "")
@@ -353,8 +354,6 @@ class FunctionManager:
             if output_function.context_payload.modes:
                 sentence_receiving_output.function_call_modes.extend(output_function.context_payload.get_modes_lowercase())
             self.clear_llm_output_data() 
-        if self.__context.config.function_enable_veto:
-            self.__messages.remove_LLM_warnings()
         return sentence_receiving_output
     
     #################################
