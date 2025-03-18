@@ -12,6 +12,7 @@ import time
 from src.tts.synthesization_options import SynthesizationOptions
 from src import utils
 from threading import Thread
+from src.config.definitions.game_definitions import GameEnum
 
 class TTSServiceFailure(Exception):
     pass
@@ -65,7 +66,7 @@ class xtts(ttsable):
 
         selected_voice: str | None = self._select_voice_type(voice, in_game_voice, csv_in_game_voice, advanced_voice_model)
 
-        if (selected_voice and selected_voice.lower() in ['maleeventoned','femaleeventoned']) and (self._game == 'Fallout4'):
+        if (selected_voice and selected_voice.lower() in ['maleeventoned','femaleeventoned']) and (self._game.base_game == GameEnum.FALLOUT4):
             selected_voice = 'fo4_'+ selected_voice
         
         if not selected_voice:

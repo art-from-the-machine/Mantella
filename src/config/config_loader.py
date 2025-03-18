@@ -4,6 +4,8 @@ import os
 import sys
 from typing import Any
 from src.config.definitions.llm_definitions import NarrationHandlingEnum, NarrationIndicatorsEnum
+from src.config.definitions.game_definitions import GameEnum
+from src.config.definitions.tts_definitions import TTSEnum
 from src.conversation.action import action
 from src.config.config_values import ConfigValues
 from src.config.mantella_config_value_definitions_new import MantellaConfigValueDefinitionsNew
@@ -102,7 +104,7 @@ class ConfigLoader:
                 game_parent_folder_name = os.path.basename(self.game_path).lower()
                 if 'vr' in game_parent_folder_name:
                     if 'fallout' in game_parent_folder_name:
-                        self.game = 'Fallout4VR'
+                        self.game = GameEnum.FALLOUT4_VR
                         # Fallout 4 VR uses the same creation kit as Fallout 4, so the lip gen folder needs to be set to the Fallout 4 folder
                         # Note that this path assumes that both Fallout 4 versions are installed in the same directory
                         # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> F4SE -> Data -> Fallout 4 VR -> common (Steam folder for all games)
@@ -111,7 +113,7 @@ class ConfigLoader:
                             if not os.path.exists(self.lipgen_path):
                                 self.lipgen_path = ''
                     elif 'skyrim' in game_parent_folder_name:
-                        self.game = 'SkyrimVR'
+                        self.game = GameEnum.SKYRIM_VR
                         # Skyrim VR uses the same creation kit as Skyrim Special Edition, so the lip gen folder needs to be set to the Skyrim Special Edition folder
                         # Note that this path assumes that both Skyrim versions are installed in the same directory
                         # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> SKSE -> Data -> Skyrim VR -> common (Steam folder for all games)
@@ -121,33 +123,29 @@ class ConfigLoader:
                                 self.lipgen_path = ''
                 else:
                     if 'fallout' in game_parent_folder_name:
-                        self.game = 'Fallout4'
+                        self.game = GameEnum.FALLOUT4
                     elif 'skyrim' in game_parent_folder_name:
-                        self.game = 'Skyrim'
+                        self.game = GameEnum.SKYRIM
                     else: # default to Skyrim
-                        self.game = 'Skyrim'
+                        self.game = GameEnum.SKYRIM
 
             else:
                 #Adjusting game and mod paths according to the game being ran
-                self.game: str = self.__definitions.get_string_value("game")# config['Game']['game']
-                self.game = str(self.game).lower().replace(' ', '').replace('_', '')
-                if self.game =="fallout4":
-                    self.game ="Fallout4"
+                self.game: GameEnum = self.__definitions.get_enum_value("game", GameEnum)
+                if self.game == GameEnum.FALLOUT4:
                     self.game_path: str = self.__definitions.get_string_value("fallout4_folder")
-                    self.mod_path: str = self.__definitions.get_string_value("fallout4_mod_folder") #config['Paths']['fallout4_mod_folder']
-                elif self.game =="fallout4vr":
-                    self.game ="Fallout4VR"
-                    self.game_path: str = self.__definitions.get_string_value("fallout4vr_folder") #config['Paths']['fallout4vr_folder']
-                    self.mod_path: str = self.__definitions.get_string_value("fallout4vr_mod_folder") #config['Paths']['fallout4vr_mod_folder']
-                elif self.game =="skyrimvr":
-                    self.game ="SkyrimVR"
+                    self.mod_path: str = self.__definitions.get_string_value("fallout4_mod_folder")
+                elif self.game == GameEnum.FALLOUT4_VR:
+                    self.game_path: str = self.__definitions.get_string_value("fallout4vr_folder")
+                    self.mod_path: str = self.__definitions.get_string_value("fallout4vr_mod_folder")
+                elif self.game == GameEnum.SKYRIM_VR:
                     self.game_path = None
-                    self.mod_path: str = self.__definitions.get_string_value("skyrimvr_mod_folder") #config['Paths']['skyrimvr_mod_folder']
+                    self.mod_path: str = self.__definitions.get_string_value("skyrimvr_mod_folder")
                 #if the game is not recognized Mantella will assume it's Skyrim since that's the most frequent one.
                 else:
-                    self.game ="Skyrim"
+                    self.game = GameEnum.SKYRIM
                     self.game_path = None
-                    self.mod_path: str = self.__definitions.get_string_value("skyrim_mod_folder") #config['Paths']['skyrim_mod_folder']
+                    self.mod_path: str = self.__definitions.get_string_value("skyrim_mod_folder")
 
                 self.lipgen_path = self.__definitions.get_string_value("lipgen_folder")
                 self.facefx_path = self.__definitions.get_string_value("facefx_folder")
@@ -165,15 +163,10 @@ class ConfigLoader:
             for a in self.__actions:
                 identifier = a.identifier.lstrip("mantella_").lstrip("npc_")
                 a.keyword = self.__definitions.get_string_value(f"{identifier}_npc_response")
-            # self.offended_npc_response = self.__definitions.get_string_value("offended_npc_response")
-            # self.forgiven_npc_response = self.__definitions.get_string_value("forgiven_npc_response")
-            # self.follow_npc_response = self.__definitions.get_string_value("follow_npc_response")
-            # self.inventory_npc_response = self.__definitions.get_string_value("inventory_npc_response")
-
 
             #TTS
-            self.tts_service = self.__definitions.get_string_value("tts_service").strip().lower()
-            if self.tts_service == "xtts":
+            self.tts_service: TTSEnum = self.__definitions.get_enum_value("tts_service", TTSEnum)
+            if self.tts_service == TTSEnum.XTTS:
                 self.xtts_url = self.__definitions.get_string_value("xtts_url").rstrip('/')
                 if 'http://127.0.0.1:8020' in self.xtts_url: # if running locally, get the XTTS folder
                     self.xtts_server_path = self.__definitions.get_string_value("xtts_server_folder")
@@ -181,11 +174,11 @@ class ConfigLoader:
                     self.xtts_server_path = ""
                 self.xvasynth_path = ""
                 self.piper_path = ""
-            elif self.tts_service == "xvasynth":
+            elif self.tts_service == TTSEnum.XVASYNTH:
                 self.xvasynth_path = self.__definitions.get_string_value("xvasynth_folder")
                 self.xtts_server_path = ""
                 self.piper_path = ""
-            elif self.tts_service == "piper":
+            elif self.tts_service == TTSEnum.PIPER:
                 if not hasattr(self, 'piper_path'):
                     self.piper_path = self.__definitions.get_string_value("piper_folder")
                 self.xvasynth_path = ""
@@ -302,7 +295,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.save_audio_data_to_character_folder = self.__definitions.get_bool_value("save_audio_data_to_character_folder")
 
             #new separate prompts for Fallout 4 have been added 
-            if self.game == "Fallout4" or self.game == "Fallout4VR":
+            if self.game.base_game == GameEnum.FALLOUT4:
                 self.prompt = self.__definitions.get_string_value("fallout4_prompt")
                 self.multi_npc_prompt = self.__definitions.get_string_value("fallout4_multi_npc_prompt")
                 self.radiant_prompt = self.__definitions.get_string_value("fallout4_radiant_prompt")

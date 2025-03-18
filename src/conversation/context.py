@@ -10,6 +10,7 @@ from src.utils import get_time_group
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
+from src.config.definitions.game_definitions import GameEnum
 
 class context:
     """Holds the context of a conversation
@@ -32,10 +33,10 @@ class context:
         self.__ingame_events: list[str] = []
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
-        self.__game = config.game
+        self.__game: GameEnum = config.game
 
         self.__prev_location: str | None = None
-        if self.__game == "Fallout4" or self.__game == "Fallout4VR":
+        if self.__game.base_game == GameEnum.FALLOUT4:
             self.__location: str = 'the Commonwealth'
         else:
             self.__location: str = "Skyrim"
@@ -164,7 +165,7 @@ class context:
             if location != '':
                 self.__location = location
             else:
-                if self.__game == "Fallout4" or self.__game == "Fallout4VR":
+                if self.__game.base_game == GameEnum.FALLOUT4:
                     self.__location: str = 'the Commonwealth'
                 else:
                     self.__location: str = "Skyrim"

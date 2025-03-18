@@ -36,7 +36,7 @@ class gameable(ABC):
             logging.error(f'Unable to read / open {path_to_character_df}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
         
-        self._is_vr: bool = 'vr' in config.game.lower()
+        self._is_vr: bool = config.game.is_vr
         #Apply character overrides
         mod_overrides_folder = os.path.join(*[config.mod_path_base, self.extender_name, "Plugins","MantellaSoftware","data",f"{mantella_game_folder_path}","character_overrides"])
         self.__apply_character_overrides(mod_overrides_folder, self.__character_df.columns.values.tolist())

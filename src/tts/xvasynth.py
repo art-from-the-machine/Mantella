@@ -12,6 +12,7 @@ from subprocess import Popen, DEVNULL
 import time
 import sys
 from src.tts.synthesization_options import SynthesizationOptions
+from src.config.definitions.game_definitions import GameEnum
 
 class TTSServiceFailure(Exception):
     pass
@@ -31,7 +32,7 @@ class xvasynth(ttsable):
         self.__synthesize_batch_url = 'http://127.0.0.1:8008/synthesize_batch'
         self.__loadmodel_url = 'http://127.0.0.1:8008/loadModel'
         self.__setvocoder_url = 'http://127.0.0.1:8008/setVocoder'
-        self.__model_path = f"{self.__xvasynth_path}/resources/app/models/{self._game}/"
+        self.__model_path = f"{self.__xvasynth_path}/resources/app/models/{self._game.base_game.display_name}/"
         self.__pace = config.pace
         self.__use_sr = config.use_sr
         self.__use_cleanup = config.use_cleanup
@@ -69,7 +70,7 @@ class xvasynth(ttsable):
         logging.log(self._loglevel, 'Loading voice model...')
  
         # this is a game check for Fallout4/Skyrim to correctly search the XVASynth voice models for the right game.
-        if self._game == "Fallout4" or self._game == "Fallout4VR":
+        if self._game.base_game == GameEnum.FALLOUT4:
             XVASynthAcronym="f4_"
             XVASynthModNexusLink="https://www.nexusmods.com/fallout4/mods/49340?tab=files"
         else:
@@ -106,7 +107,7 @@ class xvasynth(ttsable):
         # 3.0 -> 1.1  (will fail to load) -> 3.0 -> 1.1 -> make a dummy voice sample with _synthesize_line -> 1.0 (will fail to load) -> 3.0 -> 1.0 again
         if voice_model_json.get('modelVersion') == 1.0:
             logging.log(self._loglevel, '1.0 model detected running following sequence to bypass voice model issues : 3.0 -> 1.1  (will fail to load) -> 3.0 -> 1.1 -> make a dummy voice sample with _synthesize_line -> 1.0 (will fail to load) -> 3.0 -> 1.0 again')
-            if self._game == "Fallout4" or self._game == "Fallout4VR":
+            if self._game.base_game == GameEnum.FALLOUT4:
                 backup_voice='piper'
                 self._run_backup_model(backup_voice)
                 backup_voice='maleeventoned'
@@ -126,7 +127,7 @@ class xvasynth(ttsable):
         except:
             logging.error(f'Target model {voice} failed to load.')
             #This step is vital to get older voice models (1,1 and lower) to run
-            if self._game == "Fallout4" or self._game == "Fallout4VR":
+            if self._game.base_game == GameEnum.FALLOUT4:
                 backup_voice='piper'
             else:
                 backup_voice='malenord'
@@ -334,7 +335,7 @@ class xvasynth(ttsable):
         #If for some reason the model fails to load (for example, because it's an older model) then Mantella will attempt to load a backup model. 
         #This will allow the older model to load without errors 
             
-        if self._game == "Fallout4" or self._game == "Fallout4VR":
+        if self._game.base_game == GameEnum.FALLOUT4:
             XVASynthAcronym="f4_"
             XVASynthModNexusLink="https://www.nexusmods.com/fallout4/mods/49340?tab=files"
             #voice='maleeventoned'

@@ -1,4 +1,5 @@
 import os
+from enum import Enum, auto
 from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_float import ConfigValueFloat
@@ -8,6 +9,18 @@ from src.config.types.config_value_selection import ConfigValueSelection
 from src.config.types.config_value_string import ConfigValueString
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 
+class TTSEnum(Enum):
+    PIPER = auto()
+    XTTS = auto()
+    XVASYNTH = auto()
+
+    @property
+    def display_name(self) -> str:
+        return {
+            self.PIPER: 'Piper',
+            self.XTTS: 'XTTS',
+            self.XVASYNTH: 'xVASynth',
+        }[self]
 
 class TTSDefinitions:
     class ResourceFolderExistsChecker(ConfigValueConstraint[str]):
@@ -21,6 +34,11 @@ The selected folder for xVASynth is missing the expected subfolder '\\resources\
 If you have trouble installing the xVASynth version from Nexus, try installing it from Steam.''')
             else:
                 return ConfigValueConstraintResult()
+        
+    @staticmethod
+    def get_tts_service_config_value() -> ConfigValue:
+        options = [e.display_name for e in TTSEnum]
+        return ConfigValueSelection("tts_service", "TTS Service", "The TTS service used by Mantella.", TTSEnum.PIPER.display_name, options, list(TTSEnum))
 
     @staticmethod
     def get_xvasynth_folder_config_value() -> ConfigValue:
@@ -48,10 +66,6 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
         facefx_discription = """The FaceFXWrapper is an alternative program to LipGenerator. Lip sync generation is required by Bethesda games to accurately lip sync voicelines.
                                 This path does not need to be set if you have the LipGenerator folder configured."""
         return ConfigValueString("facefx_folder", "FaceFXWrapper Folder", facefx_discription, "", is_hidden=is_hidden)
-    
-    @staticmethod
-    def get_tts_service_config_value() -> ConfigValue:
-        return ConfigValueSelection("tts_service","TTS Service","The TTS service used by Mantella.","Piper",["Piper", "xVASynth", "XTTS"])
     
     @staticmethod
     def get_number_words_tts_config_value() -> ConfigValue:

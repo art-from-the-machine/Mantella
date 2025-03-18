@@ -17,6 +17,8 @@ from src.tts.xvasynth import xvasynth
 from src.tts.xtts import xtts
 from src.tts.piper import piper
 from src import utils
+from src.config.definitions.game_definitions import GameEnum
+from src.config.definitions.tts_definitions import TTSEnum
 
 class mantella_route(routeable):
     """Main route for Mantella conversations
@@ -43,18 +45,18 @@ class mantella_route(routeable):
 
         # Determine which game we're running for and select the appropriate character file
         game: gameable
-        formatted_game_name = self._config.game.lower().replace(' ', '').replace('_', '')
-        if formatted_game_name in ("fallout4", "fallout4vr"):
+        game_enum = self._config.game
+        if game_enum.base_game == GameEnum.FALLOUT4:
             game = fallout4(self._config)
         else:
             game = skyrim(self._config)
 
         tts: ttsable
-        if self._config.tts_service == 'xvasynth':
+        if self._config.tts_service == TTSEnum.XVASYNTH:
             tts = xvasynth(self._config)
-        elif self._config.tts_service == 'xtts':
+        elif self._config.tts_service == TTSEnum.XTTS:
             tts = xtts(self._config, game)
-        if self._config.tts_service == 'piper':
+        if self._config.tts_service == TTSEnum.PIPER:
             tts = piper(self._config, game)
 
         llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)

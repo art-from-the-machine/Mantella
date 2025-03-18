@@ -11,6 +11,7 @@ from src.llm.sentence import sentence
 from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
 import src.utils as utils
+from src.config.definitions.tts_definitions import TTSEnum
 
 
 class skyrim(gameable):
@@ -27,7 +28,7 @@ class skyrim(gameable):
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
-        self.__tts_service: str = config.tts_service
+        self.__tts_service: TTSEnum = config.tts_service
         self.__image_analysis_filepath = ""
 
         try:
@@ -87,10 +88,10 @@ class skyrim(gameable):
         else:
             actor_race = actor_race
 
-        if self.__tts_service=="xvasynth": 
+        if self.__tts_service == TTSEnum.XVASYNTH: 
             male_voice_model_dictionary=skyrim.MALE_VOICE_MODELS_XVASYNTH
             female_voice_model_dictionary = skyrim.FEMALE_VOICE_MODELS_XVASYNTH
-        elif self.__tts_service=="piper":
+        elif self.__tts_service == TTSEnum.PIPER:
             male_voice_model_dictionary=skyrim.MALE_VOICE_MODELS_PIPERTTS
             female_voice_model_dictionary = skyrim.FEMALE_VOICE_MODELS_PIPERTTS
         else: #Assume XTTS or another voice model that is not yet implemented at this time

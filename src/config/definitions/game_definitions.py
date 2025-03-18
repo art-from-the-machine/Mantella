@@ -3,6 +3,38 @@ from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_path import ConfigValuePath
 from src.config.types.config_value_selection import ConfigValueSelection
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
+from enum import Enum, auto
+
+class GameEnum(Enum):
+    SKYRIM = auto()
+    SKYRIM_VR = auto()
+    FALLOUT4 = auto()
+    FALLOUT4_VR = auto()
+
+    @property
+    def display_name(self) -> str:
+        return {
+            self.SKYRIM: 'Skyrim',
+            self.SKYRIM_VR: 'SkyrimVR',
+            self.FALLOUT4: 'Fallout4',
+            self.FALLOUT4_VR: 'Fallout4VR',
+        }[self]
+    
+    @property
+    def is_vr(self) -> bool:
+        return self in [
+            self.SKYRIM_VR, 
+            self.FALLOUT4_VR,
+        ]
+    
+    @property
+    def base_game(self) -> 'GameEnum':
+        return {
+            self.SKYRIM: GameEnum.SKYRIM,
+            self.SKYRIM_VR: GameEnum.SKYRIM,
+            self.FALLOUT4: GameEnum.FALLOUT4,
+            self.FALLOUT4_VR: GameEnum.FALLOUT4,
+        }[self]
 
 
 class GameDefinitions:
@@ -39,7 +71,8 @@ Please see here to learn where to set this value: https://art-from-the-machine.g
 
     @staticmethod
     def get_game_config_value() -> ConfigValue:
-        return ConfigValueSelection("game","Game","Choose the game to run with Mantella.","SkyrimVR",["Skyrim", "SkyrimVR", "Fallout4", "Fallout4VR"])
+        options = [e.display_name for e in GameEnum]
+        return ConfigValueSelection("game","Game","Choose the game to run with Mantella.",GameEnum.SKYRIM_VR.display_name,options,list(GameEnum))
     
     @staticmethod
     def get_skyrim_mod_folder_config_value() -> ConfigValue:

@@ -31,7 +31,7 @@ class ImageClient(ClientBase):
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
-        self.__vision_prompt: str = config.vision_prompt.format(game=config.game)
+        self.__vision_prompt: str = config.vision_prompt.format(game=config.game.display_name)
         self.__detail: str = "low" if config.low_resolution_mode else "high"
         self.__image_manager: ImageManager | None = ImageManager(config.game, 
                                                 config.save_folder, 

@@ -12,6 +12,7 @@ import time
 from src.tts.synthesization_options import SynthesizationOptions
 import requests
 import shutil
+from src.config.definitions.game_definitions import GameEnum
 
 class ttsable(ABC):
     """Base class for different TTS services
@@ -37,10 +38,7 @@ class ttsable(ABC):
         #self.debug_mode = config.debug_mode
         #self.play_audio_from_script = config.play_audio_from_script
 
-        if config.game == "Fallout4" or config.game == "Fallout4VR":
-            self._game = "Fallout4"
-        else: 
-            self._game = "Skyrim"
+        self._game = config.game
 
     @utils.time_it
     def synthesize(self, voice: str, voiceline: str, in_game_voice: str, csv_in_game_voice: str, voice_accent: str, synth_options: SynthesizationOptions, advanced_voice_model: str | None = None):
@@ -70,7 +68,7 @@ class ttsable(ABC):
         
         if (self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response):
             self._generate_voiceline_files(final_voiceline_file, voiceline)
-        elif (self._lip_generation_enabled in ['lazy', 'disabled'] and self._game == "Fallout4"):
+        elif (self._lip_generation_enabled in ['lazy', 'disabled'] and self._game.base_game == GameEnum.FALLOUT4):
             self._generate_voiceline_files(final_voiceline_file, voiceline, skip_lip_generation=True)
         
         #rename to unique name        
@@ -285,12 +283,12 @@ class ttsable(ABC):
             lip_file: str = wav_file.replace(".wav", ".lip")
             
             if not skip_lip_generation:
-                generate_facefx_lip_file(self._facefx_path, wav_file, lip_file, voiceline, self._game)
+                generate_facefx_lip_file(self._facefx_path, wav_file, lip_file, voiceline, self._game.base_game.display_name)
             else:
-                copy_placeholder_lip_file(lip_file, self._game)
+                copy_placeholder_lip_file(lip_file, self._game.base_game.display_name)
             
             # Fallout 4 requires voicelines in a .fuz format
-            if self._game == "Fallout4":    
+            if self._game.base_game == GameEnum.FALLOUT4:    
                 generate_fuz_file(self._facefx_path,wav_file, lip_file)
         
         except Exception as e:
