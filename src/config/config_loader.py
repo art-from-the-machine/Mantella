@@ -166,28 +166,23 @@ class ConfigLoader:
 
             #TTS
             self.tts_service: TTSEnum = self.__definitions.get_enum_value("tts_service", TTSEnum)
+            self.xtts_url = self.__definitions.get_string_value("xtts_url").rstrip('/')
+
+            # Do not check if a given path exists unless the TTS service is actually selected
+            validate_xtts_path = validate_xvasynth_path = validate_piper_path = False
+
             if self.tts_service == TTSEnum.XTTS:
-                self.xtts_url = self.__definitions.get_string_value("xtts_url").rstrip('/')
-                if 'http://127.0.0.1:8020' in self.xtts_url: # if running locally, get the XTTS folder
-                    self.xtts_server_path = self.__definitions.get_string_value("xtts_server_folder")
-                else:
-                    self.xtts_server_path = ""
-                self.xvasynth_path = ""
-                self.piper_path = ""
+                if 'http://127.0.0.1:8020' in self.xtts_url: # Only validate the XTTS folder if running locally
+                   validate_xtts_path = True
             elif self.tts_service == TTSEnum.XVASYNTH:
-                self.xvasynth_path = self.__definitions.get_string_value("xvasynth_folder")
-                self.xtts_server_path = ""
-                self.piper_path = ""
+                validate_xvasynth_path = True
             elif self.tts_service == TTSEnum.PIPER:
-                if not hasattr(self, 'piper_path'):
-                    self.piper_path = self.__definitions.get_string_value("piper_folder")
-                self.xvasynth_path = ""
-                self.xtts_server_path = ""
-            else: # default to Piper
-                if not hasattr(self, 'piper_path'):
-                    self.piper_path = self.__definitions.get_string_value("piper_folder")
-                self.xvasynth_path = ""
-                self.xtts_server_path = ""
+                validate_piper_path = True
+
+            self.xtts_server_path = self.__definitions.get_string_value("xtts_server_folder", validate_xtts_path)
+            self.xvasynth_path = self.__definitions.get_string_value("xvasynth_folder", validate_xvasynth_path)
+            if not hasattr(self, 'piper_path'): # assign Piper path from config if not running integrated
+                self.piper_path = self.__definitions.get_string_value("piper_folder", validate_piper_path)
 
             self.lip_generation = self.__definitions.get_string_value("lip_generation").strip().lower()
             self.fast_response_mode = self.__definitions.get_bool_value("fast_response_mode")

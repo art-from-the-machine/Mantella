@@ -43,7 +43,6 @@ class mantella_route(routeable):
         if self.__game:
             self.__game.end_conversation({})
 
-        # Determine which game we're running for and select the appropriate character file
         game: gameable
         game_enum = self._config.game
         if game_enum.base_game == GameEnum.FALLOUT4:
@@ -68,7 +67,6 @@ class mantella_route(routeable):
     def add_route_to_server(self, app: FastAPI):
         @app.post("/mantella")
         async def mantella(request: Request):
-            logging.debug('Received request')
             if not self._can_route_be_used():
                 error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
                 logging.error(error_message)

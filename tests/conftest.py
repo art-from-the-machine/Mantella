@@ -7,6 +7,9 @@ from src.http.routes.routeable import routeable
 from fastapi.testclient import TestClient
 from pathlib import Path
 from src import utils
+from src.config.definitions.game_definitions import GameEnum
+from src.http.communication_constants import communication_constants as comm_consts
+from src.http import models
 
 @pytest.fixture
 def default_config(tmp_path: Path) -> ConfigLoader:
@@ -20,7 +23,16 @@ def default_config(tmp_path: Path) -> ConfigLoader:
 
     # Not all default values workout of the box
     # Override default config values with known paths from actual config
+    default_ish_config = override_default_config_values(default_config, actual_config)
+
+    return default_ish_config
+
+def override_default_config_values(default_config: ConfigLoader, actual_config: ConfigLoader) -> ConfigLoader:
+    """Override default config values with values from actual config for user-dependent values (eg folder paths)"""
+    default_config.game = GameEnum.SKYRIM # default to Skyrim for testing
     default_config.piper_path = actual_config.piper_path
+    default_config.xtts_server_path = actual_config.xtts_server_path
+    default_config.xvasynth_path = actual_config.xvasynth_path
 
     return default_config
 
@@ -57,3 +69,103 @@ def production_like_client(server: http_server, real_routes: list[routeable]) ->
     """Create a TestClient configured like production"""
     server._setup_routes(real_routes)
     return TestClient(server.app)
+
+
+@pytest.fixture
+def example_player_actor() -> models.Actor:
+    return models.Actor(
+        **{
+            comm_consts.KEY_ACTOR_BASEID: 0,
+            comm_consts.KEY_ACTOR_CUSTOMVALUES: {
+                comm_consts.KEY_ACTOR_PC_DESCRIPTION: "",
+                comm_consts.KEY_ACTOR_PC_VOICEPLAYERINPUT: False,
+            },
+            comm_consts.KEY_ACTOR_GENDER: 0,
+            comm_consts.KEY_ACTOR_ISENEMY: False,
+            comm_consts.KEY_ACTOR_ISINCOMBAT: False,
+            comm_consts.KEY_ACTOR_ISPLAYER: True,
+            comm_consts.KEY_ACTOR_NAME: "Prisoner",
+            comm_consts.KEY_ACTOR_RACE: "[Race <NordRace (00013746)>]",
+            comm_consts.KEY_ACTOR_REFID: 0,
+            comm_consts.KEY_ACTOR_RELATIONSHIPRANK: 0,
+            comm_consts.KEY_ACTOR_VOICETYPE: "[VoiceType <MaleEvenToned (00013AD2)>]",
+            comm_consts.KEY_ACTOR_EQUIPMENT: {
+                "body": "Iron Armor",
+                "feet": "Iron Boots",
+                "hands": "Iron Gauntlets",
+                "head": "Iron Helmet",
+                "righthand": "Iron War Axe",
+            }
+        }
+    )
+
+@pytest.fixture
+def example_npc_actor() -> models.Actor:
+    return models.Actor(
+        **{
+            comm_consts.KEY_ACTOR_BASEID: 0,
+            comm_consts.KEY_ACTOR_CUSTOMVALUES: None,
+            comm_consts.KEY_ACTOR_GENDER: 0,
+            comm_consts.KEY_ACTOR_ISENEMY: False,
+            comm_consts.KEY_ACTOR_ISINCOMBAT: False,
+            comm_consts.KEY_ACTOR_ISPLAYER: False,
+            comm_consts.KEY_ACTOR_NAME: "Guard",
+            comm_consts.KEY_ACTOR_RACE: "[Race <ImperialRace (00013744)>]",
+            comm_consts.KEY_ACTOR_REFID: 0,
+            comm_consts.KEY_ACTOR_RELATIONSHIPRANK: 0,
+            comm_consts.KEY_ACTOR_VOICETYPE: "[VoiceType <MaleEvenToned (00013AD2)>]",
+            comm_consts.KEY_ACTOR_EQUIPMENT: {
+                "body": "Iron Armor",
+                "feet": "Iron Boots",
+                "hands": "Iron Gauntlets",
+                "head": "Iron Helmet",
+                "righthand": "Iron War Axe",
+            }
+        }
+    )
+
+@pytest.fixture
+def example_start_conversation_request(example_player_actor: models.Actor, example_npc_actor: models.Actor) -> models.StartConversationRequest:
+    return  models.StartConversationRequest(
+        **{
+            comm_consts.KEY_ACTORS: [
+                example_player_actor,
+                example_npc_actor,
+            ],
+            comm_consts.KEY_CONTEXT: {
+                comm_consts.KEY_CONTEXT_INGAMEEVENTS: [],
+                comm_consts.KEY_CONTEXT_LOCATION: "Skyrim",
+                comm_consts.KEY_CONTEXT_TIME: 12
+            },
+            comm_consts.KEY_INPUTTYPE: comm_consts.KEY_INPUTTYPE_TEXT,
+            comm_consts.KEY_REQUESTTYPE: comm_consts.KEY_REQUESTTYPE_STARTCONVERSATION,
+            comm_consts.KEY_STARTCONVERSATION_WORLDID: "Test1"
+        }
+    )
+
+@pytest.fixture
+def example_continue_conversation_request() -> models.ContinueConversationRequest:
+    return models.ContinueConversationRequest(
+        **{
+            comm_consts.KEY_REQUESTTYPE: comm_consts.KEY_REQUESTTYPE_CONTINUECONVERSATION,
+            comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE: 1
+        }
+    )
+
+@pytest.fixture
+def example_player_input_textbox_request() -> models.PlayerInputRequest:
+    return models.PlayerInputRequest(
+        **{
+            comm_consts.KEY_REQUESTTYPE: comm_consts.KEY_REQUESTTYPE_PLAYERINPUT,
+            comm_consts.KEY_REQUESTTYPE_PLAYERINPUT: 'Oi oi.'
+        }
+    )
+
+@pytest.fixture
+def example_player_input_textbox_goodbye_request() -> models.PlayerInputRequest:
+    return models.PlayerInputRequest(
+        **{
+            comm_consts.KEY_REQUESTTYPE: comm_consts.KEY_REQUESTTYPE_PLAYERINPUT,
+            comm_consts.KEY_REQUESTTYPE_PLAYERINPUT: 'Goodbye.'
+        }
+    )
