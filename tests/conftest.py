@@ -14,7 +14,7 @@ from src.http import models
 @pytest.fixture
 def default_config(tmp_path: Path) -> ConfigLoader:
     # Set up default config by passing path without a config.ini file already present
-    default_config = ConfigLoader(mygame_folder_path=str(tmp_path))
+    default_config = ConfigLoader(mygame_folder_path=str(tmp_path), game_override=GameEnum.SKYRIM)
 
     # Load the actual config file
     # NOTE: This does not work with user-defined save folder paths

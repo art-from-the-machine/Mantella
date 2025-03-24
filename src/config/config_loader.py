@@ -16,12 +16,13 @@ from pathlib import Path
 import json
 
 class ConfigLoader:
-    def __init__(self, mygame_folder_path: str, file_name='config.ini'):
+    def __init__(self, mygame_folder_path: str, file_name='config.ini', game_override: GameEnum | None = None):
         self.is_run_integrated = "--integrated" in sys.argv
         self.save_folder = mygame_folder_path
         self.__has_any_value_changed: bool = False        
         self.__is_initial_load: bool = True
         self.__file_name = os.path.join(mygame_folder_path, file_name)
+        self.__game_override = game_override
         path_to_actions = os.path.join(utils.resolve_path(),"data","actions")
         self.__actions = self.load_actions_from_json(path_to_actions)
         self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.is_run_integrated, self.__actions, self.__on_config_value_change)
@@ -130,8 +131,12 @@ class ConfigLoader:
                         self.game = GameEnum.SKYRIM
 
             else:
-                #Adjusting game and mod paths according to the game being ran
-                self.game: GameEnum = self.__definitions.get_enum_value("game", GameEnum)
+                # Allow chosen game to be overriden for testing purposes
+                if self.__game_override:
+                    self.game = self.__game_override
+                else:
+                    self.game: GameEnum = self.__definitions.get_enum_value("game", GameEnum)
+                
                 if self.game == GameEnum.FALLOUT4:
                     self.game_path: str = self.__definitions.get_string_value("fallout4_folder")
                     self.mod_path: str = self.__definitions.get_string_value("fallout4_mod_folder")
