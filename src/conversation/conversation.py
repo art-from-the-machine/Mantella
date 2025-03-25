@@ -143,11 +143,12 @@ class conversation:
                 logging.info(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
             # before immediately sending the next voiceline, give the player the chance to interrupt
             while time.time() - self.last_sentence_start_time < self.last_sentence_audio_length:
-                if self.__stt.has_player_spoken():
-                    self.__stop_generation()
-                    self.__sentences.clear()
-                    return comm_consts.KEY_REQUESTTYPE_TTS, None
-                time.sleep(0.01)
+                if self.__stt:
+                    if self.__stt and self.__stt.has_player_spoken():
+                        self.__stop_generation()
+                        self.__sentences.clear()
+                        return comm_consts.KEY_REQUESTTYPE_TTS, None
+                    time.sleep(0.01)
             self.last_sentence_audio_length = next_sentence.voice_line_duration + self.__context.config.wait_time_buffer
             self.last_sentence_start_time = time.time()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, next_sentence

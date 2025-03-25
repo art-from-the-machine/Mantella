@@ -1,0 +1,32 @@
+{
+    "GPT_func_name": "npc_use_spell_on_target",
+    "GPT_func_description": "Determine a target on which to use a specified spell.",
+    "function_parameters": {
+        "spell_mode": {
+            "type": "string",
+            "description": "The name of a spell."
+        },
+        "target_npc_id": {
+            "type": "array",
+            "description": "The ID of the target NPC.",
+            "items": {"type": "string"}
+        }
+    },
+    "system_prompt_info" : "`{GPT_func_name}` if requested to use a specific spell.",
+    "GPT_required": ["spell_mode","target_npc_id"],
+    "allowed_games": ["skyrim"],
+    "is_generic_npc_function": true,
+    "is_follower_function": true,
+    "is_settler_function": true,
+    "is_pre_dialogue": true,
+    "is_post_dialogue": false,
+    "key": "use_spell",
+    "is_interrupting": false,
+    "is_one_on_one": true,
+    "is_multi_npc": false,
+    "is_radiant": false,
+    "llm_feedback": "{speakerName} is about to use the spell {llm_output_mode}  on {llm_output_target_name} at {playerName}'s request. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
+    "parameter_package_key": ["npc_targeting_tooltip", "mantella_npc_spell_list_package"], 
+    "veto_warning" : "{speakerName} is about to use the spell {llm_output_mode}  on {llm_output_target_name} at {playerName}'s request. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why.",
+    "conditions" : []
+}

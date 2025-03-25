@@ -110,9 +110,12 @@ class ContextPayload:
         Args:
             modes_to_keep (list): A list of modes to keep.
         """
+        # Convert modes to lowercase and filter out non-string values
         modes_to_keep_lower = {mode.lower() for mode in modes_to_keep if isinstance(mode, str)}
+        
+        # Filter the existing modes
         self.__modes = [mode for mode in self.__modes if isinstance(mode, str) and mode.lower() in modes_to_keep_lower]
-
+        
 class Target:
     """
     Represents a target with an id and a name.

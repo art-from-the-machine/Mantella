@@ -521,10 +521,7 @@ class FunctionManager:
         :return: True if tooltip was successfully built (and not canceled), False otherwise.
         """
 
-        # 1. Check if a tooltip with the same name already exists
-        existing_tooltip = self.__tools_manager.get_tooltip(custom_tooltip.tooltip_name)
-        if existing_tooltip is not None:
-            return True
+        
 
         t_info = custom_tooltip.target_info
         m_info = custom_tooltip.mode_info
@@ -715,6 +712,11 @@ class FunctionManager:
 
         final_tooltip_str = "\n\n".join(blocks).strip()
         final_tooltip_str = final_tooltip_str.replace("{playerName}", playername)
+
+        # 1. Check if a tooltip with the same name already exists
+        existing_tooltip = self.__tools_manager.get_tooltip(custom_tooltip.tooltip_name)
+        if existing_tooltip is not None:
+            return True
 
         if t_info.send_info_to_llm or m_info.send_info_to_llm:
             logging.debug(f"Function manager: build_custom_tooltip() : Adding custom tooltip {custom_tooltip.tooltip_name}:\n{final_tooltip_str}")
@@ -1017,8 +1019,8 @@ class FunctionManager:
         single_value_keys = {
             "llm_output_target_id",
             "llm_output_target_name",
-            "llm_output_source_name",
-            "llm_output_mode"
+            "llm_output_source_name"#,
+            #"llm_output_mode"
         }
 
         # 4. Convert any list placeholders into the "item1, item2 & item3" style
