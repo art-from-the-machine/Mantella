@@ -10,6 +10,7 @@ from src import utils
 from src.config.definitions.game_definitions import GameEnum
 from src.http.communication_constants import communication_constants as comm_consts
 from src.http import models
+from src.character_manager import Character
 
 @pytest.fixture
 def default_config(tmp_path: Path) -> ConfigLoader:
@@ -122,6 +123,52 @@ def example_npc_actor() -> models.Actor:
                 "righthand": "Iron War Axe",
             }
         }
+    )
+
+@pytest.fixture
+def example_skyrim_npc_character() -> Character:
+    return Character(
+        base_id = 0,
+        ref_id = 0,
+        name = 'Guard',
+        gender = 0,
+        race = '[Race <ImperialRace (00013744)>]',
+        is_player_character = False,
+        bio = 'You are a male Imperial Guard.',
+        is_in_combat = False,
+        is_enemy = False,
+        relationship_rank = 0,
+        is_generic_npc = True,
+        ingame_voice_model = 'MaleEvenToned',
+        tts_voice_model = 'MaleEvenToned',
+        csv_in_game_voice_model = 'MaleEvenToned',
+        advanced_voice_model = 'MaleEvenToned',
+        voice_accent = 'en',
+        equipment = None,
+        custom_character_values = None,
+    )
+
+@pytest.fixture
+def example_fallout4_npc_character() -> Character:
+    return Character(
+        base_id = 0,
+        ref_id = 0,
+        name = 'Guard',
+        gender = 0,
+        race = '[Race <HumanRace (00013746)>]',
+        is_player_character = False,
+        bio = 'You are a male Human Guard.',
+        is_in_combat = False,
+        is_enemy = False,
+        relationship_rank = 0,
+        is_generic_npc = True,
+        ingame_voice_model = 'MaleBoston',
+        tts_voice_model = 'MaleBoston',
+        csv_in_game_voice_model = 'MaleBoston',
+        advanced_voice_model = None,
+        voice_accent = None,
+        equipment = None,
+        custom_character_values = None,
     )
 
 @pytest.fixture

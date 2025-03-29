@@ -54,7 +54,7 @@ class skyrim(gameable):
     def modify_sentence_text_for_game(self, text:str) -> str:
         skyrim_max_character = 500
         if len(text) > skyrim_max_character:
-            abbreviated = text[0:skyrim_max_character-4] + "..."
+            abbreviated = text[0:skyrim_max_character-3] + "..."
             return abbreviated
         else:
             return text
@@ -82,7 +82,7 @@ class skyrim(gameable):
             actor_voice_model_name = actor_voice_model 
         #Filtering out endsdiwth Race because depending on the source of the method call it may be present.
         if 'Race <' in actor_race:
-            actor_race = actor_race.split('Race <', 1)[1]
+            actor_race = actor_race.split('Race <', 1)[1].split(' ')[0]
             if actor_race.endswith('Race'):
                 actor_race = actor_race[:actor_race.rfind('Race')].strip()
         else:
@@ -108,29 +108,25 @@ class skyrim(gameable):
             # if voice_model not found in the voice model ID list
             try: # search for voice model in skyrim_characters.csv
                 voice_model = self.character_df.loc[self.character_df['skyrim_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
-            except: # guess voice model based on sex and race
-                voice_model=self.dictionary_match(voice_model,female_voice_model_dictionary, male_voice_model_dictionary,actor_race,actor_sex)
-        else:
-            voice_model=self.dictionary_match(voice_model,female_voice_model_dictionary, male_voice_model_dictionary,actor_race,actor_sex)
+            except:
+                pass
+        
+        if voice_model == '':
+            voice_model = self.dictionary_match(female_voice_model_dictionary, male_voice_model_dictionary, actor_race, actor_sex)
 
         return voice_model
     
-    def dictionary_match(self,voice_model:str,female_voice_model_dictionary:dict,male_voice_model_dictionary:dict,actor_race:str, actor_sex:int) -> str: 
+    def dictionary_match(self, female_voice_model_dictionary:dict, male_voice_model_dictionary:dict, actor_race:str, actor_sex:int) -> str: 
         if actor_race is None:
             actor_race = "Nord"
         if actor_sex is None:
             actor_sex = 0
         modified_race_key = actor_race + "Race"
+        
         if actor_sex == 1:
-            try:
-                voice_model = female_voice_model_dictionary[modified_race_key]
-            except:
-                voice_model = 'Female Nord'
+            voice_model = female_voice_model_dictionary.get(modified_race_key, 'Female Nord')
         else:
-            try:
-                voice_model = male_voice_model_dictionary[modified_race_key]
-            except:
-                voice_model = 'Male Nord'
+            voice_model = male_voice_model_dictionary.get(modified_race_key, 'Male Nord')
 
         return voice_model
 
@@ -151,6 +147,7 @@ class skyrim(gameable):
             'bio': f'You are a {"male" if actor_sex==0 else "female"} {actor_race if actor_race.lower() != name.lower() else ""} {name}.',
             'voice_model': voice_model,
             'advanced_voice_model': '',
+            'voice_accent': 'en',
             'skyrim_voice_folder': skyrim_voice_folder,
         }
 
