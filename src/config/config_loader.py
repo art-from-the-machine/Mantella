@@ -24,7 +24,7 @@ class ConfigLoader:
         self.__file_name = os.path.join(mygame_folder_path, file_name)
         self.__game_override = game_override
         path_to_actions = os.path.join(utils.resolve_path(),"data","actions")
-        self.__actions = self.load_actions_from_json(path_to_actions)
+        self.__actions = ConfigLoader.load_actions_from_json(path_to_actions)
         self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.is_run_integrated, self.__actions, self.__on_config_value_change)
         if not os.path.exists(self.__file_name):
             logging.log(24,"Cannot find 'config.ini'. Assuming first time usage of MantellaSoftware and creating it.")
@@ -55,6 +55,7 @@ class ConfigLoader:
         
         self.__is_initial_load = False
         self.__update_config_values_from_current_state()
+        self.__has_any_value_changed = False
     
     @property
     def have_all_config_values_loaded_correctly(self) -> bool:
@@ -252,7 +253,6 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 self.llm_params = None
 
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
-            # self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
 
             self.narration_handling: NarrationHandlingEnum = self.__definitions.get_enum_value("narration_handling", NarrationHandlingEnum)
             self.narrator_voice = self.__definitions.get_string_value("narrator_voice")
@@ -262,15 +262,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.speech_end_indicators = self.__definitions.get_string_list_value("speech_end_indicators")
             self.narration_indicators: NarrationIndicatorsEnum = self.__definitions.get_enum_value("narration_indicators", NarrationIndicatorsEnum)
             
-
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
-            #Debugging
-            # self.debug_mode = self.__definitions.get_bool_value("debugging")
-            # self.play_audio_from_script = self.__definitions.get_bool_value("play_audio_from_script")
-            # self.debug_character_name = self.__definitions.get_string_value("debugging_npc")
-            # self.debug_use_default_player_response = self.__definitions.get_bool_value("use_default_player_response")
-            # self.default_player_response = self.__definitions.get_string_value("default_player_response")
-            # self.debug_exit_on_first_exchange = self.__definitions.get_bool_value("exit_on_first_exchange")
 
             #UI
             self.auto_launch_ui = self.__definitions.get_bool_value("auto_launch_ui")
@@ -338,7 +330,8 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             logging.error('Parameter missing/invalid in config.ini file!')
             raise e
     
-    def load_actions_from_json(self, actions_folder: str) -> list[action]:
+    @staticmethod
+    def load_actions_from_json(actions_folder: str) -> list[action]:
         result = []
         os.makedirs(actions_folder, exist_ok=True)
         override_files: list[str] = os.listdir(actions_folder)
@@ -368,14 +361,3 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 utils.play_error_sound()
                 logging.log(logging.WARNING, f"Could not load action definition file '{file}' in '{actions_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
         return result
-    
-    # def get_config_value_json(self) -> str:
-    #     json_writer = ConfigJsonWriter()
-    #     for definition in self.__definitions.base_groups:
-    #         definition.accept_visitor(json_writer)
-    #     return json_writer.get_Json()
-
-        
-
-
-        
