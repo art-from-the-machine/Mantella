@@ -1,0 +1,21 @@
+{
+    // created by vscode papyrus-lang papyrus.skyrimSpecialEdition.generateProject
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Mantella",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "C:\\MadGod\\modlist\\mods\\Mantella-0.13\\SKSE\\Plugins\\MantellaSoftware\\main.py",
+            "console": "integratedTerminal",
+            "python": "C:\\MadGod\\modlist\\mods\\Mantella-0.13\\SKSE\\Plugins\\MantellaSoftware\\MantellaEnv\\Scripts\\python.exe",
+            "cwd": "C:\\MadGod\\modlist\\mods\\Mantella-0.13\\SKSE\\Plugins\\MantellaSoftware"
+        },        
+        {
+            "name": "Skyrim SE",
+            "type": "papyrus",
+            "request": "attach",
+            "game": "skyrimSpecialEdition"
+        }
+    ]
+}

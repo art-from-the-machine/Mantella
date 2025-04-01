@@ -122,7 +122,10 @@ class GameStateManager:
         updated_player_text, update_events, player_spoken_sentence = self.__talk.process_player_input(player_text)
         if update_events:
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REQUESTTYPE_TTS, comm_consts.KEY_TRANSCRIBE: updated_player_text}
-
+        canReply =  self.__talk.can_any_npc_reply()
+        if not canReply and not self.__talk.context.is_end_sequence_initiated:
+            return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_PLAYERTALK}   
+        
         cleaned_player_text = utils.clean_text(updated_player_text)
         npcs_in_conversation = self.__talk.context.npcs_in_conversation
         if not npcs_in_conversation.contains_multiple_npcs(): # actions are only enabled in 1-1 conversations
@@ -135,9 +138,9 @@ class GameStateManager:
                                 'mantella_actor_actions': [action.identifier],
                                 }
                             }
-        
+      
         # if the player response is not an action command, return a regular player reply type
-        if player_spoken_sentence:
+        if player_spoken_sentence: 
             topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
             self.__game.prepare_sentence_for_game(player_spoken_sentence, self.__talk.context, self.__config, topicInfoID, self.__first_line)
             self.__first_line = False
@@ -238,6 +241,7 @@ class GameStateManager:
             actor_voice_model: str = str(json[comm_consts.KEY_ACTOR_VOICETYPE])
             ingame_voice_model: str = actor_voice_model.split('<')[1].split(' ')[0]
             is_in_combat: bool = bool(json[comm_consts.KEY_ACTOR_ISINCOMBAT])
+            is_outside_talking_range: bool = bool(json[comm_consts.KEY_ACTOR_ISOUTSIDETALKINGRANGE])
             is_enemy: bool = bool(json[comm_consts.KEY_ACTOR_ISENEMY])
             relationship_rank: int = int(json[comm_consts.KEY_ACTOR_RELATIONSHIPRANK])
             custom_values: dict[str, Any] = {}
@@ -290,6 +294,7 @@ class GameStateManager:
                             is_player_character,
                             bio,
                             is_in_combat,
+                            is_outside_talking_range,
                             is_enemy,
                             relationship_rank,
                             is_generic_npc,
