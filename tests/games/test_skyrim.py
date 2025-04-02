@@ -8,8 +8,7 @@ from src.games.external_character_info import external_character_info
 from src.character_manager import Character
 import shutil
 import os
-
-# TODO: Test __apply_character_overrides
+import json
 
 @pytest.fixture
 def skyrim(tmp_path, default_config: ConfigLoader):
@@ -20,10 +19,131 @@ def skyrim(tmp_path, default_config: ConfigLoader):
     return Skyrim(default_config)
 
 
+@pytest.fixture
+def skyrim_test_config(tmp_path, default_config: ConfigLoader) -> ConfigLoader:
+    """Configures default_config to use tmp_path for override lookups"""
+    # Change folders where character overrides are searched in
+    default_config.mod_path_base = str(tmp_path)
+    default_config.save_folder = str(tmp_path)
+
+    return default_config
+
+
 def test_skyrim_properties(skyrim: Skyrim):
     """Test the basic properties of the skyrim class"""
     assert skyrim.extender_name == 'SKSE'
     assert skyrim.game_name_in_filepath == 'skyrim'
+
+
+def test_apply_character_overrides_json_add(tmp_path, skyrim_test_config: ConfigLoader):
+    """Test adding a new character via a JSON override file"""
+    new_char_data = {
+        "name": "Test JSON Character", "base_id": "JSON001", "race": "Nord",
+        "bio": "A character added via JSON override.", "voice_model": "TestVoice",
+        "skyrim_voice_folder": "TestVoiceFolder", "advanced_voice_model": "",
+        "voice_accent": "en"
+    }
+
+    override_dir = tmp_path / "data" / "skyrim" / "character_overrides"
+    override_dir.mkdir(parents=True, exist_ok=True)
+    override_file = override_dir / "test_json_add.json"
+
+    with open(override_file, 'w') as f:
+        json.dump(new_char_data, f)
+
+    skyrim = Skyrim(skyrim_test_config)
+
+    # Check if the new character exists in the dataframe
+    df = skyrim.character_df
+    match = df[(df['name'] == "Test JSON Character") & (df['base_id'] == "JSON001")]
+
+    assert not match.empty
+    assert len(match) == 1
+    assert match.iloc[0]['bio'] == "A character added via JSON override."
+    assert match.iloc[0]['voice_model'] == "TestVoice"
+    assert match.iloc[0]['skyrim_voice_folder'] == "TestVoiceFolder"
+    assert match.iloc[0]['advanced_voice_model'] == ""
+    assert match.iloc[0]['voice_accent'] == "en"
+
+
+def test_apply_character_overrides_json_modify(tmp_path, skyrim_test_config: ConfigLoader):
+    """Test modifying an existing character via a JSON override file"""
+    override_data = {
+        "name": "Lydia", "base_id": "0A2C8E", "race": "Nord",
+        "bio": "This is the overridden bio for Lydia.",
+        "voice_model": "OverriddenLydiaVoice"
+    }
+
+    override_dir = tmp_path / "data" / "skyrim" / "character_overrides"
+    override_dir.mkdir(parents=True, exist_ok=True)
+    override_file = override_dir / "test_json_modify.json"
+
+    with open(override_file, 'w') as f:
+        json.dump(override_data, f)
+
+    skyrim = Skyrim(skyrim_test_config)
+
+    # Check if character's data was modified
+    df = skyrim.character_df
+    match = df.loc[df['base_id'] == "0A2C8E"]
+
+    assert not match.empty
+    assert len(match) == 1
+    assert match.iloc[0]['bio'] == "This is the overridden bio for Lydia."
+    assert match.iloc[0]['voice_model'] == "OverriddenLydiaVoice"
+    assert match.iloc[0]['skyrim_voice_folder'] == "FemaleEvenToned" # Check unmodified field
+
+
+def test_apply_character_overrides_csv_add(tmp_path, skyrim_test_config: ConfigLoader):
+    """Test adding a new character via a CSV override file"""
+    csv_header = "name,base_id,race,bio,voice_model,skyrim_voice_folder,advanced_voice_model,voice_accent"
+    csv_data = "Test CSV Character,CSV001,Imperial,Added via CSV,TestCSVVoice,TestCSVFolder,,en"
+    csv_content = f"{csv_header}\n{csv_data}"
+
+    override_dir = tmp_path / "SKSE" / "Plugins" / "MantellaSoftware" / "data" / "skyrim" / "character_overrides"
+    override_dir.mkdir(parents=True, exist_ok=True)
+    override_file = override_dir / "test_csv_add.csv"
+
+    with open(override_file, 'w') as f:
+        f.write(csv_content)
+
+    skyrim = Skyrim(skyrim_test_config)
+
+    # Check if the new character exists
+    df = skyrim.character_df
+    match = df[(df['name'] == "Test CSV Character") & (df['base_id'] == "CSV001")]
+
+    assert not match.empty
+    assert len(match) == 1
+    assert match.iloc[0]['bio'] == "Added via CSV"
+    assert match.iloc[0]['voice_model'] == "TestCSVVoice"
+    assert match.iloc[0]['race'] == "Imperial"
+
+
+def test_apply_character_overrides_csv_modify(tmp_path, skyrim_test_config: ConfigLoader):
+    """Test modifying an existing character via a CSV override file"""
+    csv_header = "name,base_id,race,bio,voice_model,skyrim_voice_folder,advanced_voice_model,voice_accent"
+    csv_data = "Lydia,0A2C8E,Nord,Overridden Bio,OverriddenLydiaVoice,FemaleEvenToned,,en"
+    csv_content = f"{csv_header}\n{csv_data}"
+
+    override_dir = tmp_path / "SKSE" / "Plugins" / "MantellaSoftware" / "data" / "skyrim" / "character_overrides"
+    override_dir.mkdir(parents=True, exist_ok=True)
+    override_file = override_dir / "test_csv_modify.csv"
+
+    with open(override_file, 'w') as f:
+        f.write(csv_content)
+
+    skyrim = Skyrim(skyrim_test_config)
+
+    # Check if character's data was modified
+    df = skyrim.character_df
+    match = df.loc[df['base_id'] == "0A2C8E"]
+
+    assert not match.empty
+    assert len(match) == 1
+    assert match.iloc[0]['bio'] == "Overridden Bio"
+    assert match.iloc[0]['voice_model'] == "OverriddenLydiaVoice"
+    assert match.iloc[0]['skyrim_voice_folder'] == "FemaleEvenToned"
 
 
 def test_modify_sentence_text_for_game(skyrim: Skyrim):

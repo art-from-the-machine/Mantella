@@ -9,8 +9,7 @@ from src.character_manager import Character
 from src.config.definitions.tts_definitions import TTSEnum
 import shutil
 import os
-
-# TODO: Test __apply_character_overrides
+import json
 
 @pytest.fixture
 def fallout4(tmp_path, default_config: ConfigLoader):
@@ -21,10 +20,129 @@ def fallout4(tmp_path, default_config: ConfigLoader):
     return Fallout4(default_config)
 
 
+@pytest.fixture
+def fallout4_test_config(tmp_path, default_config: ConfigLoader) -> ConfigLoader:
+    """Configures default_config to use tmp_path for override lookups"""
+    # Change folders where character overrides are searched in
+    default_config.mod_path_base = str(tmp_path)
+    default_config.save_folder = str(tmp_path)
+
+    return default_config
+
+
 def test_fallout4_properties(fallout4: Fallout4):
     """Test the basic properties of the Fallout 4 class"""
     assert fallout4.extender_name == 'F4SE'
     assert fallout4.game_name_in_filepath == 'fallout4'
+
+
+def test_apply_character_overrides_json_add(tmp_path, fallout4_test_config: ConfigLoader):
+    """Test adding a new character via a JSON override file"""
+    new_char_data = {
+        "name": "Test JSON Character", "base_id": "JSON001", "race": "Nord",
+        "bio": "A character added via JSON override.", "voice_model": "TestVoice",
+        "fallout4_voice_folder": "TestVoiceFolder", "advanced_voice_model": ""
+    }
+
+    override_dir = tmp_path / "data" / "fallout4" / "character_overrides"
+    override_dir.mkdir(parents=True, exist_ok=True)
+    override_file = override_dir / "test_json_add.json"
+
+    with open(override_file, 'w') as f:
+        json.dump(new_char_data, f)
+
+    fallout4 = Fallout4(fallout4_test_config)
+
+    # Check if the new character exists in the dataframe
+    df = fallout4.character_df
+    match = df[(df['name'] == "Test JSON Character") & (df['base_id'] == "JSON001")]
+
+    assert not match.empty
+    assert len(match) == 1
+    assert match.iloc[0]['bio'] == "A character added via JSON override."
+    assert match.iloc[0]['voice_model'] == "TestVoice"
+    assert match.iloc[0]['fallout4_voice_folder'] == "TestVoiceFolder"
+    assert match.iloc[0]['advanced_voice_model'] == ""
+
+
+def test_apply_character_overrides_json_modify(tmp_path, fallout4_test_config: ConfigLoader):
+    """Test modifying an existing character via a JSON override file"""
+    override_data = {
+        "name": "Blake Abernathy", "base_id": "06B4D3", "race": "Human",
+        "bio": "This is the overridden bio for Blake.",
+        "voice_model": "VoiceOverride"
+    }
+
+    override_dir = tmp_path / "data" / "fallout4" / "character_overrides"
+    override_dir.mkdir(parents=True, exist_ok=True)
+    override_file = override_dir / "test_json_modify.json"
+
+    with open(override_file, 'w') as f:
+        json.dump(override_data, f)
+
+    fallout4 = Fallout4(fallout4_test_config)
+
+    # Check if Blake's data was modified
+    df = fallout4.character_df
+    match = df.loc[df['base_id']=='06B4D3']
+
+    assert not match.empty
+    assert len(match) == 1
+    assert match.iloc[0]['bio'] == "This is the overridden bio for Blake."
+    assert match.iloc[0]['voice_model'] == "VoiceOverride"
+    assert match.iloc[0]['fallout4_voice_folder'] == "MaleBoston" # Check unmodified field
+
+
+def test_apply_character_overrides_csv_add(tmp_path, fallout4_test_config: ConfigLoader):
+    """Test adding a new character via a CSV override file"""
+    csv_header = "name,base_id,race,bio,voice_model,fallout4_voice_folder,advanced_voice_model"
+    csv_data = "Test CSV Character,CSV001,MaleBoston,Added via CSV,TestCSVVoice,TestCSVFolder,"
+    csv_content = f"{csv_header}\n{csv_data}"
+
+    override_dir = tmp_path / "F4SE" / "Plugins" / "MantellaSoftware" / "data" / "fallout4" / "character_overrides"
+    override_dir.mkdir(parents=True, exist_ok=True)
+    override_file = override_dir / "test_csv_add.csv"
+
+    with open(override_file, 'w') as f:
+        f.write(csv_content)
+
+    fallout4 = Fallout4(fallout4_test_config)
+
+    # Check if the new character exists
+    df = fallout4.character_df
+    match = df[(df['name'] == "Test CSV Character") & (df['base_id'] == "CSV001")]
+
+    assert not match.empty
+    assert len(match) == 1
+    assert match.iloc[0]['bio'] == "Added via CSV"
+    assert match.iloc[0]['voice_model'] == "TestCSVVoice"
+    assert match.iloc[0]['race'] == "MaleBoston"
+
+
+def test_apply_character_overrides_csv_modify(tmp_path, fallout4_test_config: ConfigLoader):
+    """Test modifying an existing character via a CSV override file"""
+    csv_header = "name,base_id,race,bio,voice_model,fallout4_voice_folder,advanced_voice_model,voice_accent"
+    csv_data = "Blake Abernathy,06B4D3,Human,Overridden Bio,VoiceOverride,MaleBoston,,en"
+    csv_content = f"{csv_header}\n{csv_data}"
+
+    override_dir = tmp_path / "F4SE" / "Plugins" / "MantellaSoftware" / "data" / "fallout4" / "character_overrides"
+    override_dir.mkdir(parents=True, exist_ok=True)
+    override_file = override_dir / "test_csv_modify.csv"
+
+    with open(override_file, 'w') as f:
+        f.write(csv_content)
+
+    fallout4 = Fallout4(fallout4_test_config)
+
+    # Check if character's data was modified
+    df = fallout4.character_df
+    match = df.loc[df['base_id']=='06B4D3']
+    
+    assert not match.empty
+    assert len(match) == 1
+    assert match.iloc[0]['bio'] == "Overridden Bio"
+    assert match.iloc[0]['voice_model'] == "VoiceOverride"
+    assert match.iloc[0]['fallout4_voice_folder'] == "MaleBoston"
 
 
 def test_modify_sentence_text_for_game(fallout4: Fallout4):
