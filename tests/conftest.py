@@ -11,6 +11,7 @@ from src.config.definitions.game_definitions import GameEnum
 from src.http.communication_constants import communication_constants as comm_consts
 from src.http import models
 from src.character_manager import Character
+from src.games.skyrim import skyrim as Skyrim
 
 @pytest.fixture
 def default_config(tmp_path: Path) -> ConfigLoader:
@@ -31,7 +32,7 @@ def default_config(tmp_path: Path) -> ConfigLoader:
 def override_default_config_values(default_config: ConfigLoader, actual_config: ConfigLoader) -> ConfigLoader:
     """Override default config values with values from actual config for user-dependent values (eg folder paths)"""
     default_config.game = GameEnum.SKYRIM # default to Skyrim for testing
-    default_config.piper_path = actual_config.piper_path
+    default_config.piper_path = actual_config.piper_path # must be set to the Skyrim Piper folder
     default_config.xtts_server_path = actual_config.xtts_server_path
     default_config.xvasynth_path = actual_config.xvasynth_path
 
@@ -216,3 +217,11 @@ def example_player_input_textbox_goodbye_request() -> models.PlayerInputRequest:
             comm_consts.KEY_REQUESTTYPE_PLAYERINPUT: 'Goodbye.'
         }
     )
+
+@pytest.fixture
+def skyrim(tmp_path, default_config: ConfigLoader):
+    # Change folders where character overrides are searched in
+    default_config.mod_path_base = str(tmp_path)
+    default_config.save_folder = str(tmp_path)
+    
+    return Skyrim(default_config)

@@ -10,14 +10,6 @@ import shutil
 import os
 import json
 
-@pytest.fixture
-def skyrim(tmp_path, default_config: ConfigLoader):
-    # Change folders where character overrides are searched in
-    default_config.mod_path_base = str(tmp_path)
-    default_config.save_folder = str(tmp_path)
-    
-    return Skyrim(default_config)
-
 
 @pytest.fixture
 def skyrim_test_config(tmp_path, default_config: ConfigLoader) -> ConfigLoader:

@@ -11,6 +11,7 @@ from threading import Thread
 from queue import Queue, Empty
 from src.tts.synthesization_options import SynthesizationOptions
 from src.games.gameable import gameable
+from pathlib import Path
 
 # https://stackoverflow.com/a/4896288/25532567
 ON_POSIX = 'posix' in sys.builtin_module_names
@@ -34,8 +35,8 @@ class piper(ttsable):
         if self._language != 'en':
             logging.warning(f"Selected language is '{self._language}'', but Piper only supports English. Please change the selected text-to-speech model in `Text-to-Speech`->`TTS Service` in the Mantella UI")
         self.__game: gameable = game
-        self.__piper_path = config.piper_path
-        self.__models_path = self.__piper_path + f'/models/{self.__game.game_name_in_filepath}/low/' # TODO: change /low parts of the path to dynamic variables
+        self.__piper_path = Path(config.piper_path)
+        self.__models_path = self.__piper_path / 'models' / self.__game.game_name_in_filepath / 'low' # TODO: change /low parts of the path to dynamic variables
         self.__selected_voice = None
         self.__waiting_for_voice_load = False
         self._current_actor_gender = None
@@ -172,7 +173,7 @@ class piper(ttsable):
             logging.log(self._loglevel, 'Loading voice model...')
 
             self.__selected_voice = self._select_voice_type(voice, in_game_voice, csv_in_game_voice, advanced_voice_model, self._current_actor_gender, self._current_actor_race)
-            model_path = self.__models_path + f'{self.__selected_voice}.onnx'
+            model_path = self.__models_path / f'{self.__selected_voice}.onnx'
 
             self.__write_to_stdin(f"load_model {model_path}\n")
             self.__waiting_for_voice_load = True
@@ -184,7 +185,7 @@ class piper(ttsable):
     @utils.time_it
     def _run_piper(self):
         try:
-            command = f'{self.__piper_path}\\piper.exe'
+            command = self.__piper_path / 'piper.exe'
 
             self.process = subprocess.Popen(
                 command, 

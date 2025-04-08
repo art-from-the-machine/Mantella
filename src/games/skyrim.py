@@ -67,7 +67,7 @@ class skyrim(gameable):
         return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None))
     
     @utils.time_it
-    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str, library_search:bool = True) -> str:
+    def find_best_voice_model(self, actor_race: str | None, actor_sex: int | None, ingame_voice_model: str, library_search:bool = True) -> str:
         voice_model = ''
 
 
@@ -81,7 +81,7 @@ class skyrim(gameable):
         else:
             actor_voice_model_name = actor_voice_model 
         #Filtering out endsdiwth Race because depending on the source of the method call it may be present.
-        if 'Race <' in actor_race:
+        if actor_race and 'Race <' in actor_race:
             actor_race = actor_race.split('Race <', 1)[1].split(' ')[0]
             if actor_race.endswith('Race'):
                 actor_race = actor_race[:actor_race.rfind('Race')].strip()
@@ -116,7 +116,7 @@ class skyrim(gameable):
 
         return voice_model
     
-    def dictionary_match(self, female_voice_model_dictionary:dict, male_voice_model_dictionary:dict, actor_race:str, actor_sex:int) -> str: 
+    def dictionary_match(self, female_voice_model_dictionary: dict, male_voice_model_dictionary: dict, actor_race: str | None, actor_sex: int | None) -> str: 
         if actor_race is None:
             actor_race = "Nord"
         if actor_sex is None:
