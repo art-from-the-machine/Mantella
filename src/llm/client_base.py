@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from src.llm.ai_client import AIClient
 from src.llm.message_thread import message_thread
-from src.llm.messages import message, image_message, user_message
+from src.llm.messages import Message, ImageMessage, UserMessage
 from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
 
@@ -105,13 +105,13 @@ class ClientBase(AIClient):
 
 
     @utils.time_it
-    def request_call(self, messages: message | message_thread) -> str | None:
+    def request_call(self, messages: Message | message_thread) -> str | None:
         with self._generation_lock:
             sync_client = self.generate_sync_client()        
             chat_completion = None
             logging.log(28, 'Getting LLM response...')
 
-            if isinstance(messages, message) or isinstance(messages, image_message):
+            if isinstance(messages, Message) or isinstance(messages, ImageMessage):
                 openai_messages = [messages.get_openai_message()]
             else:
                 openai_messages = messages.get_openai_messages()
@@ -141,7 +141,7 @@ class ClientBase(AIClient):
         
 
     @utils.time_it
-    async def streaming_call(self, messages: message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
         with self._generation_lock:
             logging.log(28, 'Getting LLM response...')
 
@@ -160,14 +160,14 @@ class ClientBase(AIClient):
             try:
                 # Prepare the messages including the image if provided
                 vision_hints = ''
-                if isinstance(messages, message):
+                if isinstance(messages, Message):
                     openai_messages = [messages.get_openai_message()]
-                    if isinstance(messages, user_message):
+                    if isinstance(messages, UserMessage):
                         vision_hints = messages.get_ingame_events_text()
                 else:
                     openai_messages = messages.get_openai_messages()
                     last_message = messages.get_last_message()
-                    if isinstance(last_message, user_message):
+                    if isinstance(last_message, UserMessage):
                         vision_hints = last_message.get_ingame_events_text()
                 if self._image_client:
                     openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
@@ -344,21 +344,21 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         return encoding
     
     @utils.time_it
-    def get_count_tokens(self, messages: message_thread | list[message] | message | str) -> int:
+    def get_count_tokens(self, messages: message_thread | list[Message] | Message | str) -> int:
         if isinstance(messages, message_thread | list) :
             return self.__num_tokens_from_messages(messages)
-        elif isinstance(messages, message):
+        elif isinstance(messages, Message):
             return self.__num_tokens_from_message(messages)
         else:
             return len(self._encoding.encode(messages))
 
     @utils.time_it
-    def is_too_long(self, messages: message_thread | list[message] | message | str, token_limit_percent: float) -> bool:
+    def is_too_long(self, messages: message_thread | list[Message] | Message | str, token_limit_percent: float) -> bool:
         countTokens: int = self.get_count_tokens(messages)
         return countTokens > self.token_limit * token_limit_percent
 
     @utils.time_it
-    def __num_tokens_from_messages(self, messages: message_thread | list[message]) -> int:
+    def __num_tokens_from_messages(self, messages: message_thread | list[Message]) -> int:
         messages_to_check = []
         if isinstance(messages, message_thread):
             messages_to_check = messages.get_openai_messages()
@@ -379,16 +379,16 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         return num_tokens
     
     @utils.time_it
-    def __num_tokens_from_message(self, message_to_measure: message | str) -> int:
+    def __num_tokens_from_message(self, message_to_measure: Message | str) -> int:
         text: str = ""
-        if isinstance(message_to_measure, message):
+        if isinstance(message_to_measure, Message):
             text = message_to_measure.get_formatted_content()
         else:
             text = message_to_measure
 
         num_tokens = 4 # every message follows <im_start>{role/name}\n{content}<im_end>\n
         num_tokens += len(text)
-        if isinstance(message_to_measure, message) and message_to_measure.get_openai_message().__contains__("name"):# if there's a name, the role is omitted
+        if isinstance(message_to_measure, Message) and message_to_measure.get_openai_message().__contains__("name"):# if there's a name, the role is omitted
             num_tokens += -1# role is always required and always 1 token
         
         return num_tokens

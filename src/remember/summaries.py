@@ -5,7 +5,7 @@ from src.config.config_loader import ConfigLoader
 from src.games.gameable import gameable
 from src.llm.llm_client import LLMClient
 from src.llm.message_thread import message_thread
-from src.llm.messages import user_message
+from src.llm.messages import UserMessage
 from src.characters_manager import Characters
 from src.character_manager import Character
 from src.remember.remembering import remembering
@@ -188,7 +188,7 @@ class summaries(remembering):
         summary = ''
         if len(text_to_summarize) > 5:
             messages = message_thread(self.__config, prompt)
-            messages.add_message(user_message(self.__config, text_to_summarize))
+            messages.add_message(UserMessage(self.__config, text_to_summarize))
             summary = self.__client.request_call(messages)
             if not summary:
                 logging.info(f"Summarizing conversation failed.")

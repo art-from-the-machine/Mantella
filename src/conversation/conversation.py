@@ -12,7 +12,7 @@ from src.llm.sentence_queue import sentence_queue
 from src.llm.sentence import sentence
 from src.remember.remembering import remembering
 from src.output_manager import ChatManager
-from src.llm.messages import assistant_message, system_message, user_message
+from src.llm.messages import AssistantMessage, SystemMessage, UserMessage
 from src.conversation.context import context
 from src.llm.message_thread import message_thread
 from src.conversation.conversation_type import conversation_type, multi_npc, pc_to_npc, radiant
@@ -98,7 +98,7 @@ class conversation:
         Returns:
             tuple[str, sentence | None]: Returns a tuple consisting of a reply type and an optional sentence
         """
-        greeting: user_message | None = self.__conversation_type.get_user_message(self.__context, self.__messages)
+        greeting: UserMessage | None = self.__conversation_type.get_user_message(self.__context, self.__messages)
         if greeting:
             self.__messages.add_message(greeting)
             self.__start_generating_npc_sentences()
@@ -207,7 +207,7 @@ class conversation:
                 # otherwise the player could constantly speak over the NPC and never hear a response
                 self.__stt.stop_listening()
             
-            new_message: user_message = user_message(self.__context.config, player_text, player_character.name, False)
+            new_message: UserMessage = UserMessage(self.__context.config, player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
             new_message = self.update_game_events(new_message)
             self.__messages.add_message(new_message)
@@ -283,7 +283,7 @@ class conversation:
                 self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
 
     @utils.time_it
-    def update_game_events(self, message: user_message) -> user_message:
+    def update_game_events(self, message: UserMessage) -> UserMessage:
         """Add in-game events to player's response"""
 
         all_ingame_events = self.__context.get_context_ingame_events()
@@ -314,8 +314,8 @@ class conversation:
         
         if not next_sentence.is_system_generated_sentence and not next_sentence.speaker.is_player_character:
             last_message = self.__messages.get_last_message()
-            if not isinstance(last_message, assistant_message):
-                last_message = assistant_message(self.__context.config)
+            if not isinstance(last_message, AssistantMessage):
+                last_message = AssistantMessage(self.__context.config)
                 last_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
                 self.__messages.add_message(last_message)
             last_message.add_sentence(next_sentence)

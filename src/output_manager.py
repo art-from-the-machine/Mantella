@@ -22,7 +22,7 @@ from src.llm.sentence import sentence as mantella_sentence #<- Do not collide wi
 import src.utils as utils
 from src.characters_manager import Characters
 from src.character_manager import Character
-from src.llm.messages import message
+from src.llm.messages import Message
 from src.llm.message_thread import message_thread
 from src.llm.ai_client import AIClient
 from src.tts.ttsable import ttsable

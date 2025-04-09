@@ -8,7 +8,7 @@ from src.character_manager import Character
 from src.llm.sentence import sentence
 from src import utils
 
-class message(ABC):
+class Message(ABC):
     """Base class for messages 
     """
     def __init__(self, text: str, config: ConfigLoader, is_system_generated_message: bool = False):
@@ -74,7 +74,7 @@ class message(ABC):
     def get_dict_formatted_string(self) -> str:
         pass
 
-class system_message(message):
+class SystemMessage(Message):
     """A message with the role 'system'. Usually used as the initial main prompt of an exchange with the LLM
     """
 
@@ -91,7 +91,7 @@ class system_message(message):
         dictionary = {"role":"system", "content": self.get_formatted_content(),}
         return f"{dictionary}"
         
-class assistant_message(message):
+class AssistantMessage(Message):
     """An assistant message containing the response of an LLM to a request.
     Automatically appends the character name in front of the text if provided and if there is only one active_assistant_character
     """
@@ -132,7 +132,7 @@ class assistant_message(message):
         dictionary = {"role":"assistant", "content": self.get_formatted_content(),}
         return f"{dictionary}"
 
-class user_message(message):
+class UserMessage(Message):
     """A user message sent to the LLM. Contains the text from the player and optionally it's name.
     Ingame Events can be added as a list[str]. Each ingame event will be placed before the text of the player in asterisks 
     """
@@ -181,7 +181,7 @@ class user_message(message):
         self.__time = time, time_group
 
 
-class image_message(message):
+class ImageMessage(Message):
     """A image message sent to the LLM. Contains the a base64 encode image and accompanying description text.
     """
     def __init__(self, config: ConfigLoader, encoded_image: str, text: str = "", resolution: str = "auto", is_system_generated_message: bool = False):
@@ -215,7 +215,7 @@ class image_message(message):
             ]
         }
     
-class image_description_message(message):
+class ImageDescriptionMessage(Message):
     """An image description message, similar to a user message but interacted with by the conversation object"""
     def __init__(self, config: ConfigLoader, text: str = "", is_system_generated_message: bool = False):
         super().__init__(text, config, is_system_generated_message)

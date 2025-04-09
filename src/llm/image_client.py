@@ -5,7 +5,7 @@ import unicodedata
 from src.config.config_loader import ConfigLoader
 from src.image.image_manager import ImageManager
 from src.llm.client_base import ClientBase
-from src.llm.messages import image_message
+from src.llm.messages import ImageMessage
 
 class ImageClient(ClientBase):
     '''Image class to handle LLM vision
@@ -77,7 +77,7 @@ class ImageClient(ClientBase):
                 vision_prompt = f"{self.__vision_prompt}\n{vision_hints}"
             else:
                 vision_prompt = self.__vision_prompt
-            image_msg_instance = image_message(self.__config, image, vision_prompt, self.__detail, True)
+            image_msg_instance = ImageMessage(self.__config, image, vision_prompt, self.__detail, True)
             image_transcription = self.request_call(image_msg_instance)
             if image_transcription:
                 last_punctuation = max(image_transcription.rfind(p) for p in self.__end_of_sentence_chars)
