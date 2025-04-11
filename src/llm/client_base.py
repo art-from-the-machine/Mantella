@@ -14,12 +14,23 @@ import src.utils as utils
 
 class ClientBase(AIClient):
     '''Base class for connecting to OpenAI-compatible endpoints
+
+    Handles API key management, client generation (sync/async), request execution,
+    token counting, endpoint resolution, and model list retrieval
     '''
     api_token_limits = {}
     tiktoken_cache_dir = "data"
     os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
 
     def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, secret_key_files: list[str]) -> None:
+        '''
+        Args:
+            api_url (str): The API endpoint URL or a known service name (e.g., 'OpenAI', 'OpenRouter')
+            llm (str): The name of the language model to use
+            llm_params (dict[str, Any] | None): Additional parameters for the LLM requests (eg temperature, max_tokens)
+            custom_token_count (int): A fallback token limit if the model's limit isn't known
+            secret_key_files (list[str]): A list of filenames to search for the API key, in order of priority
+        '''
         super().__init__()
         self._generation_lock: Lock = Lock()
         self._model_name: str = llm
@@ -208,6 +219,15 @@ class ClientBase(AIClient):
 
     @utils.time_it
     def __get_endpoint(self, api_url_or_name: str) -> str:
+        '''
+        Resolves a service name (eg 'openai', 'koboldcpp') if known, or else assumes the input is a direct URL
+
+        Args:
+            api_url_or_name (str): The service name or the direct API base URL
+
+        Returns:
+            endpoint (str): The resolved API endpoint URL
+        '''
         endpoints = {
             'openai': 'https://api.openai.com/v1', # don't set an endpoint, just use the OpenAI default
             'openrouter': 'https://openrouter.ai/api/v1',
@@ -300,6 +320,16 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
 
     @utils.time_it
     def __get_token_limit(self, llm, custom_token_count: int, is_local):
+        '''Determines the token limit for the given LLM, using known values, manual overrides, or a default
+
+        Args:
+            llm (str): The name of the language model
+            custom_token_count (int): A user-defined fallback token count from the config
+            is_local (bool): Whether the model is running locally
+
+        Returns:
+            token_limit (int): The determined token limit for the model
+        '''
         manual_limits = utils.get_model_token_limits()
         token_limit_dict = {**self.api_token_limits, **manual_limits}
 
@@ -325,6 +355,15 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
 
     @utils.time_it
     def __get_model_encoding(self, api_url: str, llm: str) -> tiktoken.Encoding:
+        '''Gets the appropriate tiktoken encoding for the specified model or a sensible default
+
+        Args:
+            api_url (str): The API service/URL being used
+            llm (str): The name of the language model
+
+        Returns:
+            tiktoken.Encoding: The encoding object for token counting
+        '''
         chosenmodel = llm
         # if using an alternative API to OpenAI, use encoding for GPT-3.5 by default
         # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
@@ -359,6 +398,14 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
 
     @utils.time_it
     def __num_tokens_from_messages(self, messages: message_thread | list[Message]) -> int:
+        '''Calculates token count for a list of messages formatted for OpenAI API calls
+
+        Args:
+            messages (message_thread | list[Message]): The messages to count tokens for
+
+        Returns:
+            num_tokens (int): The estimated total token count
+        '''
         messages_to_check = []
         if isinstance(messages, message_thread):
             messages_to_check = messages.get_openai_messages()
@@ -380,6 +427,15 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
     
     @utils.time_it
     def __num_tokens_from_message(self, message_to_measure: Message | str) -> int:
+        '''Calculates the approximate token count for a single Message object or string,
+        considering the overhead of the message structure
+
+        Args:
+            message_to_measure (Message | str): The message or string content
+
+        Returns:
+            num_tokens (int): Estimated token count
+        '''
         text: str = ""
         if isinstance(message_to_measure, Message):
             text = message_to_measure.get_formatted_content()
