@@ -1,7 +1,7 @@
 import logging
 import re
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
-from src.llm.sentence_content import sentence_content
+from src.llm.sentence_content import SentenceContent
 import src.utils as utils
 
 class clean_sentence_parser(output_parser):
@@ -9,7 +9,7 @@ class clean_sentence_parser(output_parser):
     def __init__(self) -> None:
         super().__init__()
 
-    def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[sentence_content | None, str]:
+    def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[SentenceContent | None, str]:
         return None, self.clean_sentence(output)
         
     def clean_sentence(self, sentence: str) -> str:
@@ -36,5 +36,5 @@ class clean_sentence_parser(output_parser):
         return sentence
            
 
-    def modify_sentence_content(self, cut_content: sentence_content, last_content: sentence_content | None, settings: sentence_generation_settings) -> tuple[sentence_content | None, sentence_content | None]:
+    def modify_sentence_content(self, cut_content: SentenceContent, last_content: SentenceContent | None, settings: sentence_generation_settings) -> tuple[SentenceContent | None, SentenceContent | None]:
         return cut_content, last_content

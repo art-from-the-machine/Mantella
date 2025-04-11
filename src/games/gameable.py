@@ -8,7 +8,7 @@ import pandas as pd
 from src.conversation.conversation_log import conversation_log
 from src.conversation.context import context
 from src.config.config_loader import ConfigLoader
-from src.llm.sentence import sentence
+from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
 import src.utils as utils
 import sounddevice as sd
@@ -105,7 +105,7 @@ class gameable(ABC):
         pass    
 
     @abstractmethod
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool):
+    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool):
         """Does what ever is needed to play a sentence ingame
 
         Args:

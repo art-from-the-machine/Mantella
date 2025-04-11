@@ -1,16 +1,16 @@
 from src.character_manager import Character
-from src.llm.sentence_content import SentenceTypeEnum, sentence_content
+from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 
-class sentence:
+class Sentence:
     """Collection of all the things that make up a sentence said by a character"""
-    def __init__(self, content: sentence_content, voice_file: str, voice_line_duration: float, error_message: str | None = None) -> None:
-        self.__content: sentence_content = content
+    def __init__(self, content: SentenceContent, voice_file: str, voice_line_duration: float, error_message: str | None = None) -> None:
+        self.__content: SentenceContent = content
         self.__voice_file: str = voice_file
         self.__voice_line_duration: float = voice_line_duration
         self.__error_message: str | None = error_message
 
     @property
-    def content(self) -> sentence_content:
+    def content(self) -> SentenceContent:
         return self.__content
 
     @property

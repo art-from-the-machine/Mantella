@@ -5,7 +5,7 @@ class SentenceTypeEnum(Enum):
     SPEECH = 1
     NARRATION = 2
 
-class sentence_content:
+class SentenceContent:
     """The LLM relevant part of a sentence"""
     def __init__(self, speaker: Character, text: str, sentence_type: SentenceTypeEnum, is_system_generated_sentence: bool = False, actions: list[str] = None) -> None:
         self.__speaker: Character = speaker

@@ -1,8 +1,8 @@
 from src.games.skyrim import skyrim as Skyrim
 import pytest
 from src.config.config_loader import ConfigLoader
-from src.llm.sentence import sentence as Sentence
-from src.llm.sentence_content import sentence_content as SentenceContent
+from src.llm.sentence import Sentence
+from src.llm.sentence_content import SentenceContent
 from src.llm.sentence_content import SentenceTypeEnum
 from src.games.external_character_info import external_character_info
 from src.character_manager import Character

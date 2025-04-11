@@ -1,7 +1,7 @@
 import logging
 import queue
 import threading
-from src.llm.sentence import sentence
+from src.llm.sentence import Sentence
 from src import utils
 
 class sentence_queue:
@@ -9,7 +9,7 @@ class sentence_queue:
     __should_log = False
 
     def __init__(self) -> None:
-        self.__queue: queue.Queue[sentence] = queue.Queue[sentence]()
+        self.__queue: queue.Queue[Sentence] = queue.Queue[Sentence]()
         self.__get_lock: threading.Lock = threading.Lock()
         self.__put_lock: threading.Lock = threading.Lock()
         self.__is_more_to_come: bool = False
@@ -23,7 +23,7 @@ class sentence_queue:
         self.__is_more_to_come = value
 
     @utils.time_it
-    def get_next_sentence(self) -> sentence | None:
+    def get_next_sentence(self) -> Sentence | None:
         self.log(f"Trying to aquire get_lock to get next sentence")
         with self.__get_lock:
             if self.__queue.qsize() > 0 or self.__is_more_to_come:
@@ -35,19 +35,19 @@ class sentence_queue:
                 return None
     
     @utils.time_it
-    def put(self, new_sentence: sentence):
+    def put(self, new_sentence: Sentence):
         self.log(f"Trying to aquire put_lock to put '{new_sentence.text}'")
         with self.__put_lock:
             self.log(f"Putting '{new_sentence.text}'")
             self.__queue.put(new_sentence)
 
     @utils.time_it
-    def put_at_front(self, new_sentence: sentence):
+    def put_at_front(self, new_sentence: Sentence):
         self.log(f"Trying to aquire get_lock to put_at_front '{new_sentence.text}'")
         with self.__get_lock:
             self.log(f"Trying to aquire put_lock to put_at_front '{new_sentence.text}'")
             with self.__put_lock:            
-                sentence_list: list[sentence] = []
+                sentence_list: list[Sentence] = []
                 try:
                     while True:
                         sentence_list.append(self.__queue.get_nowait() )

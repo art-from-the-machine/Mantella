@@ -2,10 +2,10 @@ from abc import ABC, abstractmethod
 from openai.types.chat import ChatCompletionMessageParam
 from src.config.definitions.llm_definitions import NarrationIndicatorsEnum
 from src.config.config_loader import ConfigLoader
-from src.llm.sentence_content import SentenceTypeEnum, sentence_content
+from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from src.character_manager import Character
 
-from src.llm.sentence import sentence
+from src.llm.sentence import Sentence
 from src import utils
 
 class Message(ABC):
@@ -97,9 +97,9 @@ class AssistantMessage(Message):
     """
     def __init__(self, config: ConfigLoader, is_system_generated_message: bool = False):
         super().__init__("", config, is_system_generated_message)
-        self.__sentences: list[sentence_content] = []
+        self.__sentences: list[SentenceContent] = []
     
-    def add_sentence(self, new_sentence: sentence):
+    def add_sentence(self, new_sentence: Sentence):
         self.__sentences.append(new_sentence.content)
 
     def get_formatted_content(self) -> str:
