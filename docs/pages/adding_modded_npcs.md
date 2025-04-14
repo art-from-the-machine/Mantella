@@ -3,12 +3,12 @@
 Character override files can be used to either make new characters available to Mantella or override existing NPC bios.
 
 Character overrides can be added to this folder:  
-`..\Documents\My Games\Mantella\data\Skyrim\character_overrides\`
+`..\Documents\My Games\Mantella\data\{game}\character_overrides\`
 
 ```{admonition} Note
 :class: seealso
 
-If you are a mod creator and want to include the bio of your NPC with your mod, please instead add your character override to `{mod location}\SKSE\Plugins\MantellaSoftware\data\Skyrim\character_overrides\`.
+If you are a mod creator and want to include the bio of your NPC with your mod, please instead add your character override to `{mod location}\SKSE or F4SE\Plugins\MantellaSoftware\data\{game}\character_overrides\`.
 ```
 
 Any `.csv` or `.json` file placed in your overrides folder will be loaded on start-up of Mantella. Removing a file will remove the override on the next start of Mantella.
