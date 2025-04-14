@@ -60,13 +60,13 @@ NPCs can now:
 </details> <br> 
 <details> <summary><b>⚙️ Features</b></summary>
 
-🎙️ Interact with AI-powered NPCs using your voice (via Whisper STT) or your keyboard
+🎙️ Interact with AI-powered NPCs using your voice or your keyboard
 
 👥 Works with every NPC—even modded ones
 
 🧾 600+ NPCs have unique personality backstories
 
-🤖 Supports local and cloud LLMs:
+🤖 Supports local and cloud LLMs including:
 
 	koboldcpp
 
@@ -130,7 +130,7 @@ NPCs can now:
 
 <details> <summary><b>🧩 Components / Architecture Overview</b></summary>
 
-Mantella is arguably one of the most complex add-on mods ever released for Bethesda games. It weaves together multiple advanced technologies, offering deep customization and a dynamic gameplay experience.
+Mantella weaves together multiple advanced technologies, offering deep customization and a dynamic gameplay experience.
 
 Some of the key systems powering Mantella:
 
@@ -181,7 +181,7 @@ If you get stuck anywhere in the installation process, please see {doc}`/pages/i
 ## Requirements
 ### Hardware Requirements
 
-Keep in mind those are in **addition to your FO4 RAM/VRAM requirements.**
+Keep in mind these are in **addition to your FO4 RAM/VRAM requirements.**
 
 #### <u>Minimum specifications if using external services </u>
 ##### **DISK SPACE**
@@ -189,18 +189,18 @@ Between 6 to 7 GB of disk space.
 
 ##### **CPU/RAM**  
 
-- **Piper TTS or XVASynth:** If you are using external LLM services like OpenAI or Openrouter then the only requirements are running the TTS and Whisper STT (if using the microphone). PiperTTS and Whisper can easily be run on most modern CPUs, the former uses about 0.1 GB of RAM and the latter about 1 gb.
-- **XTTS:** About 3-4 gb of RAM if using XTTS and Whisper at the same time.
+- **Piper TTS or XVASynth:** If you are using external LLM services like OpenAI or Openrouter then the only requirements are running the text-to-speech and speech-to-text (if using the microphone). Piper (TTS) and Whisper (STT) can easily be run on most modern CPUs, the former uses about 0.1 GB of RAM and the latter about 1 GB.
+- **XTTS:** About 3-4 GB of RAM if using XTTS and Whisper at the same time.
 
 ##### **GPU/VRAM**  
-- **Piper TTS + Text input** 0.1 gb of VRAM if using text input and Piper TTS
-- **Piper TTS + Whisper** Approx one gb of VRAM if using Whisper's voice recognition and Piper TTS.
+- **Piper TTS + Text input** 0.1 GB of VRAM if using text input and Piper TTS
+- **Piper TTS + Whisper** Approx one GB of VRAM if using Whisper's voice recognition and Piper TTS.
 - **XVASynth** Will barely use any RAM if in CPU mode.
 - **XTTS + Whisper** 3–4 GB of VRAM if using XTTS and Whisper.
 
 #### Minimum specifications if using external services
 
-- **In addition to the specs listed above** : Minimum 6 gb of free RAM/VRAM, at least 12-15 is optimal if you want to run a good roleplay LLM locally.
+- **In addition to the specs listed above** : Minimum 6 GB of free RAM/VRAM, at least 12-15 is optimal if you want to run a good roleplay LLM locally.
 
 ### Supported game versions
 
@@ -225,7 +225,7 @@ The Mantella files can be downloaded from [Nexus Mods](https://www.nexusmods.com
 - Mandatory for desktop: [Address library for desktop](https://www.nexusmods.com/fallout4/mods/47327) 
 - Mandatory for VR: [Address library for VR ](https://www.nexusmods.com/fallout4/mods/64879)
 #### Mod manager
-- Recommended: [Mod Organizer 2](https://www.nexusmods.com/fallout4/mods/47327) 
+- Recommended: [Mod Organizer 2](https://www.nexusmods.com/skyrimspecialedition/mods/6194) 
 - Alternative: [Vortex](https://www.nexusmods.com/about/vortex/)
 #### Other needed files
 - Mandatory for desktop: [Simple Text Field](https://www.nexusmods.com/fallout4/mods/87074) 
@@ -648,7 +648,7 @@ See the [link here](#managing-and-customizing-mantella) to manually customize Ma
   Mantella will apply changes on the next restart.  
   *We recommend using a CSV editor like **ModernCSV** for clean edits.*
 
-  See [here](https://art-from-the-machine.github.io/Mantella/pages/adding_modded_npcs.html) for more details about character overrides and custom bios (be sure to save inside the Fallout4 folder and not Skyrim)
+  See [here](https://art-from-the-machine.github.io/Mantella/pages/adding_modded_npcs.html) for more details about character overrides and custom bios.
 
 ---
 
@@ -866,7 +866,7 @@ So instead of just suggesting one word, an LLM can generate **full sentences or 
 Most LLMs are trained to follow user instructions and may include **censorship guardrails** — like a highly trained assistant with some restrictions.
 
 Also, **LLMs are stateless**:  
-This means **everything** the LLM knows about the game, the player, and the conversation has to be **resent each time** a new reply is generated.
+This means **everything** the LLM knows about the game, the player, and the conversation has to be **present each time** a new reply is generated.
 
 - This introduces a **context limit**, which varies by model/service.
 - If too much information is included, older parts of the conversation may be:
