@@ -5,6 +5,7 @@ import string
 import sys
 import os
 from shutil import rmtree
+import wave
 from charset_normalizer import detect
 import winsound
 import platform
@@ -82,6 +83,18 @@ def get_file_encoding(file_path) -> str | None:
         return encoding
     else:
         return None
+    
+
+@time_it
+def get_audio_duration(audio_file: str):
+    """Used to estimate when an external software has finished playing the audio file"""
+    with wave.open(audio_file, 'r') as wf:
+        frames = wf.getnframes()
+        rate = wf.getframerate()
+
+    # wait `buffer` seconds longer to let processes finish running correctly
+    duration = frames / float(rate)
+    return duration
 
 
 def cleanup_tmp(tmp_folder: str):

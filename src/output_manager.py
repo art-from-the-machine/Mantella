@@ -1,6 +1,5 @@
 import asyncio
 from threading import Lock
-import wave
 import logging
 import time
 import unicodedata
@@ -22,7 +21,6 @@ from src.llm.sentence import Sentence
 from src import utils
 from src.characters_manager import Characters
 from src.character_manager import Character
-from src.llm.messages import Message
 from src.llm.message_thread import message_thread
 from src.llm.ai_client import AIClient
 from src.tts.ttsable import ttsable
@@ -108,18 +106,6 @@ class ChatManager:
             time.sleep(0.01)
         self.__stop_generation.clear()
         return
-
-    @utils.time_it
-    def get_audio_duration(self, audio_file: str):
-        """Check if the external software has finished playing the audio file"""
-
-        with wave.open(audio_file, 'r') as wf:
-            frames = wf.getnframes()
-            rate = wf.getframerate()
-
-        # wait `buffer` seconds longer to let processes finish running correctly
-        duration = frames / float(rate)
-        return duration
  
     @utils.time_it
     async def process_response(self, active_character: Character, blocking_queue: sentence_queue, messages : message_thread, characters: Characters, actions: list[action]):
