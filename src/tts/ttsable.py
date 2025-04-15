@@ -14,7 +14,7 @@ import requests
 import shutil
 from src.config.definitions.game_definitions import GameEnum
 
-class ttsable(ABC):
+class TTSable(ABC):
     """Base class for different TTS services
     """
     @utils.time_it

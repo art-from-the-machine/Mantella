@@ -1,5 +1,5 @@
 from src.config.config_loader import ConfigLoader
-from src.tts.ttsable import ttsable
+from src.tts.ttsable import TTSable
 import logging
 import src.utils as utils
 import os
@@ -20,7 +20,7 @@ class TTSServiceFailure(Exception):
 class VoiceModelNotFound(Exception):
     pass
 
-class xvasynth(ttsable):
+class xVASynth(TTSable):
     """xVASynth TTS handler
     """
     @utils.time_it

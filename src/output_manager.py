@@ -23,14 +23,14 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.llm.message_thread import message_thread
 from src.llm.ai_client import AIClient
-from src.tts.ttsable import ttsable
+from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ChatManager:
-    def __init__(self, config: ConfigLoader, tts: ttsable, client: AIClient):
+    def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient):
         self.loglevel = 28
         self.__config: ConfigLoader = config
-        self.__tts: ttsable = tts
+        self.__tts: TTSable = tts
         self.__client: AIClient = client
         self.__is_generating: bool = False
         self.__stop_generation = asyncio.Event()
@@ -40,7 +40,7 @@ class ChatManager:
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
     @property
-    def tts(self) -> ttsable:
+    def tts(self) -> TTSable:
         return self.__tts
     
     @utils.time_it

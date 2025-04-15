@@ -1,5 +1,5 @@
 from src.config.config_loader import ConfigLoader
-from src.tts.ttsable import ttsable
+from src.tts.ttsable import TTSable
 import logging
 import subprocess
 import os
@@ -26,7 +26,7 @@ def enqueue_output(out, queue, stop_flag):
 class TTSServiceFailure(Exception):
     pass
 
-class piper(ttsable):
+class Piper(TTSable):
     """Piper TTS handler
     """
     @utils.time_it

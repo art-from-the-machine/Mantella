@@ -1,5 +1,5 @@
 from src.config.config_loader import ConfigLoader
-from src.tts.ttsable import ttsable
+from src.tts.ttsable import TTSable
 import logging
 import requests
 from typing import Any
@@ -17,7 +17,7 @@ from src.config.definitions.game_definitions import GameEnum
 class TTSServiceFailure(Exception):
     pass
 
-class xtts(ttsable):
+class XTTS(TTSable):
     """XTTS TTS handler
     """
     @utils.time_it

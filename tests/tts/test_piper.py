@@ -1,5 +1,5 @@
 import os
-from src.tts.piper import piper as Piper
+from src.tts.piper import Piper
 import pytest
 from src.config.config_loader import ConfigLoader
 from src.games.skyrim import skyrim as Skyrim

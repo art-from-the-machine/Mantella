@@ -12,10 +12,10 @@ from src.llm.llm_client import LLMClient
 from src.game_manager import GameStateManager
 from src.http.routes.routeable import routeable
 from src.http.communication_constants import communication_constants as comm_consts
-from src.tts.ttsable import ttsable
-from src.tts.xvasynth import xvasynth
-from src.tts.xtts import xtts
-from src.tts.piper import piper
+from src.tts.ttsable import TTSable
+from src.tts.xvasynth import xVASynth
+from src.tts.xtts import XTTS
+from src.tts.piper import Piper
 from src import utils
 from src.config.definitions.game_definitions import GameEnum
 from src.config.definitions.tts_definitions import TTSEnum
@@ -50,13 +50,13 @@ class mantella_route(routeable):
         else:
             game = skyrim(self._config)
 
-        tts: ttsable
+        tts: TTSable
         if self._config.tts_service == TTSEnum.XVASYNTH:
-            tts = xvasynth(self._config)
+            tts = xVASynth(self._config)
         elif self._config.tts_service == TTSEnum.XTTS:
-            tts = xtts(self._config, game)
+            tts = XTTS(self._config, game)
         if self._config.tts_service == TTSEnum.PIPER:
-            tts = piper(self._config, game)
+            tts = Piper(self._config, game)
 
         llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
         
