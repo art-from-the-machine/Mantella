@@ -21,7 +21,7 @@ from itertools import zip_longest
 class FunctionManager:
     
     #CUSTOM CONTEXT VALUES
-    KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_ENABLED: bool = "mantella_function_enabled"
+    KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_ENABLED: str = "mantella_function_enabled"
 
     #CUSTOM ACTOR VALUES
     KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_NPCDISPLAYNAMES: str = "mantella_function_npc_display_names"
@@ -86,7 +86,13 @@ class FunctionManager:
                 self.__tools_manager.add_custom_tooltip(custom_tooltip)
                 logging.debug(f"LLM Custom tooltips : loaded from {custom_tooltips_folder}")
                 logging.debug(custom_tooltip.tooltip_name)
-
+        else:
+            self.context = context_for_conversation
+            self.__output_manager: ChatManager = output_manager
+            self.__output_manager.generated_function_results = None #Ensure to empty the output from LLM before proceeding further
+            self.__generation_thread = generation_thread  # Ensure this is always initialized
+            self.__tools_manager.clear_all_active_tooltips()
+            self.__tools_manager.clear_all_context_payloads()
     
     def is_initialized(self):
         return self.initialized
