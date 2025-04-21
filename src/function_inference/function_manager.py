@@ -366,51 +366,79 @@ class FunctionManager:
     # Tooltip building
     #################################
 
-    def build_npc_targeting_tooltip(self, current_LLM_function:LLMFunction, exclude_player:bool=True):
+    def build_npc_targeting_tooltip(self,
+                                    current_LLM_function: LLMFunction,
+                                    exclude_player: bool = True) -> bool:
         try:
-            npc_names_str = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_NPCDISPLAYNAMES)
-            npc_distances_str = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_NPCDISTANCES)
-            npc_ids_str = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_NPCIDS)
+            npc_names_str     = self.__context.get_custom_context_value(
+                                    self.KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_NPCDISPLAYNAMES)
+            npc_distances_str = self.__context.get_custom_context_value(
+                                    self.KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_NPCDISTANCES)
+            npc_ids_str       = self.__context.get_custom_context_value(
+                                    self.KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_NPCIDS)
         except AttributeError as e:
             logging.debug(f"Function Manager : build_npc_targeting_tooltip: AttributeError encountered: {e}")
-            return 
-        if npc_ids_str is None:
+            return False                      # ← False because the call failed, not just “nothing to do”
+
+        if not npc_ids_str:                  # covers None *and* empty string
             return False
 
-        npc_names = self.parse_items(npc_names_str)
+        # ------------------------------------------------------------------
+        # Parse raw strings into individual pieces
+        # ------------------------------------------------------------------
+        npc_names     = self.parse_items(npc_names_str)
         npc_distances = self.parse_items(npc_distances_str)
-        npc_ids = self.parse_items(npc_ids_str)
+        npc_ids       = self.parse_items(npc_ids_str)
 
-        # Convert distances to floats and IDs to integers
-        npc_distances = [float(distance) for distance in npc_distances]
-        npc_ids = [int(npc_id) for npc_id in npc_ids]
+        # ------------------------------------------------------------------
+        # Validate + coerce.  Build a new “clean” list on the fly.
+        # ------------------------------------------------------------------
+        clean_records: list[tuple[str, int, float]] = []
+        for name, raw_id, raw_dist in zip(npc_names, npc_ids, npc_distances):
+            dist = self._safe_float(raw_dist)
+            npc_id = self._safe_int(raw_id)
 
-        player_name=""
-        characters = self.context.npcs_in_conversation.get_all_characters()
-        for character in characters:
+            if dist is None or npc_id is None:
+                logging.warning(f"Skipping NPC entry with bad data – "
+                                f"name='{name}', id='{raw_id}', distance='{raw_dist}'")
+                continue                     # just ignore the bad record
+
+            # Guard against 0‑distance that confuses the LLM
+            dist = max(dist, 1.0)
+            clean_records.append((name, npc_id, dist))
+
+        # Bail out early if nothing valid remains
+        if not clean_records:
+            return False
+
+        # ------------------------------------------------------------------
+        # Normal processing – now guaranteed safe
+        # ------------------------------------------------------------------
+        player_name = ""
+        for character in self.context.npcs_in_conversation.get_all_characters():
             if character.is_player_character:
-                player_name=character.name
+                player_name = character.name
+                break
 
-        for npc_name, npc_id, npc_distance in zip(npc_names, npc_ids, npc_distances):
-            if exclude_player and (npc_name==player_name):             #continue to the next NPC if this is the player and exclude_player is turned on
+        for npc_name, npc_id, npc_distance in clean_records:
+            if exclude_player and npc_name == player_name:
                 continue
-            # Ensure distance is at least 1 to prevent the LLM AI from refusing to move towards the player who distance is always 0.
-            npc_distance = max(npc_distance, 1.0)
-            npc_id=(str(npc_id))
-            LLMFunction_target = Target(dec_id=npc_id, name=npc_name, distance=npc_distance)
-            current_LLM_function.context_payload.targets.append(LLMFunction_target)
+            current_LLM_function.context_payload.targets.append(
+                Target(dec_id=str(npc_id), name=npc_name, distance=npc_distance)
+            )
 
+        # ------------------------------------------------------------------
+        # Tooltip construction (unchanged except for using clean_records)
+        # ------------------------------------------------------------------
         if not self.__tools_manager.get_tooltip(self.KEY_TOOLTIPS_NPC_TARGETING):
-            tooltips_intro = "Here are the values for NPC functions that require targets: "
+            intro = "Here are the values for NPC functions that require targets:\n"
+            tips  = "\n".join(
+                f"{i+1}. target name: {t.name}, distance: {t.distance}, target npc ID: {t.dec_id}"
+                for i, t in enumerate(current_LLM_function.context_payload.targets)
+            )
+            outro = f"\nThe distances are calculated from {player_name}'s position."
+            self.__tools_manager.add_tooltip(self.KEY_TOOLTIPS_NPC_TARGETING, intro + tips + outro)
 
-            npc_tooltips = ""
-            for i, target in enumerate(current_LLM_function.context_payload.targets):
-                npc_tooltips += f"{i+1}. target name: {target.name}, distance: {target.distance}, target npc ID: {target.dec_id}\n"
-
-            
-            tooltips_outro = f"The distances are calculated from {player_name}'s position"
-            tooltips = tooltips_intro + npc_tooltips + tooltips_outro
-            self.__tools_manager.add_tooltip(self.KEY_TOOLTIPS_NPC_TARGETING, tooltips)
         return True
 
     def build_npc_participants_tooltip(self, current_LLM_function:LLMFunction, exclude_player:bool=True):
@@ -1272,6 +1300,21 @@ class FunctionManager:
             return formatted_part + parts[1].lstrip()  # Optional: .lstrip() to remove leading spaces from the second part
         else:
             return formatted_part
+        
+
+    @staticmethod
+    def _safe_float(text: str) -> float | None:
+        try:
+            return float(text)
+        except (ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def _safe_int(text: str) -> int | None:
+        try:
+            return int(text)
+        except (ValueError, TypeError):
+            return None
 
     def check_LLM_functions_enabled(self):
             '''Checks if function calling is enabled inside the game'''
