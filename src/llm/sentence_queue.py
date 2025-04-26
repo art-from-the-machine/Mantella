@@ -4,7 +4,7 @@ import threading
 from src.llm.sentence import Sentence
 from src import utils
 
-class sentence_queue:
+class SentenceQueue:
     __logging_level = 42
     __should_log = False
 

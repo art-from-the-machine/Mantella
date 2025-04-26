@@ -8,7 +8,7 @@ from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from src.characters_manager import Characters
 from src.conversation.conversation_log import conversation_log
 from src.conversation.action import action
-from src.llm.sentence_queue import sentence_queue
+from src.llm.sentence_queue import SentenceQueue
 from src.llm.sentence import Sentence
 from src.remember.remembering import remembering
 from src.output_manager import ChatManager
@@ -50,7 +50,7 @@ class conversation:
         self.__llm_client = llm_client
         self.__has_already_ended: bool = False
         self.__allow_mic_input: bool = True # this flag ensures mic input is disabled on conversation end
-        self.__sentences: sentence_queue = sentence_queue()
+        self.__sentences: SentenceQueue = SentenceQueue()
         self.__generation_thread: Thread | None = None
         self.__generation_start_lock: Lock = Lock()
         # self.__actions: list[action] = actions
@@ -365,7 +365,7 @@ class conversation:
     
     @utils.time_it
     def __start_generating_npc_sentences(self):
-        """Starts a background Thread to generate sentences into the sentence_queue"""    
+        """Starts a background Thread to generate sentences into the SentenceQueue"""    
         with self.__generation_start_lock:
             if not self.__generation_thread:
                 self.__sentences.is_more_to_come = True
