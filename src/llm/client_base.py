@@ -290,7 +290,7 @@ class ClientBase(AIClient):
                     api_key = f.readline().strip()
                     if api_key:
                         break
-            except FileNotFoundError:
+            except (FileNotFoundError, PermissionError):
                 pass
             
             # try to check locally (same folder as executable)
@@ -299,7 +299,7 @@ class ClientBase(AIClient):
                     api_key = f.readline().strip()
                     if api_key:
                         break
-            except FileNotFoundError:
+            except (FileNotFoundError, PermissionError):
                 pass
 
         if not api_key or api_key == '':
