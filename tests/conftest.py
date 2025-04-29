@@ -1,4 +1,5 @@
 import pytest
+from src.characters_manager import Characters
 from src.config.config_loader import ConfigLoader
 from src.http.http_server import http_server
 from src.http.routes.mantella_route import mantella_route
@@ -133,10 +134,39 @@ def example_npc_actor() -> models.Actor:
     )
 
 @pytest.fixture
+def example_skyrim_player_character() -> Character:
+    return Character(
+        base_id = '000007',
+        ref_id = '000014',
+        name = 'Dragonborn',
+        gender = 0,
+        race = '[Race <NordRace (00013746)>]',
+        is_player_character = True,
+        bio = '',
+        is_in_combat = False,
+        is_enemy = False,
+        relationship_rank = 0,
+        is_generic_npc = False,
+        ingame_voice_model = 'MaleEvenToned',
+        tts_voice_model = 'MaleEvenToned',
+        csv_in_game_voice_model = 'MaleEvenToned',
+        advanced_voice_model = 'MaleEvenToned',
+        voice_accent = 'en',
+        equipment = Equipment({
+            'body': EquipmentItem('Iron Armor'),
+            'feet': EquipmentItem('Iron Boots'),
+            'hands': EquipmentItem('Iron Gauntlets'),
+            'head': EquipmentItem('Iron Helmet'),
+            'righthand': EquipmentItem('Iron Sword'),
+        }),
+        custom_character_values = {'mantella_pc_description': '', 'mantella_pc_voiceplayerinput': False},
+    )
+
+@pytest.fixture
 def example_skyrim_npc_character() -> Character:
     return Character(
-        base_id = 0,
-        ref_id = 0,
+        base_id = '0',
+        ref_id = '0',
         name = 'Guard',
         gender = 0,
         race = '[Race <ImperialRace (00013744)>]',
@@ -156,10 +186,18 @@ def example_skyrim_npc_character() -> Character:
     )
 
 @pytest.fixture
+def example_characters_pc_to_npc(example_skyrim_player_character: Character, example_skyrim_npc_character: Character) -> Characters:
+    """Provides a Characters manager with the test character"""
+    chars = Characters()
+    chars.add_or_update_character(example_skyrim_player_character)
+    chars.add_or_update_character(example_skyrim_npc_character)
+    return chars
+
+@pytest.fixture
 def example_fallout4_npc_character() -> Character:
     return Character(
-        base_id = 0,
-        ref_id = 0,
+        base_id = '0',
+        ref_id = '0',
         name = 'Guard',
         gender = 0,
         race = '[Race <HumanRace (00013746)>]',
