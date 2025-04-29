@@ -7,7 +7,7 @@ from src.llm.ai_client import AIClient
 from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from src.characters_manager import Characters
 from src.conversation.conversation_log import conversation_log
-from src.conversation.action import action
+from src.conversation.action import Action
 from src.llm.sentence_queue import SentenceQueue
 from src.llm.sentence import Sentence
 from src.remember.remembering import remembering
@@ -53,7 +53,7 @@ class conversation:
         self.__sentences: SentenceQueue = SentenceQueue()
         self.__generation_thread: Thread | None = None
         self.__generation_start_lock: Lock = Lock()
-        # self.__actions: list[action] = actions
+        # self.__actions: list[Action] = actions
         self.last_sentence_audio_length = 0
         self.last_sentence_start_time = time.time()
         self.__end_conversation_keywords = utils.parse_keywords(context_for_conversation.config.end_conversation_keyword)

@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Hashable
-from src.conversation.action import action
+from src.conversation.action import Action
 from src.http.communication_constants import communication_constants
 from src.conversation.conversation_log import conversation_log
 from src.characters_manager import Characters
@@ -356,11 +356,11 @@ class context:
         return " ".join(equipment_descriptions)
     
     @utils.time_it
-    def __get_action_texts(self, actions: list[action]) -> str:
+    def __get_action_texts(self, actions: list[Action]) -> str:
         """Generates the prompt text for the available actions
 
         Args:
-            actions (list[action]): the list of possible actions. Already filtered for conversation type and config choices
+            actions (list[Action]): the list of possible actions. Already filtered for conversation type and config choices
 
         Returns:
             str: the text for the {actions} variable
@@ -371,7 +371,7 @@ class context:
         return result
     
     @utils.time_it
-    def generate_system_message(self, prompt: str, actions_for_prompt: list[action]) -> str:
+    def generate_system_message(self, prompt: str, actions_for_prompt: list[Action]) -> str:
         """Fills the variables in the prompt with the values calculated from the context
 
         Args:

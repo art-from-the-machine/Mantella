@@ -14,7 +14,7 @@ from src.llm.output.narration_parser import narration_parser
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
 from src.llm.output.sentence_end_parser import sentence_end_parser
 from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
-from src.conversation.action import action
+from src.conversation.action import Action
 from src.llm.sentence_queue import SentenceQueue
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
@@ -82,14 +82,14 @@ class ChatManager:
             return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file))
 
     @utils.time_it
-    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[action]):
+    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action]):
         """Starts generating responses by the LLM for the current state of the input messages
 
         Args:
             messages (message_thread): _description_
             characters (Characters): _description_
             blocking_queue (SentenceQueue): _description_
-            actions (list[action]): _description_
+            actions (list[Action]): _description_
         """
         if(not characters.last_added_character):
             return
@@ -108,7 +108,7 @@ class ChatManager:
         return
  
     @utils.time_it
-    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[action]):
+    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action]):
         """Stream response from LLM one sentence at a time"""
 
         raw_response: str = ''  # Track the raw response

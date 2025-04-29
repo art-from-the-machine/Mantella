@@ -5,7 +5,6 @@ from src.config.definitions.llm_definitions import NarrationHandlingEnum
 from src.games.equipment import Equipment, EquipmentItem
 from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
-from src.conversation.action import action
 from src.llm.sentence import Sentence
 from src.output_manager import ChatManager
 from src.remember.remembering import remembering

@@ -6,7 +6,7 @@ from typing import Any
 from src.config.definitions.llm_definitions import NarrationHandlingEnum, NarrationIndicatorsEnum
 from src.config.definitions.game_definitions import GameEnum
 from src.config.definitions.tts_definitions import TTSEnum
-from src.conversation.action import action
+from src.conversation.action import Action
 from src.config.config_values import ConfigValues
 from src.config.mantella_config_value_definitions_new import MantellaConfigValueDefinitionsNew
 from src.config.config_json_writer import ConfigJsonWriter
@@ -331,7 +331,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             raise e
     
     @staticmethod
-    def load_actions_from_json(actions_folder: str) -> list[action]:
+    def load_actions_from_json(actions_folder: str) -> list[Action]:
         result = []
         os.makedirs(actions_folder, exist_ok=True)
         override_files: list[str] = os.listdir(actions_folder)
@@ -356,7 +356,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                             multi_npc: bool = bool(content.get("multi-npc", ""))
                             radiant: bool = bool(content.get("radiant", ""))
                             info_text: str = content.get("info-text", "")
-                            result.append(action(identifier, name, key,description,prompt,is_interrupting, one_on_one,multi_npc,radiant,info_text))
+                            result.append(Action(identifier, name, key,description,prompt,is_interrupting, one_on_one,multi_npc,radiant,info_text))
             except Exception as e:
                 utils.play_error_sound()
                 logging.log(logging.WARNING, f"Could not load action definition file '{file}' in '{actions_folder}'. Most likely there is an error in the formating of the file. Error: {e}")

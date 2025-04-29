@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from src.config.config_loader import ConfigLoader
-from src.conversation.action import action
 from src.character_manager import Character
 from src.llm.message_thread import message_thread
 from src.conversation.context import context

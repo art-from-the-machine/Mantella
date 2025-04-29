@@ -1,10 +1,10 @@
 import logging
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
 from src.llm.sentence_content import SentenceContent
-from src.conversation.action import action
+from src.conversation.action import Action
     
 class actions_parser(output_parser):
-    def __init__(self, actions: list[action]) -> None:
+    def __init__(self, actions: list[Action]) -> None:
         super().__init__()
         self.__actions = actions
 

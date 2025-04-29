@@ -5,7 +5,7 @@ import json
 import configparser
 from unittest.mock import patch
 from src.config.definitions.game_definitions import GameEnum
-from src.conversation.action import action as Action
+from src.conversation.action import Action
 
 
 def test_init_new_config_ini(tmp_path):

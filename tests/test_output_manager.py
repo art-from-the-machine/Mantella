@@ -11,7 +11,7 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from src.llm.sentence import Sentence
-from src.conversation.action import action
+from src.conversation.action import Action
 import time
 
 class MockAIClient:
@@ -53,9 +53,9 @@ def mock_messages(default_config: ConfigLoader) -> message_thread:
     return message_thread(default_config, None)
 
 @pytest.fixture
-def mock_actions() -> list[action]:
+def mock_actions() -> list[Action]:
     """Provides a list of mock actions"""
-    act = action(
+    action = Action(
         identifier="wave", 
         name="Wave",
         keyword="Wave",
@@ -67,7 +67,7 @@ def mock_actions() -> list[action]:
         radiant=False,
         info_text="Waving action completed",
     )
-    return [act]
+    return [action]
 
 @pytest.fixture
 def output_manager(default_config: ConfigLoader, piper: Piper, mock_ai_client: MockAIClient, monkeypatch) -> ChatManager:
@@ -92,7 +92,7 @@ def get_sentence_list_from_queue(queue: SentenceQueue) -> list[Sentence]:
 
 
 @pytest.mark.asyncio
-async def test_process_response_api_error(output_manager: ChatManager, example_skyrim_npc_character: Character, example_characters_pc_to_npc: Characters, mock_queue: SentenceQueue, mock_messages: message_thread, mock_actions: list[action], monkeypatch):
+async def test_process_response_api_error(output_manager: ChatManager, example_skyrim_npc_character: Character, example_characters_pc_to_npc: Characters, mock_queue: SentenceQueue, mock_messages: message_thread, mock_actions: list[Action], monkeypatch):
     """Test handling of a simulated API error during streaming"""
     output_manager._ChatManager__client.error_on_call = True
     monkeypatch.setattr("src.utils.play_error_sound", lambda *a, **kw: None)
@@ -110,7 +110,7 @@ async def test_process_response_api_error(output_manager: ChatManager, example_s
 
 
 @pytest.mark.asyncio
-async def test_process_response_actions(output_manager: ChatManager, example_skyrim_npc_character: Character, example_characters_pc_to_npc: Characters, mock_queue: SentenceQueue, mock_messages: message_thread, mock_actions: list[action]):
+async def test_process_response_actions(output_manager: ChatManager, example_skyrim_npc_character: Character, example_characters_pc_to_npc: Characters, mock_queue: SentenceQueue, mock_messages: message_thread, mock_actions: list[Action]):
     """Test processing of actions embedded in the response"""
     output_manager._ChatManager__client.response_pattern = ["Wave: ", "See ", "you ", "later."]
     
@@ -236,7 +236,7 @@ async def test_process_response_param(
     example_characters_pc_to_npc: Characters,
     mock_queue: SentenceQueue,
     mock_messages: message_thread,
-    mock_actions: list[action],
+    mock_actions: list[Action],
     response_pattern,
     narration_handling,
     max_sentences,
