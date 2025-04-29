@@ -1,6 +1,7 @@
 from src.llm.llm_client import LLMClient
 import pytest
 from src.config.config_loader import ConfigLoader
+import src.llm.client_base
 from src.llm.messages import SystemMessage
 
 @pytest.fixture
@@ -12,7 +13,17 @@ def example_system_message(default_config: ConfigLoader):
     return SystemMessage('Test.', default_config)
 
 
-def test_missing_api_key_raises_error(default_config: ConfigLoader):
+def test_missing_api_key_raises_error(default_config: ConfigLoader, tmp_path, monkeypatch):
+    mock_mod_path = tmp_path / "a" / "b" / "c"
+    mock_mod_path.mkdir(parents=True)
+    monkeypatch.setattr('src.utils.resolve_path', lambda: mock_mod_path)
+
+    def fake_sleep(*args, **kwargs):
+        raise ValueError("API key is missing")
+    monkeypatch.setattr(src.llm.client_base.time, 'sleep', fake_sleep) # Skip sleeping on error
+
+    monkeypatch.setattr("src.utils.play_error_sound", lambda *a, **kw: None)
+    
     with pytest.raises(ValueError, match="API key is missing"):
         LLMClient(default_config, "", "IMAGE_SECRET_KEY.txt")
 
