@@ -116,6 +116,8 @@ class ChatManager:
         parsed_sentence: SentenceContent | None = None
         pending_sentence: SentenceContent | None = None
         self.__is_first_sentence = True
+        max_retries = 5
+        retries = 0
 
         parser_chain: list[output_parser] = [
             clean_sentence_parser(),
@@ -133,7 +135,7 @@ class ChatManager:
         try:
             current_sentence: str = ''
             settings: sentence_generation_settings = sentence_generation_settings(active_character)
-            while True:
+            while retries < max_retries:
                 try:
                     start_time = time.time()
                     async for content in self.__client.streaming_call(messages=messages, is_multi_npc=characters.contains_multiple_npcs()):
@@ -169,16 +171,20 @@ class ChatManager:
                     break #if the streaming_call() completed without exception, break the while loop
                             
                 except Exception as e:
+                    retries += 1
                     utils.play_error_sound()
-                    logging.error(f"LLM API Error: {e}")                    
+                    logging.error(f"LLM API Error: {e}")
+                    
                     error_response = "I can't find the right words at the moment."
                     new_sentence = self.generate_sentence(SentenceContent(active_character, error_response, SentenceTypeEnum.SPEECH, True))
                     blocking_queue.put(new_sentence)
-                    if new_sentence.error_message:
+                    if new_sentence.error_message: # If the error message itself has an error, just give up
                         break
-                    # else:
-                    #     for a in actions_in_sentence:
-                    #         new_sentence.actions.append( a.identifier)
+                    
+                    if retries >= max_retries:
+                        logging.log(self.loglevel, f"Max retries reached ({retries}).")
+                        break
+                    
                     logging.log(self.loglevel, 'Retrying connection to API...')
                     time.sleep(5)
 
