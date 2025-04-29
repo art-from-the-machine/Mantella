@@ -1,15 +1,6 @@
 import os
 from src.tts.piper import Piper
-import pytest
-from src.config.config_loader import ConfigLoader
-from src.games.skyrim import skyrim as Skyrim
 from src.tts.synthesization_options import SynthesizationOptions
-import winsound
-
-@pytest.fixture
-def piper(default_config: ConfigLoader, skyrim: Skyrim):
-    return Piper(default_config, skyrim)
-
 
 def test_piper_model_retrieval(piper: Piper):
     '''Test that at least the base Skyrim models are available'''

@@ -12,6 +12,8 @@ from src.http.communication_constants import communication_constants as comm_con
 from src.http import models
 from src.character_manager import Character
 from src.games.skyrim import skyrim as Skyrim
+from src.tts.piper import Piper
+from src.games.equipment import Equipment, EquipmentItem
 
 @pytest.fixture
 def default_config(tmp_path: Path) -> ConfigLoader:
@@ -41,6 +43,10 @@ def override_default_config_values(default_config: ConfigLoader, actual_config: 
 @pytest.fixture
 def english_language_info() -> dict:
     return {'alpha2': 'en', 'language': 'English', 'hello': 'Hello'}
+
+@pytest.fixture
+def piper(default_config: ConfigLoader, skyrim: Skyrim):
+    return Piper(default_config, skyrim)
 
 @pytest.fixture
 def server() -> http_server:
