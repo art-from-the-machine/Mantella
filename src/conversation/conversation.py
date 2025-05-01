@@ -4,15 +4,15 @@ from threading import Thread, Lock
 import time
 from typing import Any
 from src.llm.ai_client import AIClient
-from src.llm.sentence_content import SentenceTypeEnum, sentence_content
+from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from src.characters_manager import Characters
 from src.conversation.conversation_log import conversation_log
-from src.conversation.action import action
-from src.llm.sentence_queue import sentence_queue
-from src.llm.sentence import sentence
+from src.conversation.action import Action
+from src.llm.sentence_queue import SentenceQueue
+from src.llm.sentence import Sentence
 from src.remember.remembering import remembering
 from src.output_manager import ChatManager
-from src.llm.messages import assistant_message, system_message, user_message
+from src.llm.messages import AssistantMessage, SystemMessage, UserMessage
 from src.conversation.context import context
 from src.llm.message_thread import message_thread
 from src.conversation.conversation_type import conversation_type, multi_npc, pc_to_npc, radiant
@@ -50,10 +50,10 @@ class conversation:
         self.__llm_client = llm_client
         self.__has_already_ended: bool = False
         self.__allow_mic_input: bool = True # this flag ensures mic input is disabled on conversation end
-        self.__sentences: sentence_queue = sentence_queue()
+        self.__sentences: SentenceQueue = SentenceQueue()
         self.__generation_thread: Thread | None = None
         self.__generation_start_lock: Lock = Lock()
-        # self.__actions: list[action] = actions
+        # self.__actions: list[Action] = actions
         self.last_sentence_audio_length = 0
         self.last_sentence_start_time = time.time()
         self.__end_conversation_keywords = utils.parse_keywords(context_for_conversation.config.end_conversation_keyword)
@@ -92,13 +92,13 @@ class conversation:
             self.__save_conversations_for_characters(all_characters, is_reload=True)
 
     @utils.time_it
-    def start_conversation(self) -> tuple[str, sentence | None]:
+    def start_conversation(self) -> tuple[str, Sentence | None]:
         """Starts a new conversation.
 
         Returns:
             tuple[str, sentence | None]: Returns a tuple consisting of a reply type and an optional sentence
         """
-        greeting: user_message | None = self.__conversation_type.get_user_message(self.__context, self.__messages)
+        greeting: UserMessage | None = self.__conversation_type.get_user_message(self.__context, self.__messages)
         if greeting:
             self.__messages.add_message(greeting)
             self.__start_generating_npc_sentences()
@@ -107,7 +107,7 @@ class conversation:
             return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
 
     @utils.time_it
-    def continue_conversation(self) -> tuple[str, sentence | None]:
+    def continue_conversation(self) -> tuple[str, Sentence | None]:
         """Main workhorse of the conversation. Decides what happens next based on the state of the conversation
 
         Returns:
@@ -132,7 +132,7 @@ class conversation:
             self.__stt.start_listening(mic_prompt)
         
         #Grab the next sentence from the queue
-        next_sentence: sentence | None = self.retrieve_sentence_from_queue()
+        next_sentence: Sentence | None = self.retrieve_sentence_from_queue()
         
         if next_sentence and len(next_sentence.text) > 0:
             if comm_consts.ACTION_REMOVECHARACTER in next_sentence.actions:
@@ -167,7 +167,7 @@ class conversation:
                     return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
 
     @utils.time_it
-    def process_player_input(self, player_text: str) -> tuple[str, bool, sentence|None]:
+    def process_player_input(self, player_text: str) -> tuple[str, bool, Sentence|None]:
         """Submit the input of the player to the conversation
 
         Args:
@@ -207,7 +207,7 @@ class conversation:
                 # otherwise the player could constantly speak over the NPC and never hear a response
                 self.__stt.stop_listening()
             
-            new_message: user_message = user_message(self.__context.config, player_text, player_character.name, False)
+            new_message: UserMessage = UserMessage(self.__context.config, player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
             new_message = self.update_game_events(new_message)
             self.__messages.add_message(new_message)
@@ -232,15 +232,15 @@ class conversation:
         return mic_prompt
     
     @utils.time_it
-    def __get_player_voiceline(self, player_character: Character | None, player_text: str) -> sentence | None:
+    def __get_player_voiceline(self, player_character: Character | None, player_text: str) -> Sentence | None:
         """Synthesizes the player's input if player voice input is enabled, or else returns None
         """
-        player_character_voiced_sentence: sentence | None = None
+        player_character_voiced_sentence: Sentence | None = None
         if self.__should_voice_player_input(player_character):
-            player_character_voiced_sentence = self.__output_manager.generate_sentence(sentence_content(player_character, player_text, SentenceTypeEnum.SPEECH, False))
+            player_character_voiced_sentence = self.__output_manager.generate_sentence(SentenceContent(player_character, player_text, SentenceTypeEnum.SPEECH, False))
             if player_character_voiced_sentence.error_message:
-                player_message_content: sentence_content = sentence_content(player_character, player_text, SentenceTypeEnum.SPEECH, False)
-                player_character_voiced_sentence = sentence(player_message_content, "" , 2.0)
+                player_message_content: SentenceContent = SentenceContent(player_character, player_text, SentenceTypeEnum.SPEECH, False)
+                player_character_voiced_sentence = Sentence(player_message_content, "" , 2.0)
 
         return player_character_voiced_sentence
 
@@ -283,7 +283,7 @@ class conversation:
                 self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
 
     @utils.time_it
-    def update_game_events(self, message: user_message) -> user_message:
+    def update_game_events(self, message: UserMessage) -> UserMessage:
         """Add in-game events to player's response"""
 
         all_ingame_events = self.__context.get_context_ingame_events()
@@ -300,7 +300,7 @@ class conversation:
         return message
 
     @utils.time_it
-    def retrieve_sentence_from_queue(self) -> sentence | None:
+    def retrieve_sentence_from_queue(self) -> Sentence | None:
         """Retrieves the next sentence from the queue.
         If there is a sentence, adds the sentence to the last assistant_message of the message_thread.
         If the last message is not an assistant_message, a new one will be added.
@@ -308,14 +308,14 @@ class conversation:
         Returns:
             sentence | None: The next sentence from the queue or None if the queue is empty
         """
-        next_sentence: sentence | None = self.__sentences.get_next_sentence() #This is a blocking call. Execution will wait here until queue is filled again
+        next_sentence: Sentence | None = self.__sentences.get_next_sentence() #This is a blocking call. Execution will wait here until queue is filled again
         if not next_sentence:
             return None
         
         if not next_sentence.is_system_generated_sentence and not next_sentence.speaker.is_player_character:
             last_message = self.__messages.get_last_message()
-            if not isinstance(last_message, assistant_message):
-                last_message = assistant_message(self.__context.config)
+            if not isinstance(last_message, AssistantMessage):
+                last_message = AssistantMessage(self.__context.config)
                 last_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
                 self.__messages.add_message(last_message)
             last_message.add_sentence(next_sentence)
@@ -335,7 +335,7 @@ class conversation:
             # say goodbyes
             npc = self.__context.npcs_in_conversation.last_added_character
             if npc:
-                goodbye_sentence = self.__output_manager.generate_sentence(sentence_content(npc, config.goodbye_npc_response, SentenceTypeEnum.SPEECH, True))
+                goodbye_sentence = self.__output_manager.generate_sentence(SentenceContent(npc, config.goodbye_npc_response, SentenceTypeEnum.SPEECH, True))
                 if goodbye_sentence:
                     goodbye_sentence.actions.append(comm_consts.ACTION_ENDCONVERSATION)
                     self.__sentences.put(goodbye_sentence)
@@ -365,7 +365,7 @@ class conversation:
     
     @utils.time_it
     def __start_generating_npc_sentences(self):
-        """Starts a background Thread to generate sentences into the sentence_queue"""    
+        """Starts a background Thread to generate sentences into the SentenceQueue"""    
         with self.__generation_start_lock:
             if not self.__generation_thread:
                 self.__sentences.is_more_to_come = True
@@ -386,7 +386,7 @@ class conversation:
             self.__stop_generation()
             self.__sentences.clear()            
             # say goodbye
-            goodbye_sentence = self.__output_manager.generate_sentence(sentence_content(npc, self.__context.config.goodbye_npc_response, SentenceTypeEnum.SPEECH, False))
+            goodbye_sentence = self.__output_manager.generate_sentence(SentenceContent(npc, self.__context.config.goodbye_npc_response, SentenceTypeEnum.SPEECH, False))
             if goodbye_sentence:
                 goodbye_sentence.actions.append(comm_consts.ACTION_REMOVECHARACTER)
                 self.__sentences.put(goodbye_sentence)        
@@ -415,7 +415,7 @@ class conversation:
         
         # Play gather thoughts
         collecting_thoughts_text = self.__context.config.collecting_thoughts_npc_response
-        collecting_thoughts_sentence = self.__output_manager.generate_sentence(sentence_content(latest_npc, collecting_thoughts_text, SentenceTypeEnum.SPEECH, True))
+        collecting_thoughts_sentence = self.__output_manager.generate_sentence(SentenceContent(latest_npc, collecting_thoughts_text, SentenceTypeEnum.SPEECH, True))
         if collecting_thoughts_sentence:
             collecting_thoughts_sentence.actions.append(comm_consts.ACTION_RELOADCONVERSATION)
             self.__sentences.put_at_front(collecting_thoughts_sentence)

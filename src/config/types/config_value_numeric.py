@@ -27,7 +27,7 @@ class ConfigValueNumeric(ConfigValue[T], ABC):
             return result
         if value_to_check >= self.__min_value and value_to_check <= self.__max_value:
             return ConfigValueConstraintResult()
-        return ConfigValueConstraintResult(f"{self.__name} must be between {self.__min_value} and {self.__max_value}!")
+        return ConfigValueConstraintResult(f"{self.name} must be between {self.__min_value} and {self.__max_value}!")
     
     @abstractmethod
     def parse(self, config_value: str) -> ConfigValueConstraintResult:

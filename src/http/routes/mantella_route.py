@@ -12,11 +12,13 @@ from src.llm.llm_client import LLMClient
 from src.game_manager import GameStateManager
 from src.http.routes.routeable import routeable
 from src.http.communication_constants import communication_constants as comm_consts
-from src.tts.ttsable import ttsable
-from src.tts.xvasynth import xvasynth
-from src.tts.xtts import xtts
-from src.tts.piper import piper
+from src.tts.ttsable import TTSable
+from src.tts.xvasynth import xVASynth
+from src.tts.xtts import XTTS
+from src.tts.piper import Piper
 from src import utils
+from src.config.definitions.game_definitions import GameEnum
+from src.config.definitions.tts_definitions import TTSEnum
 
 class mantella_route(routeable):
     """Main route for Mantella conversations
@@ -41,21 +43,20 @@ class mantella_route(routeable):
         if self.__game:
             self.__game.end_conversation({})
 
-        # Determine which game we're running for and select the appropriate character file
         game: gameable
-        formatted_game_name = self._config.game.lower().replace(' ', '').replace('_', '')
-        if formatted_game_name in ("fallout4", "fallout4vr"):
+        game_enum = self._config.game
+        if game_enum.base_game == GameEnum.FALLOUT4:
             game = fallout4(self._config)
         else:
             game = skyrim(self._config)
 
-        tts: ttsable
-        if self._config.tts_service == 'xvasynth':
-            tts = xvasynth(self._config)
-        elif self._config.tts_service == 'xtts':
-            tts = xtts(self._config, game)
-        if self._config.tts_service == 'piper':
-            tts = piper(self._config, game)
+        tts: TTSable
+        if self._config.tts_service == TTSEnum.XVASYNTH:
+            tts = xVASynth(self._config)
+        elif self._config.tts_service == TTSEnum.XTTS:
+            tts = XTTS(self._config, game)
+        if self._config.tts_service == TTSEnum.PIPER:
+            tts = Piper(self._config, game)
 
         llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
         
@@ -66,7 +67,6 @@ class mantella_route(routeable):
     def add_route_to_server(self, app: FastAPI):
         @app.post("/mantella")
         async def mantella(request: Request):
-            logging.debug('Received request')
             if not self._can_route_be_used():
                 error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
                 logging.error(error_message)

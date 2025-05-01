@@ -5,8 +5,7 @@ from src.config.definitions.llm_definitions import NarrationHandlingEnum
 from src.games.equipment import Equipment, EquipmentItem
 from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
-from src.conversation.action import action
-from src.llm.sentence import sentence
+from src.llm.sentence import Sentence
 from src.output_manager import ChatManager
 from src.remember.remembering import remembering
 from src.remember.summaries import summaries
@@ -166,7 +165,7 @@ class GameStateManager:
         }
     
     @utils.time_it
-    def sentence_to_json(self, sentence_to_prepare: sentence, topicID: int) -> dict[str, Any]:
+    def sentence_to_json(self, sentence_to_prepare: Sentence, topicID: int) -> dict[str, Any]:
         return {
             comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.speaker.name,
             comm_consts.KEY_ACTOR_LINETOSPEAK: self.__abbreviate_text(sentence_to_prepare.text.strip()),

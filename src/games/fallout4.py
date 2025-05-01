@@ -8,10 +8,12 @@ from src.conversation.context import context
 #from src.audio.audio_playback import audio_playback
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
-from src.llm.sentence import sentence
+from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
 import src.utils as utils
+from src.config.definitions.game_definitions import GameEnum
+from src.config.definitions.tts_definitions import TTSEnum
 
 
 class fallout4(gameable):
@@ -23,12 +25,13 @@ class fallout4(gameable):
     KEY_CONTEXT_CUSTOMVALUES_PLAYERROT: str  = "mantella_player_rot"
     KEY_ACTOR_CUSTOMVALUES_POSX: str  = "mantella_actor_pos_x"
     KEY_ACTOR_CUSTOMVALUES_POSY: str  = "mantella_actor_pos_y"
+    DIALOGUELINE1_FILENAME = "00001ED2_1"
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Fallout4/fallout4_characters.csv', "Fallout4")
-        if config.game == "Fallout4VR":
+        if config.game == GameEnum.FALLOUT4_VR:
             self.__compatibility = file_communication_compatibility(config.game_path, int(config.port))# <- creating an object of this starts the listen thread
-        self.__tts_service: str = config.tts_service
+        self.__tts_service: TTSEnum = config.tts_service
         encoding = utils.get_file_encoding(fallout4.FO4_XVASynth_file)
         self.__FO4_Voice_folder_and_models_df = pd.read_csv(fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)
         #self.__playback: audio_playback = audio_playback(config)
@@ -90,7 +93,7 @@ class fallout4(gameable):
             actor_voice_model_name = actor_voice_model  
         #Filtering out endsdiwth Race because depending on the source of the method call it may be present.
         if 'Race <' in actor_race:
-            actor_race = actor_race.split('Race <', 1)[1]
+            actor_race = actor_race.split('Race <', 1)[1].split(' ')[0]
 
             if actor_race.endswith('Race'):
                 actor_race = actor_race[:actor_race.rfind('Race')].strip()
@@ -98,68 +101,59 @@ class fallout4(gameable):
             actor_race = actor_race
 
         #make the substitutions below to bypass non-functional XVASynth voice models: RobotCompanionMaleDefault, RobotCompanionMaleProcessed,Gen1Synth02 & Gen1Synth03 
-        if self.__tts_service=="xvasynth": #only necessary for XVASynth
+        if self.__tts_service == TTSEnum.XVASYNTH: #only necessary for XVASynth
             male_voice_model_dictionary=fallout4.MALE_VOICE_MODELS_XVASYNTH
             female_voice_model_dictionary = fallout4.FEMALE_VOICE_MODELS_XVASYNTH
-            if actor_voice_model_name in  ("DLC01RobotCompanionMaleDefault", "DLC01RobotCompanionMaleProcessed"):
-                actor_voice_model_name='robot_assaultron'
-                actor_voice_model_id='robot_assaultron'
-            if actor_voice_model_name in  ("SynthGen1Male02", "SynthGen1Male03"):
+            if actor_voice_model_name in ("DLC01RobotCompanionMaleDefault", "DLC01RobotCompanionMaleProcessed"):
+                actor_voice_model_name='robotassaultron'
+                actor_voice_model_id='robotassaultron'
+            elif actor_voice_model_name in ("SynthGen1Male02", "SynthGen1Male03"):
                 actor_voice_model_name='gen1synth01'
                 actor_voice_model_id='000BBBF0'
         else:
             male_voice_model_dictionary=fallout4.MALE_VOICE_MODELS_NONXVASYNTH
             female_voice_model_dictionary = fallout4.FEMALE_VOICE_MODELS_NONXVASYNTH
-        matching_row=''
+
+
         # Search for the Matching 'voice_ID'
         if library_search:
-            matching_row = self.__FO4_Voice_folder_and_models_df[self.__FO4_Voice_folder_and_models_df['voice_ID'] == actor_voice_model_id]
+            matching_row_by_id = self.__FO4_Voice_folder_and_models_df[self.__FO4_Voice_folder_and_models_df['voice_ID'] == actor_voice_model_id]
 
             # Return the Matching Row's Values
-            if not matching_row.empty:
+            if not matching_row_by_id.empty:
                 # Assuming there's only one match, get the value from the 'voice_model' column
-                voice_model = matching_row['voice_model'].iloc[0]
+                voice_model = matching_row_by_id['voice_model'].iloc[0]
             else:
                 logging.log(23, "No matching voice ID found. Attempting voice_file_name match.")
-      
-        
 
-        if voice_model == '':
-            # If no match by 'voice_ID' and not found in , search by 'voice_model' (actor_voice_model_name)
-            if library_search:
                 matching_row_by_name = self.__FO4_Voice_folder_and_models_df[self.__FO4_Voice_folder_and_models_df['voice_file_name'].str.lower() == actor_voice_model_name.lower()]
                 if not matching_row_by_name.empty:
                     # If there is a match, set 'voice_model' to 'actor_voice_model_name'
                     voice_model = matching_row_by_name['voice_model'].iloc[0]
-            else:
-                try: # search for voice model in fallout4_characters.csv
-                    if library_search:
+                else:
+                    try:
                         voice_model = self.character_df.loc[self.character_df['fallout4_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
-                    else:
-                        voice_model =self.dictionary_match(voice_model,female_voice_model_dictionary, male_voice_model_dictionary, actor_race,actor_sex)
-                except: 
-                    voice_model =self.dictionary_match(voice_model,female_voice_model_dictionary, male_voice_model_dictionary,actor_race,actor_sex)
+                    except:
+                        pass
+      
+        if voice_model == '':
+            voice_model = self.dictionary_match(female_voice_model_dictionary, male_voice_model_dictionary, actor_race, actor_sex)
+        
         return voice_model
 
-    def dictionary_match(self,voice_model:str,female_voice_model_dictionary:dict,male_voice_model_dictionary:dict,actor_race:str, actor_sex:int) -> str:
+    def dictionary_match(self, female_voice_model_dictionary:dict, male_voice_model_dictionary:dict, actor_race:str, actor_sex:int) -> str:
         if actor_race is None:
             actor_race = "Human"
         if actor_sex is None:
             actor_sex = 0
         modified_race_key = actor_race + "Race"
-        #except then try to match using gender and race with pre-established dictionaries
-        if actor_sex == 1:
-            try:
-                voice_model = female_voice_model_dictionary[modified_race_key]
-            except:
-                voice_model = 'femaleboston'
-        else:
-            try:
-                voice_model = male_voice_model_dictionary[modified_race_key]
-            except:
-                voice_model = 'maleboston'
-        return voice_model
 
+        if actor_sex == 1:
+            voice_model = female_voice_model_dictionary.get(modified_race_key, 'femaleboston')
+        else:
+            voice_model = male_voice_model_dictionary.get(modified_race_key, 'maleboston')
+
+        return voice_model
 
     @utils.time_it
     def load_unnamed_npc(self, name: str, actor_race: str, actor_sex: int, ingame_voice_model:str) -> dict[str, Any]:
@@ -189,7 +183,7 @@ class fallout4(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstVoiceLine: bool):
+    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool):
         audio_file = queue_output.voice_file
         if not os.path.exists(audio_file):
             return
@@ -198,9 +192,9 @@ class fallout4(gameable):
         fuz_file = audio_file.replace(".wav",".fuz")
         speaker = queue_output.speaker
 
-        lip_name = self.DIALOGUELINE1_FILENAME
+        dialogue_file_to_use = self.DIALOGUELINE1_FILENAME
         if topicID == 2:
-            lip_name = self.DIALOGUELINE2_FILENAME
+            dialogue_file_to_use = self.DIALOGUELINE2_FILENAME
 
         if config.save_audio_data_to_character_folder:
             voice_folder_path = os.path.join(mod_folder,queue_output.speaker.in_game_voice_model)
@@ -209,13 +203,13 @@ class fallout4(gameable):
                 logging.info("Creating voice folders...")
                 self._create_all_voice_folders(mod_folder, "fallout4_voice_folder")
         else:
-            voice_folder_path = os.path.join(mod_folder, "MantellaVoice00")
+            voice_folder_path = os.path.join(mod_folder, self.MANTELLA_VOICE_FOLDER)
         os.makedirs(voice_folder_path, exist_ok=True)
         
         # subtitle = queue_output.sentence
         # Copy FaceFX generated FUZ file
         try:
-            fuz_filepath = os.path.normpath(f"{voice_folder_path}/{lip_name}.fuz")
+            fuz_filepath = os.path.normpath(f"{voice_folder_path}/{dialogue_file_to_use}.fuz")
             shutil.copyfile(fuz_file, fuz_filepath)
         except Exception as e:
             # only warn on failure

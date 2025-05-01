@@ -1,7 +1,7 @@
 import re
 from typing import Callable
 from src.llm.output.output_parser import MarkedTextStateEnum, output_parser, sentence_generation_settings
-from src.llm.sentence_content import SentenceTypeEnum, sentence_content
+from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from src import utils
 
 class narration_parser(output_parser):
@@ -29,7 +29,7 @@ class narration_parser(output_parser):
             self.__start_speech_reg = never_match_anything_regex
             self.__end_speech_reg = never_match_anything_regex
 
-    def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[sentence_content | None, str]:
+    def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[SentenceContent | None, str]:
         output = output.lstrip()
         while True: #loop will only be run a maximum of two times
             if current_settings.current_text_state == MarkedTextStateEnum.UNMARKED: #If we are currently in unmarked text, which is the default
@@ -83,7 +83,7 @@ class narration_parser(output_parser):
                     matchedText = matchedText.removesuffix(char)
                     break
 
-            return sentence_content(current_settings.current_speaker, matchedText, self.__flip_sentence_type(current_settings.sentence_type), False), rest
+            return SentenceContent(current_settings.current_speaker, matchedText, self.__flip_sentence_type(current_settings.sentence_type), False), rest
 
     def __flip_sentence_type(self, sentence_type: SentenceTypeEnum) -> SentenceTypeEnum:
         if sentence_type == SentenceTypeEnum.NARRATION:
@@ -98,5 +98,5 @@ class narration_parser(output_parser):
                 return True
         return False
     
-    def modify_sentence_content(self, cut_content: sentence_content, last_content: sentence_content | None, settings: sentence_generation_settings) -> tuple[sentence_content | None, sentence_content | None]:
+    def modify_sentence_content(self, cut_content: SentenceContent, last_content: SentenceContent | None, settings: sentence_generation_settings) -> tuple[SentenceContent | None, SentenceContent | None]:
         return cut_content, last_content

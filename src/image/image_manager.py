@@ -9,6 +9,7 @@ import mss
 import cv2
 import ctypes
 from pathlib import Path
+from src.config.definitions.game_definitions import GameEnum
 
 class ImageManager:
     '''
@@ -17,7 +18,7 @@ class ImageManager:
     
     @utils.time_it
     def __init__(self, 
-                 game: str, 
+                 game: GameEnum, 
                  save_folder: str, 
                  save_screenshot: bool, 
                  image_quality: int, 
@@ -28,12 +29,13 @@ class ImageManager:
                  game_image_path: str | None) -> None:
         
         WINDOW_TITLES = {
-            'Skyrim': 'Skyrim Special Edition',
-            'SkyrimVR': 'Skyrim VR',
-            'Fallout4': 'Fallout4',
-            'Fallout4VR': 'Fallout4VR'
+            GameEnum.SKYRIM: 'Skyrim Special Edition',
+            GameEnum.SKYRIM_VR: 'Skyrim VR',
+            GameEnum.FALLOUT4: 'Fallout4',
+            GameEnum.FALLOUT4_VR: 'Fallout4VR'
         }
-        self.__window_title: str = WINDOW_TITLES.get(game, game)
+        # Get window title from game enum, or as a last resort try using the display name
+        self.__window_title: str = WINDOW_TITLES.get(game, game.display_name)
         self.__save_screenshot: bool = save_screenshot
         self.__image_quality: int = image_quality
         self.__capture_offset: dict[str, int] = capture_offset

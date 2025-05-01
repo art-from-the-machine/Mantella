@@ -7,10 +7,11 @@ import pandas as pd
 from src.conversation.context import context
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
-from src.llm.sentence import sentence
+from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
 import src.utils as utils
+from src.config.definitions.tts_definitions import TTSEnum
 
 
 class skyrim(gameable):
@@ -27,7 +28,7 @@ class skyrim(gameable):
 
     def __init__(self, config: ConfigLoader):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
-        self.__tts_service: str = config.tts_service
+        self.__tts_service: TTSEnum = config.tts_service
         self.__image_analysis_filepath = ""
 
         try:
@@ -53,7 +54,7 @@ class skyrim(gameable):
     def modify_sentence_text_for_game(self, text:str) -> str:
         skyrim_max_character = 500
         if len(text) > skyrim_max_character:
-            abbreviated = text[0:skyrim_max_character-4] + "..."
+            abbreviated = text[0:skyrim_max_character-3] + "..."
             return abbreviated
         else:
             return text
@@ -66,7 +67,7 @@ class skyrim(gameable):
         return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None))
     
     @utils.time_it
-    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str, library_search:bool = True) -> str:
+    def find_best_voice_model(self, actor_race: str | None, actor_sex: int | None, ingame_voice_model: str, library_search:bool = True) -> str:
         voice_model = ''
 
 
@@ -80,17 +81,17 @@ class skyrim(gameable):
         else:
             actor_voice_model_name = actor_voice_model 
         #Filtering out endsdiwth Race because depending on the source of the method call it may be present.
-        if 'Race <' in actor_race:
-            actor_race = actor_race.split('Race <', 1)[1]
+        if actor_race and 'Race <' in actor_race:
+            actor_race = actor_race.split('Race <', 1)[1].split(' ')[0]
             if actor_race.endswith('Race'):
                 actor_race = actor_race[:actor_race.rfind('Race')].strip()
         else:
             actor_race = actor_race
 
-        if self.__tts_service=="xvasynth": 
+        if self.__tts_service == TTSEnum.XVASYNTH: 
             male_voice_model_dictionary=skyrim.MALE_VOICE_MODELS_XVASYNTH
             female_voice_model_dictionary = skyrim.FEMALE_VOICE_MODELS_XVASYNTH
-        elif self.__tts_service=="piper":
+        elif self.__tts_service == TTSEnum.PIPER:
             male_voice_model_dictionary=skyrim.MALE_VOICE_MODELS_PIPERTTS
             female_voice_model_dictionary = skyrim.FEMALE_VOICE_MODELS_PIPERTTS
         else: #Assume XTTS or another voice model that is not yet implemented at this time
@@ -107,29 +108,25 @@ class skyrim(gameable):
             # if voice_model not found in the voice model ID list
             try: # search for voice model in skyrim_characters.csv
                 voice_model = self.character_df.loc[self.character_df['skyrim_voice_folder'].astype(str).str.lower()==actor_voice_model_name.lower(), 'voice_model'].values[0]
-            except: # guess voice model based on sex and race
-                voice_model=self.dictionary_match(voice_model,female_voice_model_dictionary, male_voice_model_dictionary,actor_race,actor_sex)
-        else:
-            voice_model=self.dictionary_match(voice_model,female_voice_model_dictionary, male_voice_model_dictionary,actor_race,actor_sex)
+            except:
+                pass
+        
+        if voice_model == '':
+            voice_model = self.dictionary_match(female_voice_model_dictionary, male_voice_model_dictionary, actor_race, actor_sex)
 
         return voice_model
     
-    def dictionary_match(self,voice_model:str,female_voice_model_dictionary:dict,male_voice_model_dictionary:dict,actor_race:str, actor_sex:int) -> str: 
+    def dictionary_match(self, female_voice_model_dictionary: dict, male_voice_model_dictionary: dict, actor_race: str | None, actor_sex: int | None) -> str: 
         if actor_race is None:
             actor_race = "Nord"
         if actor_sex is None:
             actor_sex = 0
         modified_race_key = actor_race + "Race"
+        
         if actor_sex == 1:
-            try:
-                voice_model = female_voice_model_dictionary[modified_race_key]
-            except:
-                voice_model = 'Female Nord'
+            voice_model = female_voice_model_dictionary.get(modified_race_key, 'Female Nord')
         else:
-            try:
-                voice_model = male_voice_model_dictionary[modified_race_key]
-            except:
-                voice_model = 'Male Nord'
+            voice_model = male_voice_model_dictionary.get(modified_race_key, 'Male Nord')
 
         return voice_model
 
@@ -150,13 +147,14 @@ class skyrim(gameable):
             'bio': f'You are a {"male" if actor_sex==0 else "female"} {actor_race if actor_race.lower() != name.lower() else ""} {name}.',
             'voice_model': voice_model,
             'advanced_voice_model': '',
+            'voice_accent': 'en',
             'skyrim_voice_folder': skyrim_voice_folder,
         }
 
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool = False):
+    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool = False):
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file = queue_output.voice_file
