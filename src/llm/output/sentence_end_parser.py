@@ -23,3 +23,6 @@ class sentence_end_parser(output_parser):
 
     def modify_sentence_content(self, cut_content: SentenceContent, last_content: SentenceContent | None, settings: sentence_generation_settings) -> tuple[SentenceContent | None, SentenceContent | None]:
         return cut_content, last_content
+    
+    def get_cut_indicators(self) -> list[str]:
+        return self.__end_of_sentence_chars

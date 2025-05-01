@@ -1,8 +1,6 @@
 import logging
-import re
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
 from src.llm.sentence_content import SentenceContent
-import src.utils as utils
 
 class clean_sentence_parser(output_parser):
     """Class to track narrations in the current output of the LLM."""
@@ -25,6 +23,7 @@ class clean_sentence_parser(output_parser):
             sentence = sentence.replace('Well, well, well', 'Well well well')
 
         sentence = remove_as_a(sentence)
+        sentence = sentence.replace('\r\n', ' ')
         sentence = sentence.replace('\n', ' ')
         sentence = sentence.replace('[', '(')
         sentence = sentence.replace(']', ')')
@@ -34,7 +33,6 @@ class clean_sentence_parser(output_parser):
         # this converts double asterisks to single so that they can be filtered out appropriately
         sentence = sentence.replace('**','*')
         return sentence
-           
 
     def modify_sentence_content(self, cut_content: SentenceContent, last_content: SentenceContent | None, settings: sentence_generation_settings) -> tuple[SentenceContent | None, SentenceContent | None]:
         return cut_content, last_content
