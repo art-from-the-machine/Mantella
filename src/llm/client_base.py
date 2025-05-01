@@ -143,7 +143,12 @@ class ClientBase(AIClient):
             finally:
                 sync_client.close()
 
-            if not chat_completion or chat_completion.choices.__len__() < 1 or not chat_completion.choices[0].message.content:
+            if (
+                not chat_completion or 
+                not chat_completion.choices or 
+                chat_completion.choices.__len__() < 1 or 
+                not chat_completion.choices[0].message.content
+            ):
                 logging.info(f"LLM Response failed")
                 return None
             
