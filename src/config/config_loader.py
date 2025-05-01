@@ -346,7 +346,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                             json_object = [json_object]
                         for json_content in json_object:
                             content: dict[str, str] = json_content
-                            identifier: str = content.get("identifier", "")
+                            identifier: str = content.get("identifier", "").lower() # IDs must be lower case to avoid issues with case sensitivity
                             name: str = content.get("name", "")
                             key: str = content.get("key", "")
                             description: str = content.get("description", "")
