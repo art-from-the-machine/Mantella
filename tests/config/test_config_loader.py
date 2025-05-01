@@ -73,7 +73,7 @@ def test_update_config_loader_with_changed_config_values(tmp_path):
 
 
 def test_definitions_property(tmp_path):
-    '''Test that the definitions property returns a valid config values'''
+    '''Test that the definitions property returns a valid config value'''
     config_loader = ConfigLoader(tmp_path)
     
     # Verify we can access specific definitions
@@ -154,7 +154,7 @@ def test_load_actions_from_json_wrong_file_type(tmp_path):
     assert len(actions) == 0
 
 def test_load_actions_from_json_no_files(tmp_path):
-    '''Test loading actions when file type is incorrect'''
+    '''Test loading actions when there are no files'''
     actions = ConfigLoader.load_actions_from_json(tmp_path)
     
     # Verify no actions were loaded

@@ -29,7 +29,7 @@ def test_key_found_locally(tmp_path, monkeypatch):
     
     # Create key in current working directory
     key_file = "local_key.txt"
-    (Path.cwd() / key_file).write_text("sk-456")
+    (tmp_path / key_file).write_text("sk-456")
     
     assert ClientBase._get_api_key([key_file], False) == "sk-456"
 
@@ -69,12 +69,12 @@ def test_empty_key_file(tmp_path, monkeypatch):
     
     # Create valid local key
     valid_key = "valid.txt"
-    (Path.cwd() / valid_key).write_text("sk-abc")
+    (tmp_path / valid_key).write_text("sk-abc")
     
     assert ClientBase._get_api_key([empty_key, valid_key], False) == "sk-abc"
 
 
-def test_empty_key_file(tmp_path, monkeypatch):
+def test_key_priority(tmp_path, monkeypatch):
     """Test that the first key in the list is prioritized"""
     mock_mod_path = tmp_path / "a" / "b" / "c"
     mock_mod_path.mkdir(parents=True)

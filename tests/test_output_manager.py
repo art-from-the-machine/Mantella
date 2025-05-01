@@ -219,7 +219,7 @@ async def test_process_response_actions(output_manager: ChatManager, example_sky
             ["One.", "Two.", ""],
             [SentenceTypeEnum.SPEECH, SentenceTypeEnum.SPEECH, SentenceTypeEnum.SPEECH],
         ),
-        # Clean parser removes 'As a doctor,' prefix
+        # Clean parser removes 'As a XYZ,' prefix
         (
             ["As a hunter, I hunt.", " Thanks."] ,
             NarrationHandlingEnum.CUT_NARRATIONS,

@@ -29,7 +29,6 @@ def test_missing_api_key_raises_error(default_config: ConfigLoader, tmp_path, mo
 
 
 def test_apis_load_correctly(default_config: ConfigLoader):
-    #["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"]
     default_config.llm_api = 'OpenRouter'
     llm_client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
     assert llm_client._base_url == 'https://openrouter.ai/api/v1'

@@ -13,7 +13,7 @@ def setup_mantella_conversation(
         start_request: models.StartConversationRequest, 
         continue_request: models.ContinueConversationRequest
     ) -> None:
-    """Helper function to initialize Player-NPC onversation and get to the player's turn"""
+    """Helper function to initialize Player-NPC conversation and get to the player's turn"""
     # Init Mantella
     response = client.post("/mantella", json=models.InitRequest(request_type=comm_consts.KEY_REQUESTTYPE_INIT).model_dump(by_alias=True))
     assert response.status_code == 200
@@ -95,8 +95,7 @@ def test_setup_route_combinations(default_config: ConfigLoader, english_language
     # Set the game and TTS service on the config
     default_config.game = game_enum
     default_config.tts_service = tts_service
-    
-    # TODO: check XTTS startup
+
     # Create route instance
     route = mantella_route(
         config=default_config, 
