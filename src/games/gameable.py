@@ -8,7 +8,7 @@ import pandas as pd
 from src.conversation.conversation_log import conversation_log
 from src.conversation.context import context
 from src.config.config_loader import ConfigLoader
-from src.llm.sentence import sentence
+from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
 import src.utils as utils
 import sounddevice as sd
@@ -36,7 +36,7 @@ class gameable(ABC):
             logging.error(f'Unable to read / open {path_to_character_df}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
         
-        self._is_vr: bool = 'vr' in config.game.lower()
+        self._is_vr: bool = config.game.is_vr
         #Apply character overrides
         mod_overrides_folder = os.path.join(*[config.mod_path_base, self.extender_name, "Plugins","MantellaSoftware","data",f"{mantella_game_folder_path}","character_overrides"])
         self.__apply_character_overrides(mod_overrides_folder, self.__character_df.columns.values.tolist())
@@ -105,7 +105,7 @@ class gameable(ABC):
         pass    
 
     @abstractmethod
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool):
+    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool):
         """Does what ever is needed to play a sentence ingame
 
         Args:

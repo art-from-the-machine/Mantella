@@ -3,7 +3,7 @@ from typing import Callable, OrderedDict
 from src.character_manager import Character
 from src.characters_manager import Characters
 from src.llm.output.output_parser import MarkedTextStateEnum, output_parser, sentence_generation_settings
-from src.llm.sentence_content import sentence_content
+from src.llm.sentence_content import SentenceContent
 
 
 class change_character_parser(output_parser):
@@ -28,7 +28,7 @@ class change_character_parser(output_parser):
             self.__dict_name_permutations[name] = character
         
 
-    def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[sentence_content | None, str]:
+    def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[SentenceContent | None, str]:
         if not ':' in output:
             return None, output
         
@@ -39,7 +39,7 @@ class change_character_parser(output_parser):
                 cleaned_prefix_rest = character_switch_removed.strip()
                 if not len(cleaned_prefix_rest) == 0: #Special case where there is still text in front of a character change that needs to be processed first somehow
                     rest = str.join("", [name, ":", parts[1]])
-                    return sentence_content(current_settings.current_speaker, cleaned_prefix_rest, current_settings.sentence_type, False), rest
+                    return SentenceContent(current_settings.current_speaker, cleaned_prefix_rest, current_settings.sentence_type, False), rest
                 else: #New sentence starts with character change
                     if character.is_player_character:
                         logging.log(28, f"Stopped LLM from speaking on behalf of the player")
@@ -52,7 +52,7 @@ class change_character_parser(output_parser):
 
         return None, output #There is a ':' in the text, but it doesn't seem to be part of a character change
 
-    def modify_sentence_content(self, cut_content: sentence_content, last_content: sentence_content | None, settings: sentence_generation_settings) -> tuple[sentence_content | None, sentence_content | None]:
+    def modify_sentence_content(self, cut_content: SentenceContent, last_content: SentenceContent | None, settings: sentence_generation_settings) -> tuple[SentenceContent | None, SentenceContent | None]:
         return cut_content, last_content
     
     def get_cut_indicators(self) -> list[str]:

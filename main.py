@@ -3,12 +3,12 @@ import traceback
 from src.http.routes.routeable import routeable
 from src.http.routes.mantella_route import mantella_route
 import logging
-import src.setup as setup
+from src.setup import MantellaSetup
 from src.ui.start_ui import StartUI
 
 def main():
     try:
-        config, language_info = setup.initialise(
+        config, language_info = MantellaSetup().initialise(
             config_file='config.ini',
             logging_file='logging.log', 
             language_file='data/language_support.csv')
@@ -19,7 +19,14 @@ def main():
         mantella_http_server = http_server()
 
         should_debug_http = config.show_http_debug_messages
-        conversation = mantella_route(config, 'STT_SECRET_KEY.txt', 'IMAGE_SECRET_KEY.txt', 'GPT_SECRET_KEY.txt', language_info, should_debug_http)
+        conversation = mantella_route(
+            config=config, 
+            stt_secret_key_file='STT_SECRET_KEY.txt', 
+            image_secret_key_file='IMAGE_SECRET_KEY.txt', 
+            secret_key_file='GPT_SECRET_KEY.txt', 
+            language_info=language_info, 
+            show_debug_messages=should_debug_http
+        )
         ui = StartUI(config)
         routes: list[routeable] = [conversation, ui]
         

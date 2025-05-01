@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
 from src.config.config_loader import ConfigLoader
-from src.conversation.action import action
 from src.character_manager import Character
 from src.llm.message_thread import message_thread
 from src.conversation.context import context
-from src.llm.messages import user_message
+from src.llm.messages import UserMessage
 from src import utils
 
 class conversation_type(ABC):
@@ -36,7 +35,7 @@ class conversation_type(ABC):
         """
         pass
     
-    def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:
+    def get_user_message(self, context_for_conversation: context, messages: message_thread) -> UserMessage | None:
         """Gets the next user message for the conversation. Default implementation gets the input from the player
 
         Args:
@@ -77,13 +76,13 @@ class pc_to_npc(conversation_type):
         message_thread_to_adjust.modify_messages(prompt, multi_npc_conversation=False, remove_system_flagged_messages=True)
     
     @utils.time_it
-    def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:
+    def get_user_message(self, context_for_conversation: context, messages: message_thread) -> UserMessage | None:
         if len(messages) == 1 and context_for_conversation.config.automatic_greeting:
             player_character: Character | None = context_for_conversation.npcs_in_conversation.get_player_character()
             if player_character:
                 for actor in context_for_conversation.npcs_in_conversation.get_all_characters():
                     if not actor.is_player_character:
-                        message = user_message(context_for_conversation.config, f"{context_for_conversation.language['hello']} {actor.name}.", player_character.name, True)
+                        message = UserMessage(context_for_conversation.config, f"{context_for_conversation.language['hello']} {actor.name}.", player_character.name, True)
                         message.is_multi_npc_message = False
                         return message
             return None
@@ -121,7 +120,7 @@ class radiant(conversation_type):
         message_thread_to_adjust.modify_messages(prompt, True, True)
     
     @utils.time_it
-    def get_user_message(self, context_for_conversation: context, messages: message_thread) -> user_message | None:        
+    def get_user_message(self, context_for_conversation: context, messages: message_thread) -> UserMessage | None:        
         text = ""
         if len(messages) == 1:
             text = self.__user_start_prompt
@@ -129,7 +128,7 @@ class radiant(conversation_type):
             text = self.__user_end_prompt
         else:
             return None
-        reply = user_message(context_for_conversation.config, text, "", True)
+        reply = UserMessage(context_for_conversation.config, text, "", True)
         reply.is_multi_npc_message = False # Don't flag these as multi-npc messages. Don't want a 'Player:' in front of the instruction messages
         return reply
     

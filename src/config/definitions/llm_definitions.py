@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 from src.config.types.config_value_multi_selection import ConfigValueMultiSelection
 from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_float import ConfigValueFloat
@@ -8,15 +8,32 @@ from src.config.types.config_value_string import ConfigValueString
 from src.config.types.config_value_bool import ConfigValueBool
 
 class NarrationHandlingEnum(Enum):
-    CUT_NARRATIONS = 0,
-    RESPECTIVE_CHARACTER_SPEAKS_NARRATION = 1,
-    USE_NARRATOR = 2,
-    DEACTIVATE_HANDLING_OF_NARRATIONS = 3
+    CUT_NARRATIONS = auto()
+    RESPECTIVE_CHARACTER_SPEAKS_NARRATION = auto()
+    USE_NARRATOR = auto()
+    DEACTIVATE_HANDLING_OF_NARRATIONS = auto()
+
+    @property
+    def display_name(self) -> str:
+        return {
+            self.CUT_NARRATIONS: "Cut narrations",
+            self.RESPECTIVE_CHARACTER_SPEAKS_NARRATION: "Respective character speaks its narrations",
+            self.USE_NARRATOR: "Use narrator",
+            self.DEACTIVATE_HANDLING_OF_NARRATIONS: "Deactivate handling of narrations",
+        }[self]
 
 class NarrationIndicatorsEnum(Enum):
-    PARANTHESES = 0,
-    ASTERISKS = 1,
-    BRACKETS = 2
+    PARANTHESES = auto()
+    ASTERISKS = auto()
+    BRACKETS = auto()
+
+    @property
+    def display_name(self) -> str:
+        return {
+            self.PARANTHESES: "()",
+            self.ASTERISKS: "**",
+            self.BRACKETS: "[]",
+        }[self]
 
 class LLMDefinitions:
     @staticmethod
@@ -80,16 +97,15 @@ class LLMDefinitions:
 
     @staticmethod
     def get_narration_handling() -> ConfigValue:
-        narration_handling_description = """How to handle narrations in the output of the LLM.
+        description = """How to handle narrations in the output of the LLM.
                                             - Cut narrations: Removes narrations from the output.
                                             - Respective character speaks its narrations: The currently active character will speak it's actions out aloud.
                                             - Use narrator: Narrations will be spoken by a special narrator. The voice model can be set by the config value 'Narrator voice' below.
                                             - Deactivate handling of narrations: Any narration or speech indicators will be ignored during parsing.
                                             
                                             Note: The seperation of narration and speech is experimental and may not work if the LLM output is not formatted well."""
-        options = ["Cut narrations", "Respective character speaks its narrations", "Use narrator", "Deactivate handling of narrations"]
-        enums: list[Enum] = [NarrationHandlingEnum.CUT_NARRATIONS, NarrationHandlingEnum.RESPECTIVE_CHARACTER_SPEAKS_NARRATION, NarrationHandlingEnum.USE_NARRATOR,  NarrationHandlingEnum.DEACTIVATE_HANDLING_OF_NARRATIONS]
-        return ConfigValueSelection("narration_handling","Narration Handling",narration_handling_description,options[0], options, corresponding_enums=enums, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+        options = [e.display_name for e in NarrationHandlingEnum]
+        return ConfigValueSelection("narration_handling", "Narration Handling", description, NarrationHandlingEnum.CUT_NARRATIONS.display_name, options, corresponding_enums=list(NarrationHandlingEnum), tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
     def get_narrator_voice() -> ConfigValue:
@@ -126,7 +142,6 @@ class LLMDefinitions:
         description = """Which narration indicators to use for sentences identified as narrations.
                         If sentences get marked as narrations and are not cut, they will be surrounded by these narration indicators the next time they are fed back to the LLM.
                         This helps to keep the LLM consistent in its use of narration indicators."""
-        possible_characters = ["()","**","[]"]
-        enums: list[Enum] = [NarrationIndicatorsEnum.PARANTHESES, NarrationIndicatorsEnum.ASTERISKS, NarrationIndicatorsEnum.BRACKETS]
-        return ConfigValueSelection("narration_indicators","Narration indicators to use",description,possible_characters[0], possible_characters, corresponding_enums=enums, tags=[ConfigValueTag.advanced])
+        options = [e.display_name for e in NarrationIndicatorsEnum]
+        return ConfigValueSelection("narration_indicators", "Narration indicators to use", description, NarrationIndicatorsEnum.PARANTHESES.display_name, options, corresponding_enums=list(NarrationIndicatorsEnum), tags=[ConfigValueTag.advanced])
 

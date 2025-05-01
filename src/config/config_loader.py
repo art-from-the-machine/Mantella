@@ -4,7 +4,9 @@ import os
 import sys
 from typing import Any
 from src.config.definitions.llm_definitions import NarrationHandlingEnum, NarrationIndicatorsEnum
-from src.conversation.action import action
+from src.config.definitions.game_definitions import GameEnum
+from src.config.definitions.tts_definitions import TTSEnum
+from src.conversation.action import Action
 from src.config.config_values import ConfigValues
 from src.config.mantella_config_value_definitions_new import MantellaConfigValueDefinitionsNew
 from src.config.config_json_writer import ConfigJsonWriter
@@ -14,14 +16,15 @@ from pathlib import Path
 import json
 
 class ConfigLoader:
-    def __init__(self, mygame_folder_path: str, file_name='config.ini'):
+    def __init__(self, mygame_folder_path: str, file_name='config.ini', game_override: GameEnum | None = None):
         self.is_run_integrated = "--integrated" in sys.argv
         self.save_folder = mygame_folder_path
         self.__has_any_value_changed: bool = False        
         self.__is_initial_load: bool = True
         self.__file_name = os.path.join(mygame_folder_path, file_name)
+        self.__game_override = game_override
         path_to_actions = os.path.join(utils.resolve_path(),"data","actions")
-        self.__actions = self.load_actions_from_json(path_to_actions)
+        self.__actions = ConfigLoader.load_actions_from_json(path_to_actions)
         self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.is_run_integrated, self.__actions, self.__on_config_value_change)
         if not os.path.exists(self.__file_name):
             logging.log(24,"Cannot find 'config.ini'. Assuming first time usage of MantellaSoftware and creating it.")
@@ -52,6 +55,7 @@ class ConfigLoader:
         
         self.__is_initial_load = False
         self.__update_config_values_from_current_state()
+        self.__has_any_value_changed = False
     
     @property
     def have_all_config_values_loaded_correctly(self) -> bool:
@@ -102,7 +106,7 @@ class ConfigLoader:
                 game_parent_folder_name = os.path.basename(self.game_path).lower()
                 if 'vr' in game_parent_folder_name:
                     if 'fallout' in game_parent_folder_name:
-                        self.game = 'Fallout4VR'
+                        self.game = GameEnum.FALLOUT4_VR
                         # Fallout 4 VR uses the same creation kit as Fallout 4, so the lip gen folder needs to be set to the Fallout 4 folder
                         # Note that this path assumes that both Fallout 4 versions are installed in the same directory
                         # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> F4SE -> Data -> Fallout 4 VR -> common (Steam folder for all games)
@@ -111,7 +115,7 @@ class ConfigLoader:
                             if not os.path.exists(self.lipgen_path):
                                 self.lipgen_path = ''
                     elif 'skyrim' in game_parent_folder_name:
-                        self.game = 'SkyrimVR'
+                        self.game = GameEnum.SKYRIM_VR
                         # Skyrim VR uses the same creation kit as Skyrim Special Edition, so the lip gen folder needs to be set to the Skyrim Special Edition folder
                         # Note that this path assumes that both Skyrim versions are installed in the same directory
                         # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> SKSE -> Data -> Skyrim VR -> common (Steam folder for all games)
@@ -121,33 +125,33 @@ class ConfigLoader:
                                 self.lipgen_path = ''
                 else:
                     if 'fallout' in game_parent_folder_name:
-                        self.game = 'Fallout4'
+                        self.game = GameEnum.FALLOUT4
                     elif 'skyrim' in game_parent_folder_name:
-                        self.game = 'Skyrim'
+                        self.game = GameEnum.SKYRIM
                     else: # default to Skyrim
-                        self.game = 'Skyrim'
+                        self.game = GameEnum.SKYRIM
 
             else:
-                #Adjusting game and mod paths according to the game being ran
-                self.game: str = self.__definitions.get_string_value("game")# config['Game']['game']
-                self.game = str(self.game).lower().replace(' ', '').replace('_', '')
-                if self.game =="fallout4":
-                    self.game ="Fallout4"
+                # Allow chosen game to be overriden for testing purposes
+                if self.__game_override:
+                    self.game = self.__game_override
+                else:
+                    self.game: GameEnum = self.__definitions.get_enum_value("game", GameEnum)
+                
+                if self.game == GameEnum.FALLOUT4:
                     self.game_path: str = self.__definitions.get_string_value("fallout4_folder")
-                    self.mod_path: str = self.__definitions.get_string_value("fallout4_mod_folder") #config['Paths']['fallout4_mod_folder']
-                elif self.game =="fallout4vr":
-                    self.game ="Fallout4VR"
-                    self.game_path: str = self.__definitions.get_string_value("fallout4vr_folder") #config['Paths']['fallout4vr_folder']
-                    self.mod_path: str = self.__definitions.get_string_value("fallout4vr_mod_folder") #config['Paths']['fallout4vr_mod_folder']
-                elif self.game =="skyrimvr":
-                    self.game ="SkyrimVR"
+                    self.mod_path: str = self.__definitions.get_string_value("fallout4_mod_folder")
+                elif self.game == GameEnum.FALLOUT4_VR:
+                    self.game_path: str = self.__definitions.get_string_value("fallout4vr_folder")
+                    self.mod_path: str = self.__definitions.get_string_value("fallout4vr_mod_folder")
+                elif self.game == GameEnum.SKYRIM_VR:
                     self.game_path = None
-                    self.mod_path: str = self.__definitions.get_string_value("skyrimvr_mod_folder") #config['Paths']['skyrimvr_mod_folder']
+                    self.mod_path: str = self.__definitions.get_string_value("skyrimvr_mod_folder")
                 #if the game is not recognized Mantella will assume it's Skyrim since that's the most frequent one.
                 else:
-                    self.game ="Skyrim"
+                    self.game = GameEnum.SKYRIM
                     self.game_path = None
-                    self.mod_path: str = self.__definitions.get_string_value("skyrim_mod_folder") #config['Paths']['skyrim_mod_folder']
+                    self.mod_path: str = self.__definitions.get_string_value("skyrim_mod_folder")
 
                 self.lipgen_path = self.__definitions.get_string_value("lipgen_folder")
                 self.facefx_path = self.__definitions.get_string_value("facefx_folder")
@@ -165,36 +169,26 @@ class ConfigLoader:
             for a in self.__actions:
                 identifier = a.identifier.lstrip("mantella_").lstrip("npc_")
                 a.keyword = self.__definitions.get_string_value(f"{identifier}_npc_response")
-            # self.offended_npc_response = self.__definitions.get_string_value("offended_npc_response")
-            # self.forgiven_npc_response = self.__definitions.get_string_value("forgiven_npc_response")
-            # self.follow_npc_response = self.__definitions.get_string_value("follow_npc_response")
-            # self.inventory_npc_response = self.__definitions.get_string_value("inventory_npc_response")
-
 
             #TTS
-            self.tts_service = self.__definitions.get_string_value("tts_service").strip().lower()
-            if self.tts_service == "xtts":
-                self.xtts_url = self.__definitions.get_string_value("xtts_url").rstrip('/')
-                if 'http://127.0.0.1:8020' in self.xtts_url: # if running locally, get the XTTS folder
-                    self.xtts_server_path = self.__definitions.get_string_value("xtts_server_folder")
-                else:
-                    self.xtts_server_path = ""
-                self.xvasynth_path = ""
-                self.piper_path = ""
-            elif self.tts_service == "xvasynth":
-                self.xvasynth_path = self.__definitions.get_string_value("xvasynth_folder")
-                self.xtts_server_path = ""
-                self.piper_path = ""
-            elif self.tts_service == "piper":
-                if not hasattr(self, 'piper_path'):
-                    self.piper_path = self.__definitions.get_string_value("piper_folder")
-                self.xvasynth_path = ""
-                self.xtts_server_path = ""
-            else: # default to Piper
-                if not hasattr(self, 'piper_path'):
-                    self.piper_path = self.__definitions.get_string_value("piper_folder")
-                self.xvasynth_path = ""
-                self.xtts_server_path = ""
+            self.tts_service: TTSEnum = self.__definitions.get_enum_value("tts_service", TTSEnum)
+            self.xtts_url = self.__definitions.get_string_value("xtts_url").rstrip('/')
+
+            # Do not check if a given path exists unless the TTS service is actually selected
+            validate_xtts_path = validate_xvasynth_path = validate_piper_path = False
+
+            if self.tts_service == TTSEnum.XTTS:
+                if 'http://127.0.0.1:8020' in self.xtts_url: # Only validate the XTTS folder if running locally
+                   validate_xtts_path = True
+            elif self.tts_service == TTSEnum.XVASYNTH:
+                validate_xvasynth_path = True
+            elif self.tts_service == TTSEnum.PIPER:
+                validate_piper_path = True
+
+            self.xtts_server_path = self.__definitions.get_string_value("xtts_server_folder", validate_xtts_path)
+            self.xvasynth_path = self.__definitions.get_string_value("xvasynth_folder", validate_xvasynth_path)
+            if not hasattr(self, 'piper_path'): # assign Piper path from config if not running integrated
+                self.piper_path = self.__definitions.get_string_value("piper_folder", validate_piper_path)
 
             self.lip_generation = self.__definitions.get_string_value("lip_generation").strip().lower()
             self.fast_response_mode = self.__definitions.get_bool_value("fast_response_mode")
@@ -259,7 +253,6 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 self.llm_params = None
 
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
-            # self.try_filter_narration: bool = self.__definitions.get_bool_value("try_filter_narration")
 
             self.narration_handling: NarrationHandlingEnum = self.__definitions.get_enum_value("narration_handling", NarrationHandlingEnum)
             self.narrator_voice = self.__definitions.get_string_value("narrator_voice")
@@ -269,15 +262,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.speech_end_indicators = self.__definitions.get_string_list_value("speech_end_indicators")
             self.narration_indicators: NarrationIndicatorsEnum = self.__definitions.get_enum_value("narration_indicators", NarrationIndicatorsEnum)
             
-
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
-            #Debugging
-            # self.debug_mode = self.__definitions.get_bool_value("debugging")
-            # self.play_audio_from_script = self.__definitions.get_bool_value("play_audio_from_script")
-            # self.debug_character_name = self.__definitions.get_string_value("debugging_npc")
-            # self.debug_use_default_player_response = self.__definitions.get_bool_value("use_default_player_response")
-            # self.default_player_response = self.__definitions.get_string_value("default_player_response")
-            # self.debug_exit_on_first_exchange = self.__definitions.get_bool_value("exit_on_first_exchange")
 
             #UI
             self.auto_launch_ui = self.__definitions.get_bool_value("auto_launch_ui")
@@ -302,7 +287,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.save_audio_data_to_character_folder = self.__definitions.get_bool_value("save_audio_data_to_character_folder")
 
             #new separate prompts for Fallout 4 have been added 
-            if self.game == "Fallout4" or self.game == "Fallout4VR":
+            if self.game.base_game == GameEnum.FALLOUT4:
                 self.prompt = self.__definitions.get_string_value("fallout4_prompt")
                 self.multi_npc_prompt = self.__definitions.get_string_value("fallout4_multi_npc_prompt")
                 self.radiant_prompt = self.__definitions.get_string_value("fallout4_radiant_prompt")
@@ -345,7 +330,8 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             logging.error('Parameter missing/invalid in config.ini file!')
             raise e
     
-    def load_actions_from_json(self, actions_folder: str) -> list[action]:
+    @staticmethod
+    def load_actions_from_json(actions_folder: str) -> list[Action]:
         result = []
         os.makedirs(actions_folder, exist_ok=True)
         override_files: list[str] = os.listdir(actions_folder)
@@ -370,19 +356,8 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                             multi_npc: bool = bool(content.get("multi-npc", ""))
                             radiant: bool = bool(content.get("radiant", ""))
                             info_text: str = content.get("info-text", "")
-                            result.append(action(identifier, name, key,description,prompt,is_interrupting, one_on_one,multi_npc,radiant,info_text))
+                            result.append(Action(identifier, name, key,description,prompt,is_interrupting, one_on_one,multi_npc,radiant,info_text))
             except Exception as e:
                 utils.play_error_sound()
                 logging.log(logging.WARNING, f"Could not load action definition file '{file}' in '{actions_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
         return result
-    
-    # def get_config_value_json(self) -> str:
-    #     json_writer = ConfigJsonWriter()
-    #     for definition in self.__definitions.base_groups:
-    #         definition.accept_visitor(json_writer)
-    #     return json_writer.get_Json()
-
-        
-
-
-        

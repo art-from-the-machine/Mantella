@@ -29,6 +29,16 @@ class http_server:
     def app(self) -> FastAPI:
         return self.__app
 
+    def _setup_routes(self, routes: list[routeable]):
+        """Sets up the provided server routes
+        
+        Args:
+            routes (list[routeable]): The list of routes to set up
+        """
+        for route in routes:
+            route.add_route_to_server(self.__app)
+        return self.__app
+
     def start(self, port: int, routes: list[routeable], play_startup_sound: bool, show_debug: bool = False):
         """Starts the server and sets up the provided routes
 
@@ -36,8 +46,7 @@ class http_server:
             routes (list[routeable]): The list of routes to start
             show_debug (bool, optional): should debug output be shown
         """
-        for route in routes:
-            route.add_route_to_server(self.__app)
+        self._setup_routes(routes)
 
         if play_startup_sound:
             utils.play_mantella_ready_sound()

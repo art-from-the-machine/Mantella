@@ -8,18 +8,29 @@ import os
 from pathlib import Path
 from src.llm.ai_client import AIClient
 from src.llm.message_thread import message_thread
-from src.llm.messages import message, image_message, user_message
+from src.llm.messages import Message, ImageMessage, UserMessage
 from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
 
 class ClientBase(AIClient):
     '''Base class for connecting to OpenAI-compatible endpoints
+
+    Handles API key management, client generation (sync/async), request execution,
+    token counting, endpoint resolution, and model list retrieval
     '''
     api_token_limits = {}
     tiktoken_cache_dir = "data"
     os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
 
     def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, secret_key_files: list[str]) -> None:
+        '''
+        Args:
+            api_url (str): The API endpoint URL or a known service name (e.g., 'OpenAI', 'OpenRouter')
+            llm (str): The name of the language model to use
+            llm_params (dict[str, Any] | None): Additional parameters for the LLM requests (eg temperature, max_tokens)
+            custom_token_count (int): A fallback token limit if the model's limit isn't known
+            secret_key_files (list[str]): A list of filenames to search for the API key, in order of priority
+        '''
         super().__init__()
         self._generation_lock: Lock = Lock()
         self._model_name: str = llm
@@ -105,13 +116,13 @@ class ClientBase(AIClient):
 
 
     @utils.time_it
-    def request_call(self, messages: message | message_thread) -> str | None:
+    def request_call(self, messages: Message | message_thread) -> str | None:
         with self._generation_lock:
             sync_client = self.generate_sync_client()        
             chat_completion = None
             logging.log(28, 'Getting LLM response...')
 
-            if isinstance(messages, message) or isinstance(messages, image_message):
+            if isinstance(messages, Message) or isinstance(messages, ImageMessage):
                 openai_messages = [messages.get_openai_message()]
             else:
                 openai_messages = messages.get_openai_messages()
@@ -141,7 +152,7 @@ class ClientBase(AIClient):
         
 
     @utils.time_it
-    async def streaming_call(self, messages: message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
         with self._generation_lock:
             logging.log(28, 'Getting LLM response...')
 
@@ -160,14 +171,14 @@ class ClientBase(AIClient):
             try:
                 # Prepare the messages including the image if provided
                 vision_hints = ''
-                if isinstance(messages, message):
+                if isinstance(messages, Message):
                     openai_messages = [messages.get_openai_message()]
-                    if isinstance(messages, user_message):
+                    if isinstance(messages, UserMessage):
                         vision_hints = messages.get_ingame_events_text()
                 else:
                     openai_messages = messages.get_openai_messages()
                     last_message = messages.get_last_message()
-                    if isinstance(last_message, user_message):
+                    if isinstance(last_message, UserMessage):
                         vision_hints = last_message.get_ingame_events_text()
                 if self._image_client:
                     openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
@@ -208,6 +219,15 @@ class ClientBase(AIClient):
 
     @utils.time_it
     def __get_endpoint(self, api_url_or_name: str) -> str:
+        '''
+        Resolves a service name (eg 'openai', 'koboldcpp') if known, or else assumes the input is a direct URL
+
+        Args:
+            api_url_or_name (str): The service name or the direct API base URL
+
+        Returns:
+            endpoint (str): The resolved API endpoint URL
+        '''
         endpoints = {
             'openai': 'https://api.openai.com/v1', # don't set an endpoint, just use the OpenAI default
             'openrouter': 'https://openrouter.ai/api/v1',
@@ -270,7 +290,7 @@ class ClientBase(AIClient):
                     api_key = f.readline().strip()
                     if api_key:
                         break
-            except FileNotFoundError:
+            except (FileNotFoundError, PermissionError):
                 pass
             
             # try to check locally (same folder as executable)
@@ -279,7 +299,7 @@ class ClientBase(AIClient):
                     api_key = f.readline().strip()
                     if api_key:
                         break
-            except FileNotFoundError:
+            except (FileNotFoundError, PermissionError):
                 pass
 
         if not api_key or api_key == '':
@@ -300,6 +320,16 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
 
     @utils.time_it
     def __get_token_limit(self, llm, custom_token_count: int, is_local):
+        '''Determines the token limit for the given LLM, using known values, manual overrides, or a default
+
+        Args:
+            llm (str): The name of the language model
+            custom_token_count (int): A user-defined fallback token count from the config
+            is_local (bool): Whether the model is running locally
+
+        Returns:
+            token_limit (int): The determined token limit for the model
+        '''
         manual_limits = utils.get_model_token_limits()
         token_limit_dict = {**self.api_token_limits, **manual_limits}
 
@@ -325,6 +355,15 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
 
     @utils.time_it
     def __get_model_encoding(self, api_url: str, llm: str) -> tiktoken.Encoding:
+        '''Gets the appropriate tiktoken encoding for the specified model or a sensible default
+
+        Args:
+            api_url (str): The API service/URL being used
+            llm (str): The name of the language model
+
+        Returns:
+            tiktoken.Encoding: The encoding object for token counting
+        '''
         chosenmodel = llm
         # if using an alternative API to OpenAI, use encoding for GPT-3.5 by default
         # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
@@ -344,21 +383,29 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         return encoding
     
     @utils.time_it
-    def get_count_tokens(self, messages: message_thread | list[message] | message | str) -> int:
+    def get_count_tokens(self, messages: message_thread | list[Message] | Message | str) -> int:
         if isinstance(messages, message_thread | list) :
             return self.__num_tokens_from_messages(messages)
-        elif isinstance(messages, message):
+        elif isinstance(messages, Message):
             return self.__num_tokens_from_message(messages)
         else:
             return len(self._encoding.encode(messages))
 
     @utils.time_it
-    def is_too_long(self, messages: message_thread | list[message] | message | str, token_limit_percent: float) -> bool:
+    def is_too_long(self, messages: message_thread | list[Message] | Message | str, token_limit_percent: float) -> bool:
         countTokens: int = self.get_count_tokens(messages)
         return countTokens > self.token_limit * token_limit_percent
 
     @utils.time_it
-    def __num_tokens_from_messages(self, messages: message_thread | list[message]) -> int:
+    def __num_tokens_from_messages(self, messages: message_thread | list[Message]) -> int:
+        '''Calculates token count for a list of messages formatted for OpenAI API calls
+
+        Args:
+            messages (message_thread | list[Message]): The messages to count tokens for
+
+        Returns:
+            num_tokens (int): The estimated total token count
+        '''
         messages_to_check = []
         if isinstance(messages, message_thread):
             messages_to_check = messages.get_openai_messages()
@@ -379,16 +426,25 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         return num_tokens
     
     @utils.time_it
-    def __num_tokens_from_message(self, message_to_measure: message | str) -> int:
+    def __num_tokens_from_message(self, message_to_measure: Message | str) -> int:
+        '''Calculates the approximate token count for a single Message object or string,
+        considering the overhead of the message structure
+
+        Args:
+            message_to_measure (Message | str): The message or string content
+
+        Returns:
+            num_tokens (int): Estimated token count
+        '''
         text: str = ""
-        if isinstance(message_to_measure, message):
+        if isinstance(message_to_measure, Message):
             text = message_to_measure.get_formatted_content()
         else:
             text = message_to_measure
 
         num_tokens = 4 # every message follows <im_start>{role/name}\n{content}<im_end>\n
         num_tokens += len(text)
-        if isinstance(message_to_measure, message) and message_to_measure.get_openai_message().__contains__("name"):# if there's a name, the role is omitted
+        if isinstance(message_to_measure, Message) and message_to_measure.get_openai_message().__contains__("name"):# if there's a name, the role is omitted
             num_tokens += -1# role is always required and always 1 token
         
         return num_tokens

@@ -12,8 +12,9 @@ import time
 from src.tts.synthesization_options import SynthesizationOptions
 import requests
 import shutil
+from src.config.definitions.game_definitions import GameEnum
 
-class ttsable(ABC):
+class TTSable(ABC):
     """Base class for different TTS services
     """
     @utils.time_it
@@ -37,10 +38,7 @@ class ttsable(ABC):
         #self.debug_mode = config.debug_mode
         #self.play_audio_from_script = config.play_audio_from_script
 
-        if config.game == "Fallout4" or config.game == "Fallout4VR":
-            self._game = "Fallout4"
-        else: 
-            self._game = "Skyrim"
+        self._game = config.game
 
     @utils.time_it
     def synthesize(self, voice: str, voiceline: str, in_game_voice: str, csv_in_game_voice: str, voice_accent: str, synth_options: SynthesizationOptions, advanced_voice_model: str | None = None):
@@ -70,7 +68,7 @@ class ttsable(ABC):
         
         if (self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response):
             self._generate_voiceline_files(final_voiceline_file, voiceline)
-        elif (self._lip_generation_enabled in ['lazy', 'disabled'] and self._game == "Fallout4"):
+        elif (self._lip_generation_enabled in ['lazy', 'disabled'] and self._game.base_game == GameEnum.FALLOUT4):
             self._generate_voiceline_files(final_voiceline_file, voiceline, skip_lip_generation=True)
         
         #rename to unique name        
@@ -196,14 +194,14 @@ class ttsable(ABC):
 
                 #Using subprocess.run to retrieve the exit code
                 args: str = f'"{LipGen_path}" "{wav_file}" "{voiceline}" -Language:{language_parm} -Automated'
-                run_result: subprocess.CompletedProcess = subprocess.run(args, cwd=facefx_path, stderr=DEVNULL, stdout=DEVNULL,
+                run_result: subprocess.CompletedProcess = subprocess.run(args, cwd=self._voiceline_folder, stderr=DEVNULL, stdout=DEVNULL,
                                                                          creationflags=subprocess.CREATE_NO_WINDOW)
                 if run_result.returncode != 0 and len(voiceline) > 11 :
                     #Very short sentences sometimes fail to generate a .lip file, so skip warning
                     logging.warning(f'Lipgen returned {run_result.returncode}')
             else:
                 if not self.__has_lipgen_warning_happened:
-                    logging.warning('Could not find LipGenerator.exe. Please install or update the Creation Kit from Steam for faster lip sync generation')
+                    logging.warning(f'Could not find {LipGen_path}. Please install or update the Creation Kit from Steam for faster lip sync generation')
                     self.__has_lipgen_warning_happened = True
                 # Fall back to using FaceFXWrapper if LipGen not detected
                 face_wrapper_executable: Path = Path(self._facefx_path) / "FaceFXWrapper.exe"
@@ -242,13 +240,13 @@ class ttsable(ABC):
 
             if os.path.exists(LipFuz_path):
                 args: str = f'"{LipFuz_path}" -s "{self._voiceline_folder}" -d "{self._voiceline_folder}" -a wav --norec'
-                run_result: subprocess.CompletedProcess = subprocess.run(args, cwd=facefx_path, stdout=DEVNULL, stderr=DEVNULL,
+                run_result: subprocess.CompletedProcess = subprocess.run(args, cwd=self._voiceline_folder, stdout=DEVNULL, stderr=DEVNULL,
                                                                          creationflags=subprocess.CREATE_NO_WINDOW)
                 if run_result.returncode != 0:
                     logging.warning(f'LipFuzer returned {run_result.returncode}')
             else:
                 #Fall back to using Fuz_extractor and xWMAencode if LipFuzer not found
-                logging.warning('Could not find LipFuzer.exe: please install or update the creation kit from Steam')
+                logging.warning(f'Could not find {LipFuz_path}: please install or update the creation kit from Steam')
                 fuz_extractor_executable = Path(facefx_path) / "Fuz_extractor.exe"
                 if not fuz_extractor_executable.exists():
                     logging.error(f'Could not find Fuz_extractor.exe in "{facefx_path}" with which to create a fuz file, download it from: https://www.nexusmods.com/skyrimspecialedition/mods/55605')
@@ -285,12 +283,12 @@ class ttsable(ABC):
             lip_file: str = wav_file.replace(".wav", ".lip")
             
             if not skip_lip_generation:
-                generate_facefx_lip_file(self._facefx_path, wav_file, lip_file, voiceline, self._game)
+                generate_facefx_lip_file(self._facefx_path, wav_file, lip_file, voiceline, self._game.base_game.display_name)
             else:
-                copy_placeholder_lip_file(lip_file, self._game)
+                copy_placeholder_lip_file(lip_file, self._game.base_game.display_name)
             
             # Fallout 4 requires voicelines in a .fuz format
-            if self._game == "Fallout4":    
+            if self._game.base_game == GameEnum.FALLOUT4:    
                 generate_fuz_file(self._facefx_path,wav_file, lip_file)
         
         except Exception as e:

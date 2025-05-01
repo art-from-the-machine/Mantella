@@ -2,7 +2,7 @@ from typing import AsyncGenerator
 from src.llm.llm_model_list import LLMModelList
 from src.llm.ai_client import AIClient
 from src.llm.message_thread import message_thread
-from src.llm.messages import message
+from src.llm.messages import Message
 
 
 class LLMTestClient(AIClient):
@@ -12,7 +12,7 @@ class LLMTestClient(AIClient):
         self.__replies = replies
         self.__counter = 0
 
-    async def streaming_call(self, messages: message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
 
@@ -33,7 +33,7 @@ class LLMTestClient(AIClient):
             for word in reply:
                 yield word + " "
 
-    def request_call(self, messages: message | message_thread) -> str | None:
+    def request_call(self, messages: Message | message_thread) -> str | None:
         """A standard sync request call to the LLM. 
         This method generates a new client, calls 'client.chat.completions.create', returns the result and closes when finished
 
@@ -45,12 +45,12 @@ class LLMTestClient(AIClient):
         """
         pass
     
-    def get_count_tokens(self, messages: message_thread | list[message] | message | str) -> int:
+    def get_count_tokens(self, messages: message_thread | list[Message] | Message | str) -> int:
         """Returns the number of tokens used by a list of messages
         """
         return 0  
 
-    def is_too_long(self, messages: message_thread | list[message] | message | str, token_limit_percent: float) -> bool:
+    def is_too_long(self, messages: message_thread | list[Message] | Message | str, token_limit_percent: float) -> bool:
         """Verifies that an input is within token_limit_percent of the context size of the model
         """
         return False
