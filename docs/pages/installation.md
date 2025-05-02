@@ -254,7 +254,7 @@ Mantella has the ability to support other language model services, although thes
 ____________________________________
 
 ### Vision
-LLM vision can be enabled in the `Vision` tab of the [Mantella UI](#mantella-ui). If the selected model in the `Large Language Model` tab has vision capabilities, a screenshot of your game window will be passed to the model every time you respond to an NPC.
+LLM vision can be enabled in the `Vision` tab of the [Mantella UI](#mantella-ui). If the selected model in the `Large Language Model` tab has vision capabilities (or if a separate vision model has been selected in the `Vision` tab), a screenshot of your game window will be passed to the model every time you respond to an NPC. Please see the documentation of your selected LLM provider to find out which models support vision. For OpenRouter models, the full list can be found [here](https://openrouter.ai/models?fmt=cards&input_modalities=image).
 
 Vision capabilities can also be run locally via koboldcpp. To get started, download the required [mmproj file](https://huggingface.co/koboldcpp/mmproj/tree/main) for your local LLM (as an example, [Toppy](https://huggingface.co/TheBloke/Toppy-M-7B-GGUF/tree/main?not-for-all-audiences=true) requires `mistral-7b-mmproj-v1.5-Q4_1.gguf`). In the koboldcpp launch window, under the `Model Files` tab, set the path to your mmproj file via the `LLaVa mmproj` setting. When koboldcpp is launched, and vision is enabled in the [Mantella UI](#mantella-ui), your local LLM will support vision.
 
