@@ -1,4 +1,4 @@
-# Fallout 4 Mantella
+# Fallout 4 Installation
 <i>NPCs redefined</i>
 
 ## General info 
