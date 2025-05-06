@@ -1,6 +1,6 @@
 (adding-modded-npcs)=
-# Adding Modded NPCs
-Character override files can be used to either make new characters available to Mantella or override existing NPC bios.
+# Add or Edit NPCs
+Character override files can be used to either make new characters available to Mantella or override existing NPC bios and/or voice models.
 
 Character overrides can be added to this folder:  
 `..\Documents\My Games\Mantella\data\{game}\character_overrides\`
