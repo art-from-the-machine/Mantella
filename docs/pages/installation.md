@@ -344,9 +344,11 @@ By default, Mantella comes packaged with a fast and local TTS service called Pip
 
 2. Download the [voice models (latents) folder](https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files) for your desired language. Extract this folder into the same folder as `xtts-api-server-mantella.exe` above. In other words, you should have a folder called `latent_speaker_folder` in your XTTS folder.
 
-3. Select XTTS in the Text-to-Speech tab of the [Mantella UI](#mantella-ui) and set the path to your XTTS folder.
+3. Select XTTS in the `Text-to-Speech` tab of the [Mantella UI](#mantella-ui) and set the path to your XTTS folder.
 
-4. (Optional) If you are using an NVIDIA GPU, the `XTTS DeepSpeed` setting can improve response times by 2-4x if you also have `XTTS Device` set to "cuda".
+4. Install required lip sync files as instructed in `Text-to-Speech`->`LipGenerator Folder` setting in the Mantella UI and set the path to these files. 
+
+5. (Optional) If you are using an NVIDIA GPU, the `XTTS DeepSpeed` setting can improve response times by 2-4x if you also have `XTTS Device` set to "cuda".
 
 </details>  
 <br>  
