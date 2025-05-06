@@ -221,15 +221,36 @@ Make sure text-generation-webui is running when Mantella is running!
 
 2. Open LM Studio and download an LLM model.  
 
-3. Go to the Local Server tab, and in the drop-down at the top of the page select your model. If a Windows Firewall message pops up click Allow. Click the Start Server button.  
+3. Go to the Developer tab, and in the drop-down at the top of the page select your model. If a Windows Firewall message pops up click Allow. Click the Start Server button.  
 <img src="../_static/img/lmstudio_load_model.png" alt="LM Studio Load Model" width="400" height="auto" style="padding: 10px;"/>  
 
-4. In the `LLM Service` text box of the `Large Language Model` tab of the [Mantella UI](#mantella-ui), set the value to `http://localhost:1234/v1/`. This is the URL that LM Studio is running your model on. If everything works correctly you should see a message display in Mantella.exe saying "Running Mantella with local language model" when you start it.  
+4. In the `LLM Service` text box of the `Large Language Model` tab of the [Mantella UI](#mantella-ui), set the value to `http://localhost:1234/v1/` (ignoring the options in the drop down list). This is the URL that LM Studio is running your model on. The `Model` setting can be ignored as this has already been selected in step 2. If everything works correctly, you should see a message display in Mantella.exe saying "Running Mantella with local language model" when you start it.  
+<img src="../_static/img/lmstudio_selection_mantella_ui.png" alt="LM Studio Mantella UI Selection" width="250" height="auto" style="padding: 10px;"/>  
 
 ```{admonition} Note
 :class: seealso
 
 Make sure LM Studio is running when Mantella is running! 
+```
+</details>
+<br>
+<details>
+<summary><b>Ollama</b></summary>  
+
+1. Download and install Ollama from [here](https://ollama.com/). Ollama should start running in your taskbar icons tray. If it doesn't, search for the installed application and open it.  
+
+2. Search for a model you would like to use from [Ollama's library](https://ollama.com/library). For example, [Gemma 3 4B](https://ollama.com/library/gemma3:4b). Take note of the model ID displayed on the page (eg `gemma3:4b`).  
+<img src="../_static/img/ollama_model_id.png" alt="Ollama Model ID" width="600" height="auto" style="padding: 10px;"/>  
+
+3. Open Command Prompt (Windows key + search "cmd") and run `ollama pull <model ID>` to download the selected model (eg `ollama pull gemma3:4b`).  
+
+4. In the `LLM Service` text box of the `Large Language Model` tab of the Mantella UI, set the value to `http://localhost:11434/v1/` (ignoring the options in the drop down list). This is the URL that Ollama is running on. Set `Large Language Model`->`Model` to the model ID from step 2 (eg `gemma3:4b`). If everything works correctly, you should see a message display in Mantella.exe saying “Running Mantella with local language model” when you start it.  
+<img src="../_static/img/ollama_selection_mantella_ui.png" alt="Ollama Mantella UI Selection" width="250" height="auto" style="padding: 10px;"/>  
+
+```{admonition} Note
+:class: seealso
+
+Make sure Ollama is running when Mantella is running! 
 ```
 </details>
 <br>
