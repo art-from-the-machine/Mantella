@@ -230,7 +230,7 @@ Make sure text-generation-webui is running when Mantella is running!
 ```{admonition} Note
 :class: seealso
 
-Make sure LM Studio is running when Mantella is running! 
+Make sure LM Studio is running when Mantella is running!  
 ```
 </details>
 <br>
