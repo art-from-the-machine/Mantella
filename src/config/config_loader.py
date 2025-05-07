@@ -236,7 +236,8 @@ class ConfigLoader:
             self.whisper_url = self.__definitions.get_string_value("whisper_url")
 
             #LLM
-            self.max_response_sentences = self.__definitions.get_int_value("max_response_sentences")
+            self.max_response_sentences_single = self.__definitions.get_int_value("max_response_sentences_single")
+            self.max_response_sentences_multi = self.__definitions.get_int_value("max_response_sentences_multi")
             self.llm = self.__definitions.get_string_value("model")
             self.llm = self.llm.split(' |')[0] if ' |' in self.llm else self.llm
             self.wait_time_buffer = self.__definitions.get_float_value("wait_time_buffer")
