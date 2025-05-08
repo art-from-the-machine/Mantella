@@ -116,6 +116,8 @@ class ChatManager:
         parsed_sentence: SentenceContent | None = None
         pending_sentence: SentenceContent | None = None
         self.__is_first_sentence = True
+        is_multi_npc = characters.contains_multiple_npcs()
+        max_response_sentences = self.__config.max_response_sentences_single if not is_multi_npc else self.__config.max_response_sentences_multi
         max_retries = 5
         retries = 0
 
@@ -128,7 +130,7 @@ class ChatManager:
             sentence_end_parser(),
             actions_parser(actions),
             sentence_length_parser(self.__config.number_words_tts),
-            max_count_sentences_parser(self.__config.max_response_sentences, not characters.contains_player_character())
+            max_count_sentences_parser(max_response_sentences, not characters.contains_player_character())
         ])
 
         cut_indicators: set[str] = set()
@@ -144,7 +146,7 @@ class ChatManager:
             while retries < max_retries:
                 try:
                     start_time = time.time()
-                    async for content in self.__client.streaming_call(messages=messages, is_multi_npc=characters.contains_multiple_npcs()):
+                    async for content in self.__client.streaming_call(messages=messages, is_multi_npc=is_multi_npc):
                         if self.__stop_generation.is_set():
                             break
                         if not content:

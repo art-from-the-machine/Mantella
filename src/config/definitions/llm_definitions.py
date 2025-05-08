@@ -62,18 +62,23 @@ class LLMDefinitions:
                         - Speed: Prioritize the provider with the fastest response times.
                         For more information: see here: https://openrouter.ai/docs/features/provider-routing"""
         return ConfigValueSelection("llm_priority", "Priority", description, "Balanced", ["Balanced", "Price", "Speed"], allows_free_edit=False)
+
+    @staticmethod
+    def get_max_response_sentences_single_config_value() -> ConfigValue:
+        description = "The maximum number of sentences returned by the LLM on each response in a player<->NPC conversation. Lower this value to reduce waffling.\nNote: The setting 'Number Words TTS' in the Text-to-Speech tab takes precedence over this setting."
+        return ConfigValueInt("max_response_sentences_single","Max Sentences per Response (Single NPC)", description, 4, 1, 999, tags=[ConfigValueTag.share_row])
+    
+    @staticmethod
+    def get_max_response_sentences_multi_config_value() -> ConfigValue:
+        description = "The maximum number of sentences returned by the LLM on each response in a player<->multi-NPC conversation. Lower this value to reduce waffling.\nNote: The setting 'Number Words TTS' in the Text-to-Speech tab takes precedence over this setting."
+        return ConfigValueInt("max_response_sentences_multi","Max Sentences per Response (Multi NPC)", description, 12, 1, 999, tags=[ConfigValueTag.share_row])
     
     @staticmethod
     def get_custom_token_count_config_value() -> ConfigValue:
         description = """If the model chosen is not recognised by Mantella, the token count for the given model will default to this number.
                     If this is not the correct token count for your chosen model, you can change it here.
                     Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit."""
-        return ConfigValueInt("custom_token_count","Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.share_row])
-
-    @staticmethod
-    def get_max_response_sentences_config_value() -> ConfigValue:
-        description = "The maximum number of sentences returned by the LLM on each response. Lower this value to reduce waffling.\nNote: The setting 'Number Words TTS' in the Text-to-Speech tab takes precedence over this setting."
-        return ConfigValueInt("max_response_sentences","Max Sentences per Response", description, 4, 1, 999, tags=[ConfigValueTag.share_row])
+        return ConfigValueInt("custom_token_count","Custom Token Count",description, 4096, 4096, 9999999)
     
     @staticmethod
     def get_wait_time_buffer_config_value() -> ConfigValue:

@@ -270,7 +270,7 @@ async def test_process_response_param(
     client.response_pattern = response_pattern
     config.narration_handling = narration_handling
     if max_sentences is not None:
-        config.max_response_sentences = max_sentences
+        config.max_response_sentences_single = max_sentences
     if min_words is not None:
         config.number_words_tts = min_words
 
