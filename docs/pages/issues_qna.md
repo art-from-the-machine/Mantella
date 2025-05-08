@@ -77,6 +77,15 @@ If this only happens occasionally, it is likely because the next voiceline is be
 <br>
 
 <details>
+<summary><strong>Voicelines are displaying in the Mantella window but not playing in game</strong></summary>
+
+Mantella adds new voiceline files to the game, and sometimes these fail to register correctly when you first launch Mantella. To fix this, once Mantella is installed and the mod's items have been added to your inventory, create a new save file in your game (you don't have to start a new game). Then load from that save. Voicelines should now play correctly in game.
+
+For Skyrim players, if you have a mod called MinAI installed, please download `Mantella v0.13 - MGO Patch` from the "Optional files" section [here](https://www.nexusmods.com/skyrimspecialedition/mods/98631?tab=files).
+</details>
+<br>
+
+<details>
 <summary><strong>Cannot start new conversation after ending previous conversation (conversation ended message)</strong></summary>
 
 You might need to say something in the mic / type something in the text box for Mantella to realize that the conversation has ended (while it is on "Listening..." / "Waiting for player input..." it does not actively look out for the conversation ending). It is best to end conversations by simply saying / typing "goodbye" to avoid this issue.
