@@ -402,3 +402,32 @@ guillaumekln's Faster-Whisper version of Whisper is used as Speech-To-Text engin
 
 It is reasonably fast even in CPU mode with the base model. Optionally, to use GPU/CUDA mode, some extra files are required, see [Faster Whisper documentation](https://github.com/guillaumekln/faster-whisper#gpu). Note that cuBLAS may already be part of the CUDA Toolkit, so you may only require the `cudnn_###_infer64_8.dll` files to be beside the Mantella executable. Afterwards enable `process_device = cuda` under `[Microphone]` in MantellaSoftware/config.ini.
 </details>
+
+____________________________________
+
+### Running Local Services from a Second PC
+To run local LLMs / Whisper / XTTS / etc on a second PC on the same network, you will need to edit the URL used to connect to the service on your primary PC.
+
+You first need to find out the URL of the service when run locally. If the service you would like to connect to is not listed below, please search for it in the service's documentation or reach out on [Discord](https://discord.gg/Q4BJAdtGUE).
+
+```{admonition} Note
+:class: seealso
+
+For LLM services, you need to find the URL of the service's OpenAI-compatible endpoint (which typically ends in "/v1").
+```
+
+| Service | URL |
+|:----------|:----------|
+| KoboldCpp | `http://localhost:5001/v1/` |
+| text-generation-webui | `http://localhost:5000/v1/` |
+| LM Studio | `http://localhost:1234/v1/` |
+| Ollama | `http://localhost:11434/v1/` |
+
+To find out the URL the service is running on when connecting to a second PC, follow the steps below:
+
+1. Open a Command Prompt window (Windows key + search for "cmd").  
+2. Type `ipconfig` and hit enter.  
+3. Near the bottom of the listed results, you should see an "IPv4 Address" entry (eg `192.168.1.42`). Note the value of this entry.  
+4. For the service you would like to connect to, replace the "localhost" part of the URL with the address from step 3 (eg `http://192.168.1.42:5001/v1/` for KoboldCpp).  
+5. Paste the new URL into the appropriate service setting (eg `Large Language Model`->`LLM Service`, `Text-to-Speech`->`XTTS URL`, `Speech-to-Text`->`Whisper Service`, etc) in the Mantella UI like in the example image below:  
+<img src="../_static/img/kobold_external_url.png" alt="KoboldCpp External Connection" width="250" height="auto" style="padding: 10px;"/>  
