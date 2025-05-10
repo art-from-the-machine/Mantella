@@ -400,14 +400,24 @@ As of writing, the Mantella XTTS RunPod is currently incompatible with NVIDIA 50
 
 ____________________________________
 
-### Whisper
+### Speech-to-Text
+By default, Mantella comes packaged with a fast and local speech-to-text (STT) service called Moonshine (note: Moonshine only supports English). Mantella can also be run with another STT service called Whisper (see [supported languages](https://platform.openai.com/docs/guides/speech-to-text/supported-languages#supported-languages)), either locally or via an API.
+
+#### Whisper
+Whisper can be enabled by selecting the service from the `STT Service` dropdown of the `Speech-to-Text` tab via the Mantella UI. By default, Whisper will automatically install and run locally on your CPU, but can also be run on your GPU or run via an API.
+
 <details>
-<summary><b>Whisper via your CPU is handled automatically. Open this section only if you like tinkering</b></summary>  
+<summary><b>Run Whisper on your GPU</b></summary>  
 
-guillaumekln's Faster-Whisper version of Whisper is used as Speech-To-Text engine by Mantella. The engine is **already part of the executable** and will download a chosen model automatically when launched. Uses a single CPU core by default when listening to the set default Windows microphone. Alternatively text input can be enabled by setting `microphone_enabled = 0` within MantellaSoftware/config.ini.
+To use GPU / CUDA mode with Whisper, some extra files are required, see [Faster Whisper documentation](https://github.com/guillaumekln/faster-whisper#gpu). Note that cuBLAS may already be part of the CUDA Toolkit, so you may only require the `cudnn_###_infer64_8.dll` files to be beside the Mantella executable. Afterwards select "cuda" from the `Whisper Process Device` dropdown of the `Speech-to-Text` tab via the Mantella UI.
+</details>  
+<br>
 
-It is reasonably fast even in CPU mode with the base model. Optionally, to use GPU/CUDA mode, some extra files are required, see [Faster Whisper documentation](https://github.com/guillaumekln/faster-whisper#gpu). Note that cuBLAS may already be part of the CUDA Toolkit, so you may only require the `cudnn_###_infer64_8.dll` files to be beside the Mantella executable. Afterwards enable `process_device = cuda` under `[Microphone]` in MantellaSoftware/config.ini.
-</details>
+<details>
+<summary><b>Run Whisper via an API</b></summary>  
+
+See the `Whisper Service` setting of the `Speech-to-Text` tab in the Mantella UI for details on how to connect to an external Whsiper service.
+</details>  
 
 ____________________________________
 
