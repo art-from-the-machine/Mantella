@@ -381,6 +381,12 @@ By default, Mantella comes packaged with a fast and local TTS service called Pip
 2. Follow [this link](https://runpod.io/console/gpu-cloud?template=x9ddee271u&ref=szjabwfp) to open the Mantella XTTS Pod. Choose a GPU to run the Pod with (if in doubt, choose the cheapest). Note that cheaper GPUs are available if you change the "Secure Cloud" setting to "Community Cloud".  
 <img src="../_static/img/xtts_runpod_cloud_type.png" alt="XTTS RunPod Cloud Type" width="400" height="auto" style="padding: 10px;"/>
 
+```{admonition} Warning
+:class: attention
+
+As of writing, the Mantella XTTS RunPod is currently incompatible with NVIDIA 5000 series GPUs.
+```
+
 3. On the following two pages just click "Continue" and "Deploy" (you don't need to change any settings here).
 
 4. Once the Pod is running, select XTTS in the Text-to-Speech tab of the [Mantella UI](#mantella-ui) and set `XTTS URL` to `https://{pod_id}-8020.proxy.runpod.net/`, with {pod-id} being the ID of the running Pod. Eg `https://a1b2c3d4qwerty-8020.proxy.runpod.net/`.  
