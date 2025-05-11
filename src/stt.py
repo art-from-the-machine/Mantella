@@ -438,6 +438,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
     def _reset_state(self) -> None:
         """Reset internal state."""
+        self._speech_detected = False
         self._audio_buffer = np.array([], dtype=np.float32)
         self.vad_iterator = self._create_vad_iterator()
         self._consecutive_empty_count = 0
