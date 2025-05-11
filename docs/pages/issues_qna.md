@@ -302,6 +302,15 @@ This can either be because of a temporary issue with your LLM provider, your acc
 </details>
 <br>
 
+<details>
+<summary><strong>NPCs do not follow / attack / show their inventory / etc</strong></summary>
+
+Ensure that the action you are trying to get the NPC to carry out is both enabled under the `Other`->`Actions` setting in the Mantella UI as well as in Mantella's MCM menu in-game. If actions still fail to trigger correctly, try switching to a larger LLM (some smaller LLMS struggle to follow instructions). 
+
+If no other options work, it is possible to force actions to trigger by simply stating the action and nothing else in your response. For example, to force an NPC to follow you, simply say / type "follow".
+</details>
+<br>
+
 
 ## NPC and Prompt Editing
 Please see {doc}`/pages/adding_modded_npcs` for a detailed guide on how to add backstories and/or change the voice models of mod-added NPCs, generic NPCs, or edit existing NPCs.
