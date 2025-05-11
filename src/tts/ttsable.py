@@ -201,7 +201,7 @@ class TTSable(ABC):
                     logging.warning(f'Lipgen returned {run_result.returncode}')
             else:
                 if not self.__has_lipgen_warning_happened:
-                    logging.warning(f'Could not find {LipGen_path}. Please install or update the Creation Kit from Steam for faster lip sync generation')
+                    logging.info(f'Could not find {LipGen_path}. (Optional) Install or update the Creation Kit from Steam for faster lip sync generation')
                     self.__has_lipgen_warning_happened = True
                 # Fall back to using FaceFXWrapper if LipGen not detected
                 face_wrapper_executable: Path = Path(self._facefx_path) / "FaceFXWrapper.exe"
