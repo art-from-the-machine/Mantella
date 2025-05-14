@@ -76,6 +76,8 @@ class GameStateManager:
         if(not self.__talk ):
             return self.error_message("No running conversation.")
         
+        # comm_consts.KEY_INPUTTYPE is passed when the mic settings have been changed in the MCM since beginning the conversation
+        # If this happens, switch the STT settings to match the new input type
         if input_json.__contains__(comm_consts.KEY_INPUTTYPE):
             self.process_stt_setup(input_json)
         
