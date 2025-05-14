@@ -51,18 +51,15 @@ class GameStateManager:
         if self.__talk: #This should only happen if game and server are out of sync due to some previous error -> close conversation and start a new one
             self.__talk.end()
             self.__talk = None
+
         world_id = "default"
         if input_json.__contains__(comm_consts.KEY_STARTCONVERSATION_WORLDID):
             world_id = input_json[comm_consts.KEY_STARTCONVERSATION_WORLDID]
             world_id = self.WORLD_ID_CLEANSE_REGEX.sub("", world_id)
+
         if input_json.__contains__(comm_consts.KEY_INPUTTYPE):
-            if input_json[comm_consts.KEY_INPUTTYPE] in (comm_consts.KEY_INPUTTYPE_MIC, comm_consts.KEY_INPUTTYPE_PTT):
-                self.__mic_input = True
-                # only init Transcriber if mic input is enabled
-                self.__stt = Transcriber(self.__config, self.__stt_api_file, self.__api_file)
-                if input_json[comm_consts.KEY_INPUTTYPE] == comm_consts.KEY_INPUTTYPE_PTT:
-                    self.__mic_ptt = True
-                
+            self.process_stt_setup(input_json)
+        
         context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
         self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
         self.__update_context(input_json)
@@ -78,6 +75,9 @@ class GameStateManager:
     def continue_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(not self.__talk ):
             return self.error_message("No running conversation.")
+        
+        if input_json.__contains__(comm_consts.KEY_INPUTTYPE):
+            self.process_stt_setup(input_json)
         
         if input_json.__contains__(comm_consts.KEY_REQUEST_EXTRA_ACTIONS):
             extra_actions: list[str] = input_json[comm_consts.KEY_REQUEST_EXTRA_ACTIONS]
@@ -154,6 +154,21 @@ class GameStateManager:
         logging.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
         logging.log(24, '\nWaiting for player to select an NPC...')
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_ENDCONVERSATION}
+    
+    def process_stt_setup(self, input_json: dict[str, Any]):
+        '''Process the STT setup (mic / text / push-to-talk) based on the settings passed in the input JSON'''
+        if input_json[comm_consts.KEY_INPUTTYPE] in (comm_consts.KEY_INPUTTYPE_MIC, comm_consts.KEY_INPUTTYPE_PTT):
+            self.__mic_input = True
+            # only init Transcriber if mic input is enabled
+            if not self.__stt:
+                self.__stt = Transcriber(self.__config, self.__stt_api_file, self.__api_file)
+            if input_json[comm_consts.KEY_INPUTTYPE] == comm_consts.KEY_INPUTTYPE_PTT:
+                self.__mic_ptt = True
+        else:
+            self.__mic_input = False
+            if self.__stt:
+                self.__stt.stop_listening()
+                self.__stt = None
 
     ####### JSON constructions #########
 
