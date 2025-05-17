@@ -90,9 +90,13 @@ class ImageManager:
         '''
         hwnd = win32gui.FindWindow(None, self.__window_title)
         if not hwnd:
-            logging.error(f"Window '{self.__window_title}' not found")
-            self.__capture_params = None
-            return None
+            # Check if the game version is GOG
+            gog_title = self.__window_title + ' GOG'
+            hwnd = win32gui.FindWindow(None, gog_title)
+            if not hwnd:
+                logging.error(f"Window '{self.__window_title}' not found")
+                self.__capture_params = None
+                return None
 
         window_rect = win32gui.GetWindowRect(hwnd)
         client_rect = win32gui.GetClientRect(hwnd)
