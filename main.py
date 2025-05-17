@@ -13,7 +13,7 @@ def main():
             logging_file='logging.log', 
             language_file='data/language_support.csv')
 
-        mantella_version = '0.13'
+        mantella_version = '0.13.1'
         logging.log(24, f'\nMantella v{mantella_version}')
 
         mantella_http_server = http_server()
