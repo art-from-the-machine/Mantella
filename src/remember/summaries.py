@@ -118,6 +118,41 @@ class summaries(remembering):
         return hadMissingMessages
     
     @utils.time_it
+    def may_add_missing_join_leave_messages(self, messages: message_thread) -> bool:
+        """ Adds missing join and leave messages to the beginning / end of the message thread."""
+        hadMissingMessages = False
+        characters_found = {}
+        characters_joined = {}
+        characters_left = {}
+    
+        # check if every join message has a leave message and vice versa
+        for message in messages.get_messages_of_type((join_message)):
+            if not message.character.is_player_character:
+                name = message.character.name
+                characters_joined[name] = message.character
+                characters_found[name] = message.character
+        
+        for message in messages.get_messages_of_type((leave_message)):
+            if not message.character.is_player_character:
+                name = message.character.name
+                characters_left[name] = message.character
+                characters_found[name] = message.character
+
+    
+        # Insert the missing messages at the appropriate places
+        if len(characters_joined) < len(characters_found):
+            for name, character in characters_found.items():
+                if name not in characters_joined:
+                    messages.insert_after_system_messages(join_message(character))
+                    hadMissingMessages = True
+        if len(characters_left) < len(characters_found):
+            for name, character in characters_found.items():
+                if name not in characters_left:
+                    messages.add_message(leave_message(character))
+                    hadMissingMessages = True
+        return hadMissingMessages
+    
+    @utils.time_it
     def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False):
         summary = ''
         # If we truncated the conversation due to running out of context, join and leave messages may be missing

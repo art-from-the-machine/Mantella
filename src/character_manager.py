@@ -23,7 +23,7 @@ class Character:
         self.__voice_accent = voice_accent #info.get('voice_accent', None)
         self.__equipment = equipment
         self.__custom_character_values: dict[str, Any] = custom_character_values
-
+    
     @property
     def base_id(self) -> str:
         return self.__base_id
