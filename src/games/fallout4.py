@@ -15,6 +15,8 @@ import src.utils as utils
 
 
 class fallout4(gameable):
+    DIALOGUELINE1_FILENAME = "00001ED2_1"
+    DIALOGUELINE2_FILENAME = "0005E7AC_1"
     FO4_XVASynth_file: str =f"data/Fallout4/FO4_Voice_folder_XVASynth_matches.csv"
     KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSX: str  = "mantella_player_pos_x"
     KEY_CONTEXT_CUSTOMVALUES_PLAYERPOSY: str  = "mantella_player_pos_y"
@@ -196,7 +198,9 @@ class fallout4(gameable):
         fuz_file = audio_file.replace(".wav",".fuz")
         speaker = queue_output.speaker
 
-        lip_name = "00001ED2_1"
+        lip_name = self.DIALOGUELINE1_FILENAME
+        if topicID == 2:
+            lip_name = self.DIALOGUELINE2_FILENAME
 
         if config.save_audio_data_to_character_folder:
             voice_folder_path = os.path.join(mod_folder,queue_output.speaker.in_game_voice_model)
