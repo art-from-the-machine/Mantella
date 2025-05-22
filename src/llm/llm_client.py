@@ -20,4 +20,5 @@ class LLMClient(ClientBase):
         self._startup_async_client: AsyncOpenAI | None = self.generate_async_client() # initialize first client in advance of sending first LLM request to save time
 
         if config.vision_enabled:
+            logging.info(f"Setting up vision language model...")
             self._image_client: ImageClient | None = ImageClient(config, secret_key_file, image_secret_key_file)
