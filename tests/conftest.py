@@ -1,4 +1,10 @@
 import pytest
+from src.game_manager import GameStateManager
+from src.conversation.conversation import Conversation
+from src.output_manager import ChatManager
+from src.conversation.context import Context
+from src.remember.summaries import Summaries
+from src.llm.llm_client import LLMClient
 from src.characters_manager import Characters
 from src.config.config_loader import ConfigLoader
 from src.http.http_server import http_server
@@ -46,8 +52,36 @@ def english_language_info() -> dict:
     return {'alpha2': 'en', 'language': 'English', 'hello': 'Hello'}
 
 @pytest.fixture
-def piper(default_config: ConfigLoader, skyrim: Skyrim):
+def piper(default_config: ConfigLoader, skyrim: Skyrim) -> Piper:
     return Piper(default_config, skyrim)
+
+@pytest.fixture
+def llm_client(default_config: ConfigLoader) -> LLMClient:
+    return LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+
+@pytest.fixture
+def default_rememberer(skyrim: Skyrim, default_config: ConfigLoader, llm_client: LLMClient, english_language_info: dict) -> Summaries:
+    """Fixture to create a Rememberer instance"""
+    return Summaries(skyrim, default_config, llm_client, english_language_info['language'])
+
+@pytest.fixture
+def default_context(default_config: ConfigLoader, llm_client: LLMClient, default_rememberer: Summaries, english_language_info: dict) -> Context:
+    """Fixture to create a Context instance"""
+    return Context('1', default_config, llm_client, default_rememberer, english_language_info)
+
+@pytest.fixture
+def default_chat_manager(default_config: ConfigLoader, piper: Piper, llm_client: LLMClient) -> ChatManager:
+    """Fixture to create a ChatManager instance"""
+    return ChatManager(default_config, piper, llm_client)
+
+@pytest.fixture
+def default_conversation(default_context: Context, default_chat_manager: ChatManager, default_rememberer: Summaries, llm_client: LLMClient) -> Conversation:
+    """Fixture to create a Conversation instance"""
+    return Conversation(default_context, default_chat_manager, default_rememberer, llm_client, None,False, False)
+
+@pytest.fixture
+def default_game_manager(skyrim: Skyrim, default_chat_manager: ChatManager, default_config: ConfigLoader, english_language_info: dict, llm_client: LLMClient) -> GameStateManager:
+    return GameStateManager(skyrim, default_chat_manager, default_config, english_language_info, llm_client, "STT_SECRET_KEY.txt", "GPT_SECRET_KEY.txt")
 
 @pytest.fixture
 def server() -> http_server:

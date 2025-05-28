@@ -44,6 +44,7 @@ class GameStateManager:
         self.__first_line: bool = True
         self.__automatic_greeting: bool = config.automatic_greeting
         self.__conv_has_narrator: bool = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
+        self.__should_reload: bool = False
 
     ###### react to calls from the game #######
     @utils.time_it
@@ -81,10 +82,9 @@ class GameStateManager:
         if input_json.__contains__(comm_consts.KEY_INPUTTYPE):
             self.process_stt_setup(input_json)
         
-        if input_json.__contains__(comm_consts.KEY_REQUEST_EXTRA_ACTIONS):
-            extra_actions: list[str] = input_json[comm_consts.KEY_REQUEST_EXTRA_ACTIONS]
-            if extra_actions.__contains__(comm_consts.ACTION_RELOADCONVERSATION):
-                self.__talk.reload_conversation()
+        if self.__should_reload:
+            self.__talk.reload_conversation()
+            self.__should_reload = False
 
         topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
 
@@ -106,9 +106,13 @@ class GameStateManager:
                 self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config, topicInfoID, self.__first_line)            
                 reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play, topicInfoID)
                 self.__first_line = False
+
+                if comm_consts.ACTION_RELOADCONVERSATION in sentence_to_play.actions:
+                    # Reload on next continue, but first inform the player that a reload will happen with the "gather thoughts" voiceline
+                    self.__should_reload = True
             else:
                 self.__talk.end()
-                return self.error_message(sentence_to_play.error_message)
+                return self.error_message(sentence_to_play.error_message)        
         return reply
 
     @utils.time_it
