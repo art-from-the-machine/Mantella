@@ -12,7 +12,7 @@ from src.config.definitions.game_definitions import GameEnum
 from src.http.communication_constants import communication_constants as comm_consts
 from src.http import models
 from src.character_manager import Character
-from src.games.skyrim import skyrim as Skyrim
+from src.games.skyrim import Skyrim
 from src.tts.piper import Piper
 from src.games.equipment import Equipment, EquipmentItem
 
@@ -263,7 +263,7 @@ def example_player_input_textbox_goodbye_request() -> models.PlayerInputRequest:
     )
 
 @pytest.fixture
-def skyrim(tmp_path, default_config: ConfigLoader):
+def skyrim(tmp_path, default_config: ConfigLoader) -> Skyrim:
     # Change folders where character overrides are searched in
     default_config.mod_path_base = str(tmp_path)
     default_config.save_folder = str(tmp_path)

@@ -17,7 +17,7 @@ import threading
 import wave
 import shutil
 
-class gameable(ABC):
+class Gameable(ABC):
     """Abstract class for different implementations of games to support. 
     Make a subclass for every game that Mantella is supposed to support and implement this interface
     Anything that is specific to a certain game should end up in one of these subclasses.

@@ -1,4 +1,4 @@
-from src.games.skyrim import skyrim as Skyrim
+from src.games.skyrim import Skyrim
 import pytest
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence

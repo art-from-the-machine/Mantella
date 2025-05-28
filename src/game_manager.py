@@ -4,7 +4,7 @@ import regex
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
 from src.games.equipment import Equipment, EquipmentItem
 from src.games.external_character_info import external_character_info
-from src.games.gameable import gameable
+from src.games.gameable import Gameable
 from src.llm.sentence import Sentence
 from src.output_manager import ChatManager
 from src.remember.remembering import Remembering
@@ -28,8 +28,8 @@ class GameStateManager:
     WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
     @utils.time_it
-    def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, stt_api_file: str, api_file: str):        
-        self.__game: gameable = game
+    def __init__(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, stt_api_file: str, api_file: str):        
+        self.__game: Gameable = game
         self.__config: ConfigLoader = config
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: LLMClient = client

@@ -10,7 +10,7 @@ import sys
 from threading import Thread
 from queue import Queue, Empty
 from src.tts.synthesization_options import SynthesizationOptions
-from src.games.gameable import gameable
+from src.games.gameable import Gameable
 from pathlib import Path
 
 # https://stackoverflow.com/a/4896288/25532567
@@ -30,11 +30,11 @@ class Piper(TTSable):
     """Piper TTS handler
     """
     @utils.time_it
-    def __init__(self, config: ConfigLoader, game: gameable) -> None:
+    def __init__(self, config: ConfigLoader, game: Gameable) -> None:
         super().__init__(config)
         if self._language != 'en':
             logging.warning(f"Selected language is '{self._language}'', but Piper only supports English. Please change the selected text-to-speech model in `Text-to-Speech`->`TTS Service` in the Mantella UI")
-        self.__game: gameable = game
+        self.__game: Gameable = game
         self.__piper_path = Path(config.piper_path)
         self.__models_path = self.__piper_path / 'models' / self.__game.game_name_in_filepath / 'low' # TODO: change /low parts of the path to dynamic variables
         self.__selected_voice = None

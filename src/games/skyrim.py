@@ -9,12 +9,12 @@ from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
-from src.games.gameable import gameable
+from src.games.gameable import Gameable
 import src.utils as utils
 from src.config.definitions.tts_definitions import TTSEnum
 
 
-class skyrim(gameable):
+class Skyrim(Gameable):
     DIALOGUELINE1_FILENAME = "MantellaDi_MantellaDialogu_00001D8B_1"
     DIALOGUELINE2_FILENAME = "MantellaDi_MantellaDialogu_0018B644_1"
 
@@ -89,21 +89,21 @@ class skyrim(gameable):
             actor_race = actor_race
 
         if self.__tts_service == TTSEnum.XVASYNTH: 
-            male_voice_model_dictionary=skyrim.MALE_VOICE_MODELS_XVASYNTH
-            female_voice_model_dictionary = skyrim.FEMALE_VOICE_MODELS_XVASYNTH
+            male_voice_model_dictionary=Skyrim.MALE_VOICE_MODELS_XVASYNTH
+            female_voice_model_dictionary = Skyrim.FEMALE_VOICE_MODELS_XVASYNTH
         elif self.__tts_service == TTSEnum.PIPER:
-            male_voice_model_dictionary=skyrim.MALE_VOICE_MODELS_PIPERTTS
-            female_voice_model_dictionary = skyrim.FEMALE_VOICE_MODELS_PIPERTTS
+            male_voice_model_dictionary=Skyrim.MALE_VOICE_MODELS_PIPERTTS
+            female_voice_model_dictionary = Skyrim.FEMALE_VOICE_MODELS_PIPERTTS
         else: #Assume XTTS or another voice model that is not yet implemented at this time
-            male_voice_model_dictionary=skyrim.MALE_VOICE_MODELS_XTTS
-            female_voice_model_dictionary = skyrim.FEMALE_VOICE_MODELS_XTTS
+            male_voice_model_dictionary=Skyrim.MALE_VOICE_MODELS_XTTS
+            female_voice_model_dictionary = Skyrim.FEMALE_VOICE_MODELS_XTTS
 
 
         if library_search:
-            for key in skyrim.VOICE_MODEL_IDS:
+            for key in Skyrim.VOICE_MODEL_IDS:
                 # using endswith because sometimes leading zeros are ignored
                 if actor_voice_model_id.endswith(key):
-                    voice_model = skyrim.VOICE_MODEL_IDS[key]
+                    voice_model = Skyrim.VOICE_MODEL_IDS[key]
                     return voice_model
             # if voice_model not found in the voice model ID list
             try: # search for voice model in skyrim_characters.csv
