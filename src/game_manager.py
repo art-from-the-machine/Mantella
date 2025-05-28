@@ -11,7 +11,7 @@ from src.remember.remembering import remembering
 from src.remember.summaries import summaries
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
-from src.conversation.conversation import conversation
+from src.conversation.conversation import Conversation
 from src.conversation.context import context
 from src.character_manager import Character
 import src.utils as utils
@@ -35,7 +35,7 @@ class GameStateManager:
         self.__client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
         self.__rememberer: remembering = summaries(game, config, client, language_info['language'])
-        self.__talk: conversation | None = None
+        self.__talk: Conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk
         self.__stt_api_file: str = stt_api_file
@@ -61,7 +61,7 @@ class GameStateManager:
             self.process_stt_setup(input_json)
         
         context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
-        self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
+        self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
         self.__update_context(input_json)
         self.__try_preload_voice_model()
         self.__talk.start_conversation()

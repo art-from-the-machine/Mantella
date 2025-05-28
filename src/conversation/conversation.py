@@ -26,7 +26,7 @@ class conversation_continue_type(Enum):
     PLAYER_TALK = 2
     END_CONVERSATION = 3
 
-class conversation:
+class Conversation:
     TOKEN_LIMIT_PERCENT: float = 0.9
     TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
     """Controls the flow of a conversation."""
