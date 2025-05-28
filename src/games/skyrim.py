@@ -4,7 +4,7 @@ import shutil
 from typing import Any
 
 import pandas as pd
-from src.conversation.context import context
+from src.conversation.context import Context
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
@@ -154,7 +154,7 @@ class skyrim(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool = False):
+    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: Context, config: ConfigLoader, topicID: int, isFirstLine: bool = False):
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file = queue_output.voice_file

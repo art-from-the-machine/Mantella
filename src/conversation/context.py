@@ -12,7 +12,7 @@ from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 from src.config.definitions.game_definitions import GameEnum
 
-class context:
+class Context:
     """Holds the context of a conversation
     """
     TOKEN_LIMIT_PERCENT: float = 0.45
@@ -309,7 +309,7 @@ class context:
             trust = self.__get_trust(npc)
             relationships.append(f"{trust} to {npc.name}")
         
-        return context.format_listing(relationships)
+        return Context.format_listing(relationships)
        
     @utils.time_it
     def get_character_names_as_text(self, should_include_player: bool) -> str:
@@ -326,7 +326,7 @@ class context:
             keys = self.npcs_in_conversation.get_all_names()
         else:
             keys = self.get_characters_excluding_player().get_all_names()
-        return context.format_listing(keys)
+        return Context.format_listing(keys)
     
     @utils.time_it
     def __get_bios_text(self) -> str:
