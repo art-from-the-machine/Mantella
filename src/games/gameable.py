@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 import pandas as pd
 from src.conversation.conversation_log import conversation_log
-from src.conversation.context import context
+from src.conversation.context import Context
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
@@ -17,7 +17,7 @@ import threading
 import wave
 import shutil
 
-class gameable(ABC):
+class Gameable(ABC):
     """Abstract class for different implementations of games to support. 
     Make a subclass for every game that Mantella is supposed to support and implement this interface
     Anything that is specific to a certain game should end up in one of these subclasses.
@@ -105,7 +105,7 @@ class gameable(ABC):
         pass    
 
     @abstractmethod
-    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool):
+    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: Context, config: ConfigLoader, topicID: int, isFirstLine: bool):
         """Does what ever is needed to play a sentence ingame
 
         Args:

@@ -1,4 +1,4 @@
-from src.games.fallout4 import fallout4 as Fallout4
+from src.games.fallout4 import Fallout4
 import pytest
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence

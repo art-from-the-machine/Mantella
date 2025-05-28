@@ -4,19 +4,19 @@ import shutil
 from typing import Any
 import pandas as pd
 from src.http.file_communication_compatibility import file_communication_compatibility
-from src.conversation.context import context
+from src.conversation.context import Context
 #from src.audio.audio_playback import audio_playback
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
-from src.games.gameable import gameable
+from src.games.gameable import Gameable
 import src.utils as utils
 from src.config.definitions.game_definitions import GameEnum
 from src.config.definitions.tts_definitions import TTSEnum
 
 
-class fallout4(gameable):
+class Fallout4(Gameable):
     DIALOGUELINE1_FILENAME = "00001ED2_1"
     DIALOGUELINE2_FILENAME = "0005E7AC_1"
     FO4_XVASynth_file: str =f"data/Fallout4/FO4_Voice_folder_XVASynth_matches.csv"
@@ -32,8 +32,8 @@ class fallout4(gameable):
         if config.game == GameEnum.FALLOUT4_VR:
             self.__compatibility = file_communication_compatibility(config.game_path, int(config.port))# <- creating an object of this starts the listen thread
         self.__tts_service: TTSEnum = config.tts_service
-        encoding = utils.get_file_encoding(fallout4.FO4_XVASynth_file)
-        self.__FO4_Voice_folder_and_models_df = pd.read_csv(fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)
+        encoding = utils.get_file_encoding(Fallout4.FO4_XVASynth_file)
+        self.__FO4_Voice_folder_and_models_df = pd.read_csv(Fallout4.FO4_XVASynth_file, engine='python', encoding=encoding)
         #self.__playback: audio_playback = audio_playback(config)
         self.__last_played_voiceline: str | None = None
         self.__image_analysis_filepath = config.game_path
@@ -102,8 +102,8 @@ class fallout4(gameable):
 
         #make the substitutions below to bypass non-functional XVASynth voice models: RobotCompanionMaleDefault, RobotCompanionMaleProcessed,Gen1Synth02 & Gen1Synth03 
         if self.__tts_service == TTSEnum.XVASYNTH: #only necessary for XVASynth
-            male_voice_model_dictionary=fallout4.MALE_VOICE_MODELS_XVASYNTH
-            female_voice_model_dictionary = fallout4.FEMALE_VOICE_MODELS_XVASYNTH
+            male_voice_model_dictionary=Fallout4.MALE_VOICE_MODELS_XVASYNTH
+            female_voice_model_dictionary = Fallout4.FEMALE_VOICE_MODELS_XVASYNTH
             if actor_voice_model_name in ("DLC01RobotCompanionMaleDefault", "DLC01RobotCompanionMaleProcessed"):
                 actor_voice_model_name='robotassaultron'
                 actor_voice_model_id='robotassaultron'
@@ -111,8 +111,8 @@ class fallout4(gameable):
                 actor_voice_model_name='gen1synth01'
                 actor_voice_model_id='000BBBF0'
         else:
-            male_voice_model_dictionary=fallout4.MALE_VOICE_MODELS_NONXVASYNTH
-            female_voice_model_dictionary = fallout4.FEMALE_VOICE_MODELS_NONXVASYNTH
+            male_voice_model_dictionary=Fallout4.MALE_VOICE_MODELS_NONXVASYNTH
+            female_voice_model_dictionary = Fallout4.FEMALE_VOICE_MODELS_NONXVASYNTH
 
 
         # Search for the Matching 'voice_ID'
@@ -183,7 +183,7 @@ class fallout4(gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool):
+    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: Context, config: ConfigLoader, topicID: int, isFirstLine: bool):
         audio_file = queue_output.voice_file
         if not os.path.exists(audio_file):
             return

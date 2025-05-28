@@ -2,24 +2,24 @@ import logging
 import os
 import time
 from src.config.config_loader import ConfigLoader
-from src.games.gameable import gameable
+from src.games.gameable import Gameable
 from src.llm.llm_client import LLMClient
 from src.llm.message_thread import message_thread
 from src.llm.messages import UserMessage
 from src.characters_manager import Characters
 from src.character_manager import Character
-from src.remember.remembering import remembering
+from src.remember.remembering import Remembering
 from src import utils
 
-class summaries(remembering):
+class Summaries(Remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, game: gameable, config: ConfigLoader, client: LLMClient, language_name: str, summary_limit_pct: float = 0.3) -> None:
+    def __init__(self, game: Gameable, config: ConfigLoader, client: LLMClient, language_name: str, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
         self.__config = config
-        self.__game: gameable = game
+        self.__game: Gameable = game
         self.__summary_limit_pct: float = summary_limit_pct
         self.__client: LLMClient = client
         self.__language_name: str = language_name

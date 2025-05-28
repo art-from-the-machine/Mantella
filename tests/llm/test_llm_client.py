@@ -5,10 +5,6 @@ import src.llm.client_base
 from src.llm.messages import SystemMessage
 
 @pytest.fixture
-def llm_client(default_config: ConfigLoader):
-    return LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
-
-@pytest.fixture
 def example_system_message(default_config: ConfigLoader):
     return SystemMessage('Test.', default_config)
 

@@ -4,9 +4,9 @@ from typing import Any, Hashable
 
 from fastapi import FastAPI, Request
 from src.config.config_loader import ConfigLoader
-from src.games.fallout4 import fallout4
-from src.games.gameable import gameable
-from src.games.skyrim import skyrim
+from src.games.fallout4 import Fallout4
+from src.games.gameable import Gameable
+from src.games.skyrim import Skyrim
 from src.output_manager import ChatManager
 from src.llm.llm_client import LLMClient
 from src.game_manager import GameStateManager
@@ -43,12 +43,12 @@ class mantella_route(routeable):
         if self.__game:
             self.__game.end_conversation({})
 
-        game: gameable
+        game: Gameable
         game_enum = self._config.game
         if game_enum.base_game == GameEnum.FALLOUT4:
-            game = fallout4(self._config)
+            game = Fallout4(self._config)
         else:
-            game = skyrim(self._config)
+            game = Skyrim(self._config)
 
         tts: TTSable
         if self._config.tts_service == TTSEnum.XVASYNTH:

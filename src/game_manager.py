@@ -4,15 +4,15 @@ import regex
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
 from src.games.equipment import Equipment, EquipmentItem
 from src.games.external_character_info import external_character_info
-from src.games.gameable import gameable
+from src.games.gameable import Gameable
 from src.llm.sentence import Sentence
 from src.output_manager import ChatManager
-from src.remember.remembering import remembering
-from src.remember.summaries import summaries
+from src.remember.remembering import Remembering
+from src.remember.summaries import Summaries
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
-from src.conversation.conversation import conversation
-from src.conversation.context import context
+from src.conversation.conversation import Conversation
+from src.conversation.context import Context
 from src.character_manager import Character
 import src.utils as utils
 from src.http.communication_constants import communication_constants as comm_consts
@@ -28,14 +28,14 @@ class GameStateManager:
     WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
     @utils.time_it
-    def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, stt_api_file: str, api_file: str):        
-        self.__game: gameable = game
+    def __init__(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, stt_api_file: str, api_file: str):        
+        self.__game: Gameable = game
         self.__config: ConfigLoader = config
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
-        self.__rememberer: remembering = summaries(game, config, client, language_info['language'])
-        self.__talk: conversation | None = None
+        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'])
+        self.__talk: Conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk
         self.__stt_api_file: str = stt_api_file
@@ -44,6 +44,7 @@ class GameStateManager:
         self.__first_line: bool = True
         self.__automatic_greeting: bool = config.automatic_greeting
         self.__conv_has_narrator: bool = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
+        self.__should_reload: bool = False
 
     ###### react to calls from the game #######
     @utils.time_it
@@ -60,8 +61,8 @@ class GameStateManager:
         if input_json.__contains__(comm_consts.KEY_INPUTTYPE):
             self.process_stt_setup(input_json)
         
-        context_for_conversation = context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
-        self.__talk = conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
+        context_for_conversation = Context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
+        self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
         self.__update_context(input_json)
         self.__try_preload_voice_model()
         self.__talk.start_conversation()
@@ -81,10 +82,9 @@ class GameStateManager:
         if input_json.__contains__(comm_consts.KEY_INPUTTYPE):
             self.process_stt_setup(input_json)
         
-        if input_json.__contains__(comm_consts.KEY_REQUEST_EXTRA_ACTIONS):
-            extra_actions: list[str] = input_json[comm_consts.KEY_REQUEST_EXTRA_ACTIONS]
-            if extra_actions.__contains__(comm_consts.ACTION_RELOADCONVERSATION):
-                self.__talk.reload_conversation()
+        if self.__should_reload:
+            self.__talk.reload_conversation()
+            self.__should_reload = False
 
         topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
 
@@ -106,9 +106,13 @@ class GameStateManager:
                 self.__game.prepare_sentence_for_game(sentence_to_play, self.__talk.context, self.__config, topicInfoID, self.__first_line)            
                 reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play, topicInfoID)
                 self.__first_line = False
+
+                if comm_consts.ACTION_RELOADCONVERSATION in sentence_to_play.actions:
+                    # Reload on next continue, but first inform the player that a reload will happen with the "gather thoughts" voiceline
+                    self.__should_reload = True
             else:
                 self.__talk.end()
-                return self.error_message(sentence_to_play.error_message)
+                return self.error_message(sentence_to_play.error_message)        
         return reply
 
     @utils.time_it

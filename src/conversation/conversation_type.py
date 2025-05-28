@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from src.config.config_loader import ConfigLoader
 from src.character_manager import Character
 from src.llm.message_thread import message_thread
-from src.conversation.context import context
+from src.conversation.context import Context
 from src.llm.messages import UserMessage
 from src import utils
 
@@ -14,7 +14,7 @@ class conversation_type(ABC):
         self._config = config
     
     @abstractmethod
-    def generate_prompt(self, context_for_conversation: context) -> str:
+    def generate_prompt(self, context_for_conversation: Context) -> str:
         """Generates the text for the initial system_message. 
 
         Args:
@@ -35,7 +35,7 @@ class conversation_type(ABC):
         """
         pass
     
-    def get_user_message(self, context_for_conversation: context, messages: message_thread) -> UserMessage | None:
+    def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:
         """Gets the next user message for the conversation. Default implementation gets the input from the player
 
         Args:
@@ -48,7 +48,7 @@ class conversation_type(ABC):
         """
         return None
     
-    def should_end(self, context_for_conversation: context, messages: message_thread) -> bool:
+    def should_end(self, context_for_conversation: Context, messages: message_thread) -> bool:
         """Called after a message has been generated. Allows the conversation_type to stop the conversation at any point
 
         Args:
@@ -67,7 +67,7 @@ class pc_to_npc(conversation_type):
         super().__init__(config)
 
     @utils.time_it
-    def generate_prompt(self, context_for_conversation: context) -> str:
+    def generate_prompt(self, context_for_conversation: Context) -> str:
         actions = [a for a in self._config.actions if a.use_in_on_on_one]
         return context_for_conversation.generate_system_message(self._config.prompt, actions)
     
@@ -76,7 +76,7 @@ class pc_to_npc(conversation_type):
         message_thread_to_adjust.modify_messages(prompt, multi_npc_conversation=False, remove_system_flagged_messages=True)
     
     @utils.time_it
-    def get_user_message(self, context_for_conversation: context, messages: message_thread) -> UserMessage | None:
+    def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:
         if len(messages) == 1 and context_for_conversation.config.automatic_greeting:
             player_character: Character | None = context_for_conversation.npcs_in_conversation.get_player_character()
             if player_character:
@@ -95,7 +95,7 @@ class multi_npc(conversation_type):
         super().__init__(config)
 
     @utils.time_it
-    def generate_prompt(self, context_for_conversation: context) -> str:
+    def generate_prompt(self, context_for_conversation: Context) -> str:
         actions = [a for a in self._config.actions if a.use_in_multi_npc]
         return context_for_conversation.generate_system_message(self._config.multi_npc_prompt, actions)
     
@@ -111,7 +111,7 @@ class radiant(conversation_type):
         self.__user_end_prompt = config.radiant_end_prompt
 
     @utils.time_it
-    def generate_prompt(self, context_for_conversation: context) -> str:
+    def generate_prompt(self, context_for_conversation: Context) -> str:
         actions = [a for a in self._config.actions if a.use_in_radiant]
         return context_for_conversation.generate_system_message(self._config.radiant_prompt, actions)
     
@@ -120,7 +120,7 @@ class radiant(conversation_type):
         message_thread_to_adjust.modify_messages(prompt, True, True)
     
     @utils.time_it
-    def get_user_message(self, context_for_conversation: context, messages: message_thread) -> UserMessage | None:        
+    def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:        
         text = ""
         if len(messages) == 1:
             text = self.__user_start_prompt
@@ -132,5 +132,5 @@ class radiant(conversation_type):
         reply.is_multi_npc_message = False # Don't flag these as multi-npc messages. Don't want a 'Player:' in front of the instruction messages
         return reply
     
-    def should_end(self, context_for_conversation: context, messages: message_thread) -> bool:
+    def should_end(self, context_for_conversation: Context, messages: message_thread) -> bool:
         return len(messages) > 4
