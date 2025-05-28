@@ -10,7 +10,7 @@ from src.conversation.conversation_log import conversation_log
 from src.conversation.action import Action
 from src.llm.sentence_queue import SentenceQueue
 from src.llm.sentence import Sentence
-from src.remember.remembering import remembering
+from src.remember.remembering import Remembering
 from src.output_manager import ChatManager
 from src.llm.messages import AssistantMessage, SystemMessage, UserMessage
 from src.conversation.context import context
@@ -30,7 +30,7 @@ class Conversation:
     TOKEN_LIMIT_PERCENT: float = 0.9
     TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
     """Controls the flow of a conversation."""
-    def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool) -> None:
+    def __init__(self, context_for_conversation: context, output_manager: ChatManager, rememberer: Remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool) -> None:
         
         self.__context: context = context_for_conversation
         self.__mic_input: bool = mic_input
@@ -46,7 +46,7 @@ class Conversation:
             self.__conversation_type: conversation_type = pc_to_npc(context_for_conversation.config)        
         self.__messages: message_thread = message_thread(self.__context.config, None)
         self.__output_manager: ChatManager = output_manager
-        self.__rememberer: remembering = rememberer
+        self.__rememberer: Remembering = rememberer
         self.__llm_client = llm_client
         self.__has_already_ended: bool = False
         self.__allow_mic_input: bool = True # this flag ensures mic input is disabled on conversation end

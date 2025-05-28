@@ -7,8 +7,8 @@ from src.games.external_character_info import external_character_info
 from src.games.gameable import gameable
 from src.llm.sentence import Sentence
 from src.output_manager import ChatManager
-from src.remember.remembering import remembering
-from src.remember.summaries import summaries
+from src.remember.remembering import Remembering
+from src.remember.summaries import Summaries
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 from src.conversation.conversation import Conversation
@@ -34,7 +34,7 @@ class GameStateManager:
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
-        self.__rememberer: remembering = summaries(game, config, client, language_info['language'])
+        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'])
         self.__talk: Conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk

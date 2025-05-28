@@ -8,10 +8,10 @@ from src.llm.message_thread import message_thread
 from src.llm.messages import UserMessage
 from src.characters_manager import Characters
 from src.character_manager import Character
-from src.remember.remembering import remembering
+from src.remember.remembering import Remembering
 from src import utils
 
-class summaries(remembering):
+class Summaries(Remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """

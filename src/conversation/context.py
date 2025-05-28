@@ -4,7 +4,7 @@ from src.conversation.action import Action
 from src.http.communication_constants import communication_constants
 from src.conversation.conversation_log import conversation_log
 from src.characters_manager import Characters
-from src.remember.remembering import remembering
+from src.remember.remembering import Remembering
 from src import utils
 from src.utils import get_time_group
 from src.character_manager import Character
@@ -18,14 +18,14 @@ class context:
     TOKEN_LIMIT_PERCENT: float = 0.45
 
     @utils.time_it
-    def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: remembering, language: dict[Hashable, str]) -> None:
+    def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: Remembering, language: dict[Hashable, str]) -> None:
         self.__world_id = world_id
         self.__hourly_time = config.hourly_time
         self.__prev_game_time: tuple[str | None, str] | None = None
         self.__npcs_in_conversation: Characters = Characters()
         self.__config: ConfigLoader = config
         self.__client: LLMClient = client
-        self.__rememberer: remembering = rememberer
+        self.__rememberer: Remembering = rememberer
         self.__language: dict[Hashable, str] = language
         self.__weather: str = ""
         self.__custom_context_values: dict[str, Any] = {}
