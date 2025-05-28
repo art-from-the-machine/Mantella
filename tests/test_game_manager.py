@@ -39,7 +39,7 @@ def test_reload_conversation(
     jsonschema.validate(response, models.NpcTalkResponse.model_json_schema())
 
     advance_to_player_turn(default_game_manager, example_continue_conversation_request.model_dump(by_alias=True, exclude_none=True))
-    # Send player (textbox) input once more
+    # Send player (textbox) input once more (summaries do not trigger if a conversation is too short)
     response = default_game_manager.player_input(example_player_input_textbox_request.model_dump(by_alias=True, exclude_none=True))
     jsonschema.validate(response, models.NpcTalkResponse.model_json_schema())
 
