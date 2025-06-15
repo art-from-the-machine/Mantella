@@ -77,9 +77,11 @@ class STTDefinitions:
     def get_whisper_model_size_config_value() -> ConfigValue:
         description = """The size of the Whisper model used. Some languages require larger models. The base.en model works well enough for English.
                         See here for a comparison of languages and their Whisper performance: 
-                        https://github.com/openai/whisper#available-models-and-languages"""
+                        https://github.com/openai/whisper#available-models-and-languages
+                        
+                        skyrim-whisper-base.en is the base.en, trained on Skyrim dialogue. It is more accurate in transcribing more prominent NPCs and Locations of Skyrim"""
         options = ["tiny", "tiny.en", 
-                   "base", "base.en", 
+                   "base", "base.en", "Numbat/faster-skyrim-whisper-base.en",
                    "small", "small.en", "distil-small.en", 
                    "medium", "medium.en", "distil-medium.en", 
                    "large-v1", "large-v2", "large-v3", "distil-large-v2", "distil-large-v3", 
