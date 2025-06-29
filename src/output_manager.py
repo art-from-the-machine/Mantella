@@ -515,7 +515,7 @@ class ChatManager:
         if function_name and arguments is not None:
             return 'function', function_name, arguments
         else:
-            logging.debug("Error in pseudo tool call :Failed to parse the tool call string.")
+            logging.error("Error in pseudo tool call :Failed to parse the tool call string.")
             return None
 
     def _try_parse_json(self, json_like_str):
@@ -525,16 +525,27 @@ class ChatManager:
             # Try parsing as valid JSON
             return json.loads(json_like_str)
         except json.JSONDecodeError:
-            # Try using literal_eval to handle single quotes
             try:
-                python_obj = ast.literal_eval(json_like_str)
-                # Convert Python object to JSON string
-                json_str = json.dumps(python_obj)
-                return json.loads(json_str)
+                # Try to reformat the JSON string
+                return json.loads(self._fix_json_string(json_like_str))
             except Exception as e:
-                logging.debug("Function LLM : JSON error. Failed to parse using literal_eval:", e)
-                return None
-        
+                try:
+                    python_obj = ast.literal_eval(json_like_str)
+                    # Convert Python object to JSON string
+                    json_str = json.dumps(python_obj)
+                    return json.loads(json_str)
+                except Exception as e:
+                    logging.error(f"Function LLM : JSON error. Failed to parse {json_like_str}: {e}")
+                    return None
+
+    def _fix_json_string(self, json_str):
+        """Convert Python-style string to valid JSON"""
+        # Replace single quotes with double quotes
+        json_str = json_str.replace("'", '"')
+        # Replace Python booleans with JSON booleans
+        json_str = json_str.replace("True", "true").replace("False", "false")
+        return json_str
+
     def process_unlabeled_function_content(self, content):
         logging.debug("Attempting to process unlabeled function content")
         call_type = 'function'  # As specified, call_type is always 'function'
