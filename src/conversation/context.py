@@ -189,7 +189,7 @@ class context:
                 current_stats.get_custom_character_value("mantella_actor_pos_y") != npc.get_custom_character_value("mantella_actor_pos_y")):
                 current_stats.set_custom_character_value("mantella_actor_pos_y", npc.get_custom_character_value("mantella_actor_pos_y"))
         except Exception as e:
-            logging.info(f"Updating custom values failed: {e}")
+            logging.error(f"Updating custom values failed: {e}")
         if not npc.is_player_character:
             player_name = "the player"
             player = self.__npcs_in_conversation.get_player_character()

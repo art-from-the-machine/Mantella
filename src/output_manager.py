@@ -228,7 +228,7 @@ class ChatManager:
                             continue
 
                         if first_token:
-                            logging.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to respond")
+                            logging.log(self.loglevel, f"Roleplay LLM took {round(time.time() - start_time, 2)} seconds to respond")
                             first_token = False
                         
                         sentence += content
@@ -582,11 +582,11 @@ class ChatManager:
             if function_name and arguments is not None:
                 return call_type, function_name, arguments
             else:
-                logging.debug("Error while processing unlabeled function content from Function LLM : Function name or arguments missing in content.")
+                logging.error("Error while processing unlabeled function content from Function LLM : Function name or arguments missing in content.")
                 return None
 
         except json.JSONDecodeError as e:
-            logging.debug("Error while processing unlabeled function content from Function LLM : Failed to parse content as JSON:", e)
+            logging.error("Error while processing unlabeled function content from Function LLM : Failed to parse content as JSON:", e)
             return None
 
 

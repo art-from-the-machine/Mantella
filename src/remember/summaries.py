@@ -172,7 +172,7 @@ class summaries(remembering):
             messages.add_message(user_message(text_to_summarize))
             summary = self.__client.request_call(messages)
             if not summary:
-                logging.info(f"Summarizing conversation failed.")
+                logging.error(f"Summarizing conversation failed.")
                 return ""
 
             summary = summary.replace('The assistant', npc_name)

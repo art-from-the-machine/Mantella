@@ -285,7 +285,7 @@ class GameStateManager:
                             equipment,
                             custom_values)
         except CharacterDoesNotExist:                 
-            logging.log(23, 'Restarting...')
+            logging.error('Character not loaded. Restarting...')
             return None 
         
     def error_message(self, message: str) -> dict[str, Any]:
