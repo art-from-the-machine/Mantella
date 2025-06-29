@@ -326,10 +326,6 @@ class ChatManager:
                                 if self.__stop_generation.is_set():
                                     break
                                 new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character, is_first_line_of_response)
-                                # --- Set the has_veto attribute ---
-                                new_sentence.has_veto = has_veto
-                                is_first_line_of_response = False
-                                blocking_queue.put(new_sentence)
 
                                 has_interrupting_action = False
                                 if not new_sentence.error_message:
@@ -337,8 +333,17 @@ class ChatManager:
                                         has_interrupting_action |= a.is_interrupting
                                         new_sentence.actions.append( a.identifier)
                                 else:
+                                    logging.error(f"LLM error {new_sentence.error_message}")
                                     break
-                                
+
+                                # --- Set the has_veto attribute ---
+                                new_sentence.has_veto = has_veto
+                                is_first_line_of_response = False
+
+                                # start processing the sentence
+                                blocking_queue.put(new_sentence)
+
+                                # start of new sentence
                                 full_reply += sentence
                                 num_sentences += 1
                                 if cumulative_sentence_bool == True :
