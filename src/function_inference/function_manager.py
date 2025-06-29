@@ -358,7 +358,18 @@ class FunctionManager:
                 source_dec_ids_output = output_function.context_payload.get_sources_dec_ids()
                 sentence_receiving_output.source_ids.extend(source_dec_ids_output)
             if output_function.context_payload.modes:
-                sentence_receiving_output.function_call_modes.extend(output_function.context_payload.get_modes_lowercase())
+                sentence_receiving_output.function_call_modes.extend(output_function.context_payload.get_modes_lowercase())            
+            elif self.llm_output_arguments:
+                for key, value in self.llm_output_arguments.items():
+                    key_lower = key.lower()
+                    if "mode" in key_lower:
+                        if isinstance(value, list):
+                            modes_to_add = [str(v).lower() for v in value]
+                            sentence_receiving_output.function_call_modes.extend(modes_to_add)
+                        else:
+                            mode_to_add = str(value).lower()
+                            sentence_receiving_output.function_call_modes.append(mode_to_add)
+            
             self.clear_llm_output_data() 
         return sentence_receiving_output
     
@@ -1148,10 +1159,47 @@ class FunctionManager:
 
         # 8) If no parameter_package_key => show a "warning" or "feedback" message
         elif has_no_params:
+            # Process function arguments for simple cases
+            kwargs_for_formatting = {
+                "speakerName": speakerName,
+                "playerName": playerName,
+            }
+            
+            # Process the function arguments and map them to llm_output_* format
+            if self.llm_output_arguments:
+                for key, value in self.llm_output_arguments.items():
+                    key_lower = key.lower()
+                    
+                    # Map parameters to llm_output_* format based on their content
+                    if "mode" in key_lower:
+                        # Convert to string and add to kwargs
+                        if isinstance(value, list):
+                            kwargs_for_formatting["llm_output_mode"] = self.convert_list_to_joined_string(value)
+                        else:
+                            kwargs_for_formatting["llm_output_mode"] = str(value)
+                    elif "target" in key_lower:
+                        # Handle target parameters
+                        if isinstance(value, list):
+                            kwargs_for_formatting["llm_output_target_name"] = self.convert_list_to_joined_string(value)
+                            kwargs_for_formatting["llm_output_target_names"] = self.convert_list_to_joined_string(value)
+                        else:
+                            kwargs_for_formatting["llm_output_target_name"] = str(value)
+                            kwargs_for_formatting["llm_output_target_names"] = str(value)
+                    elif "source" in key_lower:
+                        # Handle source parameters
+                        if isinstance(value, list):
+                            kwargs_for_formatting["llm_output_source_name"] = self.convert_list_to_joined_string(value)
+                            kwargs_for_formatting["llm_output_source_names"] = self.convert_list_to_joined_string(value)
+                        else:
+                            kwargs_for_formatting["llm_output_source_name"] = str(value)
+                            kwargs_for_formatting["llm_output_source_names"] = str(value)
+                    else:
+                        # For any other parameters, pass them through as-is
+                        kwargs_for_formatting[key] = value
+            
             formatted_LLM_warning = self.format_LLM_warning(
                 returned_LLMFunction,
-                speakerName=speakerName,
-                playerName=playerName,
+                **kwargs_for_formatting
             )
             if formatted_LLM_warning:
                 return formatted_LLM_warning
