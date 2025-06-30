@@ -103,6 +103,18 @@ class multi_npc(conversation_type):
     def adjust_existing_message_thread(self, prompt: str, message_thread_to_adjust: message_thread):
         message_thread_to_adjust.modify_messages(prompt, True, True)
 
+    @utils.time_it
+    def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:
+        if len(messages) == 1 and context_for_conversation.config.automatic_greeting:
+            player_character: Character | None = context_for_conversation.npcs_in_conversation.get_player_character()
+            if player_character:
+                message = UserMessage(context_for_conversation.config, f"{context_for_conversation.language['hello']} {context_for_conversation.get_character_names_as_text(should_include_player=False)}.", player_character.name, True)
+                message.is_multi_npc_message = True
+                return message
+            return None
+        else:
+            return super().get_user_message(context_for_conversation, messages)
+
 class radiant(conversation_type):
     """ Conversation between two NPCs without the player"""
     def __init__(self, config: ConfigLoader) -> None:
