@@ -61,6 +61,11 @@ class communication_constants:
     KEY_CONTEXT_WEATHER = PREFIX + "weather"
     KEY_CONTEXT_TIME: str = PREFIX + "time"
     KEY_CONTEXT_INGAMEEVENTS: str = PREFIX + "ingame_events"
+    KEY_CONTEXT_CONFIG_SETTINGS: str = PREFIX + "config_settings"
+    KEY_CONTEXT_CONFIG_SETTINGS_NPC_ANGER: str = PREFIX + "config_settings_npc_anger"
+    KEY_CONTEXT_CONFIG_SETTINGS_NPC_INVENTORY: str = PREFIX + "config_settings_npc_inventory"
+    KEY_CONTEXT_CONFIG_SETTINGS_NPC_PACKAGE: str = PREFIX + "config_settings_npc_package"
+    KEY_CONTEXT_CONFIG_SETTINGS_NPC_FOLLOW: str = PREFIX + "config_settings_npc_follow"
     KEY_CONTEXT_CUSTOMVALUES: str = PREFIX + "custom_context_values"
 
     # Actions

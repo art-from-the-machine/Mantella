@@ -15,7 +15,7 @@ from src.function_inference.llm_tooltip_class import TargetInfo, Tooltip, ModeIn
 from src.function_inference.llm_function_class import Target
 from src.llm.sentence import sentence
 from itertools import zip_longest
-
+from src.http.communication_constants import communication_constants as comm_consts
 
 
 class FunctionManager:
@@ -348,6 +348,23 @@ class FunctionManager:
         if self.llm_output_call_type == "function" :
             mantella_function_name = "mantella_" + self.llm_output_function_name
             output_function:LLMFunction = self.__tools_manager.get_function_object(self.llm_output_function_name)
+
+            # veto functions that result in the NPC attacking the player if 'aggro' setting is off
+            aggro_is_enabled = self.context.get_config_setting(comm_consts.KEY_CONTEXT_CONFIG_SETTINGS_NPC_ANGER)
+            function_is_attack = self.llm_output_function_name in [ "npc_attack_other_npc", "multi_npc_attack_other_npc" ]
+            target_is_player = False
+
+            for target_dec_id in output_function.context_payload.get_targets_dec_ids():
+                for character in self.context.npcs_in_conversation.get_all_characters():
+                    if character.is_player_character and int(character.ref_id, 16) == int(target_dec_id):
+                        target_is_player = True
+                        break
+
+            if not aggro_is_enabled and function_is_attack and target_is_player:
+                logging.log(22, f"Agro disabled: cancelling function call {self.llm_output_function_name } to attack player")
+                self.clear_llm_output_data() 
+                return sentence_receiving_output            
+
             sentence_receiving_output.actions.append(mantella_function_name)
             if output_function.context_payload.targets:
                 target_dec_ids_output = output_function.context_payload.get_targets_dec_ids()
