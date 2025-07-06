@@ -171,13 +171,17 @@ class GameStateManager:
     def __update_context(self,  json: dict[str, Any]):
         if self.__talk:
             if json.__contains__(comm_consts.KEY_ACTORS):
-                actors_in_json: list[Character] = []
-                for actorJson in json[comm_consts.KEY_ACTORS]:
-                    actor: Character | None = self.load_character(actorJson)                
-                    if actor:
-                        actors_in_json.append(actor)
-                self.__talk.add_or_update_character(actors_in_json)
-            
+
+                try:
+                    actors_in_json: list[Character] = []
+                    for actorJson in json[comm_consts.KEY_ACTORS]:
+                        actor: Character | None = self.load_character(actorJson)                
+                        if actor:
+                            actors_in_json.append(actor)
+                    self.__talk.add_or_update_character(actors_in_json)
+                except Exception as e:
+                    logging.error(f'Error updating character list: {e}')
+
             location = None
             time = None
             ingame_events = None
@@ -287,6 +291,9 @@ class GameStateManager:
         except CharacterDoesNotExist:                 
             logging.error('Character not loaded. Restarting...')
             return None 
+        except Exception as e:
+            logging.error(f'Error loading character: {e}')
+            return None
         
     def error_message(self, message: str) -> dict[str, Any]:
         return {
