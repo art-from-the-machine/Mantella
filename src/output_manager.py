@@ -437,6 +437,11 @@ class ChatManager:
                         elif "<tool_call>" in choice.get('message', {}).get('content', '') :
                             self.generated_function_results = self.process_pseudo_tool_call(choice.get('message', {}).get('content', ''))
                             return
+                        elif content.startswith('```'):
+                            content = content.replace('```json', '').strip()
+                            content = content.replace('```', '').strip()
+                            self.generated_function_results = self.process_unlabeled_function_content(content)
+                            return
                         elif content.startswith('{') and '}' in content:
                             # Attempt to parse the content as a function call
                             self.generated_function_results = self.process_unlabeled_function_content(content)
@@ -578,31 +583,25 @@ class ChatManager:
 
         # Attempt to parse the JSON string
         try:
-            # Replace single quotes with double quotes
-            json_str = json_str.replace("'", '"')
-            # Replace Python booleans with JSON booleans
-            json_str = json_str.replace("True", "true").replace("False", "false")
+            data = self._try_parse_json(json_str)
+        except Exception as e:
+            logging.error(f"Error while processing unlabeled function content from Function LLM : Failed to parse content as JSON {json_str}: {e}")
+            return None
 
-            data = json.loads(json_str)
+        # Try top-level extraction first
+        function_name = data.get('name')
+        arguments = data.get('arguments')
 
-            # Try top-level extraction first
-            function_name = data.get('name')
-            arguments = data.get('arguments')
+        # If not found at the top-level, try fallback under 'properties'
+        if function_name is None or arguments is None:
+            properties = data.get('properties', {})
+            function_name = function_name or properties.get('name')
+            arguments = arguments or properties.get('arguments')
 
-            # If not found at the top-level, try fallback under 'properties'
-            if function_name is None or arguments is None:
-                properties = data.get('properties', {})
-                function_name = function_name or properties.get('name')
-                arguments = arguments or properties.get('arguments')
-
-            if function_name and arguments is not None:
-                return call_type, function_name, arguments
-            else:
-                logging.error("Error while processing unlabeled function content from Function LLM : Function name or arguments missing in content.")
-                return None
-
-        except json.JSONDecodeError as e:
-            logging.error("Error while processing unlabeled function content from Function LLM : Failed to parse content as JSON:", e)
+        if function_name and arguments is not None:
+            return call_type, function_name, arguments
+        else:
+            logging.error(f"Error while processing unlabeled function content from Function LLM : Function name or arguments missing in content {json_str}.")
             return None
 
 
