@@ -458,7 +458,10 @@ class Conversation:
             if not npc.is_player_character:
                 characters_object.add_or_update_character(npc)
                 conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
-        self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload)
+        
+        # Only save conversation state (which triggers summary generation) if summaries are enabled
+        if self.__context.config.conversation_summary_enabled:
+            self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload)
 
     @utils.time_it
     def __initiate_reload_conversation(self):

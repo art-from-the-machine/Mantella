@@ -272,6 +272,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
 
             #Conversation
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
+            self.conversation_summary_enabled = self.__definitions.get_bool_value("conversation_summary_enabled")
             self.max_count_events = self.__definitions.get_int_value("max_count_events")
             self.events_refresh_time = self.__definitions.get_int_value("events_refresh_time")
             self.hourly_time = self.__definitions.get_bool_value("hourly_time")

@@ -55,6 +55,7 @@ class MantellaConfigValueDefinitionsClassic:
         
         conversation_category = ConfigValueGroup("Conversation", "Conversation", "Settings about the flow of a conversation", on_value_change_callback)
         conversation_category.add_config_value(OtherDefinitions.get_automatic_greeting_folder_config_value())
+        conversation_category.add_config_value(OtherDefinitions.get_conversation_summary_enabled_config_value())
         result.append(conversation_category)
         
         cleanup_category = ConfigValueGroup("Cleanup", "Cleanup", "", on_value_change_callback)
