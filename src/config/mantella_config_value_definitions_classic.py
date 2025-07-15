@@ -103,6 +103,13 @@ class MantellaConfigValueDefinitionsClassic:
         llm_advanced_category.add_config_value(LLMDefinitions.get_stop_config_value())
         llm_advanced_category.add_config_value(LLMDefinitions.get_frequency_penalty_config_value())
         llm_advanced_category.add_config_value(LLMDefinitions.get_max_tokens_config_value())
+        
+        # Summary LLM Configuration
+        llm_advanced_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
+        llm_advanced_category.add_config_value(LLMDefinitions.get_summary_model_config_value())
+        llm_advanced_category.add_config_value(LLMDefinitions.get_summary_custom_token_count_config_value())
+        llm_advanced_category.add_config_value(LLMDefinitions.get_summary_llm_params_config_value())
+        
         result.append(llm_advanced_category)
         
         speech_advanced_category = ConfigValueGroup("Speech.Advanced", "Speech Advanced", "More advanced settings concerning the voice generation", on_value_change_callback)

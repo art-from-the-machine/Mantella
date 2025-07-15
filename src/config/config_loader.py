@@ -253,6 +253,18 @@ class ConfigLoader:
 LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.llm_params = None
 
+            # Summary LLM Configuration
+            self.summary_llm_api = self.__definitions.get_string_value("summary_llm_api")
+            self.summary_llm = self.__definitions.get_string_value("summary_model")
+            self.summary_llm = self.summary_llm.split(' |')[0] if ' |' in self.summary_llm else self.summary_llm
+            self.summary_custom_token_count = self.__definitions.get_int_value("summary_custom_token_count")
+            try:
+                self.summary_llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("summary_llm_params").replace('\n', ''))
+            except Exception as e:
+                logging.error(f"""Error in parsing Summary LLM parameter list: {e}
+Summary LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+                self.summary_llm_params = None
+
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
 
             self.narration_handling: NarrationHandlingEnum = self.__definitions.get_enum_value("narration_handling", NarrationHandlingEnum)

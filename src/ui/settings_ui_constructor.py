@@ -30,7 +30,7 @@ class SettingConfig(NamedTuple):
 
 class ModelConfig(TypedDict):
     dependent_config: str  # The config value this model depends on (e.g., "llm_api")
-    model_list_getter: Callable[[str], Any]  # Function to get model list based on service
+    model_list_getter: Callable[[str, str, str, bool], Any]  # Function to get model list based on service, secret_key_file, default_model, is_vision
 
 class SettingsUIConstructor(ConfigValueVisitor):
     def __init__(self) -> None:
@@ -295,6 +295,10 @@ class SettingsUIConstructor(ConfigValueVisitor):
             },
             "vision_model": {
                 "dependent_config": "vision_llm_api",
+                "model_list_getter": ClientBase.get_model_list,
+            },
+            "summary_model": {
+                "dependent_config": "summary_llm_api",
                 "model_list_getter": ClientBase.get_model_list,
             }
         }

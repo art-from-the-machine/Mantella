@@ -34,7 +34,26 @@ class GameStateManager:
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
-        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'])
+        
+        # Create separate LLM client for summaries if different settings are configured
+        from src.llm.client_base import ClientBase
+        if (config.summary_llm_api != config.llm_api or 
+            config.summary_llm != config.llm or 
+            config.summary_llm_params != config.llm_params or 
+            config.summary_custom_token_count != config.custom_token_count):
+            # Create separate client for summaries with different settings
+            summary_client = ClientBase(
+                config.summary_llm_api,
+                config.summary_llm,
+                config.summary_llm_params,
+                config.summary_custom_token_count,
+                [api_file]
+            )
+        else:
+            # Use the same client for summaries
+            summary_client = None
+            
+        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'], summary_client)
         self.__talk: Conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk
@@ -77,8 +96,26 @@ class GameStateManager:
             self.__automatic_greeting = config.automatic_greeting
             self.__conv_has_narrator = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
             
-            # Update rememberer with new config
-            self.__rememberer = Summaries(game, config, self.__client, self.__language_info['language'])
+            # Create separate LLM client for summaries if different settings are configured
+            from src.llm.client_base import ClientBase
+            if (config.summary_llm_api != config.llm_api or 
+                config.summary_llm != config.llm or 
+                config.summary_llm_params != config.llm_params or 
+                config.summary_custom_token_count != config.custom_token_count):
+                # Create separate client for summaries with different settings
+                summary_client = ClientBase(
+                    config.summary_llm_api,
+                    config.summary_llm,
+                    config.summary_llm_params,
+                    config.summary_custom_token_count,
+                    [secret_key_file]
+                )
+            else:
+                # Use the same client for summaries
+                summary_client = None
+            
+            # Update rememberer with new config and summary client
+            self.__rememberer = Summaries(game, config, self.__client, self.__language_info['language'], summary_client)
             
             # If there's an active conversation, update it with new settings
             if self.__talk:
