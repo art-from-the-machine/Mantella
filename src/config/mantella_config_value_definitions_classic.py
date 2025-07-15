@@ -123,6 +123,7 @@ class MantellaConfigValueDefinitionsClassic:
         http_category = ConfigValueGroup("HTTP", "HTTP", "Settings for the HTTP server MantellaSoftware provides for the games to connect to", on_value_change_callback)
         http_category.add_config_value(OtherDefinitions.get_port_config_value())
         http_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
+        http_category.add_config_value(OtherDefinitions.get_hot_swap_enabled_config_value())
         result.append(http_category)
         
         # debugging_category = ConfigValueGroup("Debugging", "Debugging", "Settings that might help debug problems with Mantella", on_value_change_callback)

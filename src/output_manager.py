@@ -44,6 +44,34 @@ class ChatManager:
         return self.__tts
     
     @utils.time_it
+    def hot_swap_settings(self, config: ConfigLoader, tts: TTSable, client: AIClient) -> bool:
+        """Attempts to hot-swap settings without ending the conversation.
+        
+        Args:
+            config: Updated config loader instance
+            tts: Updated TTS instance
+            client: Updated AI client instance
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update basic components
+            self.__config = config
+            self.__tts = tts
+            self.__client = client
+            
+            # Reset first sentence flag for new TTS instance
+            self.__is_first_sentence = False
+            
+            logging.info("ChatManager hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"ChatManager hot-swap failed: {e}")
+            return False
+    
+    @utils.time_it
     def generate_sentence(self, content: SentenceContent) -> Sentence:
         """Generates the audio for a text and returns the corresponding sentence
 

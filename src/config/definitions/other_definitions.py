@@ -116,3 +116,10 @@ class OtherDefinitions:
         description = """Whether to save audio data to an NPC's voice folder instead of MantellaVoice00.
                         Enable this value if voicelines are not being played in-game."""
         return ConfigValueBool("save_audio_data_to_character_folder", "Save Game Audio to Character Folder", description, False, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_hot_swap_enabled_config_value() -> ConfigValue:
+        description = """Whether to enable hot-swapping settings during active conversations.
+                        If enabled: Settings changes (LLM model settings, prompts) will be applied without ending conversations.
+                        If disabled: Settings changes will end the current conversation and restart (classic behavior)."""
+        return ConfigValueBool("hot_swap_enabled", "Enable Hot-Swap Settings", description, True, tags=[ConfigValueTag.advanced])

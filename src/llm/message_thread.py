@@ -4,6 +4,7 @@ from src.llm.messages import Message, SystemMessage, UserMessage, AssistantMessa
 from typing import Callable
 from openai.types.chat import ChatCompletionMessageParam
 from src import utils
+import logging
 
 class message_thread():
     """A thread of messages consisting of system-, user- and assistant-messages.
@@ -181,3 +182,29 @@ class message_thread():
             self.replace_message_type(message_instance,message_type)
         else:
             self.add_message(message_instance)
+    
+    @utils.time_it
+    def hot_swap_settings(self, config: ConfigLoader) -> bool:
+        """Attempts to hot-swap settings without ending the conversation.
+        
+        Args:
+            config: Updated config loader instance
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update config reference
+            self.__config = config
+            
+            # Update all messages with new config for narration indicators
+            for message in self.__messages:
+                if hasattr(message, 'hot_swap_settings'):
+                    message.hot_swap_settings(config)
+            
+            logging.info("message_thread hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"message_thread hot-swap failed: {e}")
+            return False

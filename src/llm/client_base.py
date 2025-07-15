@@ -223,6 +223,63 @@ class ClientBase(AIClient):
 
 
     @utils.time_it
+    def hot_swap_settings(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, secret_key_files: list[str]) -> bool:
+        """Attempts to hot-swap settings without recreating the client instance.
+        
+        Args:
+            api_url: The API endpoint URL or service name
+            llm: The name of the language model to use
+            llm_params: Additional parameters for the LLM requests
+            custom_token_count: A fallback token limit if the model's limit isn't known
+            secret_key_files: A list of filenames to search for the API key
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        with self._generation_lock:
+            try:
+                # Update model name
+                self._model_name = llm
+                
+                # Update base URL
+                self._base_url = self.__get_endpoint(api_url)
+                
+                # Update request parameters
+                self._request_params = llm_params
+                
+                # Update API key handling
+                if 'https' in self._base_url:  # Cloud LLM
+                    self._is_local = False
+                    new_api_key = ClientBase._get_api_key(secret_key_files)
+                    if new_api_key:
+                        self._api_key = new_api_key
+                    else:
+                        self._api_key = 'abc123'
+                else:  # Local LLM
+                    self._is_local = True
+                    self._api_key = 'abc123'
+                
+                # Update token limit for new model
+                self._token_limit = self.__get_token_limit(self._model_name, custom_token_count, self._is_local)
+                
+                # Update encoding for new model
+                self._encoding = self.__get_model_encoding(api_url, self._model_name)
+                
+                # Reset startup async client so it gets recreated with new settings
+                # Note: We can't properly close the existing client here since this is a sync method
+                # and AsyncOpenAI.close() is async. The client will be garbage collected.
+                # TODO: Consider making hot_swap_settings async to properly close existing clients
+                self._startup_async_client = None
+                
+                logging.info(f"ClientBase hot-swap completed successfully for model '{llm}'")
+                return True
+                
+            except Exception as e:
+                logging.error(f"ClientBase hot-swap failed: {e}")
+                return False
+
+
+    @utils.time_it
     def __get_endpoint(self, api_url_or_name: str) -> str:
         '''
         Resolves a service name (eg 'openai', 'koboldcpp') if known, or else assumes the input is a direct URL

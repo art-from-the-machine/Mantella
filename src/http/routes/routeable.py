@@ -31,9 +31,28 @@ class routeable(ABC):
         if not self._has_route_been_initialized or self._config.has_any_config_value_changed:
             self._config.update_config_loader_with_changed_config_values()
             if self._config.have_all_config_values_loaded_correctly:
-                self._setup_route()
-                self._has_route_been_initialized = True
-                return True
+                if self._has_route_been_initialized:
+                    # Route is already initialized, check if hot-swapping is enabled and supported
+                    try:
+                        hot_swap_enabled = self._config.definitions.get_bool_value("hot_swap_enabled")
+                    except:
+                        # If hot_swap_enabled setting doesn't exist, default to False (safe fallback)
+                        hot_swap_enabled = False
+                    
+                    if (hot_swap_enabled and 
+                        self._supports_hot_swap() and 
+                        self._hot_swap_settings()):
+                        return True
+                    else:
+                        # Hot-swap disabled, failed, or not supported, fall back to full reinitalization
+                        self._setup_route()
+                        self._has_route_been_initialized = True
+                        return True
+                else:
+                    # Route not initialized yet, do full setup
+                    self._setup_route()
+                    self._has_route_been_initialized = True
+                    return True
             else:
                 self._has_route_been_initialized = False
                 return False
@@ -41,7 +60,24 @@ class routeable(ABC):
     
     @abstractmethod
     def _setup_route(self):
+        """Sets up the route with current configuration values"""
         pass
+
+    def _supports_hot_swap(self) -> bool:
+        """Returns whether this route supports hot-swapping settings without full reinitialization.
+        
+        Returns:
+            bool: True if hot-swapping is supported, False otherwise
+        """
+        return False
+
+    def _hot_swap_settings(self) -> bool:
+        """Attempts to hot-swap settings without full reinitialization.
+        
+        Returns:
+            bool: True if hot-swap was successful, False if full reinitialization is needed
+        """
+        return False
 
     def error_message(self, message: str) -> dict[str, Any]:
         return {

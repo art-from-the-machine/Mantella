@@ -20,6 +20,7 @@ from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
 import src.utils as utils
+from src.config.config_loader import ConfigLoader
 
 class conversation_continue_type(Enum):
     NPC_TALK = 1
@@ -78,6 +79,60 @@ class Conversation:
     def stt(self) -> Transcriber | None:
         return self.__stt
     
+    @utils.time_it
+    def hot_swap_settings(self, config: ConfigLoader, llm_client: AIClient, chat_manager: ChatManager, rememberer: Remembering) -> bool:
+        """Attempts to hot-swap settings without ending the conversation.
+        
+        Args:
+            config: Updated config loader instance
+            llm_client: Updated LLM client instance
+            chat_manager: Updated chat manager instance
+            rememberer: Updated rememberer instance
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update basic components
+            self.__output_manager = chat_manager
+            self.__rememberer = rememberer
+            self.__llm_client = llm_client
+            
+            # Update config-derived values
+            self.__allow_interruption = config.allow_interruption
+            self.__events_refresh_time = config.events_refresh_time
+            self.__end_conversation_keywords = utils.parse_keywords(config.end_conversation_keyword)
+            
+            # Update context with new config
+            if self.__context:
+                success = self.__context.hot_swap_settings(config, llm_client, rememberer)
+                if not success:
+                    return False
+            
+            # Update conversation type with new config
+            if not self.__context.npcs_in_conversation.contains_player_character():
+                self.__conversation_type = radiant(config)
+            elif self.__context.npcs_in_conversation.active_character_count() >= 3:
+                self.__conversation_type = multi_npc(config)
+            else:
+                self.__conversation_type = pc_to_npc(config)
+                
+            # Regenerate system message with new prompt from updated conversation type
+            if self.__messages and len(self.__messages) > 0:
+                new_prompt = self.__conversation_type.generate_prompt(self.__context)
+                self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
+                
+            # Update message thread with new config
+            if self.__messages:
+                self.__messages.hot_swap_settings(config)
+            
+            logging.info("Conversation hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Conversation hot-swap failed: {e}")
+            return False
+
     @utils.time_it
     def add_or_update_character(self, new_character: list[Character]):
         """Adds or updates a character in the conversation.

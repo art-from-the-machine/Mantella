@@ -38,6 +38,57 @@ class mantella_route(routeable):
         #     error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
         #     logging.error(error_message)
 
+    def _supports_hot_swap(self) -> bool:
+        """Returns True since mantella_route supports hot-swapping settings"""
+        return True
+
+    @utils.time_it
+    def _hot_swap_settings(self) -> bool:
+        """Attempts to hot-swap settings without ending active conversations"""
+        if not self.__game:
+            return False
+        
+        try:
+            # Create new components with updated config
+            game: Gameable
+            game_enum = self._config.game
+            if game_enum.base_game == GameEnum.FALLOUT4:
+                game = Fallout4(self._config)
+            else:
+                game = Skyrim(self._config)
+
+            tts: TTSable
+            if self._config.tts_service == TTSEnum.XVASYNTH:
+                tts = xVASynth(self._config)
+            elif self._config.tts_service == TTSEnum.XTTS:
+                tts = XTTS(self._config, game)
+            if self._config.tts_service == TTSEnum.PIPER:
+                tts = Piper(self._config, game)
+
+            llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
+            chat_manager = ChatManager(self._config, tts, llm_client)
+            
+            # Try to hot-swap the GameStateManager components
+            success = self.__game.hot_swap_settings(
+                game=game,
+                chat_manager=chat_manager,
+                config=self._config,
+                llm_client=llm_client,
+                secret_key_file=self.__secret_key_file,
+                image_secret_key_file=self.__image_secret_key_file
+            )
+            
+            if success:
+                logging.info("Hot-swapped settings successfully without ending conversation")
+                return True
+            else:
+                logging.warning("Hot-swap failed, falling back to full reinitialization")
+                return False
+                
+        except Exception as e:
+            logging.error(f"Error during hot-swap: {e}")
+            return False
+
     @utils.time_it
     def _setup_route(self):
         if self.__game:
