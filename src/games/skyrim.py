@@ -200,6 +200,32 @@ class Skyrim(Gameable):
         logging.log(23, f"{speaker.name} should speak")
 
     @utils.time_it
+    def hot_swap_settings(self, config: ConfigLoader) -> bool:
+        """Attempts to hot-swap settings without reloading character data.
+        
+        Args:
+            config: Updated config loader instance
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update base game settings first
+            if not super().hot_swap_settings(config):
+                return False
+            
+            # Update Skyrim specific settings
+            self.__tts_service = config.tts_service
+            # Note: __image_analysis_filepath is empty for Skyrim, no update needed
+            
+            logging.info("Skyrim hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Skyrim hot-swap failed: {e}")
+            return False
+
+    @utils.time_it
     def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:
         if ('assist' in text) and (count_sentence_in_text > 0):
             logging.log(23, f"'assist' keyword found. Ignoring sentence: {text.strip()}")

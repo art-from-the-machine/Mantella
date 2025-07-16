@@ -85,6 +85,11 @@ class GameStateManager:
         self.__conv_has_narrator: bool = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
         self.__should_reload: bool = False
 
+    @property
+    def game(self) -> Gameable:
+        """Get the current game instance"""
+        return self.__game
+
     @utils.time_it
     def hot_swap_settings(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, llm_client: LLMClient, secret_key_file: str, image_secret_key_file: str) -> bool:
         """Attempts to hot-swap settings without ending active conversations.

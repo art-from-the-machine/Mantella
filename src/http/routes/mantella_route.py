@@ -49,29 +49,28 @@ class mantella_route(routeable):
             return False
         
         try:
-            # Create new components with updated config
-            game: Gameable
-            game_enum = self._config.game
-            if game_enum.base_game == GameEnum.FALLOUT4:
-                game = Fallout4(self._config)
-            else:
-                game = Skyrim(self._config)
-
+            # Get the current game instance from GameStateManager
+            current_game = self.__game.game
+            
+            # Try to hot-swap the existing game instance first (this preserves character data)
+            game_hot_swap_success = current_game.hot_swap_settings(self._config)
+            
+            # Create new TTS and LLM client components with updated config
             tts: TTSable
             if self._config.tts_service == TTSEnum.XVASYNTH:
                 tts = xVASynth(self._config)
             elif self._config.tts_service == TTSEnum.XTTS:
-                tts = XTTS(self._config, game)
+                tts = XTTS(self._config, current_game)  # Use existing game instance
             if self._config.tts_service == TTSEnum.PIPER:
-                tts = Piper(self._config, game)
+                tts = Piper(self._config, current_game)  # Use existing game instance
 
             llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
             
             chat_manager = ChatManager(self._config, tts, llm_client)
             
-            # Try to hot-swap the GameStateManager components
+            # Try to hot-swap the GameStateManager components with the existing game instance
             success = self.__game.hot_swap_settings(
-                game=game,
+                game=current_game,  # Pass the existing game instance instead of creating new one
                 chat_manager=chat_manager,
                 config=self._config,
                 llm_client=llm_client,
@@ -79,8 +78,8 @@ class mantella_route(routeable):
                 image_secret_key_file=self.__image_secret_key_file
             )
             
-            if success:
-                logging.info("Hot-swapped settings successfully without ending conversation")
+            if success and game_hot_swap_success:
+                logging.info("Hot-swapped settings successfully without ending conversation or reloading character data")
                 return True
             else:
                 logging.warning("Hot-swap failed, falling back to full reinitialization")
