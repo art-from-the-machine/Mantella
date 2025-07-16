@@ -9,8 +9,12 @@ class sentence_accumulator:
     def __init__(self, cut_indicators: list[str]) -> None:
         self.__cut_indicators = cut_indicators
         self.__cleaned_llm_output: str = ""
-        base_regex_def = "^.*?[{sentence_end_chars}]+"
-        self.__sentence_end_reg = re.compile(base_regex_def.format(sentence_end_chars = "\\" + "\\".join(cut_indicators)))
+        # Updated regex: only match a period if it is not part of an ellipsis (three or more periods)
+        period = '\.'
+        other_chars = [c for c in cut_indicators if c != '.']
+        other_chars_escaped = ''.join([re.escape(c) for c in other_chars])
+        base_regex_def = rf"^.*?(?:(?<!\.)\.(?!\.)|[{other_chars_escaped}])+"
+        self.__sentence_end_reg = re.compile(base_regex_def)
         self.__unparseable: str = ""
         self.__prepared_match: str = ""
         self.__cleaner = clean_sentence_parser()
