@@ -39,10 +39,63 @@ class ChatManager:
         self.__is_first_sentence: bool = False
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
+        self.__per_character_clients: dict[str, AIClient] = {}  # Cache for per-character LLM clients
 
     def update_multi_npc_client(self, multi_npc_client: AIClient | None):
         """Update the multi-NPC client for hot swapping"""
         self.__multi_npc_client = multi_npc_client
+    
+    def _get_per_character_client(self, character: Character) -> AIClient:
+        """Get or create a per-character LLM client based on the character's settings.
+        
+        Args:
+            character: The character to get the client for
+            
+        Returns:
+            AIClient: The appropriate LLM client for the character
+        """
+        # Check if per-character LLM overrides are enabled
+        if not self.__config.allow_per_character_llm_overrides:
+            return self.__client
+        
+        # Use cache key based on character ref_id and LLM settings
+        cache_key = f"{character.ref_id}_{character.llm_openrouter_model}"
+        
+        # Return cached client if available
+        if cache_key in self.__per_character_clients:
+            return self.__per_character_clients[cache_key]
+        
+        # Check if character has any LLM override settings
+        if not character.llm_openrouter_model:
+            # No override, use default client
+            return self.__client
+        
+        # Create per-character client based on character's LLM settings
+        try:
+            from src.llm.client_base import ClientBase
+            
+            # Determine which LLM provider to use
+            if character.llm_openrouter_model:
+                # Use OpenRouter model
+                per_char_client = ClientBase(
+                    api_url="OpenRouter",
+                    llm=character.llm_openrouter_model,
+                    llm_params=self.__config.llm_params,
+                    custom_token_count=self.__config.custom_token_count,
+                    secret_key_files=['GPT_SECRET_KEY.txt']
+                )
+            else:
+                # No valid override, use default client
+                return self.__client
+            
+            # Cache the client
+            self.__per_character_clients[cache_key] = per_char_client
+            logging.info(f"Created per-character LLM client for {character.name} using model: {character.llm_openrouter_model}")
+            return per_char_client
+            
+        except Exception as e:
+            logging.error(f"Failed to create per-character LLM client for {character.name}: {e}. Using default client.")
+            return self.__client
     
     @property
     def tts(self) -> TTSable:
@@ -65,6 +118,9 @@ class ChatManager:
             self.__config = config
             self.__tts = tts
             self.__client = client
+            
+            # Clear per-character client cache so they get recreated with new settings
+            self.__per_character_clients.clear()
             
             # Reset first sentence flag for new TTS instance
             self.__is_first_sentence = False
@@ -179,8 +235,19 @@ class ChatManager:
             while retries < max_retries:
                 try:
                     start_time = time.time()
-                    # Use multi-NPC client if available and this is a multi-NPC conversation, otherwise use default client
-                    current_client = self.__multi_npc_client if (is_multi_npc and self.__multi_npc_client) else self.__client
+                    # Select client: multi-NPC always takes precedence in group conversations, then per-character for one-on-one
+                    if is_multi_npc and self.__multi_npc_client:
+                        # Always use multi-NPC client in multi-NPC conversations (overrides per-character settings)
+                        current_client = self.__multi_npc_client
+                    else:
+                        # For one-on-one conversations, check for per-character override, then use default
+                        per_char_client = self._get_per_character_client(active_character)
+                        if per_char_client != self.__client:
+                            # Use per-character client if character has specific LLM override
+                            current_client = per_char_client
+                        else:
+                            # Use default client
+                            current_client = self.__client
                     async for content in current_client.streaming_call(messages=messages, is_multi_npc=is_multi_npc):
                         if self.__stop_generation.is_set():
                             break

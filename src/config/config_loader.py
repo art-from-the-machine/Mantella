@@ -253,6 +253,8 @@ class ConfigLoader:
 LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.llm_params = None
 
+            self.allow_per_character_llm_overrides = self.__definitions.get_bool_value("allow_per_character_llm_overrides")
+
             # Multi-NPC LLM Configuration
             self.multi_npc_llm_api = self.__definitions.get_string_value("multi_npc_llm_api")
             self.multi_npc_llm = self.__definitions.get_string_value("multi_npc_model")

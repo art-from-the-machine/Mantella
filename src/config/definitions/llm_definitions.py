@@ -99,6 +99,13 @@ class LLMDefinitions:
                         Note that available parameters can vary per LLM provider."""
         return ConfigValueString("llm_params", "Parameters", description, value, tags=[ConfigValueTag.advanced])
 
+    @staticmethod
+    def get_allow_per_character_llm_overrides_config_value() -> ConfigValue:
+        description = """Allow per-character LLM model overrides for one-on-one conversations.
+                        When enabled, individual characters can use different LLM models specified in the character CSV files (LLM-OR column for OpenRouter models).
+                        The global LLM settings will still be used as the default for characters without specific overrides."""
+        return ConfigValueBool("allow_per_character_llm_overrides", "Allow Per-Character LLM Overrides", description, False, tags=[ConfigValueTag.advanced])
+
     #LLM output parsing options
 
     @staticmethod

@@ -47,6 +47,7 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_wait_time_buffer_config_value())
         # llm_category.add_config_value(LLMDefinitions.get_try_filter_narration())
         llm_category.add_config_value(LLMDefinitions.get_llm_params_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_allow_per_character_llm_overrides_config_value())
         # llm_category.add_config_value(LLMDefinitions.get_stop_llm_generation_on_assist_keyword())
         
         # Multi-NPC LLM Configuration
