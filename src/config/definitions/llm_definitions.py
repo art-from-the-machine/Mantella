@@ -204,23 +204,24 @@ class LLMDefinitions:
             After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
 
             If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using."""
-        return ConfigValueSelection("multi_npc_llm_api","Multi-NPC LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
+        return ConfigValueSelection("multi_npc_llm_api","Multi-NPC & Radiant LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
 
     @staticmethod
     def get_multi_npc_model_config_value() -> ConfigValue:
         model_description = """Select the model to use for multi-NPC conversations. Press the *Update* button to load a list of models available from the service selected above.
                             You can use a different model for multi-NPC conversations than for single-NPC conversations.
+                            **Note:** This setting also applies to radiant conversations.
                             The list does not provide all details about the models. For additional information please refer to the corresponding sites:
                             - OpenRouter: https://openrouter.ai/docs#models
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
-        return ConfigValueSelection("multi_npc_model","Multi-NPC Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.advanced])
+        return ConfigValueSelection("multi_npc_model","Multi-NPC & Radiant Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_multi_npc_custom_token_count_config_value() -> ConfigValue:
         description = """If the multi-NPC model chosen is not recognised by Mantella, the token count for the given model will default to this number.
                     If this is not the correct token count for your chosen model, you can change it here.
                     Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit."""
-        return ConfigValueInt("multi_npc_custom_token_count","Multi-NPC Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced])
+        return ConfigValueInt("multi_npc_custom_token_count","Multi-NPC & Radiant Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced])
 
     @staticmethod
     def get_multi_npc_llm_params_config_value() -> ConfigValue:
@@ -228,5 +229,5 @@ class LLMDefinitions:
                     Common parameters include temperature (0.0-2.0), top_p (0.0-1.0), frequency_penalty (0.0-1.0), presence_penalty (0.0-1.0).
                     Higher temperature values can help with more dynamic multi-character interactions."""
         default_params = json.dumps({"temperature": 0.8, "top_p": 0.9})
-        return ConfigValueString("multi_npc_llm_params","Multi-NPC LLM Parameters",description, default_params, tags=[ConfigValueTag.advanced])
+        return ConfigValueString("multi_npc_llm_params","Multi-NPC & Radiant LLM Parameters",description, default_params, tags=[ConfigValueTag.advanced])
 
