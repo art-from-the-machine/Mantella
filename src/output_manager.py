@@ -232,6 +232,7 @@ class ChatManager:
         try:
             current_sentence: str = ''
             settings: sentence_generation_settings = sentence_generation_settings(active_character)
+            # llm_logged = False  # Track if we've logged the LLM model for this response
             while retries < max_retries:
                 try:
                     start_time = time.time()
@@ -248,6 +249,7 @@ class ChatManager:
                         else:
                             # Use default client
                             current_client = self.__client
+                    logging.info(f"[LLM: {current_client.model_name}]")
                     async for content in current_client.streaming_call(messages=messages, is_multi_npc=is_multi_npc):
                         if self.__stop_generation.is_set():
                             break
@@ -279,6 +281,9 @@ class ChatManager:
                             if parsed_sentence:
                                 if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
                                     new_sentence = self.generate_sentence(parsed_sentence)
+                                    # if new_sentence.text.strip() and not llm_logged:
+                                    #     logging.info(f"[LLM: {current_client.model_name}]")
+                                    #     llm_logged = True
                                     blocking_queue.put(new_sentence)
                                     parsed_sentence = None
                         if settings.stop_generation:
@@ -319,11 +324,17 @@ class ChatManager:
             if parsed_sentence:
                 if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
                     new_sentence = self.generate_sentence(parsed_sentence)
+                    # if new_sentence.text.strip() and not llm_logged:
+                    #     logging.info(f"[LLM: {current_client.model_name}]")
+                    #     llm_logged = True
                     blocking_queue.put(new_sentence)
             
             if pending_sentence:
                 if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or pending_sentence.sentence_type != SentenceTypeEnum.NARRATION:
                     new_sentence = self.generate_sentence(pending_sentence)
+                    # if new_sentence.text.strip() and not llm_logged:
+                    #     logging.info(f"[LLM: {current_client.model_name}]")
+                    #     llm_logged = True
                     blocking_queue.put(new_sentence)
             logging.log(23, f"Full raw response ({self.__client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")
             blocking_queue.is_more_to_come = False
