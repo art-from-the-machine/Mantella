@@ -212,7 +212,7 @@ class Context:
                 self.__prev_location = self.__location
                 self.__ingame_events.append(f"The location is now {location}.")
         
-        if in_game_time:
+        if in_game_time is not None:
             self.__ingame_time = in_game_time
             in_game_time_twelve_hour = in_game_time - 12 if in_game_time > 12 else in_game_time
             if self.__hourly_time:
