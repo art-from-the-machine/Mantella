@@ -130,3 +130,10 @@ class OtherDefinitions:
                         If enabled: Summaries will be generated and saved to help NPCs remember past conversations.
                         If disabled: No summaries will be generated, conversations will end without sending summary requests to the LLM."""
         return ConfigValueBool("conversation_summary_enabled", "Enable Conversation Summaries", description, True)
+
+    @staticmethod
+    def get_reload_character_data_config_value() -> ConfigValue:
+        description = """Reload character CSV files and overrides from disk to pick up any changes.
+                        This refreshes character data that is cached in memory.
+                        Note: If there is an active conversation, it will be ended before reloading."""
+        return ConfigValueString("reload_character_data", "Reload Character Data", description, "")

@@ -163,6 +163,7 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
         other_category.add_config_value(OtherDefinitions.get_conversation_summary_enabled_config_value())
         other_category.add_config_value(OtherDefinitions.get_active_actions(actions))
+        other_category.add_config_value(OtherDefinitions.get_reload_character_data_config_value())
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
         other_category.add_config_value(OtherDefinitions.get_events_refresh_time_config_value())
         other_category.add_config_value(OtherDefinitions.get_hourly_time_config_value())

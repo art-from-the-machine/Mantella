@@ -16,6 +16,14 @@ from src.config.types.config_value_group import ConfigValueGroup
 from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_visitor import ConfigValueVisitor
 
+# Global reference to the game manager for character data reload functionality
+_game_manager_ref = None
+
+def set_game_manager_reference(game_manager):
+    """Set the global game manager reference for UI access"""
+    global _game_manager_ref
+    _game_manager_ref = game_manager
+
 class SettingUIComponents(NamedTuple):
     input_ui: Any
     error_message: gr.Markdown
@@ -279,7 +287,37 @@ class SettingsUIConstructor(ConfigValueVisitor):
                         lines= count_rows,
                         elem_classes="multiline-textbox")
         
-        self.__create_config_value_ui_element(config_value, create_input_component, False, True, True)
+        # Add reload button for character data reload functionality
+        additional_buttons = []
+        if config_value.identifier == "reload_character_data":
+            def on_reload_click() -> str:
+                """Handle the reload character data button click"""
+                global _game_manager_ref
+                try:
+                    # Log that the button was clicked
+                    logging.info("Attempting character data reload via UI button...")
+                    
+                    # Use the global game manager reference
+                    if _game_manager_ref:
+                        logging.info("Game manager reference found. Calling reload_character_data()...")
+                        success = _game_manager_ref.reload_character_data()
+                        if success:
+                            logging.info("Character data reloaded successfully!")
+                            return " Character data reloaded successfully!"
+                        else:
+                            logging.error("reload_character_data() returned False.")
+                            return " Reload failed. Check logs for details."
+                    else:
+                        logging.warning("Button clicked, but game manager reference is not set. The game might not have been started.")
+                        return " Game not started. Please start the game first."
+                        
+                except Exception as e:
+                    logging.error(f"Error during character data reload: {e}", exc_info=True)
+                    return f" An error occurred: {str(e)}"
+            
+            additional_buttons.append(("Reload", on_reload_click))
+        
+        self.__create_config_value_ui_element(config_value, create_input_component, False, True, True, additional_buttons)
     
     def __count_rows_in_text(self, text: str) -> int:
         count_CRLF = text.count("\r\n")

@@ -17,6 +17,9 @@ from src.character_manager import Character
 import src.utils as utils
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
+from src.config.definitions.game_definitions import GameEnum
+from src.games.fallout4 import Fallout4
+from src.games.skyrim import Skyrim
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv/fallout4_characters.csv"""
@@ -505,3 +508,40 @@ class GameStateManager:
                 )
             else:
                 return self.error_message("Could not load initial character to talk to. Please try again.")
+
+    @utils.time_it
+    def reload_character_data(self) -> bool:
+        """Reload character CSV files and overrides from disk.
+        
+        This method will:
+        1. End any active conversation
+        2. Create a new game instance to reload character data from disk
+        3. Update the rememberer with the new game instance
+        
+        Returns:
+            bool: True if reload was successful, False otherwise
+        """
+        try:
+            # End any active conversation first
+            if self.__talk:
+                logging.info("Ending active conversation for character data reload...")
+                self.__talk.end()
+                self.__talk = None
+                logging.info("Active conversation ended.")
+            
+            # Create a new game instance to reload character data
+            logging.info("Reloading character data from disk...")
+            if self.__config.game.base_game == GameEnum.FALLOUT4:
+                self.__game = Fallout4(self.__config)
+            else:
+                self.__game = Skyrim(self.__config)
+            
+            # Update the rememberer with the new game instance
+            self.__rememberer = Summaries(self.__game, self.__config, self.__client, self.__language_info['language'], None)
+            
+            logging.info("Character data reload completed successfully.")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Error during character data reload: {e}")
+            return False

@@ -114,6 +114,17 @@ class mantella_route(routeable):
         chat_manager = ChatManager(self._config, tts, llm_client)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, self.__stt_secret_key_file, self.__secret_key_file)
 
+        # Set the global reference for UI access
+        try:
+            from src.ui.settings_ui_constructor import set_game_manager_reference
+            logging.info("Setting global game manager reference for character data reload...")
+            set_game_manager_reference(self.__game)
+            logging.info("Global game manager reference has been set for character data reload.")
+        except ImportError:
+            # If the UI module is not available, just continue
+            logging.warning("Could not import set_game_manager_reference. Character data reload button in UI will not work.")
+            pass
+
     @utils.time_it
     def add_route_to_server(self, app: FastAPI):
         @app.post("/mantella")
