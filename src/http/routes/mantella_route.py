@@ -66,6 +66,7 @@ class mantella_route(routeable):
                 tts = Piper(self._config, game)
 
             llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
+            
             chat_manager = ChatManager(self._config, tts, llm_client)
             
             # Try to hot-swap the GameStateManager components

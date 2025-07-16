@@ -297,6 +297,10 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 "dependent_config": "vision_llm_api",
                 "model_list_getter": ClientBase.get_model_list,
             },
+            "multi_npc_model": {
+                "dependent_config": "multi_npc_llm_api",
+                "model_list_getter": ClientBase.get_model_list,
+            },
             "summary_model": {
                 "dependent_config": "summary_llm_api",
                 "model_list_getter": ClientBase.get_model_list,

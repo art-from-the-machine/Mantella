@@ -49,6 +49,12 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_llm_params_config_value())
         # llm_category.add_config_value(LLMDefinitions.get_stop_llm_generation_on_assist_keyword())
         
+        # Multi-NPC LLM Configuration
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_api_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_model_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_custom_token_count_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_params_config_value())
+        
         # Summary LLM Configuration
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_model_config_value())

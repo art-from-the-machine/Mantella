@@ -6,6 +6,7 @@ from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_selection import ConfigValueSelection
 from src.config.types.config_value_string import ConfigValueString
 from src.config.types.config_value_bool import ConfigValueBool
+import json
 
 class NarrationHandlingEnum(Enum):
     CUT_NARRATIONS = auto()
@@ -181,14 +182,44 @@ class LLMDefinitions:
     
     @staticmethod
     def get_summary_llm_params_config_value() -> ConfigValue:
-        value = """{
-                        "max_tokens": 250,
-                        "temperature": 0.7,
-                        "stop": ["#"]
-                    }"""
-        description = """Parameters passed as part of the request to the summary LLM.
-                        A list of the most common parameters can be found here: https://openrouter.ai/docs/parameters.
-                        Note that available parameters can vary per LLM provider.
-                        Lower temperature values are often better for summaries to ensure consistency."""
-        return ConfigValueString("summary_llm_params", "Summary Parameters", description, value, tags=[ConfigValueTag.advanced])
+        description = """Parameters for the summary LLM model. These should be in JSON format.
+                    Common parameters include temperature (0.0-2.0), top_p (0.0-1.0), frequency_penalty (0.0-1.0), presence_penalty (0.0-1.0).
+                    Lower temperature values produce more consistent outputs, while higher values increase creativity."""
+        default_params = json.dumps({"temperature": 0.1, "top_p": 0.9})
+        return ConfigValueString("summary_llm_params","Summary LLM Parameters",description, default_params, tags=[ConfigValueTag.advanced])
+
+    # Multi-NPC LLM Configuration
+    @staticmethod
+    def get_multi_npc_llm_api_config_value() -> ConfigValue:
+        description = """Selects the LLM service to connect to for multi-NPC conversations (either local or via an API).
+        
+            If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also ignore the dropdown options and instead enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
+            After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
+
+            If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using."""
+        return ConfigValueSelection("multi_npc_llm_api","Multi-NPC LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_multi_npc_model_config_value() -> ConfigValue:
+        model_description = """Select the model to use for multi-NPC conversations. Press the *Update* button to load a list of models available from the service selected above.
+                            You can use a different model for multi-NPC conversations than for single-NPC conversations.
+                            The list does not provide all details about the models. For additional information please refer to the corresponding sites:
+                            - OpenRouter: https://openrouter.ai/docs#models
+                            - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
+        return ConfigValueSelection("multi_npc_model","Multi-NPC Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_multi_npc_custom_token_count_config_value() -> ConfigValue:
+        description = """If the multi-NPC model chosen is not recognised by Mantella, the token count for the given model will default to this number.
+                    If this is not the correct token count for your chosen model, you can change it here.
+                    Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit."""
+        return ConfigValueInt("multi_npc_custom_token_count","Multi-NPC Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_multi_npc_llm_params_config_value() -> ConfigValue:
+        description = """Parameters for the multi-NPC LLM model. These should be in JSON format.
+                    Common parameters include temperature (0.0-2.0), top_p (0.0-1.0), frequency_penalty (0.0-1.0), presence_penalty (0.0-1.0).
+                    Higher temperature values can help with more dynamic multi-character interactions."""
+        default_params = json.dumps({"temperature": 0.8, "top_p": 0.9})
+        return ConfigValueString("multi_npc_llm_params","Multi-NPC LLM Parameters",description, default_params, tags=[ConfigValueTag.advanced])
 

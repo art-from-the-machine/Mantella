@@ -27,11 +27,12 @@ from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ChatManager:
-    def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient):
+    def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient, multi_npc_client: AIClient | None = None):
         self.loglevel = 28
         self.__config: ConfigLoader = config
         self.__tts: TTSable = tts
         self.__client: AIClient = client
+        self.__multi_npc_client: AIClient | None = multi_npc_client
         self.__is_generating: bool = False
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
@@ -39,6 +40,10 @@ class ChatManager:
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
+    def update_multi_npc_client(self, multi_npc_client: AIClient | None):
+        """Update the multi-NPC client for hot swapping"""
+        self.__multi_npc_client = multi_npc_client
+    
     @property
     def tts(self) -> TTSable:
         return self.__tts
@@ -174,7 +179,9 @@ class ChatManager:
             while retries < max_retries:
                 try:
                     start_time = time.time()
-                    async for content in self.__client.streaming_call(messages=messages, is_multi_npc=is_multi_npc):
+                    # Use multi-NPC client if available and this is a multi-NPC conversation, otherwise use default client
+                    current_client = self.__multi_npc_client if (is_multi_npc and self.__multi_npc_client) else self.__client
+                    async for content in current_client.streaming_call(messages=messages, is_multi_npc=is_multi_npc):
                         if self.__stop_generation.is_set():
                             break
                         if not content:

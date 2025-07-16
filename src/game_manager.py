@@ -53,6 +53,26 @@ class GameStateManager:
             # Use the same client for summaries
             summary_client = None
             
+        # Create separate LLM client for multi-NPC conversations if different settings are configured
+        if (config.multi_npc_llm_api != config.llm_api or 
+            config.multi_npc_llm != config.llm or 
+            config.multi_npc_llm_params != config.llm_params or 
+            config.multi_npc_custom_token_count != config.custom_token_count):
+            # Create separate client for multi-NPC conversations with different settings
+            multi_npc_client = ClientBase(
+                config.multi_npc_llm_api,
+                config.multi_npc_llm,
+                config.multi_npc_llm_params,
+                config.multi_npc_custom_token_count,
+                [api_file]
+            )
+        else:
+            # Use the same client for multi-NPC conversations
+            multi_npc_client = None
+        
+        # Update chat manager with multi-NPC client
+        chat_manager.update_multi_npc_client(multi_npc_client)
+            
         self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'], summary_client)
         self.__talk: Conversation | None = None
         self.__mic_input: bool = False
@@ -114,8 +134,28 @@ class GameStateManager:
                 # Use the same client for summaries
                 summary_client = None
             
+            # Create separate LLM client for multi-NPC conversations if different settings are configured
+            if (config.multi_npc_llm_api != config.llm_api or 
+                config.multi_npc_llm != config.llm or 
+                config.multi_npc_llm_params != config.llm_params or 
+                config.multi_npc_custom_token_count != config.custom_token_count):
+                # Create separate client for multi-NPC conversations with different settings
+                multi_npc_client = ClientBase(
+                    config.multi_npc_llm_api,
+                    config.multi_npc_llm,
+                    config.multi_npc_llm_params,
+                    config.multi_npc_custom_token_count,
+                    [secret_key_file]
+                )
+            else:
+                # Use the same client for multi-NPC conversations
+                multi_npc_client = None
+            
             # Update rememberer with new config and summary client
             self.__rememberer = Summaries(game, config, self.__client, self.__language_info['language'], summary_client)
+            
+            # Update chat manager with multi-NPC client
+            chat_manager.update_multi_npc_client(multi_npc_client)
             
             # If there's an active conversation, update it with new settings
             if self.__talk:

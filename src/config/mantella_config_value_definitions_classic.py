@@ -104,6 +104,12 @@ class MantellaConfigValueDefinitionsClassic:
         llm_advanced_category.add_config_value(LLMDefinitions.get_frequency_penalty_config_value())
         llm_advanced_category.add_config_value(LLMDefinitions.get_max_tokens_config_value())
         
+        # Multi-NPC LLM Configuration
+        llm_advanced_category.add_config_value(LLMDefinitions.get_multi_npc_llm_api_config_value())
+        llm_advanced_category.add_config_value(LLMDefinitions.get_multi_npc_model_config_value())
+        llm_advanced_category.add_config_value(LLMDefinitions.get_multi_npc_custom_token_count_config_value())
+        llm_advanced_category.add_config_value(LLMDefinitions.get_multi_npc_llm_params_config_value())
+        
         # Summary LLM Configuration
         llm_advanced_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
         llm_advanced_category.add_config_value(LLMDefinitions.get_summary_model_config_value())
