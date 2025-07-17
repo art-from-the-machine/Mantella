@@ -35,6 +35,11 @@ def test_apis_load_correctly(default_config: ConfigLoader):
     assert llm_client._base_url == 'https://api.openai.com/v1'
     assert llm_client.is_local is False
 
+    default_config.llm_api = 'NanoGPT'
+    llm_client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    assert llm_client._base_url == 'https://nano-gpt.com/api/v1'
+    assert llm_client.is_local is False
+
     default_config.llm_api = 'KoboldCpp'
     llm_client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
     assert llm_client._base_url == 'http://127.0.0.1:5001/v1'

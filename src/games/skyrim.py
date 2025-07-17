@@ -64,7 +64,7 @@ class Skyrim(Gameable):
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
         actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
-        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None))
+        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None), character_info.get('llm_service', ''), character_info.get('model', ''))
     
     @utils.time_it
     def find_best_voice_model(self, actor_race: str | None, actor_sex: int | None, ingame_voice_model: str, library_search:bool = True) -> str:
@@ -198,6 +198,32 @@ class Skyrim(Gameable):
             pass
 
         logging.log(23, f"{speaker.name} should speak")
+
+    @utils.time_it
+    def hot_swap_settings(self, config: ConfigLoader) -> bool:
+        """Attempts to hot-swap settings without reloading character data.
+        
+        Args:
+            config: Updated config loader instance
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update base game settings first
+            if not super().hot_swap_settings(config):
+                return False
+            
+            # Update Skyrim specific settings
+            self.__tts_service = config.tts_service
+            # Note: __image_analysis_filepath is empty for Skyrim, no update needed
+            
+            logging.info("Skyrim hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Skyrim hot-swap failed: {e}")
+            return False
 
     @utils.time_it
     def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:

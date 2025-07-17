@@ -100,3 +100,69 @@ class ImageClient(ClientBase):
                     })
 
         return openai_messages
+
+    @utils.time_it
+    def hot_swap_settings(self, config: ConfigLoader, secret_key_file: str, image_secret_key_file: str) -> bool:
+        """Attempts to hot-swap settings without recreating the client instance.
+        
+        Args:
+            config: Updated config loader instance
+            secret_key_file: Updated secret key file
+            image_secret_key_file: Updated image secret key file
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update config reference
+            self.__config = config
+            
+            # Update custom vision model flag
+            self.__custom_vision_model = config.custom_vision_model
+            
+            # Determine which config values to use based on custom vision model setting
+            if self.__custom_vision_model:
+                # Use custom vision model settings
+                base_success = super().hot_swap_settings(
+                    config.vision_llm_api,
+                    config.vision_llm,
+                    config.vision_llm_params,
+                    config.vision_custom_token_count,
+                    [image_secret_key_file, secret_key_file]
+                )
+            else:
+                # Use main LLM settings
+                base_success = super().hot_swap_settings(
+                    config.llm_api,
+                    config.llm,
+                    config.llm_params,
+                    config.custom_token_count,
+                    [image_secret_key_file, secret_key_file]
+                )
+            
+            if not base_success:
+                return False
+            
+            # Update vision-specific settings
+            self.__vision_prompt = config.vision_prompt.format(game=config.game.display_name)
+            self.__detail = "low" if config.low_resolution_mode else "high"
+            
+            # Update image manager with new settings
+            self.__image_manager = ImageManager(
+                config.game,
+                config.save_folder,
+                config.save_screenshot,
+                config.image_quality,
+                config.low_resolution_mode,
+                config.resize_method,
+                config.capture_offset,
+                config.use_game_screenshots,
+                config.game_path
+            )
+            
+            logging.info("ImageClient hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"ImageClient hot-swap failed: {e}")
+            return False
