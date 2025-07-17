@@ -64,7 +64,7 @@ class Skyrim(Gameable):
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
         actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
-        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None), character_info.get('LLM-OR', ''))
+        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None), character_info.get('llm_service', ''), character_info.get('model', ''))
     
     @utils.time_it
     def find_best_voice_model(self, actor_race: str | None, actor_sex: int | None, ingame_voice_model: str, library_search:bool = True) -> str:

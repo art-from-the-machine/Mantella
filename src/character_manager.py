@@ -4,7 +4,7 @@ from src.games.equipment import Equipment
 class Character:
     """Representation of a character in the game
     """
-    def __init__(self, base_id: str, ref_id: str,  name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, equipment:Equipment, custom_character_values: dict[str, Any], llm_openrouter_model: str = ""):
+    def __init__(self, base_id: str, ref_id: str,  name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, equipment:Equipment, custom_character_values: dict[str, Any], llm_service: str = "", llm_model: str = ""):
         self.__base_id: str = base_id
         self.__ref_id: str = ref_id
         self.__name: str = name
@@ -23,7 +23,8 @@ class Character:
         self.__voice_accent = voice_accent #info.get('voice_accent', None)
         self.__equipment = equipment
         self.__custom_character_values: dict[str, Any] = custom_character_values
-        self.__llm_openrouter_model: str = llm_openrouter_model
+        self.__llm_service: str = llm_service
+        self.__llm_model: str = llm_model
 
     @property
     def base_id(self) -> str:
@@ -178,12 +179,20 @@ class Character:
         return self.__equipment
 
     @property
-    def llm_openrouter_model(self) -> str:
-        return self.__llm_openrouter_model
+    def llm_service(self) -> str:
+        return self.__llm_service
     
-    @llm_openrouter_model.setter
-    def llm_openrouter_model(self, value: str):
-        self.__llm_openrouter_model = value
+    @llm_service.setter
+    def llm_service(self, value: str):
+        self.__llm_service = value
+    
+    @property
+    def llm_model(self) -> str:
+        return self.__llm_model
+    
+    @llm_model.setter
+    def llm_model(self, value: str):
+        self.__llm_model = value
 
     def get_custom_character_value(self, key: str) -> Any:
         if self.__custom_character_values.__contains__(key):

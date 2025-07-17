@@ -45,6 +45,11 @@ class ChatManager:
         """Update the multi-NPC client for hot swapping"""
         self.__multi_npc_client = multi_npc_client
     
+    def clear_per_character_client_cache(self):
+        """Clear the per-character client cache to force recreation with new settings"""
+        self.__per_character_clients.clear()
+        logging.info("Cleared per-character LLM client cache")
+    
     def _get_per_character_client(self, character: Character) -> AIClient:
         """Get or create a per-character LLM client based on the character's settings.
         
@@ -59,38 +64,33 @@ class ChatManager:
             return self.__client
         
         # Use cache key based on character ref_id and LLM settings
-        cache_key = f"{character.ref_id}_{character.llm_openrouter_model}"
+        cache_key = f"{character.ref_id}_{character.llm_service}_{character.llm_model}"
         
         # Return cached client if available
         if cache_key in self.__per_character_clients:
             return self.__per_character_clients[cache_key]
         
         # Check if character has any LLM override settings
-        if not character.llm_openrouter_model:
+        if not character.llm_service or not character.llm_model:
             # No override, use default client
             return self.__client
         
         # Create per-character client based on character's LLM settings
         try:
-            from src.llm.client_base import ClientBase
+            from src.llm.service_provider import llm_service_factory
             
-            # Determine which LLM provider to use
-            if character.llm_openrouter_model:
-                # Use OpenRouter model
-                per_char_client = ClientBase(
-                    api_url="OpenRouter",
-                    llm=character.llm_openrouter_model,
-                    llm_params=self.__config.llm_params,
-                    custom_token_count=self.__config.custom_token_count,
-                    secret_key_files=['GPT_SECRET_KEY.txt']
-                )
-            else:
-                # No valid override, use default client
+            # Get the appropriate service provider
+            service_provider = llm_service_factory.get_provider(character.llm_service)
+            if not service_provider:
+                logging.warning(f"Unknown LLM service '{character.llm_service}' for character {character.name}. Using default client.")
                 return self.__client
+            
+            # Create client using the service provider
+            per_char_client = service_provider.create_client(character.llm_model, self.__config)
             
             # Cache the client
             self.__per_character_clients[cache_key] = per_char_client
-            logging.info(f"Created per-character LLM client for {character.name} using model: {character.llm_openrouter_model}")
+            logging.info(f"Created per-character LLM client for {character.name} using {service_provider.get_display_name()} with model: {character.llm_model}")
             return per_char_client
             
         except Exception as e:
@@ -249,7 +249,11 @@ class ChatManager:
                         else:
                             # Use default client
                             current_client = self.__client
-                    logging.info(f"[LLM: {current_client.model_name}]")
+                    # Log which LLM model is being used
+                    if hasattr(current_client, 'model_name'):
+                        logging.info(f"[LLM: {current_client.model_name}]")
+                    else:
+                        logging.info(f"[LLM: {type(current_client).__name__}]")
                     async for content in current_client.streaming_call(messages=messages, is_multi_npc=is_multi_npc):
                         if self.__stop_generation.is_set():
                             break
