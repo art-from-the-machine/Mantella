@@ -44,8 +44,10 @@ class LLMDefinitions:
             If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also ignore the dropdown options and instead enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
             After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
 
-            If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using."""
-        return ConfigValueSelection("llm_api","LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"], allows_free_edit=True)
+            If you are using an API (OpenAI, OpenRouter, NanoGPT, etc) ensure you have the correct secret key set in the appropriate file for the respective service you are using:
+            - OpenAI/OpenRouter: `GPT_SECRET_KEY.txt`
+            - NanoGPT: `NANOGPT_SECRET_KEY.txt` (or `GPT_SECRET_KEY.txt` as fallback)"""
+        return ConfigValueSelection("llm_api","LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True)
 
     @staticmethod
     def get_model_config_value() -> ConfigValue:
@@ -169,7 +171,7 @@ class LLMDefinitions:
             If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.
             
             By default, summaries use the same LLM as conversations. Configure this to use a different (potentially cheaper) model for summaries."""
-        return ConfigValueSelection("summary_llm_api","Summary LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
+        return ConfigValueSelection("summary_llm_api","Summary LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
 
     @staticmethod
     def get_summary_model_config_value() -> ConfigValue:
@@ -203,8 +205,10 @@ class LLMDefinitions:
             If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also ignore the dropdown options and instead enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
             After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
 
-            If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using."""
-        return ConfigValueSelection("multi_npc_llm_api","Multi-NPC & Radiant LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
+            If you are using an API (OpenAI, OpenRouter, NanoGPT, etc) ensure you have the correct secret key set in the appropriate file for the respective service you are using:
+            - OpenAI/OpenRouter: `GPT_SECRET_KEY.txt`
+            - NanoGPT: `NANOGPT_SECRET_KEY.txt` (or `GPT_SECRET_KEY.txt` as fallback)"""
+        return ConfigValueSelection("multi_npc_llm_api","Multi-NPC & Radiant LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
 
     @staticmethod
     def get_multi_npc_model_config_value() -> ConfigValue:

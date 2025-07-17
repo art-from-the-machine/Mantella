@@ -10,7 +10,12 @@ class LLMClient(ClientBase):
     '''
     @utils.time_it
     def __init__(self, config: ConfigLoader, secret_key_file: str, image_secret_key_file: str) -> None:
-        super().__init__(config.llm_api, config.llm, config.llm_params, config.custom_token_count, [secret_key_file])
+        from src.llm.key_file_resolver import key_file_resolver
+        
+        # Get appropriate secret key files for the LLM service
+        secret_key_files = key_file_resolver.get_key_files_for_service(config.llm_api, secret_key_file)
+        
+        super().__init__(config.llm_api, config.llm, config.llm_params, config.custom_token_count, secret_key_files)
 
         if self._is_local:
             logging.info(f"Running Mantella with local language model")
@@ -36,13 +41,19 @@ class LLMClient(ClientBase):
             bool: True if hot-swap was successful, False otherwise
         """
         try:
+            # Choose appropriate secret key files based on the LLM service
+            if config.llm_api.lower().strip() == 'nanogpt':
+                secret_key_files = ['NANOGPT_SECRET_KEY.txt', secret_key_file]
+            else:
+                secret_key_files = [secret_key_file]
+            
             # Update base client settings
             success = super().hot_swap_settings(
                 config.llm_api, 
                 config.llm, 
                 config.llm_params, 
                 config.custom_token_count, 
-                [secret_key_file]
+                secret_key_files
             )
             
             if not success:

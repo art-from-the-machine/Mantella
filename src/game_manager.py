@@ -40,17 +40,20 @@ class GameStateManager:
         
         # Create separate LLM client for summaries if different settings are configured
         from src.llm.client_base import ClientBase
+        from src.llm.key_file_resolver import key_file_resolver
         if (config.summary_llm_api != config.llm_api or 
             config.summary_llm != config.llm or 
             config.summary_llm_params != config.llm_params or 
             config.summary_custom_token_count != config.custom_token_count):
             # Create separate client for summaries with different settings
+            summary_secret_key_files = key_file_resolver.get_key_files_for_service(config.summary_llm_api, api_file)
+            
             summary_client = ClientBase(
                 config.summary_llm_api,
                 config.summary_llm,
                 config.summary_llm_params,
                 config.summary_custom_token_count,
-                [api_file]
+                summary_secret_key_files
             )
         else:
             # Use the same client for summaries
@@ -62,12 +65,14 @@ class GameStateManager:
             config.multi_npc_llm_params != config.llm_params or 
             config.multi_npc_custom_token_count != config.custom_token_count):
             # Create separate client for multi-NPC conversations with different settings
+            multi_npc_secret_key_files = key_file_resolver.get_key_files_for_service(config.multi_npc_llm_api, api_file)
+            
             multi_npc_client = ClientBase(
                 config.multi_npc_llm_api,
                 config.multi_npc_llm,
                 config.multi_npc_llm_params,
                 config.multi_npc_custom_token_count,
-                [api_file]
+                multi_npc_secret_key_files
             )
         else:
             # Use the same client for multi-NPC conversations
@@ -126,17 +131,20 @@ class GameStateManager:
             
             # Create separate LLM client for summaries if different settings are configured
             from src.llm.client_base import ClientBase
+            from src.llm.key_file_resolver import key_file_resolver
             if (config.summary_llm_api != config.llm_api or 
                 config.summary_llm != config.llm or 
                 config.summary_llm_params != config.llm_params or 
                 config.summary_custom_token_count != config.custom_token_count):
                 # Create separate client for summaries with different settings
+                summary_secret_key_files = key_file_resolver.get_key_files_for_service(config.summary_llm_api, secret_key_file)
+                
                 summary_client = ClientBase(
                     config.summary_llm_api,
                     config.summary_llm,
                     config.summary_llm_params,
                     config.summary_custom_token_count,
-                    [secret_key_file]
+                    summary_secret_key_files
                 )
             else:
                 # Use the same client for summaries
@@ -148,12 +156,14 @@ class GameStateManager:
                 config.multi_npc_llm_params != config.llm_params or 
                 config.multi_npc_custom_token_count != config.custom_token_count):
                 # Create separate client for multi-NPC conversations with different settings
+                multi_npc_secret_key_files = key_file_resolver.get_key_files_for_service(config.multi_npc_llm_api, secret_key_file)
+                
                 multi_npc_client = ClientBase(
                     config.multi_npc_llm_api,
                     config.multi_npc_llm,
                     config.multi_npc_llm_params,
                     config.multi_npc_custom_token_count,
-                    [secret_key_file]
+                    multi_npc_secret_key_files
                 )
             else:
                 # Use the same client for multi-NPC conversations

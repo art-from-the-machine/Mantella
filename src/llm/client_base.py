@@ -5,6 +5,7 @@ import logging
 import time
 import tiktoken
 import os
+import requests
 from pathlib import Path
 from src.llm.ai_client import AIClient
 from src.llm.message_thread import message_thread
@@ -293,6 +294,7 @@ class ClientBase(AIClient):
         endpoints = {
             'openai': 'https://api.openai.com/v1', # don't set an endpoint, just use the OpenAI default
             'openrouter': 'https://openrouter.ai/api/v1',
+            'nanogpt': 'https://nano-gpt.com/api/v1',
             'kobold': 'http://127.0.0.1:5001/v1',
             'textgenwebui': 'http://127.0.0.1:5000/v1',
         }
@@ -302,6 +304,8 @@ class ClientBase(AIClient):
             endpoint = endpoints['openai']
         elif cleaned_api_url_or_name == 'openrouter':
             endpoint = endpoints['openrouter']
+        elif cleaned_api_url_or_name == 'nanogpt':
+            endpoint = endpoints['nanogpt']
         elif cleaned_api_url_or_name in ['kobold','koboldcpp']:
             endpoint = endpoints['kobold']
         elif cleaned_api_url_or_name in ['textgenwebui','text-gen-web-ui','textgenerationwebui','text-generation-web-ui']:
@@ -511,7 +515,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
     
     @staticmethod
     def get_model_list(service: str, secret_key_file: str, default_model: str = "google/gemma-2-9b-it:free", is_vision: bool = False) -> LLMModelList:
-        if service not in ['OpenAI', 'OpenRouter']:
+        if service not in ['OpenAI', 'OpenRouter', 'NanoGPT']:
             return LLMModelList([("Custom model","Custom model")], "Custom model", allows_manual_model_input=True)
         try:
             if service == "OpenAI":
@@ -535,30 +539,101 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                 logging.getLogger("httpx").setLevel(logging.INFO)
                 client.close()
                 allow_manual_model_input = False
+            elif service == "NanoGPT":
+                default_model = "gpt-4o-mini"  # Use a common default that's likely to be available
+                # Use key file resolver to get appropriate key files
+                from src.llm.key_file_resolver import key_file_resolver
+                secret_key_files = key_file_resolver.get_key_files_for_service("NanoGPT", secret_key_file)
+                secret_key = ClientBase._get_api_key(secret_key_files, not is_vision)
+                if not secret_key:
+                    return LLMModelList([(f"No secret key found in NANOGPT_SECRET_KEY.txt or {secret_key_file}", "Custom model")], "Custom model", allows_manual_model_input=True)
+                
+                # Use requests to call NanoGPT with detailed=true parameter
+                headers = {"Authorization": f"Bearer {secret_key}"}
+                url = "https://nano-gpt.com/api/v1/models?detailed=true"
+                
+                # don't log HTTP requests during model fetching
+                logging.getLogger('openai').setLevel(logging.ERROR)
+                logging.getLogger("httpx").setLevel(logging.ERROR)
+                logging.getLogger('urllib3').setLevel(logging.ERROR)
+                
+                response = requests.get(url, headers=headers)
+                
+                logging.getLogger('openai').setLevel(logging.INFO)
+                logging.getLogger("httpx").setLevel(logging.INFO)
+                logging.getLogger('urllib3').setLevel(logging.INFO)
+                
+                if response.status_code != 200:
+                    raise Exception(f"NanoGPT API returned status {response.status_code}: {response.text}")
+                
+                models_data = response.json()
+                allow_manual_model_input = True  # Allow manual input for NanoGPT in case new models are added
 
             options = []
             multiplier = 1_000_000
-            for model in models.data:
-                try:
-                    if model.model_extra:
-                        context_size: int = model.model_extra["context_length"]
-                        prompt_cost: float = float(model.model_extra["pricing"]["prompt"]) * multiplier
-                        completion_cost: float = float(model.model_extra["pricing"]["completion"]) * multiplier
-                        vision_available: str = ' | Vision Available' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
-                        model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}"
+            
+            # Handle different response formats based on service
+            if service == "NanoGPT":
+                # NanoGPT returns detailed JSON response directly
+                models_list = models_data.get("data", [])
+                for model in models_list:
+                    try:
+                        model_id = model.get("id", "unknown")
+                        model_name = model.get("name", model_id)
+                        context_size = model.get("context_length", 0)
+                        pricing = model.get("pricing", {})
                         
-                        ClientBase.api_token_limits[model.id.split('/')[-1]] = context_size
-                    else:
+                        if pricing and context_size:
+                            prompt_cost = float(pricing.get("prompt", 0)) 
+                            completion_cost = float(pricing.get("completion", 0)) 
+                            currency = pricing.get("currency", "USD")
+                            unit = pricing.get("unit", "per_million_tokens")
+                            
+                            # Create display name with detailed info
+                            model_display_name = f"{model_name} ({model_id}) | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}"
+                         
+                            
+                            ClientBase.api_token_limits[model_id.split('/')[-1]] = context_size
+                        else:
+                            # Fallback to simple display if detailed info not available
+                            model_display_name = f"{model_name} ({model_id})"
+         
+                    except Exception as e:
+                        # Fallback to model ID if parsing fails
+                        model_display_name = model.get("id", "unknown")
+                    
+                    options.append((model_display_name, model.get("id", "unknown")))
+            else:
+                # OpenRouter and OpenAI use the existing models.data format
+                for model in models.data:
+                    try:
+                        if model.model_extra:
+                            context_size: int = model.model_extra["context_length"]
+                            prompt_cost: float = float(model.model_extra["pricing"]["prompt"]) * multiplier
+                            completion_cost: float = float(model.model_extra["pricing"]["completion"]) * multiplier
+                            vision_available: str = ' | Vision Available' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
+                            model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}"
+                            
+                            ClientBase.api_token_limits[model.id.split('/')[-1]] = context_size
+                        else:
+                            model_display_name = model.id
+                    except:
                         model_display_name = model.id
-                except:
-                    model_display_name = model.id
-                options.append((model_display_name, model.id))
+                    options.append((model_display_name, model.id))
             
             # check if any models are marked as vision-capable
             has_vision_models = any(' | Vision Available' in name for name, _ in options)
             # filter model list if this is supposed to be a vision model list and there are models explicitly marked as such
             if is_vision and has_vision_models:
                 options = [(name, model_id) for name, model_id in options if ' | Vision Available' in name]
+            
+            # For NanoGPT, we could also check for vision capability in the model name or description
+            # This is a fallback in case NanoGPT doesn't use the same vision marking system
+            if service == "NanoGPT" and is_vision and not has_vision_models:
+                # Filter based on common vision model indicators in name/description
+                vision_indicators = ['vision', 'visual', 'image', 'multimodal', 'vlm']
+                options = [(name, model_id) for name, model_id in options 
+                          if any(indicator in name.lower() or indicator in model_id.lower() for indicator in vision_indicators)]
             
             return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
         except Exception as e:

@@ -36,6 +36,10 @@ class StartUI(routeable):
             if not cf.is_hidden:
                 with gr.Tab(cf.name):
                     cf.accept_visitor(self.__constructor)
+        
+        # Set up model dependencies after all UI elements are created
+        self.__constructor.setup_model_dependencies()
+        
         return None #settings
     
     def __generate_chat_page(self):
