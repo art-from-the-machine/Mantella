@@ -204,6 +204,9 @@ class Summaries(Remembering):
             summary = summary.replace('the user', 'the player')
             summary += '\n\n'
 
+            # Log which LLM is being used for the summary
+            summary_llm_info = f"local model ({self.__summary_client.model_name})" if self.__summary_client.is_local else self.__summary_client.model_name
+            logging.log(self.loglevel, f'Creating conversation summary using: {summary_llm_info}')
             logging.log(self.loglevel, f'Conversation summary: {summary.strip()}')
             logging.info(f"Conversation summary saved")
         else:
