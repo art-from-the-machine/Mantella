@@ -507,7 +507,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             text = message_to_measure
 
         num_tokens = 4 # every message follows <im_start>{role/name}\n{content}<im_end>\n
-        num_tokens += len(text)
+        num_tokens += len(self._encoding.encode(text))
         if isinstance(message_to_measure, Message) and message_to_measure.get_openai_message().__contains__("name"):# if there's a name, the role is omitted
             num_tokens += -1# role is always required and always 1 token
         
