@@ -583,21 +583,29 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                         context_size = model.get("context_length", 0)
                         pricing = model.get("pricing", {})
                         
-                        if pricing and context_size:
-                            prompt_cost = float(pricing.get("prompt", 0)) 
-                            completion_cost = float(pricing.get("completion", 0)) 
-                            currency = pricing.get("currency", "USD")
-                            unit = pricing.get("unit", "per_million_tokens")
-                            
-                            # Create display name with detailed info
-                            model_display_name = f"{model_name} ({model_id}) | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}"
-                         
-                            
+                        # Always try to show detailed information, even if some parts are missing
+                        model_display_parts = [f"{model_name} ({model_id})"]
+                        
+                        # Add context size if available
+                        if context_size and context_size > 0:
+                            model_display_parts.append(f"Context: {utils.format_context_size(context_size)}")
                             ClientBase.api_token_limits[model_id.split('/')[-1]] = context_size
-                        else:
-                            # Fallback to simple display if detailed info not available
-                            model_display_name = f"{model_name} ({model_id})"
-         
+                        
+                        # Add pricing if available
+                        if pricing:
+                            prompt_cost = float(pricing.get("prompt", 0))
+                            completion_cost = float(pricing.get("completion", 0))
+                            
+                            # Show pricing even if one cost is missing/zero
+                            if prompt_cost >= 0 or completion_cost >= 0:
+                                cost_parts = []
+                                cost_parts.append(f"Prompt: {utils.format_price(prompt_cost)}")
+                                cost_parts.append(f"Completion: {utils.format_price(completion_cost)}")
+                                model_display_parts.append(f"Cost per 1M tokens: {'. '.join(cost_parts)}")
+                        
+                        # Join all available parts with " | "
+                        model_display_name = " | ".join(model_display_parts)
+                     
                     except Exception as e:
                         # Fallback to model ID if parsing fails
                         model_display_name = model.get("id", "unknown")
