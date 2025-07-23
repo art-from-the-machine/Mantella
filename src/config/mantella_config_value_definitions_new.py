@@ -13,6 +13,7 @@ from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
 from src.config.definitions.vision_definitions import VisionDefinitions
+from src.config.definitions.model_profile_definitions import ModelProfileDefinitions
 import sys
 
 
@@ -183,5 +184,11 @@ class MantellaConfigValueDefinitionsNew:
         # other_category.add_config_value(OtherDefinitions.get_default_player_response_config_value())
         # other_category.add_config_value(OtherDefinitions.get_exit_on_first_exchange_config_value())
         result.add_base_group(other_category)
+        
+        model_profiles_category = ConfigValueGroup("Model Profiles", "Model Profiles", "Create and manage model parameter profiles for different LLM models.", on_value_change_callback)
+        model_profiles_category.add_config_value(ModelProfileDefinitions.get_selected_service_config_value())
+        model_profiles_category.add_config_value(ModelProfileDefinitions.get_selected_model_config_value())
+        model_profiles_category.add_config_value(ModelProfileDefinitions.get_profile_parameters_config_value())
+        result.add_base_group(model_profiles_category)
       
         return result
