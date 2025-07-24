@@ -152,6 +152,25 @@ class ModelProfileManager:
         except Exception as e:
             logging.error(f"Error saving model profiles: {e}")
     
+    def _get_service_short_name(self, service: str) -> str:
+        """
+        Convert service display name to short format used in profile IDs
+        
+        Args:
+            service: Service display name (e.g., 'OpenRouter', 'OpenAI')
+        
+        Returns:
+            Short service name (e.g., 'or', 'openai')
+        """
+        service_mapping = {
+            'OpenRouter': 'or',
+            'OpenAI': 'openai', 
+            'NanoGPT': 'nano',
+            'KoboldCpp': 'kobold',
+            'textgenwebui': 'textgen'
+        }
+        return service_mapping.get(service, service.lower())
+
     def create_or_update_profile(self, service: str, model: str, parameters: Dict[str, Any]) -> bool:
         """
         Create or update a model profile
@@ -246,9 +265,25 @@ class ModelProfileManager:
             logging.error(f"Error deleting model profile: {e}")
             return False
     
-    def get_profile(self, profile_id: str) -> Optional[ModelProfile]:
+    def get_profile(self, service: str, model: str) -> Optional[ModelProfile]:
         """
-        Get a specific model profile
+        Get a model profile by service and model
+        
+        Args:
+            service: LLM service (e.g., 'OpenRouter', 'OpenAI') 
+            model: Model identifier
+        
+        Returns:
+            ModelProfile if found, None otherwise
+        """
+        # Convert service to short format for profile lookup
+        service_short = self._get_service_short_name(service)
+        profile_id = f"{service_short}:{model}"
+        return self._profiles.get(profile_id)
+    
+    def get_profile_by_id(self, profile_id: str) -> Optional[ModelProfile]:
+        """
+        Get a specific model profile by ID
         
         Args:
             profile_id: ID of the profile to retrieve
@@ -258,6 +293,48 @@ class ModelProfileManager:
         """
         return self._profiles.get(profile_id)
     
+    def apply_profile_to_params(self, service: str, model: str, fallback_params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Apply profile parameters to existing LLM parameters if a profile exists
+        
+        Args:
+            service: LLM service (e.g., 'OpenRouter', 'OpenAI')
+            model: Model identifier
+            fallback_params: Default parameters to use if no profile exists
+        
+        Returns:
+            Dictionary of LLM parameters (either from profile or fallback)
+        """
+        try:
+            profile = self.get_profile(service, model)
+            if profile and profile.parameters:
+                logging.info(f"Applying profile parameters for {service}/{model}")
+                return profile.parameters.copy()
+            else:
+                logging.debug(f"No profile found for {service}/{model}, using fallback parameters")
+                return fallback_params if fallback_params else {}
+        except Exception as e:
+            logging.error(f"Error applying profile for {service}/{model}: {e}")
+            return fallback_params if fallback_params else {}
+    
+    def has_profile(self, service: str, model: str) -> bool:
+        """
+        Check if a profile exists for the given service and model
+        
+        Args:
+            service: LLM service (e.g., 'OpenRouter', 'OpenAI')
+            model: Model identifier
+        
+        Returns:
+            True if profile exists, False otherwise
+        """
+        try:
+            profile = self.get_profile(service, model) 
+            return profile is not None
+        except Exception as e:
+            logging.error(f"Error checking if profile exists for {service}/{model}: {e}")
+            return False
+
     def get_all_profiles(self) -> Dict[str, ModelProfile]:
         """
         Get all model profiles

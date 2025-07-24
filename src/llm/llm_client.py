@@ -15,7 +15,22 @@ class LLMClient(ClientBase):
         # Get appropriate secret key files for the LLM service
         secret_key_files = key_file_resolver.get_key_files_for_service(config.llm_api, secret_key_file)
         
-        super().__init__(config.llm_api, config.llm, config.llm_params, config.custom_token_count, secret_key_files)
+        # Apply profile parameters if enabled and profile exists
+        llm_params = config.llm_params
+        if config.apply_profile_one_on_one:
+            try:
+                from src.model_profile_manager import ModelProfileManager
+                profile_manager = ModelProfileManager()
+                llm_params = profile_manager.apply_profile_to_params(
+                    service=config.llm_api,
+                    model=config.llm,
+                    fallback_params=config.llm_params
+                )
+            except Exception as e:
+                logging.error(f"Error applying profile for one-on-one conversations: {e}")
+                llm_params = config.llm_params
+        
+        super().__init__(config.llm_api, config.llm, llm_params, config.custom_token_count, secret_key_files)
 
         if self._is_local:
             logging.info(f"Running Mantella with local language model")
@@ -47,11 +62,26 @@ class LLMClient(ClientBase):
             else:
                 secret_key_files = [secret_key_file]
             
+            # Apply profile parameters if enabled and profile exists
+            llm_params = config.llm_params
+            if config.apply_profile_one_on_one:
+                try:
+                    from src.model_profile_manager import ModelProfileManager
+                    profile_manager = ModelProfileManager()
+                    llm_params = profile_manager.apply_profile_to_params(
+                        service=config.llm_api,
+                        model=config.llm,
+                        fallback_params=config.llm_params
+                    )
+                except Exception as e:
+                    logging.error(f"Error applying profile for one-on-one conversations during hot-swap: {e}")
+                    llm_params = config.llm_params
+            
             # Update base client settings
             success = super().hot_swap_settings(
                 config.llm_api, 
                 config.llm, 
-                config.llm_params, 
+                llm_params, 
                 config.custom_token_count, 
                 secret_key_files
             )

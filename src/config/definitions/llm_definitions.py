@@ -108,6 +108,27 @@ class LLMDefinitions:
                         The global LLM settings will still be used as the default for characters without specific overrides."""
         return ConfigValueBool("allow_per_character_llm_overrides", "Allow Per-Character LLM Overrides", description, False, tags=[ConfigValueTag.advanced])
 
+    @staticmethod
+    def get_apply_profile_one_on_one_config_value() -> ConfigValue:
+        description = """Automatically apply saved LLM profile parameters for one-on-one conversations.
+                        When enabled, if a profile exists for the selected model, its parameters will be used instead of the manually configured parameters.
+                        When disabled, manually configured parameters will always be used."""
+        return ConfigValueBool("apply_profile_one_on_one", "Apply Profile for One-on-One Conversations", description, False, tags=[ConfigValueTag.advanced])
+
+    @staticmethod 
+    def get_apply_profile_multi_npc_config_value() -> ConfigValue:
+        description = """Automatically apply saved LLM profile parameters for multi-NPC conversations.
+                        When enabled, if a profile exists for the selected multi-NPC model, its parameters will be used instead of the manually configured parameters.
+                        When disabled, manually configured parameters will always be used."""
+        return ConfigValueBool("apply_profile_multi_npc", "Apply Profile for Multi-NPC Conversations", description, False, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_apply_profile_summaries_config_value() -> ConfigValue:
+        description = """Automatically apply saved LLM profile parameters for conversation summaries.
+                        When enabled, if a profile exists for the selected summary model, its parameters will be used instead of the manually configured parameters.
+                        When disabled, manually configured parameters will always be used."""
+        return ConfigValueBool("apply_profile_summaries", "Apply Profile for Summaries", description, False, tags=[ConfigValueTag.advanced])
+
     #LLM output parsing options
 
     @staticmethod
