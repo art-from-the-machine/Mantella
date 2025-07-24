@@ -72,7 +72,7 @@ def default_context(default_config: ConfigLoader, llm_client: LLMClient, default
 @pytest.fixture
 def default_chat_manager(default_config: ConfigLoader, piper: Piper, llm_client: LLMClient) -> ChatManager:
     """Fixture to create a ChatManager instance"""
-    return ChatManager(default_config, piper, llm_client)
+    return ChatManager(default_config, piper, llm_client, None, "secret_keys.json")
 
 @pytest.fixture
 def default_conversation(default_context: Context, default_chat_manager: ChatManager, default_rememberer: Summaries, llm_client: LLMClient) -> Conversation:

@@ -464,6 +464,19 @@ class SettingsUIConstructor(ConfigValueVisitor):
                     placeholder="Enter JSON parameters here...\nExample:\n{\n  \"temperature\": 0.8,\n  \"max_tokens\": 250\n}"
                 )
             
+            # Special handling for LLM pools - always allow multi-line
+            if config_value.identifier in ["llm_pool_one_on_one", "llm_pool_multi_npc"]:
+                pool_type = "one-on-one" if config_value.identifier == "llm_pool_one_on_one" else "multi-NPC"
+                return gr.Text(
+                    value=config_value.value,
+                    show_label=False,
+                    container=False,
+                    lines=8,  # Start with 8 lines for JSON pool input
+                    max_lines=15,  # Allow up to 15 lines
+                    elem_classes="multiline-textbox",
+                    placeholder=f"Enter JSON array for {pool_type} LLM pool...\nExample:\n[\n  {{\"service\": \"OpenRouter\", \"model\": \"deepseek/deepseek-chat\"}},\n  {{\"service\": \"OpenAI\", \"model\": \"gpt-4o-mini\"}}\n]"
+                )
+            
             count_rows = self.__count_rows_in_text(config_value.value)
             if count_rows == 1:
                 return gr.Text(value=config_value.value,
@@ -598,8 +611,6 @@ class SettingsUIConstructor(ConfigValueVisitor):
             additional_buttons.append(("Save Profile", on_save_profile_click))
             additional_buttons.append(("Delete Profile", on_delete_profile_click))
             
-
-        
         self.__create_config_value_ui_element(config_value, create_input_component, False, True, True, additional_buttons)
     
     def __count_rows_in_text(self, text: str) -> int:

@@ -132,6 +132,10 @@ class ClientBase(AIClient):
                 request_params = self._request_params
             else:
                 request_params: dict[str, Any] = {}
+            
+            # Log LLM parameters being sent to API
+            logging.info(f"LLM Request Parameters: model='{self.model_name}', base_url='{self._base_url}', params={request_params}")
+            
             try:
                 chat_completion = sync_client.chat.completions.create(
                     model=self.model_name,
@@ -173,7 +177,10 @@ class ClientBase(AIClient):
             else:
                 request_params: dict[str, Any] = {}
             if is_multi_npc: # override max_tokens to be at least 250 in radiant / multi-NPC conversations
+                original_max_tokens = request_params.get("max_tokens", self.max_tokens_param)
                 request_params["max_tokens"] = max(self.max_tokens_param, 250)
+                if original_max_tokens != request_params["max_tokens"]:
+                    logging.info(f"Multi-NPC conversation: max_tokens overridden from {original_max_tokens} to {request_params['max_tokens']}")
             try:
                 # Prepare the messages including the image if provided
                 vision_hints = ''
@@ -188,6 +195,9 @@ class ClientBase(AIClient):
                         vision_hints = last_message.get_ingame_events_text()
                 if self._image_client:
                     openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
+
+                # Log LLM parameters being sent to API
+                logging.info(f"LLM Request Parameters: model='{self.model_name}', base_url='{self._base_url}', params={request_params}")
 
                 async for chunk in await async_client.chat.completions.create(
                     model=self.model_name, 

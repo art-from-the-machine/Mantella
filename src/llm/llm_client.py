@@ -21,11 +21,21 @@ class LLMClient(ClientBase):
             try:
                 from src.model_profile_manager import ModelProfileManager
                 profile_manager = ModelProfileManager()
+                original_params = config.llm_params
                 llm_params = profile_manager.apply_profile_to_params(
                     service=config.llm_api,
                     model=config.llm,
                     fallback_params=config.llm_params
                 )
+                
+                # Log profile application
+                has_profile = profile_manager.has_profile(config.llm_api, config.llm)
+                if has_profile:
+                    logging.info(f"Applied profile for one-on-one conversations: {config.llm_api}/{config.llm}")
+                    logging.info(f"Profile Parameters: {llm_params}")
+                else:
+                    logging.info(f"No profile found for {config.llm_api}/{config.llm}, using manual parameters: {llm_params}")
+                    
             except Exception as e:
                 logging.error(f"Error applying profile for one-on-one conversations: {e}")
                 llm_params = config.llm_params
@@ -73,6 +83,15 @@ class LLMClient(ClientBase):
                         model=config.llm,
                         fallback_params=config.llm_params
                     )
+                    
+                    # Log profile application during hot-swap
+                    has_profile = profile_manager.has_profile(config.llm_api, config.llm)
+                    if has_profile:
+                        logging.info(f"Hot-swap: Applied profile for one-on-one conversations: {config.llm_api}/{config.llm}")
+                        logging.info(f"Hot-swap Profile Parameters: {llm_params}")
+                    else:
+                        logging.info(f"Hot-swap: No profile found for {config.llm_api}/{config.llm}, using manual parameters: {llm_params}")
+                        
                 except Exception as e:
                     logging.error(f"Error applying profile for one-on-one conversations during hot-swap: {e}")
                     llm_params = config.llm_params

@@ -132,6 +132,46 @@ class OtherDefinitions:
         return ConfigValueBool("conversation_summary_enabled", "Enable Conversation Summaries", description, True)
 
     @staticmethod
+    def get_random_llm_one_on_one_enabled_config_value() -> ConfigValue:
+        return ConfigValueBool(
+            identifier="random_llm_one_on_one_enabled",
+            name="Enable Random LLM Selection (One-on-One)",
+            description="Enable random LLM selection from the one-on-one pool for each new one-on-one conversation.",
+            default_value=False,
+            tags=["random_llm", "conversation"]
+        )
+
+    @staticmethod
+    def get_random_llm_multi_npc_enabled_config_value() -> ConfigValue:
+        return ConfigValueBool(
+            identifier="random_llm_multi_npc_enabled",
+            name="Enable Random LLM Selection (Multi-NPC)",
+            description="Enable random LLM selection from the multi-NPC pool for each new multi-NPC conversation.",
+            default_value=False,
+            tags=["random_llm", "conversation"]
+        )
+
+    @staticmethod
+    def get_llm_pool_one_on_one_config_value() -> ConfigValue:
+        return ConfigValueString(
+            identifier="llm_pool_one_on_one",
+            name="LLM Pool (One-on-One)",
+            description="JSON array of LLM models for random selection in one-on-one conversations. Edit this JSON directly to manage your pool.\n\nExample format:\n[\n  {\"service\": \"OpenRouter\", \"model\": \"deepseek/deepseek-chat\"},\n  {\"service\": \"OpenRouter\", \"model\": \"anthropic/claude-3-haiku\"},\n  {\"service\": \"OpenAI\", \"model\": \"gpt-4o-mini\"}\n]",
+            default_value="[]",
+            tags=["random_llm", "conversation", "pool"]
+        )
+
+    @staticmethod
+    def get_llm_pool_multi_npc_config_value() -> ConfigValue:
+        return ConfigValueString(
+            identifier="llm_pool_multi_npc",
+            name="LLM Pool (Multi-NPC)",
+            description="JSON array of LLM models for random selection in multi-NPC conversations. Edit this JSON directly to manage your pool.\n\nExample format:\n[\n  {\"service\": \"OpenRouter\", \"model\": \"meta-llama/llama-3.1-8b-instruct\"},\n  {\"service\": \"OpenRouter\", \"model\": \"anthropic/claude-3-sonnet\"}\n]",
+            default_value="[]",
+            tags=["random_llm", "conversation", "pool"]
+        )
+
+    @staticmethod
     def get_reload_character_data_config_value() -> ConfigValue:
         description = """Reload character CSV files and overrides from disk to pick up any changes.
                         This refreshes character data that is cached in memory.
