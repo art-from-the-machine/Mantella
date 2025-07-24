@@ -254,7 +254,16 @@ class SettingsUIConstructor(ConfigValueVisitor):
         """Creates the buttons for a setting"""
         with gr.Row(elem_classes="button-container"):
             for btn_label, btn_action in additional_buttons:
-                gr.Button(btn_label, variant="primary", size='sm').click(btn_action, outputs=input_ui)
+                button = gr.Button(btn_label, variant="primary", size='sm')
+                # Ensure the button click event is properly connected
+                if hasattr(button, "_id"):
+                    button.click(btn_action, outputs=input_ui)
+                else:
+                    # Fallback: try connecting without checking _id
+                    try:
+                        button.click(btn_action, outputs=input_ui)
+                    except Exception as e:
+                        logging.error(f"Failed to connect button '{btn_label}' click event: {e}")
             if not additional_buttons:
                 reset_button = gr.Button("Default", size='sm')
                 if hasattr(reset_button, "_id"):
@@ -524,22 +533,45 @@ class SettingsUIConstructor(ConfigValueVisitor):
         elif config_value.identifier == "profile_parameters":
             def on_save_profile_click() -> str:
                 """Handle save profile button click"""
+                logging.info("Save Profile button clicked")
                 try:
                     # Get values from profile config fields
                     service = self.__identifier_to_config_value.get("profile_selected_service", None)
                     model = self.__identifier_to_config_value.get("profile_selected_model", None)
                     parameters_json = self.__identifier_to_config_value.get("profile_parameters", None)
                     
+                    logging.debug(f"Profile save attempt - Service: {service.value if service else 'None'}, Model: {model.value if model else 'None'}")
+                    
+                    # Check if config values exist
                     if not all([service, model, parameters_json]):
+                        logging.error("Missing profile configuration fields")
                         return " Please select Service, Model, and enter Parameters"
+                    
+                    # Check if values are not empty/default
+                    if not service.value or service.value.strip() == "":
+                        logging.error("Service not selected")
+                        return " Please select a Service"
+                    
+                    if not model.value or model.value.strip() == "" or model.value == "Select a service first":
+                        logging.error("Model not selected") 
+                        return " Please select a Model"
+                    
+                    # Handle empty parameters - allow empty JSON object as default
+                    parameters_text = parameters_json.value.strip() if parameters_json.value else ""
+                    if not parameters_text:
+                        # Default to empty JSON object if no parameters provided
+                        parameters_text = "{}"
+                        parameters_json.value = parameters_text
                     
                     # Parse JSON parameters
                     try:
                         import json
-                        parameters = json.loads(parameters_json.value)
+                        parameters = json.loads(parameters_text)
                         if not isinstance(parameters, dict):
+                            logging.error("Parameters is not a JSON object")
                             return " Parameters must be a JSON object"
                     except json.JSONDecodeError as e:
+                        logging.error(f"JSON parsing error: {e}")
                         return f" Invalid JSON: {str(e)}"
                     
                     # Create or update the profile
@@ -551,16 +583,18 @@ class SettingsUIConstructor(ConfigValueVisitor):
                     
                     if success:
                         logging.info(f"Profile saved successfully for {service.value}/{model.value}")
+                        # Update the parameters field with properly formatted JSON
+                        formatted_json = json.dumps(parameters, indent=4)
+                        parameters_json.value = formatted_json
+                        return formatted_json
                     else:
                         logging.error(f"Failed to save profile for {service.value}/{model.value}")
-                    
-                    # Don't return anything to avoid showing messages in the parameter window
-                    return parameters_json.value
+                        return " ❌ Failed to save profile. Check logs for details."
                         
                 except Exception as e:
                     logging.error(f"Error saving profile: {e}")
                     # Return current parameters unchanged on error
-                    return parameters_json.value if parameters_json else ""
+                    return f" ❌ Error: {str(e)}"
             
             def on_delete_profile_click() -> str:
                 """Handle delete profile button click"""
