@@ -255,6 +255,11 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
 
             self.allow_per_character_llm_overrides = self.__definitions.get_bool_value("allow_per_character_llm_overrides")
 
+            # Profile application settings
+            self.apply_profile_one_on_one = self.__definitions.get_bool_value("apply_profile_one_on_one")
+            self.apply_profile_multi_npc = self.__definitions.get_bool_value("apply_profile_multi_npc")
+            self.apply_profile_summaries = self.__definitions.get_bool_value("apply_profile_summaries")
+
             # Multi-NPC LLM Configuration
             self.multi_npc_llm_api = self.__definitions.get_string_value("multi_npc_llm_api")
             self.multi_npc_llm = self.__definitions.get_string_value("multi_npc_model")

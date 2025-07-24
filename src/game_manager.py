@@ -48,11 +48,51 @@ class GameStateManager:
             # Create separate client for summaries with different settings
             summary_secret_key_files = key_file_resolver.get_key_files_for_service(config.summary_llm_api, api_file)
             
+            # Apply profile parameters if enabled and profile exists
+            summary_llm_params = config.summary_llm_params
+            if config.apply_profile_summaries:
+                try:
+                    from src.model_profile_manager import ModelProfileManager
+                    profile_manager = ModelProfileManager()
+                    summary_llm_params = profile_manager.apply_profile_to_params(
+                        service=config.summary_llm_api,
+                        model=config.summary_llm,
+                        fallback_params=config.summary_llm_params
+                    )
+                except Exception as e:
+                    logging.error(f"Error applying profile for summaries: {e}")
+                    summary_llm_params = config.summary_llm_params
+            
             summary_client = ClientBase(
                 config.summary_llm_api,
                 config.summary_llm,
-                config.summary_llm_params,
+                summary_llm_params,
                 config.summary_custom_token_count,
+                summary_secret_key_files
+            )
+        elif config.apply_profile_summaries:
+            # Same settings as main LLM but profile application is enabled for summaries
+            # Create a separate client with profile-applied parameters
+            summary_secret_key_files = key_file_resolver.get_key_files_for_service(config.llm_api, api_file)
+            
+            summary_llm_params = config.llm_params
+            try:
+                from src.model_profile_manager import ModelProfileManager
+                profile_manager = ModelProfileManager()
+                summary_llm_params = profile_manager.apply_profile_to_params(
+                    service=config.llm_api,
+                    model=config.llm,
+                    fallback_params=config.llm_params
+                )
+            except Exception as e:
+                logging.error(f"Error applying profile for summaries: {e}")
+                summary_llm_params = config.llm_params
+            
+            summary_client = ClientBase(
+                config.llm_api,
+                config.llm,
+                summary_llm_params,
+                config.custom_token_count,
                 summary_secret_key_files
             )
         else:
@@ -67,11 +107,51 @@ class GameStateManager:
             # Create separate client for multi-NPC conversations with different settings
             multi_npc_secret_key_files = key_file_resolver.get_key_files_for_service(config.multi_npc_llm_api, api_file)
             
+            # Apply profile parameters if enabled and profile exists
+            multi_npc_llm_params = config.multi_npc_llm_params
+            if config.apply_profile_multi_npc:
+                try:
+                    from src.model_profile_manager import ModelProfileManager
+                    profile_manager = ModelProfileManager()
+                    multi_npc_llm_params = profile_manager.apply_profile_to_params(
+                        service=config.multi_npc_llm_api,
+                        model=config.multi_npc_llm,
+                        fallback_params=config.multi_npc_llm_params
+                    )
+                except Exception as e:
+                    logging.error(f"Error applying profile for multi-NPC conversations: {e}")
+                    multi_npc_llm_params = config.multi_npc_llm_params
+            
             multi_npc_client = ClientBase(
                 config.multi_npc_llm_api,
                 config.multi_npc_llm,
-                config.multi_npc_llm_params,
+                multi_npc_llm_params,
                 config.multi_npc_custom_token_count,
+                multi_npc_secret_key_files
+            )
+        elif config.apply_profile_multi_npc:
+            # Same settings as main LLM but profile application is enabled for multi-NPC
+            # Create a separate client with profile-applied parameters
+            multi_npc_secret_key_files = key_file_resolver.get_key_files_for_service(config.llm_api, api_file)
+            
+            multi_npc_llm_params = config.llm_params
+            try:
+                from src.model_profile_manager import ModelProfileManager
+                profile_manager = ModelProfileManager()
+                multi_npc_llm_params = profile_manager.apply_profile_to_params(
+                    service=config.llm_api,
+                    model=config.llm,
+                    fallback_params=config.llm_params
+                )
+            except Exception as e:
+                logging.error(f"Error applying profile for multi-NPC conversations: {e}")
+                multi_npc_llm_params = config.llm_params
+            
+            multi_npc_client = ClientBase(
+                config.llm_api,
+                config.llm,
+                multi_npc_llm_params,
+                config.custom_token_count,
                 multi_npc_secret_key_files
             )
         else:
@@ -142,11 +222,51 @@ class GameStateManager:
                 # Create separate client for summaries with different settings
                 summary_secret_key_files = key_file_resolver.get_key_files_for_service(config.summary_llm_api, secret_key_file)
                 
+                # Apply profile parameters if enabled and profile exists
+                summary_llm_params = config.summary_llm_params
+                if config.apply_profile_summaries:
+                    try:
+                        from src.model_profile_manager import ModelProfileManager
+                        profile_manager = ModelProfileManager()
+                        summary_llm_params = profile_manager.apply_profile_to_params(
+                            service=config.summary_llm_api,
+                            model=config.summary_llm,
+                            fallback_params=config.summary_llm_params
+                        )
+                    except Exception as e:
+                        logging.error(f"Error applying profile for summaries: {e}")
+                        summary_llm_params = config.summary_llm_params
+                
                 summary_client = ClientBase(
                     config.summary_llm_api,
                     config.summary_llm,
-                    config.summary_llm_params,
+                    summary_llm_params,
                     config.summary_custom_token_count,
+                    summary_secret_key_files
+                )
+            elif config.apply_profile_summaries:
+                # Same settings as main LLM but profile application is enabled for summaries
+                # Create a separate client with profile-applied parameters
+                summary_secret_key_files = key_file_resolver.get_key_files_for_service(config.llm_api, secret_key_file)
+                
+                summary_llm_params = config.llm_params
+                try:
+                    from src.model_profile_manager import ModelProfileManager
+                    profile_manager = ModelProfileManager()
+                    summary_llm_params = profile_manager.apply_profile_to_params(
+                        service=config.llm_api,
+                        model=config.llm,
+                        fallback_params=config.llm_params
+                    )
+                except Exception as e:
+                    logging.error(f"Error applying profile for summaries: {e}")
+                    summary_llm_params = config.llm_params
+                
+                summary_client = ClientBase(
+                    config.llm_api,
+                    config.llm,
+                    summary_llm_params,
+                    config.custom_token_count,
                     summary_secret_key_files
                 )
             else:
@@ -161,11 +281,51 @@ class GameStateManager:
                 # Create separate client for multi-NPC conversations with different settings
                 multi_npc_secret_key_files = key_file_resolver.get_key_files_for_service(config.multi_npc_llm_api, secret_key_file)
                 
+                # Apply profile parameters if enabled and profile exists
+                multi_npc_llm_params = config.multi_npc_llm_params
+                if config.apply_profile_multi_npc:
+                    try:
+                        from src.model_profile_manager import ModelProfileManager
+                        profile_manager = ModelProfileManager()
+                        multi_npc_llm_params = profile_manager.apply_profile_to_params(
+                            service=config.multi_npc_llm_api,
+                            model=config.multi_npc_llm,
+                            fallback_params=config.multi_npc_llm_params
+                        )
+                    except Exception as e:
+                        logging.error(f"Error applying profile for multi-NPC conversations: {e}")
+                        multi_npc_llm_params = config.multi_npc_llm_params
+                
                 multi_npc_client = ClientBase(
                     config.multi_npc_llm_api,
                     config.multi_npc_llm,
-                    config.multi_npc_llm_params,
+                    multi_npc_llm_params,
                     config.multi_npc_custom_token_count,
+                    multi_npc_secret_key_files
+                )
+            elif config.apply_profile_multi_npc:
+                # Same settings as main LLM but profile application is enabled for multi-NPC
+                # Create a separate client with profile-applied parameters
+                multi_npc_secret_key_files = key_file_resolver.get_key_files_for_service(config.llm_api, secret_key_file)
+                
+                multi_npc_llm_params = config.llm_params
+                try:
+                    from src.model_profile_manager import ModelProfileManager
+                    profile_manager = ModelProfileManager()
+                    multi_npc_llm_params = profile_manager.apply_profile_to_params(
+                        service=config.llm_api,
+                        model=config.llm,
+                        fallback_params=config.llm_params
+                    )
+                except Exception as e:
+                    logging.error(f"Error applying profile for multi-NPC conversations: {e}")
+                    multi_npc_llm_params = config.llm_params
+                
+                multi_npc_client = ClientBase(
+                    config.llm_api,
+                    config.llm,
+                    multi_npc_llm_params,
+                    config.custom_token_count,
                     multi_npc_secret_key_files
                 )
             else:
