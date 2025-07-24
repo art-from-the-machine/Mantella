@@ -5,6 +5,7 @@ Provides a clean OOP way to handle different LLM services for per-character over
 
 from abc import ABC, abstractmethod
 from typing import List
+import logging
 from src.llm.client_base import ClientBase
 from src.config.config_loader import ConfigLoader
 
@@ -49,10 +50,34 @@ class OpenRouterServiceProvider(LLMServiceProvider):
     
     def create_client(self, model: str, config: ConfigLoader) -> ClientBase:
         """Create an OpenRouter client with the specified model"""
+        # Apply profile parameters if available for this specific model
+        llm_params = config.llm_params  # Default to global parameters
+        
+        try:
+            from src.model_profile_manager import ModelProfileManager
+            profile_manager = ModelProfileManager()
+            llm_params = profile_manager.apply_profile_to_params(
+                service=self.get_display_name(),
+                model=model,
+                fallback_params=config.llm_params
+            )
+            
+            # Log profile application for per-character override
+            has_profile = profile_manager.has_profile(self.get_display_name(), model)
+            if has_profile:
+                logging.info(f"Applied profile for per-character override: {self.get_display_name()}/{model}")
+                logging.info(f"Per-character Profile Parameters: {llm_params}")
+            else:
+                logging.info(f"No profile found for per-character override {self.get_display_name()}/{model}, using global parameters: {llm_params}")
+                
+        except Exception as e:
+            logging.error(f"Error applying profile for per-character LLM {self.get_display_name()}/{model}: {e}")
+            llm_params = config.llm_params
+        
         return ClientBase(
             api_url=self.get_api_url(),
             llm=model,
-            llm_params=config.llm_params,
+            llm_params=llm_params,
             custom_token_count=config.custom_token_count,
             secret_key_files=self.get_secret_key_files('GPT_SECRET_KEY.txt')
         )
@@ -75,10 +100,34 @@ class NanoGPTServiceProvider(LLMServiceProvider):
     
     def create_client(self, model: str, config: ConfigLoader) -> ClientBase:
         """Create a NanoGPT client with the specified model"""
+        # Apply profile parameters if available for this specific model
+        llm_params = config.llm_params  # Default to global parameters
+        
+        try:
+            from src.model_profile_manager import ModelProfileManager
+            profile_manager = ModelProfileManager()
+            llm_params = profile_manager.apply_profile_to_params(
+                service=self.get_display_name(),
+                model=model,
+                fallback_params=config.llm_params
+            )
+            
+            # Log profile application for per-character override
+            has_profile = profile_manager.has_profile(self.get_display_name(), model)
+            if has_profile:
+                logging.info(f"Applied profile for per-character override: {self.get_display_name()}/{model}")
+                logging.info(f"Per-character Profile Parameters: {llm_params}")
+            else:
+                logging.info(f"No profile found for per-character override {self.get_display_name()}/{model}, using global parameters: {llm_params}")
+                
+        except Exception as e:
+            logging.error(f"Error applying profile for per-character LLM {self.get_display_name()}/{model}: {e}")
+            llm_params = config.llm_params
+        
         return ClientBase(
             api_url=self.get_api_url(),
             llm=model,
-            llm_params=config.llm_params,
+            llm_params=llm_params,
             custom_token_count=config.custom_token_count,
             secret_key_files=self.get_secret_key_files('GPT_SECRET_KEY.txt')
         )
@@ -90,6 +139,56 @@ class NanoGPTServiceProvider(LLMServiceProvider):
         return ['NANOGPT_SECRET_KEY.txt', fallback_key_file]
 
 
+class OpenAIServiceProvider(LLMServiceProvider):
+    """OpenAI LLM service provider"""
+    
+    def get_service_name(self) -> str:
+        return "openai"
+    
+    def get_display_name(self) -> str:
+        return "OpenAI"
+    
+    def create_client(self, model: str, config: ConfigLoader) -> ClientBase:
+        """Create an OpenAI client with the specified model"""
+        # Apply profile parameters if available for this specific model
+        llm_params = config.llm_params  # Default to global parameters
+        
+        try:
+            from src.model_profile_manager import ModelProfileManager
+            profile_manager = ModelProfileManager()
+            llm_params = profile_manager.apply_profile_to_params(
+                service=self.get_display_name(),
+                model=model,
+                fallback_params=config.llm_params
+            )
+            
+            # Log profile application for per-character override
+            has_profile = profile_manager.has_profile(self.get_display_name(), model)
+            if has_profile:
+                logging.info(f"Applied profile for per-character override: {self.get_display_name()}/{model}")
+                logging.info(f"Per-character Profile Parameters: {llm_params}")
+            else:
+                logging.info(f"No profile found for per-character override {self.get_display_name()}/{model}, using global parameters: {llm_params}")
+                
+        except Exception as e:
+            logging.error(f"Error applying profile for per-character LLM {self.get_display_name()}/{model}: {e}")
+            llm_params = config.llm_params
+        
+        return ClientBase(
+            api_url=self.get_api_url(),
+            llm=model,
+            llm_params=llm_params,
+            custom_token_count=config.custom_token_count,
+            secret_key_files=self.get_secret_key_files('GPT_SECRET_KEY.txt')
+        )
+    
+    def get_api_url(self) -> str:
+        return "OpenAI"
+    
+    def get_secret_key_files(self, fallback_key_file: str) -> List[str]:
+        return [fallback_key_file]
+
+
 class LLMServiceProviderFactory:
     """Factory for creating and managing LLM service providers"""
     
@@ -97,6 +196,7 @@ class LLMServiceProviderFactory:
         self._providers = {
             "or": OpenRouterServiceProvider(),
             "nano": NanoGPTServiceProvider(),
+            "openai": OpenAIServiceProvider(),
         }
     
     def get_provider(self, service_name: str) -> LLMServiceProvider | None:

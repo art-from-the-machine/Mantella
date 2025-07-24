@@ -304,6 +304,21 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
             #Conversation
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
             self.conversation_summary_enabled = self.__definitions.get_bool_value("conversation_summary_enabled")
+            
+            # Random LLM Selection
+            self.random_llm_one_on_one_enabled = self.__definitions.get_bool_value("random_llm_one_on_one_enabled")
+            self.random_llm_multi_npc_enabled = self.__definitions.get_bool_value("random_llm_multi_npc_enabled")
+            try:
+                self.llm_pool_one_on_one = json.loads(self.__definitions.get_string_value("llm_pool_one_on_one"))
+            except Exception as e:
+                logging.error(f"Error parsing one-on-one LLM pool: {e}")
+                self.llm_pool_one_on_one = []
+            try:
+                self.llm_pool_multi_npc = json.loads(self.__definitions.get_string_value("llm_pool_multi_npc"))
+            except Exception as e:
+                logging.error(f"Error parsing multi-NPC LLM pool: {e}")
+                self.llm_pool_multi_npc = []
+            
             self.max_count_events = self.__definitions.get_int_value("max_count_events")
             self.events_refresh_time = self.__definitions.get_int_value("events_refresh_time")
             self.hourly_time = self.__definitions.get_bool_value("hourly_time")

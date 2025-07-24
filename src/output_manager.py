@@ -27,12 +27,13 @@ from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ChatManager:
-    def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient, multi_npc_client: AIClient | None = None):
+    def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient, multi_npc_client: AIClient | None = None, api_file: str = "secret_keys.json"):
         self.loglevel = 28
         self.__config: ConfigLoader = config
         self.__tts: TTSable = tts
         self.__client: AIClient = client
         self.__multi_npc_client: AIClient | None = multi_npc_client
+        self.__api_file: str = api_file  # Store API file path for secret key resolution
         self.__is_generating: bool = False
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
@@ -44,6 +45,10 @@ class ChatManager:
     def update_multi_npc_client(self, multi_npc_client: AIClient | None):
         """Update the multi-NPC client for hot swapping"""
         self.__multi_npc_client = multi_npc_client
+
+    def update_primary_client(self, primary_client: AIClient):
+        """Update the primary client for conversations (used for random LLM selection)"""
+        self.__client = primary_client
     
     def clear_per_character_client_cache(self):
         """Clear the per-character client cache to force recreation with new settings"""
@@ -239,6 +244,7 @@ class ChatManager:
                     # Select client: multi-NPC always takes precedence in group conversations, then per-character for one-on-one
                     if is_multi_npc and self.__multi_npc_client:
                         # Always use multi-NPC client in multi-NPC conversations (overrides per-character settings)
+                        # Random LLM selection for multi-NPC is handled at conversation start, not per-message
                         current_client = self.__multi_npc_client
                     else:
                         # For one-on-one conversations, check for per-character override, then use default
