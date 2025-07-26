@@ -379,8 +379,10 @@ class Context:
             if len(self.__npcs_in_conversation) == 1:
                 bio_descriptions.append(character.bio)
             else:
-                bio_descriptions.append(f"{character.name}: {character.bio}")
-        return "\n".join(bio_descriptions)
+                # Add clear delimiters around each character's bio for multi-NPC conversations
+                bio_with_delimiters = f"[This is the beginning of {character.name}'s bio]\n{character.bio}\n[This is the end of {character.name}'s bio]"
+                bio_descriptions.append(bio_with_delimiters)
+        return "\n\n".join(bio_descriptions)
     
     @utils.time_it
     def __get_npc_equipment_text(self) -> str:

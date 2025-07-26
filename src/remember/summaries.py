@@ -38,21 +38,50 @@ class Summaries(Remembering):
         Returns:
             str: a concatenation of the summaries as a single string
         """
-        paragraphs = []
-        for character in npcs_in_conversation.get_all_characters():
-            if not character.is_player_character:          
+        # Get all non-player characters
+        non_player_characters = [char for char in npcs_in_conversation.get_all_characters() if not char.is_player_character]
+        
+        if len(non_player_characters) == 1:
+            # Single NPC conversation - no delimiters needed
+            paragraphs = []
+            character = non_player_characters[0]
+            conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)      
+            if os.path.exists(conversation_summary_file):
+                with open(conversation_summary_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and line not in paragraphs:
+                            paragraphs.append(line.strip())
+            if paragraphs:
+                result = "\n".join(paragraphs)
+                return f"Below is a summary of past events:\n{result}"
+            else:
+                return ""
+        else:
+            # Multi-NPC conversation - add delimiters around each character's memories
+            character_memories = []
+            for character in non_player_characters:
+                character_paragraphs = []
                 conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)      
                 if os.path.exists(conversation_summary_file):
                     with open(conversation_summary_file, 'r', encoding='utf-8') as f:
                         for line in f:
                             line = line.strip()
-                            if line and line not in paragraphs:
-                                paragraphs.append(line.strip())
-        if paragraphs:
-            result = "\n".join(paragraphs)
-            return f"Below is a summary of past events:\n{result}"
-        else:
-            return ""
+                            if line:
+                                character_paragraphs.append(line.strip())
+                
+                if character_paragraphs:
+                    # Add delimiters around this character's memories
+                    memory_with_delimiters = f"[This is the beginning of {character.name}'s memory]\n" + \
+                                           "\n".join(character_paragraphs) + \
+                                           f"\n[This is the end of {character.name}'s memory]"
+                    character_memories.append(memory_with_delimiters)
+            
+            if character_memories:
+                result = "\n\n".join(character_memories)
+                return f"Below is a summary of past events:\n{result}"
+            else:
+                return ""
 
     @utils.time_it
     def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False):
