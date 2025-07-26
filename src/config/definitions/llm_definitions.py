@@ -109,6 +109,13 @@ class LLMDefinitions:
         return ConfigValueBool("allow_per_character_llm_overrides", "Allow Per-Character LLM Overrides", description, False, tags=[ConfigValueTag.advanced])
 
     @staticmethod
+    def get_enable_character_tag_reading_config_value() -> ConfigValue:
+        description = """Enable character tag reading and bio expansion.
+                        When enabled, character tags from the CSV files will be processed and used to expand character bios with additional template information.
+                        When disabled, only the base character bio will be used without any tag-based expansions."""
+        return ConfigValueBool("enable_character_tag_reading", "Enable Character Tag Reading", description, True, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
     def get_apply_profile_one_on_one_config_value() -> ConfigValue:
         description = """Automatically apply saved LLM profile parameters for one-on-one conversations.
                         When enabled, if a profile exists for the selected model, its parameters will be used instead of the manually configured parameters.

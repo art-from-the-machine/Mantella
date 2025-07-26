@@ -155,6 +155,17 @@ class BioTemplateManager:
     
     def expand_bio_with_tags(self, base_bio: str, tags_string: str) -> str:
         """Expand base bio with tag templates"""
+        # Check if tag reading is disabled in config
+        if self.config_loader and hasattr(self.config_loader, 'enable_character_tag_reading'):
+            if not self.config_loader.enable_character_tag_reading:
+                return base_bio
+        
+        # Handle case where tags_string might be NaN (float) from CSV
+        if tags_string is None or (isinstance(tags_string, float) and str(tags_string) == 'nan'):
+            return base_bio
+        
+        # Convert to string and check if empty
+        tags_string = str(tags_string)
         if not tags_string or not tags_string.strip():
             return base_bio
         
