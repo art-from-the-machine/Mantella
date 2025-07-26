@@ -49,6 +49,7 @@ class MantellaConfigValueDefinitionsNew:
         # llm_category.add_config_value(LLMDefinitions.get_try_filter_narration())
         llm_category.add_config_value(LLMDefinitions.get_llm_params_config_value())
         llm_category.add_config_value(LLMDefinitions.get_allow_per_character_llm_overrides_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_enable_character_tag_reading_config_value())
         llm_category.add_config_value(LLMDefinitions.get_apply_profile_one_on_one_config_value())
         llm_category.add_config_value(LLMDefinitions.get_apply_profile_multi_npc_config_value())
         llm_category.add_config_value(LLMDefinitions.get_apply_profile_summaries_config_value())
