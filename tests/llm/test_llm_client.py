@@ -85,7 +85,7 @@ def test_sync_call(llm_client: LLMClient, example_system_message: SystemMessage)
 async def test_async_call(llm_client: LLMClient, example_system_message: SystemMessage):
     response = ''
     # Single NPC
-    async for content in llm_client.streaming_call(messages=example_system_message, is_multi_npc=False):
+    async for content in llm_client.streaming_call(messages=example_system_message, is_multi_npc=False, current_context=None):
         if content is not None:
             response += content
     assert response is not None
@@ -93,7 +93,7 @@ async def test_async_call(llm_client: LLMClient, example_system_message: SystemM
 
     response = ''
     # Multi NPC
-    async for content in llm_client.streaming_call(messages=example_system_message, is_multi_npc=True):
+    async for content in llm_client.streaming_call(messages=example_system_message, is_multi_npc=True, current_context=None):
         if content is not None:
             response += content
     assert response is not None

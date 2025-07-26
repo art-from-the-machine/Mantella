@@ -7,6 +7,7 @@ import src.utils as utils
 import pandas as pd
 import sys
 from src.config.config_loader import ConfigLoader
+from src.telemetry.telemetry import get_telemetry_manager
 
 class MantellaSetup:
     def __init__(self):
@@ -14,7 +15,7 @@ class MantellaSetup:
         self.config = None
         self.language_info = {}
 
-    def initialise(self, config_file, logging_file, language_file) -> tuple[ConfigLoader, dict[Hashable, str]]:
+    def initialise(self, config_file, logging_file, language_file, mantella_version) -> tuple[ConfigLoader, dict[Hashable, str]]:
         '''Initialize Mantella with configuration, logging, and language settings'''
         self._set_cwd_to_exe_dir()
         self.save_folder = utils.get_my_games_directory(self._get_custom_user_folder())
@@ -36,7 +37,8 @@ class MantellaSetup:
         utils.cleanup_tmp(os.getenv('TMP')+'\\voicelines') # cleanup temp voicelines
 
         self.language_info = self._get_language_info(language_file, self.config.language)
-        
+        self._setup_telemetry(self.config, mantella_version)
+
         return self.config, self.language_info
 
     def _set_cwd_to_exe_dir(self):
@@ -117,3 +119,12 @@ class MantellaSetup:
         except:
             logging.error(f"Could not load language '{language}'. Please set a valid language in config.ini\n")
             return {}
+
+    def _setup_telemetry(self, config: ConfigLoader, version: str):
+        telemetry_manager = get_telemetry_manager()
+        enable_telemetry = getattr(config, 'enable_telemetry', False)
+        telemetry_manager.initialize(
+            config=config,
+            version=version,
+            enable_telemetry=enable_telemetry,
+        )

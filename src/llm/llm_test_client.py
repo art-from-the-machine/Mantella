@@ -3,7 +3,7 @@ from src.llm.llm_model_list import LLMModelList
 from src.llm.ai_client import AIClient
 from src.llm.message_thread import message_thread
 from src.llm.messages import Message
-
+from opentelemetry.context.context import Context
 
 class LLMTestClient(AIClient):
     '''LLM class to handle NPC responses
@@ -12,7 +12,7 @@ class LLMTestClient(AIClient):
         self.__replies = replies
         self.__counter = 0
 
-    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool, current_context: Context) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
 

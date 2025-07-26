@@ -11,6 +11,8 @@ from src.llm.message_thread import message_thread
 from src.llm.messages import Message, ImageMessage, UserMessage
 from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
+from opentelemetry.context.context import Context
+from src.telemetry.telemetry import create_span_with_parent
 
 class ClientBase(AIClient):
     '''Base class for connecting to OpenAI-compatible endpoints
@@ -156,70 +158,69 @@ class ClientBase(AIClient):
             return reply
         
 
-    @utils.time_it
-    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
-        with self._generation_lock:
-            logging.log(28, 'Getting LLM response...')
+    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool, current_context: Context) -> AsyncGenerator[str | None, None]:
+        with create_span_with_parent("llm_streaming_call", current_context) as span:
+            with self._generation_lock:
+                logging.log(28, 'Getting LLM response...')
 
-            if self._startup_async_client:
-                async_client = self._startup_async_client
-                self._startup_async_client = None # do not reuse the same client
-            else:
-                async_client = self.generate_async_client()
-
-            if self._request_params:
-                request_params = self._request_params.copy() # copy of self._request_params to allow temporary override
-            else:
-                request_params: dict[str, Any] = {}
-            if is_multi_npc: # override max_tokens to be at least 250 in radiant / multi-NPC conversations
-                request_params["max_tokens"] = max(self.max_tokens_param, 250)
-            try:
-                # Prepare the messages including the image if provided
-                vision_hints = ''
-                if isinstance(messages, Message):
-                    openai_messages = [messages.get_openai_message()]
-                    if isinstance(messages, UserMessage):
-                        vision_hints = messages.get_ingame_events_text()
+                if self._startup_async_client:
+                    async_client = self._startup_async_client
+                    self._startup_async_client = None # do not reuse the same client
                 else:
-                    openai_messages = messages.get_openai_messages()
-                    last_message = messages.get_last_message()
-                    if isinstance(last_message, UserMessage):
-                        vision_hints = last_message.get_ingame_events_text()
-                if self._image_client:
-                    openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
+                    async_client = self.generate_async_client()
 
-                async for chunk in await async_client.chat.completions.create(
-                    model=self.model_name, 
-                    messages=openai_messages, 
-                    stream=True,
-                    **request_params,
-                ):
-                    try:
-                        if chunk and chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                            yield chunk.choices[0].delta.content
-                    except Exception as e:
-                        logging.error(f"LLM API Connection Error: {e}")
-                        break
-            except Exception as e:
-                utils.play_error_sound()
-                if isinstance(e, APIConnectionError):
-                    if e.code in [401, 'invalid_api_key']: # incorrect API key
-                        if self._base_url == 'https://api.openai.com/v1':
-                            service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
+                if self._request_params:
+                    request_params = self._request_params.copy() # copy of self._request_params to allow temporary override
+                else:
+                    request_params: dict[str, Any] = {}
+                if is_multi_npc: # override max_tokens to be at least 250 in radiant / multi-NPC conversations
+                    request_params["max_tokens"] = max(self.max_tokens_param, 250)
+                try:
+                    # Prepare the messages including the image if provided
+                    vision_hints = ''
+                    if isinstance(messages, Message):
+                        openai_messages = [messages.get_openai_message()]
+                        if isinstance(messages, UserMessage):
+                            vision_hints = messages.get_ingame_events_text()
+                    else:
+                        openai_messages = messages.get_openai_messages()
+                        last_message = messages.get_last_message()
+                        if isinstance(last_message, UserMessage):
+                            vision_hints = last_message.get_ingame_events_text()
+                    if self._image_client:
+                        openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
+
+                    async for chunk in await async_client.chat.completions.create(
+                        model=self.model_name, 
+                        messages=openai_messages, 
+                        stream=True,
+                        **request_params,
+                    ):
+                        try:
+                            if chunk and chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                                yield chunk.choices[0].delta.content
+                        except Exception as e:
+                            logging.error(f"LLM API Connection Error: {e}")
+                            break
+                except Exception as e:
+                    if isinstance(e, APIConnectionError):
+                        if e.code in [401, 'invalid_api_key']: # incorrect API key
+                            if self._base_url == 'https://api.openai.com/v1':
+                                service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
+                            else:
+                                service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
+                            logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
                         else:
-                            service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
-                        logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+                            logging.error(f"LLM API Error: {e}")
+                    elif isinstance(e, BadRequestError):
+                        if (e.type == 'invalid_request_error') and (self._image_client): # invalid request
+                            logging.error(f"Invalid request. Try disabling Vision in Mantella's settings and try again.")
+                        else:
+                            logging.error(f"LLM API Error: {e}")
                     else:
                         logging.error(f"LLM API Error: {e}")
-                elif isinstance(e, BadRequestError):
-                    if (e.type == 'invalid_request_error') and (self._image_client): # invalid request
-                        logging.error(f"Invalid request. Try disabling Vision in Mantella's settings and try again.")
-                    else:
-                        logging.error(f"LLM API Error: {e}")
-                else:
-                    logging.error(f"LLM API Error: {e}")
-            finally:
-                await async_client.close()
+                finally:
+                    await async_client.close()
 
 
     @utils.time_it
