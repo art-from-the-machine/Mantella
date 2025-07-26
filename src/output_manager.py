@@ -16,6 +16,7 @@ from src.llm.output.sentence_end_parser import sentence_end_parser
 from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from src.conversation.action import Action
 from src.llm.sentence_queue import SentenceQueue
+from opentelemetry.context.context import Context
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
 from src import utils
@@ -25,6 +26,7 @@ from src.llm.message_thread import message_thread
 from src.llm.ai_client import AIClient
 from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
+from src.telemetry.telemetry import create_span_with_parent
 
 class ChatManager:
     def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient):
@@ -82,7 +84,7 @@ class ChatManager:
             return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file))
 
     @utils.time_it
-    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action]):
+    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action], current_context: Context):
         """Starts generating responses by the LLM for the current state of the input messages
 
         Args:
@@ -95,7 +97,7 @@ class ChatManager:
             return
         self.__is_generating = True
         
-        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions))
+        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions, current_context))
     
     @utils.time_it
     def stop_generation(self):
@@ -107,125 +109,126 @@ class ChatManager:
         self.__stop_generation.clear()
         return
  
-    @utils.time_it
-    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action]):
+    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], current_context: Context):
         """Stream response from LLM one sentence at a time"""
+        with create_span_with_parent("process_response", current_context) as span:
+            span.set_attribute("active_character.name", active_character.name)
 
-        raw_response: str = ''  # Track the raw response
-        first_token = True
-        parsed_sentence: SentenceContent | None = None
-        pending_sentence: SentenceContent | None = None
-        self.__is_first_sentence = True
-        is_multi_npc = characters.contains_multiple_npcs()
-        max_response_sentences = self.__config.max_response_sentences_single if not is_multi_npc else self.__config.max_response_sentences_multi
-        max_retries = 5
-        retries = 0
+            raw_response: str = ''  # Track the raw response
+            first_token = True
+            parsed_sentence: SentenceContent | None = None
+            pending_sentence: SentenceContent | None = None
+            self.__is_first_sentence = True
+            is_multi_npc = characters.contains_multiple_npcs()
+            max_response_sentences = self.__config.max_response_sentences_single if not is_multi_npc else self.__config.max_response_sentences_multi
+            max_retries = 5
+            retries = 0
 
-        parser_chain: list[output_parser] = [
-            change_character_parser(characters)]
-        if self.__config.narration_handling != NarrationHandlingEnum.DEACTIVATE_HANDLING_OF_NARRATIONS:
-            parser_chain.append(narration_parser(self.__config.narration_start_indicators, self.__config.narration_end_indicators, 
-                                                 self.__config.speech_start_indicators, self.__config.speech_end_indicators))
-        parser_chain.extend([
-            sentence_end_parser(),
-            actions_parser(actions),
-            sentence_length_parser(self.__config.number_words_tts),
-            max_count_sentences_parser(max_response_sentences, not characters.contains_player_character())
-        ])
+            parser_chain: list[output_parser] = [
+                change_character_parser(characters)]
+            if self.__config.narration_handling != NarrationHandlingEnum.DEACTIVATE_HANDLING_OF_NARRATIONS:
+                parser_chain.append(narration_parser(self.__config.narration_start_indicators, self.__config.narration_end_indicators, 
+                                                    self.__config.speech_start_indicators, self.__config.speech_end_indicators))
+            parser_chain.extend([
+                sentence_end_parser(),
+                actions_parser(actions),
+                sentence_length_parser(self.__config.number_words_tts),
+                max_count_sentences_parser(max_response_sentences, not characters.contains_player_character())
+            ])
 
-        cut_indicators: set[str] = set()
-        for parser in parser_chain:
-            indicators = parser.get_cut_indicators()
-            for i in indicators:
-                cut_indicators.add(i)
-        accumulator: sentence_accumulator = sentence_accumulator(list(cut_indicators))
-       
-        try:
-            current_sentence: str = ''
-            settings: sentence_generation_settings = sentence_generation_settings(active_character)
-            while retries < max_retries:
-                try:
-                    start_time = time.time()
-                    async for content in self.__client.streaming_call(messages=messages, is_multi_npc=is_multi_npc):
-                        if self.__stop_generation.is_set():
-                            break
-                        if not content:
-                            continue
+            cut_indicators: set[str] = set()
+            for parser in parser_chain:
+                indicators = parser.get_cut_indicators()
+                for i in indicators:
+                    cut_indicators.add(i)
+            accumulator: sentence_accumulator = sentence_accumulator(list(cut_indicators))
+        
+            try:
+                current_sentence: str = ''
+                settings: sentence_generation_settings = sentence_generation_settings(active_character)
+                while retries < max_retries:
+                    try:
+                        start_time = time.time()
+                        async for content in self.__client.streaming_call(messages=messages, is_multi_npc=is_multi_npc, current_context=current_context):
+                            if self.__stop_generation.is_set():
+                                break
+                            if not content:
+                                continue
 
-                        if first_token:
-                            logging.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to respond")
-                            first_token = False
-                        
-                        raw_response += content
-                        accumulator.accumulate(content)
-                        while accumulator.has_next_sentence():
-                            current_sentence = accumulator.get_next_sentence()
-                            # current_sentence += content
-                            parsed_sentence: SentenceContent | None = None
-                            # Apply parsers
-                            for parser in parser_chain:
-                                if not parsed_sentence:  # Try to extract a complete sentence
-                                    parsed_sentence, current_sentence = parser.cut_sentence(current_sentence, settings)
-                                if parsed_sentence:  # Apply modifications if we already have a sentence
-                                    parsed_sentence, pending_sentence = parser.modify_sentence_content(parsed_sentence, pending_sentence, settings)
+                            if first_token:
+                                logging.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to respond")
+                                first_token = False
+                            
+                            raw_response += content
+                            accumulator.accumulate(content)
+                            while accumulator.has_next_sentence():
+                                current_sentence = accumulator.get_next_sentence()
+                                # current_sentence += content
+                                parsed_sentence: SentenceContent | None = None
+                                # Apply parsers
+                                for parser in parser_chain:
+                                    if not parsed_sentence:  # Try to extract a complete sentence
+                                        parsed_sentence, current_sentence = parser.cut_sentence(current_sentence, settings)
+                                    if parsed_sentence:  # Apply modifications if we already have a sentence
+                                        parsed_sentence, pending_sentence = parser.modify_sentence_content(parsed_sentence, pending_sentence, settings)
+                                    if settings.stop_generation:
+                                        break
                                 if settings.stop_generation:
                                     break
+                                accumulator.refuse(current_sentence)
+                                # Process sentences from the parser chain
+                                if parsed_sentence:
+                                    if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                                        new_sentence = self.generate_sentence(parsed_sentence)
+                                        blocking_queue.put(new_sentence)
+                                        parsed_sentence = None
                             if settings.stop_generation:
-                                break
-                            accumulator.refuse(current_sentence)
-                            # Process sentences from the parser chain
-                            if parsed_sentence:
-                                if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
-                                    new_sentence = self.generate_sentence(parsed_sentence)
-                                    blocking_queue.put(new_sentence)
-                                    parsed_sentence = None
-                        if settings.stop_generation:
-                                break
-                    break #if the streaming_call() completed without exception, break the while loop
-                            
-                except Exception as e:
-                    retries += 1
-                    utils.play_error_sound()
-                    logging.error(f"LLM API Error: {e}")
-                    
-                    error_response = "I can't find the right words at the moment."
-                    new_sentence = self.generate_sentence(SentenceContent(active_character, error_response, SentenceTypeEnum.SPEECH, True))
-                    blocking_queue.put(new_sentence)
-                    if new_sentence.error_message: # If the error message itself has an error, just give up
-                        break
-                    
-                    if retries >= max_retries:
-                        logging.log(self.loglevel, f"Max retries reached ({retries}).")
-                        break
-                    
-                    logging.log(self.loglevel, 'Retrying connection to API...')
-                    time.sleep(5)
+                                    break
+                        break #if the streaming_call() completed without exception, break the while loop
+                                
+                    except Exception as e:
+                        retries += 1
+                        utils.play_error_sound()
+                        logging.error(f"LLM API Error: {e}")
+                        
+                        error_response = "I can't find the right words at the moment."
+                        new_sentence = self.generate_sentence(SentenceContent(active_character, error_response, SentenceTypeEnum.SPEECH, True))
+                        blocking_queue.put(new_sentence)
+                        if new_sentence.error_message: # If the error message itself has an error, just give up
+                            break
+                        
+                        if retries >= max_retries:
+                            logging.log(self.loglevel, f"Max retries reached ({retries}).")
+                            break
+                        
+                        logging.log(self.loglevel, 'Retrying connection to API...')
+                        time.sleep(5)
 
-        except Exception as e:
-            utils.play_error_sound()
-            if isinstance(e, APIConnectionError):
-                if (hasattr(e, 'code')) and (e.code in [401, 'invalid_api_key']): # incorrect API key
-                    logging.error(f"Invalid API key. Please ensure you have selected the right model for your service (OpenAI / OpenRouter) via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
-                elif isinstance(e, UnboundLocalError):
-                    logging.error('No voice file generated for voice line. Please check your TTS service for errors. The reason for this error is often because a voice model could not be found.')
+            except Exception as e:
+                utils.play_error_sound()
+                if isinstance(e, APIConnectionError):
+                    if (hasattr(e, 'code')) and (e.code in [401, 'invalid_api_key']): # incorrect API key
+                        logging.error(f"Invalid API key. Please ensure you have selected the right model for your service (OpenAI / OpenRouter) via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+                    elif isinstance(e, UnboundLocalError):
+                        logging.error('No voice file generated for voice line. Please check your TTS service for errors. The reason for this error is often because a voice model could not be found.')
+                    else:
+                        logging.error(f"LLM API Error: {e}")
                 else:
                     logging.error(f"LLM API Error: {e}")
-            else:
-                logging.error(f"LLM API Error: {e}")
-        finally:
-            # Handle any remaining content
-            if parsed_sentence:
-                if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
-                    new_sentence = self.generate_sentence(parsed_sentence)
-                    blocking_queue.put(new_sentence)
-            
-            if pending_sentence:
-                if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or pending_sentence.sentence_type != SentenceTypeEnum.NARRATION:
-                    new_sentence = self.generate_sentence(pending_sentence)
-                    blocking_queue.put(new_sentence)
-            logging.log(23, f"Full raw response ({self.__client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")
-            blocking_queue.is_more_to_come = False
-            # This sentence is required to make sure there is one in case the game is already waiting for it
-            # before the ChatManager realises there is not another message coming from the LLM
-            blocking_queue.put(Sentence(SentenceContent(active_character,"",SentenceTypeEnum.SPEECH, True),"",0))
-            self.__is_generating = False
+            finally:
+                # Handle any remaining content
+                if parsed_sentence:
+                    if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                        new_sentence = self.generate_sentence(parsed_sentence)
+                        blocking_queue.put(new_sentence)
+                
+                if pending_sentence:
+                    if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or pending_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                        new_sentence = self.generate_sentence(pending_sentence)
+                        blocking_queue.put(new_sentence)
+                logging.log(23, f"Full raw response ({self.__client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")
+                blocking_queue.is_more_to_come = False
+                # This sentence is required to make sure there is one in case the game is already waiting for it
+                # before the ChatManager realises there is not another message coming from the LLM
+                blocking_queue.put(Sentence(SentenceContent(active_character,"",SentenceTypeEnum.SPEECH, True),"",0))
+                self.__is_generating = False

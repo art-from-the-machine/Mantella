@@ -324,7 +324,12 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 logging.error(f"""Error in parsing LLM parameter list: {e}
 LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.vision_llm_params = None
-            
+
+            # Telemetry
+            self.enable_telemetry = self.__definitions.get_bool_value("enable_telemetry")
+            self.telemetry_otlp_endpoint = self.__definitions.get_string_value("telemetry_otlp_endpoint")
+            self.telemetry_protocol = self.__definitions.get_string_value("telemetry_protocol")
+
             pass
         except Exception as e:
             utils.play_error_sound()
