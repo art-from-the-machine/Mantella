@@ -84,6 +84,29 @@ class Summaries(Remembering):
                 return ""
 
     @utils.time_it
+    def get_character_summary(self, character: Character, world_id: str) -> str:
+        """ Gets the summary for a specific character
+        
+        Args:
+            character (Character): the character to get the summary for
+            world_id (str): the world ID
+            
+        Returns:
+            str: the summary text for this character, or empty string if no summary exists
+        """
+        conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)      
+        if os.path.exists(conversation_summary_file):
+            paragraphs = []
+            with open(conversation_summary_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        paragraphs.append(line.strip())
+            if paragraphs:
+                return "\n".join(paragraphs)
+        return ""
+
+    @utils.time_it
     def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False):
         summary = ''
         for npc in npcs_in_conversation.get_all_characters():

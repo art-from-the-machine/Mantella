@@ -43,7 +43,9 @@ class ConfigLoader:
             for (each_key, each_value) in config.items(section_name):
                 try:
                     config_value = self.__definitions.get_config_value_definition(each_key)
-                    config_value.parse(each_value)
+                    # Unescape hash symbols that were escaped for INI file storage
+                    unescaped_value = ConfigFileWriter.unescape_hash_symbols(each_value)
+                    config_value.parse(unescaped_value)
                 except:
                     create_back_up_configini = True
                     # TODO: filter out warnings for ['game', 'skyrim_mod_folder', 'skyrimvr_mod_folder', 'fallout4_mod_folder', 'fallout4vr_mod_folder', fallout4vr_folder]
