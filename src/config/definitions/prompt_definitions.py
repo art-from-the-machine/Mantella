@@ -24,6 +24,7 @@ class PromptDefinitions:
                                 "language", 
                                 "conversation_summary",
                                 "conversation_summaries",
+                                "bios_and_summaries",
                                 "actions"]
     
     ALLOWED_PROMPT_VARIABLES_RADIANT = [
@@ -40,6 +41,7 @@ class PromptDefinitions:
                                 "language", 
                                 "conversation_summary",
                                 "conversation_summaries",
+                                "bios_and_summaries",
                                 "actions"]
     
     BASE_PROMPT_DESCRIPTION = """The starting prompt sent to the LLM when an NPC is selected.

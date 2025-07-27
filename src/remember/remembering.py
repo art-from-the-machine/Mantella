@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from src.characters_manager import Characters
+from src.character_manager import Character
 from src.llm.message_thread import message_thread
 
 
@@ -14,6 +15,19 @@ class Remembering(ABC):
 
         Returns:
             str: a single text
+        """
+        pass
+
+    @abstractmethod
+    def get_character_summary(self, character: Character, world_id: str) -> str:
+        """ Gets the summary for a specific character
+        
+        Args:
+            character (Character): the character to get the summary for
+            world_id (str): the world ID
+            
+        Returns:
+            str: the summary text for this character, or empty string if no summary exists
         """
         pass
 

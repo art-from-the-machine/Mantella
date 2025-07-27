@@ -102,6 +102,9 @@ class ConfigFileWriter(ConfigValueVisitor):
             default_value[0] = default_value[0].replace(";   ", ";   default = ")
         
         parsed_value = str(config_value.value)
+        # Escape hash symbols to prevent them from being treated as comments
+        parsed_value = ConfigFileWriter.escape_hash_symbols(parsed_value)
+        
         if len(parsed_value) == 0:
             default_value.append(f"{config_value.identifier} =\n")
         else:   
@@ -125,6 +128,16 @@ class ConfigFileWriter(ConfigValueVisitor):
         for s in split:
             result.append(prefix + s.strip() + ConfigFileWriter.NEWLINE)
         return result
+    
+    @staticmethod
+    def escape_hash_symbols(text: str) -> str:
+        """Escape hash symbols to prevent INI parser from treating them as comments"""
+        return text.replace("#", "\\#")
+    
+    @staticmethod
+    def unescape_hash_symbols(text: str) -> str:
+        """Unescape hash symbols that were escaped for INI file storage"""
+        return text.replace("\\#", "#")
     
     def __backup_config_ini(self, config_file_path: str):
         if os.path.exists(config_file_path):

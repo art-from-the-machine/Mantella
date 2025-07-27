@@ -385,6 +385,41 @@ class Context:
         return "\n\n".join(bio_descriptions)
     
     @utils.time_it
+    def __get_bios_and_summaries_text(self) -> str:
+        """Gets the bios and summaries combined for each character in the conversation
+
+        Returns:
+            str: the bios and summaries paired together for each character
+        """
+        character_sections = []
+        non_player_characters = self.get_characters_excluding_player().get_all_characters()
+        
+        for character in non_player_characters:
+            # Get the bio
+            bio = character.bio
+            
+            # Get the summary for this specific character using the new interface method
+            summary = self.__rememberer.get_character_summary(character, self.__world_id)
+            
+            # Combine bio and summary for this character
+            if len(non_player_characters) == 1:
+                # Single character - no delimiters needed
+                section = bio
+                if summary:
+                    section += f"\n\nBelow is a summary of past events:\n{summary}"
+            else:
+                # Multiple characters - wrap everything with character information delimiters
+                section = f"[This is the beginning of {character.name}'s information]\n"
+                section += f"[This is the beginning of {character.name}'s bio]\n{bio}\n[This is the end of {character.name}'s bio]"
+                if summary:
+                    section += f"\n\n[This is the beginning of {character.name}'s memory]\n{summary}\n[This is the end of {character.name}'s memory]"
+                section += f"\n[This is the end of {character.name}'s information]"
+            
+            character_sections.append(section)
+        
+        return "\n\n".join(character_sections)
+    
+    @utils.time_it
     def __get_npc_equipment_text(self) -> str:
         """Gets the equipment description of all npcs in the conversation
 
@@ -437,6 +472,7 @@ class Context:
         names = self.get_character_names_as_text(False)
         names_w_player = self.get_character_names_as_text(True)
         bios = self.__get_bios_text()
+        bios_and_summaries = self.__get_bios_and_summaries_text()
         trusts = self.__get_trusts()
         equipment = self.__get_npc_equipment_text()
         location = self.__location
@@ -451,7 +487,7 @@ class Context:
         conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
         actions = self.__get_action_texts(actions_for_prompt)
 
-        removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
+        removal_content: list[tuple[str, str, str]] = [(bios, conversation_summaries, bios_and_summaries),(bios,"", ""),("","", "")]
         have_bios_been_dropped = False
         have_summaries_been_dropped = False
         logging.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')
@@ -474,6 +510,7 @@ class Context:
                 language=self.__language['language'], 
                 conversation_summary=content[1],
                 conversation_summaries=content[1],
+                bios_and_summaries=content[2],
                 actions = actions
                 )
             if self.__client.is_too_long(result, self.TOKEN_LIMIT_PERCENT):
