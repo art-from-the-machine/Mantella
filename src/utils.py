@@ -170,7 +170,7 @@ def get_time_group(in_game_time):
     in_game_time = int(in_game_time)
 
     if in_game_time <= 4:
-        time_group = 'at night'
+        time_group = 'at midnight'
     elif in_game_time <= 7:
         # NPCs wake up between 6 and 8
         time_group = 'in the early morning'
