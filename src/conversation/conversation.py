@@ -228,7 +228,7 @@ class conversation:
         return mic_prompt
 
     @utils.time_it
-    def update_context(self, location: str | None, time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
+    def update_context(self, location: str | None, time: int, custom_ingame_events: list[str] | None, weather: str | None, custom_context_values: dict[str, Any] | None, config_settings: dict[str, Any] | None):
         """Updates the context with a new set of values
 
         Args:
@@ -237,7 +237,7 @@ class conversation:
             custom_ingame_events (list[str]): a list of events that happend since the last update
             custom_context_values (dict[str, Any]): the current set of context values
         """
-        self.__context.update_context(location, time, custom_ingame_events, weather, custom_context_values)
+        self.__context.update_context(location, time, custom_ingame_events, weather, custom_context_values, config_settings)
         if self.__context.have_actors_changed:
             self.__update_conversation_type()
             self.__context.have_actors_changed = False

@@ -1,0 +1,28 @@
+{
+    "GPT_func_name": "train_skill",
+    "GPT_func_description": "Use this function to request the NPC to train the player in a skill.",
+    "function_parameters": {
+        "skill_to_train_mode": {
+            "type": "string",
+            "description": "The skill that the NPC will train the player in.",
+            "items": {"type": "string"}
+        }
+    },
+    "system_prompt_info": "`{GPT_func_name}` if requested to train the player in a skill.",
+    "GPT_required": ["skill_to_train_mode"],
+    "allowed_games": ["skyrim"],
+    "is_generic_npc_function": true,
+    "is_follower_function": true,
+    "is_settler_function": true,
+    "is_pre_dialogue": true,
+    "is_post_dialogue": false,
+    "key": "train_skill",
+    "is_interrupting": false,
+    "is_one_on_one": true,
+    "is_multi_npc": false,
+    "is_radiant": false,
+    "llm_feedback": "{speakerName} is about to train the player in: {llm_output_mode} at {playerName}'s request. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
+    "parameter_package_key": ["mantella_npc_trainer_skill_list_package"],
+    "veto_warning" : "{speakerName} is about to train the player in: {llm_output_mode} at {playerName}'s request. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why.",
+    "conditions" : []
+}

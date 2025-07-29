@@ -1,6 +1,7 @@
 # python 3.11
 pandas==1.5.3
 tiktoken==0.4.0
+httpx==0.27.2
 openai==1.6.0
 aiohttp==3.8.4
 faster-whisper==1.0.3

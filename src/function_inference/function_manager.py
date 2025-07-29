@@ -15,7 +15,7 @@ from src.function_inference.llm_tooltip_class import TargetInfo, Tooltip, ModeIn
 from src.function_inference.llm_function_class import Target
 from src.llm.sentence import sentence
 from itertools import zip_longest
-
+from src.http.communication_constants import communication_constants as comm_consts
 
 
 class FunctionManager:
@@ -286,22 +286,22 @@ class FunctionManager:
                     if load_function:
                         if self.KEY_TOOLTIPS_NPC_TARGETING in current_function.parameter_package_key:
                             if not self.build_npc_targeting_tooltip(current_function, exclude_player=False):
-                                #logging.debug(f"Rejecting function {current_function.GPT_func_name} due to  an issue with build_npc_targeting_tooltip() ")
+                                logging.error(f"Rejecting function {current_function.GPT_func_name} due to  an issue with build_npc_targeting_tooltip() ")
                                 load_function = False
 
                         if self.KEY_TOOLTIPS_LOOT_ITEMS in current_function.parameter_package_key:
                             if not self.build_loot_items_tooltips(current_function):
-                                #logging.debug(f"Rejecting function {current_function.GPT_func_name} due to  an issue with build_loot_items_tooltips() ")
+                                logging.error(f"Rejecting function {current_function.GPT_func_name} due to  an issue with build_loot_items_tooltips() ")
                                 load_function = False
 
                         if self.KEY_TOOLTIPS_PARTICIPANTS_NPCS_PLAYERLESS in current_function.parameter_package_key:
                             if not self.build_npc_participants_tooltip(current_function, True):
-                                #logging.debug(f"Rejecting function {current_function.GPT_func_name} due to  an issue with build_npc_participants_tooltip() ")
+                                logging.error(f"Rejecting function {current_function.GPT_func_name} due to  an issue with build_npc_participants_tooltip() ")
                                 load_function = False
 
                         if self.KEY_TOOLTIPS_FO4_NPC_CARRY_ITEM_LIST_TOOLTIP in current_function.parameter_package_key:
                             if not self.build_fo4_npc_carry_item_list_tooltip(current_function):
-                                #logging.debug(f"Rejecting function {current_function.GPT_func_name} due to an issue with build_fo4_npc_carry_item_list_tooltip() ")
+                                logging.error(f"Rejecting function {current_function.GPT_func_name} due to an issue with build_fo4_npc_carry_item_list_tooltip() ")
                                 load_function = False
 
                         # 4b) Build any custom tooltips
@@ -311,7 +311,7 @@ class FunctionManager:
                                 if current_parameter_package:
                                     if not self.build_custom_tooltip(current_parameter_package, current_function, playerName):
                                         load_function = False
-                                        logging.debug(
+                                        logging.error(
                                             f"Rejecting function {current_function.GPT_func_name} "
                                             f"due to an issue with custom parameter package {current_parameter_package}"
                                         )
@@ -321,7 +321,7 @@ class FunctionManager:
                         if current_function.conditions:
                             for function_condition in current_function.conditions:
                                 if self.__tools_manager.evaluate_condition(function_condition, self.__context) is not True:
-                                    logging.debug(
+                                    logging.error(
                                         f"Rejecting function {current_function.GPT_func_name} "
                                         f"due to failing condition {function_condition}"
                                     )
@@ -348,6 +348,23 @@ class FunctionManager:
         if self.llm_output_call_type == "function" :
             mantella_function_name = "mantella_" + self.llm_output_function_name
             output_function:LLMFunction = self.__tools_manager.get_function_object(self.llm_output_function_name)
+
+            # veto functions that result in the NPC attacking the player if 'aggro' setting is off
+            aggro_is_enabled = self.context.get_config_setting(comm_consts.KEY_CONTEXT_CONFIG_SETTINGS_NPC_ANGER)
+            function_is_attack = self.llm_output_function_name in [ "npc_attack_other_npc", "multi_npc_attack_other_npc" ]
+            target_is_player = False
+
+            for target_dec_id in output_function.context_payload.get_targets_dec_ids():
+                for character in self.context.npcs_in_conversation.get_all_characters():
+                    if character.is_player_character and int(character.ref_id, 16) == int(target_dec_id):
+                        target_is_player = True
+                        break
+
+            if not aggro_is_enabled and function_is_attack and target_is_player:
+                logging.log(22, f"Agro disabled: cancelling function call {self.llm_output_function_name } to attack player")
+                self.clear_llm_output_data() 
+                return sentence_receiving_output            
+
             sentence_receiving_output.actions.append(mantella_function_name)
             if output_function.context_payload.targets:
                 target_dec_ids_output = output_function.context_payload.get_targets_dec_ids()
@@ -358,7 +375,18 @@ class FunctionManager:
                 source_dec_ids_output = output_function.context_payload.get_sources_dec_ids()
                 sentence_receiving_output.source_ids.extend(source_dec_ids_output)
             if output_function.context_payload.modes:
-                sentence_receiving_output.function_call_modes.extend(output_function.context_payload.get_modes_lowercase())
+                sentence_receiving_output.function_call_modes.extend(output_function.context_payload.get_modes_lowercase())            
+            elif self.llm_output_arguments:
+                for key, value in self.llm_output_arguments.items():
+                    key_lower = key.lower()
+                    if "mode" in key_lower:
+                        if isinstance(value, list):
+                            modes_to_add = [str(v).lower() for v in value]
+                            sentence_receiving_output.function_call_modes.extend(modes_to_add)
+                        else:
+                            mode_to_add = str(value).lower()
+                            sentence_receiving_output.function_call_modes.append(mode_to_add)
+            
             self.clear_llm_output_data() 
         return sentence_receiving_output
     
@@ -377,8 +405,8 @@ class FunctionManager:
             npc_ids_str       = self.__context.get_custom_context_value(
                                     self.KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_NPCIDS)
         except AttributeError as e:
-            logging.debug(f"Function Manager : build_npc_targeting_tooltip: AttributeError encountered: {e}")
-            return False                      # ← False because the call failed, not just “nothing to do”
+            logging.error(f"Function Manager : build_npc_targeting_tooltip: AttributeError encountered: {e}")
+            return False                      # ← False because the call failed, not just "nothing to do"
 
         if not npc_ids_str:                  # covers None *and* empty string
             return False
@@ -507,7 +535,7 @@ class FunctionManager:
             npc_with_stimpaks_names_str = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_STIMPAK_ACTOR_LIST)
             npc_with_radaway_names_str = self.__context.get_custom_context_value(self.KEY_CONTEXT_CUSTOMVALUES_FUNCTIONS_RADAWAY_ACTOR_LIST)
         except AttributeError as e:
-            logging.debug(f"Function Manager : Error during build_npc_source_tooltip: AttributeError encountered: {e}")
+            logging.error(f"Function Manager : Error during build_npc_source_tooltip: AttributeError encountered: {e}")
             return 
         if (npc_with_stimpaks_names_str is None or npc_with_stimpaks_names_str == "") and (npc_with_radaway_names_str is None or npc_with_radaway_names_str == ""):
             return False
@@ -1110,7 +1138,7 @@ class FunctionManager:
             try:
                 self.llm_output_arguments = json.loads(self.llm_output_arguments)
             except json.JSONDecodeError as e:
-                logging.debug(
+                logging.error(
                     "Function manager : Error decoding Function LLM JSON output "
                     f"at the decode arguments step: {e}"
                 )
@@ -1119,17 +1147,17 @@ class FunctionManager:
 
         # 4) Now check if the arguments are in dictionary form
         if not isinstance(self.llm_output_arguments, dict):
-            logging.debug("Function Manager : llm_output_arguments is not a valid dictionary.")
+            logging.error("Function Manager : llm_output_arguments is not a valid dictionary.")
             return None
 
         # 5) Get the function by name
         if not isinstance(self.llm_output_function_name, str):
-            logging.debug("Function Manager : llm_output_function_name is not a string.")
+            logging.error("Function Manager : llm_output_function_name is not a string.")
             return None
 
         returned_LLMFunction = self.__tools_manager.get_function_object(self.llm_output_function_name)
         if not returned_LLMFunction:
-            logging.debug(f"Function Manager : No matching function object named '{self.llm_output_function_name}'.")
+            logging.error(f"Function Manager : No matching function object named '{self.llm_output_function_name}'.")
             return None
 
         # 6) Evaluate function's parameter presence
@@ -1148,20 +1176,57 @@ class FunctionManager:
 
         # 8) If no parameter_package_key => show a "warning" or "feedback" message
         elif has_no_params:
+            # Process function arguments for simple cases
+            kwargs_for_formatting = {
+                "speakerName": speakerName,
+                "playerName": playerName,
+            }
+            
+            # Process the function arguments and map them to llm_output_* format
+            if self.llm_output_arguments:
+                for key, value in self.llm_output_arguments.items():
+                    key_lower = key.lower()
+                    
+                    # Map parameters to llm_output_* format based on their content
+                    if "mode" in key_lower:
+                        # Convert to string and add to kwargs
+                        if isinstance(value, list):
+                            kwargs_for_formatting["llm_output_mode"] = self.convert_list_to_joined_string(value)
+                        else:
+                            kwargs_for_formatting["llm_output_mode"] = str(value)
+                    elif "target" in key_lower:
+                        # Handle target parameters
+                        if isinstance(value, list):
+                            kwargs_for_formatting["llm_output_target_name"] = self.convert_list_to_joined_string(value)
+                            kwargs_for_formatting["llm_output_target_names"] = self.convert_list_to_joined_string(value)
+                        else:
+                            kwargs_for_formatting["llm_output_target_name"] = str(value)
+                            kwargs_for_formatting["llm_output_target_names"] = str(value)
+                    elif "source" in key_lower:
+                        # Handle source parameters
+                        if isinstance(value, list):
+                            kwargs_for_formatting["llm_output_source_name"] = self.convert_list_to_joined_string(value)
+                            kwargs_for_formatting["llm_output_source_names"] = self.convert_list_to_joined_string(value)
+                        else:
+                            kwargs_for_formatting["llm_output_source_name"] = str(value)
+                            kwargs_for_formatting["llm_output_source_names"] = str(value)
+                    else:
+                        # For any other parameters, pass them through as-is
+                        kwargs_for_formatting[key] = value
+            
             formatted_LLM_warning = self.format_LLM_warning(
                 returned_LLMFunction,
-                speakerName=speakerName,
-                playerName=playerName,
+                **kwargs_for_formatting
             )
             if formatted_LLM_warning:
                 return formatted_LLM_warning
             else:
-                logging.debug("Function Manager : Issue encountered with formatting LLM Warning")
+                logging.error("Function Manager : Issue encountered with formatting LLM Warning")
                 self.clear_llm_output_data()
 
         else:
             # 9) If we reached here, we found an unexpected case
-            logging.debug(
+            logging.error(
                 "Function Manager : Unrecognized Parameter key for LLM function. "
                 "Try using an empty string: \"\""
             )
@@ -1234,7 +1299,7 @@ class FunctionManager:
                 #logging.debug(f"LLM warning formatted to : {formatted_LLM_warning}")
                 return formatted_LLM_warning
             else:
-                logging.debug(f"Function Manager : handle_function_call_with_multiple_value_arguments : Function {returned_LLMFunction.GPT_func_name} couldn't be formatted")
+                logging.error(f"Function Manager : handle_function_call_with_multiple_value_arguments : Function {returned_LLMFunction.GPT_func_name} couldn't be formatted")
                 self.clear_llm_output_data()
                 
 

@@ -28,6 +28,7 @@ class context:
         self.__language: dict[Hashable, str] = language
         self.__is_prompt_too_long: Callable[[str, float], bool] = is_prompt_too_long
         self.__weather: str = ""
+        self.__config_settings: dict[str, Any] = {}
         self.__custom_context_values: dict[str, Any] = {}
         self.__ingame_time: int = 12
         self.__ingame_events: list[str] = []
@@ -84,6 +85,11 @@ class context:
     def have_actors_changed(self, value: bool):
         self.__have_actors_changed = value
 
+    def get_config_setting(self, key: str) -> Any | None:
+        if self.__config_settings.__contains__(key):
+            return self.__config_settings[key]
+        return None
+
     @utils.time_it
     def get_custom_context_value(self, key: str) -> Any | None:
         if self.__custom_context_values.__contains__(key):
@@ -132,15 +138,18 @@ class context:
         return get_time_group(self.__ingame_time)
     
     @utils.time_it
-    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str, custom_context_values: dict[str, Any]):
+    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str | None, custom_context_values: dict[str, Any] | None, config_settings: dict[str, Any] | None):
         if custom_ingame_events:
             self.__ingame_events.extend(custom_ingame_events)
-        if weather != self.__weather:
-            if self.__weather != "":
+        if weather:
+            if weather != self.__weather:
                 self.__ingame_events.append(weather)
             self.__weather = weather
-        self.__custom_context_values = custom_context_values
-        if location:
+        if custom_context_values:
+            self.__custom_context_values = custom_context_values
+        if config_settings:
+            self.__config_settings = config_settings
+        if location is not None:
             if location != '':
                 self.__location = location
             else:
@@ -189,7 +198,7 @@ class context:
                 current_stats.get_custom_character_value("mantella_actor_pos_y") != npc.get_custom_character_value("mantella_actor_pos_y")):
                 current_stats.set_custom_character_value("mantella_actor_pos_y", npc.get_custom_character_value("mantella_actor_pos_y"))
         except Exception as e:
-            logging.info(f"Updating custom values failed: {e}")
+            logging.error(f"Updating custom values failed: {e}")
         if not npc.is_player_character:
             player_name = "the player"
             player = self.__npcs_in_conversation.get_player_character()

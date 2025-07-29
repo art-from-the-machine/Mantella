@@ -8,8 +8,8 @@
         }
     },
     "system_prompt_info": "`{GPT_func_name}` if requested to wait or stop",
-    "GPT_required": ["is_waiting","skyrim"],
-    "allowed_games": ["fallout4"],
+    "GPT_required": ["is_waiting"],
+    "allowed_games": ["fallout4","skyrim"],
     "is_generic_npc_function": true,
     "is_follower_function": true,
     "is_settler_function": true,

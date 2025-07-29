@@ -61,25 +61,17 @@ class communication_constants:
     KEY_CONTEXT_WEATHER = PREFIX + "weather"
     KEY_CONTEXT_TIME: str = PREFIX + "time"
     KEY_CONTEXT_INGAMEEVENTS: str = PREFIX + "ingame_events"
+    KEY_CONTEXT_CONFIG_SETTINGS: str = PREFIX + "config_settings"
+    KEY_CONTEXT_CONFIG_SETTINGS_NPC_ANGER: str = PREFIX + "config_settings_npc_anger"
+    KEY_CONTEXT_CONFIG_SETTINGS_NPC_INVENTORY: str = PREFIX + "config_settings_npc_inventory"
+    KEY_CONTEXT_CONFIG_SETTINGS_NPC_PACKAGE: str = PREFIX + "config_settings_npc_package"
+    KEY_CONTEXT_CONFIG_SETTINGS_NPC_FOLLOW: str = PREFIX + "config_settings_npc_follow"
     KEY_CONTEXT_CUSTOMVALUES: str = PREFIX + "custom_context_values"
 
     # Actions
     ACTION_RELOADCONVERSATION: str = PREFIX + "reload_conversation"
     ACTION_ENDCONVERSATION: str = PREFIX + "end_conversation"
     ACTION_REMOVECHARACTER: str = PREFIX + "remove_character"
-
-    ACTION_NPC_OFFENDED: str = PREFIX + "npc_offended"
-    ACTION_NPC_FORGIVEN: str = PREFIX + "npc_forgiven"
-    ACTION_NPC_FOLLOW: str = PREFIX + "npc_follow"
-    ACTION_NPC_INVENTORY: str = PREFIX + "npc_inventory"
-    ACTION_NPC_MOVETO_NPC: str = PREFIX + "npc_move_character_near_npc"
-    ACTION_MAKE_NPC_WAIT: str = PREFIX + "make_npc_wait"
-    ACTION_MULTI_MAKE_NPC_WAIT: str = PREFIX +"multi_make_npc_wait" 
-    ACTION_NPC_ATTACK_OTHER_NPC: str = PREFIX + "npc_attack_other_npc"
-    ACTION_MULTI_NPC_ATTACK_OTHER_NPC: str = PREFIX +"multi_npc_attack_other_npc"
-    ACTION_NPC_LOOT_ITEMS: str = PREFIX + "npc_loot_items"
-    ACTION_MULTI_NPC_LOOT_ITEMS: str = PREFIX + "multi_npc_loot_items"
-    ACTION_NPC_HEAL_PLAYER: str = PREFIX +"heal_me" 
 
 
 

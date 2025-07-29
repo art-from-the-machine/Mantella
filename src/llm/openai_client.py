@@ -316,7 +316,7 @@ class openai_client:
                 sync_client.close()
             
             if not chat_completion or chat_completion.choices.__len__() < 1 or not chat_completion.choices[0].message.content:
-                logging.info(f"LLM Response failed")
+                logging.error(f"LLM Response failed. Received: {chat_completion}")
                 return None
             
             reply = chat_completion.choices[0].message.content
@@ -608,7 +608,10 @@ class function_client(openai_client):
                 if not self._base_url:
                     params['tools'] = tools_list  # Include tools only if self._base_url is False or None
 
+                start_time = time.time()
                 chat_completion = sync_client.chat.completions.create(**params)
+
+                logging.log(28, f"Function LLM took {round(time.time() - start_time, 2)} seconds to respond")
 
             except Exception as e:
                     if isinstance(e, APIConnectionError):
@@ -639,13 +642,14 @@ class function_client(openai_client):
                     or not hasattr(chat_completion.choices[0].message, 'content')
                     or not chat_completion.choices[0].message.content
                 ):
-                    logging.info(f"Non OpenAI LLM Response failed")
+                    logging.error(f"Non OpenAI LLM Response failed. Received: {chat_completion}")
+                    
                     return None 
             else:
             #if not chat_completion :
                 #if not chat_completion or chat_completion.choices.__len__() < 1 or not chat_completion.choices[0].message.content:
                 if not chat_completion :
-                    logging.info(f"OpenAI LLM Response failed")
+                    logging.error(f"OpenAI LLM Response failed")
                     return None           
             chat_completion_json = json.dumps(chat_completion, default=lambda o: o.__dict__)
             logging.debug(f"Function LLM : Received json file :  {chat_completion_json}")

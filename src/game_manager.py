@@ -171,18 +171,23 @@ class GameStateManager:
     def __update_context(self,  json: dict[str, Any]):
         if self.__talk:
             if json.__contains__(comm_consts.KEY_ACTORS):
-                actors_in_json: list[Character] = []
-                for actorJson in json[comm_consts.KEY_ACTORS]:
-                    actor: Character | None = self.load_character(actorJson)                
-                    if actor:
-                        actors_in_json.append(actor)
-                self.__talk.add_or_update_character(actors_in_json)
-            
+
+                try:
+                    actors_in_json: list[Character] = []
+                    for actorJson in json[comm_consts.KEY_ACTORS]:
+                        actor: Character | None = self.load_character(actorJson)                
+                        if actor:
+                            actors_in_json.append(actor)
+                    self.__talk.add_or_update_character(actors_in_json)
+                except Exception as e:
+                    logging.error(f'Error updating character list: {e}')
+
             location = None
             time = None
             ingame_events = None
-            weather = ""
-            custom_context_values: dict[str, Any] = {}
+            weather = None
+            config_settings: dict[str, Any] | None = None
+            custom_context_values: dict[str, Any] | None = None
             if json.__contains__(comm_consts.KEY_CONTEXT):
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_LOCATION):
                     location: str = json[comm_consts.KEY_CONTEXT].get(comm_consts.KEY_CONTEXT_LOCATION, None)
@@ -191,14 +196,19 @@ class GameStateManager:
                     time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_INGAMEEVENTS):
+                    logging.log(23, f'Received in-game events: {json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]}')
                     ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
                 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_WEATHER):
                     weather = self.__game.get_weather_description(json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_WEATHER])
 
+                if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CONFIG_SETTINGS):
+                    config_settings = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CONFIG_SETTINGS]
+
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
                     custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
-            self.__talk.update_context(location, time, ingame_events, weather, custom_context_values)
+
+                self.__talk.update_context(location, time, ingame_events, weather, custom_context_values, config_settings)
     
     @utils.time_it
     def load_character(self, json: dict[str, Any]) -> Character | None:
@@ -285,8 +295,11 @@ class GameStateManager:
                             equipment,
                             custom_values)
         except CharacterDoesNotExist:                 
-            logging.log(23, 'Restarting...')
+            logging.error('Character not loaded. Restarting...')
             return None 
+        except Exception as e:
+            logging.error(f'Error loading character: {e}')
+            return None
         
     def error_message(self, message: str) -> dict[str, Any]:
         return {

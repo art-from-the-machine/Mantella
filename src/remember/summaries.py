@@ -96,7 +96,7 @@ class summaries(remembering):
         prompt = self.__memory_prompt.format(
                     name=npc_name,
                     language=self.__language_name,
-                    game=self.__game
+                    game=self.__game.game_name_in_filepath
                 )
         while True:
             try:
@@ -143,7 +143,7 @@ class summaries(remembering):
                     prompt = self.__resummarize_prompt.format(
                         name=npc.name,
                         language=self.__language_name,
-                        game=self.__game
+                        game=self.__game.game_name_in_filepath
                     )
                     long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt, npc.name)
                     break
@@ -172,7 +172,7 @@ class summaries(remembering):
             messages.add_message(user_message(text_to_summarize))
             summary = self.__client.request_call(messages)
             if not summary:
-                logging.info(f"Summarizing conversation failed.")
+                logging.error(f"Summarizing conversation failed.")
                 return ""
 
             summary = summary.replace('The assistant', npc_name)

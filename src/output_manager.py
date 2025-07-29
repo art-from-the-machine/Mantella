@@ -228,7 +228,7 @@ class ChatManager:
                             continue
 
                         if first_token:
-                            logging.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to respond")
+                            logging.log(self.loglevel, f"Roleplay LLM took {round(time.time() - start_time, 2)} seconds to respond")
                             first_token = False
                         
                         sentence += content
@@ -326,10 +326,6 @@ class ChatManager:
                                 if self.__stop_generation.is_set():
                                     break
                                 new_sentence = self.generate_sentence(' ' + sentence + ' ', active_character, is_first_line_of_response)
-                                # --- Set the has_veto attribute ---
-                                new_sentence.has_veto = has_veto
-                                is_first_line_of_response = False
-                                blocking_queue.put(new_sentence)
 
                                 has_interrupting_action = False
                                 if not new_sentence.error_message:
@@ -337,8 +333,17 @@ class ChatManager:
                                         has_interrupting_action |= a.is_interrupting
                                         new_sentence.actions.append( a.identifier)
                                 else:
+                                    logging.error(f"LLM error {new_sentence.error_message}")
                                     break
-                                
+
+                                # --- Set the has_veto attribute ---
+                                new_sentence.has_veto = has_veto
+                                is_first_line_of_response = False
+
+                                # start processing the sentence
+                                blocking_queue.put(new_sentence)
+
+                                # start of new sentence
                                 full_reply += sentence
                                 num_sentences += 1
                                 if cumulative_sentence_bool == True :
@@ -432,6 +437,11 @@ class ChatManager:
                         elif "<tool_call>" in choice.get('message', {}).get('content', '') :
                             self.generated_function_results = self.process_pseudo_tool_call(choice.get('message', {}).get('content', ''))
                             return
+                        elif content.startswith('```'):
+                            content = content.replace('```json', '').strip()
+                            content = content.replace('```', '').strip()
+                            self.generated_function_results = self.process_unlabeled_function_content(content)
+                            return
                         elif content.startswith('{') and '}' in content:
                             # Attempt to parse the content as a function call
                             self.generated_function_results = self.process_unlabeled_function_content(content)
@@ -510,7 +520,7 @@ class ChatManager:
         if function_name and arguments is not None:
             return 'function', function_name, arguments
         else:
-            logging.debug("Error in pseudo tool call :Failed to parse the tool call string.")
+            logging.error("Error in pseudo tool call :Failed to parse the tool call string.")
             return None
 
     def _try_parse_json(self, json_like_str):
@@ -520,16 +530,27 @@ class ChatManager:
             # Try parsing as valid JSON
             return json.loads(json_like_str)
         except json.JSONDecodeError:
-            # Try using literal_eval to handle single quotes
             try:
-                python_obj = ast.literal_eval(json_like_str)
-                # Convert Python object to JSON string
-                json_str = json.dumps(python_obj)
-                return json.loads(json_str)
+                # Try to reformat the JSON string
+                return json.loads(self._fix_json_string(json_like_str))
             except Exception as e:
-                logging.debug("Function LLM : JSON error. Failed to parse using literal_eval:", e)
-                return None
-        
+                try:
+                    python_obj = ast.literal_eval(json_like_str)
+                    # Convert Python object to JSON string
+                    json_str = json.dumps(python_obj)
+                    return json.loads(json_str)
+                except Exception as e:
+                    logging.error(f"Function LLM : JSON error. Failed to parse {json_like_str}: {e}")
+                    return None
+
+    def _fix_json_string(self, json_str):
+        """Convert Python-style string to valid JSON"""
+        # Replace single quotes with double quotes
+        json_str = json_str.replace("'", '"')
+        # Replace Python booleans with JSON booleans
+        json_str = json_str.replace("True", "true").replace("False", "false")
+        return json_str
+
     def process_unlabeled_function_content(self, content):
         logging.debug("Attempting to process unlabeled function content")
         call_type = 'function'  # As specified, call_type is always 'function'
@@ -562,31 +583,25 @@ class ChatManager:
 
         # Attempt to parse the JSON string
         try:
-            # Replace single quotes with double quotes
-            json_str = json_str.replace("'", '"')
-            # Replace Python booleans with JSON booleans
-            json_str = json_str.replace("True", "true").replace("False", "false")
+            data = self._try_parse_json(json_str)
+        except Exception as e:
+            logging.error(f"Error while processing unlabeled function content from Function LLM : Failed to parse content as JSON {json_str}: {e}")
+            return None
 
-            data = json.loads(json_str)
+        # Try top-level extraction first
+        function_name = data.get('name')
+        arguments = data.get('arguments')
 
-            # Try top-level extraction first
-            function_name = data.get('name')
-            arguments = data.get('arguments')
+        # If not found at the top-level, try fallback under 'properties'
+        if function_name is None or arguments is None:
+            properties = data.get('properties', {})
+            function_name = function_name or properties.get('name')
+            arguments = arguments or properties.get('arguments')
 
-            # If not found at the top-level, try fallback under 'properties'
-            if function_name is None or arguments is None:
-                properties = data.get('properties', {})
-                function_name = function_name or properties.get('name')
-                arguments = arguments or properties.get('arguments')
-
-            if function_name and arguments is not None:
-                return call_type, function_name, arguments
-            else:
-                logging.debug("Error while processing unlabeled function content from Function LLM : Function name or arguments missing in content.")
-                return None
-
-        except json.JSONDecodeError as e:
-            logging.debug("Error while processing unlabeled function content from Function LLM : Failed to parse content as JSON:", e)
+        if function_name and arguments is not None:
+            return call_type, function_name, arguments
+        else:
+            logging.error(f"Error while processing unlabeled function content from Function LLM : Function name or arguments missing in content {json_str}.")
             return None
 
 
