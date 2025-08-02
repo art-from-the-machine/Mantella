@@ -409,11 +409,11 @@ class Context:
                     section += f"\n\nBelow is a summary of past events:\n{summary}"
             else:
                 # Multiple characters - wrap everything with character information delimiters
-                section = f"[This is the beginning of {character.name}'s information]\n"
-                section += f"[This is the beginning of {character.name}'s bio]\n{bio}\n[This is the end of {character.name}'s bio]"
+                section = f"[This is the beginning of {character.name}'s information, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]\n"
+                section += f"[This is the beginning of {character.name}'s bio, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]\n{bio}\n[This is the end of {character.name}'s bio, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]"
                 if summary:
-                    section += f"\n\n[This is the beginning of {character.name}'s memory]\n{summary}\n[This is the end of {character.name}'s memory]"
-                section += f"\n[This is the end of {character.name}'s information]"
+                    section += f"\n\n[This is the beginning of {character.name}'s memory, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]\n{summary}\n[This is the end of {character.name}'s memory, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]"
+                section += f"\n[This is the end of {character.name}'s information, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]"
             
             character_sections.append(section)
         
