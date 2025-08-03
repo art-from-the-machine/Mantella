@@ -118,7 +118,7 @@ class ConfigFileWriter(ConfigValueVisitor):
     
     @staticmethod
     def parse_multi_line_string(potential_multi_line_string: str, prefix: str) -> list[str]:
-        if len(potential_multi_line_string) < 1:
+        if (potential_multi_line_string is None) or (len(potential_multi_line_string) < 1):
             return []
         result = []
         split = potential_multi_line_string.split("\n")

@@ -4,19 +4,22 @@ from typing import Any, Hashable
 
 from fastapi import FastAPI, Request
 from src.config.config_loader import ConfigLoader
-from src.games.fallout4 import fallout4
-from src.games.gameable import gameable
-from src.games.skyrim import skyrim
+from src.games.fallout4 import Fallout4
+from src.games.gameable import Gameable
+from src.games.skyrim import Skyrim
 from src.output_manager import ChatManager
-from src.llm.openai_client import openai_client, function_client
+from src.llm.llm_client import LLMClient
+from src.llm.openai_client import function_client
 from src.game_manager import GameStateManager
 from src.http.routes.routeable import routeable
 from src.http.communication_constants import communication_constants as comm_consts
-from src.tts.ttsable import ttsable
-from src.tts.xvasynth import xvasynth
-from src.tts.xtts import xtts
-from src.tts.piper import piper
+from src.tts.ttsable import TTSable
+from src.tts.xvasynth import xVASynth
+from src.tts.xtts import XTTS
+from src.tts.piper import Piper
 from src import utils
+from src.config.definitions.game_definitions import GameEnum
+from src.config.definitions.tts_definitions import TTSEnum
 
 class mantella_route(routeable):
     """Main route for Mantella conversations
@@ -24,12 +27,13 @@ class mantella_route(routeable):
     Args:
         routeable (_type_): _description_
     """
-    def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str, function_llm_secret_key_file: str,language_info: dict[Hashable, str], show_debug_messages: bool = False) -> None:
+    def __init__(self, config: ConfigLoader, stt_secret_key_file: str, image_secret_key_file: str, function_llm_secret_key_file: str, secret_key_file: str, language_info: dict[Hashable, str], show_debug_messages: bool = False) -> None:
         super().__init__(config, show_debug_messages)
         self.__language_info: dict[Hashable, str] = language_info
         self.__secret_key_file: str = secret_key_file
-        self.__function_llm_secret_key_file: str =function_llm_secret_key_file
+        self.__function_llm_secret_key_file: str = function_llm_secret_key_file
         self.__stt_secret_key_file = stt_secret_key_file
+        self.__image_secret_key_file: str = image_secret_key_file
         self.__game: GameStateManager | None = None
 
         # if not self._can_route_be_used():
@@ -41,36 +45,32 @@ class mantella_route(routeable):
         if self.__game:
             self.__game.end_conversation({})
 
-        client = openai_client(self._config, self.__secret_key_file)
-        function_client_instance = function_client(self._config, self.__function_llm_secret_key_file, self.__secret_key_file) 
-
-        # Determine which game we're running for and select the appropriate character file
-        game: gameable
-        formatted_game_name = self._config.game.lower().replace(' ', '').replace('_', '')
-        if formatted_game_name in ("fallout4", "fallout4vr"):
-            game = fallout4(self._config)
+        game: Gameable
+        game_enum = self._config.game
+        if game_enum.base_game == GameEnum.FALLOUT4:
+            game = Fallout4(self._config)
         else:
-            game = skyrim(self._config)
+            game = Skyrim(self._config)
 
-        tts: ttsable
-        if self._config.tts_service == 'xvasynth':
-            tts = xvasynth(self._config)
-        elif self._config.tts_service == 'xtts':
-            tts = xtts(self._config, game)
-        if self._config.tts_service == 'piper':
-            tts = piper(self._config, game)
+        tts: TTSable
+        if self._config.tts_service == TTSEnum.XVASYNTH:
+            tts = xVASynth(self._config)
+        elif self._config.tts_service == TTSEnum.XTTS:
+            tts = XTTS(self._config, game)
+        if self._config.tts_service == TTSEnum.PIPER:
+            tts = Piper(self._config, game)
 
-        client = openai_client(self._config, self.__secret_key_file)
+        llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
+        function_client_instance = function_client(self._config, self.__function_llm_secret_key_file, self.__secret_key_file) 
         
-        chat_manager = ChatManager(game, self._config, tts, client, function_client_instance)
-        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, client, self.__stt_secret_key_file, self.__secret_key_file)
+        chat_manager = ChatManager(self._config, tts, llm_client, function_client_instance)
+        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, self.__stt_secret_key_file, self.__secret_key_file)
 
     
     @utils.time_it
     def add_route_to_server(self, app: FastAPI):
         @app.post("/mantella")
         async def mantella(request: Request):
-            logging.debug('Received request')
             if not self._can_route_be_used():
                 error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
                 logging.error(error_message)

@@ -3,7 +3,7 @@ from src.characters_manager import Characters
 from src.llm.message_thread import message_thread
 
 
-class remembering(ABC):
+class Remembering(ABC):
     @abstractmethod
     def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str) -> str:
         """ Generates a text that explains the previous interactions of the npcs with the player. 

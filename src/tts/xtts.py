@@ -1,5 +1,5 @@
 from src.config.config_loader import ConfigLoader
-from src.tts.ttsable import ttsable
+from src.tts.ttsable import TTSable
 import logging
 import requests
 from typing import Any
@@ -12,11 +12,12 @@ import time
 from src.tts.synthesization_options import SynthesizationOptions
 from src import utils
 from threading import Thread
+from src.config.definitions.game_definitions import GameEnum
 
 class TTSServiceFailure(Exception):
     pass
 
-class xtts(ttsable):
+class XTTS(TTSable):
     """XTTS TTS handler
     """
     @utils.time_it
@@ -60,12 +61,12 @@ class xtts(ttsable):
     
 
     @utils.time_it
-    def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None):
+    def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None, voice_gender: int | None = None, voice_race: str | None = None):
         logging.log(self._loglevel, 'Loading voice model...')
 
         selected_voice: str | None = self._select_voice_type(voice, in_game_voice, csv_in_game_voice, advanced_voice_model)
 
-        if (selected_voice and selected_voice.lower() in ['maleeventoned','femaleeventoned']) and (self._game == 'Fallout4'):
+        if (selected_voice and selected_voice.lower() in ['maleeventoned','femaleeventoned']) and (self._game.base_game == GameEnum.FALLOUT4):
             selected_voice = 'fo4_'+ selected_voice
         
         if not selected_voice:
@@ -255,5 +256,6 @@ class xtts(ttsable):
                 raise TTSServiceFailure()
         
         except Exception as e:
+            utils.play_error_sound()
             logging.error(f'Could not run XTTS. Ensure that the path "{self.__xtts_server_path}" is correct. Error: {e}')
             #raise TTSServiceFailure()

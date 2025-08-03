@@ -1,12 +1,13 @@
+from enum import Enum
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 from src.config.types.config_value_visitor import ConfigValueVisitor
-from src.config.types.config_value import ConfigValue, ConvigValueTag
-
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 class ConfigValueSelection(ConfigValue[str]):
-    def __init__(self, identifier: str, name: str, description: str, default_value: str, options: list[str], allows_free_edit: bool = False, allows_values_not_in_options: bool = False, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConvigValueTag] = []):
+    def __init__(self, identifier: str, name: str, description: str, default_value: str, options: list[str], corresponding_enums: list[Enum] | None = None, allows_free_edit: bool = False, allows_values_not_in_options: bool = False, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = []):
         super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
         self.__options: list[str] = options
+        self.__corresponding_enums: list[Enum] | None = corresponding_enums
         self.__allows_free_edit = allows_free_edit
         self.__allows_values_not_in_options = allows_values_not_in_options
 
@@ -15,12 +16,29 @@ class ConfigValueSelection(ConfigValue[str]):
         return self.__options
     
     @property
+    def has_corresponding_enums(self) -> bool:
+        return self.__corresponding_enums != None
+    
+    @property
     def allows_custom_value(self) -> bool:
         return self.__allows_free_edit
-    
+        
     @property
     def allows_values_not_in_options(self) -> bool:
         return self.__allows_values_not_in_options
+    
+    def get_corresponding_enum(self) -> Enum | None:
+        if not self.__corresponding_enums:
+            return None
+        elif isinstance(self.value, Enum):
+            if self.value in self.__corresponding_enums:
+                return self.value
+        else:
+            try:
+                index = self.__options.index(self.value)
+                return self.__corresponding_enums[index]
+            except:
+                return None
     
     def does_value_cause_error(self, value_to_check: str) -> ConfigValueConstraintResult:
         result = super().does_value_cause_error(value_to_check)
@@ -28,7 +46,7 @@ class ConfigValueSelection(ConfigValue[str]):
             return result
         if value_to_check in self.__options or self.__allows_free_edit or self.__allows_values_not_in_options:
             return ConfigValueConstraintResult()
-        return ConfigValueConstraintResult(f"{self.__name} must be either {', '.join(self.__options[:-1]) + ' or ' + self.__options[-1]}")
+        return ConfigValueConstraintResult(f"{self.name} must be either {', '.join(self.__options[:-1]) + ' or ' + self.__options[-1]}")
     
     def parse(self, config_value: str) -> ConfigValueConstraintResult:
         try:

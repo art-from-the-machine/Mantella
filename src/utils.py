@@ -5,7 +5,12 @@ import string
 import sys
 import os
 from shutil import rmtree
+import wave
 from charset_normalizer import detect
+import winsound
+import platform
+import winreg
+from pathlib import Path
 
 
 def time_it(func):
@@ -48,6 +53,27 @@ def resolve_path():
     return resolved_path
 
 
+def play_mantella_ready_sound():
+    try:
+        winsound.PlaySound(os.path.join(resolve_path(),'data','mantella_ready.wav'), winsound.SND_FILENAME | winsound.SND_ASYNC)
+    except:
+        pass
+
+
+def play_no_mic_input_detected_sound():
+    try:
+        winsound.PlaySound(os.path.join(resolve_path(),'data','no_mic_input_detected.wav'), winsound.SND_FILENAME | winsound.SND_ASYNC)
+    except:
+        pass
+
+
+def play_error_sound():
+    try:
+        winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
+    except:
+        pass
+
+
 @time_it
 def get_file_encoding(file_path) -> str | None:
     with open(file_path,'rb') as f:
@@ -57,6 +83,18 @@ def get_file_encoding(file_path) -> str | None:
         return encoding
     else:
         return None
+    
+
+@time_it
+def get_audio_duration(audio_file: str):
+    """Used to estimate when an external software has finished playing the audio file"""
+    with wave.open(audio_file, 'r') as wf:
+        frames = wf.getnframes()
+        rate = wf.getframerate()
+
+    # wait `buffer` seconds longer to let processes finish running correctly
+    duration = frames / float(rate)
+    return duration
 
 
 def cleanup_tmp(tmp_folder: str):
@@ -98,8 +136,29 @@ def cleanup_mei(remove_mei_folders: bool):
                         pass
                 logging.log(24, f'{file_removed} previous runtime folder(s) cleaned up from {dir_mei}')
             else:
-                logging.warn(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in {dir_mei}. See MantellaSoftware/config.ini's remove_mei_folders setting for more information.")
+                logging.warning(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in {dir_mei}. See the Startup->Advanced tab in the Mantella UI for more information.")
         
+
+def get_my_games_directory(custom_user_folder='') -> str:
+    documents_path = custom_user_folder
+    if documents_path == "":
+        if platform.system() == "Windows":
+            reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders")
+            documents_path = winreg.QueryValueEx(reg_key, "Personal")[0]
+            winreg.CloseKey(reg_key)
+        else:
+            homepath = os.getenv('HOMEPATH')
+            if homepath:
+                documents_path = os.path.realpath(homepath+'/Documents')
+        if documents_path == "":
+            print("ERROR: Could not find 'Documents' folder or equivalent!")
+        save_dir = Path(os.path.join(documents_path,"My Games","Mantella"))
+    else:
+        save_dir = Path(documents_path)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    return str(save_dir)+'\\'
+
+
 def convert_to_skyrim_hex_format(identifier: str) -> str:
     intID = int(identifier)
     if intID < 0:
@@ -130,6 +189,24 @@ def get_time_group(in_game_time):
         time_group = 'at night'
     
     return time_group
+
+
+def parse_keywords(keyword_string: str) -> list[str]:
+    """
+    Given a comma-delimited string of keywords, return a list of trimmed, lowercase keywords
+    
+    Args:
+        keyword_string (str): A single keyword or comma-separated list of keywords
+        
+    Returns:
+        list[str]: A list of keywords
+    """
+    # Split on commas if present, or just return the stripped keyword in a list
+    if ',' in keyword_string:
+        keywords = [name.strip().lower() for name in keyword_string.split(',')]
+    else:
+        keywords = [keyword_string.strip().lower()]
+    return keywords
 
 
 def format_context_size(num):

@@ -2,15 +2,16 @@ from abc import ABC, abstractmethod
 from typing import TypeVar
 
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
-from src.config.types.config_value import ConfigValue, ConvigValueTag
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 
 T = TypeVar('T', int, float)
 class ConfigValueNumeric(ConfigValue[T], ABC):
-    def __init__(self, identifier: str, name: str, description: str, default_value: T, min_value: T, max_value: T, constraints: list[ConfigValueConstraint[T]] = [],is_hidden: bool = False, tags: list[ConvigValueTag] = []):
+    def __init__(self, identifier: str, name: str, description: str, default_value: T, min_value: T, max_value: T, constraints: list[ConfigValueConstraint[T]] = [],is_hidden: bool = False, tags: list[ConfigValueTag] = []):
         super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
         self.__min_value: T = min_value
         self.__max_value: T = max_value
+        self.__name: T = name
 
     @property
     def min_value(self) -> T:
@@ -26,7 +27,7 @@ class ConfigValueNumeric(ConfigValue[T], ABC):
             return result
         if value_to_check >= self.__min_value and value_to_check <= self.__max_value:
             return ConfigValueConstraintResult()
-        return ConfigValueConstraintResult(f"{self.__name} must be between {self.__min_value} and {self.__max_value}!")
+        return ConfigValueConstraintResult(f"{self.name} must be between {self.__min_value} and {self.__max_value}!")
     
     @abstractmethod
     def parse(self, config_value: str) -> ConfigValueConstraintResult:

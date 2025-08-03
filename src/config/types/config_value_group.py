@@ -1,11 +1,11 @@
 from typing import Any, Callable
 from src.config.config_value_constraint import ConfigValueConstraintResult
 from src.config.types.config_value_visitor import ConfigValueVisitor
-from src.config.types.config_value import ConfigValue, ConvigValueTag
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 
 class ConfigValueGroup(ConfigValue[list[ConfigValue]]):
-    def __init__(self, identifier: str, name: str, description: str, on_value_change_callback: Callable[..., Any] | None = None, is_hidden: bool = False, tags: list[ConvigValueTag] = []):
+    def __init__(self, identifier: str, name: str, description: str, on_value_change_callback: Callable[..., Any] | None = None, is_hidden: bool = False, tags: list[ConfigValueTag] = []):
         super().__init__(identifier, name, description, [],[], is_hidden, tags)
         self.set_on_value_change_callback(on_value_change_callback)
 

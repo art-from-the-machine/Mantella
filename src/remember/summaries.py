@@ -1,28 +1,30 @@
 import logging
 import os
 import time
-from src.games.gameable import gameable
-from src.llm.openai_client import openai_client
+from src.config.config_loader import ConfigLoader
+from src.games.gameable import Gameable
+from src.llm.llm_client import LLMClient
 from src.llm.message_thread import message_thread
-from src.llm.messages import user_message
+from src.llm.messages import UserMessage
 from src.characters_manager import Characters
 from src.character_manager import Character
-from src.remember.remembering import remembering
+from src.remember.remembering import Remembering
 from src import utils
 
-class summaries(remembering):
+class Summaries(Remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, game: gameable, memory_prompt: str, resummarize_prompt: str, client: openai_client, language_name: str, summary_limit_pct: float = 0.3) -> None:
+    def __init__(self, game: Gameable, config: ConfigLoader, client: LLMClient, language_name: str, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
-        self.__game: gameable = game
+        self.__config = config
+        self.__game: Gameable = game
         self.__summary_limit_pct: float = summary_limit_pct
-        self.__client: openai_client = client
+        self.__client: LLMClient = client
         self.__language_name: str = language_name
-        self.__memory_prompt: str = memory_prompt
-        self.__resummarize_prompt:str = resummarize_prompt
+        self.__memory_prompt: str = config.memory_prompt
+        self.__resummarize_prompt:str = config.resummarize_prompt
 
     @utils.time_it
     def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str) -> str:
@@ -34,13 +36,16 @@ class summaries(remembering):
         Returns:
             str: a concatenation of the summaries as a single string
         """
-        paragraphs = set()
+        paragraphs = []
         for character in npcs_in_conversation.get_all_characters():
             if not character.is_player_character:          
                 conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)      
                 if os.path.exists(conversation_summary_file):
                     with open(conversation_summary_file, 'r', encoding='utf-8') as f:
-                        paragraphs.update(line.strip() for line in f if line.strip())
+                        for line in f:
+                            line = line.strip()
+                            if line and line not in paragraphs:
+                                paragraphs.append(line.strip())
         if paragraphs:
             result = "\n".join(paragraphs)
             return f"Below is a summary of past events:\n{result}"
@@ -59,38 +64,52 @@ class summaries(remembering):
 
     @utils.time_it
     def __get_latest_conversation_summary_file_path(self, character: Character, world_id: str) -> str:
-        """Get latest conversation summary by file name suffix"""
-
-        # if multiple NPCs in a conversation have the same name (eg Whiterun Guard) their names are appended with number IDs
-        # these IDs need to be removed when saving the conversation
-        name: str = utils.remove_trailing_number(character.name)
+        """
+        Get the path to the latest conversation summary file, prioritizing name_ref folders over legacy name folders.
         
-        name_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name)
-        if os.path.exists(name_conversation_folder_path): # if a conversation folder already exists for this NPC, use it
-            character_conversation_folder_path = name_conversation_folder_path
-        else: # else include the NPC's reference ID in the folder name to differentiate generic NPCs
-            name_ref: str = f'{name} - {character.ref_id}'
-            character_conversation_folder_path = os.path.join(self.__game.conversation_folder_path, world_id, name_ref)
+        Args:
+            character: Character object containing name and ref_id
+            world_id: ID of the game world
         
-        if os.path.exists(character_conversation_folder_path):
-            # get all files from the directory
-            files = os.listdir(character_conversation_folder_path)
-            # filter only .txt files
-            txt_files = [f for f in files if f.endswith('.txt')]
-            if len(txt_files) > 0:
-                file_numbers = [int(os.path.splitext(f)[0].split('_')[-1]) for f in txt_files]
-                latest_file_number = max(file_numbers)
-                logging.info(f"Loaded latest summary file: {character_conversation_folder_path}/{name}_summary_{latest_file_number}.txt")
-            else:
-                logging.info(f"{character_conversation_folder_path} does not exist. A new summary file will be created.")
-                latest_file_number = 1
+        Returns:
+            str: Path to the latest conversation summary file
+        """
+        # Remove trailing numbers from character names (e.g., "Whiterun Guard 1" -> "Whiterun Guard")
+        base_name: str = utils.remove_trailing_number(character.name)
+        name_ref: str = f'{base_name} - {character.ref_id}'
+        
+        def get_folder_path(folder_name: str) -> str:
+            return os.path.join(self.__game.conversation_folder_path, world_id, folder_name).replace(os.sep, '/')
+        
+        def get_latest_file_number(folder_path: str) -> int:
+            if not os.path.exists(folder_path):
+                return 1
+                
+            txt_files = [f for f in os.listdir(folder_path) if f.endswith('.txt')]
+            if not txt_files:
+                return 1
+                
+            file_numbers = [int(os.path.splitext(f)[0].split('_')[-1]) for f in txt_files]
+            return max(file_numbers)
+        
+        # Check folders in priority order
+        name_ref_path = get_folder_path(name_ref)
+        name_path = get_folder_path(base_name)
+        
+        # Determine which folder path to use based on existence
+        if os.path.exists(name_ref_path):
+            target_folder = name_ref_path
+            logging.info(f"Loaded latest summary file from: {target_folder}")
+        elif os.path.exists(name_path):
+            target_folder = name_path
+            logging.info(f"Loaded latest summary file from: {target_folder}")
         else:
-            logging.info(f"{character_conversation_folder_path} does not exist. A new summary file will be created.")
-            latest_file_number = 1
+            target_folder = name_ref_path  # Use name_ref format for new folders
+            logging.info(f"{name_ref_path} does not exist. A new summary file will be created.")
         
-        conversation_summary_file = f"{character_conversation_folder_path}/{name}_summary_{latest_file_number}.txt"
-        return conversation_summary_file
-
+        latest_file_number = get_latest_file_number(target_folder)
+        return f"{target_folder}/{base_name}_summary_{latest_file_number}.txt"
+    
     @utils.time_it
     def __create_new_conversation_summary(self, messages: message_thread, npc_name: str) -> str:
         prompt = self.__memory_prompt.format(
@@ -134,7 +153,7 @@ class summaries(remembering):
 
         summary_limit = round(self.__client.token_limit*self.__summary_limit_pct,0)
 
-        count_tokens_summaries = self.__client.calculate_tokens_from_text(conversation_summaries)
+        count_tokens_summaries = self.__client.get_count_tokens(conversation_summaries)
         # if summaries token limit is reached, summarize the summaries
         if count_tokens_summaries > summary_limit:
             logging.info(f'Token limit of conversation summaries reached ({count_tokens_summaries} / {summary_limit} tokens). Creating new summary file...')
@@ -168,8 +187,8 @@ class summaries(remembering):
     def summarize_conversation(self, text_to_summarize: str, prompt: str, npc_name: str) -> str:
         summary = ''
         if len(text_to_summarize) > 5:
-            messages = message_thread(prompt)
-            messages.add_message(user_message(text_to_summarize))
+            messages = message_thread(self.__config, prompt)
+            messages.add_message(UserMessage(self.__config, text_to_summarize))
             summary = self.__client.request_call(messages)
             if not summary:
                 logging.error(f"Summarizing conversation failed.")

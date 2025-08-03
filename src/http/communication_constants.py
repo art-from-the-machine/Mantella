@@ -21,6 +21,8 @@ class communication_constants:
     KEY_REPLYTYPE_ENDCONVERSATION: str  = PREFIX + "end_conversation"
 
     KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"
+    KEY_STARTCONVERSATION_USENARRATOR: str = PREFIX + "use_narrator"
+    KEY_CONTINUECONVERSATION_TOPICINFOFILE: str = PREFIX + "topicinfofile"
     KEY_INPUTTYPE: str = PREFIX + "input_type"
     KEY_INPUTTYPE_MIC: str = PREFIX + "mic_input"
     KEY_INPUTTYPE_TEXT: str = PREFIX + "text_input"
@@ -47,6 +49,7 @@ class communication_constants:
 
     KEY_ACTOR_SPEAKER: str = PREFIX + "actor_speaker"
     KEY_ACTOR_LINETOSPEAK: str = PREFIX + "actor_line_to_speak"
+    KEY_ACTOR_ISNARRATION: str = PREFIX + "is_narration"
     KEY_ACTOR_VOICEFILE: str = PREFIX + "actor_voice_file"
     KEY_ACTOR_DURATION: str = PREFIX + "actor_line_duration"
     KEY_ACTOR_ACTIONS: str = PREFIX + "actor_actions"
@@ -67,6 +70,8 @@ class communication_constants:
     KEY_CONTEXT_CONFIG_SETTINGS_NPC_PACKAGE: str = PREFIX + "config_settings_npc_package"
     KEY_CONTEXT_CONFIG_SETTINGS_NPC_FOLLOW: str = PREFIX + "config_settings_npc_follow"
     KEY_CONTEXT_CUSTOMVALUES: str = PREFIX + "custom_context_values"
+    KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY: str = PREFIX + "vision_hints_names"
+    KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY: str = PREFIX + "vision_hints_distance"
 
     # Actions
     ACTION_RELOADCONVERSATION: str = PREFIX + "reload_conversation"

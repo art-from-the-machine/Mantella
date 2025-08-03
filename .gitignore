@@ -1,11 +1,14 @@
 **/__pycache__/
 data/**/*.wav
+!data/mantella_ready.wav
+!data/no_mic_input_detected.wav
 data/**/*.lip
 data/**/*.json
 !data/actions/conditions/*.json
 !data/actions/functions/*.json
 !data/actions/tooltips/*.json
 data/**/*.txt
+!data/Fallout4/placeholder/*.lip
 data/tmp/
 *SECRET_KEY.txt
 logging.log
@@ -23,3 +26,5 @@ data/csv_voice_folder_data_log_xtts.csv
 data/voice_model_data_log_xtts.csv
 .history/
 .vscode/
+.coverage
+moonshine/

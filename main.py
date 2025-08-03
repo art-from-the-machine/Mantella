@@ -2,33 +2,36 @@ from src.http.http_server import http_server
 import traceback
 from src.http.routes.routeable import routeable
 from src.http.routes.mantella_route import mantella_route
-from src.http.routes.stt_route import stt_route
 import logging
-import src.setup as setup
+from src.setup import MantellaSetup
 from src.ui.start_ui import StartUI
 
 def main():
     try:
-        config, language_info = setup.initialise(
+        config, language_info = MantellaSetup().initialise(
             config_file='config.ini',
             logging_file='logging.log', 
             language_file='data/language_support.csv')
 
-        mantella_version = '0.12'
+        mantella_version = '0.13.1'
         logging.log(24, f'\nMantella v{mantella_version}')
-        should_debug_http = config.show_http_debug_messages
 
         mantella_http_server = http_server()
 
-        #start the http server
-
-        conversation = mantella_route(config, 'STT_SECRET_KEY.txt','GPT_SECRET_KEY.txt','FUNCTION_GPT_SECRET_KEY.txt',language_info, should_debug_http)
-        stt = stt_route(config, 'GPT_SECRET_KEY.txt', should_debug_http)
+        should_debug_http = config.show_http_debug_messages
+        conversation = mantella_route(
+            config=config, 
+            stt_secret_key_file='STT_SECRET_KEY.txt', 
+            image_secret_key_file='IMAGE_SECRET_KEY.txt', 
+            function_llm_secret_key_file='FUNCTION_GPT_SECRET_KEY.txt'
+            secret_key_file='GPT_SECRET_KEY.txt', 
+            language_info=language_info, 
+            show_debug_messages=should_debug_http
+        )
         ui = StartUI(config)
-        routes: list[routeable] = [conversation, stt, ui]
-            
-        #add the UI
-        mantella_http_server.start(int(config.port), routes, config.show_http_debug_messages)
+        routes: list[routeable] = [conversation, ui]
+        
+        mantella_http_server.start(int(config.port), routes, config.play_startup_sound, should_debug_http)
 
     except Exception as e:
         logging.error("".join(traceback.format_exception(e)))

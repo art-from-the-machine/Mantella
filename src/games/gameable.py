@@ -6,13 +6,18 @@ from pathlib import Path
 from typing import Any
 import pandas as pd
 from src.conversation.conversation_log import conversation_log
-from src.conversation.context import context
+from src.conversation.context import Context
 from src.config.config_loader import ConfigLoader
-from src.llm.sentence import sentence
+from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
 import src.utils as utils
+import sounddevice as sd
+import soundfile as sf
+import threading
+import wave
+import shutil
 
-class gameable(ABC):
+class Gameable(ABC):
     """Abstract class for different implementations of games to support. 
     Make a subclass for every game that Mantella is supposed to support and implement this interface
     Anything that is specific to a certain game should end up in one of these subclasses.
@@ -21,6 +26,8 @@ class gameable(ABC):
     Args:
         ABC (_type_): _description_
     """
+    MANTELLA_VOICE_FOLDER = "MantellaVoice00"
+
     @utils.time_it
     def __init__(self, config: ConfigLoader, path_to_character_df: str, mantella_game_folder_path: str):
         try:
@@ -28,7 +35,8 @@ class gameable(ABC):
         except:
             logging.error(f'Unable to read / open {path_to_character_df}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
-
+        
+        self._is_vr: bool = config.game.is_vr
         #Apply character overrides
         mod_overrides_folder = os.path.join(*[config.mod_path_base, self.extender_name, "Plugins","MantellaSoftware","data",f"{mantella_game_folder_path}","character_overrides"])
         self.__apply_character_overrides(mod_overrides_folder, self.__character_df.columns.values.tolist())
@@ -36,12 +44,15 @@ class gameable(ABC):
         self.__apply_character_overrides(personal_overrides_folder, self.__character_df.columns.values.tolist())
 
         self.__conversation_folder_path = config.save_folder + f"data/{mantella_game_folder_path}/conversations"
-        
         conversation_log.game_path = self.__conversation_folder_path
     
     @property
     def character_df(self) -> pd.DataFrame:
         return self.__character_df
+    
+    @property
+    def is_vr(self) -> bool:
+        return self._is_vr
     
     @property
     @abstractmethod
@@ -55,9 +66,20 @@ class gameable(ABC):
         """ Return name of the appropriate script extender (SKSE/F4SE) """
         pass
 
+    @abstractmethod
+    def modify_sentence_text_for_game(self, text:str) -> str:
+        """Modifies the text of a sentence before it is sent to the game."""
+        pass
+
     @property
     def conversation_folder_path(self) -> str:
         return self.__conversation_folder_path
+    
+    @property
+    @abstractmethod
+    def image_path(self) -> str:
+        """ Return the path to the image file created by in-game screenshots"""
+        pass
     
     @utils.time_it
     def __get_character_df(self, file_name: str) -> pd.DataFrame:
@@ -83,13 +105,15 @@ class gameable(ABC):
         pass    
 
     @abstractmethod
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader):
+    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: Context, config: ConfigLoader, topicID: int, isFirstLine: bool):
         """Does what ever is needed to play a sentence ingame
 
         Args:
             queue_output (sentence): the sentence to play
             context_of_conversation (context): the context of the conversation
             config (ConfigLoader): the current config
+            topicID (int): the Mantella dialogue line to write to
+            isFirstLine (bool): whether this is the first voiceline of a given response
         """
         pass
 
@@ -134,7 +158,7 @@ class gameable(ABC):
         pass
 
     @abstractmethod
-    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str) -> str:
+    def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str, library_search:bool = True) -> str:
         """Returns the voice model which most closely matches the NPC
 
         Args:
@@ -206,7 +230,7 @@ class gameable(ABC):
         character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
         matcher = self._get_matching_df_rows_matcher(base_id, character_name, character_race)
         if isinstance(matcher, type(None)):
-            logging.info(f"Could not find {character_name} in skyrim_characters.csv. Loading as a generic NPC.")
+            logging.info(f"Could not find {character_name} in {self.game_name_in_filepath}_characters.csv. Loading as a generic NPC.")
             character_info = self.load_unnamed_npc(character_name, character_race, gender, ingame_voice_model)
             is_generic_npc = True
         else:
@@ -220,8 +244,7 @@ class gameable(ABC):
     
     @utils.time_it
     def __apply_character_overrides(self, overrides_folder: str, character_df_column_headers: list[str]):
-        if not os.path.exists(overrides_folder):
-            os.makedirs(overrides_folder)
+        os.makedirs(overrides_folder, exist_ok=True)
         override_files: list[str] = os.listdir(overrides_folder)
         for file in override_files:
             try:
@@ -270,6 +293,24 @@ class gameable(ABC):
             except Exception as e:
                 logging.log(logging.WARNING, f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
 
+    @utils.time_it
+    def _create_all_voice_folders(self, mod_path: str, voice_folder_col: str):
+        all_voice_folders = self.character_df[voice_folder_col]
+        all_voice_folders = all_voice_folders.loc[all_voice_folders.notna()]
+        example_folder = os.path.join(mod_path, self.MANTELLA_VOICE_FOLDER)
+        set_of_voice_folders = set()
+        for voice_folder in all_voice_folders:
+            voice_folder = str.strip(voice_folder)
+            if voice_folder and not set_of_voice_folders.__contains__(voice_folder):
+                set_of_voice_folders.add(voice_folder)
+                in_game_voice_folder_path = os.path.join(mod_path, voice_folder)
+                if not os.path.exists(in_game_voice_folder_path):
+                    os.mkdir(in_game_voice_folder_path)
+                    for file_name in os.listdir(example_folder):
+                        source_file_path = os.path.join(example_folder, file_name)
+                        if os.path.isfile(source_file_path):
+                            shutil.copy(source_file_path, in_game_voice_folder_path)
+
     @staticmethod
     @utils.time_it
     def get_string_from_df(iloc, column_name: str) -> str:
@@ -277,3 +318,45 @@ class gameable(ABC):
         if pd.isna(entry): entry = ""
         elif not isinstance(entry, str): entry = str(entry)
         return entry        
+
+    @staticmethod
+    @utils.time_it
+    def play_audio_async(filename: str, volume: float = 0.5):
+        """
+        Play audio file asynchronously with volume control
+        
+        Args:
+            filename (str): Path to audio file
+            volume (float): Volume multiplier (0.0 to 1.0)
+        """
+        def audio_thread():
+            data, samplerate = sf.read(filename)
+            data = data * volume
+            sd.play(data, samplerate)
+            
+        thread = threading.Thread(target=audio_thread)
+        thread.start()
+
+    @staticmethod
+    @utils.time_it
+    def send_muted_voiceline_to_game_folder(audio_file: str, filename: str, voice_folder_path: str):
+        """
+        Save muted voiceline to game folder, keeping the audio duration of the original file
+        
+        Args:
+            audio_file (str): Path to the audio file
+            filename (str): Name of the audio file to save in the game folder
+            voice_folder_path (str): Game path to save the muted audio file to
+        """
+        # Create a muted version of the wav file
+        with wave.open(audio_file, 'rb') as wav_file:
+            params = wav_file.getparams()
+            frames = wav_file.readframes(wav_file.getnframes())
+        
+        # Create muted frames (all zeros) with same length as original
+        muted_frames = b'\x00' * len(frames)
+
+        # Save muted wav file to game folder
+        with wave.open(os.path.join(voice_folder_path, f"{filename}.wav"), 'wb') as muted_wav:
+            muted_wav.setparams(params)
+            muted_wav.writeframes(muted_frames)

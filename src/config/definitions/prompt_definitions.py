@@ -49,7 +49,7 @@ class PromptDefinitions:
                                 "toolsToSend"]
     
     BASE_PROMPT_DESCRIPTION = """The starting prompt sent to the LLM when an NPC is selected.
-                                If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
+                                The following are dynamic variables that need to be contained in curly brackets {}:
                                 name = the NPC's name
                                 names = the names of all NPCs in the conversation
                                 names_w_player = the names of all NPCs in the conversation and the name of the player character
@@ -69,7 +69,7 @@ class PromptDefinitions:
                                 actions = instructions for the LLM how to trigger actions"""
     
     BASE_RADIANT_DESCRIPTION = """The starting prompt sent to the LLM when a radiant conversation is started.
-                                If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
+                                The following are dynamic variables that need to be contained in curly brackets {}:
                                 name = the NPC's name
                                 names = the names of all NPCs in the conversation
                                 game = the selected game
@@ -123,7 +123,7 @@ class PromptDefinitions:
         
     class PromptChecker(ConfigValueConstraint[str]):
         def __init__(self, allowed_prompt_variables: list[str]) -> None:
-            super().__init__("Only variables from list of allowed variables may be used!")
+            super().__init__()
             self.__allowed_prompt_variables = allowed_prompt_variables
 
         def apply_constraint(self, prompt: str) -> ConfigValueConstraintResult:
@@ -152,14 +152,14 @@ class PromptDefinitions:
     @staticmethod
     def get_skyrim_prompt_config_value() -> ConfigValue:
         skyrim_prompt_value = """You are {name}, and you live in Skyrim. This is your background: {bio}
-                                Sometimes in-game events will be passed before the player response between ** symbols. You cannot respond with ** symbols yourself, they only exist to give context. Here is an example:
-                                *The player picked up a pair of gloves*
+                                Sometimes in-game events will be passed before the player response within brackets. You cannot respond with brackets yourself, they only exist to give context. Here is an example:
+                                (The player picked up a pair of gloves)
                                 Who do you think these belong to?
                                 You are having a conversation with {player_name} (the player) who is {trust} in {location}. {player_name} {player_description} {player_equipment} {equipment}
                                 This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
                                 The time is {time} {time_group}.
                                 {weather}
-                                You are not an AI language model because there are no AI language models in Skyrim. Do not break character / refer to the fact that you are in a video game.
+                                Remember to stay in character.
                                 {actions}
                                 The conversation takes place in {language}.
                                 {conversation_summary}"""
@@ -168,9 +168,11 @@ class PromptDefinitions:
     @staticmethod
     def get_skyrim_multi_npc_prompt_config_value() -> ConfigValue:
         skyrim_multi_npc_prompt = """The following is a conversation in {location} in Skyrim between {names_w_player}. {player_name} {player_description} {player_equipment}
-                                    Here are their backgrounds: {bios}
+                                    Here are their backgrounds: 
+                                    {bios}
                                     {equipment}
-                                    And here are their conversation histories: {conversation_summaries}
+                                    And here are their conversation histories: 
+                                    {conversation_summaries}
                                     The time is {time} {time_group}.
                                     {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'.
@@ -183,7 +185,8 @@ class PromptDefinitions:
     @staticmethod
     def get_skyrim_radiant_prompt_config_value() -> ConfigValue:
         skyrim_radiant_prompt = """The following is a conversation in {location} in Skyrim between {names}.
-                                    Here are their backgrounds: {bios}                                    
+                                    Here are their backgrounds: 
+                                    {bios}                                    
                                     {conversation_summaries}
                                     The time is {time} {time_group}.
                                     {weather}
@@ -197,8 +200,8 @@ class PromptDefinitions:
     @staticmethod
     def get_fallout4_prompt_config_value() -> ConfigValue:
         fallout4_prompt = """You are {name}, and you live in the post-apocalyptic Commonwealth of Fallout. This is your background: {bio}
-                            Sometimes in-game events will be passed before the player response between ** symbols. You cannot respond with ** symbols yourself, they only exist to give context. Here is an example:
-                            *The player picked up a pair of gloves*
+                            Sometimes in-game events will be passed before the player response within. You cannot respond with brackets yourself, they only exist to give context. Here is an example:
+                            (The player picked up a pair of gloves)
                             Who do you think these belong to?
                             You are having a conversation with {trust} (the player) in {location}.
                             This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
@@ -210,7 +213,8 @@ class PromptDefinitions:
 
     @staticmethod
     def get_fallout4_multi_npc_prompt_config_value() -> ConfigValue:
-        fallout4_multi_npc_prompt = """The following is a conversation in {location} in the post-apocalyptic Commonwealth of Fallout between {names_w_player}. Here are their backgrounds: {bios} 
+        fallout4_multi_npc_prompt = """The following is a conversation in {location} in the post-apocalyptic Commonwealth of Fallout between {names_w_player}. Here are their backgrounds: 
+                            {bios} 
                             And here are their conversation histories: {conversation_summaries} 
                             The time is {time} {time_group}.
                             You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
@@ -231,21 +235,6 @@ class PromptDefinitions:
                             Remember, you can only respond as {names}. Ensure to use their full name when responding.
                             The conversation takes place in {language}."""
         return ConfigValueString("fallout4_radiant_prompt","Fallout 4 Radiant Conversation Prompt",PromptDefinitions.BASE_RADIANT_DESCRIPTION,fallout4_radiant_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_RADIANT)])
-
-    @staticmethod
-    def get_radiant_start_prompt_config_value() -> ConfigValue:
-        radiant_start_prompt_description = """Once a radiant conversation has started and the radiant prompt has been passed to the LLM, the below text is passed in replace of the player response.
-                                        This prompt is used to steer the radiant conversation.""" 
-        radiant_start_prompt = """Please begin / continue a conversation topic (greetings are not needed). Ensure to change the topic if the current one is losing steam. 
-                            The conversation should steer towards topics which reveal information about the characters and who they are, or instead drive forward previous conversations in their memory."""
-        return ConfigValueString("radiant_start_prompt","Radiant Start Prompt",radiant_start_prompt_description,radiant_start_prompt,[PromptDefinitions.PromptChecker([])])
-
-    @staticmethod
-    def get_radiant_end_prompt_config_value() -> ConfigValue:
-        radiant_end_prompt_description = """The final prompt sent to the LLM before ending a radiant conversation.
-                                            This prompt is used to guide the LLM to end the conversation naturally.""" 
-        radiant_end_prompt = """Please wrap up the current topic between the NPCs in a natural way. Nobody is leaving, so there is no need for formal goodbyes."""
-        return ConfigValueString("radiant_end_prompt","Radiant End Prompt",radiant_end_prompt_description,radiant_end_prompt,[PromptDefinitions.PromptChecker([])])
     
     @staticmethod
     def get_memory_prompt_config_value() -> ConfigValue:
@@ -255,7 +244,7 @@ class PromptDefinitions:
                                                language = the selected language
                                                game = the game selected""" 
         memory_prompt = """You are tasked with summarizing the conversation between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}. 
-                                            It is not necessary to comment on any mixups in communication such as mishearings. Text contained within asterisks state in-game events. 
+                                            It is not necessary to comment on any mixups in communication such as mishearings. Text contained within brackets state in-game events. 
                                             Please summarize the conversation into a single paragraph in {language}."""
         return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
     
@@ -271,6 +260,26 @@ class PromptDefinitions:
         resummarize_prompt = """You are tasked with summarizing the conversation history between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}.
                                             Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {language}."""
         return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
+    
+    def get_vision_prompt_config_value() -> ConfigValue:
+        vision_prompt_description = """The prompt passed to the vision-capable LLM when `Custom Vision Model` is enabled."""
+        vision_prompt = """This image is to give context and is from the player's point of view in the game of {game}. 
+                            Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
+        return ConfigValueString("vision_prompt","Vision Prompt",vision_prompt_description,vision_prompt)
+    
+    def get_radiant_start_prompt_config_value() -> ConfigValue:
+        radiant_start_prompt_description = """Once a radiant conversation has started and the radiant prompt has been passed to the LLM, the below text is passed in replace of the player response.
+                                        This prompt is used to steer the radiant conversation.""" 
+        radiant_start_prompt = """Please begin / continue a conversation topic (greetings are not needed). Ensure to change the topic if the current one is losing steam. 
+                            The conversation should steer towards topics which reveal information about the characters and who they are, or instead drive forward previous conversations in their memory."""
+        return ConfigValueString("radiant_start_prompt","Radiant Start Prompt",radiant_start_prompt_description,radiant_start_prompt,[PromptDefinitions.PromptChecker([])])
+
+    @staticmethod
+    def get_radiant_end_prompt_config_value() -> ConfigValue:
+        radiant_end_prompt_description = """The final prompt sent to the LLM before ending a radiant conversation.
+                                            This prompt is used to guide the LLM to end the conversation naturally.""" 
+        radiant_end_prompt = """Please wrap up the current topic between the NPCs in a natural way. Nobody is leaving, so there is no need for formal goodbyes."""
+        return ConfigValueString("radiant_end_prompt","Radiant End Prompt",radiant_end_prompt_description,radiant_end_prompt,[PromptDefinitions.PromptChecker([])])
     
     @staticmethod
     def get_function_LLM_OpenAI_single_prompt_config_value() -> ConfigValue: 
@@ -293,4 +302,3 @@ class PromptDefinitions:
     def get_function_LLM_multi_prompt_config_value() -> ConfigValue: 
         function_LLM_Multi_NPC_prompt = """You are a function calling AI model. You are provided with function signatures within <tools> </tools> XML tags. You may call one or more functions to assist with the user query. If available tools are not relevant in assisting with user query, just respond in natural conversational language. Don't make assumptions about what values to plug into functions. The user might refer to {playerName} as 'me' or 'I'. {system_prompt_LLMFunction_instructions}<tools>{toolsToSend} </tools>. NO_REGEX_FORMATTING_PAST_THIS_POINT For each function call return a JSON object, with the following pydantic model json schema: <tool_call>{'title': 'FunctionCall', 'type': 'object', 'properties': {'name': {'title': 'Name', 'type': 'string'}, 'arguments': {'title': 'Arguments', 'type': 'object'}}, 'required': ['arguments', 'name']}</tool_call>"""
         return ConfigValueString("function_llm_multi_npc_prompt","Function LLM multi NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_MULTI_NPC_DESCRIPTION,function_LLM_Multi_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConvigValueTag.advanced])
-    
