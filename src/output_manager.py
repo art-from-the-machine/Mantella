@@ -3,6 +3,7 @@ from threading import Lock
 import logging
 import time
 import unicodedata
+import wave
 from openai import APIConnectionError
 from src.llm.output.sentence_accumulator import sentence_accumulator
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
@@ -173,7 +174,14 @@ class ChatManager:
                 logging.log(29, error_text)
                 return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, True), "", 0, error_text)
             self.__is_first_sentence = False
-            return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file))
+            try:
+                duration = utils.get_audio_duration(audio_file)
+            except (FileNotFoundError, wave.Error) as e:
+                logging.error(f"Could not get audio duration for {audio_file}: {e}")
+                # Return sentence with zero duration so conversation can continue
+                return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, 0)
+            
+            return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, duration)
 
     @utils.time_it
     def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action]):
