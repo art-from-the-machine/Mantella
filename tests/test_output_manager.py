@@ -55,7 +55,7 @@ def mock_messages(default_config: ConfigLoader) -> message_thread:
 @pytest.fixture
 def mock_actions() -> list[Action]:
     """Provides a list of mock actions"""
-    action = Action(
+    basic_action = Action(
         identifier="wave", 
         name="Wave",
         keyword="Wave",
@@ -67,7 +67,19 @@ def mock_actions() -> list[Action]:
         radiant=False,
         info_text="Waving action completed",
     )
-    return [action]
+    interrupt_action = Action(
+        identifier="menu", 
+        name="Menu",
+        keyword="Menu",
+        description="Opens the menu",
+        prompt_text="If the player asks you to open the menu, begin your response with 'Menu:'.",
+        is_interrupting=True,
+        one_on_one=True,
+        multi_npc=False,
+        radiant=False,
+        info_text="Menu action completed",
+    )
+    return [basic_action, interrupt_action]
 
 @pytest.fixture
 def output_manager(default_config: ConfigLoader, piper: Piper, mock_ai_client: MockAIClient, monkeypatch) -> ChatManager:
@@ -123,6 +135,22 @@ async def test_process_response_actions(output_manager: ChatManager, example_sky
     assert sentence.content.text.strip() == "See you later."
     assert sentence.content.actions # Should have actions
     assert "wave" in sentence.content.actions # Check if the specific action identifier is present
+
+
+@pytest.mark.asyncio
+async def test_process_response_interrupt_action(output_manager: ChatManager, example_skyrim_npc_character: Character, example_characters_pc_to_npc: Characters, mock_queue: SentenceQueue, mock_messages: message_thread, mock_actions: list[Action]):
+    """Test processing of actions embedded in the response that should interrupt the response"""
+    output_manager._ChatManager__client.response_pattern = ["Menu: ", "Here ", "is ", "what ", "I ", "have.", "Ignore ", "this ", "part."]
+    
+    await output_manager.process_response(example_skyrim_npc_character, mock_queue, mock_messages, example_characters_pc_to_npc, mock_actions)
+    
+    output_sentences = get_sentence_list_from_queue(mock_queue)
+    assert len(output_sentences) == 2 # Action+Speech, Empty
+    
+    sentence = output_sentences[0]
+    assert sentence.content.text.strip() == "Here is what I have." # Only the first sentence should remain
+    assert sentence.content.actions # Should have actions
+    assert "menu" in sentence.content.actions # Check if the specific action identifier is present
 
 
 @pytest.mark.asyncio
