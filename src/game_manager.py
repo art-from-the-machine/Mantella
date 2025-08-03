@@ -46,6 +46,58 @@ class GameStateManager:
         self.__conv_has_narrator: bool = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
         self.__should_reload: bool = False
 
+    @utils.time_it
+    def hot_swap_settings(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, llm_client: LLMClient, secret_key_file: str, image_secret_key_file: str) -> bool:
+        """Attempts to hot-swap settings without ending active conversations.
+        
+        Args:
+            game: Updated game instance
+            chat_manager: Updated chat manager instance
+            config: Updated config loader instance
+            llm_client: Updated LLM client instance
+            secret_key_file: Updated secret key file
+            image_secret_key_file: Updated image secret key file
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update LLM client with hot-swapping
+            llm_client_success = self.__client.hot_swap_settings(config, secret_key_file, image_secret_key_file)
+            if not llm_client_success:
+                logging.warning("LLM client hot-swap failed, using new client")
+                self.__client = llm_client
+            
+            # Update basic components
+            self.__game = game
+            self.__config = config
+            self.__chat_manager = chat_manager
+            
+            # Update config-derived values
+            self.__automatic_greeting = config.automatic_greeting
+            self.__conv_has_narrator = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
+            
+            # Update rememberer with new config
+            self.__rememberer = Summaries(game, config, self.__client, self.__language_info['language'])
+            
+            # If there's an active conversation, update it with new settings
+            if self.__talk:
+                success = self.__talk.hot_swap_settings(
+                    config=config,
+                    llm_client=self.__client,
+                    chat_manager=chat_manager,
+                    rememberer=self.__rememberer
+                )
+                if not success:
+                    return False
+            
+            logging.info("GameStateManager hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"GameStateManager hot-swap failed: {e}")
+            return False
+
     ###### react to calls from the game #######
     @utils.time_it
     def start_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
