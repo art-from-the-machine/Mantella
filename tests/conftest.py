@@ -288,6 +288,15 @@ def example_player_input_textbox_request() -> models.PlayerInputRequest:
     )
 
 @pytest.fixture
+def example_player_input_textbox_action_command_request() -> models.PlayerInputRequest:
+    return models.PlayerInputRequest(
+        **{
+            comm_consts.KEY_REQUESTTYPE: comm_consts.KEY_REQUESTTYPE_PLAYERINPUT,
+            comm_consts.KEY_REQUESTTYPE_PLAYERINPUT: 'Follow.'
+        }
+    )
+
+@pytest.fixture
 def example_player_input_textbox_goodbye_request() -> models.PlayerInputRequest:
     return models.PlayerInputRequest(
         **{

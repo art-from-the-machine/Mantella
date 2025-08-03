@@ -59,3 +59,21 @@ def test_reload_conversation(
     # Once reloaded, the message list should be reset and contain only the system prompt and automatic player greeting
     new_system_message = default_game_manager._GameStateManager__talk._Conversation__messages._message_thread__messages[0].text
     assert new_system_message != orig_system_message
+
+
+def test_player_action_command(
+        default_game_manager: GameStateManager, 
+        example_start_conversation_request: models.StartConversationRequest, 
+        example_continue_conversation_request: models.ContinueConversationRequest, 
+        example_player_input_textbox_action_command_request: models.PlayerInputRequest,
+    ):
+    ''' Test that a player action command (eg "Follow.") results in the action being returned in the response'''
+
+    # Set up conversation
+    setup_conversation(default_game_manager, example_start_conversation_request.model_dump(by_alias=True, exclude_none=True), example_continue_conversation_request.model_dump(by_alias=True, exclude_none=True))
+
+    # Send player (textbox) input
+    response = default_game_manager.player_input(example_player_input_textbox_action_command_request.model_dump(by_alias=True, exclude_none=True))
+    
+    # Assert that the response contains the action
+    assert response[comm_consts.KEY_REPLYTYPE_NPCACTION][comm_consts.KEY_ACTOR_ACTIONS][0] == comm_consts.ACTION_NPC_FOLLOW
