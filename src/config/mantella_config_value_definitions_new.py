@@ -48,6 +48,19 @@ class MantellaConfigValueDefinitionsNew:
         # llm_category.add_config_value(LLMDefinitions.get_try_filter_narration())
         llm_category.add_config_value(LLMDefinitions.get_llm_params_config_value())
         # llm_category.add_config_value(LLMDefinitions.get_stop_llm_generation_on_assist_keyword())
+        
+        # Multi-NPC LLM Configuration
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_api_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_model_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_custom_token_count_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_params_config_value())
+        
+        # Summary LLM Configuration
+        llm_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_model_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_custom_token_count_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_llm_params_config_value())
+        
         llm_category.add_config_value(LLMDefinitions.get_narration_handling())
         llm_category.add_config_value(LLMDefinitions.get_narrator_voice())
         llm_category.add_config_value(LLMDefinitions.get_narration_start_indicators())
@@ -148,6 +161,7 @@ class MantellaConfigValueDefinitionsNew:
 
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
+        other_category.add_config_value(OtherDefinitions.get_conversation_summary_enabled_config_value())
         other_category.add_config_value(OtherDefinitions.get_active_actions(actions))
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
         other_category.add_config_value(OtherDefinitions.get_events_refresh_time_config_value())
@@ -156,6 +170,7 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_voice_player_input())
         other_category.add_config_value(OtherDefinitions.get_player_voice_model())
         other_category.add_config_value(OtherDefinitions.get_save_audio_data_to_character_folder_config_value())
+        other_category.add_config_value(OtherDefinitions.get_hot_swap_enabled_config_value())
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         other_category.add_config_value(OtherDefinitions.get_advanced_logs_config_value())

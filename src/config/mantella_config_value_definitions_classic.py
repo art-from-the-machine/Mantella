@@ -55,6 +55,7 @@ class MantellaConfigValueDefinitionsClassic:
         
         conversation_category = ConfigValueGroup("Conversation", "Conversation", "Settings about the flow of a conversation", on_value_change_callback)
         conversation_category.add_config_value(OtherDefinitions.get_automatic_greeting_folder_config_value())
+        conversation_category.add_config_value(OtherDefinitions.get_conversation_summary_enabled_config_value())
         result.append(conversation_category)
         
         cleanup_category = ConfigValueGroup("Cleanup", "Cleanup", "", on_value_change_callback)
@@ -102,6 +103,19 @@ class MantellaConfigValueDefinitionsClassic:
         llm_advanced_category.add_config_value(LLMDefinitions.get_stop_config_value())
         llm_advanced_category.add_config_value(LLMDefinitions.get_frequency_penalty_config_value())
         llm_advanced_category.add_config_value(LLMDefinitions.get_max_tokens_config_value())
+        
+        # Multi-NPC LLM Configuration
+        llm_advanced_category.add_config_value(LLMDefinitions.get_multi_npc_llm_api_config_value())
+        llm_advanced_category.add_config_value(LLMDefinitions.get_multi_npc_model_config_value())
+        llm_advanced_category.add_config_value(LLMDefinitions.get_multi_npc_custom_token_count_config_value())
+        llm_advanced_category.add_config_value(LLMDefinitions.get_multi_npc_llm_params_config_value())
+        
+        # Summary LLM Configuration
+        llm_advanced_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
+        llm_advanced_category.add_config_value(LLMDefinitions.get_summary_model_config_value())
+        llm_advanced_category.add_config_value(LLMDefinitions.get_summary_custom_token_count_config_value())
+        llm_advanced_category.add_config_value(LLMDefinitions.get_summary_llm_params_config_value())
+        
         result.append(llm_advanced_category)
         
         speech_advanced_category = ConfigValueGroup("Speech.Advanced", "Speech Advanced", "More advanced settings concerning the voice generation", on_value_change_callback)
@@ -123,6 +137,7 @@ class MantellaConfigValueDefinitionsClassic:
         http_category = ConfigValueGroup("HTTP", "HTTP", "Settings for the HTTP server MantellaSoftware provides for the games to connect to", on_value_change_callback)
         http_category.add_config_value(OtherDefinitions.get_port_config_value())
         http_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
+        http_category.add_config_value(OtherDefinitions.get_hot_swap_enabled_config_value())
         result.append(http_category)
         
         # debugging_category = ConfigValueGroup("Debugging", "Debugging", "Settings that might help debug problems with Mantella", on_value_change_callback)

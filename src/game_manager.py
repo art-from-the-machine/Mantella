@@ -34,7 +34,46 @@ class GameStateManager:
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
-        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'])
+        
+        # Create separate LLM client for summaries if different settings are configured
+        from src.llm.client_base import ClientBase
+        if (config.summary_llm_api != config.llm_api or 
+            config.summary_llm != config.llm or 
+            config.summary_llm_params != config.llm_params or 
+            config.summary_custom_token_count != config.custom_token_count):
+            # Create separate client for summaries with different settings
+            summary_client = ClientBase(
+                config.summary_llm_api,
+                config.summary_llm,
+                config.summary_llm_params,
+                config.summary_custom_token_count,
+                [api_file]
+            )
+        else:
+            # Use the same client for summaries
+            summary_client = None
+            
+        # Create separate LLM client for multi-NPC conversations if different settings are configured
+        if (config.multi_npc_llm_api != config.llm_api or 
+            config.multi_npc_llm != config.llm or 
+            config.multi_npc_llm_params != config.llm_params or 
+            config.multi_npc_custom_token_count != config.custom_token_count):
+            # Create separate client for multi-NPC conversations with different settings
+            multi_npc_client = ClientBase(
+                config.multi_npc_llm_api,
+                config.multi_npc_llm,
+                config.multi_npc_llm_params,
+                config.multi_npc_custom_token_count,
+                [api_file]
+            )
+        else:
+            # Use the same client for multi-NPC conversations
+            multi_npc_client = None
+        
+        # Update chat manager with multi-NPC client
+        chat_manager.update_multi_npc_client(multi_npc_client)
+            
+        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'], summary_client)
         self.__talk: Conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk
@@ -45,6 +84,96 @@ class GameStateManager:
         self.__automatic_greeting: bool = config.automatic_greeting
         self.__conv_has_narrator: bool = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
         self.__should_reload: bool = False
+
+    @utils.time_it
+    def hot_swap_settings(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, llm_client: LLMClient, secret_key_file: str, image_secret_key_file: str) -> bool:
+        """Attempts to hot-swap settings without ending active conversations.
+        
+        Args:
+            game: Updated game instance
+            chat_manager: Updated chat manager instance
+            config: Updated config loader instance
+            llm_client: Updated LLM client instance
+            secret_key_file: Updated secret key file
+            image_secret_key_file: Updated image secret key file
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update LLM client with hot-swapping
+            llm_client_success = self.__client.hot_swap_settings(config, secret_key_file, image_secret_key_file)
+            if not llm_client_success:
+                logging.warning("LLM client hot-swap failed, using new client")
+                self.__client = llm_client
+            
+            # Update basic components
+            self.__game = game
+            self.__config = config
+            self.__chat_manager = chat_manager
+            
+            # Update config-derived values
+            self.__automatic_greeting = config.automatic_greeting
+            self.__conv_has_narrator = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
+            
+            # Create separate LLM client for summaries if different settings are configured
+            from src.llm.client_base import ClientBase
+            if (config.summary_llm_api != config.llm_api or 
+                config.summary_llm != config.llm or 
+                config.summary_llm_params != config.llm_params or 
+                config.summary_custom_token_count != config.custom_token_count):
+                # Create separate client for summaries with different settings
+                summary_client = ClientBase(
+                    config.summary_llm_api,
+                    config.summary_llm,
+                    config.summary_llm_params,
+                    config.summary_custom_token_count,
+                    [secret_key_file]
+                )
+            else:
+                # Use the same client for summaries
+                summary_client = None
+            
+            # Create separate LLM client for multi-NPC conversations if different settings are configured
+            if (config.multi_npc_llm_api != config.llm_api or 
+                config.multi_npc_llm != config.llm or 
+                config.multi_npc_llm_params != config.llm_params or 
+                config.multi_npc_custom_token_count != config.custom_token_count):
+                # Create separate client for multi-NPC conversations with different settings
+                multi_npc_client = ClientBase(
+                    config.multi_npc_llm_api,
+                    config.multi_npc_llm,
+                    config.multi_npc_llm_params,
+                    config.multi_npc_custom_token_count,
+                    [secret_key_file]
+                )
+            else:
+                # Use the same client for multi-NPC conversations
+                multi_npc_client = None
+            
+            # Update rememberer with new config and summary client
+            self.__rememberer = Summaries(game, config, self.__client, self.__language_info['language'], summary_client)
+            
+            # Update chat manager with multi-NPC client
+            chat_manager.update_multi_npc_client(multi_npc_client)
+            
+            # If there's an active conversation, update it with new settings
+            if self.__talk:
+                success = self.__talk.hot_swap_settings(
+                    config=config,
+                    llm_client=self.__client,
+                    chat_manager=chat_manager,
+                    rememberer=self.__rememberer
+                )
+                if not success:
+                    return False
+            
+            logging.info("GameStateManager hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"GameStateManager hot-swap failed: {e}")
+            return False
 
     ###### react to calls from the game #######
     @utils.time_it

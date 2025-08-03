@@ -53,6 +53,45 @@ class Context:
     def config(self) -> ConfigLoader:
         return self.__config
 
+    @utils.time_it
+    def hot_swap_settings(self, config: ConfigLoader, client: LLMClient, rememberer: Remembering) -> bool:
+        """Attempts to hot-swap settings without ending the conversation.
+        
+        Args:
+            config: Updated config loader instance
+            client: Updated LLM client instance
+            rememberer: Updated rememberer instance
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update basic components
+            self.__config = config
+            self.__client = client
+            self.__rememberer = rememberer
+            
+            # Update config-derived values
+            self.__hourly_time = config.hourly_time
+            self.__game = config.game
+            
+            # Update game-specific location if game changed
+            if self.__game.base_game == GameEnum.FALLOUT4:
+                default_location = 'the Commonwealth'
+            else:
+                default_location = "Skyrim"
+                
+            # Only update location if it's currently the default
+            if self.__location in ['the Commonwealth', 'Skyrim']:
+                self.__location = default_location
+            
+            logging.info("Context hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Context hot-swap failed: {e}")
+            return False
+
     @property
     def prompt_multinpc(self) -> str:
         return self.__config.multi_npc_prompt
