@@ -17,6 +17,9 @@ from src.character_manager import Character
 import src.utils as utils
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
+from src.config.definitions.game_definitions import GameEnum
+from src.games.fallout4 import Fallout4
+from src.games.skyrim import Skyrim
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv/fallout4_characters.csv"""
@@ -34,7 +37,46 @@ class GameStateManager:
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
-        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'])
+        
+        # Create separate LLM client for summaries if different settings are configured
+        from src.llm.client_base import ClientBase
+        if (config.summary_llm_api != config.llm_api or 
+            config.summary_llm != config.llm or 
+            config.summary_llm_params != config.llm_params or 
+            config.summary_custom_token_count != config.custom_token_count):
+            # Create separate client for summaries with different settings
+            summary_client = ClientBase(
+                config.summary_llm_api,
+                config.summary_llm,
+                config.summary_llm_params,
+                config.summary_custom_token_count,
+                [api_file]
+            )
+        else:
+            # Use the same client for summaries
+            summary_client = None
+            
+        # Create separate LLM client for multi-NPC conversations if different settings are configured
+        if (config.multi_npc_llm_api != config.llm_api or 
+            config.multi_npc_llm != config.llm or 
+            config.multi_npc_llm_params != config.llm_params or 
+            config.multi_npc_custom_token_count != config.custom_token_count):
+            # Create separate client for multi-NPC conversations with different settings
+            multi_npc_client = ClientBase(
+                config.multi_npc_llm_api,
+                config.multi_npc_llm,
+                config.multi_npc_llm_params,
+                config.multi_npc_custom_token_count,
+                [api_file]
+            )
+        else:
+            # Use the same client for multi-NPC conversations
+            multi_npc_client = None
+        
+        # Update chat manager with multi-NPC client
+        chat_manager.update_multi_npc_client(multi_npc_client)
+            
+        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'], summary_client)
         self.__talk: Conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk
@@ -45,6 +87,101 @@ class GameStateManager:
         self.__automatic_greeting: bool = config.automatic_greeting
         self.__conv_has_narrator: bool = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
         self.__should_reload: bool = False
+
+    @property
+    def game(self) -> Gameable:
+        """Get the current game instance"""
+        return self.__game
+
+    @utils.time_it
+    def hot_swap_settings(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, llm_client: LLMClient, secret_key_file: str, image_secret_key_file: str) -> bool:
+        """Attempts to hot-swap settings without ending active conversations.
+        
+        Args:
+            game: Updated game instance
+            chat_manager: Updated chat manager instance
+            config: Updated config loader instance
+            llm_client: Updated LLM client instance
+            secret_key_file: Updated secret key file
+            image_secret_key_file: Updated image secret key file
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update LLM client with hot-swapping
+            llm_client_success = self.__client.hot_swap_settings(config, secret_key_file, image_secret_key_file)
+            if not llm_client_success:
+                logging.warning("LLM client hot-swap failed, using new client")
+                self.__client = llm_client
+            
+            # Update basic components
+            self.__game = game
+            self.__config = config
+            self.__chat_manager = chat_manager
+            
+            # Update config-derived values
+            self.__automatic_greeting = config.automatic_greeting
+            self.__conv_has_narrator = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
+            
+            # Create separate LLM client for summaries if different settings are configured
+            from src.llm.client_base import ClientBase
+            if (config.summary_llm_api != config.llm_api or 
+                config.summary_llm != config.llm or 
+                config.summary_llm_params != config.llm_params or 
+                config.summary_custom_token_count != config.custom_token_count):
+                # Create separate client for summaries with different settings
+                summary_client = ClientBase(
+                    config.summary_llm_api,
+                    config.summary_llm,
+                    config.summary_llm_params,
+                    config.summary_custom_token_count,
+                    [secret_key_file]
+                )
+            else:
+                # Use the same client for summaries
+                summary_client = None
+            
+            # Create separate LLM client for multi-NPC conversations if different settings are configured
+            if (config.multi_npc_llm_api != config.llm_api or 
+                config.multi_npc_llm != config.llm or 
+                config.multi_npc_llm_params != config.llm_params or 
+                config.multi_npc_custom_token_count != config.custom_token_count):
+                # Create separate client for multi-NPC conversations with different settings
+                multi_npc_client = ClientBase(
+                    config.multi_npc_llm_api,
+                    config.multi_npc_llm,
+                    config.multi_npc_llm_params,
+                    config.multi_npc_custom_token_count,
+                    [secret_key_file]
+                )
+            else:
+                # Use the same client for multi-NPC conversations
+                multi_npc_client = None
+            
+            # Update rememberer with new config and summary client
+            self.__rememberer = Summaries(game, config, self.__client, self.__language_info['language'], summary_client)
+            
+            # Update chat manager with multi-NPC client
+            chat_manager.update_multi_npc_client(multi_npc_client)
+            
+            # If there's an active conversation, update it with new settings
+            if self.__talk:
+                success = self.__talk.hot_swap_settings(
+                    config=config,
+                    llm_client=self.__client,
+                    chat_manager=chat_manager,
+                    rememberer=self.__rememberer
+                )
+                if not success:
+                    return False
+            
+            logging.info("GameStateManager hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"GameStateManager hot-swap failed: {e}")
+            return False
 
     ###### react to calls from the game #######
     @utils.time_it
@@ -274,6 +411,7 @@ class GameStateManager:
             csv_in_game_voice_model: str = ""
             advanced_voice_model: str = ""
             voice_accent: str = ""
+            llm_openrouter_model: str = ""
             is_player_character: bool = bool(json[comm_consts.KEY_ACTOR_ISPLAYER])
             if self.__talk and self.__talk.contains_character(ref_id):
                 already_loaded_character: Character | None = self.__talk.get_character(ref_id)
@@ -283,6 +421,7 @@ class GameStateManager:
                     csv_in_game_voice_model = already_loaded_character.csv_in_game_voice_model
                     advanced_voice_model = already_loaded_character.advanced_voice_model
                     voice_accent = already_loaded_character.voice_accent
+                    llm_openrouter_model = already_loaded_character.llm_openrouter_model
                     is_generic_npc = already_loaded_character.is_generic_npc
             elif self.__talk and not is_player_character :#If this is not the player and the character has not already been loaded
                 external_info: external_character_info = self.__game.load_external_character_info(base_id, character_name, race, gender, actor_voice_model)
@@ -292,6 +431,7 @@ class GameStateManager:
                 csv_in_game_voice_model = external_info.csv_in_game_voice_model
                 advanced_voice_model = external_info.advanced_voice_model
                 voice_accent = external_info.voice_accent
+                llm_openrouter_model = external_info.llm_openrouter_model
                 is_generic_npc = external_info.is_generic_npc
                 if is_generic_npc:
                     character_name = external_info.name
@@ -319,7 +459,8 @@ class GameStateManager:
                             advanced_voice_model,
                             voice_accent,
                             equipment,
-                            custom_values)
+                            custom_values,
+                            llm_openrouter_model)
         except CharacterDoesNotExist:                 
             logging.log(23, 'Restarting...')
             return None 
@@ -371,3 +512,40 @@ class GameStateManager:
                 )
             else:
                 return self.error_message("Could not load initial character to talk to. Please try again.")
+
+    @utils.time_it
+    def reload_character_data(self) -> bool:
+        """Reload character CSV files and overrides from disk.
+        
+        This method will:
+        1. End any active conversation
+        2. Create a new game instance to reload character data from disk
+        3. Update the rememberer with the new game instance
+        
+        Returns:
+            bool: True if reload was successful, False otherwise
+        """
+        try:
+            # End any active conversation first
+            if self.__talk:
+                logging.info("Ending active conversation for character data reload...")
+                self.__talk.end()
+                self.__talk = None
+                logging.info("Active conversation ended.")
+            
+            # Create a new game instance to reload character data
+            logging.info("Reloading character data from disk...")
+            if self.__config.game.base_game == GameEnum.FALLOUT4:
+                self.__game = Fallout4(self.__config)
+            else:
+                self.__game = Skyrim(self.__config)
+            
+            # Update the rememberer with the new game instance
+            self.__rememberer = Summaries(self.__game, self.__config, self.__client, self.__language_info['language'], None)
+            
+            logging.info("Character data reload completed successfully.")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Error during character data reload: {e}")
+            return False

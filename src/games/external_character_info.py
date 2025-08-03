@@ -1,7 +1,7 @@
 class external_character_info:
     """_summary_
     """
-    def __init__(self, name: str, is_generic_npc: bool, bio: str, ingame_voice_model: str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str) -> None:
+    def __init__(self, name: str, is_generic_npc: bool, bio: str, ingame_voice_model: str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, llm_openrouter_model: str = "") -> None:
         self.__name: str = name
         self.__is_generic_npc: bool = is_generic_npc
         self.__bio: str = bio
@@ -10,6 +10,7 @@ class external_character_info:
         self.__csv_in_game_voice_model: str = csv_in_game_voice_model
         self.__advanced_voice_model: str = advanced_voice_model
         self.__voice_accent: str = voice_accent
+        self.__llm_openrouter_model: str = llm_openrouter_model
     
     @property
     def name(self) -> str:
@@ -42,3 +43,7 @@ class external_character_info:
     @property
     def voice_accent(self) -> str:
         return self.__voice_accent
+    
+    @property
+    def llm_openrouter_model(self) -> str:
+        return self.__llm_openrouter_model
