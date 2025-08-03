@@ -36,7 +36,7 @@ class ChatManager:
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
         self.__is_first_sentence: bool = False
-        self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；', '：']
+        self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
     @property
@@ -180,7 +180,10 @@ class ChatManager:
                                     blocking_queue.put(new_sentence)
                                     parsed_sentence = None
                         if settings.stop_generation:
-                                break
+                            break
+                        if settings.interrupting_action:
+                            # If there is an interrupting action, stop the generation after the next sentence
+                            settings.stop_generation = True
                     break #if the streaming_call() completed without exception, break the while loop
                             
                 except Exception as e:

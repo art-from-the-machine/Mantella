@@ -19,10 +19,8 @@ class actions_parser(output_parser):
                     cut_content.text = cut_content.text.replace(keyword,"").strip()
                     cut_content.actions.append(action.identifier)
                     logging.log(28, action.info_text)
-                    # TODO: Add back this functionality while keeping the first delivered sentence intact
-                    # ie "Inventory: Here you go." instead of just "Inventory:" with no further response
-                    # if action.is_interrupting:
-                    #     settings.stop_generation = True
+                    if action.is_interrupting:
+                        settings.stop_generation = True
         return cut_content, last_content
     
     def get_cut_indicators(self) -> list[str]:
