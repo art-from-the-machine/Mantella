@@ -6,6 +6,7 @@ from src.llm.sentence_content import SentenceContent
 from src.llm.sentence_content import SentenceTypeEnum
 from src.games.external_character_info import external_character_info
 from src.character_manager import Character
+from src.conversation.context import Context
 import shutil
 import os
 import json
@@ -269,7 +270,7 @@ def test_load_external_character_info(skyrim: Skyrim):
     assert info.bio == "You are a male Nord Unknown Character."
 
 
-def test_prepare_sentence_for_game(tmp_path, skyrim: Skyrim, default_config: ConfigLoader, example_skyrim_npc_character: Character):
+def test_prepare_sentence_for_game(tmp_path, skyrim: Skyrim, default_config: ConfigLoader, example_skyrim_npc_character: Character, default_context: Context):
     """Test that prepare_sentence_for_game correctly processes audio files based on configuration"""
     default_config.save_audio_data_to_character_folder = False
     default_config.fast_response_mode = False
@@ -302,7 +303,7 @@ def test_prepare_sentence_for_game(tmp_path, skyrim: Skyrim, default_config: Con
     # Test 1: Default behavior with topicID 1    
     skyrim.prepare_sentence_for_game(
         queue_output = example_sentence, 
-        context_of_conversation = None, 
+        context_of_conversation = default_context, 
         config = default_config, 
         topicID = 1, 
         isFirstLine = False,
@@ -318,7 +319,7 @@ def test_prepare_sentence_for_game(tmp_path, skyrim: Skyrim, default_config: Con
     # Test 2: Different topicID
     skyrim.prepare_sentence_for_game(
         queue_output = example_sentence, 
-        context_of_conversation = None, 
+        context_of_conversation = default_context, 
         config = default_config,
         topicID = 2,
         isFirstLine = False,
@@ -337,7 +338,7 @@ def test_prepare_sentence_for_game(tmp_path, skyrim: Skyrim, default_config: Con
 
     skyrim.prepare_sentence_for_game(
         queue_output = example_sentence, 
-        context_of_conversation = None, 
+        context_of_conversation = default_context, 
         config = default_config,
         topicID = 1,
         isFirstLine = True, # isFirstLine determines whether a fast response should play
