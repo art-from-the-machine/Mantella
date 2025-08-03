@@ -4,6 +4,7 @@ import time
 from src.config.config_loader import ConfigLoader
 from src.games.gameable import Gameable
 from src.llm.llm_client import LLMClient
+from src.llm.client_base import ClientBase
 from src.llm.message_thread import message_thread
 from src.llm.messages import UserMessage
 from src.characters_manager import Characters
@@ -15,13 +16,14 @@ class Summaries(Remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, game: Gameable, config: ConfigLoader, client: LLMClient, language_name: str, summary_limit_pct: float = 0.3) -> None:
+    def __init__(self, game: Gameable, config: ConfigLoader, client: LLMClient, language_name: str, summary_client: ClientBase | None = None, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
         self.__config = config
         self.__game: Gameable = game
         self.__summary_limit_pct: float = summary_limit_pct
         self.__client: LLMClient = client
+        self.__summary_client: ClientBase = summary_client if summary_client else client  # Use separate client for summaries if provided
         self.__language_name: str = language_name
         self.__memory_prompt: str = config.memory_prompt
         self.__resummarize_prompt:str = config.resummarize_prompt
@@ -151,9 +153,9 @@ class Summaries(Remembering):
             conversation_summaries = previous_conversation_summaries
             
 
-        summary_limit = round(self.__client.token_limit*self.__summary_limit_pct,0)
+        summary_limit = round(self.__summary_client.token_limit*self.__summary_limit_pct,0)
 
-        count_tokens_summaries = self.__client.get_count_tokens(conversation_summaries)
+        count_tokens_summaries = self.__summary_client.get_count_tokens(conversation_summaries)
         # if summaries token limit is reached, summarize the summaries
         if count_tokens_summaries > summary_limit:
             logging.info(f'Token limit of conversation summaries reached ({count_tokens_summaries} / {summary_limit} tokens). Creating new summary file...')
@@ -189,7 +191,7 @@ class Summaries(Remembering):
         if len(text_to_summarize) > 5:
             messages = message_thread(self.__config, prompt)
             messages.add_message(UserMessage(self.__config, text_to_summarize))
-            summary = self.__client.request_call(messages)
+            summary = self.__summary_client.request_call(messages)
             if not summary:
                 logging.info(f"Summarizing conversation failed.")
                 return ""

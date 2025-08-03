@@ -360,3 +360,29 @@ class Gameable(ABC):
         with wave.open(os.path.join(voice_folder_path, f"{filename}.wav"), 'wb') as muted_wav:
             muted_wav.setparams(params)
             muted_wav.writeframes(muted_frames)
+
+    @utils.time_it
+    def hot_swap_settings(self, config: ConfigLoader) -> bool:
+        """Attempts to hot-swap settings without reloading character data.
+        
+        Args:
+            config: Updated config loader instance
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update VR setting
+            self._is_vr = config.game.is_vr
+            
+            # Update conversation folder path
+            mantella_game_folder_path = self.game_name_in_filepath.capitalize()
+            self.__conversation_folder_path = config.save_folder + f"data/{mantella_game_folder_path}/conversations"
+            conversation_log.game_path = self.__conversation_folder_path
+            
+            logging.info(f"{self.__class__.__name__} hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"{self.__class__.__name__} hot-swap failed: {e}")
+            return False

@@ -117,6 +117,13 @@ def test_openrouter_success():
     assert result.allows_manual_model_input is False
 
 
+def test_nanogpt_success():
+    """Test successful NanoGPT model list retrieval"""
+    result = ClientBase.get_model_list("NanoGPT", "key.txt", "gpt-4o-mini")
+    assert result.default_model == "gpt-4o-mini"
+    assert result.allows_manual_model_input is True  # NanoGPT allows manual input
+
+
 def test_is_vision_filtering():
     """Test vision model filtering"""
     result = ClientBase.get_model_list("OpenRouter", "key.txt", is_vision=True)
