@@ -7,6 +7,7 @@ from src.character_manager import Character
 
 from src.llm.sentence import Sentence
 from src import utils
+import logging
 
 class Message(ABC):
     """Base class for messages 
@@ -73,6 +74,34 @@ class Message(ABC):
     @abstractmethod
     def get_dict_formatted_string(self) -> str:
         pass
+    
+    @utils.time_it
+    def hot_swap_settings(self, config: ConfigLoader) -> bool:
+        """Attempts to hot-swap settings without ending the conversation.
+        
+        Args:
+            config: Updated config loader instance
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update narration indicators
+            if config.narration_indicators == NarrationIndicatorsEnum.BRACKETS:
+                self.__narration_start = "["
+                self.__narration_end = "]"
+            elif config.narration_indicators == NarrationIndicatorsEnum.ASTERISKS:
+                self.__narration_start = "*"
+                self.__narration_end = "*"
+            else:
+                self.__narration_start = "("
+                self.__narration_end = ")"
+            
+            return True
+            
+        except Exception as e:
+            logging.error(f"Message hot-swap failed: {e}")
+            return False
 
 class SystemMessage(Message):
     """A message with the role 'system'. Usually used as the initial main prompt of an exchange with the LLM

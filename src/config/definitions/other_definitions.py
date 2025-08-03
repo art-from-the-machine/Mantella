@@ -116,3 +116,24 @@ class OtherDefinitions:
         description = """Whether to save audio data to an NPC's voice folder instead of MantellaVoice00.
                         Enable this value if voicelines are not being played in-game."""
         return ConfigValueBool("save_audio_data_to_character_folder", "Save Game Audio to Character Folder", description, False, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_hot_swap_enabled_config_value() -> ConfigValue:
+        description = """Whether to enable hot-swapping settings during active conversations.
+                        If enabled: Settings changes (LLM model settings, prompts) will be applied without ending conversations.
+                        If disabled: Settings changes will end the current conversation and restart (classic behavior)."""
+        return ConfigValueBool("hot_swap_enabled", "Enable Hot-Swap Settings", description, True, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_conversation_summary_enabled_config_value() -> ConfigValue:
+        description = """Whether to generate and save conversation summaries when conversations end.
+                        If enabled: Summaries will be generated and saved to help NPCs remember past conversations.
+                        If disabled: No summaries will be generated, conversations will end without sending summary requests to the LLM."""
+        return ConfigValueBool("conversation_summary_enabled", "Enable Conversation Summaries", description, True)
+
+    @staticmethod
+    def get_reload_character_data_config_value() -> ConfigValue:
+        description = """Reload character CSV files and overrides from disk to pick up any changes.
+                        This refreshes character data that is cached in memory.
+                        Note: If there is an active conversation, it will be ended before reloading."""
+        return ConfigValueString("reload_character_data", "Reload Character Data", description, "")
