@@ -1,4 +1,4 @@
-from src.conversation.context import context
+from src.conversation.context import Context
 
 class ContextPayload:
     """
@@ -508,7 +508,7 @@ class LLMFunctionCondition:
     def keys_to_check(self, value):
         self._keys_to_check = value
 
-    def evaluate(self, conversation_context:context):
+    def evaluate(self, conversation_context: Context):
         """
         Evaluates the condition based on the provided data.
         Assumes the condition_type is 'boolean_check' and all keys_to_check exist in data.
@@ -531,7 +531,7 @@ class LLMFunctionCondition:
             logging.warning(f"Function class : condition object {self.condition_name} : Unsupported operator type")
         
     
-    def check_context_value(self, conversation_context:context, context_key):
+    def check_context_value(self, conversation_context: Context, context_key):
     #'''Utility function that adds an extra try block to the context value check before returning it'''
         try:
             return conversation_context.get_custom_context_value(context_key)

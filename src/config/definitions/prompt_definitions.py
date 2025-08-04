@@ -1,6 +1,6 @@
 
 from regex import Regex
-from src.config.types.config_value import ConfigValue, ConvigValueTag
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_string import ConfigValueString
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 
@@ -285,20 +285,20 @@ class PromptDefinitions:
     def get_function_LLM_OpenAI_single_prompt_config_value() -> ConfigValue: 
         function_LLM_OpenAI_Single_NPC_prompt = """You are a helpful assistant named {speakerName}. Please analyze the input and respond by calling only one function. {system_prompt_LLMFunction_instructions}
                                          The user might refer to {playerName} as 'me' or 'I' If no function seems applicable or the command isn't clear then do not return any function."""
-        return ConfigValueString("function_llm_openai_single_npc_prompt","Function LLM OpenAI single NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_OPENAI_SINGLE_NPC_DESCRIPTION,function_LLM_OpenAI_Single_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConvigValueTag.advanced])
+        return ConfigValueString("function_llm_openai_single_npc_prompt","Function LLM OpenAI single NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_OPENAI_SINGLE_NPC_DESCRIPTION,function_LLM_OpenAI_Single_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_function_LLM_OpenAI_multi_prompt_config_value() -> ConfigValue: 
         function_LLM_OpenAI_Multi_NPC_prompt = """You are a helpful assistant tasked with executing actions on NPCs in a program. Please analyze the input and respond by calling only one function.
                                                          {system_prompt_LLMFunction_instructions} The user might refer to {playerName} as 'me' or 'I'. If no function seems applicable or the command isn't clear then do not return any function."""
-        return ConfigValueString("function_llm_openai_multi_npc_prompt","Function LLM OpenAI single NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_OPENAI_MULTI_NPC_DESCRIPTION,function_LLM_OpenAI_Multi_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConvigValueTag.advanced])
+        return ConfigValueString("function_llm_openai_multi_npc_prompt","Function LLM OpenAI single NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_OPENAI_MULTI_NPC_DESCRIPTION,function_LLM_OpenAI_Multi_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_function_LLM_single_prompt_config_value() -> ConfigValue: 
         function_LLM_Single_NPC_prompt = """You are a function calling AI model named {speakerName}. You are provided with function signatures within <tools> </tools> XML tags. You may call one or more functions to assist with the user query. If available tools are not relevant in assisting with user query, just respond in natural conversational language. Don't make assumptions about what values to plug into functions. The user might refer to {playerName} as 'me' or 'I'. {system_prompt_LLMFunction_instructions}<tools>{toolsToSend} </tools>. NO_REGEX_FORMATTING_PAST_THIS_POINT For each function call return a JSON object, with the following pydantic model json schema: <tool_call>{'title': 'FunctionCall', 'type': 'object', 'properties': {'name': {'title': 'Name', 'type': 'string'}, 'arguments': {'title': 'Arguments', 'type': 'object'}}, 'required': ['arguments', 'name']}</tool_call>"""
-        return ConfigValueString("function_llm_single_npc_prompt","Function LLM single NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_SINGLE_NPC_DESCRIPTION,function_LLM_Single_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConvigValueTag.advanced])
+        return ConfigValueString("function_llm_single_npc_prompt","Function LLM single NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_SINGLE_NPC_DESCRIPTION,function_LLM_Single_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_function_LLM_multi_prompt_config_value() -> ConfigValue: 
         function_LLM_Multi_NPC_prompt = """You are a function calling AI model. You are provided with function signatures within <tools> </tools> XML tags. You may call one or more functions to assist with the user query. If available tools are not relevant in assisting with user query, just respond in natural conversational language. Don't make assumptions about what values to plug into functions. The user might refer to {playerName} as 'me' or 'I'. {system_prompt_LLMFunction_instructions}<tools>{toolsToSend} </tools>. NO_REGEX_FORMATTING_PAST_THIS_POINT For each function call return a JSON object, with the following pydantic model json schema: <tool_call>{'title': 'FunctionCall', 'type': 'object', 'properties': {'name': {'title': 'Name', 'type': 'string'}, 'arguments': {'title': 'Arguments', 'type': 'object'}}, 'required': ['arguments', 'name']}</tool_call>"""
-        return ConfigValueString("function_llm_multi_npc_prompt","Function LLM multi NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_MULTI_NPC_DESCRIPTION,function_LLM_Multi_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConvigValueTag.advanced])
+        return ConfigValueString("function_llm_multi_npc_prompt","Function LLM multi NPC Prompt",PromptDefinitions.BASE_FUNCTION_LLM_MULTI_NPC_DESCRIPTION,function_LLM_Multi_NPC_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)],tags=[ConfigValueTag.advanced])

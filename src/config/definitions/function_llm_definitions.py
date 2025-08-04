@@ -1,4 +1,4 @@
-from src.config.types.config_value import ConfigValue, ConvigValueTag
+from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_float import ConfigValueFloat
 from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_selection import ConfigValueSelection
@@ -45,27 +45,27 @@ class FunctionLLMDefinitions:
         description = """If the model chosen is not recognized by Mantella, the token count for the given model will default to this number
                     If this is not the correct token count for your chosen model, you can change it here
                     Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit"""
-        return ConfigValueInt("function_llm_custom_token_count","Custom token count",description, 4096, 4096, 9999999,tags=[ConvigValueTag.advanced])
+        return ConfigValueInt("function_llm_custom_token_count","Custom token count",description, 4096, 4096, 9999999,tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_function_llm_temperature_config_value() -> ConfigValue:
-        return ConfigValueFloat("function_llm_temperature","Temperature","", 0.5, 0, 2,tags=[ConvigValueTag.advanced])
+        return ConfigValueFloat("function_llm_temperature","Temperature","", 0.5, 0, 2,tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_function_llm_top_p_config_value() -> ConfigValue:
-        return ConfigValueFloat("function_llm_top_p","Top p","", 1.0, 0, 1,tags=[ConvigValueTag.advanced])
+        return ConfigValueFloat("function_llm_top_p","Top p","", 1.0, 0, 1,tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_function_llm_frequency_penalty_config_value() -> ConfigValue:
-        return ConfigValueFloat("function_llm_frequency_penalty","Frequency penalty","", 0, -2, 2,tags=[ConvigValueTag.advanced])
+        return ConfigValueFloat("function_llm_frequency_penalty","Frequency penalty","", 0, -2, 2,tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_function_llm_max_tokens_config_value() -> ConfigValue:
-        return ConfigValueInt("function_llm_max_tokens","Max tokens","Lowering this value can sometimes result in empty responses", 2000, 1, 999999,tags=[ConvigValueTag.advanced])
+        return ConfigValueInt("function_llm_max_tokens","Max tokens","Lowering this value can sometimes result in empty responses", 2000, 1, 999999,tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_function_llm_timeout_value() -> ConfigValue:
-        return ConfigValueInt("function_llm_timeout","Function LLM Timeout","Use this value to set a max delay that Mantella will wait before continuing with generating a response. Lower this in case of inconsistent response times.", 15, 1, 999999,tags=[ConvigValueTag.advanced])
+        return ConfigValueInt("function_llm_timeout","Function LLM Timeout","Use this value to set a max delay that Mantella will wait before continuing with generating a response. Lower this in case of inconsistent response times.", 15, 1, 999999,tags=[ConfigValueTag.advanced])
     
  
 

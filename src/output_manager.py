@@ -5,6 +5,7 @@ import time
 import unicodedata
 import json
 import ast
+import re
 from openai import APIConnectionError
 from src.llm.output.sentence_accumulator import sentence_accumulator
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
@@ -25,17 +26,17 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.llm.message_thread import message_thread
 from src.llm.ai_client import AIClient
-from src.llm.openai_client import function_client
+from src.llm.function_client import FunctionClient
 from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
 
 class ChatManager:
-    def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient, function_client_instance: function_client):
+    def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient, function_client: FunctionClient):
         self.loglevel = 28
         self.__config: ConfigLoader = config
         self.__tts: TTSable = tts
         self.__client: AIClient = client
-        self.__function_client: function_client = function_client_instance
+        self.__function_client: FunctionClient = function_client
         self.__is_generating: bool = False
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()

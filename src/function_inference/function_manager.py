@@ -7,13 +7,13 @@ from threading import Lock
 from threading import Thread
 from src.output_manager import ChatManager
 from src.llm.message_thread import message_thread
-from src.llm.messages import user_message, system_message
-from src.conversation.context import context
+from src.llm.messages import UserMessage
+from src.conversation.context import Context
 from src.function_inference.tools_manager import ToolsManager
 from src.function_inference.llm_function_class import LLMFunction,LLMOpenAIfunction, Source, ContextPayload, Target, LLMFunctionCondition
 from src.function_inference.llm_tooltip_class import TargetInfo, Tooltip, ModeInfo
 from src.function_inference.llm_function_class import Target
-from src.llm.sentence import sentence
+from src.llm.sentence import Sentence
 from itertools import zip_longest
 from src.http.communication_constants import communication_constants as comm_consts
 
@@ -54,7 +54,7 @@ class FunctionManager:
 
     def initialize(self, context_for_conversation, output_manager, generation_thread) -> None:
         if not self.initialized:  # Check if already initialized
-            self.__context: context = context_for_conversation 
+            self.__context: Context = context_for_conversation 
             self.__context_lock = Lock() 
             self.__output_manager: ChatManager = output_manager
             self.__output_manager.generated_function_results = None #Ensure to empty the output from LLM before proceeding further
@@ -200,8 +200,8 @@ class FunctionManager:
             }
             initial_system_message = self.format_with_stop_marker(initial_system_message, "NO_REGEX_FORMATTING_PAST_THIS_POINT", **kwargs)
             self.__messages = message_thread(initial_system_message)
-            self.__messages.add_message(user_message(tooltipsToAppend)) 
-            self.__messages.add_message(user_message(lastUserMessage)) 
+            self.__messages.add_message(UserMessage(tooltipsToAppend)) 
+            self.__messages.add_message(UserMessage(lastUserMessage)) 
             result_was_generated:bool = True
             self.__generation_thread = Thread(
                 target=self.__output_manager.generate_simple_response_from_message_thread, 
@@ -335,7 +335,7 @@ class FunctionManager:
 
         return toolsToSend, system_prompt_array
     
-    def take_post_response_actions(self, sentence_receiving_output:sentence):
+    def take_post_response_actions(self, sentence_receiving_output: Sentence):
         '''
         Handles the presence of a <veto> tag in the returned output
         Handles the modification of the sentence object in case of a successful function call.

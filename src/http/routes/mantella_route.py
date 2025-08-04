@@ -9,7 +9,7 @@ from src.games.gameable import Gameable
 from src.games.skyrim import Skyrim
 from src.output_manager import ChatManager
 from src.llm.llm_client import LLMClient
-from src.llm.openai_client import function_client
+from src.llm.function_client import FunctionClient
 from src.game_manager import GameStateManager
 from src.http.routes.routeable import routeable
 from src.http.communication_constants import communication_constants as comm_consts
@@ -61,9 +61,9 @@ class mantella_route(routeable):
             tts = Piper(self._config, game)
 
         llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
-        function_client_instance = function_client(self._config, self.__function_llm_secret_key_file, self.__secret_key_file) 
+        function_client = FunctionClient(self._config, self.__function_llm_secret_key_file, self.__secret_key_file) 
         
-        chat_manager = ChatManager(self._config, tts, llm_client, function_client_instance)
+        chat_manager = ChatManager(self._config, tts, llm_client, function_client)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, self.__stt_secret_key_file, self.__secret_key_file)
 
     

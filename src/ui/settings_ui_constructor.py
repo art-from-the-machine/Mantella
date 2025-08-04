@@ -4,7 +4,6 @@ from typing import Any, Callable, TypeVar, NamedTuple, Dict, TypedDict, Optional
 import logging
 
 from src.llm.client_base import ClientBase
-from src.llm.openai_client import function_client
 from src.config.types.config_value_path import ConfigValuePath
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_float import ConfigValueFloat

@@ -2,7 +2,7 @@ import json
 import logging
 from src.function_inference.llm_function_class import LLMFunction, LLMOpenAIfunction, ContextPayload, LLMFunctionCondition
 from src.function_inference.llm_tooltip_class import TargetInfo, Tooltip, ModeInfo
-from src.conversation.context import context
+from src.conversation.context import Context
 
 class ToolsManager:
     def __init__(self):
@@ -212,7 +212,7 @@ class ToolsManager:
         """
         self.__conditions[condition.condition_name] = condition
 
-    def evaluate_condition(self, condition_name: str, conversation_context: context) -> bool:
+    def evaluate_condition(self, condition_name: str, conversation_context: Context) -> bool:
         """
         Evaluates a stored condition against the given conversation context.
 
