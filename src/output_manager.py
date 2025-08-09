@@ -77,6 +77,7 @@ class ChatManager:
         
         # Return cached client if available
         if cache_key in self.__per_character_clients:
+            logging.info(f"Reusing cached random LLM client: {selection.service}/{selection.model}")    
             return self.__per_character_clients[cache_key]
         
         # Create new client
@@ -304,16 +305,21 @@ class ChatManager:
                         config=self.__config,
                         fallback_service=self.__config.llm_api,
                         fallback_model=self.__config.llm,
-                        fallback_params=self.__config.llm_params,
+                        fallback_params=self.__config.llm_params or {},
                         fallback_token_count=self.__config.custom_token_count
                     )
                     if selection is not None:
-                        # If selection equals configured client, reuse existing primary client
-                        if selection.service == self.__config.llm_api and selection.model == self.__config.llm:
+                        profile_status = "with profile" if selection.from_profile else "without profile"
+                        # Check if the randomly selected model is exactly the same as the default client
+                        if (selection.service == self.__config.llm_api and 
+                            selection.model == self.__config.llm and
+                            selection.parameters == (self.__config.llm_params or {})):
+                            # Same model with same parameters - reuse default client
                             selected_client_for_request = self.__client
+                            logging.info(f"Using per-request randomly selected LLM for one-on-one: {selection.service}/{selection.model} ({profile_status}) - reusing default client")
                         else:
+                            # Different model or different parameters - always create/get cached client
                             selected_client_for_request = self._get_or_create_random_client(selection)
-                            profile_status = "with profile" if selection.from_profile else "without profile"
                             logging.info(f"Using per-request randomly selected LLM for one-on-one: {selection.service}/{selection.model} ({profile_status})")
                 except Exception as e:
                     logging.error(f"Per-request random LLM selection failed, falling back to configured/default client: {e}")
@@ -326,18 +332,21 @@ class ChatManager:
                         config=self.__config,
                         fallback_service=self.__config.multi_npc_llm_api,
                         fallback_model=self.__config.multi_npc_llm,
-                        fallback_params=self.__config.multi_npc_llm_params,
+                        fallback_params=self.__config.multi_npc_llm_params or {},
                         fallback_token_count=self.__config.multi_npc_custom_token_count
                     )
                     if selection_multi is not None:
-                        # If selection equals current multi-NPC client settings, reuse existing multi-NPC client if available
+                        profile_status = "with profile" if selection_multi.from_profile else "without profile"
+                        # Check if the randomly selected model matches the multi-NPC client
                         if (selection_multi.service == self.__config.multi_npc_llm_api and 
-                            selection_multi.model == self.__config.multi_npc_llm and 
-                            self.__multi_npc_client):
+                            selection_multi.model == self.__config.multi_npc_llm and
+                            selection_multi.parameters == (self.__config.multi_npc_llm_params or {})):
+                            # Same model with same parameters - reuse multi-NPC client
                             selected_multi_client_for_request = self.__multi_npc_client
+                            logging.info(f"Using per-request randomly selected LLM for multi-NPC: {selection_multi.service}/{selection_multi.model} ({profile_status}) - reusing multi-NPC client")
                         else:
+                            # Different model or different parameters - create/get cached client
                             selected_multi_client_for_request = self._get_or_create_random_client(selection_multi)
-                            profile_status = "with profile" if selection_multi.from_profile else "without profile"
                             logging.info(f"Using per-request randomly selected LLM for multi-NPC: {selection_multi.service}/{selection_multi.model} ({profile_status})")
                 except Exception as e:
                     logging.error(f"Per-request random LLM selection for multi-NPC failed, falling back to multi-NPC configured/default client: {e}")
