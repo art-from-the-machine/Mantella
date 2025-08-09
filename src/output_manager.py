@@ -289,12 +289,17 @@ class ChatManager:
             current_sentence: str = ''
             settings: sentence_generation_settings = sentence_generation_settings(active_character)
             # llm_logged = False  # Track if we've logged the LLM model for this response
-            # Choose per-request random client once per request (outside retry loop)
+            # Choose per-request random clients once per request (outside retry loop)
             selected_client_for_request: AIClient | None = None
+            selected_multi_client_for_request: AIClient | None = None
+            
+            # Get cached selector or create new one
+            selector: RandomLLMSelector = getattr(self, "_ChatManager__random_selector", None) or RandomLLMSelector()
+            self.__random_selector = selector
+            
+            # Handle one-on-one per-request randomization
             if (not is_multi_npc) and (hasattr(self.__config, 'random_llm_one_on_one_per_request_enabled') and self.__config.random_llm_one_on_one_per_request_enabled):
                 try:
-                    selector: RandomLLMSelector = getattr(self, "_ChatManager__random_selector", None) or RandomLLMSelector()
-                    self.__random_selector = selector
                     selection = selector.select_random_llm_from_one_on_one_pool(
                         config=self.__config,
                         fallback_service=self.__config.llm_api,
@@ -313,16 +318,45 @@ class ChatManager:
                 except Exception as e:
                     logging.error(f"Per-request random LLM selection failed, falling back to configured/default client: {e}")
                     selected_client_for_request = None
+            
+            # Handle multi-NPC per-request randomization
+            elif is_multi_npc and (hasattr(self.__config, 'random_llm_multi_npc_per_request_enabled') and self.__config.random_llm_multi_npc_per_request_enabled):
+                try:
+                    selection_multi = selector.select_random_llm_from_multi_npc_pool(
+                        config=self.__config,
+                        fallback_service=self.__config.multi_npc_llm_api,
+                        fallback_model=self.__config.multi_npc_llm,
+                        fallback_params=self.__config.multi_npc_llm_params,
+                        fallback_token_count=self.__config.multi_npc_custom_token_count
+                    )
+                    if selection_multi is not None:
+                        # If selection equals current multi-NPC client settings, reuse existing multi-NPC client if available
+                        if (selection_multi.service == self.__config.multi_npc_llm_api and 
+                            selection_multi.model == self.__config.multi_npc_llm and 
+                            self.__multi_npc_client):
+                            selected_multi_client_for_request = self.__multi_npc_client
+                        else:
+                            selected_multi_client_for_request = self._get_or_create_random_client(selection_multi)
+                            profile_status = "with profile" if selection_multi.from_profile else "without profile"
+                            logging.info(f"Using per-request randomly selected LLM for multi-NPC: {selection_multi.service}/{selection_multi.model} ({profile_status})")
+                except Exception as e:
+                    logging.error(f"Per-request random LLM selection for multi-NPC failed, falling back to multi-NPC configured/default client: {e}")
+                    selected_multi_client_for_request = None
 
             while retries < max_retries:
                 try:
                     start_time = time.time()
-                    # Select client: multi-NPC always takes precedence in group conversations, then per-character or per-request randomization for one-on-one
+                    # Select client based on conversation type and per-request selections
                     last_used_client: AIClient = self.__client
-                    if is_multi_npc and self.__multi_npc_client:
-                        # Always use multi-NPC client in multi-NPC conversations (overrides other settings)
-                        # Random LLM selection for multi-NPC is handled at conversation start, not per-message
-                        current_client = self.__multi_npc_client
+                    if is_multi_npc:
+                        # Multi-NPC conversation: use per-request random client (if any), otherwise per-conversation multi-NPC client, else default
+                        if selected_multi_client_for_request is not None:
+                            current_client = selected_multi_client_for_request
+                        elif self.__multi_npc_client:
+                            current_client = self.__multi_npc_client
+                        else:
+                            # Fallback: use primary client if no multi-NPC client set
+                            current_client = self.__client
                     else:
                         # One-on-one conversation: use selected random client (if any), otherwise per-character override, else default
                         if selected_client_for_request is not None:

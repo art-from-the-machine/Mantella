@@ -120,6 +120,32 @@ class RandomLLMSelector:
             fallback_token_count=fallback_token_count,
             force_enabled=True
         )
+
+    def select_random_llm_from_multi_npc_pool(
+        self,
+        config: Any,
+        fallback_service: str,
+        fallback_model: str,
+        fallback_params: Dict[str, Any],
+        fallback_token_count: int
+    ) -> LLMSelection | None:
+        """Select a random LLM specifically from the multi-NPC pool, ignoring the per-conversation enable flag.
+
+        This is intended for per-request randomization toggles for multi-NPC.
+        """
+        pool = config.llm_pool_multi_npc if hasattr(config, 'llm_pool_multi_npc') else []
+        if not pool:
+            logging.debug("Multi-NPC LLM pool is empty; skipping per-request random selection")
+            return None
+        return self.select_random_llm_for_conversation(
+            conversation_type="multi_npc",
+            config=config,
+            fallback_service=fallback_service,
+            fallback_model=fallback_model,
+            fallback_params=fallback_params,
+            fallback_token_count=fallback_token_count,
+            force_enabled=True
+        )
     
     def _select_from_pool(
         self,
