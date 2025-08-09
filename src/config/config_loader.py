@@ -311,6 +311,7 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
             # Random LLM Selection
             self.random_llm_one_on_one_enabled = self.__definitions.get_bool_value("random_llm_one_on_one_enabled")
             self.random_llm_multi_npc_enabled = self.__definitions.get_bool_value("random_llm_multi_npc_enabled")
+            self.random_llm_one_on_one_per_request_enabled = self.__definitions.get_bool_value("random_llm_one_on_one_per_request_enabled")
             try:
                 self.llm_pool_one_on_one = json.loads(self.__definitions.get_string_value("llm_pool_one_on_one"))
             except Exception as e:
