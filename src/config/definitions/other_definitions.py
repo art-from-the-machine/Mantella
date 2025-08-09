@@ -152,6 +152,19 @@ class OtherDefinitions:
         )
 
     @staticmethod
+    def get_random_llm_one_on_one_per_request_enabled_config_value() -> ConfigValue:
+        return ConfigValueBool(
+            identifier="random_llm_one_on_one_per_request_enabled",
+            name="Enable Per-Request Random LLM (One-on-One)",
+            description=(
+                "When enabled, every request in one-on-one conversations uses a randomly selected LLM "
+                "from the one-on-one pool. This overrides per-character LLM overrides for that request."
+            ),
+            default_value=False,
+            tags=["random_llm", "conversation"]
+        )
+
+    @staticmethod
     def get_llm_pool_one_on_one_config_value() -> ConfigValue:
         return ConfigValueString(
             identifier="llm_pool_one_on_one",

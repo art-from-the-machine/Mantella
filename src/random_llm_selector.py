@@ -44,7 +44,8 @@ class RandomLLMSelector:
         fallback_service: str,
         fallback_model: str,
         fallback_params: Dict[str, Any],
-        fallback_token_count: int
+        fallback_token_count: int,
+        force_enabled: bool = False
     ) -> LLMSelection:
         """
         Select a random LLM for the specified conversation type
@@ -56,6 +57,7 @@ class RandomLLMSelector:
             fallback_model: Model to use if no random selection  
             fallback_params: Parameters to use if no profile exists
             fallback_token_count: Token count to use if no random selection
+            force_enabled: If True, bypass the enabled check and force selection
             
         Returns:
             LLMSelection with chosen LLM configuration
@@ -63,11 +65,11 @@ class RandomLLMSelector:
         try:
             # Check if random selection is enabled for this conversation type
             if conversation_type == "one_on_one":
-                is_enabled = getattr(config, 'random_llm_one_on_one_enabled', False)
-                pool = getattr(config, 'llm_pool_one_on_one', [])
+                is_enabled = force_enabled or (hasattr(config, 'random_llm_one_on_one_enabled') and config.random_llm_one_on_one_enabled)
+                pool = config.llm_pool_one_on_one if hasattr(config, 'llm_pool_one_on_one') else []
             elif conversation_type == "multi_npc":
-                is_enabled = getattr(config, 'random_llm_multi_npc_enabled', False)
-                pool = getattr(config, 'llm_pool_multi_npc', [])
+                is_enabled = force_enabled or (hasattr(config, 'random_llm_multi_npc_enabled') and config.random_llm_multi_npc_enabled)
+                pool = config.llm_pool_multi_npc if hasattr(config, 'llm_pool_multi_npc') else []
             else:
                 logging.warning(f"Unknown conversation type: {conversation_type}")
                 return self._create_fallback_selection(
@@ -81,56 +83,9 @@ class RandomLLMSelector:
                     fallback_service, fallback_model, fallback_params, fallback_token_count
                 )
             
-            # Parse pool if it's a JSON string
-            if isinstance(pool, str):
-                try:
-                    pool = json.loads(pool)
-                except json.JSONDecodeError as e:
-                    logging.error(f"Error parsing {conversation_type} LLM pool JSON: {e}")
-                    return self._create_fallback_selection(
-                        fallback_service, fallback_model, fallback_params, fallback_token_count
-                    )
-            
-            # Validate pool format
-            if not isinstance(pool, list) or not pool:
-                logging.warning(f"Invalid or empty {conversation_type} LLM pool")
-                return self._create_fallback_selection(
-                    fallback_service, fallback_model, fallback_params, fallback_token_count
-                )
-            
-            # Randomly select an LLM from the pool
-            selected_llm = random.choice(pool)
-            
-            if not isinstance(selected_llm, dict) or 'service' not in selected_llm or 'model' not in selected_llm:
-                logging.error(f"Invalid LLM entry in {conversation_type} pool: {selected_llm}")
-                return self._create_fallback_selection(
-                    fallback_service, fallback_model, fallback_params, fallback_token_count
-                )
-            
-            service = selected_llm['service']
-            model = selected_llm['model']
-            
-            # Try to apply profile for the selected LLM
-            profile_params = self.profile_manager.apply_profile_to_params(
-                service=service,
-                model=model,
-                fallback_params=fallback_params
-            )
-            
-            # Check if we got parameters from a profile or fallback
-            has_profile = self.profile_manager.has_profile(service, model)
-            
-            # Log the selection with parameter information
-            profile_status = "with profile" if has_profile else "without profile"
-            logging.info(f"Randomly selected LLM for {conversation_type}: {service}/{model} ({profile_status})")
-            logging.info(f"Random LLM Parameters: {profile_params}")
-            
-            return LLMSelection(
-                service=service,
-                model=model,
-                parameters=profile_params,
-                token_count=fallback_token_count,  # Use fallback token count
-                from_profile=has_profile
+            return self._select_from_pool(
+                pool, conversation_type, fallback_service, fallback_model, 
+                fallback_params, fallback_token_count
             )
             
         except Exception as e:
@@ -139,6 +94,107 @@ class RandomLLMSelector:
                 fallback_service, fallback_model, fallback_params, fallback_token_count
             )
     
+    def select_random_llm_from_one_on_one_pool(
+        self,
+        config: Any,
+        fallback_service: str,
+        fallback_model: str,
+        fallback_params: Dict[str, Any],
+        fallback_token_count: int
+    ) -> LLMSelection | None:
+        """Select a random LLM specifically from the one-on-one pool, ignoring the per-conversation enable flag.
+
+        This is intended for per-request randomization toggles.
+        """
+        # If pool is disabled or empty, return None so caller can gracefully fall back
+        pool = config.llm_pool_one_on_one if hasattr(config, 'llm_pool_one_on_one') else []
+        if not pool:
+            logging.debug("One-on-one LLM pool is empty; skipping per-request random selection")
+            return None
+        return self.select_random_llm_for_conversation(
+            conversation_type="one_on_one",
+            config=config,
+            fallback_service=fallback_service,
+            fallback_model=fallback_model,
+            fallback_params=fallback_params,
+            fallback_token_count=fallback_token_count,
+            force_enabled=True
+        )
+    
+    def _select_from_pool(
+        self,
+        pool: List[Dict[str, Any]],
+        conversation_type: str,
+        fallback_service: str,
+        fallback_model: str,
+        fallback_params: Dict[str, Any],
+        fallback_token_count: int
+    ) -> LLMSelection:
+        """Common logic for selecting an LLM from a pool.
+        
+        Args:
+            pool: List of LLM configurations to choose from
+            conversation_type: Type for logging purposes
+            fallback_service: Service to use if selection fails
+            fallback_model: Model to use if selection fails
+            fallback_params: Parameters to use if no profile exists
+            fallback_token_count: Token count to use if selection fails
+            
+        Returns:
+            LLMSelection with chosen LLM configuration
+        """
+        # Parse pool if it's a JSON string
+        if isinstance(pool, str):
+            try:
+                pool = json.loads(pool)
+            except json.JSONDecodeError as e:
+                logging.error(f"Error parsing {conversation_type} LLM pool JSON: {e}")
+                return self._create_fallback_selection(
+                    fallback_service, fallback_model, fallback_params, fallback_token_count
+                )
+        
+        # Validate pool format
+        if not isinstance(pool, list) or not pool:
+            logging.warning(f"Invalid or empty {conversation_type} LLM pool")
+            return self._create_fallback_selection(
+                fallback_service, fallback_model, fallback_params, fallback_token_count
+            )
+        
+        # Randomly select an LLM from the pool
+        selected_llm = random.choice(pool)
+        
+        if not isinstance(selected_llm, dict) or 'service' not in selected_llm or 'model' not in selected_llm:
+            logging.error(f"Invalid LLM entry in {conversation_type} pool: {selected_llm}")
+            return self._create_fallback_selection(
+                fallback_service, fallback_model, fallback_params, fallback_token_count
+            )
+        
+        service = selected_llm['service']
+        model = selected_llm['model']
+        
+        # Try to apply profile for the selected LLM
+        profile_params = self.profile_manager.apply_profile_to_params(
+            service=service,
+            model=model,
+            fallback_params=fallback_params
+        )
+        
+        # Check if we got parameters from a profile or fallback
+        has_profile = self.profile_manager.has_profile(service, model)
+        
+        # Log the selection with parameter information
+        profile_status = "with profile" if has_profile else "without profile"
+        logging.info(f"Randomly selected LLM for {conversation_type}: {service}/{model} ({profile_status})")
+        logging.info(f"Random LLM Parameters: {profile_params}")
+        
+        return LLMSelection(
+            service=service,
+            model=model,
+            parameters=profile_params,
+            token_count=fallback_token_count,  # Use fallback token count
+            from_profile=has_profile
+        )
+
     def _create_fallback_selection(
         self,
         service: str,
@@ -168,11 +224,11 @@ class RandomLLMSelector:
         """
         try:
             if conversation_type == "one_on_one":
-                is_enabled = getattr(config, 'random_llm_one_on_one_enabled', False)
-                pool = getattr(config, 'llm_pool_one_on_one', [])
+                is_enabled = hasattr(config, 'random_llm_one_on_one_enabled') and config.random_llm_one_on_one_enabled
+                pool = config.llm_pool_one_on_one if hasattr(config, 'llm_pool_one_on_one') else []
             elif conversation_type == "multi_npc":
-                is_enabled = getattr(config, 'random_llm_multi_npc_enabled', False)
-                pool = getattr(config, 'llm_pool_multi_npc', [])
+                is_enabled = hasattr(config, 'random_llm_multi_npc_enabled') and config.random_llm_multi_npc_enabled
+                pool = config.llm_pool_multi_npc if hasattr(config, 'llm_pool_multi_npc') else []
             else:
                 return {"error": f"Unknown conversation type: {conversation_type}"}
             

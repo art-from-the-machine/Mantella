@@ -4,6 +4,8 @@ import logging
 import time
 import unicodedata
 import wave
+import hashlib
+import json
 from openai import APIConnectionError
 from src.llm.output.sentence_accumulator import sentence_accumulator
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
@@ -26,6 +28,9 @@ from src.llm.message_thread import message_thread
 from src.llm.ai_client import AIClient
 from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
+from src.random_llm_selector import RandomLLMSelector
+from src.llm.client_base import ClientBase
+from src.llm.key_file_resolver import key_file_resolver
 
 class ChatManager:
     def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient, multi_npc_client: AIClient | None = None, api_file: str = "secret_keys.json"):
@@ -55,6 +60,44 @@ class ChatManager:
         """Clear the per-character client cache to force recreation with new settings"""
         self.__per_character_clients.clear()
         logging.info("Cleared per-character LLM client cache")
+    
+    def _get_or_create_random_client(self, selection) -> AIClient:
+        """Get or create a cached client for random LLM selection.
+        
+        Args:
+            selection: LLMSelection object with service, model, parameters, etc.
+            
+        Returns:
+            AIClient: Cached or newly created client for the selected LLM
+        """
+        # Create cache key based on service, model, and parameters hash (stable JSON encoding)
+        params_json = json.dumps(selection.parameters or {}, sort_keys=True, separators=(",", ":"))
+        params_hash = hashlib.md5(params_json.encode()).hexdigest()[:8]
+        cache_key = f"random_{selection.service}_{selection.model}_{params_hash}"
+        
+        # Return cached client if available
+        if cache_key in self.__per_character_clients:
+            return self.__per_character_clients[cache_key]
+        
+        # Create new client
+        try:
+            selected_secret_key_files = key_file_resolver.get_key_files_for_service(selection.service, self.__api_file)
+            client = ClientBase(
+                selection.service,
+                selection.model,
+                selection.parameters,
+                selection.token_count,
+                selected_secret_key_files
+            )
+            
+            # Cache the client
+            self.__per_character_clients[cache_key] = client
+            logging.info(f"Created and cached random LLM client: {selection.service}/{selection.model}")
+            return client
+            
+        except Exception as e:
+            logging.error(f"Failed to create random LLM client for {selection.service}/{selection.model}: {e}")
+            raise
     
     def _get_per_character_client(self, character: Character) -> AIClient:
         """Get or create a per-character LLM client based on the character's settings.
@@ -246,23 +289,49 @@ class ChatManager:
             current_sentence: str = ''
             settings: sentence_generation_settings = sentence_generation_settings(active_character)
             # llm_logged = False  # Track if we've logged the LLM model for this response
+            # Choose per-request random client once per request (outside retry loop)
+            selected_client_for_request: AIClient | None = None
+            if (not is_multi_npc) and (hasattr(self.__config, 'random_llm_one_on_one_per_request_enabled') and self.__config.random_llm_one_on_one_per_request_enabled):
+                try:
+                    selector: RandomLLMSelector = getattr(self, "_ChatManager__random_selector", None) or RandomLLMSelector()
+                    self.__random_selector = selector
+                    selection = selector.select_random_llm_from_one_on_one_pool(
+                        config=self.__config,
+                        fallback_service=self.__config.llm_api,
+                        fallback_model=self.__config.llm,
+                        fallback_params=self.__config.llm_params,
+                        fallback_token_count=self.__config.custom_token_count
+                    )
+                    if selection is not None:
+                        # If selection equals configured client, reuse existing primary client
+                        if selection.service == self.__config.llm_api and selection.model == self.__config.llm:
+                            selected_client_for_request = self.__client
+                        else:
+                            selected_client_for_request = self._get_or_create_random_client(selection)
+                            profile_status = "with profile" if selection.from_profile else "without profile"
+                            logging.info(f"Using per-request randomly selected LLM for one-on-one: {selection.service}/{selection.model} ({profile_status})")
+                except Exception as e:
+                    logging.error(f"Per-request random LLM selection failed, falling back to configured/default client: {e}")
+                    selected_client_for_request = None
+
             while retries < max_retries:
                 try:
                     start_time = time.time()
-                    # Select client: multi-NPC always takes precedence in group conversations, then per-character for one-on-one
+                    # Select client: multi-NPC always takes precedence in group conversations, then per-character or per-request randomization for one-on-one
+                    last_used_client: AIClient = self.__client
                     if is_multi_npc and self.__multi_npc_client:
-                        # Always use multi-NPC client in multi-NPC conversations (overrides per-character settings)
+                        # Always use multi-NPC client in multi-NPC conversations (overrides other settings)
                         # Random LLM selection for multi-NPC is handled at conversation start, not per-message
                         current_client = self.__multi_npc_client
                     else:
-                        # For one-on-one conversations, check for per-character override, then use default
-                        per_char_client = self._get_per_character_client(active_character)
-                        if per_char_client != self.__client:
-                            # Use per-character client if character has specific LLM override
-                            current_client = per_char_client
+                        # One-on-one conversation: use selected random client (if any), otherwise per-character override, else default
+                        if selected_client_for_request is not None:
+                            current_client = selected_client_for_request
                         else:
-                            # Use default client
-                            current_client = self.__client
+                            per_char_client = self._get_per_character_client(active_character)
+                            current_client = per_char_client if per_char_client != self.__client else self.__client
+                    # Track last used client for logging/token counting
+                    last_used_client = current_client
                     # Log which LLM model is being used
                     if hasattr(current_client, 'model_name'):
                         logging.info(f"[LLM: {current_client.model_name}]")
@@ -354,7 +423,11 @@ class ChatManager:
                     #     logging.info(f"[LLM: {current_client.model_name}]")
                     #     llm_logged = True
                     blocking_queue.put(new_sentence)
-            logging.log(23, f"Full raw response ({self.__client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")
+            try:
+                token_counter_client = last_used_client if 'last_used_client' in locals() and last_used_client else self.__client
+                logging.log(23, f"Full raw response ({token_counter_client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")
+            except Exception:
+                logging.log(23, f"Full raw response: {raw_response.strip()}")
             blocking_queue.is_more_to_come = False
             # This sentence is required to make sure there is one in case the game is already waiting for it
             # before the ChatManager realises there is not another message coming from the LLM
