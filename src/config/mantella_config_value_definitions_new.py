@@ -58,6 +58,7 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(OtherDefinitions.get_random_llm_one_on_one_enabled_config_value())
         llm_category.add_config_value(OtherDefinitions.get_random_llm_multi_npc_enabled_config_value())
         llm_category.add_config_value(OtherDefinitions.get_random_llm_one_on_one_per_request_enabled_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_multi_npc_per_request_enabled_config_value())
         llm_category.add_config_value(OtherDefinitions.get_llm_pool_one_on_one_config_value())
         llm_category.add_config_value(OtherDefinitions.get_llm_pool_multi_npc_config_value())
         

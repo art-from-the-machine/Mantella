@@ -165,6 +165,19 @@ class OtherDefinitions:
         )
 
     @staticmethod
+    def get_random_llm_multi_npc_per_request_enabled_config_value() -> ConfigValue:
+        return ConfigValueBool(
+            identifier="random_llm_multi_npc_per_request_enabled",
+            name="Enable Per-Request Random LLM (Multi-NPC)",
+            description=(
+                "When enabled, every request in multi-NPC conversations uses a randomly selected LLM "
+                "from the multi-NPC pool. This overrides the per-conversation multi-NPC model selection."
+            ),
+            default_value=False,
+            tags=["random_llm", "conversation"]
+        )
+
+    @staticmethod
     def get_llm_pool_one_on_one_config_value() -> ConfigValue:
         return ConfigValueString(
             identifier="llm_pool_one_on_one",
