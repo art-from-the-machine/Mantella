@@ -4,6 +4,7 @@ import time
 from src.config.config_loader import ConfigLoader
 from src.games.gameable import Gameable
 from src.llm.llm_client import LLMClient
+from src.llm.client_base import ClientBase
 from src.llm.message_thread import message_thread
 from src.llm.messages import UserMessage
 from src.characters_manager import Characters
@@ -15,13 +16,14 @@ class Summaries(Remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
-    def __init__(self, game: Gameable, config: ConfigLoader, client: LLMClient, language_name: str, summary_limit_pct: float = 0.3) -> None:
+    def __init__(self, game: Gameable, config: ConfigLoader, client: LLMClient, language_name: str, summary_client: ClientBase | None = None, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
         self.__config = config
         self.__game: Gameable = game
         self.__summary_limit_pct: float = summary_limit_pct
         self.__client: LLMClient = client
+        self.__summary_client: ClientBase = summary_client if summary_client else client  # Use separate client for summaries if provided
         self.__language_name: str = language_name
         self.__memory_prompt: str = config.memory_prompt
         self.__resummarize_prompt:str = config.resummarize_prompt
@@ -36,21 +38,73 @@ class Summaries(Remembering):
         Returns:
             str: a concatenation of the summaries as a single string
         """
-        paragraphs = []
-        for character in npcs_in_conversation.get_all_characters():
-            if not character.is_player_character:          
+        # Get all non-player characters
+        non_player_characters = [char for char in npcs_in_conversation.get_all_characters() if not char.is_player_character]
+        
+        if len(non_player_characters) == 1:
+            # Single NPC conversation - no delimiters needed
+            paragraphs = []
+            character = non_player_characters[0]
+            conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)      
+            if os.path.exists(conversation_summary_file):
+                with open(conversation_summary_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and line not in paragraphs:
+                            paragraphs.append(line.strip())
+            if paragraphs:
+                result = "\n".join(paragraphs)
+                return f"Below is a summary of past events:\n{result}"
+            else:
+                return ""
+        else:
+            # Multi-NPC conversation - add delimiters around each character's memories
+            character_memories = []
+            for character in non_player_characters:
+                character_paragraphs = []
                 conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)      
                 if os.path.exists(conversation_summary_file):
                     with open(conversation_summary_file, 'r', encoding='utf-8') as f:
                         for line in f:
                             line = line.strip()
-                            if line and line not in paragraphs:
-                                paragraphs.append(line.strip())
-        if paragraphs:
-            result = "\n".join(paragraphs)
-            return f"Below is a summary of past events:\n{result}"
-        else:
-            return ""
+                            if line:
+                                character_paragraphs.append(line.strip())
+                
+                if character_paragraphs:
+                    # Add delimiters around this character's memories
+                    memory_with_delimiters = f"[This is the beginning of {character.name}'s memory]\n" + \
+                                           "\n".join(character_paragraphs) + \
+                                           f"\n[This is the end of {character.name}'s memory]"
+                    character_memories.append(memory_with_delimiters)
+            
+            if character_memories:
+                result = "\n\n".join(character_memories)
+                return f"Below is a summary of past events:\n{result}"
+            else:
+                return ""
+
+    @utils.time_it
+    def get_character_summary(self, character: Character, world_id: str) -> str:
+        """ Gets the summary for a specific character
+        
+        Args:
+            character (Character): the character to get the summary for
+            world_id (str): the world ID
+            
+        Returns:
+            str: the summary text for this character, or empty string if no summary exists
+        """
+        conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)      
+        if os.path.exists(conversation_summary_file):
+            paragraphs = []
+            with open(conversation_summary_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        paragraphs.append(line.strip())
+            if paragraphs:
+                return "\n".join(paragraphs)
+        return ""
 
     @utils.time_it
     def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False):
@@ -151,9 +205,9 @@ class Summaries(Remembering):
             conversation_summaries = previous_conversation_summaries
             
 
-        summary_limit = round(self.__client.token_limit*self.__summary_limit_pct,0)
+        summary_limit = round(self.__summary_client.token_limit*self.__summary_limit_pct,0)
 
-        count_tokens_summaries = self.__client.get_count_tokens(conversation_summaries)
+        count_tokens_summaries = self.__summary_client.get_count_tokens(conversation_summaries)
         # if summaries token limit is reached, summarize the summaries
         if count_tokens_summaries > summary_limit:
             logging.info(f'Token limit of conversation summaries reached ({count_tokens_summaries} / {summary_limit} tokens). Creating new summary file...')
@@ -189,7 +243,7 @@ class Summaries(Remembering):
         if len(text_to_summarize) > 5:
             messages = message_thread(self.__config, prompt)
             messages.add_message(UserMessage(self.__config, text_to_summarize))
-            summary = self.__client.request_call(messages)
+            summary = self.__summary_client.request_call(messages)
             if not summary:
                 logging.info(f"Summarizing conversation failed.")
                 return ""
@@ -202,6 +256,9 @@ class Summaries(Remembering):
             summary = summary.replace('the user', 'the player')
             summary += '\n\n'
 
+            # Log which LLM is being used for the summary
+            summary_llm_info = f"local model ({self.__summary_client.model_name})" if self.__summary_client.is_local else self.__summary_client.model_name
+            logging.log(self.loglevel, f'Creating conversation summary using: {summary_llm_info}')
             logging.log(self.loglevel, f'Conversation summary: {summary.strip()}')
             logging.info(f"Conversation summary saved")
         else:

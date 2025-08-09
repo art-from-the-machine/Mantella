@@ -6,6 +6,7 @@ from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_selection import ConfigValueSelection
 from src.config.types.config_value_string import ConfigValueString
 from src.config.types.config_value_bool import ConfigValueBool
+import json
 
 class NarrationHandlingEnum(Enum):
     CUT_NARRATIONS = auto()
@@ -43,8 +44,10 @@ class LLMDefinitions:
             If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also ignore the dropdown options and instead enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
             After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
 
-            If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using."""
-        return ConfigValueSelection("llm_api","LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"], allows_free_edit=True)
+            If you are using an API (OpenAI, OpenRouter, NanoGPT, etc) ensure you have the correct secret key set in the appropriate file for the respective service you are using:
+            - OpenAI/OpenRouter: `GPT_SECRET_KEY.txt`
+            - NanoGPT: `NANOGPT_SECRET_KEY.txt` (or `GPT_SECRET_KEY.txt` as fallback)"""
+        return ConfigValueSelection("llm_api","LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True)
 
     @staticmethod
     def get_model_config_value() -> ConfigValue:
@@ -98,6 +101,41 @@ class LLMDefinitions:
                         Note that available parameters can vary per LLM provider."""
         return ConfigValueString("llm_params", "Parameters", description, value, tags=[ConfigValueTag.advanced])
 
+    @staticmethod
+    def get_allow_per_character_llm_overrides_config_value() -> ConfigValue:
+        description = """Allow per-character LLM model overrides for one-on-one conversations.
+                        When enabled, individual characters can use different LLM models specified in the character CSV files (LLM-OR column for OpenRouter models).
+                        The global LLM settings will still be used as the default for characters without specific overrides."""
+        return ConfigValueBool("allow_per_character_llm_overrides", "Allow Per-Character LLM Overrides", description, False, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_enable_character_tag_reading_config_value() -> ConfigValue:
+        description = """Enable character tag reading and bio expansion.
+                        When enabled, character tags from the CSV files will be processed and used to expand character bios with additional template information.
+                        When disabled, only the base character bio will be used without any tag-based expansions."""
+        return ConfigValueBool("enable_character_tag_reading", "Enable Character Tag Reading", description, True, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_apply_profile_one_on_one_config_value() -> ConfigValue:
+        description = """Automatically apply saved LLM profile parameters for one-on-one conversations.
+                        When enabled, if a profile exists for the selected model, its parameters will be used instead of the manually configured parameters.
+                        When disabled, manually configured parameters will always be used."""
+        return ConfigValueBool("apply_profile_one_on_one", "Apply Profile for One-on-One Conversations", description, False, tags=[ConfigValueTag.advanced])
+
+    @staticmethod 
+    def get_apply_profile_multi_npc_config_value() -> ConfigValue:
+        description = """Automatically apply saved LLM profile parameters for multi-NPC conversations.
+                        When enabled, if a profile exists for the selected multi-NPC model, its parameters will be used instead of the manually configured parameters.
+                        When disabled, manually configured parameters will always be used."""
+        return ConfigValueBool("apply_profile_multi_npc", "Apply Profile for Multi-NPC Conversations", description, False, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_apply_profile_summaries_config_value() -> ConfigValue:
+        description = """Automatically apply saved LLM profile parameters for conversation summaries.
+                        When enabled, if a profile exists for the selected summary model, its parameters will be used instead of the manually configured parameters.
+                        When disabled, manually configured parameters will always be used."""
+        return ConfigValueBool("apply_profile_summaries", "Apply Profile for Summaries", description, False, tags=[ConfigValueTag.advanced])
+
     #LLM output parsing options
 
     @staticmethod
@@ -149,4 +187,79 @@ class LLMDefinitions:
                         This helps to keep the LLM consistent in its use of narration indicators."""
         options = [e.display_name for e in NarrationIndicatorsEnum]
         return ConfigValueSelection("narration_indicators", "Narration indicators to use", description, NarrationIndicatorsEnum.PARANTHESES.display_name, options, corresponding_enums=list(NarrationIndicatorsEnum), tags=[ConfigValueTag.advanced])
+
+    # Summary LLM Configuration
+    @staticmethod
+    def get_summary_llm_api_config_value() -> ConfigValue:
+        description = """Selects the LLM service to use for generating conversation summaries.
+        
+            If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also ignore the dropdown options and instead enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
+            After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
+
+            If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.
+            
+            By default, summaries use the same LLM as conversations. Configure this to use a different (potentially cheaper) model for summaries."""
+        return ConfigValueSelection("summary_llm_api","Summary LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_summary_model_config_value() -> ConfigValue:
+        model_description = """Select the model to use for generating conversation summaries. Press the *Update* button to load a list of models available from the service selected above.
+                            You can use a different (potentially cheaper) model for summaries than for conversations.
+                            The list does not provide all details about the models. For additional information please refer to the corresponding sites:
+                            - OpenRouter: https://openrouter.ai/docs#models
+                            - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
+        return ConfigValueSelection("summary_model","Summary Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_summary_custom_token_count_config_value() -> ConfigValue:
+        description = """If the summary model chosen is not recognised by Mantella, the token count for the given model will default to this number.
+                    If this is not the correct token count for your chosen model, you can change it here.
+                    Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit."""
+        return ConfigValueInt("summary_custom_token_count","Summary Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_summary_llm_params_config_value() -> ConfigValue:
+        description = """Parameters for the summary LLM model. These should be in JSON format.
+                    Common parameters include temperature (0.0-2.0), top_p (0.0-1.0), frequency_penalty (0.0-1.0), presence_penalty (0.0-1.0).
+                    Lower temperature values produce more consistent outputs, while higher values increase creativity."""
+        default_params = json.dumps({"temperature": 0.1, "top_p": 0.9})
+        return ConfigValueString("summary_llm_params","Summary LLM Parameters",description, default_params, tags=[ConfigValueTag.advanced])
+
+    # Multi-NPC LLM Configuration
+    @staticmethod
+    def get_multi_npc_llm_api_config_value() -> ConfigValue:
+        description = """Selects the LLM service to connect to for multi-NPC conversations (either local or via an API).
+        
+            If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also ignore the dropdown options and instead enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
+            After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
+
+            If you are using an API (OpenAI, OpenRouter, NanoGPT, etc) ensure you have the correct secret key set in the appropriate file for the respective service you are using:
+            - OpenAI/OpenRouter: `GPT_SECRET_KEY.txt`
+            - NanoGPT: `NANOGPT_SECRET_KEY.txt` (or `GPT_SECRET_KEY.txt` as fallback)"""
+        return ConfigValueSelection("multi_npc_llm_api","Multi-NPC & Radiant LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_multi_npc_model_config_value() -> ConfigValue:
+        model_description = """Select the model to use for multi-NPC conversations. Press the *Update* button to load a list of models available from the service selected above.
+                            You can use a different model for multi-NPC conversations than for single-NPC conversations.
+                            **Note:** This setting also applies to radiant conversations.
+                            The list does not provide all details about the models. For additional information please refer to the corresponding sites:
+                            - OpenRouter: https://openrouter.ai/docs#models
+                            - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
+        return ConfigValueSelection("multi_npc_model","Multi-NPC & Radiant Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_multi_npc_custom_token_count_config_value() -> ConfigValue:
+        description = """If the multi-NPC model chosen is not recognised by Mantella, the token count for the given model will default to this number.
+                    If this is not the correct token count for your chosen model, you can change it here.
+                    Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit."""
+        return ConfigValueInt("multi_npc_custom_token_count","Multi-NPC & Radiant Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_multi_npc_llm_params_config_value() -> ConfigValue:
+        description = """Parameters for the multi-NPC LLM model. These should be in JSON format.
+                    Common parameters include temperature (0.0-2.0), top_p (0.0-1.0), frequency_penalty (0.0-1.0), presence_penalty (0.0-1.0).
+                    Higher temperature values can help with more dynamic multi-character interactions."""
+        default_params = json.dumps({"temperature": 0.8, "top_p": 0.9})
+        return ConfigValueString("multi_npc_llm_params","Multi-NPC & Radiant LLM Parameters",description, default_params, tags=[ConfigValueTag.advanced])
 

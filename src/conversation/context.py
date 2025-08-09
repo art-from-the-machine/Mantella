@@ -53,6 +53,45 @@ class Context:
     def config(self) -> ConfigLoader:
         return self.__config
 
+    @utils.time_it
+    def hot_swap_settings(self, config: ConfigLoader, client: LLMClient, rememberer: Remembering) -> bool:
+        """Attempts to hot-swap settings without ending the conversation.
+        
+        Args:
+            config: Updated config loader instance
+            client: Updated LLM client instance
+            rememberer: Updated rememberer instance
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update basic components
+            self.__config = config
+            self.__client = client
+            self.__rememberer = rememberer
+            
+            # Update config-derived values
+            self.__hourly_time = config.hourly_time
+            self.__game = config.game
+            
+            # Update game-specific location if game changed
+            if self.__game.base_game == GameEnum.FALLOUT4:
+                default_location = 'the Commonwealth'
+            else:
+                default_location = "Skyrim"
+                
+            # Only update location if it's currently the default
+            if self.__location in ['the Commonwealth', 'Skyrim']:
+                self.__location = default_location
+            
+            logging.info("Context hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Context hot-swap failed: {e}")
+            return False
+
     @property
     def prompt_multinpc(self) -> str:
         return self.__config.multi_npc_prompt
@@ -173,7 +212,7 @@ class Context:
                 self.__prev_location = self.__location
                 self.__ingame_events.append(f"The location is now {location}.")
         
-        if in_game_time:
+        if in_game_time is not None:
             self.__ingame_time = in_game_time
             in_game_time_twelve_hour = in_game_time - 12 if in_game_time > 12 else in_game_time
             if self.__hourly_time:
@@ -340,8 +379,45 @@ class Context:
             if len(self.__npcs_in_conversation) == 1:
                 bio_descriptions.append(character.bio)
             else:
-                bio_descriptions.append(f"{character.name}: {character.bio}")
-        return "\n".join(bio_descriptions)
+                # Add clear delimiters around each character's bio for multi-NPC conversations
+                bio_with_delimiters = f"[This is the beginning of {character.name}'s bio]\n{character.bio}\n[This is the end of {character.name}'s bio]"
+                bio_descriptions.append(bio_with_delimiters)
+        return "\n\n".join(bio_descriptions)
+    
+    @utils.time_it
+    def __get_bios_and_summaries_text(self) -> str:
+        """Gets the bios and summaries combined for each character in the conversation
+
+        Returns:
+            str: the bios and summaries paired together for each character
+        """
+        character_sections = []
+        non_player_characters = self.get_characters_excluding_player().get_all_characters()
+        
+        for character in non_player_characters:
+            # Get the bio
+            bio = character.bio
+            
+            # Get the summary for this specific character using the new interface method
+            summary = self.__rememberer.get_character_summary(character, self.__world_id)
+            
+            # Combine bio and summary for this character
+            if len(non_player_characters) == 1:
+                # Single character - no delimiters needed
+                section = bio
+                if summary:
+                    section += f"\n\nBelow is a summary of past events:\n{summary}"
+            else:
+                # Multiple characters - wrap everything with character information delimiters
+                section = f"[This is the beginning of {character.name}'s information]\n"
+                section += f"[This is the beginning of {character.name}'s bio]\n{bio}\n[This is the end of {character.name}'s bio]"
+                if summary:
+                    section += f"\n\n[This is the beginning of {character.name}'s memory]\n{summary}\n[This is the end of {character.name}'s memory]"
+                section += f"\n[This is the end of {character.name}'s information]"
+            
+            character_sections.append(section)
+        
+        return "\n\n".join(character_sections)
     
     @utils.time_it
     def __get_npc_equipment_text(self) -> str:
@@ -396,6 +472,7 @@ class Context:
         names = self.get_character_names_as_text(False)
         names_w_player = self.get_character_names_as_text(True)
         bios = self.__get_bios_text()
+        bios_and_summaries = self.__get_bios_and_summaries_text()
         trusts = self.__get_trusts()
         equipment = self.__get_npc_equipment_text()
         location = self.__location
@@ -410,7 +487,7 @@ class Context:
         conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
         actions = self.__get_action_texts(actions_for_prompt)
 
-        removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
+        removal_content: list[tuple[str, str, str]] = [(bios, conversation_summaries, bios_and_summaries),(bios,"", ""),("","", "")]
         have_bios_been_dropped = False
         have_summaries_been_dropped = False
         logging.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')
@@ -433,6 +510,7 @@ class Context:
                 language=self.__language['language'], 
                 conversation_summary=content[1],
                 conversation_summaries=content[1],
+                bios_and_summaries=content[2],
                 actions = actions
                 )
             if self.__client.is_too_long(result, self.TOKEN_LIMIT_PERCENT):

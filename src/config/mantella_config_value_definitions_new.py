@@ -13,6 +13,7 @@ from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
 from src.config.definitions.vision_definitions import VisionDefinitions
+from src.config.definitions.model_profile_definitions import ModelProfileDefinitions
 import sys
 
 
@@ -47,7 +48,34 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_wait_time_buffer_config_value())
         # llm_category.add_config_value(LLMDefinitions.get_try_filter_narration())
         llm_category.add_config_value(LLMDefinitions.get_llm_params_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_allow_per_character_llm_overrides_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_enable_character_tag_reading_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_apply_profile_one_on_one_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_apply_profile_multi_npc_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_apply_profile_summaries_config_value())
+        
+        # Random LLM Selection
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_one_on_one_enabled_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_multi_npc_enabled_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_one_on_one_per_request_enabled_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_multi_npc_per_request_enabled_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_llm_pool_one_on_one_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_llm_pool_multi_npc_config_value())
+        
         # llm_category.add_config_value(LLMDefinitions.get_stop_llm_generation_on_assist_keyword())
+        
+        # Multi-NPC LLM Configuration
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_api_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_model_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_custom_token_count_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_params_config_value())
+        
+        # Summary LLM Configuration
+        llm_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_model_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_custom_token_count_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_llm_params_config_value())
+        
         llm_category.add_config_value(LLMDefinitions.get_narration_handling())
         llm_category.add_config_value(LLMDefinitions.get_narrator_voice())
         llm_category.add_config_value(LLMDefinitions.get_narration_start_indicators())
@@ -148,7 +176,9 @@ class MantellaConfigValueDefinitionsNew:
 
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
+        other_category.add_config_value(OtherDefinitions.get_conversation_summary_enabled_config_value())
         other_category.add_config_value(OtherDefinitions.get_active_actions(actions))
+        other_category.add_config_value(OtherDefinitions.get_reload_character_data_config_value())
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
         other_category.add_config_value(OtherDefinitions.get_events_refresh_time_config_value())
         other_category.add_config_value(OtherDefinitions.get_hourly_time_config_value())
@@ -156,6 +186,7 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_voice_player_input())
         other_category.add_config_value(OtherDefinitions.get_player_voice_model())
         other_category.add_config_value(OtherDefinitions.get_save_audio_data_to_character_folder_config_value())
+        other_category.add_config_value(OtherDefinitions.get_hot_swap_enabled_config_value())
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         other_category.add_config_value(OtherDefinitions.get_advanced_logs_config_value())
@@ -166,5 +197,11 @@ class MantellaConfigValueDefinitionsNew:
         # other_category.add_config_value(OtherDefinitions.get_default_player_response_config_value())
         # other_category.add_config_value(OtherDefinitions.get_exit_on_first_exchange_config_value())
         result.add_base_group(other_category)
+        
+        model_profiles_category = ConfigValueGroup("Model Profiles", "Model Profiles", "Create and manage model parameter profiles for different LLM models.", on_value_change_callback)
+        model_profiles_category.add_config_value(ModelProfileDefinitions.get_selected_service_config_value())
+        model_profiles_category.add_config_value(ModelProfileDefinitions.get_selected_model_config_value())
+        model_profiles_category.add_config_value(ModelProfileDefinitions.get_profile_parameters_config_value())
+        result.add_base_group(model_profiles_category)
       
         return result

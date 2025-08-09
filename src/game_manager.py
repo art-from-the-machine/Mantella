@@ -17,6 +17,9 @@ from src.character_manager import Character
 import src.utils as utils
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
+from src.config.definitions.game_definitions import GameEnum
+from src.games.fallout4 import Fallout4
+from src.games.skyrim import Skyrim
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv/fallout4_characters.csv"""
@@ -34,7 +37,174 @@ class GameStateManager:
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
-        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'])
+        
+        # Create separate LLM client for summaries if different settings are configured
+        from src.llm.client_base import ClientBase
+        from src.llm.key_file_resolver import key_file_resolver
+        if (config.summary_llm_api != config.llm_api or 
+            config.summary_llm != config.llm or 
+            config.summary_llm_params != config.llm_params or 
+            config.summary_custom_token_count != config.custom_token_count):
+            # Create separate client for summaries with different settings
+            summary_secret_key_files = key_file_resolver.get_key_files_for_service(config.summary_llm_api, api_file)
+            
+            # Apply profile parameters if enabled and profile exists
+            summary_llm_params = config.summary_llm_params
+            if config.apply_profile_summaries:
+                try:
+                    from src.model_profile_manager import ModelProfileManager
+                    profile_manager = ModelProfileManager()
+                    summary_llm_params = profile_manager.apply_profile_to_params(
+                        service=config.summary_llm_api,
+                        model=config.summary_llm,
+                        fallback_params=config.summary_llm_params
+                    )
+                    
+                    # Log profile application for summaries
+                    has_profile = profile_manager.has_profile(config.summary_llm_api, config.summary_llm)
+                    if has_profile:
+                        logging.info(f"Applied profile for summaries: {config.summary_llm_api}/{config.summary_llm}")
+                        logging.info(f"Summary Profile Parameters: {summary_llm_params}")
+                    else:
+                        logging.info(f"No profile found for summaries {config.summary_llm_api}/{config.summary_llm}, using manual parameters: {summary_llm_params}")
+                        
+                except Exception as e:
+                    logging.error(f"Error applying profile for summaries: {e}")
+                    summary_llm_params = config.summary_llm_params
+            else:
+                logging.info(f"Summary Parameters (manual): {summary_llm_params}")
+            
+            summary_client = ClientBase(
+                config.summary_llm_api,
+                config.summary_llm,
+                summary_llm_params,
+                config.summary_custom_token_count,
+                summary_secret_key_files
+            )
+        elif config.apply_profile_summaries:
+            # Same settings as main LLM but profile application is enabled for summaries
+            # Create a separate client with profile-applied parameters
+            summary_secret_key_files = key_file_resolver.get_key_files_for_service(config.llm_api, api_file)
+            
+            summary_llm_params = config.llm_params
+            try:
+                from src.model_profile_manager import ModelProfileManager
+                profile_manager = ModelProfileManager()
+                summary_llm_params = profile_manager.apply_profile_to_params(
+                    service=config.llm_api,
+                    model=config.llm,
+                    fallback_params=config.llm_params
+                )
+                
+                # Log profile application for summaries (same model as main)
+                has_profile = profile_manager.has_profile(config.llm_api, config.llm)
+                if has_profile:
+                    logging.info(f"Applied profile for summaries (same model as main): {config.llm_api}/{config.llm}")
+                    logging.info(f"Summary Profile Parameters (same model): {summary_llm_params}")
+                else:
+                    logging.info(f"No profile found for summaries {config.llm_api}/{config.llm}, using manual parameters: {summary_llm_params}")
+                    
+            except Exception as e:
+                logging.error(f"Error applying profile for summaries: {e}")
+                summary_llm_params = config.llm_params
+            
+            summary_client = ClientBase(
+                config.llm_api,
+                config.llm,
+                summary_llm_params,
+                config.custom_token_count,
+                summary_secret_key_files
+            )
+        else:
+            # Use the same client for summaries
+            summary_client = None
+            
+        # Create separate LLM client for multi-NPC conversations if different settings are configured
+        if (config.multi_npc_llm_api != config.llm_api or 
+            config.multi_npc_llm != config.llm or 
+            config.multi_npc_llm_params != config.llm_params or 
+            config.multi_npc_custom_token_count != config.custom_token_count):
+            # Create separate client for multi-NPC conversations with different settings
+            multi_npc_secret_key_files = key_file_resolver.get_key_files_for_service(config.multi_npc_llm_api, api_file)
+            
+            # Apply profile parameters if enabled and profile exists
+            multi_npc_llm_params = config.multi_npc_llm_params
+            if config.apply_profile_multi_npc:
+                try:
+                    from src.model_profile_manager import ModelProfileManager
+                    profile_manager = ModelProfileManager()
+                    multi_npc_llm_params = profile_manager.apply_profile_to_params(
+                        service=config.multi_npc_llm_api,
+                        model=config.multi_npc_llm,
+                        fallback_params=config.multi_npc_llm_params
+                    )
+                    
+                    # Log profile application for multi-NPC
+                    has_profile = profile_manager.has_profile(config.multi_npc_llm_api, config.multi_npc_llm)
+                    if has_profile:
+                        logging.info(f"Applied profile for multi-NPC conversations: {config.multi_npc_llm_api}/{config.multi_npc_llm}")
+                        logging.info(f"Multi-NPC Profile Parameters: {multi_npc_llm_params}")
+                    else:
+                        logging.info(f"No profile found for multi-NPC {config.multi_npc_llm_api}/{config.multi_npc_llm}, using manual parameters: {multi_npc_llm_params}")
+                        
+                except Exception as e:
+                    logging.error(f"Error applying profile for multi-NPC conversations: {e}")
+                    multi_npc_llm_params = config.multi_npc_llm_params
+            else:
+                logging.info(f"Multi-NPC Parameters (manual): {multi_npc_llm_params}")
+            
+            multi_npc_client = ClientBase(
+                config.multi_npc_llm_api,
+                config.multi_npc_llm,
+                multi_npc_llm_params,
+                config.multi_npc_custom_token_count,
+                multi_npc_secret_key_files
+            )
+        elif config.apply_profile_multi_npc:
+            # Same settings as main LLM but profile application is enabled for multi-NPC
+            # Create a separate client with profile-applied parameters
+            multi_npc_secret_key_files = key_file_resolver.get_key_files_for_service(config.llm_api, api_file)
+            
+            multi_npc_llm_params = config.llm_params
+            try:
+                from src.model_profile_manager import ModelProfileManager
+                profile_manager = ModelProfileManager()
+                multi_npc_llm_params = profile_manager.apply_profile_to_params(
+                    service=config.llm_api,
+                    model=config.llm,
+                    fallback_params=config.llm_params
+                )
+                
+                # Log profile application for multi-NPC (same model as main)
+                has_profile = profile_manager.has_profile(config.llm_api, config.llm)
+                if has_profile:
+                    logging.info(f"Applied profile for multi-NPC conversations (same model as main): {config.llm_api}/{config.llm}")
+                    logging.info(f"Multi-NPC Profile Parameters (same model): {multi_npc_llm_params}")
+                else:
+                    logging.info(f"No profile found for multi-NPC {config.llm_api}/{config.llm}, using manual parameters: {multi_npc_llm_params}")
+                    
+            except Exception as e:
+                logging.error(f"Error applying profile for multi-NPC conversations: {e}")
+                multi_npc_llm_params = config.llm_params
+            
+            multi_npc_client = ClientBase(
+                config.llm_api,
+                config.llm,
+                multi_npc_llm_params,
+                config.custom_token_count,
+                multi_npc_secret_key_files
+            )
+        else:
+            # Use the same client for multi-NPC conversations
+            multi_npc_client = None
+        
+        # Update chat manager with multi-NPC client
+        chat_manager.update_multi_npc_client(multi_npc_client)
+        
+        # Clear per-character client cache to force recreation with new settings
+        chat_manager.clear_per_character_client_cache()
+            
+        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'], summary_client)
         self.__talk: Conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk
@@ -45,6 +215,303 @@ class GameStateManager:
         self.__automatic_greeting: bool = config.automatic_greeting
         self.__conv_has_narrator: bool = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
         self.__should_reload: bool = False
+
+    @property
+    def game(self) -> Gameable:
+        """Get the current game instance"""
+        return self.__game
+
+    @utils.time_it
+    def hot_swap_settings(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, llm_client: LLMClient, secret_key_file: str, image_secret_key_file: str) -> bool:
+        """Attempts to hot-swap settings without ending active conversations.
+        
+        Args:
+            game: Updated game instance
+            chat_manager: Updated chat manager instance
+            config: Updated config loader instance
+            llm_client: Updated LLM client instance
+            secret_key_file: Updated secret key file
+            image_secret_key_file: Updated image secret key file
+            
+        Returns:
+            bool: True if hot-swap was successful, False otherwise
+        """
+        try:
+            # Update LLM client with hot-swapping
+            llm_client_success = self.__client.hot_swap_settings(config, secret_key_file, image_secret_key_file)
+            if not llm_client_success:
+                logging.warning("LLM client hot-swap failed, using new client")
+                self.__client = llm_client
+            
+            # Update basic components
+            self.__game = game
+            self.__config = config
+            self.__chat_manager = chat_manager
+            
+            # Update config-derived values
+            self.__automatic_greeting = config.automatic_greeting
+            self.__conv_has_narrator = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
+            
+            # Create separate LLM client for summaries if different settings are configured
+            from src.llm.client_base import ClientBase
+            from src.llm.key_file_resolver import key_file_resolver
+            if (config.summary_llm_api != config.llm_api or 
+                config.summary_llm != config.llm or 
+                config.summary_llm_params != config.llm_params or 
+                config.summary_custom_token_count != config.custom_token_count):
+                # Create separate client for summaries with different settings
+                summary_secret_key_files = key_file_resolver.get_key_files_for_service(config.summary_llm_api, secret_key_file)
+                
+                # Apply profile parameters if enabled and profile exists
+                summary_llm_params = config.summary_llm_params
+                if config.apply_profile_summaries:
+                    try:
+                        from src.model_profile_manager import ModelProfileManager
+                        profile_manager = ModelProfileManager()
+                        summary_llm_params = profile_manager.apply_profile_to_params(
+                            service=config.summary_llm_api,
+                            model=config.summary_llm,
+                            fallback_params=config.summary_llm_params
+                        )
+                        
+                        # Log profile application for summaries (hot-swap)
+                        has_profile = profile_manager.has_profile(config.summary_llm_api, config.summary_llm)
+                        if has_profile:
+                            logging.info(f"Hot-swap: Applied profile for summaries: {config.summary_llm_api}/{config.summary_llm}")
+                            logging.info(f"Hot-swap Summary Profile Parameters: {summary_llm_params}")
+                        else:
+                            logging.info(f"Hot-swap: No profile found for summaries {config.summary_llm_api}/{config.summary_llm}, using manual parameters: {summary_llm_params}")
+                            
+                    except Exception as e:
+                        logging.error(f"Error applying profile for summaries: {e}")
+                        summary_llm_params = config.summary_llm_params
+                else:
+                    logging.info(f"Hot-swap Summary Parameters (manual): {summary_llm_params}")
+                
+                summary_client = ClientBase(
+                    config.summary_llm_api,
+                    config.summary_llm,
+                    summary_llm_params,
+                    config.summary_custom_token_count,
+                    summary_secret_key_files
+                )
+            elif config.apply_profile_summaries:
+                # Same settings as main LLM but profile application is enabled for summaries
+                # Create a separate client with profile-applied parameters
+                summary_secret_key_files = key_file_resolver.get_key_files_for_service(config.llm_api, secret_key_file)
+                
+                summary_llm_params = config.llm_params
+                try:
+                    from src.model_profile_manager import ModelProfileManager
+                    profile_manager = ModelProfileManager()
+                    summary_llm_params = profile_manager.apply_profile_to_params(
+                        service=config.llm_api,
+                        model=config.llm,
+                        fallback_params=config.llm_params
+                    )
+                    
+                    # Log profile application for summaries (same model as main - hot-swap)
+                    has_profile = profile_manager.has_profile(config.llm_api, config.llm)
+                    if has_profile:
+                        logging.info(f"Hot-swap: Applied profile for summaries (same model as main): {config.llm_api}/{config.llm}")
+                        logging.info(f"Hot-swap Summary Profile Parameters (same model): {summary_llm_params}")
+                    else:
+                        logging.info(f"Hot-swap: No profile found for summaries {config.llm_api}/{config.llm}, using manual parameters: {summary_llm_params}")
+                        
+                except Exception as e:
+                    logging.error(f"Error applying profile for summaries: {e}")
+                    summary_llm_params = config.llm_params
+                
+                summary_client = ClientBase(
+                    config.llm_api,
+                    config.llm,
+                    summary_llm_params,
+                    config.custom_token_count,
+                    summary_secret_key_files
+                )
+            else:
+                # Use the same client for summaries
+                summary_client = None
+            
+            # Create separate LLM client for multi-NPC conversations if different settings are configured
+            if (config.multi_npc_llm_api != config.llm_api or 
+                config.multi_npc_llm != config.llm or 
+                config.multi_npc_llm_params != config.llm_params or 
+                config.multi_npc_custom_token_count != config.custom_token_count):
+                # Create separate client for multi-NPC conversations with different settings
+                multi_npc_secret_key_files = key_file_resolver.get_key_files_for_service(config.multi_npc_llm_api, secret_key_file)
+                
+                # Apply profile parameters if enabled and profile exists
+                multi_npc_llm_params = config.multi_npc_llm_params
+                if config.apply_profile_multi_npc:
+                    try:
+                        from src.model_profile_manager import ModelProfileManager
+                        profile_manager = ModelProfileManager()
+                        multi_npc_llm_params = profile_manager.apply_profile_to_params(
+                            service=config.multi_npc_llm_api,
+                            model=config.multi_npc_llm,
+                            fallback_params=config.multi_npc_llm_params
+                        )
+                        
+                        # Log profile application for multi-NPC (hot-swap)
+                        has_profile = profile_manager.has_profile(config.multi_npc_llm_api, config.multi_npc_llm)
+                        if has_profile:
+                            logging.info(f"Hot-swap: Applied profile for multi-NPC conversations: {config.multi_npc_llm_api}/{config.multi_npc_llm}")
+                            logging.info(f"Hot-swap Multi-NPC Profile Parameters: {multi_npc_llm_params}")
+                        else:
+                            logging.info(f"Hot-swap: No profile found for multi-NPC {config.multi_npc_llm_api}/{config.multi_npc_llm}, using manual parameters: {multi_npc_llm_params}")
+                            
+                    except Exception as e:
+                        logging.error(f"Error applying profile for multi-NPC conversations: {e}")
+                        multi_npc_llm_params = config.multi_npc_llm_params
+                else:
+                    logging.info(f"Hot-swap Multi-NPC Parameters (manual): {multi_npc_llm_params}")
+                
+                multi_npc_client = ClientBase(
+                    config.multi_npc_llm_api,
+                    config.multi_npc_llm,
+                    multi_npc_llm_params,
+                    config.multi_npc_custom_token_count,
+                    multi_npc_secret_key_files
+                )
+            elif config.apply_profile_multi_npc:
+                # Same settings as main LLM but profile application is enabled for multi-NPC
+                # Create a separate client with profile-applied parameters
+                multi_npc_secret_key_files = key_file_resolver.get_key_files_for_service(config.llm_api, secret_key_file)
+                
+                multi_npc_llm_params = config.llm_params
+                try:
+                    from src.model_profile_manager import ModelProfileManager
+                    profile_manager = ModelProfileManager()
+                    multi_npc_llm_params = profile_manager.apply_profile_to_params(
+                        service=config.llm_api,
+                        model=config.llm,
+                        fallback_params=config.llm_params
+                    )
+                    
+                    # Log profile application for multi-NPC (same model as main - hot-swap)
+                    has_profile = profile_manager.has_profile(config.llm_api, config.llm)
+                    if has_profile:
+                        logging.info(f"Hot-swap: Applied profile for multi-NPC conversations (same model as main): {config.llm_api}/{config.llm}")
+                        logging.info(f"Hot-swap Multi-NPC Profile Parameters (same model): {multi_npc_llm_params}")
+                    else:
+                        logging.info(f"Hot-swap: No profile found for multi-NPC {config.llm_api}/{config.llm}, using manual parameters: {multi_npc_llm_params}")
+                        
+                except Exception as e:
+                    logging.error(f"Error applying profile for multi-NPC conversations: {e}")
+                    multi_npc_llm_params = config.llm_params
+                
+                multi_npc_client = ClientBase(
+                    config.llm_api,
+                    config.llm,
+                    multi_npc_llm_params,
+                    config.custom_token_count,
+                    multi_npc_secret_key_files
+                )
+            else:
+                # Use the same client for multi-NPC conversations
+                multi_npc_client = None
+            
+            # Update rememberer with new config and summary client
+            self.__rememberer = Summaries(game, config, self.__client, self.__language_info['language'], summary_client)
+            
+            # Update chat manager with multi-NPC client
+            chat_manager.update_multi_npc_client(multi_npc_client)
+            
+            # Clear per-character client cache to force recreation with new settings
+            chat_manager.clear_per_character_client_cache()
+            
+            # If there's an active conversation, update it with new settings
+            if self.__talk:
+                # Determine which client to use for the conversation
+                # If random selection is enabled, don't override with the main client
+                conversation_client = self.__client  # Default to main client
+                
+                # Check if random selection is enabled for both conversation types
+                try:
+                    from src.random_llm_selector import RandomLLMSelector
+                    from src.llm.client_base import ClientBase
+                    from src.llm.key_file_resolver import key_file_resolver
+                    random_selector = RandomLLMSelector()
+                    
+                    # Random selection for one-on-one conversations
+                    if config.random_llm_one_on_one_enabled:
+                        # Get a new random selection for this hot-swap
+                        llm_selection = random_selector.select_random_llm_for_conversation(
+                            conversation_type="one_on_one",
+                            config=config,
+                            fallback_service=config.llm_api,
+                            fallback_model=config.llm,
+                            fallback_params=config.llm_params,
+                            fallback_token_count=config.custom_token_count
+                        )
+                        
+                        # Create new client with random selection
+                        selected_secret_key_files = key_file_resolver.get_key_files_for_service(llm_selection.service, secret_key_file)
+                        
+                        conversation_client = ClientBase(
+                            llm_selection.service,
+                            llm_selection.model,
+                            llm_selection.parameters,
+                            llm_selection.token_count,
+                            selected_secret_key_files
+                        )
+                        
+                        profile_status = "with profile" if llm_selection.from_profile else "without profile"
+                        logging.info(f"Hot-swap: Using randomly selected LLM for one-on-one conversation: {llm_selection.service}/{llm_selection.model} ({profile_status})")
+                    
+                    # Random selection for multi-NPC conversations
+                    if config.random_llm_multi_npc_enabled:
+                        # Get a new random selection for multi-NPC hot-swap
+                        multi_npc_selection = random_selector.select_random_llm_for_conversation(
+                            conversation_type="multi_npc",
+                            config=config,
+                            fallback_service=config.multi_npc_llm_api,
+                            fallback_model=config.multi_npc_llm,
+                            fallback_params=config.multi_npc_llm_params,
+                            fallback_token_count=config.multi_npc_custom_token_count
+                        )
+                        
+                        # Create new multi-NPC client with random selection
+                        multi_npc_secret_key_files = key_file_resolver.get_key_files_for_service(multi_npc_selection.service, secret_key_file)
+                        
+                        multi_npc_conversation_client = ClientBase(
+                            multi_npc_selection.service,
+                            multi_npc_selection.model,
+                            multi_npc_selection.parameters,
+                            multi_npc_selection.token_count,
+                            multi_npc_secret_key_files
+                        )
+                        
+                        # Update the chat manager with the randomly selected multi-NPC client
+                        chat_manager.update_multi_npc_client(multi_npc_conversation_client)
+                        
+                        profile_status = "with profile" if multi_npc_selection.from_profile else "without profile"
+                        logging.info(f"Hot-swap: Using randomly selected LLM for multi-NPC conversation: {multi_npc_selection.service}/{multi_npc_selection.model} ({profile_status})")
+                        
+                except Exception as e:
+                    logging.error(f"Error in random LLM selection during hot-swap, using main client: {e}")
+                    conversation_client = self.__client
+                
+                # Update the chat manager with the conversation client
+                if conversation_client != self.__client:
+                    chat_manager.update_primary_client(conversation_client)
+                
+                success = self.__talk.hot_swap_settings(
+                    config=config,
+                    llm_client=conversation_client,
+                    chat_manager=chat_manager,
+                    rememberer=self.__rememberer
+                )
+                if not success:
+                    return False
+            
+            logging.info("GameStateManager hot-swap completed successfully")
+            return True
+            
+        except Exception as e:
+            logging.error(f"GameStateManager hot-swap failed: {e}")
+            return False
 
     ###### react to calls from the game #######
     @utils.time_it
@@ -61,8 +528,83 @@ class GameStateManager:
         if input_json.__contains__(comm_consts.KEY_INPUTTYPE):
             self.process_stt_setup(input_json)
         
+        # Create conversation context to determine conversation type
         context_for_conversation = Context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
-        self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
+        
+        # Determine LLM client to use based on random selection settings
+        conversation_llm_client = self.__client  # Default to main client
+        
+        # Check random LLM selection for both conversation types
+        try:
+            from src.random_llm_selector import RandomLLMSelector
+            from src.llm.client_base import ClientBase
+            from src.llm.key_file_resolver import key_file_resolver
+            random_selector = RandomLLMSelector()
+            
+            # Random selection for one-on-one conversations
+            if self.__config.random_llm_one_on_one_enabled:
+                llm_selection = random_selector.select_random_llm_for_conversation(
+                    conversation_type="one_on_one",
+                    config=self.__config,
+                    fallback_service=self.__config.llm_api,
+                    fallback_model=self.__config.llm,
+                    fallback_params=self.__config.llm_params,
+                    fallback_token_count=self.__config.custom_token_count
+                )
+                
+                # Always use the random selection result if random selection is enabled
+                # Even if it's the same as current config, create a new client to ensure proper setup
+                selected_secret_key_files = key_file_resolver.get_key_files_for_service(llm_selection.service, self.__api_file)
+                
+                # Create client for this conversation
+                conversation_llm_client = ClientBase(
+                    llm_selection.service,
+                    llm_selection.model,
+                    llm_selection.parameters,
+                    llm_selection.token_count,
+                    selected_secret_key_files
+                )
+                
+                profile_status = "with profile" if llm_selection.from_profile else "without profile"
+                logging.info(f"Using randomly selected LLM for one-on-one conversation: {llm_selection.service}/{llm_selection.model} ({profile_status})")
+            
+            # Random selection for multi-NPC conversations
+            if self.__config.random_llm_multi_npc_enabled:
+                multi_npc_selection = random_selector.select_random_llm_for_conversation(
+                    conversation_type="multi_npc",
+                    config=self.__config,
+                    fallback_service=self.__config.multi_npc_llm_api,
+                    fallback_model=self.__config.multi_npc_llm,
+                    fallback_params=self.__config.multi_npc_llm_params,
+                    fallback_token_count=self.__config.multi_npc_custom_token_count
+                )
+                
+                # Create a new multi-NPC client for this conversation
+                multi_npc_secret_key_files = key_file_resolver.get_key_files_for_service(multi_npc_selection.service, self.__api_file)
+                
+                multi_npc_conversation_client = ClientBase(
+                    multi_npc_selection.service,
+                    multi_npc_selection.model,
+                    multi_npc_selection.parameters,
+                    multi_npc_selection.token_count,
+                    multi_npc_secret_key_files
+                )
+                
+                # Update the chat manager with the randomly selected multi-NPC client
+                self.__chat_manager.update_multi_npc_client(multi_npc_conversation_client)
+                
+                profile_status = "with profile" if multi_npc_selection.from_profile else "without profile"
+                logging.info(f"Using randomly selected LLM for multi-NPC conversation: {multi_npc_selection.service}/{multi_npc_selection.model} ({profile_status})")
+                    
+        except Exception as e:
+            logging.error(f"Error in random LLM selection, using default clients: {e}")
+            conversation_llm_client = self.__client
+        
+        # Update the chat manager to use the conversation-specific client
+        if conversation_llm_client != self.__client:
+            self.__chat_manager.update_primary_client(conversation_llm_client)
+        
+        self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, conversation_llm_client, self.__stt, self.__mic_input, self.__mic_ptt)
         self.__update_context(input_json)
         self.__try_preload_voice_model()
         self.__talk.start_conversation()
@@ -274,6 +816,8 @@ class GameStateManager:
             csv_in_game_voice_model: str = ""
             advanced_voice_model: str = ""
             voice_accent: str = ""
+            llm_service: str = ""
+            llm_model: str = ""
             is_player_character: bool = bool(json[comm_consts.KEY_ACTOR_ISPLAYER])
             if self.__talk and self.__talk.contains_character(ref_id):
                 already_loaded_character: Character | None = self.__talk.get_character(ref_id)
@@ -283,6 +827,8 @@ class GameStateManager:
                     csv_in_game_voice_model = already_loaded_character.csv_in_game_voice_model
                     advanced_voice_model = already_loaded_character.advanced_voice_model
                     voice_accent = already_loaded_character.voice_accent
+                    llm_service = already_loaded_character.llm_service
+                    llm_model = already_loaded_character.llm_model
                     is_generic_npc = already_loaded_character.is_generic_npc
             elif self.__talk and not is_player_character :#If this is not the player and the character has not already been loaded
                 external_info: external_character_info = self.__game.load_external_character_info(base_id, character_name, race, gender, actor_voice_model)
@@ -292,6 +838,8 @@ class GameStateManager:
                 csv_in_game_voice_model = external_info.csv_in_game_voice_model
                 advanced_voice_model = external_info.advanced_voice_model
                 voice_accent = external_info.voice_accent
+                llm_service = external_info.llm_service
+                llm_model = external_info.llm_model
                 is_generic_npc = external_info.is_generic_npc
                 if is_generic_npc:
                     character_name = external_info.name
@@ -319,7 +867,9 @@ class GameStateManager:
                             advanced_voice_model,
                             voice_accent,
                             equipment,
-                            custom_values)
+                            custom_values,
+                            llm_service,
+                            llm_model)
         except CharacterDoesNotExist:                 
             logging.log(23, 'Restarting...')
             return None 
@@ -371,3 +921,40 @@ class GameStateManager:
                 )
             else:
                 return self.error_message("Could not load initial character to talk to. Please try again.")
+
+    @utils.time_it
+    def reload_character_data(self) -> bool:
+        """Reload character CSV files and overrides from disk.
+        
+        This method will:
+        1. End any active conversation
+        2. Create a new game instance to reload character data from disk
+        3. Update the rememberer with the new game instance
+        
+        Returns:
+            bool: True if reload was successful, False otherwise
+        """
+        try:
+            # End any active conversation first
+            if self.__talk:
+                logging.info("Ending active conversation for character data reload...")
+                self.__talk.end()
+                self.__talk = None
+                logging.info("Active conversation ended.")
+            
+            # Create a new game instance to reload character data
+            logging.info("Reloading character data from disk...")
+            if self.__config.game.base_game == GameEnum.FALLOUT4:
+                self.__game = Fallout4(self.__config)
+            else:
+                self.__game = Skyrim(self.__config)
+            
+            # Update the rememberer with the new game instance
+            self.__rememberer = Summaries(self.__game, self.__config, self.__client, self.__language_info['language'], None)
+            
+            logging.info("Character data reload completed successfully.")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Error during character data reload: {e}")
+            return False

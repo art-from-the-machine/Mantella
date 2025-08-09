@@ -87,10 +87,31 @@ class TTSable(ABC):
             if os.path.exists(new_wav_file_name):       #Repeated phrase, delete previous file
                 os.remove(new_wav_file_name)
 
-            try:
-                os.rename(final_voiceline_file, new_wav_file_name)
-            except Exception as ex:
-                logging.warning(f'{type(ex).__name__}: {ex.args}')
+            renamed_successfully = False
+            # Try renaming with a brief retry mechanism to handle file locking
+            max_rename_attempts = 3
+            for attempt in range(max_rename_attempts):
+                try:
+                    os.rename(final_voiceline_file, new_wav_file_name)
+                    renamed_successfully = True
+                    break
+                except PermissionError as ex:
+                    if attempt < max_rename_attempts - 1:
+                        # Brief delay to let any file handles close
+                        time.sleep(0.35)  # 50ms delay
+                        continue
+                    else:
+                        # Final attempt failed - try copying instead of renaming
+                        try:
+                            shutil.copy2(final_voiceline_file, new_wav_file_name)
+                            renamed_successfully = True
+                            logging.info(f"Used copy instead of rename due to file lock")
+                            # Note: We keep the original file too in this case
+                        except Exception as copy_ex:
+                            logging.warning(f'Copy fallback also failed: {copy_ex} — keeping original file')
+                except Exception as ex:
+                    logging.warning(f'{type(ex).__name__}: {ex.args}')
+                    break
 
             if (self._lip_generation_enabled == 'enabled') or (self._lip_generation_enabled == 'lazy' and not synth_options.is_first_line_of_response):
                 try:
@@ -107,7 +128,10 @@ class TTSable(ABC):
                     os.rename(fuz_file_name, new_fuz_file_name)
             except:
                 logging.error(f'Could not rename {final_voiceline_file.replace(".wav", ".fuz")}')
-            final_voiceline_file = new_wav_file_name
+            
+            # Only point to the new file if the rename actually succeeded
+            if renamed_successfully:
+                final_voiceline_file = new_wav_file_name
 
         # if Debug Mode is on, play the audio file
         # if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):

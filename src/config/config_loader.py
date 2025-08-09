@@ -43,7 +43,9 @@ class ConfigLoader:
             for (each_key, each_value) in config.items(section_name):
                 try:
                     config_value = self.__definitions.get_config_value_definition(each_key)
-                    config_value.parse(each_value)
+                    # Unescape hash symbols that were escaped for INI file storage
+                    unescaped_value = ConfigFileWriter.unescape_hash_symbols(each_value)
+                    config_value.parse(unescaped_value)
                 except:
                     create_back_up_configini = True
                     # TODO: filter out warnings for ['game', 'skyrim_mod_folder', 'skyrimvr_mod_folder', 'fallout4_mod_folder', 'fallout4vr_mod_folder', fallout4vr_folder]
@@ -253,6 +255,38 @@ class ConfigLoader:
 LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.llm_params = None
 
+            self.allow_per_character_llm_overrides = self.__definitions.get_bool_value("allow_per_character_llm_overrides")
+            self.enable_character_tag_reading = self.__definitions.get_bool_value("enable_character_tag_reading")
+
+            # Profile application settings
+            self.apply_profile_one_on_one = self.__definitions.get_bool_value("apply_profile_one_on_one")
+            self.apply_profile_multi_npc = self.__definitions.get_bool_value("apply_profile_multi_npc")
+            self.apply_profile_summaries = self.__definitions.get_bool_value("apply_profile_summaries")
+
+            # Multi-NPC LLM Configuration
+            self.multi_npc_llm_api = self.__definitions.get_string_value("multi_npc_llm_api")
+            self.multi_npc_llm = self.__definitions.get_string_value("multi_npc_model")
+            self.multi_npc_llm = self.multi_npc_llm.split(' |')[0] if ' |' in self.multi_npc_llm else self.multi_npc_llm
+            self.multi_npc_custom_token_count = self.__definitions.get_int_value("multi_npc_custom_token_count")
+            try:
+                self.multi_npc_llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("multi_npc_llm_params").replace('\n', ''))
+            except Exception as e:
+                logging.error(f"""Error in parsing Multi-NPC LLM parameter list: {e}
+Multi-NPC LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+                self.multi_npc_llm_params = None
+
+            # Summary LLM Configuration
+            self.summary_llm_api = self.__definitions.get_string_value("summary_llm_api")
+            self.summary_llm = self.__definitions.get_string_value("summary_model")
+            self.summary_llm = self.summary_llm.split(' |')[0] if ' |' in self.summary_llm else self.summary_llm
+            self.summary_custom_token_count = self.__definitions.get_int_value("summary_custom_token_count")
+            try:
+                self.summary_llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("summary_llm_params").replace('\n', ''))
+            except Exception as e:
+                logging.error(f"""Error in parsing Summary LLM parameter list: {e}
+Summary LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+                self.summary_llm_params = None
+
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
 
             self.narration_handling: NarrationHandlingEnum = self.__definitions.get_enum_value("narration_handling", NarrationHandlingEnum)
@@ -272,6 +306,24 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
 
             #Conversation
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
+            self.conversation_summary_enabled = self.__definitions.get_bool_value("conversation_summary_enabled")
+            
+            # Random LLM Selection
+            self.random_llm_one_on_one_enabled = self.__definitions.get_bool_value("random_llm_one_on_one_enabled")
+            self.random_llm_multi_npc_enabled = self.__definitions.get_bool_value("random_llm_multi_npc_enabled")
+            self.random_llm_one_on_one_per_request_enabled = self.__definitions.get_bool_value("random_llm_one_on_one_per_request_enabled")
+            self.random_llm_multi_npc_per_request_enabled = self.__definitions.get_bool_value("random_llm_multi_npc_per_request_enabled")
+            try:
+                self.llm_pool_one_on_one = json.loads(self.__definitions.get_string_value("llm_pool_one_on_one"))
+            except Exception as e:
+                logging.error(f"Error parsing one-on-one LLM pool: {e}")
+                self.llm_pool_one_on_one = []
+            try:
+                self.llm_pool_multi_npc = json.loads(self.__definitions.get_string_value("llm_pool_multi_npc"))
+            except Exception as e:
+                logging.error(f"Error parsing multi-NPC LLM pool: {e}")
+                self.llm_pool_multi_npc = []
+            
             self.max_count_events = self.__definitions.get_int_value("max_count_events")
             self.events_refresh_time = self.__definitions.get_int_value("events_refresh_time")
             self.hourly_time = self.__definitions.get_bool_value("hourly_time")

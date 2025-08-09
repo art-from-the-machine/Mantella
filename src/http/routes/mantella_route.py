@@ -38,6 +38,57 @@ class mantella_route(routeable):
         #     error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
         #     logging.error(error_message)
 
+    def _supports_hot_swap(self) -> bool:
+        """Returns True since mantella_route supports hot-swapping settings"""
+        return True
+
+    @utils.time_it
+    def _hot_swap_settings(self) -> bool:
+        """Attempts to hot-swap settings without ending active conversations"""
+        if not self.__game:
+            return False
+        
+        try:
+            # Get the current game instance from GameStateManager
+            current_game = self.__game.game
+            
+            # Try to hot-swap the existing game instance first (this preserves character data)
+            game_hot_swap_success = current_game.hot_swap_settings(self._config)
+            
+            # Create new TTS and LLM client components with updated config
+            tts: TTSable
+            if self._config.tts_service == TTSEnum.XVASYNTH:
+                tts = xVASynth(self._config)
+            elif self._config.tts_service == TTSEnum.XTTS:
+                tts = XTTS(self._config, current_game)  # Use existing game instance
+            if self._config.tts_service == TTSEnum.PIPER:
+                tts = Piper(self._config, current_game)  # Use existing game instance
+
+            llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
+            
+            chat_manager = ChatManager(self._config, tts, llm_client, None, self.__secret_key_file)
+            
+            # Try to hot-swap the GameStateManager components with the existing game instance
+            success = self.__game.hot_swap_settings(
+                game=current_game,  # Pass the existing game instance instead of creating new one
+                chat_manager=chat_manager,
+                config=self._config,
+                llm_client=llm_client,
+                secret_key_file=self.__secret_key_file,
+                image_secret_key_file=self.__image_secret_key_file
+            )
+            
+            if success and game_hot_swap_success:
+                logging.info("Hot-swapped settings successfully without ending conversation or reloading character data")
+                return True
+            else:
+                logging.warning("Hot-swap failed, falling back to full reinitialization")
+                return False
+                
+        except Exception as e:
+            logging.error(f"Error during hot-swap: {e}")
+            return False
+
     @utils.time_it
     def _setup_route(self):
         if self.__game:
@@ -60,8 +111,19 @@ class mantella_route(routeable):
 
         llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
         
-        chat_manager = ChatManager(self._config, tts, llm_client)
+        chat_manager = ChatManager(self._config, tts, llm_client, None, self.__secret_key_file)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, self.__stt_secret_key_file, self.__secret_key_file)
+
+        # Set the global reference for UI access
+        try:
+            from src.ui.settings_ui_constructor import set_game_manager_reference
+            logging.info("Setting global game manager reference for character data reload...")
+            set_game_manager_reference(self.__game)
+            logging.info("Global game manager reference has been set for character data reload.")
+        except ImportError:
+            # If the UI module is not available, just continue
+            logging.warning("Could not import set_game_manager_reference. Character data reload button in UI will not work.")
+            pass
 
     @utils.time_it
     def add_route_to_server(self, app: FastAPI):

@@ -116,3 +116,90 @@ class OtherDefinitions:
         description = """Whether to save audio data to an NPC's voice folder instead of MantellaVoice00.
                         Enable this value if voicelines are not being played in-game."""
         return ConfigValueBool("save_audio_data_to_character_folder", "Save Game Audio to Character Folder", description, False, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_hot_swap_enabled_config_value() -> ConfigValue:
+        description = """Whether to enable hot-swapping settings during active conversations.
+                        If enabled: Settings changes (LLM model settings, prompts) will be applied without ending conversations.
+                        If disabled: Settings changes will end the current conversation and restart (classic behavior)."""
+        return ConfigValueBool("hot_swap_enabled", "Enable Hot-Swap Settings", description, True, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_conversation_summary_enabled_config_value() -> ConfigValue:
+        description = """Whether to generate and save conversation summaries when conversations end.
+                        If enabled: Summaries will be generated and saved to help NPCs remember past conversations.
+                        If disabled: No summaries will be generated, conversations will end without sending summary requests to the LLM."""
+        return ConfigValueBool("conversation_summary_enabled", "Enable Conversation Summaries", description, True)
+
+    @staticmethod
+    def get_random_llm_one_on_one_enabled_config_value() -> ConfigValue:
+        return ConfigValueBool(
+            identifier="random_llm_one_on_one_enabled",
+            name="Enable Random LLM Selection (One-on-One)",
+            description="Enable random LLM selection from the one-on-one pool for each new one-on-one conversation.",
+            default_value=False,
+            tags=["random_llm", "conversation"]
+        )
+
+    @staticmethod
+    def get_random_llm_multi_npc_enabled_config_value() -> ConfigValue:
+        return ConfigValueBool(
+            identifier="random_llm_multi_npc_enabled",
+            name="Enable Random LLM Selection (Multi-NPC)",
+            description="Enable random LLM selection from the multi-NPC pool for each new multi-NPC conversation.",
+            default_value=False,
+            tags=["random_llm", "conversation"]
+        )
+
+    @staticmethod
+    def get_random_llm_one_on_one_per_request_enabled_config_value() -> ConfigValue:
+        return ConfigValueBool(
+            identifier="random_llm_one_on_one_per_request_enabled",
+            name="Enable Per-Request Random LLM (One-on-One)",
+            description=(
+                "When enabled, every request in one-on-one conversations uses a randomly selected LLM "
+                "from the one-on-one pool. This overrides per-character LLM overrides for that request."
+            ),
+            default_value=False,
+            tags=["random_llm", "conversation"]
+        )
+
+    @staticmethod
+    def get_random_llm_multi_npc_per_request_enabled_config_value() -> ConfigValue:
+        return ConfigValueBool(
+            identifier="random_llm_multi_npc_per_request_enabled",
+            name="Enable Per-Request Random LLM (Multi-NPC)",
+            description=(
+                "When enabled, every request in multi-NPC conversations uses a randomly selected LLM "
+                "from the multi-NPC pool. This overrides the per-conversation multi-NPC model selection."
+            ),
+            default_value=False,
+            tags=["random_llm", "conversation"]
+        )
+
+    @staticmethod
+    def get_llm_pool_one_on_one_config_value() -> ConfigValue:
+        return ConfigValueString(
+            identifier="llm_pool_one_on_one",
+            name="LLM Pool (One-on-One)",
+            description="JSON array of LLM models for random selection in one-on-one conversations. Edit this JSON directly to manage your pool.\n\nExample format:\n[\n  {\"service\": \"OpenRouter\", \"model\": \"deepseek/deepseek-chat\"},\n  {\"service\": \"OpenRouter\", \"model\": \"anthropic/claude-3-haiku\"},\n  {\"service\": \"OpenAI\", \"model\": \"gpt-4o-mini\"}\n]",
+            default_value="[]",
+            tags=["random_llm", "conversation", "pool"]
+        )
+
+    @staticmethod
+    def get_llm_pool_multi_npc_config_value() -> ConfigValue:
+        return ConfigValueString(
+            identifier="llm_pool_multi_npc",
+            name="LLM Pool (Multi-NPC)",
+            description="JSON array of LLM models for random selection in multi-NPC conversations. Edit this JSON directly to manage your pool.\n\nExample format:\n[\n  {\"service\": \"OpenRouter\", \"model\": \"meta-llama/llama-3.1-8b-instruct\"},\n  {\"service\": \"OpenRouter\", \"model\": \"anthropic/claude-3-sonnet\"}\n]",
+            default_value="[]",
+            tags=["random_llm", "conversation", "pool"]
+        )
+
+    @staticmethod
+    def get_reload_character_data_config_value() -> ConfigValue:
+        description = """Reload character CSV files and overrides from disk to pick up any changes.
+                        This refreshes character data that is cached in memory.
+                        Note: If there is an active conversation, it will be ended before reloading."""
+        return ConfigValueString("reload_character_data", "Reload Character Data", description, "")
