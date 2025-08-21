@@ -151,6 +151,7 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_vision_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_radiant_start_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_function_llm_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_function_LLM_OpenAI_single_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_function_LLM_OpenAI_multi_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_function_LLM_single_prompt_config_value())

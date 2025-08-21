@@ -282,6 +282,12 @@ class PromptDefinitions:
         return ConfigValueString("radiant_end_prompt","Radiant End Prompt",radiant_end_prompt_description,radiant_end_prompt,[PromptDefinitions.PromptChecker([])])
     
     @staticmethod
+    def get_function_llm_prompt_config_value() -> ConfigValue:
+        actions_description = """The prompt used to instruct the LLM to return a list of actions that can be performed by the NPCs in the conversation."""
+        actions_prompt = """You are an expert on selecting the correct actions for the NPCs to take in-game based on the context of the current conversation. Based on the conversation, please return the list of appropriate tools which map to corresponding actions (if any)."""
+        return ConfigValueString("actions_prompt","Actions Prompt",actions_description,actions_prompt,[PromptDefinitions.PromptChecker([])],tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
     def get_function_LLM_OpenAI_single_prompt_config_value() -> ConfigValue: 
         function_LLM_OpenAI_Single_NPC_prompt = """You are a helpful assistant named {speakerName}. Please analyze the input and respond by calling only one function. {system_prompt_LLMFunction_instructions}
                                          The user might refer to {playerName} as 'me' or 'I' If no function seems applicable or the command isn't clear then do not return any function."""

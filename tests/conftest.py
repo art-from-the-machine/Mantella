@@ -5,6 +5,7 @@ from src.output_manager import ChatManager
 from src.conversation.context import Context
 from src.remember.summaries import Summaries
 from src.llm.llm_client import LLMClient
+from src.llm.function_client import FunctionClient
 from src.characters_manager import Characters
 from src.config.config_loader import ConfigLoader
 from src.http.http_server import http_server
@@ -21,6 +22,8 @@ from src.character_manager import Character
 from src.games.skyrim import Skyrim
 from src.tts.piper import Piper
 from src.games.equipment import Equipment, EquipmentItem
+from src.llm.message_thread import message_thread
+from src.llm.messages import SystemMessage, UserMessage
 
 @pytest.fixture
 def default_config(tmp_path: Path) -> ConfigLoader:
@@ -60,14 +63,21 @@ def llm_client(default_config: ConfigLoader) -> LLMClient:
     return LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
 
 @pytest.fixture
+def default_function_client(default_config: ConfigLoader) -> FunctionClient:
+    """Provides a FunctionClient instance for testing"""
+    return FunctionClient(default_config, "GPT_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+
+@pytest.fixture
 def default_rememberer(skyrim: Skyrim, default_config: ConfigLoader, llm_client: LLMClient, english_language_info: dict) -> Summaries:
     """Fixture to create a Rememberer instance"""
     return Summaries(skyrim, default_config, llm_client, english_language_info['language'])
 
 @pytest.fixture
-def default_context(default_config: ConfigLoader, llm_client: LLMClient, default_rememberer: Summaries, english_language_info: dict) -> Context:
+def default_context(default_config: ConfigLoader, llm_client: LLMClient, default_rememberer: Summaries, english_language_info: dict, example_characters_pc_to_npc: Characters) -> Context:
     """Fixture to create a Context instance"""
-    return Context('1', default_config, llm_client, default_rememberer, english_language_info)
+    context = Context('1', default_config, llm_client, default_rememberer, english_language_info)
+    context.add_or_update_characters(example_characters_pc_to_npc.get_all_characters())
+    return context
 
 @pytest.fixture
 def default_chat_manager(default_config: ConfigLoader, piper: Piper, llm_client: LLMClient) -> ChatManager:
@@ -215,7 +225,13 @@ def example_skyrim_npc_character() -> Character:
         csv_in_game_voice_model = 'MaleEvenToned',
         advanced_voice_model = 'MaleEvenToned',
         voice_accent = 'en',
-        equipment = None,
+        equipment = Equipment({
+            'body': EquipmentItem('Iron Armor'),
+            'feet': EquipmentItem('Iron Boots'),
+            'hands': EquipmentItem('Iron Gauntlets'),
+            'head': EquipmentItem('Iron Helmet'),
+            'righthand': EquipmentItem('Iron Sword'),
+        }),
         custom_character_values = None,
     )
 
@@ -312,3 +328,25 @@ def skyrim(tmp_path, default_config: ConfigLoader) -> Skyrim:
     default_config.save_folder = str(tmp_path)
     
     return Skyrim(default_config)
+
+@pytest.fixture
+def default_system_message(default_config: ConfigLoader, default_context: Context) -> str:
+    """Provides a system message for the conversation"""
+    return default_context.generate_system_message(default_config.prompt, [])
+    
+
+@pytest.fixture
+def sample_message_thread_function_request(default_config: ConfigLoader, default_system_message: str) -> message_thread:
+    """Provides a message thread that should trigger the Follow action"""
+    thread = message_thread(default_config, default_system_message)
+    user_message = UserMessage(default_config, "Follow me. I need your help.")
+    thread.add_message(user_message)
+    return thread
+
+@pytest.fixture
+def sample_message_thread_no_function_needed(default_config: ConfigLoader, default_system_message: str) -> message_thread:
+    """Provides a message thread that should not trigger any functions"""
+    thread = message_thread(default_config, default_system_message)
+    user_message = UserMessage(default_config, "Hello, how are you today?")
+    thread.add_message(user_message)
+    return thread

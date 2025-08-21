@@ -304,7 +304,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
             "function_llm_model": {
                 "dependent_config": "function_llm_api",
                 "secret_key_file": 'FUNCTION_GPT_SECRET_KEY.txt',
-                "default_model": 'google/gemma-2-9b-it:free',
+                "default_model": 'mistralai/mistral-small-3.2-24b-instruct',
                 "model_list_getter": ClientBase.get_model_list,
             }
         }

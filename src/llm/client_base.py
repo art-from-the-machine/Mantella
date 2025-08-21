@@ -1,6 +1,7 @@
 from threading import Lock
 from typing import AsyncGenerator, Any
 from openai import APIConnectionError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
+from openai.types.chat import ChatCompletion
 import logging
 import time
 import tiktoken
@@ -116,10 +117,18 @@ class ClientBase(AIClient):
 
 
     @utils.time_it
-    def request_call(self, messages: Message | message_thread) -> str | None:
+    def _request_call_full(self, messages: Message | message_thread) -> ChatCompletion | None:
+        """Protected method that returns the full chat completion object
+        
+        Args:
+            messages: The messages to send to the LLM
+            
+        Returns:
+            The full chat completion object or None if the request failed
+        """
         with self._generation_lock:
             sync_client = self.generate_sync_client()        
-            chat_completion = None
+            chat_completion: ChatCompletion = None
             logging.log(28, 'Getting LLM response...')
 
             if isinstance(messages, Message) or isinstance(messages, ImageMessage):
@@ -143,17 +152,32 @@ class ClientBase(AIClient):
             finally:
                 sync_client.close()
 
-            if (
-                not chat_completion or 
-                not chat_completion.choices or 
-                chat_completion.choices.__len__() < 1 or 
-                not chat_completion.choices[0].message.content
-            ):
-                logging.info(f"LLM Response failed")
-                return None
+            return chat_completion
+
+
+    @utils.time_it
+    def request_call(self, messages: Message | message_thread) -> str | None:
+        """Makes a request to the LLM and returns just the message content
+        
+        Args:
+            messages: The messages to send to the LLM
             
-            reply = chat_completion.choices[0].message.content
-            return reply
+        Returns:
+            The LLM response message content or None if the request failed
+        """
+        chat_completion: ChatCompletion = self._request_call_full(messages)
+        
+        if (
+            not chat_completion or 
+            not chat_completion.choices or 
+            chat_completion.choices.__len__() < 1 or 
+            not chat_completion.choices[0].message.content
+        ):
+            logging.info(f"LLM Response failed")
+            return None
+        
+        reply = chat_completion.choices[0].message.content
+        return reply
         
 
     @utils.time_it

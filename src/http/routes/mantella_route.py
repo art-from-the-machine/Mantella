@@ -33,7 +33,7 @@ class mantella_route(routeable):
         self.__secret_key_file: str = secret_key_file
         self.__function_llm_secret_key_file: str = function_llm_secret_key_file
         self.__stt_secret_key_file = stt_secret_key_file
-        self.__image_secret_key_file: str = image_secret_key_file
+        self.__image_secret_key_file: str = image_secret_key_file        
         self.__game: GameStateManager | None = None
 
         # if not self._can_route_be_used():
@@ -61,7 +61,8 @@ class mantella_route(routeable):
             tts = Piper(self._config, game)
 
         llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
-        function_client = FunctionClient(self._config, self.__function_llm_secret_key_file, self.__secret_key_file) 
+
+        function_client = FunctionClient(self._config, self.__secret_key_file, self.__function_llm_secret_key_file)
         
         chat_manager = ChatManager(self._config, tts, llm_client, function_client)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, self.__stt_secret_key_file, self.__secret_key_file)
@@ -95,7 +96,6 @@ class mantella_route(routeable):
                         reply = self.__game.start_conversation(received_json)
                     case comm_consts.KEY_REQUESTTYPE_CONTINUECONVERSATION:
                         reply = self.__game.continue_conversation(received_json)
-                        #logging.log(23, f"reply to MantellaMod is {reply}")
                     case comm_consts.KEY_REQUESTTYPE_PLAYERINPUT:
                         reply = self.__game.player_input(received_json)
                     case comm_consts.KEY_REQUESTTYPE_ENDCONVERSATION:

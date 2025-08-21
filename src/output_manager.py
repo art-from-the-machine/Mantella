@@ -141,6 +141,7 @@ class ChatManager:
         max_response_sentences = self.__config.max_response_sentences_single if not is_multi_npc else self.__config.max_response_sentences_multi
         max_retries = 5
         retries = 0
+        actions_checked = False
 
         parser_chain: list[output_parser] = [
             change_character_parser(characters)]
@@ -197,6 +198,13 @@ class ChatManager:
                             # Process sentences from the parser chain
                             if parsed_sentence:
                                 if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                                    if self.__function_client and not actions_checked:
+                                        function_results = self.__function_client.check_for_actions(messages, parsed_sentence.text)
+                                        if function_results:
+                                            parsed_sentence.actions.append('mantella_npc_follow') # Temporary. TODO: Return the action IDs from check_for_actions and append these instead
+                                            logging.info(23, f"Function calling results: {function_results}")
+                                        actions_checked = True
+
                                     new_sentence = self.generate_sentence(parsed_sentence)
                                     blocking_queue.put(new_sentence)
                                     parsed_sentence = None
@@ -206,19 +214,6 @@ class ChatManager:
                             # If there is an interrupting action, stop the generation after the next sentence
                             settings.stop_generation = True
                     break #if the streaming_call() completed without exception, break the while loop
-                            
-                    # TODO: Incorporate veto logic into new sentence parser
-                    # # --- Add this block to handle the <veto> tag ---
-                    # has_veto = False
-                    # if current_sentence.strip().startswith('<veto>'):
-                    #     logging.log(28, f"Detected <veto> tag in sentence: {current_sentence}")
-                    #     # Remove the <veto> tag
-                    #     current_sentence = current_sentence.strip()[len('<veto>'):].lstrip()
-                    #     has_veto = True
-                        
-                    # # --- Set the has_veto attribute ---
-                    # new_sentence.has_veto = has_veto
-                    # is_first_line_of_response = False
                     
                 except Exception as e:
                     retries += 1
@@ -267,199 +262,4 @@ class ChatManager:
             blocking_queue.put(Sentence(SentenceContent(active_character,"",SentenceTypeEnum.SPEECH, True),"",0))
             self.__is_generating = False
 
-    def generate_simple_response_from_message_thread(self, messages, response_type: str, tools_list: list[str] = None):
-        # Generates a response for a single message without characters or actions.
-        self.__is_generating = True
-        if response_type.lower() == "function":
-            llm_response = self.__function_client.request_call(messages, tools_list)
-            if llm_response:
-                # Check if the response is a string and convert it to JSON if necessary
-                if isinstance(llm_response, str):
-                    try:
-                        llm_response = json.loads(llm_response)
-                    except json.JSONDecodeError as e:
-                        logging.error("Failed to decode JSON from LLM response: %s", e)
-                        return
-
-                # Check if 'choices' exists and is not empty
-                if 'choices' in llm_response and llm_response['choices']:
-                    for choice in llm_response['choices']:
-                        # Safely access 'message' and 'tool_calls'
-                        tool_calls = choice.get('message', {}).get('tool_calls')
-                        content = (choice.get('message', {}).get('content') or '').strip()
-                        if tool_calls and isinstance(tool_calls, list) and tool_calls:
-                            first_tool_call = tool_calls[0]
-                            self.generated_function_results = self.process_tool_call(first_tool_call)
-                        elif "<tool_call>" in choice.get('message', {}).get('content', '') :
-                            self.generated_function_results = self.process_pseudo_tool_call(choice.get('message', {}).get('content', ''))
-                            return
-                        elif content.startswith('```'):
-                            content = content.replace('```json', '').strip()
-                            content = content.replace('```', '').strip()
-                            self.generated_function_results = self.process_unlabeled_function_content(content)
-                            return
-                        elif content.startswith('{') and '}' in content:
-                            # Attempt to parse the content as a function call
-                            self.generated_function_results = self.process_unlabeled_function_content(content)
-                            return
-                        else:
-                            logging.debug("No tool calls found in Function LLM response or tool_calls is not a list. Aborting function call.")
-                else:
-                    logging.debug("No choices found in Function LLM response. Aborting function call.")
-            else:
-                logging.debug("No valid response received from LLM")
-        else:
-            logging.debug("Unsupported response type for direct calls")
-        self.__is_generating = False
-
-    def process_tool_call(self,tool_call):
-        # Check if 'function' and required fields are in tool_call
-        if 'function' in tool_call and 'name' in tool_call['function'] and 'arguments' in tool_call['function']:
-            function_name = tool_call['function']['name']
-            arguments = json.loads(tool_call['function']['arguments'])
-            # Safely get 'type' from tool_call or default to 'unknown'
-            call_type = tool_call.get('type', 'unknown') if isinstance(tool_call, dict) else 'unknown'
-            return call_type, function_name, arguments
-            # Optional: Store values in variables if further processing is needed
-            # function_name_var = function_name
-            # call_type_var = call_type
-            # arguments_var = arguments
-        else:
-            logging.debug("Missing function details in tool call")
-
-    def process_pseudo_tool_call(self, tool_call_string):
-        logging.debug("Processing pseudo tool call")
-        # Find the first occurrence of <tool_call> and remove everything before it
-        start_index = tool_call_string.find('<tool_call>')
-        if start_index == -1:
-            logging.debug("Error in pseudo tool call: <tool_call> substring not found in the output.")
-            return None
-
-        content = tool_call_string[start_index + len('<tool_call>'):].strip()
-
-        # Patterns to match different possible formats, including self-closing tags
-        patterns = [
-            # Pattern for <FunctionCall ...> ... </FunctionCall> or self-closing tags
-            r'<FunctionCall\s+name=["\']([^"\']+)["\']\s+arguments=(\{.*?\})\s*(?:/?>|>\s*</FunctionCall>)',
-            # Pattern for JSON content
-            r'(\{.*\})'
-        ]
-
-        function_name = None
-        arguments = None
-
-        for pattern in patterns:
-            match = re.search(pattern, content, re.DOTALL)
-            if match:
-                if 'FunctionCall' in pattern:
-                    # Extract function name and arguments
-                    function_name = match.group(1)
-                    arguments_str = match.group(2)
-                    arguments = self._try_parse_json(arguments_str)
-                else:
-                    # Try to parse the entire content as JSON
-                    json_like_str = match.group(1)
-                    data = self._try_parse_json(json_like_str)
-                    if data:
-                        # First attempt: check top-level
-                        function_name = data.get('name')
-                        arguments = data.get('arguments')
-
-                        # If not found at top-level, try inside 'properties'
-                        if not function_name or not arguments:
-                            properties = data.get('properties', {})
-                            if 'name' in properties and 'arguments' in properties:
-                                function_name = properties['name']
-                                arguments = properties['arguments']
-                break  # Exit the loop since we've found a match
-
-        if function_name and arguments is not None:
-            return 'function', function_name, arguments
-        else:
-            logging.error("Error in pseudo tool call :Failed to parse the tool call string.")
-            return None
-
-    def _try_parse_json(self, json_like_str):
-        """Attempt to parse a string as JSON. If that fails because of single quotes,
-        use ast.literal_eval to convert it to a Python object and then back to JSON."""
-        try:
-            # Try parsing as valid JSON
-            return json.loads(json_like_str)
-        except json.JSONDecodeError:
-            try:
-                # Try to reformat the JSON string
-                return json.loads(self._fix_json_string(json_like_str))
-            except Exception as e:
-                try:
-                    python_obj = ast.literal_eval(json_like_str)
-                    # Convert Python object to JSON string
-                    json_str = json.dumps(python_obj)
-                    return json.loads(json_str)
-                except Exception as e:
-                    logging.error(f"Function LLM : JSON error. Failed to parse {json_like_str}: {e}")
-                    return None
-
-    def _fix_json_string(self, json_str):
-        """Convert Python-style string to valid JSON"""
-        # Replace single quotes with double quotes
-        json_str = json_str.replace("'", '"')
-        # Replace Python booleans with JSON booleans
-        json_str = json_str.replace("True", "true").replace("False", "false")
-        return json_str
-
-    def process_unlabeled_function_content(self, content):
-        logging.debug("Attempting to process unlabeled function content")
-        call_type = 'function'  # As specified, call_type is always 'function'
-
-        # Find the first '{' character
-        start_idx = content.find('{')
-        if start_idx == -1:
-            logging.debug("Error while processing unlabeled function content from Function LLM : No JSON object found in content.")
-            return None
-
-        # Initialize brace count and find the matching '}'
-        brace_count = 0
-        end_idx = -1
-        for idx in range(start_idx, len(content)):
-            char = content[idx]
-            if char == '{':
-                brace_count += 1
-            elif char == '}':
-                brace_count -= 1
-                if brace_count == 0:
-                    end_idx = idx + 1  # Include the closing brace
-                    break
-
-        if end_idx == -1:
-            logging.debug("Error while processing unlabeled function content from Function LLM : No matching closing brace found for JSON object.")
-            return None
-
-        # Extract the JSON string
-        json_str = content[start_idx:end_idx]
-
-        # Attempt to parse the JSON string
-        try:
-            data = self._try_parse_json(json_str)
-        except Exception as e:
-            logging.error(f"Error while processing unlabeled function content from Function LLM : Failed to parse content as JSON {json_str}: {e}")
-            return None
-
-        # Try top-level extraction first
-        function_name = data.get('name')
-        arguments = data.get('arguments')
-
-        # If not found at the top-level, try fallback under 'properties'
-        if function_name is None or arguments is None:
-            properties = data.get('properties', {})
-            function_name = function_name or properties.get('name')
-            arguments = arguments or properties.get('arguments')
-
-        if function_name and arguments is not None:
-            return call_type, function_name, arguments
-        else:
-            logging.error(f"Error while processing unlabeled function content from Function LLM : Function name or arguments missing in content {json_str}.")
-            return None
-
-
     
-        

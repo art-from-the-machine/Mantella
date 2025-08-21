@@ -12,6 +12,7 @@ from src.character_manager import Character
 from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from src.llm.sentence import Sentence
 from src.conversation.action import Action
+from src.llm.function_client import FunctionClient
 import time
 
 class MockAIClient:
@@ -82,14 +83,14 @@ def mock_actions() -> list[Action]:
     return [basic_action, interrupt_action]
 
 @pytest.fixture
-def output_manager(default_config: ConfigLoader, piper: Piper, mock_ai_client: MockAIClient, monkeypatch) -> ChatManager:
+def output_manager(default_config: ConfigLoader, piper: Piper, mock_ai_client: MockAIClient, default_function_client: FunctionClient, monkeypatch) -> ChatManager:
     """Creates a ChatManager instance with mocked TTS and AI client"""
     # Mock the TTS synthesize method to avoid actual audio generation and file system interaction
     piper.synthesize = MagicMock(return_value="mock_audio_file.wav")
     # Mock get_audio_duration as well
     monkeypatch.setattr('src.utils.get_audio_duration', lambda *args, **kwargs: 1.0)
     
-    manager = ChatManager(default_config, piper, mock_ai_client)
+    manager = ChatManager(default_config, piper, mock_ai_client, default_function_client)
     return manager
 
 def get_sentence_list_from_queue(queue: SentenceQueue) -> list[Sentence]:

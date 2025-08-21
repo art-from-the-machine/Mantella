@@ -26,7 +26,7 @@ class FunctionLLMDefinitions:
             After selecting a service, select the model using the option below. Press the *Update list* button to load a list of models available from the service.
 
             **If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using."""
-        return ConfigValueSelection("function_llm_api","Function LLM service",description, "OpenAI", ["OpenRouter", "OpenAI", "Kobold", "textgenwebui", "Custom"], allows_free_edit=True)
+        return ConfigValueSelection("function_llm_api","Function LLM service",description, "OpenRouter", ["OpenRouter", "OpenAI", "Kobold", "textgenwebui", "Custom"], allows_free_edit=True)
     
 
     @staticmethod
@@ -37,7 +37,7 @@ class FunctionLLMDefinitions:
                             The list does not provide all details about the models. For additional information please refer to the corresponding sites:
                             - OpenRouter: https://openrouter.ai/docs#models
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
-        return ConfigValueSelection("function_llm_model","Function LLM Model",model_description,"gpt-4o",["Custom Model"], allows_values_not_in_options=True) #Convert to selector eventually
+        return ConfigValueSelection("function_llm_model","Function LLM Model",model_description,"mistralai/mistral-small-3.2-24b-instruct",["Custom Model"], allows_values_not_in_options=True) #Convert to selector eventually
 
 
     @staticmethod
