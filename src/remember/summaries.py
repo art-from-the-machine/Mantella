@@ -198,6 +198,12 @@ class Summaries(Remembering):
             previous_conversation_summaries = ''
        
         if len(new_summary) > 0:
+            # Add dash prefix to new summary if it doesn't already have one
+            if not new_summary.strip().startswith('-'):
+                new_summary = '- ' + new_summary.strip() + '\n\n'
+            else:
+                new_summary = new_summary.strip() + '\n\n'
+                
             conversation_summaries = previous_conversation_summaries + new_summary
             with open(conversation_summary_file, 'w', encoding='utf-8') as f:
                 f.write(conversation_summaries)
