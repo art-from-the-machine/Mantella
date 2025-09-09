@@ -2,6 +2,7 @@ from io import TextIOWrapper
 import os
 from pathlib import Path
 import shutil
+import json
 from src.config.config_values import ConfigValues
 from src.config.types.config_value import ConfigValue
 from src.config.types.config_value_bool import ConfigValueBool
@@ -102,16 +103,23 @@ class ConfigFileWriter(ConfigValueVisitor):
             default_value[0] = default_value[0].replace(";   ", ";   default = ")
         
         parsed_value = str(config_value.value)
-        # Escape hash symbols to prevent them from being treated as comments
-        parsed_value = ConfigFileWriter.escape_hash_symbols(parsed_value)
-        
         if len(parsed_value) == 0:
             default_value.append(f"{config_value.identifier} =\n")
-        else:   
-            value = ConfigFileWriter.parse_multi_line_string(parsed_value, "    ")
-            if len(value) > 0:
-                value[0] = value[0].replace("    ", f"{config_value.identifier} = ")
-            default_value.extend(value)
+        else:
+            # For string values that are multiline, encode as a single-line JSON string
+            # to preserve exact whitespace/indentation across configparser reads.
+            if isinstance(config_value, ConfigValueString) and ("\n" in parsed_value or "\r\n" in parsed_value):
+                json_encoded = json.dumps(parsed_value)
+                # Escape hash symbols after JSON encoding to avoid inline-comment parsing
+                json_encoded = ConfigFileWriter.escape_hash_symbols(json_encoded)
+                default_value.append(f"{config_value.identifier} = {json_encoded}\n")
+            else:
+                # Fallback: standard single-line or multi-line formatting
+                parsed_value = ConfigFileWriter.escape_hash_symbols(parsed_value)
+                value = ConfigFileWriter.parse_multi_line_string(parsed_value, "    ")
+                if len(value) > 0:
+                    value[0] = value[0].replace("    ", f"{config_value.identifier} = ")
+                default_value.extend(value)
         return default_value
 
     def write_setting_block_to_file(self, lines: list[str]):
@@ -126,7 +134,9 @@ class ConfigFileWriter(ConfigValueVisitor):
         result = []
         split = potential_multi_line_string.split("\n")
         for s in split:
-            result.append(prefix + s.strip() + ConfigFileWriter.NEWLINE)
+            # Preserve leading indentation provided by the user/content while
+            # still removing only trailing whitespace that is usually accidental.
+            result.append(prefix + s.rstrip() + ConfigFileWriter.NEWLINE)
         return result
     
     @staticmethod

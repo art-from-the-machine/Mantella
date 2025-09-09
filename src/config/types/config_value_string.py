@@ -22,6 +22,11 @@ class ConfigValueString(ConfigValue[str]):
         visitor.visit_ConfigValueString(self)
     
     def __strip_lines(self, text: str) -> str:
-        result = ''.join([line.lstrip().rstrip()+'\n' for line in text.splitlines()])
-        result = result.rstrip("\n")#remove last \n that has been added by function above
-        return result
+        # Preserve user-intended indentation. Remove only trailing whitespace and
+        # normalize common code indentation introduced by triple-quoted strings.
+        try:
+            import textwrap
+            dedented = textwrap.dedent(text)
+        except Exception:
+            dedented = text
+        return "\n".join(line.rstrip() for line in dedented.splitlines())

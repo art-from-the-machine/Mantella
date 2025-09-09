@@ -11,6 +11,7 @@ from src.config.config_values import ConfigValues
 from src.config.mantella_config_value_definitions_new import MantellaConfigValueDefinitionsNew
 from src.config.config_json_writer import ConfigJsonWriter
 from src.config.config_file_writer import ConfigFileWriter
+from src.config.types.config_value_string import ConfigValueString
 import src.utils as utils
 from pathlib import Path
 import json
@@ -45,6 +46,17 @@ class ConfigLoader:
                     config_value = self.__definitions.get_config_value_definition(each_key)
                     # Unescape hash symbols that were escaped for INI file storage
                     unescaped_value = ConfigFileWriter.unescape_hash_symbols(each_value)
+                    # Attempt to JSON-decode string values first if they were encoded to preserve whitespace
+                    if isinstance(config_value, ConfigValueString):
+                        try:
+                            import json
+                            decoded = json.loads(unescaped_value)
+                            # Only accept if decoding produced a string
+                            if isinstance(decoded, str):
+                                config_value.parse(decoded)
+                                continue
+                        except Exception:
+                            pass
                     config_value.parse(unescaped_value)
                 except:
                     create_back_up_configini = True
