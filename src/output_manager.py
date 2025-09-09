@@ -47,14 +47,23 @@ class ChatManager:
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
         self.__per_character_clients: dict[str, AIClient] = {}  # Cache for per-character LLM clients
+        
+        # Store vision client reference independently to handle random selection and hot swaps
+        self.__vision_client = getattr(client, '_image_client', None)
 
     def update_multi_npc_client(self, multi_npc_client: AIClient | None):
         """Update the multi-NPC client for hot swapping"""
         self.__multi_npc_client = multi_npc_client
+        # If the multi-NPC client has a vision client, preserve it
+        if multi_npc_client and getattr(multi_npc_client, '_image_client', None) and not self.__vision_client:
+            self.__vision_client = multi_npc_client._image_client
 
     def update_primary_client(self, primary_client: AIClient):
         """Update the primary client for conversations (used for random LLM selection)"""
         self.__client = primary_client
+        # Preserve or update vision client reference if the new primary client has vision
+        if getattr(primary_client, '_image_client', None):
+            self.__vision_client = primary_client._image_client
     
     def clear_per_character_client_cache(self):
         """Clear the per-character client cache to force recreation with new settings"""
@@ -168,6 +177,9 @@ class ChatManager:
             self.__config = config
             self.__tts = tts
             self.__client = client
+            
+            # Update vision client reference for hot swap
+            self.__vision_client = getattr(client, '_image_client', None)
             
             # Clear per-character client cache so they get recreated with new settings
             self.__per_character_clients.clear()
@@ -375,6 +387,15 @@ class ChatManager:
                             current_client = per_char_client if per_char_client != self.__client else self.__client
                     # Track last used client for logging/token counting
                     last_used_client = current_client
+
+                    # Ensure vision client is available and up to date on the selected client
+                    if self.__config.vision_enabled and self.__vision_client:
+                        try:
+                            existing_image_client = getattr(current_client, '_image_client', None)
+                            if (existing_image_client is None) or (existing_image_client is not self.__vision_client):
+                                current_client._image_client = self.__vision_client
+                        except Exception as e:
+                            logging.warning(f"Could not attach vision client to selected LLM client: {e}")
                     # Log which LLM model is being used
                     if hasattr(current_client, 'model_name'):
                         logging.info(f"[LLM: {current_client.model_name}]")
