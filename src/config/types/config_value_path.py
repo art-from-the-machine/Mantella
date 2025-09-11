@@ -75,6 +75,10 @@ class ConfigValuePath(ConfigValue[str]):
                 result.append(str(filename))        
     
     def does_value_cause_error(self, value_to_check: str) -> ConfigValueConstraintResult:
+        # Allow empty values for optional paths
+        if not value_to_check or value_to_check.strip() == "":
+            return ConfigValueConstraintResult()
+        
         if not os.path.exists(value_to_check):
             return ConfigValueConstraintResult(f"The selected folder '{value_to_check}' for config value '{self.name}' does not exist!")
 

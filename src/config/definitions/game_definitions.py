@@ -97,6 +97,8 @@ Please see here to learn where to set this value: https://art-from-the-machine.g
         identifier = "fallout4vr_mod_folder"
         game_folder = "Fallout 4 VR"
         return ConfigValuePath(identifier, f"{game_folder}: Path to Mantella Gun Mod", GameDefinitions.MOD_FOLDER_DESCRIPTION.format(game_folder), "C:\\Modding\\MO2\\Fallout4VR\\mods\\Mantella","Sound",[GameDefinitions.ProgramFilesChecker(game_folder), GameDefinitions.ModFolderChecker(identifier)])
+
+    # Removed Bio Override CSV (optional) from Game tab per request
     
     @staticmethod
     def get_fallout4_folder_config_value() -> ConfigValue:

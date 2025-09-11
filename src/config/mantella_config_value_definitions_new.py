@@ -7,6 +7,9 @@ from src.config.types.config_value_group import ConfigValueGroup
 from src.config.definitions.game_definitions import GameDefinitions
 from src.config.definitions.language_definitions import LanguageDefinitions
 from src.config.definitions.llm_definitions import LLMDefinitions
+from src.config.types.config_value_group import ConfigValueGroup
+from src.config.types.config_value_path import ConfigValuePath
+from src.config.types.config_value_string import ConfigValueString
 from src.config.definitions.other_definitions import OtherDefinitions
 from src.config.definitions.startup_definitions import StartupDefinitions
 from src.config.definitions.prompt_definitions import PromptDefinitions
@@ -36,6 +39,76 @@ class MantellaConfigValueDefinitionsNew:
         game_category.add_config_value(GameDefinitions.get_fallout4_folder_config_value())
         game_category.add_config_value(GameDefinitions.get_fallout4vr_folder_config_value())
         result.add_base_group(game_category)
+
+        # Hidden settings (persisted in config.ini but not shown in UI)
+        hidden_category = ConfigValueGroup("Hidden", "Hidden", "Hidden settings", on_value_change_callback, is_hidden=True)
+        hidden_category.add_config_value(ConfigValueString(
+            "bio_override_csv_path",
+            "Bio Override CSV (optional)",
+            "Optional: Path to the CSV override file to append base-only NPC bios to. You can enter a full CSV file path, or a directory (the file 'character_overrides.csv' will be used). Leave empty to use the default personal override file.",
+            "",
+            []
+        ))
+        # Bio Editor LLM settings (persisted but not shown in Settings UI)
+        from src.config.types.config_value_selection import ConfigValueSelection
+        from src.config.types.config_value_int import ConfigValueInt
+        from src.config.types.config_value_float import ConfigValueFloat
+        from src.config.types.config_value_bool import ConfigValueBool
+        hidden_category.add_config_value(ConfigValueSelection(
+            "bio_llm_api",
+            "Bio LLM Service",
+            "Service used by Bio Editor LLM requests.",
+            "OpenRouter",
+            ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"],
+            allows_free_edit=True
+        ))
+        hidden_category.add_config_value(ConfigValueString(
+            "bio_llm_model",
+            "Bio LLM Model",
+            "Model used by Bio Editor LLM requests.",
+            "google/gemma-2-9b-it:free",
+            []
+        ))
+        hidden_category.add_config_value(ConfigValueBool(
+            "bio_llm_apply_profile",
+            "Apply Bio LLM Profile",
+            "Whether to apply model profile for Bio Editor requests.",
+            False,
+            []
+        ))
+        hidden_category.add_config_value(ConfigValueFloat(
+            "bio_llm_temperature_override",
+            "Bio LLM Temperature Override",
+            "If > -1, overrides temperature for Bio Editor LLM requests.",
+            -1.0,
+            -1.0,
+            2.0,
+            []
+        ))
+        hidden_category.add_config_value(ConfigValueInt(
+            "bio_llm_max_tokens_override",
+            "Bio LLM Max Tokens Override",
+            "If > 0, overrides max_tokens for Bio Editor LLM requests.",
+            -1,
+            -1,
+            9999999,
+            []
+        ))
+        hidden_category.add_config_value(ConfigValueString(
+            "bio_prompt_profiles",
+            "Bio Prompt Profiles",
+            "JSON object mapping prompt names to prompt text for Bio Editor.",
+            "{}",
+            []
+        ))
+        hidden_category.add_config_value(ConfigValueString(
+            "bio_prompt_selected",
+            "Bio Prompt Selected",
+            "Currently selected Bio Editor prompt name.",
+            "",
+            []
+        ))
+        result.add_base_group(hidden_category)
         
         llm_category = ConfigValueGroup("LLM", "Large Language Model", "Settings for the LLM providers and the LLMs themselves.", on_value_change_callback)
         llm_category.add_config_value(LLMDefinitions.get_llm_api_config_value())
