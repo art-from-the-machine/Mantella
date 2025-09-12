@@ -1018,15 +1018,14 @@ class StartUI(routeable):
             def on_send_llm_request(label: str, df: pd.DataFrame, l2k: dict[str, str], world_id: str, raw_prompt: str, bio_text_ui: str, summary_text_ui: str, params_text: str, apply_profile: bool, temp_ovr: float, max_tokens_ovr: int, srv: str, mdl: str):
                 # Resolve variables from current selection
                 try:
-                    # Prefer UI textboxes to ensure it works even if game is not running
-                    current_bio = bio_text_ui or ""
+                    # Always reload latest bio from df for the selected label
                     current_summary = summary_text_ui or ""
-                    if (not current_bio or not current_summary) and label:
-                        # Fallback to disk/df if any is empty
-                        if not current_bio:
-                            current_bio = _load_bio_for_label(label, df, l2k) or ""
+                    if label:
+                        current_bio = _load_bio_for_label(label, df, l2k) or ""
                         if not current_summary:
                             current_summary = _load_summary_for_label(label, l2k, world_id) or ""
+                    else:
+                        current_bio = ""
                     final_prompt = _render_prompt_text(raw_prompt or "", current_bio, current_summary)
                     # Parse per-request params; ignore profile system, use only this
                     params_override = None
