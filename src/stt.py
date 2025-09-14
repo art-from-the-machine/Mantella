@@ -237,8 +237,14 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         wavfile.write(audio_file, self.SAMPLING_RATE, audio)
         # Audio file needs a name or else Whisper gets angry
         audio_file.name = 'out.wav'
+        # Log request payload characteristics (safe: no secrets or raw audio)
+        try:
+            audio_size_bytes = audio_file.getbuffer().nbytes
+        except Exception:
+            audio_size_bytes = -1
 
         if 'openai' in self.whisper_url: # OpenAI compatible endpoint
+            logging.log(self.loglevel, f"STT request → OpenAI-compatible endpoint: url={self.whisper_url}, service={self.whisper_service}, model={self.whisper_model}, language={self.language}, prompt_len={len(prompt)}, audio_bytes={audio_size_bytes}, filename={getattr(audio_file, 'name', 'out.wav')}")
             client = self.__generate_sync_client()
             try:
                 response_data = client.audio.transcriptions.create(model=self.whisper_model, language=self.language, file=audio_file, prompt=prompt)
@@ -259,6 +265,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 return ''
             return response_data.text.strip()
         else: # custom server model
+            logging.log(self.loglevel, f"STT request → custom endpoint: method=POST url={self.whisper_url}, model={self.whisper_model}, language={self.language}, prompt_len={len(prompt)}, file=('audio.wav', bytes={audio_size_bytes}, content_type='audio/wav')")
             data = {'model': self.whisper_model, 'prompt': prompt}
             files = {'file': ('audio.wav', audio_file, 'audio/wav')}
             response = requests.post(self.whisper_url, files=files, data=data)
