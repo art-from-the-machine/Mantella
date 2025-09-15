@@ -420,6 +420,31 @@ class GameStateManager:
             
             # Clear per-character client cache to force recreation with new settings
             chat_manager.clear_per_character_client_cache()
+
+            # Update STT settings (hot-swap) if a transcriber exists
+            try:
+                if self.__stt:
+                    # Try in-place hot swap first
+                    stt_in_place = False
+                    if hasattr(self.__stt, 'hot_swap_settings'):
+                        stt_in_place = self.__stt.hot_swap_settings(config)
+                    if not stt_in_place:
+                        # Rebuild transcriber on heavy changes
+                        was_listening = False
+                        try:
+                            was_listening = self.__stt.is_listening
+                        except Exception:
+                            was_listening = False
+                        try:
+                            self.__stt.stop_listening()
+                        except Exception:
+                            pass
+                        self.__stt = Transcriber(config, self.__stt_api_file, self.__api_file)
+                        # Do not auto-start listening; the conversation loop will restart it as needed
+                        if was_listening:
+                            logging.info("Rebuilt STT transcriber due to hot-swap; listening will restart on next tick.")
+            except Exception as e:
+                logging.error(f"Failed to hot-swap STT settings: {e}")
             
             # If there's an active conversation, update it with new settings
             if self.__talk:
@@ -501,7 +526,8 @@ class GameStateManager:
                     config=config,
                     llm_client=conversation_client,
                     chat_manager=chat_manager,
-                    rememberer=self.__rememberer
+                    rememberer=self.__rememberer,
+                    stt=self.__stt
                 )
                 if not success:
                     return False

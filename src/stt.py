@@ -37,7 +37,7 @@ class Transcriber:
     def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str):
         self.loglevel = 27
         self.language = config.stt_language
-        self.task = "translate" if config.stt_translate == 1 else "transcribe"
+        self.task = "translate" if config.stt_translate else "transcribe"
         self.stt_service = config.stt_service
         self.full_moonshine_model = config.moonshine_model
         self.moonshine_model, self.moonshine_precision = self.full_moonshine_model.rsplit('/', 1)
@@ -462,6 +462,89 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             # Convert float32 to int16
             audio_int16 = (audio * 32767).astype(np.int16)
             wf.writeframes(audio_int16.tobytes())
+
+
+    @utils.time_it
+    def hot_swap_settings(self, new_config: ConfigLoader) -> bool:
+        """Apply updated STT settings without rebuilding the model when possible.
+
+        Returns True if applied in place; False if a full reinit is required.
+        """
+        try:
+            heavy_change = False
+
+            # Service switch requires rebuild
+            if getattr(new_config, 'stt_service', self.stt_service) != self.stt_service:
+                heavy_change = True
+
+            # Whisper-specific rebuild conditions
+            if self.stt_service == 'whisper' or getattr(new_config, 'stt_service', self.stt_service) == 'whisper':
+                if getattr(new_config, 'whisper_model', self.whisper_model) != self.whisper_model:
+                    heavy_change = True
+                if getattr(new_config, 'whisper_process_device', self.process_device) != self.process_device:
+                    heavy_change = True
+                if getattr(new_config, 'external_whisper_service', self.external_whisper_service) != self.external_whisper_service:
+                    heavy_change = True
+                new_endpoint = self.__get_endpoint(getattr(new_config, 'whisper_url', self.whisper_url))
+                if new_endpoint != self.whisper_url:
+                    heavy_change = True
+
+            # Moonshine-specific rebuild conditions
+            if self.stt_service == 'moonshine' or getattr(new_config, 'stt_service', self.stt_service) == 'moonshine':
+                if getattr(new_config, 'moonshine_model', self.full_moonshine_model) != self.full_moonshine_model:
+                    heavy_change = True
+                if getattr(new_config, 'moonshine_folder', self.moonshine_folder) != self.moonshine_folder:
+                    heavy_change = True
+
+            if heavy_change:
+                return False
+
+            # In-place updates with synchronization
+            with self._lock:
+                self.language = new_config.stt_language
+                self.task = "translate" if new_config.stt_translate else "transcribe"
+
+                self.listen_timeout = new_config.listen_timeout
+                self.proactive_mic_mode = new_config.proactive_mic_mode
+                self.min_refresh_secs = new_config.min_refresh_secs
+                self.refresh_freq = self.min_refresh_secs // self.CHUNK_DURATION
+                self.play_cough_sound = new_config.play_cough_sound
+
+                # VAD thresholds
+                vad_threshold_changed = (self.audio_threshold != new_config.audio_threshold) or (self.pause_threshold != new_config.pause_threshold)
+                self.audio_threshold = new_config.audio_threshold
+                self.pause_threshold = new_config.pause_threshold
+
+                # Update service URL mapping
+                self.whisper_service = new_config.whisper_url
+                self.whisper_url = self.__get_endpoint(new_config.whisper_url)
+
+                # Save mic input path
+                self.__save_mic_input = new_config.save_mic_input
+                if self.__save_mic_input:
+                    self.__mic_input_path = new_config.save_folder+'data\\tmp\\mic'
+                    os.makedirs(self.__mic_input_path, exist_ok=True)
+
+                if vad_threshold_changed:
+                    self.vad_iterator = self._create_vad_iterator()
+                else:
+                    self._soft_reset_vad()
+
+            # Refresh API key/client if using external service
+            if self.external_whisper_service:
+                try:
+                    self.__api_key = self.__get_api_key()
+                    self.__initial_client = None
+                    if (self.stt_service == 'whisper') and (self.__api_key) and ('openai' in self.whisper_url):
+                        self.__initial_client = self.__generate_sync_client()
+                except Exception as e:
+                    logging.warning(f"Failed to update STT API key during hot-swap: {e}")
+
+            logging.info("Applied STT hot-swap settings in place.")
+            return True
+        except Exception as e:
+            logging.error(f"STT hot-swap failed: {e}")
+            return False
 
 
     @utils.time_it

@@ -80,7 +80,7 @@ class Conversation:
         return self.__stt
     
     @utils.time_it
-    def hot_swap_settings(self, config: ConfigLoader, llm_client: AIClient, chat_manager: ChatManager, rememberer: Remembering) -> bool:
+    def hot_swap_settings(self, config: ConfigLoader, llm_client: AIClient, chat_manager: ChatManager, rememberer: Remembering, stt: Transcriber | None = None) -> bool:
         """Attempts to hot-swap settings without ending the conversation.
         
         Args:
@@ -102,6 +102,9 @@ class Conversation:
             self.__allow_interruption = config.allow_interruption
             self.__events_refresh_time = config.events_refresh_time
             self.__end_conversation_keywords = utils.parse_keywords(config.end_conversation_keyword)
+            # Optionally swap in a new STT transcriber (for heavy-change rebuilds)
+            if stt is not None:
+                self.__stt = stt
             
             # Update context with new config
             if self.__context:
