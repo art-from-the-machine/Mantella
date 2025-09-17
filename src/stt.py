@@ -21,6 +21,7 @@ import onnxruntime as ort
 from scipy.io import wavfile
 from sounddevice import InputStream
 from silero_vad import VADIterator, load_silero_vad
+from src.ptt_controller import PTTController
 
 import onnxruntime as ort
 ort.set_default_logger_severity(4)
@@ -59,6 +60,11 @@ class Transcriber:
         self.pause_threshold = config.pause_threshold
         self.audio_threshold = config.audio_threshold
         logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this `Speech-to-Text`->`Audio Threshold` value in the Mantella UI. If the mic is picking up too much background noise, try increasing this value.\n")
+
+        # PTT settings
+        self.ptt_enabled = getattr(config, 'ptt_enabled', False)
+        self._ptt = PTTController(getattr(config, 'ptt_hotkey', None) if self.ptt_enabled else None)
+        self._ptt_active = False
 
         self.__audio_input_error_count = 0
         self.__mic_input_process_error_count = 0
@@ -233,10 +239,20 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             return result_text
         
         # Server versions of Whisper require the audio data to be a file type
+        # Validate audio buffer before processing
+        if len(audio) == 0:
+            logging.warning("Empty audio buffer, skipping transcription")
+            return ''
+
         audio_file = io.BytesIO()
         wavfile.write(audio_file, self.SAMPLING_RATE, audio)
         # Audio file needs a name or else Whisper gets angry
         audio_file.name = 'out.wav'
+        # Rewind to start to ensure downstream clients read full content
+        try:
+            audio_file.seek(0)
+        except Exception:
+            pass
         # Log request payload characteristics (safe: no secrets or raw audio)
         try:
             audio_size_bytes = audio_file.getbuffer().nbytes
@@ -250,7 +266,12 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 response_data = client.audio.transcriptions.create(model=self.whisper_model, language=self.language, file=audio_file, prompt=prompt)
             except Exception as e:
                 utils.play_error_sound()
-                if e.code in [404, 'model_not_found']:
+                # Avoid crashing; log helpful guidance
+                try:
+                    err_code = getattr(e, 'code', None)
+                except Exception:
+                    err_code = None
+                if err_code in [404, 'model_not_found']:
                     if self.whisper_service == 'OpenAI':
                         logging.error(f"Selected Whisper model '{self.whisper_model}' does not exist in the OpenAI service. Try changing 'Speech-to-Text'->'Model Size' to 'whisper-1' in the Mantella UI")
                     elif self.whisper_service == 'Groq':
@@ -258,8 +279,12 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     else:
                         logging.error(f"Selected Whisper model '{self.whisper_model}' does not exist in the selected service {self.whisper_service}. Try changing 'Speech-to-Text'->'Model Size' to a compatible model in the Mantella UI")
                 else:
-                    logging.error(f'STT error: {e}')
-                input("Press Enter to exit.")
+                    logging.error(f"STT error: {e}")
+                try:
+                    client.close()
+                except Exception:
+                    pass
+                return ''
             client.close()
             if utils.clean_text(response_data.text) in self.__ignore_list: # common phrases hallucinated by Whisper
                 return ''
@@ -267,16 +292,29 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         else: # custom server model
             logging.log(self.loglevel, f"STT request → custom endpoint: method=POST url={self.whisper_url}, model={self.whisper_model}, language={self.language}, prompt_len={len(prompt)}, file=('audio.wav', bytes={audio_size_bytes}, content_type='audio/wav')")
             data = {'model': self.whisper_model, 'prompt': prompt}
+            try:
+                audio_file.seek(0)
+            except Exception:
+                pass
             files = {'file': ('audio.wav', audio_file, 'audio/wav')}
-            response = requests.post(self.whisper_url, files=files, data=data)
-            if response.status_code != 200:
-                logging.error(f'STT Error: {response.content}')
-            response_data = json.loads(response.text)
-            if 'text' in response_data:
-                if utils.clean_text(response_data['text']) in self.__ignore_list: # common phrases hallucinated by Whisper
+            try:
+                response = requests.post(self.whisper_url, files=files, data=data)
+                if response.status_code != 200:
+                    logging.error(f'STT Error: {response.content}')
                     return ''
-                return response_data['text'].strip()
-            
+                try:
+                    response_data = response.json()
+                except Exception:
+                    response_data = json.loads(response.text)
+                if 'text' in response_data:
+                    if utils.clean_text(response_data['text']) in self.__ignore_list: # common phrases hallucinated by Whisper
+                        return ''
+                    return response_data['text'].strip()
+                return ''
+            except Exception as e:
+                logging.error(f'Custom STT endpoint error: {e}')
+                return ''
+
 
     @utils.time_it
     def moonshine_transcribe(self, audio: np.ndarray) -> str:
@@ -311,6 +349,9 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             
         self._running = True
         self._reset_state()
+        # Clear any stale state (ensure fresh session)
+        self._transcription_ready.clear()
+        self._current_transcription = ''
         self.prompt = prompt
         
         # Start audio stream
@@ -349,6 +390,53 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     continue
 
                 with self._lock:
+                    # PTT gating: when enabled, only capture while key is held; ignore VAD end/pause logic
+                    if self.ptt_enabled:
+                        is_pressed = self._ptt.is_pressed()
+                        if is_pressed:
+                            # Begin or continue PTT-capture
+                            self._audio_buffer = np.concatenate((self._audio_buffer, chunk))
+                            if not self._ptt_active:
+                                logging.log(self.loglevel, 'PTT pressed')
+                                self._ptt_active = True
+                                self._speech_detected = True
+                                self._speech_start_time = time.time()
+                                self._last_update_time = time.time()
+                        else:
+                            if self._ptt_active:
+                                logging.log(self.loglevel, 'PTT released - transcribing')
+                                # Check both buffer length and minimum duration to avoid corrupted audio
+                                audio_duration = len(self._audio_buffer) / self.SAMPLING_RATE if len(self._audio_buffer) > 0 else 0
+                                min_duration = 0.3  # Minimum 100ms of audio
+                                
+                                if len(self._audio_buffer) > 0 and audio_duration >= min_duration:
+                                    self._current_transcription = self._transcribe(self._audio_buffer)
+                                    if self.__save_mic_input:
+                                        self._save_audio(self._audio_buffer)
+                                    self._transcription_ready.set()
+                                else:
+                                    logging.debug(f'PTT released with insufficient audio (duration: {audio_duration:.3f}s, min: {min_duration}s)')
+                                self._reset_state()
+                                self._soft_reset_vad()
+                                self._ptt_active = False
+                            else:
+                                # Idle: do not accumulate buffer when PTT is not pressed
+                                self._audio_buffer = np.array([], dtype=np.float32)
+                        # Check PTT timeout before continue to avoid unbounded buffering
+                        if self._ptt_active and (len(self._audio_buffer) / self.SAMPLING_RATE) > self.listen_timeout:
+                            logging.warning(f'PTT timeout of {self.listen_timeout} seconds reached. Processing mic input...')
+                            # No minimum duration check needed for timeout case - force transcription
+                            if len(self._audio_buffer) > 0:
+                                self._current_transcription = self._transcribe(self._audio_buffer)
+                                if self.__save_mic_input:
+                                    self._save_audio(self._audio_buffer)
+                                self._transcription_ready.set()
+                            self._reset_state()
+                            self._soft_reset_vad()
+                            self._ptt_active = False
+                        # Skip VAD processing entirely in PTT mode
+                        continue
+
                     # Update audio buffer
                     self._audio_buffer = np.concatenate((self._audio_buffer, chunk))
                     if not self._speech_detected:
@@ -446,6 +534,11 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
     def _reset_state(self) -> None:
         """Reset internal state."""
         self._speech_detected = False
+        # Ensure PTT state is cleared on any reset
+        try:
+            self._ptt_active = False
+        except Exception:
+            pass
         self._audio_buffer = np.array([], dtype=np.float32)
         self.vad_iterator = self._create_vad_iterator()
         self._consecutive_empty_count = 0
@@ -509,6 +602,17 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 self.min_refresh_secs = new_config.min_refresh_secs
                 self.refresh_freq = self.min_refresh_secs // self.CHUNK_DURATION
                 self.play_cough_sound = new_config.play_cough_sound
+                # PTT updates
+                self.ptt_enabled = getattr(new_config, 'ptt_enabled', False)
+                if self.ptt_enabled:
+                    hotkey = getattr(new_config, 'ptt_hotkey', None)
+                    if self._ptt:
+                        self._ptt.update_key(hotkey)
+                    else:
+                        self._ptt = PTTController(hotkey)
+                else:
+                    if self._ptt:
+                        self._ptt.update_key(None)
 
                 # VAD thresholds
                 vad_threshold_changed = (self.audio_threshold != new_config.audio_threshold) or (self.pause_threshold != new_config.pause_threshold)

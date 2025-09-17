@@ -47,6 +47,19 @@ class STTDefinitions:
                     If you feel like there is too much of a delay between you finishing your response and the text conversion, decrease this value.
                     Set this value to 0 for faster response times."""
         return ConfigValueFloat("pause_threshold","Pause Threshold", description, 0.25, 0, 999, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_ptt_enabled_config_value() -> ConfigValue:
+        description = """Enable Push-To-Talk (PTT). When enabled, speech is only captured while the PTT hotkey is held.
+                        On key release, the buffered speech is transcribed once and sent to the conversation.
+                        When disabled, Mantella behaves as before."""
+        return ConfigValueBool("ptt_enabled", "Enable PTT", description, False)
+
+    @staticmethod
+    def get_ptt_hotkey_config_value() -> ConfigValue:
+        description = """Push-To-Talk hotkey. Examples: V, SPACE, ENTER, F1..F12.
+                        Letters and digits map directly, special keys include SPACE, TAB, ESC, ENTER, SHIFT, CTRL, ALT, and arrows."""
+        return ConfigValueString("ptt_hotkey", "PTT Hotkey", description, "V")
     
     @staticmethod
     def get_play_cough_sound_config_value() -> ConfigValue:

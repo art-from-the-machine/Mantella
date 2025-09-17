@@ -243,6 +243,8 @@ class ConfigLoader:
             self.min_refresh_secs = self.__definitions.get_float_value("min_refresh_secs")
             self.play_cough_sound = self.__definitions.get_bool_value("play_cough_sound")
             self.allow_interruption = self.__definitions.get_bool_value("allow_interruption")
+            self.ptt_enabled = self.__definitions.get_bool_value("ptt_enabled")
+            self.ptt_hotkey = self.__definitions.get_string_value("ptt_hotkey")
             self.save_mic_input = self.__definitions.get_bool_value("save_mic_input")
             self.pause_threshold = self.__definitions.get_float_value("pause_threshold")
             self.listen_timeout = self.__definitions.get_int_value("listen_timeout")
