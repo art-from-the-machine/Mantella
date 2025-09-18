@@ -921,17 +921,23 @@ class StartUI(routeable):
                 except Exception:
                     return {}
 
-            def save_prompt_profile(current_text: str, name: str, _) -> tuple[str, gr.Dropdown, gr.Text]:
-                name = (name or "").strip()
-                if name == "":
-                    return "Enter a prompt name.", gr.Dropdown(choices=prompt_selector.choices, value=prompt_selector.value), gr.Text(value=name)
+            def save_prompt_profile(current_text: str, new_name: str, selected_name: str) -> tuple[str, gr.Dropdown, gr.Text]:
+                # If no new name provided, overwrite the currently selected profile
+                target_name = (new_name or selected_name or "").strip()
+                if target_name == "":
+                    # Keep selection unchanged
+                    return (
+                        "Enter a prompt name or select a profile to overwrite.",
+                        gr.Dropdown(choices=prompt_selector.choices, value=prompt_selector.value),
+                        gr.Text(value=new_name)
+                    )
                 profiles = _get_profiles_state()
-                profiles[name] = current_text or ""
+                profiles[target_name] = current_text or ""
                 try:
                     cvp = config.definitions.get_config_value_definition("bio_prompt_profiles")
                     cvp.value = json.dumps(profiles, indent=2)
                     cvs = config.definitions.get_config_value_definition("bio_prompt_selected")
-                    cvs.value = name
+                    cvs.value = target_name
                     try:
                         config._ConfigLoader__write_config_state(config.definitions)
                     except Exception:
@@ -940,7 +946,12 @@ class StartUI(routeable):
                 except Exception:
                     pass
                 names = sorted(list(profiles.keys()))
-                return f"Prompt '{name}' saved.", gr.Dropdown(choices=names, value=name, label="Prompt profile"), gr.Text(value=name)
+                # Select the saved profile and clear the new-name field to avoid accidental switches
+                return (
+                    f"Prompt '{target_name}' saved.",
+                    gr.Dropdown(choices=names, value=target_name, label="Prompt profile"),
+                    gr.Text(value="")
+                )
 
             def apply_selected_prompt(name: str) -> tuple[str, gr.Button]:
                 profiles = _get_profiles_state()
