@@ -1,14 +1,15 @@
 {
-    "GPT_func_name": "give_directions",
-    "GPT_func_description": "Use this function to ask an NPC for directions.",
-    "function_parameters": {
+    "identifier": "give_directions",
+    "name": "Give Directions",
+    "description": "Use this function to ask an NPC for directions.",
+    "parameters": {
         "give_directions_mode": {
             "type": "string",
             "description": "The location to which the NPC should give directions."
         }
     },
     "system_prompt_info": "`{GPT_func_name}` if requested to give directions to a location.",
-    "GPT_required": ["give_directions_mode"],
+    "required": ["give_directions_mode"],
     "allowed_games": ["skyrim"],
     "is_generic_npc_function": true,
     "is_follower_function": true,
@@ -17,9 +18,9 @@
     "is_post_dialogue": false,
     "key": "give_directions",
     "is_interrupting": false,
-    "is_one_on_one": true,
-    "is_multi_npc": false,
-    "is_radiant": false,
+    "one_on_one": true,
+    "multi_npc": false,
+    "radiant": false,
     "llm_feedback": "{speakerName} is about to give directions to the following location {llm_output_mode} at {playerName}'s request. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
     "parameter_package_key": [],
     "veto_warning" : "{speakerName} is about to give directions to the following location {llm_output_mode} at {playerName}'s request. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why.",

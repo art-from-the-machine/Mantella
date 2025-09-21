@@ -1,7 +1,8 @@
 {
-    "GPT_func_name": "list_trainer_skills",
-    "GPT_func_description": "Use this function to list the skills that a NPC can train the player in.",
-    "function_parameters": {
+    "identifier": "list_trainer_skills",
+    "name": "List Trainer Skills",
+    "description": "Use this function to list the skills that a NPC can train the player in.",
+    "parameters": {
         "list_trainer_skills_mode": {
             "type": "array",
             "description": "List of all available skills that the NPC can train the player in.",
@@ -9,7 +10,7 @@
         }
     },
     "system_prompt_info": "`{GPT_func_name}` if requested to list the skills that a NPC can train the player in.",
-    "GPT_required": ["list_trainer_skills_mode"],
+    "required": ["list_trainer_skills_mode"],
     "allowed_games": ["skyrim"],
     "is_generic_npc_function": true,
     "is_follower_function": true,
@@ -18,9 +19,9 @@
     "is_post_dialogue": false,
     "key": "list_trainer_skills",
     "is_interrupting": false,
-    "is_one_on_one": true,
-    "is_multi_npc": false,
-    "is_radiant": false,
+    "one_on_one": true,
+    "multi_npc": false,
+    "radiant": false,
     "llm_feedback": "{speakerName} is about to give a list of the skills they can train the player in: {llm_output_mode} at {playerName}'s request. List the skills in first person in natural conversation. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
     "parameter_package_key": ["mantella_npc_trainer_skill_list_package"],
     "veto_warning" : "{speakerName} is about to give a list of the skills they can train the player in: {llm_output_mode} at {playerName}'s request. List the skills in first person in natural conversation. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why.",

@@ -1,7 +1,8 @@
 {
-    "GPT_func_name": "teleport_npc",
-    "GPT_func_description": "Determine a target NPC to teleport to.",
-    "function_parameters": {
+    "identifier": "teleport_npc",
+    "name": "Teleport",
+    "description": "Determine a target NPC to teleport to.",
+    "parameters": {
         "npc_name": {
             "type": "array",
             "description": "The name of the target NPC.",
@@ -19,7 +20,7 @@
         }
     },
     "system_prompt_info": "`{GPT_func_name}` if requested to move or follow",
-    "GPT_required": ["target_npc_id"],
+    "required": ["target_npc_id"],
     "allowed_games": ["skyrim"],
     "is_generic_npc_function": true,
     "is_follower_function": true,
@@ -28,9 +29,9 @@
     "is_post_dialogue": false,
     "key": "teleport_npc",
     "is_interrupting": false,
-    "is_one_on_one": true,
-    "is_multi_npc": false,
-    "is_radiant": false,
+    "one_on_one": true,
+    "multi_npc": false,
+    "radiant": false,
     "llm_feedback": "{speakerName} is about to teleport to {llm_output_target_name} at {playerName}'s request. {llm_output_source_names} will mysteriously complete this action and find a rationalization for the action if needed.",
     "parameter_package_key": ["npc_targeting_tooltip"],
     "veto_warning": "{speakerName} is about to move towards {llm_output_target_name} at {playerName}'s request. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why.",

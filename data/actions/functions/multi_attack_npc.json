@@ -1,7 +1,8 @@
 {
-    "GPT_func_name": "multi_npc_attack_other_npc",
-    "GPT_func_description": "Determine one or more NPCs that will attack one target NPC .",
-    "function_parameters": {
+    "identifier": "multi_npc_attack_other_npc",
+    "name": "Multi Attack",
+    "description": "Determine one or more NPCs that will attack one target NPC .",
+    "parameters": {
         "npc_name": {
             "type": "array",
             "description": "The name of the target NPC.",
@@ -24,7 +25,7 @@
         }
     },
     "system_prompt_info" : "`{GPT_func_name}` if requested to attack or shoot at another NPC",
-    "GPT_required": ["target_npc_id","source_npc_ids"],
+    "required": ["target_npc_id","source_npc_ids"],
     "allowed_games": ["fallout4", "skyrim"],
     "is_generic_npc_function": true,
     "is_follower_function": true,
@@ -33,9 +34,9 @@
     "is_post_dialogue": false,
     "key": "attack_npc",
     "is_interrupting": false,
-    "is_one_on_one": false,
-    "is_multi_npc": true,
-    "is_radiant": false,
+    "one_on_one": false,
+    "multi_npc": true,
+    "radiant": false,
     "llm_feedback": "{llm_output_source_names} are about to attack {llm_output_target_name} at {playerName}'s request. {llm_output_source_names} will complete this action to the best of their ability and find a rationalization for the action if needed.",
     "parameter_package_key": ["npc_targeting_tooltip", "npc_participants_playerless_tooltip"], 
     "veto_warning" : "{llm_output_source_names} are about to attack {llm_output_target_name} at {playerName}'s request. Begin your response with <veto> if any NPC would refuse to do so then explain in first person in character why.",
