@@ -289,6 +289,9 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
 Multi-NPC LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.multi_npc_llm_params = None
 
+            # Multi-NPC prompt content toggles
+            self.multi_npc_bios_only = self.__definitions.get_bool_value("multi_npc_bios_only")
+
             # Summary LLM Configuration
             self.summary_llm_api = self.__definitions.get_string_value("summary_llm_api")
             self.summary_llm = self.__definitions.get_string_value("summary_model")

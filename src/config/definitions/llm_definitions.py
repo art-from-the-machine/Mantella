@@ -263,3 +263,9 @@ class LLMDefinitions:
         default_params = json.dumps({"temperature": 0.8, "top_p": 0.9})
         return ConfigValueString("multi_npc_llm_params","Multi-NPC & Radiant LLM Parameters",description, default_params, tags=[ConfigValueTag.advanced])
 
+    @staticmethod
+    def get_multi_npc_bios_only_config_value() -> ConfigValue:
+        description = """Send only character bios to the LLM in multi-NPC conversations.
+                        When enabled, conversation summaries are omitted from prompts for multi-NPC chats. Other behaviors remain unchanged."""
+        return ConfigValueBool("multi_npc_bios_only", "Send Only Bios (Multi-NPC)", description, False)
+

@@ -472,7 +472,6 @@ class Context:
         names = self.get_character_names_as_text(False)
         names_w_player = self.get_character_names_as_text(True)
         bios = self.__get_bios_text()
-        bios_and_summaries = self.__get_bios_and_summaries_text()
         trusts = self.__get_trusts()
         equipment = self.__get_npc_equipment_text()
         location = self.__location
@@ -484,7 +483,14 @@ class Context:
             self.__prev_game_time = str(time), time_group
         else:
             self.__prev_game_time = None, time_group
-        conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
+        if self.__config.multi_npc_bios_only and self.npcs_in_conversation.contains_multiple_npcs():
+            # Omit summaries in multi-NPC prompts; still supply bios and map bios_and_summaries to bios
+            logging.log(23, 'Multi-NPC bios-only mode enabled: omitting conversation summaries and using bios for bios_and_summaries.')
+            conversation_summaries = ""
+            bios_and_summaries = bios
+        else:
+            conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
+            bios_and_summaries = self.__get_bios_and_summaries_text()
         actions = self.__get_action_texts(actions_for_prompt)
 
         removal_content: list[tuple[str, str, str]] = [(bios, conversation_summaries, bios_and_summaries),(bios,"", ""),("","", "")]

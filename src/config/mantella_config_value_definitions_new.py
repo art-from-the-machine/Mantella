@@ -126,6 +126,7 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_apply_profile_one_on_one_config_value())
         llm_category.add_config_value(LLMDefinitions.get_apply_profile_multi_npc_config_value())
         llm_category.add_config_value(LLMDefinitions.get_apply_profile_summaries_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_bios_only_config_value())
         
         # Random LLM Selection
         llm_category.add_config_value(OtherDefinitions.get_random_llm_one_on_one_enabled_config_value())
