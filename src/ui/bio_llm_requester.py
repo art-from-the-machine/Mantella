@@ -4,6 +4,7 @@ from src.config.config_loader import ConfigLoader
 from src.llm.client_base import ClientBase
 from src.llm.key_file_resolver import key_file_resolver
 from src.llm.messages import UserMessage
+from src.llm.sonnet_cache_connector import SonnetCacheConnector
 import logging
 
 
@@ -34,6 +35,11 @@ class BioLLMRequester:
             custom_token_count = self._config.custom_token_count
 
             client = ClientBase(service, model, params, custom_token_count, key_files)
+            try:
+                # Enable Sonnet caching for Bio Editor prompts too (OpenRouter-only)
+                client._sonnet_cache_connector = SonnetCacheConnector(getattr(self._config, 'sonnet_prompt_caching_enabled', False))
+            except Exception as e:
+                logging.debug(f"Failed to attach Sonnet cache connector to Bio client: {e}")
             # Log prompt similar to dialogue flow
             try:
                 token_count = client.get_count_tokens(prompt_text)

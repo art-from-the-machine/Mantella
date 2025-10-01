@@ -31,6 +31,7 @@ from src.tts.synthesization_options import SynthesizationOptions
 from src.random_llm_selector import RandomLLMSelector
 from src.llm.client_base import ClientBase
 from src.llm.key_file_resolver import key_file_resolver
+from src.llm.sonnet_cache_connector import SonnetCacheConnector
 
 class ChatManager:
     def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient, multi_npc_client: AIClient | None = None, api_file: str = "secret_keys.json"):
@@ -99,6 +100,11 @@ class ChatManager:
                 selection.token_count,
                 selected_secret_key_files
             )
+            try:
+                # Respect global config toggle for Sonnet prompt caching when using OpenRouter
+                client._sonnet_cache_connector = SonnetCacheConnector(getattr(self.__config, 'sonnet_prompt_caching_enabled', False))
+            except Exception as e:
+                logging.debug(f"Failed to attach Sonnet cache connector to random client: {e}")
             
             # Cache the client
             self.__per_character_clients[cache_key] = client

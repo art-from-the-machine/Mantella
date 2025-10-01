@@ -5,6 +5,7 @@ import unicodedata
 from src.config.config_loader import ConfigLoader
 from src.image.image_manager import ImageManager
 from src.llm.client_base import ClientBase
+from src.llm.sonnet_cache_connector import SonnetCacheConnector
 from src.llm.messages import ImageMessage
 
 class ImageClient(ClientBase):
@@ -21,6 +22,11 @@ class ImageClient(ClientBase):
             setup_values = {'api_url': config.llm_api, 'llm': config.llm, 'llm_params': config.llm_params, 'custom_token_count': config.custom_token_count}
         
         super().__init__(**setup_values, secret_key_files=[image_secret_key_file, secret_key_file])
+
+        try:
+            self._sonnet_cache_connector = SonnetCacheConnector(getattr(config, 'sonnet_prompt_caching_enabled', False))
+        except Exception:
+            self._sonnet_cache_connector = SonnetCacheConnector(False)
 
         if self.__custom_vision_model:
             if self._is_local:
@@ -142,6 +148,12 @@ class ImageClient(ClientBase):
             
             if not base_success:
                 return False
+            
+            # Update Sonnet cache connector with new config
+            try:
+                self._sonnet_cache_connector = SonnetCacheConnector(getattr(config, 'sonnet_prompt_caching_enabled', False))
+            except Exception as e:
+                logging.debug(f"Failed to update Sonnet cache connector during hot-swap: {e}")
             
             # Update vision-specific settings
             self.__vision_prompt = config.vision_prompt.format(game=config.game.display_name)

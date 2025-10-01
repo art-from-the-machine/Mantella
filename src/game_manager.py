@@ -160,6 +160,13 @@ class GameStateManager:
                 config.multi_npc_custom_token_count,
                 multi_npc_secret_key_files
             )
+            try:
+                from src.llm.sonnet_cache_connector import SonnetCacheConnector
+                multi_npc_client._sonnet_cache_connector = SonnetCacheConnector(
+                    getattr(config, 'sonnet_prompt_caching_enabled', False)
+                )
+            except Exception as e:
+                logging.debug(f"Failed to attach Sonnet cache connector to multi-NPC client (diff settings): {e}")
         elif config.apply_profile_multi_npc:
             # Same settings as main LLM but profile application is enabled for multi-NPC
             # Create a separate client with profile-applied parameters
@@ -194,6 +201,13 @@ class GameStateManager:
                 config.custom_token_count,
                 multi_npc_secret_key_files
             )
+            try:
+                from src.llm.sonnet_cache_connector import SonnetCacheConnector
+                multi_npc_client._sonnet_cache_connector = SonnetCacheConnector(
+                    getattr(config, 'sonnet_prompt_caching_enabled', False)
+                )
+            except Exception as e:
+                logging.debug(f"Failed to attach Sonnet cache connector to multi-NPC client (same settings + profile): {e}")
         else:
             # Use the same client for multi-NPC conversations
             multi_npc_client = None
@@ -591,6 +605,15 @@ class GameStateManager:
                     selected_secret_key_files
                 )
                 
+                # Enable Sonnet prompt caching for random client
+                try:
+                    from src.llm.sonnet_cache_connector import SonnetCacheConnector
+                    conversation_llm_client._sonnet_cache_connector = SonnetCacheConnector(
+                        getattr(self.__config, 'sonnet_prompt_caching_enabled', False)
+                    )
+                except Exception as e:
+                    logging.debug(f"Failed to attach Sonnet cache connector to random one-on-one client: {e}")
+                
                 profile_status = "with profile" if llm_selection.from_profile else "without profile"
                 logging.info(f"Using randomly selected LLM for one-on-one conversation: {llm_selection.service}/{llm_selection.model} ({profile_status})")
             
@@ -615,6 +638,15 @@ class GameStateManager:
                     multi_npc_selection.token_count,
                     multi_npc_secret_key_files
                 )
+                
+                # Enable Sonnet prompt caching for random multi-NPC client
+                try:
+                    from src.llm.sonnet_cache_connector import SonnetCacheConnector
+                    multi_npc_conversation_client._sonnet_cache_connector = SonnetCacheConnector(
+                        getattr(self.__config, 'sonnet_prompt_caching_enabled', False)
+                    )
+                except Exception as e:
+                    logging.debug(f"Failed to attach Sonnet cache connector to random multi-NPC client: {e}")
                 
                 # Update the chat manager with the randomly selected multi-NPC client
                 self.__chat_manager.update_multi_npc_client(multi_npc_conversation_client)

@@ -12,6 +12,8 @@ from src.llm.message_thread import message_thread
 from src.llm.messages import Message, ImageMessage, UserMessage
 from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
+from src.llm.sonnet_cache_connector import SonnetCacheConnector
+import json
 
 class ClientBase(AIClient):
     '''Base class for connecting to OpenAI-compatible endpoints
@@ -39,6 +41,7 @@ class ClientBase(AIClient):
         self._startup_async_client: AsyncOpenAI | None = None
         self._request_params: dict[str, Any] | None = llm_params
         self._image_client = None
+        self._sonnet_cache_connector: SonnetCacheConnector | None = None
 
         if 'https' in self._base_url: # Cloud LLM
             self._is_local: bool = False
@@ -100,7 +103,10 @@ class ClientBase(AIClient):
         Returns:
             AsyncOpenAI: The new async client object
         """
-        return AsyncOpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=self._header)
+        headers = self._header
+        if self._sonnet_cache_connector and self._sonnet_cache_connector.is_applicable(self._base_url, self._model_name):
+            headers = self._sonnet_cache_connector.augment_headers(headers)
+        return AsyncOpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=headers)
 
 
     @utils.time_it
@@ -113,7 +119,10 @@ class ClientBase(AIClient):
         Returns:
             OpenAI: The new sync client object
         """
-        return OpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=self._header)
+        headers = self._header
+        if self._sonnet_cache_connector and self._sonnet_cache_connector.is_applicable(self._base_url, self._model_name):
+            headers = self._sonnet_cache_connector.augment_headers(headers)
+        return OpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=headers)
 
 
     @utils.time_it
@@ -127,11 +136,18 @@ class ClientBase(AIClient):
                 openai_messages = [messages.get_openai_message()]
             else:
                 openai_messages = messages.get_openai_messages()
-            
+
             if self._request_params:
                 request_params = self._request_params
             else:
                 request_params: dict[str, Any] = {}
+            
+            # Apply Sonnet cache breakpoint AFTER all message transformations
+            if self._sonnet_cache_connector and self._sonnet_cache_connector.is_applicable(self._base_url, self._model_name):
+                try:
+                    openai_messages = self._sonnet_cache_connector.transform_messages(openai_messages)
+                except Exception as e:
+                    logging.debug(f"Sonnet caching transform (sync) failed: {e}")
             
             # Log LLM parameters being sent to API
             logging.info(f"LLM Request Parameters: model='{self.model_name}', base_url='{self._base_url}', params={request_params}")
@@ -193,9 +209,17 @@ class ClientBase(AIClient):
                     last_message = messages.get_last_message()
                     if isinstance(last_message, UserMessage):
                         vision_hints = last_message.get_ingame_events_text()
+
                 if self._image_client:
                     openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
-
+                
+                # Apply Sonnet cache breakpoint AFTER all message transformations (including vision)
+                if self._sonnet_cache_connector and self._sonnet_cache_connector.is_applicable(self._base_url, self._model_name):
+                    try:
+                        openai_messages = self._sonnet_cache_connector.transform_messages(openai_messages)
+                    except Exception as e:
+                        logging.debug(f"Sonnet caching transform (stream) failed: {e}")
+                
                 # Log LLM parameters being sent to API
                 logging.info(f"LLM Request Parameters: model='{self.model_name}', base_url='{self._base_url}', params={request_params}")
 

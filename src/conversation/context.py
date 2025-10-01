@@ -385,7 +385,7 @@ class Context:
         return "\n\n".join(bio_descriptions)
     
     @utils.time_it
-    def __get_bios_and_summaries_text(self) -> str:
+    def __get_bios_and_summaries_text(self, include_memories: bool = True) -> str:
         """Gets the bios and summaries combined for each character in the conversation
 
         Returns:
@@ -399,7 +399,9 @@ class Context:
             bio = character.bio
             
             # Get the summary for this specific character using the new interface method
-            summary = self.__rememberer.get_character_summary(character, self.__world_id)
+            summary = ""
+            if include_memories:
+                summary = self.__rememberer.get_character_summary(character, self.__world_id)
             
             # Combine bio and summary for this character
             if len(non_player_characters) == 1:
@@ -472,6 +474,9 @@ class Context:
         names = self.get_character_names_as_text(False)
         names_w_player = self.get_character_names_as_text(True)
         bios = self.__get_bios_text()
+        is_multi_npc_context = self.npcs_in_conversation.contains_multiple_npcs()
+        include_memories = not (is_multi_npc_context and self.__config.multi_npc_bios_only)
+        bios_and_summaries = self.__get_bios_and_summaries_text(include_memories=include_memories)
         trusts = self.__get_trusts()
         equipment = self.__get_npc_equipment_text()
         location = self.__location
@@ -483,17 +488,16 @@ class Context:
             self.__prev_game_time = str(time), time_group
         else:
             self.__prev_game_time = None, time_group
-        if self.__config.multi_npc_bios_only and self.npcs_in_conversation.contains_multiple_npcs():
-            # Omit summaries in multi-NPC prompts; still supply bios and map bios_and_summaries to bios
-            logging.log(23, 'Multi-NPC bios-only mode enabled: omitting conversation summaries and using bios for bios_and_summaries.')
-            conversation_summaries = ""
-            bios_and_summaries = bios
-        else:
+        conversation_summaries = ""
+        if include_memories:
             conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
-            bios_and_summaries = self.__get_bios_and_summaries_text()
         actions = self.__get_action_texts(actions_for_prompt)
 
-        removal_content: list[tuple[str, str, str]] = [(bios, conversation_summaries, bios_and_summaries),(bios,"", ""),("","", "")]
+        removal_content: list[tuple[str, str, str]] = [
+            (bios, conversation_summaries, bios_and_summaries),
+            (bios, "", ""),
+            ("", "", ""),
+        ]
         have_bios_been_dropped = False
         have_summaries_been_dropped = False
         logging.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')

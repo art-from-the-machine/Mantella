@@ -4,6 +4,7 @@ from openai import AsyncOpenAI
 from src.config.config_loader import ConfigLoader
 from src.llm.image_client import ImageClient
 from src.llm.client_base import ClientBase
+from src.llm.sonnet_cache_connector import SonnetCacheConnector
 
 class LLMClient(ClientBase):
     '''LLM class to handle NPC responses
@@ -41,6 +42,12 @@ class LLMClient(ClientBase):
                 llm_params = config.llm_params
         
         super().__init__(config.llm_api, config.llm, llm_params, config.custom_token_count, secret_key_files)
+
+        # Enable Sonnet prompt caching via OpenRouter if configured
+        try:
+            self._sonnet_cache_connector = SonnetCacheConnector(getattr(config, 'sonnet_prompt_caching_enabled', False))
+        except Exception:
+            self._sonnet_cache_connector = SonnetCacheConnector(False)
 
         if self._is_local:
             logging.info(f"Running Mantella with local language model")
@@ -107,6 +114,12 @@ class LLMClient(ClientBase):
             
             if not success:
                 return False
+            
+            # Update Sonnet cache connector with new config
+            try:
+                self._sonnet_cache_connector = SonnetCacheConnector(getattr(config, 'sonnet_prompt_caching_enabled', False))
+            except Exception as e:
+                logging.debug(f"Failed to update Sonnet cache connector during hot-swap: {e}")
             
             # Update image client if vision is enabled
             if config.vision_enabled:

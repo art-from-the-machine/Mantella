@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import List
 import logging
 from src.llm.client_base import ClientBase
+from src.llm.sonnet_cache_connector import SonnetCacheConnector
 from src.config.config_loader import ConfigLoader
 
 
@@ -74,13 +75,18 @@ class OpenRouterServiceProvider(LLMServiceProvider):
             logging.error(f"Error applying profile for per-character LLM {self.get_display_name()}/{model}: {e}")
             llm_params = config.llm_params
         
-        return ClientBase(
+        client = ClientBase(
             api_url=self.get_api_url(),
             llm=model,
             llm_params=llm_params,
             custom_token_count=config.custom_token_count,
             secret_key_files=self.get_secret_key_files('GPT_SECRET_KEY.txt')
         )
+        try:
+            client._sonnet_cache_connector = SonnetCacheConnector(getattr(config, 'sonnet_prompt_caching_enabled', False))
+        except Exception as e:
+            logging.debug(f"Failed to attach Sonnet cache connector: {e}")
+        return client
     
     def get_api_url(self) -> str:
         return "OpenRouter"

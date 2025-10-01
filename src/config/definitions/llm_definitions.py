@@ -102,6 +102,20 @@ class LLMDefinitions:
         return ConfigValueString("llm_params", "Parameters", description, value, tags=[ConfigValueTag.advanced])
 
     @staticmethod
+    def get_sonnet_prompt_caching_config_value() -> ConfigValue:
+        description = (
+            "(OpenRouter + Sonnet only) Enable Anthropic prompt caching with a single breakpoint at the end of the static prompt. "
+            "Sends the required header and marks the system prompt for caching so the player's latest input stays at the end."
+        )
+        return ConfigValueBool(
+            "sonnet_prompt_caching_enabled",
+            "Enable Sonnet Prompt Caching",
+            description,
+            False,
+            tags=[ConfigValueTag.advanced]
+        )
+
+    @staticmethod
     def get_allow_per_character_llm_overrides_config_value() -> ConfigValue:
         description = """Allow per-character LLM model overrides for one-on-one conversations.
                         When enabled, individual characters can use different LLM models specified in the character CSV files (LLM-OR column for OpenRouter models).
