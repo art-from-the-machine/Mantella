@@ -13,22 +13,34 @@ from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from src.llm.sentence import Sentence
 from src.conversation.action import Action
 from src.llm.function_client import FunctionClient
+from src.llm.messages import AssistantMessage
 import time
 
 class MockAIClient:
     """Mock AIClient for testing that simulates different response patterns"""
-    def __init__(self, response_pattern=None, error_on_call=False, delay=0.01):
+    def __init__(self, response_pattern=None, tool_calls=None, error_on_call=False, delay=0.01):
         self.response_pattern = response_pattern if response_pattern is not None else ["Hello there."]
+        self.tool_calls = tool_calls
         self.error_on_call = error_on_call
         self.delay = delay
+        self.call_count = 0  # Track number of calls for two-call (tools, text) pattern simulation
         
-    async def streaming_call(self, messages=None, is_multi_npc=False):
+    async def streaming_call(self, messages=None, is_multi_npc=False, tools=None):
         """Simulates streaming call with configurable response patterns"""
         if self.error_on_call:
             raise Exception("Simulated API error")
-            
+        
+        self.call_count += 1
+        
+        # First call with tools: return tool_calls if configured
+        if tools and self.tool_calls and self.call_count == 1:
+            # Yield tool calls at the end of streaming (simulating accumulation)
+            yield ("tool_calls", self.tool_calls)
+            return
+        
+        # Second call or call without tools: return content
         for chunk in self.response_pattern:
-            yield chunk
+            yield ("content", chunk)
             await asyncio.sleep(self.delay)  # Small delay to simulate streaming
     
     def get_count_tokens(self, text):
@@ -90,7 +102,7 @@ def output_manager(default_config: ConfigLoader, piper: Piper, mock_ai_client: M
     # Mock get_audio_duration as well
     monkeypatch.setattr('src.utils.get_audio_duration', lambda *args, **kwargs: 1.0)
     
-    manager = ChatManager(default_config, piper, mock_ai_client, default_function_client)
+    manager = ChatManager(default_config, piper, mock_ai_client)
     return manager
 
 def get_sentence_list_from_queue(queue: SentenceQueue) -> list[Sentence]:
@@ -152,6 +164,133 @@ async def test_process_response_interrupt_action(output_manager: ChatManager, ex
     assert sentence.content.text.strip() == "Here is what I have." # Only the first sentence should remain
     assert sentence.content.actions # Should have actions
     assert "menu" in sentence.content.actions # Check if the specific action identifier is present
+
+
+@pytest.mark.asyncio
+async def test_process_response_with_tool_calls(output_manager: ChatManager, example_skyrim_npc_character: Character, example_characters_pc_to_npc: Characters, mock_queue: SentenceQueue, mock_messages: message_thread, mock_actions: list[Action], monkeypatch):
+    """Test the two-call pattern: first call returns tool_calls, second call returns text"""
+    # Mock tools list
+    mock_tools = [{"type": "function", "function": {"name": "follow_npc"}}]
+    
+    # Configure client to return tool calls on first call
+    client = output_manager._ChatManager__client
+    client.tool_calls = [
+        {
+            "id": "call_123",
+            "type": "function",
+            "function": {
+                "name": "Follow"
+            }
+        }
+    ]
+    client.response_pattern = ["I'll ", "follow ", "you."]
+    
+    # Mock FunctionManager.parse_function_calls
+    def mock_parse(tool_calls):
+        return [{"identifier": "mantella_npc_follow"}]
+    monkeypatch.setattr("src.actions.function_manager.FunctionManager.parse_function_calls", mock_parse)
+    
+    await output_manager.process_response(example_skyrim_npc_character, mock_queue, mock_messages, example_characters_pc_to_npc, mock_actions, mock_tools)
+    
+    output_sentences = get_sentence_list_from_queue(mock_queue)
+    
+    # Should have sentences: text response + empty terminator
+    assert len(output_sentences) == 2
+    
+    # First sentence should have the text and the action attached
+    sentence = output_sentences[0]
+    assert "follow" in sentence.content.text.lower()
+    assert "mantella_npc_follow" in sentence.content.actions
+
+
+@pytest.mark.asyncio
+async def test_process_response_with_multiple_tool_calls(output_manager: ChatManager, example_skyrim_npc_character: Character, example_characters_pc_to_npc: Characters, mock_queue: SentenceQueue, mock_messages: message_thread, mock_actions: list[Action], monkeypatch):
+    """Test handling of multiple tool calls in a single response"""
+    mock_tools = [
+        {"type": "function", "function": {"name": "follow_npc"}},
+        {"type": "function", "function": {"name": "draw_weapon"}}
+    ]
+    
+    client = output_manager._ChatManager__client
+    client.tool_calls = [
+        {
+            "id": "call_123",
+            "type": "function",
+            "function": {
+                "name": "Follow"
+            }
+        },
+        {
+            "id": "call_456",
+            "type": "function",
+            "function": {
+                "name": "DrawWeapon"
+            }
+        }
+    ]
+    client.response_pattern = ["Okay, ", "let's ", "go."]
+    
+    def mock_parse(tool_calls):
+        return [
+            {"identifier": "mantella_npc_follow"},
+            {"identifier": "mantella_draw_weapon"}
+        ]
+    monkeypatch.setattr("src.actions.function_manager.FunctionManager.parse_function_calls", mock_parse)
+    
+    await output_manager.process_response(example_skyrim_npc_character, mock_queue, mock_messages, example_characters_pc_to_npc, mock_actions, mock_tools)
+    
+    output_sentences = get_sentence_list_from_queue(mock_queue)
+    
+    # Should have sentences: text response + empty terminator
+    assert len(output_sentences) == 2
+    
+    # First sentence should have both actions attached
+    sentence = output_sentences[0]
+    assert "mantella_npc_follow" in sentence.content.actions
+    assert "mantella_draw_weapon" in sentence.content.actions
+
+
+@pytest.mark.asyncio
+async def test_process_response_tool_calls_added_to_message_thread(output_manager: ChatManager, example_skyrim_npc_character: Character, example_characters_pc_to_npc: Characters, mock_queue: SentenceQueue, mock_messages: message_thread, mock_actions: list[Action], monkeypatch):
+    """Test that tool calls are properly added to the message thread"""
+    mock_tools = [{"type": "function", "function": {"name": "attack_npc"}}]
+    
+    client = output_manager._ChatManager__client
+    client.tool_calls = [
+        {
+            "id": "call_789",
+            "type": "function",
+            "function": {
+                "name": "Attack",
+                "arguments": '{"target": "bandit"}'
+            }
+        }
+    ]
+    client.response_pattern = ["Never ", "should ", "have ", "come ", "here."]
+    
+    def mock_parse(tool_calls):
+        return [{"identifier": "mantella_attack", "arguments": {"target": "bandit"}}]
+    monkeypatch.setattr("src.actions.function_manager.FunctionManager.parse_function_calls", mock_parse)
+    
+    # Get initial message count
+    initial_message_count = len(mock_messages)
+    
+    await output_manager.process_response(example_skyrim_npc_character, mock_queue, mock_messages, example_characters_pc_to_npc, mock_actions, mock_tools)
+    
+    # Message thread should have new messages added (tool call message + final text message)
+    assert len(mock_messages) > initial_message_count
+    
+    # Check that an AssistantMessage with tool_calls was added
+    assistant_messages = [msg for msg in mock_messages._message_thread__messages if isinstance(msg, AssistantMessage)]
+    
+    # Should have at least one assistant message with tool_calls
+    tool_call_messages = [msg for msg in assistant_messages if msg.tool_calls is not None]
+    assert len(tool_call_messages) >= 1
+    
+    # Verify the tool call content
+    tool_call_msg = tool_call_messages[0]
+    assert len(tool_call_msg.tool_calls) == 1
+    assert tool_call_msg.tool_calls[0]["function"]["name"] == "Attack"
 
 
 @pytest.mark.asyncio

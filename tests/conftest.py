@@ -65,6 +65,7 @@ def llm_client(default_config: ConfigLoader) -> LLMClient:
 @pytest.fixture
 def default_function_client(default_config: ConfigLoader) -> FunctionClient:
     """Provides a FunctionClient instance for testing"""
+    FunctionManager.load_all_actions() # This is called on server startup, but not when creating the client standalone
     return FunctionClient(default_config, "GPT_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
 
 @pytest.fixture

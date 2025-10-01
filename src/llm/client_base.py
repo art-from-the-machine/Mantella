@@ -39,6 +39,7 @@ class ClientBase(AIClient):
         self._startup_async_client: AsyncOpenAI | None = None
         self._request_params: dict[str, Any] | None = llm_params
         self._image_client = None
+        self._function_client = None
 
         if 'https' in self._base_url: # Cloud LLM
             self._is_local: bool = False
@@ -181,7 +182,7 @@ class ClientBase(AIClient):
         
 
     @utils.time_it
-    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool, tools: list[dict] = None) -> AsyncGenerator[tuple[str, str | list] | None, None]:
         with self._generation_lock:
             logging.log(28, 'Getting LLM response...')
 
@@ -212,6 +213,20 @@ class ClientBase(AIClient):
                 if self._image_client:
                     openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
 
+                # Check for function calls before main LLM response
+                # TODO: Add this as option when using second LLM for tool calling
+                # if self._function_client and tools:
+                #     function_results = self._function_client.check_for_actions(messages, tools)
+                #     if function_results:
+                #         logging.log(23, f"Function calling results: {function_results}")
+
+                # Add tools parameter to the API call if provided
+                if tools:
+                    request_params["tools"] = tools
+                
+                # Tool call accumulation variables
+                accumulated_tool_calls = {}  # Dict to track partial tool calls by index
+                
                 async for chunk in await async_client.chat.completions.create(
                     model=self.model_name, 
                     messages=openai_messages, 
@@ -219,11 +234,43 @@ class ClientBase(AIClient):
                     **request_params,
                 ):
                     try:
-                        if chunk and chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                            yield chunk.choices[0].delta.content
+                        if chunk and chunk.choices and chunk.choices[0].delta:
+                            delta = chunk.choices[0].delta
+                            
+                            # Handle regular content
+                            if delta.content:
+                                yield ("content", delta.content)
+                            
+                            # Accumulate tool calls by index
+                            if delta.tool_calls:
+                                for tool_call in delta.tool_calls:
+                                    idx = tool_call.index
+                                    if idx not in accumulated_tool_calls:
+                                        accumulated_tool_calls[idx] = {
+                                            "id": tool_call.id if tool_call.id else "",
+                                            "type": "function",
+                                            "function": {
+                                                "name": "",
+                                                "arguments": ""
+                                            }
+                                        }
+                                    
+                                    # Accumulate the parts
+                                    if tool_call.id:
+                                        accumulated_tool_calls[idx]["id"] = tool_call.id
+                                    if tool_call.function and tool_call.function.name:
+                                        accumulated_tool_calls[idx]["function"]["name"] += tool_call.function.name
+                                    if tool_call.function and tool_call.function.arguments:
+                                        accumulated_tool_calls[idx]["function"]["arguments"] += tool_call.function.arguments
+                            
                     except Exception as e:
                         logging.error(f"LLM API Connection Error: {e}")
                         break
+                
+                # After streaming completes, yield any accumulated tool calls
+                if accumulated_tool_calls:
+                    tool_calls_list = [accumulated_tool_calls[i] for i in sorted(accumulated_tool_calls.keys())]
+                    yield ("tool_calls", tool_calls_list)
             except Exception as e:
                 utils.play_error_sound()
                 if isinstance(e, APIConnectionError):

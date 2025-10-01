@@ -21,6 +21,7 @@ from src.http.communication_constants import communication_constants as comm_con
 from src.stt import Transcriber
 import src.utils as utils
 from src.function_inference.function_manager import get_function_manager_instance
+from src.actions.function_manager import FunctionManager
 
 class conversation_continue_type(Enum):
     NPC_TALK = 1
@@ -387,7 +388,8 @@ class Conversation:
         with self.__generation_start_lock:
             if not self.__generation_thread:
                 self.__sentences.is_more_to_come = True
-                self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions]).start()   
+                tools = FunctionManager.generate_context_aware_tools(self.__context)
+                self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions, tools]).start()   
 
     @utils.time_it
     def __stop_generation(self):

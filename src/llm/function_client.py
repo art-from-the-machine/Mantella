@@ -32,6 +32,8 @@ class FunctionClient(ClientBase):
             else:
                 logging.log(23, f"Running Mantella with custom function model '{config.function_llm}'")
 
+        FunctionManager.load_all_actions()
+
         # TODO: Read tools from data/actions/ folder
         self.__tools = [
             {
@@ -120,12 +122,13 @@ class FunctionClient(ClientBase):
 
 
     @utils.time_it
-    def check_for_actions(self, messages: message_thread, response_so_far: str) -> list[dict] | None:
+    def check_for_actions(self, messages: message_thread, response_so_far: str, context) -> list[dict] | None:
         """Check if any actions should be called based on the conversation
         
         Args:
             messages: The conversation thread to analyze
             response_so_far: The first sentence returned by the LLM for additional context
+            context: The conversation Context object for generating context-aware tools
             
         Returns:
             Parsed function call results or None if no actions needed
@@ -133,12 +136,19 @@ class FunctionClient(ClientBase):
         
         logging.log(23, f"Function LLM analyzing conversation for potential actions...")
 
+        # Generate context-aware tools dynamically
+        tools = FunctionManager.generate_context_aware_tools(context)
+        
+        if not tools:
+            logging.debug("No available actions for current context")
+            return None
+
         thread = message_thread(self.__config, self.__prompt)
-        context = UserMessage(self.__config, f'User: {messages.get_last_message().text}\n\nAssistant: {response_so_far}')
-        thread.add_message(context)
+        context_message = UserMessage(self.__config, f'User: {messages.get_last_message().text}\n\nAssistant: {response_so_far}')
+        thread.add_message(context_message)
         
         # Call the function LLM with tools
-        tools_called = self.request_call_with_tools(thread, self.__tools)
+        tools_called = self.request_call_with_tools(thread, tools)
         
         if not tools_called:
             logging.debug("No response from Function LLM")

@@ -117,7 +117,7 @@ class Context:
 
     @utils.time_it
     def get_custom_context_value(self, key: str) -> Any | None:
-        if self.__custom_context_values.__contains__(key):
+        if self.__custom_context_values and self.__custom_context_values.__contains__(key):
             return self.__custom_context_values[key]
         return None
 
@@ -401,6 +401,8 @@ class Context:
                 player_description = game_sent_description
         if self.npcs_in_conversation.last_added_character:
             name: str = self.npcs_in_conversation.last_added_character.name
+        else:
+            name = self.get_character_names_as_text(False)
         names = self.get_character_names_as_text(False)
         names_w_player = self.get_character_names_as_text(True)
         bios = self.__get_bios_text()
