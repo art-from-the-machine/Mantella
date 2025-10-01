@@ -183,7 +183,6 @@ class ChatManager:
             self.__config = config
             self.__tts = tts
             self.__client = client
-            
             # Update vision client reference for hot swap
             self.__vision_client = getattr(client, '_image_client', None)
             

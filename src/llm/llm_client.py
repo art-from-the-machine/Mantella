@@ -121,6 +121,12 @@ class LLMClient(ClientBase):
             except Exception as e:
                 logging.debug(f"Failed to update Sonnet cache connector during hot-swap: {e}")
             
+            # Prewarm a new async client so the very next request uses updated headers (e.g., Sonnet caching)
+            try:
+                self._startup_async_client = self.generate_async_client()
+            except Exception:
+                self._startup_async_client = None
+
             # Update image client if vision is enabled
             if config.vision_enabled:
                 if self._image_client:
