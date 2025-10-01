@@ -128,6 +128,7 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_apply_profile_multi_npc_config_value())
         llm_category.add_config_value(LLMDefinitions.get_apply_profile_summaries_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_bios_only_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_conversation_summary_enabled_config_value())
         
         # Random LLM Selection
         llm_category.add_config_value(OtherDefinitions.get_random_llm_one_on_one_enabled_config_value())
@@ -253,7 +254,6 @@ class MantellaConfigValueDefinitionsNew:
 
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
-        other_category.add_config_value(OtherDefinitions.get_conversation_summary_enabled_config_value())
         other_category.add_config_value(OtherDefinitions.get_active_actions(actions))
         other_category.add_config_value(OtherDefinitions.get_reload_character_data_config_value())
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
