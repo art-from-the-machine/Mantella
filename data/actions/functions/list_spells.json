@@ -9,7 +9,7 @@
             "items": {"type": "string"}
         }
     },
-    "system_prompt_info": "`{GPT_func_name}` if requested to list the spells that a NPC has or knows.",
+    "prompt": "`{key}` if requested to list the spells that a NPC has or knows.",
     "required": ["list_spells_mode"],
     "allowed_games": ["skyrim"],
     "is_generic_npc_function": true,

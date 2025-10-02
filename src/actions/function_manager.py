@@ -21,14 +21,6 @@ class FunctionManager:
         if tools_called:
             for tool_call in tools_called:
                 try:
-                    try:
-                        # While the LLM should return arguments in JSON format, 
-                        # the OpenAI package returns them in a string format in case of malformed JSON
-                        parsed_arguments = json.loads(tool_call['function']['arguments'])
-                    except json.JSONDecodeError:
-                        logging.warning(f"Could not parse function arguments as JSON: {tool_call['function']['arguments']}")
-                        parsed_arguments = {}
-
                     # Find the action identifier from the function name
                     identifier = None
                     for action_id, action_data in FunctionManager._actions.items():
@@ -37,7 +29,15 @@ class FunctionManager:
                             break
                     
                     if not identifier:
-                        identifier = tool_call['function']['name']  # fallback
+                        break  # Unknown function, skip
+
+                    try:
+                        # While the LLM should return arguments in JSON format, 
+                        # the OpenAI package returns them in a string format in case of malformed JSON
+                        parsed_arguments = json.loads(tool_call['function']['arguments'])
+                    except json.JSONDecodeError:
+                        logging.warning(f"Could not parse function arguments as JSON: {tool_call['function']['arguments']}")
+                        parsed_arguments = {}
 
                     parsed_tool = {
                         'identifier': identifier,
@@ -73,14 +73,13 @@ class FunctionManager:
                 logging.warning(f"Failed to load action file {file_path}: {e}")
 
         # Load functions folder
-        # TODO: Enable use of these actions
-        # functions_dir = actions_dir / "functions"
-        # if functions_dir.exists():
-        #     for file_path in functions_dir.glob("*.json"):
-        #         try:
-        #             FunctionManager._load_action_file(file_path)
-        #         except Exception as e:
-        #             logging.warning(f"Failed to load function file {file_path}: {e}")
+        functions_dir = actions_dir / "functions"
+        if functions_dir.exists():
+            for file_path in functions_dir.glob("*.json"):
+                try:
+                    FunctionManager._load_action_file(file_path)
+                except Exception as e:
+                    logging.warning(f"Failed to load function file {file_path}: {e}")
 
         logging.log(23, f"Loaded {len(FunctionManager._actions)} actions from data/actions/")
 

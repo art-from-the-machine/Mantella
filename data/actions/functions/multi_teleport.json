@@ -24,7 +24,7 @@
             "items": {"type": "number"}
         }
     },
-    "system_prompt_info": "`{GPT_func_name}` if requested to wait or stop",
+    "prompt": "`{key}` if requested to wait or stop",
     "required": ["target_npc_id","source_npc_ids"],
     "allowed_games": ["skyrim"],
     "is_generic_npc_function": true,

@@ -8,7 +8,7 @@
             "description": "The type of item to loot."
         }
     },
-    "system_prompt_info": "`{GPT_func_name}` if requested to loot, scavenge or collect items",
+    "prompt": "`{key}` if requested to loot, scavenge or collect items",
     "required": ["item_mode"],
     "allowed_games": ["fallout4","skyrim"],
     "is_generic_npc_function": true,

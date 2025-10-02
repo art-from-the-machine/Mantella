@@ -19,7 +19,7 @@
             "items": {"type": "string"}
         }
     },
-    "system_prompt_info": "`{GPT_func_name}` if requested to move or follow",
+    "prompt": "`{key}` if requested to move or follow",
     "required": ["target_npc_id"],
     "allowed_games": ["skyrim"],
     "is_generic_npc_function": true,

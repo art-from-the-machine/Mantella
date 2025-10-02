@@ -9,7 +9,7 @@
             "items": {"type": "string"}
         }
     },
-    "system_prompt_info": "`{GPT_func_name}` if requested to train the player in a skill.",
+    "prompt": "`{key}` if requested to train the player in a skill.",
     "required": ["skill_to_train_mode"],
     "allowed_games": ["skyrim"],
     "is_generic_npc_function": true,

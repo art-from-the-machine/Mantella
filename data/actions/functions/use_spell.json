@@ -13,7 +13,7 @@
             "items": {"type": "string"}
         }
     },
-    "system_prompt_info" : "`{GPT_func_name}` if requested to use a specific spell.",
+    "prompt" : "`{key}` if requested to use a specific spell.",
     "required": ["spell_mode","target_npc_id"],
     "allowed_games": ["skyrim"],
     "is_generic_npc_function": true,

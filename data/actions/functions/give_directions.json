@@ -8,7 +8,7 @@
             "description": "The location to which the NPC should give directions."
         }
     },
-    "system_prompt_info": "`{GPT_func_name}` if requested to give directions to a location.",
+    "prompt": "`{key}` if requested to give directions to a location.",
     "required": ["give_directions_mode"],
     "allowed_games": ["skyrim"],
     "is_generic_npc_function": true,

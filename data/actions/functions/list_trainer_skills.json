@@ -9,7 +9,7 @@
             "items": {"type": "string"}
         }
     },
-    "system_prompt_info": "`{GPT_func_name}` if requested to list the skills that a NPC can train the player in.",
+    "prompt": "`{key}` if requested to list the skills that a NPC can train the player in.",
     "required": ["list_trainer_skills_mode"],
     "allowed_games": ["skyrim"],
     "is_generic_npc_function": true,

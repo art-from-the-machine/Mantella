@@ -8,7 +8,7 @@
             "description": "Set to true to make the NPC wait at their current position."
         }
     },
-    "system_prompt_info": "`{GPT_func_name}` if requested to wait or stop",
+    "prompt": "`{key}` if requested to wait or stop",
     "required": ["is_waiting"],
     "allowed_games": ["fallout4","skyrim"],
     "is_generic_npc_function": true,

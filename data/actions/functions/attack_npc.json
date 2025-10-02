@@ -19,7 +19,7 @@
             "items": {"type": "string"}
         }
     },
-    "system_prompt_info" : "`{GPT_func_name}` if requested to attack or shoot at another NPC",
+    "prompt" : "`{key}` if requested to attack or shoot at another NPC",
     "required": ["target_npc_id"],
     "allowed_games": ["fallout4", "skyrim"],
     "is_generic_npc_function": true,
