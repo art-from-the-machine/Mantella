@@ -114,13 +114,13 @@ class SonnetCacheConnector:
             part = contents[idx]
             if isinstance(part, dict) and part.get("type") == "text":
                 updated_part = dict(part)
-                updated_part["cache_control"] = {"type": "ephemeral"}
+                updated_part["cache_control"] = {"type": "ephemeral", "ttl": "1h"}
                 contents[idx] = updated_part
                 message["content"] = contents
                 logging.debug(f"Sonnet cache: added cache_control to existing text block at index {idx}")
                 return
 
-        contents.append({"type": "text", "text": "", "cache_control": {"type": "ephemeral"}})
+        contents.append({"type": "text", "text": "", "cache_control": {"type": "ephemeral", "ttl": "1h"}})
         message["content"] = contents
         logging.debug("Sonnet cache: appended empty text block with cache_control")
 
