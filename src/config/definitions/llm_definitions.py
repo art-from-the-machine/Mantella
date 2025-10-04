@@ -283,3 +283,11 @@ class LLMDefinitions:
                         When enabled, conversation summaries are omitted from prompts for multi-NPC chats. Other behaviors remain unchanged."""
         return ConfigValueBool("multi_npc_bios_only", "Send Only Bios (Multi-NPC)", description, False)
 
+    @staticmethod
+    def get_multi_conversation_director_mode_config_value() -> ConfigValue:
+        description = """Enable Multi Conversation Director Mode for Skyrim multi-NPC conversations.
+                        When enabled, multi-NPC conversations will use a specialized director-style prompt instead of the standard multi-NPC prompt.
+                        This mode provides more detailed instructions for managing group conversations.
+                        Note: This only affects Skyrim multi-NPC conversations, not radiant or single-NPC conversations."""
+        return ConfigValueBool("multi_conversation_director_mode", "Multi Conversation Director Mode", description, False)
+

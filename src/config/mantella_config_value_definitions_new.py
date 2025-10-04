@@ -128,6 +128,7 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_apply_profile_multi_npc_config_value())
         llm_category.add_config_value(LLMDefinitions.get_apply_profile_summaries_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_bios_only_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_conversation_director_mode_config_value())
         llm_category.add_config_value(OtherDefinitions.get_conversation_summary_enabled_config_value())
         
         # Random LLM Selection
@@ -235,6 +236,7 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category = ConfigValueGroup("Prompts", "Prompts", "Change the basic prompts used by Mantella.", on_value_change_callback)
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_multi_npc_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_multi_npc_director_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_radiant_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_multi_npc_prompt_config_value())

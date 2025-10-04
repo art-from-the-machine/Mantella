@@ -97,6 +97,11 @@ class multi_npc(conversation_type):
     @utils.time_it
     def generate_prompt(self, context_for_conversation: Context) -> str:
         actions = [a for a in self._config.actions if a.use_in_multi_npc]
+        # Use director prompt if enabled and available (Skyrim only)
+        if (hasattr(self._config, 'multi_conversation_director_mode') and 
+            self._config.multi_conversation_director_mode and 
+            hasattr(self._config, 'multi_npc_director_prompt')):
+            return context_for_conversation.generate_system_message(self._config.multi_npc_director_prompt, actions)
         return context_for_conversation.generate_system_message(self._config.multi_npc_prompt, actions)
     
     @utils.time_it
