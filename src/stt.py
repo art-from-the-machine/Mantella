@@ -603,6 +603,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 self.refresh_freq = self.min_refresh_secs // self.CHUNK_DURATION
                 self.play_cough_sound = new_config.play_cough_sound
                 # PTT updates
+                ptt_mode_changed = self.ptt_enabled != getattr(new_config, 'ptt_enabled', False)
                 self.ptt_enabled = getattr(new_config, 'ptt_enabled', False)
                 if self.ptt_enabled:
                     hotkey = getattr(new_config, 'ptt_hotkey', None)
@@ -613,6 +614,13 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 else:
                     if self._ptt:
                         self._ptt.update_key(None)
+                
+                # Reset state when toggling PTT on/off to ensure clean transition
+                if ptt_mode_changed:
+                    self._ptt_active = False
+                    self._reset_state()
+                    self._soft_reset_vad()
+                    logging.info(f"PTT mode toggled to: {'enabled' if self.ptt_enabled else 'disabled'} - audio state reset")
 
                 # VAD thresholds
                 vad_threshold_changed = (self.audio_threshold != new_config.audio_threshold) or (self.pause_threshold != new_config.pause_threshold)
