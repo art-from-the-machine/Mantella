@@ -11,7 +11,7 @@ class SentenceContent:
         self.__speaker: Character = speaker
         self.__text: str = text
         self.__sentence_type: SentenceTypeEnum = sentence_type
-        self.__actions: list[str] = [] if actions is None else actions
+        self.__actions: list[dict] = [] if actions is None else actions
         self.__is_system_generated_sentence: bool = is_system_generated_sentence
 
     @property
@@ -35,11 +35,11 @@ class SentenceContent:
         self.__sentence_type = value
 
     @property
-    def actions(self) -> list[str]:
+    def actions(self) -> list[dict]:
         return self.__actions
     
     @actions.setter
-    def actions(self, value: list[str]):
+    def actions(self, value: list[dict]):
         self.__actions = value
     
     @property

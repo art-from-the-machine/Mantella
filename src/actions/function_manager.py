@@ -2,19 +2,21 @@ import logging
 import json
 from pathlib import Path
 from openai.types.chat.chat_completion_message import ChatCompletionMessageToolCall
+from src.characters_manager import Characters
 
 class FunctionManager:
     _actions: dict[str, dict] = {}  # Map identifier -> action data
 
     @staticmethod
-    def parse_function_calls(tools_called: list[ChatCompletionMessageToolCall]) -> list[dict]:
-        """Parse function calls from the LLM response
+    def parse_function_calls(tools_called: list[ChatCompletionMessageToolCall], characters: Characters = None) -> list[dict]:
+        """Parse function calls from the LLM response and validate arguments
         
         Args:
             tools_called: The result from the LLM
+            characters: Characters manager for NPC name validation (optional)
             
         Returns:
-            List of parsed function call information
+            List of parsed function call information with validated parameters
         """
         parsed_tools = []
         
@@ -39,13 +41,48 @@ class FunctionManager:
                         logging.warning(f"Could not parse function arguments as JSON: {tool_call['function']['arguments']}")
                         parsed_arguments = {}
 
+                    # Get the action definition to validate against
+                    action_def = FunctionManager._actions[identifier]
+                    defined_params = action_def.get('parameters', {})
+                    
+                    # Validate that arguments match the schema
+                    validated_args = FunctionManager._validate_arguments_against_schema(parsed_arguments, defined_params, identifier)
+                    
+                    # Validate NPCs named are actually in the conversation / exist
+                    if characters:
+                        # Handle source parameter (NPCs performing action)
+                        if 'source' in validated_args:
+                            source_names = validated_args['source']
+                            if not isinstance(source_names, list):
+                                source_names = [source_names]
+                            validated_args['source'] = FunctionManager._validate_npc_names(
+                                source_names, characters, exclude_player=True  # Player can't be controlled
+                            )
+
+                            # Skip this action if no valid NPCs (e.g., all names were invalid)
+                            if len(validated_args['source']) == 0:
+                                logging.warning(f"Skipping action '{identifier}' - no valid source NPCs")
+                                continue
+                        
+                        # Handle target parameter (NPCs being acted upon)
+                        if 'target' in validated_args:
+                            target_names = validated_args['target']
+                            if not isinstance(target_names, list):
+                                target_names = [target_names]
+                            validated_args['target'] = FunctionManager._validate_npc_names(
+                                target_names, characters, exclude_player=False  # Player can be target
+                            )
+
                     parsed_tool = {
-                        'identifier': identifier,
-                        'arguments': parsed_arguments
+                        'identifier': identifier
                     }
                     
+                    # Only include arguments if there are any,
+                    # tools without actions will be treated as basic actions
+                    if validated_args:
+                        parsed_tool['arguments'] = validated_args
+                    
                     parsed_tools.append(parsed_tool)
-                    logging.log(23, f"Parsed function call: {tool_call['function']['name']} -> {identifier} with args: {parsed_arguments}")
                 except Exception as e:
                     logging.error(f"Error parsing function call: {e}")
         
@@ -116,11 +153,15 @@ class FunctionManager:
 
             # Filter by conversation type
             is_multi_npc = context.npcs_in_conversation.contains_multiple_npcs()
-            if is_multi_npc:
-                if not action.get('multi_npc', True):
+            is_radiant = is_multi_npc and not context.npcs_in_conversation.contains_player_character()
+            if is_radiant:
+                if not action.get('radiant', False):
+                    continue
+            elif is_multi_npc:
+                if not action.get('multi_npc', action.get('multi-npc', False)):
                     continue
             else:
-                if not action.get('one_on_one', True):
+                if not action.get('one_on_one', action.get('one-on-one', False)):
                     continue
 
             # Create OpenAI tool definition
@@ -146,6 +187,77 @@ class FunctionManager:
             tools.append(tool)
 
         return tools
+
+
+    @staticmethod
+    def _validate_arguments_against_schema(llm_arguments: dict, defined_params: dict, action_identifier: str) -> dict:
+        """Validate that LLM-provided arguments match the action's parameter schema
+        
+        Args:
+            llm_arguments: Arguments provided by the LLM
+            defined_params: Parameter schema from the action JSON config
+            action_identifier: Identifier of the action (for logging)
+            
+        Returns:
+            Dictionary containing only valid arguments that match the schema
+        """
+        validated_args = {}
+        
+        # Check each LLM-provided argument against the schema
+        for arg_name, arg_value in llm_arguments.items():
+            if arg_name in defined_params:
+                # Argument is valid according to schema
+                validated_args[arg_name] = arg_value
+            else:
+                # LLM hallucinated a parameter that doesn't exist in the schema
+                logging.warning(
+                    f"LLM provided unknown argument '{arg_name}' for action '{action_identifier}'. "
+                    f"Valid parameters are: {list(defined_params.keys())}. Ignoring this argument."
+                )
+        
+        return validated_args
+
+
+    @staticmethod
+    def _validate_npc_names(npc_names: list[str], characters: Characters, exclude_player: bool = True) -> list[str]:
+        """Validate that NPC names exist in the conversation
+        
+        Args:
+            npc_names: List of NPC names to validate (from LLM)
+            characters: Characters manager containing character information
+            exclude_player: If True, filter out player character (default: True)
+            
+        Returns:
+            List of valid, unique NPC names
+        """
+        if not npc_names:
+            return []
+        
+        # Build case-insensitive lookup: lowercase name -> actual name
+        char_names_lower = {name.lower(): name for name in characters.get_all_names()}
+        
+        valid_names = []
+        seen_lower = set()
+        
+        for llm_name in npc_names:
+            llm_lower = llm_name.lower()
+            
+            if llm_lower in seen_lower:
+                continue
+            
+            if llm_lower in char_names_lower:
+                actual_name = char_names_lower[llm_lower]
+                
+                # Skip player if excluded
+                if exclude_player and characters.get_character_by_name(actual_name).is_player_character:
+                    continue
+                
+                valid_names.append(llm_name)  # Preserve LLM casing
+                seen_lower.add(llm_lower)
+            else:
+                logging.warning(f"NPC name '{llm_name}' not found in conversation. Available NPCs: {list(char_names_lower.values())}")
+        
+        return valid_names
 
 
     @staticmethod

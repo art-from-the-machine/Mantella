@@ -107,7 +107,7 @@ class GameStateManager:
                 reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play, topicInfoID)
                 self.__first_line = False
 
-                if comm_consts.ACTION_RELOADCONVERSATION in sentence_to_play.actions:
+                if {'identifier': comm_consts.ACTION_RELOADCONVERSATION} in sentence_to_play.actions:
                     # Reload on next continue, but first inform the player that a reload will happen with the "gather thoughts" voiceline
                     self.__should_reload = True
             else:
@@ -196,14 +196,6 @@ class GameStateManager:
             comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions,
             comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE: topicID
         }
-        if sentence_to_prepare.target_ids:
-            json_dict[comm_consts.FUNCTION_DATA_TARGET_IDS] = sentence_to_prepare.target_ids
-        if sentence_to_prepare.target_names:
-            json_dict[comm_consts.FUNCTION_DATA_TARGET_NAMES] = sentence_to_prepare.target_names
-        if sentence_to_prepare.source_ids:
-            json_dict[comm_consts.FUNCTION_DATA_SOURCE_IDS] = sentence_to_prepare.source_ids    
-        if sentence_to_prepare.function_call_modes:
-            json_dict[comm_consts.FUNCTION_DATA_MODES] = sentence_to_prepare.function_call_modes
 
         return json_dict
     

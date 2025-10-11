@@ -123,7 +123,7 @@ async def test_process_response_api_error(output_manager: ChatManager, example_s
     monkeypatch.setattr("src.utils.play_error_sound", lambda *a, **kw: None)
     monkeypatch.setattr(time, "sleep", lambda *a, **kw: None) # Skip sleeping between retries
     
-    await output_manager.process_response(example_skyrim_npc_character, mock_queue, mock_messages, example_characters_pc_to_npc, mock_actions)
+    await output_manager.process_response(example_skyrim_npc_character, mock_queue, mock_messages, example_characters_pc_to_npc, mock_actions, tools=None)
 
     output_sentences = get_sentence_list_from_queue(mock_queue)
 
@@ -139,7 +139,7 @@ async def test_process_response_actions(output_manager: ChatManager, example_sky
     """Test processing of actions embedded in the response"""
     output_manager._ChatManager__client.response_pattern = ["Wave: ", "See ", "you ", "later."]
     
-    await output_manager.process_response(example_skyrim_npc_character, mock_queue, mock_messages, example_characters_pc_to_npc, mock_actions)
+    await output_manager.process_response(example_skyrim_npc_character, mock_queue, mock_messages, example_characters_pc_to_npc, mock_actions, tools=None)
     
     output_sentences = get_sentence_list_from_queue(mock_queue)
     assert len(output_sentences) == 2 # Action+Speech, Empty
@@ -147,7 +147,11 @@ async def test_process_response_actions(output_manager: ChatManager, example_sky
     sentence = output_sentences[0]
     assert sentence.content.text.strip() == "See you later."
     assert sentence.content.actions # Should have actions
-    assert "wave" in sentence.content.actions # Check if the specific action identifier is present
+
+    action_identifiers = []
+    for action in sentence.content.actions:
+        action_identifiers.append(action['identifier'])
+    assert "wave" in action_identifiers # Check if the specific action identifier is present
 
 
 @pytest.mark.asyncio
@@ -155,7 +159,7 @@ async def test_process_response_interrupt_action(output_manager: ChatManager, ex
     """Test processing of actions embedded in the response that should interrupt the response"""
     output_manager._ChatManager__client.response_pattern = ["Menu: ", "Here ", "is ", "what ", "I ", "have.", "Ignore ", "this ", "part."]
     
-    await output_manager.process_response(example_skyrim_npc_character, mock_queue, mock_messages, example_characters_pc_to_npc, mock_actions)
+    await output_manager.process_response(example_skyrim_npc_character, mock_queue, mock_messages, example_characters_pc_to_npc, mock_actions, tools=None)
     
     output_sentences = get_sentence_list_from_queue(mock_queue)
     assert len(output_sentences) == 2 # Action+Speech, Empty
@@ -163,7 +167,11 @@ async def test_process_response_interrupt_action(output_manager: ChatManager, ex
     sentence = output_sentences[0]
     assert sentence.content.text.strip() == "Here is what I have." # Only the first sentence should remain
     assert sentence.content.actions # Should have actions
-    assert "menu" in sentence.content.actions # Check if the specific action identifier is present
+
+    action_identifiers = []
+    for action in sentence.content.actions:
+        action_identifiers.append(action['identifier'])
+    assert "menu" in action_identifiers # Check if the specific action identifier is present
 
 
 @pytest.mark.asyncio
@@ -186,7 +194,7 @@ async def test_process_response_with_tool_calls(output_manager: ChatManager, exa
     client.response_pattern = ["I'll ", "follow ", "you."]
     
     # Mock FunctionManager.parse_function_calls
-    def mock_parse(tool_calls):
+    def mock_parse(tool_calls, characters=None):
         return [{"identifier": "mantella_npc_follow"}]
     monkeypatch.setattr("src.actions.function_manager.FunctionManager.parse_function_calls", mock_parse)
     
@@ -200,7 +208,11 @@ async def test_process_response_with_tool_calls(output_manager: ChatManager, exa
     # First sentence should have the text and the action attached
     sentence = output_sentences[0]
     assert "follow" in sentence.content.text.lower()
-    assert "mantella_npc_follow" in sentence.content.actions
+
+    action_identifiers = []
+    for action in sentence.content.actions:
+        action_identifiers.append(action['identifier'])
+    assert "mantella_npc_follow" in action_identifiers
 
 
 @pytest.mark.asyncio
@@ -230,7 +242,7 @@ async def test_process_response_with_multiple_tool_calls(output_manager: ChatMan
     ]
     client.response_pattern = ["Okay, ", "let's ", "go."]
     
-    def mock_parse(tool_calls):
+    def mock_parse(tool_calls, characters=None):
         return [
             {"identifier": "mantella_npc_follow"},
             {"identifier": "mantella_draw_weapon"}
@@ -246,8 +258,12 @@ async def test_process_response_with_multiple_tool_calls(output_manager: ChatMan
     
     # First sentence should have both actions attached
     sentence = output_sentences[0]
-    assert "mantella_npc_follow" in sentence.content.actions
-    assert "mantella_draw_weapon" in sentence.content.actions
+
+    action_identifiers = []
+    for action in sentence.content.actions:
+        action_identifiers.append(action['identifier'])
+    assert "mantella_npc_follow" in action_identifiers
+    assert "mantella_draw_weapon" in action_identifiers
 
 
 @pytest.mark.asyncio
@@ -268,7 +284,7 @@ async def test_process_response_tool_calls_added_to_message_thread(output_manage
     ]
     client.response_pattern = ["Never ", "should ", "have ", "come ", "here."]
     
-    def mock_parse(tool_calls):
+    def mock_parse(tool_calls, characters=None):
         return [{"identifier": "mantella_attack", "arguments": {"target": "bandit"}}]
     monkeypatch.setattr("src.actions.function_manager.FunctionManager.parse_function_calls", mock_parse)
     
@@ -291,6 +307,117 @@ async def test_process_response_tool_calls_added_to_message_thread(output_manage
     tool_call_msg = tool_call_messages[0]
     assert len(tool_call_msg.tool_calls) == 1
     assert tool_call_msg.tool_calls[0]["function"]["name"] == "Attack"
+
+
+@pytest.mark.asyncio
+async def test_process_response_stores_full_action_dicts(output_manager: ChatManager, example_skyrim_npc_character: Character, example_characters_pc_to_npc: Characters, mock_queue: SentenceQueue, mock_messages: message_thread, mock_actions: list[Action], monkeypatch):
+    """Test that full action dictionaries (not just identifiers) are stored in sentences"""
+    mock_tools = [{"type": "function", "function": {"name": "Follow"}}]
+    
+    client = output_manager._ChatManager__client
+    client.tool_calls = [
+        {
+            "id": "call_follow_123",
+            "type": "function",
+            "function": {
+                "name": "Follow",
+                "arguments": '{"source": ["Lydia", "Serana"]}'
+            }
+        }
+    ]
+    client.response_pattern = ["Of ", "course, ", "we'll ", "follow."]
+    
+    # Mock parse_function_calls to return full action dicts with validated arguments
+    def mock_parse(tool_calls, characters=None):
+        return [{
+            "identifier": "mantella_npc_follow",
+            "arguments": {"source": ["Lydia", "Serana"]}
+        }]
+    monkeypatch.setattr("src.actions.function_manager.FunctionManager.parse_function_calls", mock_parse)
+    
+    await output_manager.process_response(example_skyrim_npc_character, mock_queue, mock_messages, example_characters_pc_to_npc, mock_actions, mock_tools)
+    
+    output_sentences = get_sentence_list_from_queue(mock_queue)
+    
+    # Should have sentences: text response + empty terminator
+    assert len(output_sentences) == 2
+    
+    # First sentence should have the full action dict stored, not just the identifier
+    sentence = output_sentences[0]
+    assert len(sentence.content.actions) == 1
+    
+    action = sentence.content.actions[0]
+    assert isinstance(action, dict)
+    assert action["identifier"] == "mantella_npc_follow"
+    assert "arguments" in action
+    assert action["arguments"] == {"source": ["Lydia", "Serana"]}
+
+
+@pytest.mark.asyncio
+async def test_process_response_stores_multiple_full_action_dicts(output_manager: ChatManager, example_skyrim_npc_character: Character, example_characters_pc_to_npc: Characters, mock_queue: SentenceQueue, mock_messages: message_thread, mock_actions: list[Action], monkeypatch):
+    """Test that multiple full action dictionaries are correctly stored in sentences"""
+    mock_tools = [
+        {"type": "function", "function": {"name": "Follow"}},
+        {"type": "function", "function": {"name": "DrawWeapon"}}
+    ]
+    
+    client = output_manager._ChatManager__client
+    client.tool_calls = [
+        {
+            "id": "call_follow_456",
+            "type": "function",
+            "function": {
+                "name": "Follow",
+                "arguments": '{"source": ["Erik"]}'
+            }
+        },
+        {
+            "id": "call_weapon_789",
+            "type": "function",
+            "function": {
+                "name": "DrawWeapon",
+                "arguments": '{"weapon_type": "sword"}'
+            }
+        }
+    ]
+    client.response_pattern = ["Ready ", "for ", "battle."]
+    
+    # Mock parse_function_calls to return multiple full action dicts
+    def mock_parse(tool_calls, characters=None):
+        return [
+            {
+                "identifier": "mantella_npc_follow",
+                "arguments": {"source": ["Erik"]}
+            },
+            {
+                "identifier": "mantella_draw_weapon",
+                "arguments": {"weapon_type": "sword"}
+            }
+        ]
+    monkeypatch.setattr("src.actions.function_manager.FunctionManager.parse_function_calls", mock_parse)
+    
+    await output_manager.process_response(example_skyrim_npc_character, mock_queue, mock_messages, example_characters_pc_to_npc, mock_actions, mock_tools)
+    
+    output_sentences = get_sentence_list_from_queue(mock_queue)
+    
+    # Should have sentences: text response + empty terminator
+    assert len(output_sentences) == 2
+    
+    # First sentence should have both full action dicts stored
+    sentence = output_sentences[0]
+    assert len(sentence.content.actions) == 2
+    
+    # Verify first action
+    action1 = sentence.content.actions[0]
+    assert isinstance(action1, dict)
+    assert action1["identifier"] == "mantella_npc_follow"
+    assert action1["arguments"] == {"source": ["Erik"]}
+    
+    # Verify second action
+    action2 = sentence.content.actions[1]
+    assert isinstance(action2, dict)
+    assert action2["identifier"] == "mantella_draw_weapon"
+    assert action2["arguments"] == {"weapon_type": "sword"}
 
 
 @pytest.mark.asyncio
@@ -448,6 +575,7 @@ async def test_process_response_param(
         mock_messages,
         example_characters_pc_to_npc,
         mock_actions,
+        tools=None,
     )
 
     actual = []

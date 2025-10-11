@@ -4,6 +4,9 @@ import jsonschema
 from src.http import models
 from src.http.communication_constants import communication_constants as comm_consts
 from src.conversation import conversation as conv_module
+from src.character_manager import Character
+from src.llm.sentence import Sentence
+from src.llm.sentence_content import SentenceContent, SentenceTypeEnum
 
 def setup_conversation(game_manager: GameStateManager, start_request: dict, continue_request: dict):
     # Start conversation
@@ -76,4 +79,90 @@ def test_player_action_command(
     response = default_game_manager.player_input(example_player_input_textbox_action_command_request.model_dump(by_alias=True, exclude_none=True))
     
     # Assert that the response contains the action
-    assert response[comm_consts.KEY_REPLYTYPE_NPCACTION][comm_consts.KEY_ACTOR_ACTIONS][0] == comm_consts.ACTION_NPC_FOLLOW
+    assert response[comm_consts.KEY_REPLYTYPE_NPCACTION][comm_consts.KEY_ACTOR_ACTIONS][0] == 'mantella_npc_follow'
+
+
+def test_sentence_to_json_with_dict_actions(default_game_manager: GameStateManager, example_skyrim_npc_character: Character):
+    """Test sentence_to_json extracts full action dicts"""    
+    # Create a sentence with full action dicts
+    actions = [
+        {
+            "identifier": "mantella_npc_follow",
+            "arguments": {"source": ["Lydia", "Serana"]}
+        }
+    ]
+    
+    sentence_content = SentenceContent(
+        speaker=example_skyrim_npc_character,
+        text="Of course, we'll follow.",
+        sentence_type=SentenceTypeEnum.SPEECH,
+        is_system_generated_sentence=False,
+        actions=actions
+    )
+    
+    sentence = Sentence(sentence_content, "test.wav", 2.5)
+    
+    # Convert to JSON
+    result = default_game_manager.sentence_to_json(sentence, topicID=1)
+    
+    assert comm_consts.KEY_ACTOR_ACTIONS in result
+    assert len(result[comm_consts.KEY_ACTOR_ACTIONS]) == 1
+    assert result[comm_consts.KEY_ACTOR_ACTIONS][0]["identifier"] == "mantella_npc_follow"
+    assert result[comm_consts.KEY_ACTOR_ACTIONS][0]["arguments"] == {"source": ["Lydia", "Serana"]}
+
+
+def test_sentence_to_json_with_multiple_dict_actions(default_game_manager: GameStateManager, example_skyrim_npc_character: Character):
+    """Test sentence_to_json handles multiple action dicts correctly"""
+    
+    # Create a sentence with multiple full action dicts
+    actions = [
+        {
+            "identifier": "mantella_npc_follow",
+            "arguments": {"source": ["Erik"]}
+        },
+        {
+            "identifier": "mantella_npc_inventory",
+            "arguments": {"source": ["Erik"]}
+        }
+    ]
+    
+    sentence_content = SentenceContent(
+        speaker=example_skyrim_npc_character,
+        text="Ready for battle.",
+        sentence_type=SentenceTypeEnum.SPEECH,
+        is_system_generated_sentence=False,
+        actions=actions
+    )
+    
+    sentence = Sentence(sentence_content, "test.wav", 1.5)
+    
+    # Convert to JSON
+    result = default_game_manager.sentence_to_json(sentence, topicID=1)
+    
+    assert comm_consts.KEY_ACTOR_ACTIONS in result
+    assert len(result[comm_consts.KEY_ACTOR_ACTIONS]) == 2
+    assert result[comm_consts.KEY_ACTOR_ACTIONS][0]["identifier"] == "mantella_npc_follow"
+    assert result[comm_consts.KEY_ACTOR_ACTIONS][1]["identifier"] == "mantella_npc_inventory"
+    assert result[comm_consts.KEY_ACTOR_ACTIONS][0]["arguments"] == {"source": ["Erik"]}
+    assert result[comm_consts.KEY_ACTOR_ACTIONS][1]["arguments"] == {"source": ["Erik"]}
+
+
+def test_sentence_to_json_with_empty_actions(default_game_manager: GameStateManager,example_skyrim_npc_character: Character):
+    """Test sentence_to_json handles sentences with no actions correctly"""
+    
+    # Create a sentence with no actions
+    sentence_content = SentenceContent(
+        speaker=example_skyrim_npc_character,
+        text="Hello there.",
+        sentence_type=SentenceTypeEnum.SPEECH,
+        is_system_generated_sentence=False,
+        actions=[]
+    )
+    
+    sentence = Sentence(sentence_content, "test.wav", 1.0)
+    
+    # Convert to JSON
+    result = default_game_manager.sentence_to_json(sentence, topicID=1)
+    
+    assert comm_consts.KEY_ACTOR_ACTIONS in result
+    assert result[comm_consts.KEY_ACTOR_ACTIONS] == []

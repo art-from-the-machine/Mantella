@@ -139,7 +139,7 @@ class Conversation:
         next_sentence: Sentence | None = self.retrieve_sentence_from_queue()
         
         if next_sentence and len(next_sentence.text) > 0:
-            if comm_consts.ACTION_REMOVECHARACTER in next_sentence.actions:
+            if {'identifier': comm_consts.ACTION_REMOVECHARACTER} in next_sentence.actions:
                 self.__context.remove_character(next_sentence.speaker)
             #check if the next function call has been vetoed by the LLm, if so then the function doesn't occur
             if self.__function_manager.is_initialized() :
@@ -356,7 +356,7 @@ class Conversation:
             if npc:
                 goodbye_sentence = self.__output_manager.generate_sentence(SentenceContent(npc, config.goodbye_npc_response, SentenceTypeEnum.SPEECH, True))
                 if goodbye_sentence:
-                    goodbye_sentence.actions.append(comm_consts.ACTION_ENDCONVERSATION)
+                    goodbye_sentence.actions.append({'identifier': comm_consts.ACTION_ENDCONVERSATION})
                     self.__sentences.put(goodbye_sentence)
                     
     @utils.time_it
@@ -408,7 +408,7 @@ class Conversation:
             # say goodbye
             goodbye_sentence = self.__output_manager.generate_sentence(SentenceContent(npc, self.__context.config.goodbye_npc_response, SentenceTypeEnum.SPEECH, False))
             if goodbye_sentence:
-                goodbye_sentence.actions.append(comm_consts.ACTION_REMOVECHARACTER)
+                goodbye_sentence.actions.append({'identifier':comm_consts.ACTION_REMOVECHARACTER})
                 self.__sentences.put(goodbye_sentence)        
 
     @utils.time_it
@@ -437,7 +437,7 @@ class Conversation:
         collecting_thoughts_text = self.__context.config.collecting_thoughts_npc_response
         collecting_thoughts_sentence = self.__output_manager.generate_sentence(SentenceContent(latest_npc, collecting_thoughts_text, SentenceTypeEnum.SPEECH, True))
         if collecting_thoughts_sentence:
-            collecting_thoughts_sentence.actions.append(comm_consts.ACTION_RELOADCONVERSATION)
+            collecting_thoughts_sentence.actions.append({'identifier': comm_consts.ACTION_RELOADCONVERSATION})
             self.__sentences.put_at_front(collecting_thoughts_sentence)
     
     @utils.time_it

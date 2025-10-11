@@ -183,8 +183,8 @@ class ChatManager:
                                 logging.log(23, f"Received {len(collected_tool_calls)} tool call(s)")
                                 
                                 # Parse tool calls to get action identifiers
-                                parsed_tools = FunctionManager.parse_function_calls(collected_tool_calls)
-                                awaiting_actions.extend([tool['identifier'] for tool in parsed_tools])
+                                parsed_tools = FunctionManager.parse_function_calls(collected_tool_calls, characters)
+                                awaiting_actions.extend(parsed_tools)
                                 logging.log(23, f"Parsed actions: {awaiting_actions}")
                         else:
                             # Fallback for backward compatibility (if item is just a string)

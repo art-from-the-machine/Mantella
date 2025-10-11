@@ -20,6 +20,7 @@ from src.tts.piper import Piper
 from src import utils
 from src.config.definitions.game_definitions import GameEnum
 from src.config.definitions.tts_definitions import TTSEnum
+from src.actions.function_manager import FunctionManager
 
 class mantella_route(routeable):
     """Main route for Mantella conversations
@@ -62,6 +63,7 @@ class mantella_route(routeable):
 
         llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file, self.__function_llm_secret_key_file)
 
+        FunctionManager.load_all_actions()
         # function_client = FunctionClient(self._config, self.__secret_key_file, self.__function_llm_secret_key_file)
         
         chat_manager = ChatManager(self._config, tts, llm_client)

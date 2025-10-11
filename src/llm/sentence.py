@@ -9,12 +9,6 @@ class Sentence:
         self.__voice_line_duration: float = voice_line_duration
         self.__error_message: str | None = error_message
 
-        self.__target_ids: list[int] = []
-        self.__target_names: list[str] = []
-        self.__source_ids: list[str] = []
-        self.__function_call_modes: list[str] = []
-        self.__has_veto: bool = False
-
     @property
     def content(self) -> SentenceContent:
         return self.__content
@@ -40,7 +34,7 @@ class Sentence:
         return self.__voice_line_duration
     
     @property
-    def actions(self) -> list[str]:
+    def actions(self) -> list[dict]:
         return self.__content.actions
     
     @property
@@ -50,28 +44,4 @@ class Sentence:
     @property
     def error_message(self) -> str | None:
         return self.__error_message
-
-    @property
-    def target_ids(self) -> list[str] | None:
-        return self.__target_ids
-
-    @property
-    def target_names(self) -> list[str] | None:
-        return self.__target_names
-    
-    @property
-    def source_ids(self) -> list[str] | None:
-        return self.__source_ids
-    
-    @property
-    def function_call_modes(self) -> list[str] | None:
-        return self.__function_call_modes
-    
-    @property
-    def has_veto(self) -> bool:
-        return self.__has_veto
-    
-    @has_veto.setter
-    def has_veto(self, value):
-        self.__has_veto = value
     
