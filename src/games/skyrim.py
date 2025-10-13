@@ -33,7 +33,10 @@ class Skyrim(Gameable):
         self.__image_analysis_filepath = ""
 
         # Initialize bio template manager with override support
-        self.__bio_template_manager = BioTemplateManager('data/Skyrim/bio_templates', config)
+        # Use relative path like skyrim_characters.csv so it resolves from working directory
+        bio_templates_path = os.path.join('data', 'Skyrim', 'bio_templates')
+        logging.info(f"Skyrim: Initializing BioTemplateManager with path: {bio_templates_path}")
+        self.__bio_template_manager = BioTemplateManager(bio_templates_path, config)
 
         try:
             weather_file = 'data/Skyrim/skyrim_weather.csv'
