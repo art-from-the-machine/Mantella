@@ -3,6 +3,7 @@ import os
 import logging
 from typing import Dict, List, Optional, Any
 from pathlib import Path
+import sys
 
 
 class ModelProfile:
@@ -82,13 +83,20 @@ class ModelProfileManager:
                          If None, defaults to data/model_profiles.json
         """
         if storage_path is None:
-            # Use data directory relative to the main application
-            # Get the current script directory and go to the project root
-            current_dir = Path(__file__).parent
-            project_root = current_dir.parent  # Go up one level from src/
-            data_dir = project_root / "data"
-            data_dir.mkdir(exist_ok=True)
+            # Use data directory relative to current working directory (like character CSV files)
+            
+            
+            if getattr(sys, 'frozen', False):
+                # Running as exe - use path relative to exe location
+                exe_dir = os.path.dirname(sys.executable)
+                data_dir = Path(exe_dir) / "data"
+            else:
+                # Running as script - use relative path from current working directory
+                data_dir = Path("data")
+            
+            data_dir.mkdir(parents=True, exist_ok=True)
             self.storage_path = data_dir / "model_profiles.json"
+
         else:
             self.storage_path = Path(storage_path)
         
@@ -97,7 +105,7 @@ class ModelProfileManager:
     
     def _load_profiles(self) -> None:
         """Load profiles from JSON storage"""
-        try:
+        try:            
             if self.storage_path.exists():
                 with open(self.storage_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -120,9 +128,9 @@ class ModelProfileManager:
                     
                 logging.info(f"Loaded {len(self._profiles)} model profiles from {self.storage_path}")
             else:
-                logging.info("No existing model profiles found, starting with empty profiles")
+                logging.info(f"No existing model profiles found at {self.storage_path}, starting with empty profiles")
         except Exception as e:
-            logging.error(f"Error loading model profiles: {e}")
+            logging.error(f"Error loading model profiles from {self.storage_path}: {e}")
             self._profiles = {}
     
     def _save_profiles(self) -> None:
