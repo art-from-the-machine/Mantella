@@ -92,7 +92,7 @@ class Piper(TTSable):
             char_count = len(voiceline)
             # speaking rate ~1.8 words/s; fallback to ~20 chars/s; add 1.5s overhead, min 4s, max 18s
             estimated_speech_time = max(word_count / 1.8, char_count / 20.0)
-            max_wait_time = min(18.0, max(4.0, 1.5 + estimated_speech_time))
+            max_wait_time = min(5, max(4.0, 1.5 + estimated_speech_time/2))
             start_time = time.time()
 
             # Track file size stability to avoid reading partially written WAV
