@@ -354,7 +354,7 @@ class StartUI(routeable):
                 pass
             return os.path.join(folder, 'character_overrides.csv')
 
-        def _save_bio_to_user_path(label: str, bio_text: str, label_to_key: dict[str, str], user_csv_path: str | None, ref_id_value: str | None, tags_value: str | None) -> str:
+        def _save_bio_to_user_path(label: str, bio_text: str, label_to_key: dict[str, str], user_csv_path: str | None, optional_values: dict[str, str | None]) -> str:
             key = label_to_key.get(label, '')
             if key == '':
                 return ''
@@ -392,20 +392,20 @@ class StartUI(routeable):
                             str(content.get('base_id', '')) == base_id and 
                             str(content.get('race', '')) == race):
                             content['bio'] = bio_text
-                            if ref_id_value is not None:
-                                content['ref_id'] = ref_id_value
-                            if tags_value is not None:
-                                content['tags'] = tags_value
+                            if optional_values.get('ref_id') is not None:
+                                content['ref_id'] = optional_values['ref_id']
+                            if optional_values.get('tags') is not None:
+                                content['tags'] = optional_values['tags']
                             updated = True
                             break
                     
                     if not updated:
                         # Add new entry at the end
                         new_entry = {'name': name, 'base_id': base_id, 'race': race, 'bio': bio_text}
-                        if ref_id_value is not None:
-                            new_entry['ref_id'] = ref_id_value
-                        if tags_value is not None:
-                            new_entry['tags'] = tags_value
+                        if optional_values.get('ref_id') is not None:
+                            new_entry['ref_id'] = optional_values['ref_id']
+                        if optional_values.get('tags') is not None:
+                            new_entry['tags'] = optional_values['tags']
                         items.append(new_entry)
                     
                     # Preserve single-object format only if it was originally single and remains single
@@ -434,11 +434,15 @@ class StartUI(routeable):
                         if c not in df.columns:
                             df[c] = ''
                     
-                    # Add optional columns if provided (proper pandas insertion)
-                    if ref_id_value is not None and 'ref_id' not in df.columns:
-                        df.insert(len(df.columns), 'ref_id', '')
-                    if tags_value is not None and 'tags' not in df.columns:
-                        df.insert(len(df.columns), 'tags', '')
+                    # Handle optional columns in a generic way
+                    # For each optional column, preserve it if it exists or add it if we have a value
+                    for col_name, col_value in optional_values.items():
+                        if col_name in df.columns:
+                            # Column already exists, ensure it's preserved
+                            pass
+                        elif col_value is not None:
+                            # Only add column if we have a value for it
+                            df.insert(len(df.columns), col_name, '')
                     
                     # Find matching row
                     m = ((df['name'].fillna('').astype(str) == name) & 
@@ -448,17 +452,17 @@ class StartUI(routeable):
                     if m.any():
                         # Update existing entry
                         df.loc[m, 'bio'] = bio_text
-                        if ref_id_value is not None and 'ref_id' in df.columns:
-                            df.loc[m, 'ref_id'] = ref_id_value
-                        if tags_value is not None and 'tags' in df.columns:
-                            df.loc[m, 'tags'] = tags_value
+                        # Update optional columns only if we have new values, otherwise preserve existing
+                        for col_name, col_value in optional_values.items():
+                            if col_value is not None and col_name in df.columns:
+                                df.loc[m, col_name] = col_value
                     else:
                         # Add new entry at the end
                         new_row = {'name': name, 'base_id': base_id, 'race': race, 'bio': bio_text}
-                        if ref_id_value is not None and 'ref_id' in df.columns:
-                            new_row['ref_id'] = ref_id_value
-                        if tags_value is not None and 'tags' in df.columns:
-                            new_row['tags'] = tags_value
+                        # Add optional columns only if we have values for them
+                        for col_name, col_value in optional_values.items():
+                            if col_value is not None and col_name in df.columns:
+                                new_row[col_name] = col_value
                         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                     
                     # Ensure directory exists (guard empty dirname)
@@ -792,9 +796,8 @@ class StartUI(routeable):
                 return bio, summary, "", gr.Button(interactive=bool(label)), gr.Button(interactive=bool(label))
 
             def on_save(label: str, bio_text: str, l2k: dict[str, str], k2l: dict[str, str], user_csv: str):
-                # Try to infer optional ref_id and tags from current df row, if present
-                ref_id_val = None
-                tags_val = None
+                # Try to infer optional column values from current df row, if present
+                optional_values = {}
                 try:
                     key = l2k.get(label, '')
                     n, b, r = _split_key(key)
@@ -804,13 +807,22 @@ class StartUI(routeable):
                                   (state_df.value['race'].fillna('').astype(str) == r)
                         if rowmask.any():
                             row0 = state_df.value.loc[rowmask].iloc[0]
-                            if 'ref_id' in row0.index:
-                                ref_id_val = str(row0.get('ref_id', ''))
-                            if 'tags' in row0.index:
-                                tags_val = str(row0.get('tags', ''))
+                            
+                            # Get all columns that are not the required ones
+                            required_columns = {'name', 'base_id', 'race', 'bio'}
+                            optional_columns = [col for col in row0.index if col not in required_columns]
+                            
+                            # Handle each optional column dynamically
+                            for col_name in optional_columns:
+                                col_value = row0.get(col_name, '')
+                                # Check if the value is NaN before converting to string
+                                if pd.isna(col_value):
+                                    optional_values[col_name] = None
+                                else:
+                                    optional_values[col_name] = str(col_value)
                 except Exception:
                     pass
-                path = _save_bio_to_user_path(label, bio_text, l2k, user_csv, ref_id_val, tags_val)
+                path = _save_bio_to_user_path(label, bio_text, l2k, user_csv, optional_values)
                 # Fast refresh: avoid heavy reload when game isn't running
                 new_df = state_df.value if isinstance(state_df.value, pd.DataFrame) else _get_resolved_character_df()
                 # Apply the saved bio into in-memory df for immediate UI feedback
