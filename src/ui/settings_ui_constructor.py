@@ -298,7 +298,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
             "vision_model": {
                 "dependent_config": "vision_llm_api",
                 "secret_key_file": 'IMAGE_SECRET_KEY.txt',
-                "default_model": 'google/gemma-3-4b-it:free',
+                "default_model": 'google/gemma-3-27b-it:free',
                 "model_list_getter": ClientBase.get_model_list,
             },
             "function_llm": {
