@@ -109,14 +109,15 @@ class FunctionManager:
             except Exception as e:
                 logging.warning(f"Failed to load action file {file_path}: {e}")
 
+        # TODO: Load new functions folder
         # Load functions folder
-        functions_dir = actions_dir / "functions"
-        if functions_dir.exists():
-            for file_path in functions_dir.glob("*.json"):
-                try:
-                    FunctionManager._load_action_file(file_path)
-                except Exception as e:
-                    logging.warning(f"Failed to load function file {file_path}: {e}")
+        # functions_dir = actions_dir / "functions"
+        # if functions_dir.exists():
+        #     for file_path in functions_dir.glob("*.json"):
+        #         try:
+        #             FunctionManager._load_action_file(file_path)
+        #         except Exception as e:
+        #             logging.warning(f"Failed to load function file {file_path}: {e}")
 
         logging.log(23, f"Loaded {len(FunctionManager._actions)} actions from data/actions/")
 
@@ -145,11 +146,11 @@ class FunctionManager:
         
         for action in FunctionManager._actions.values():
             # Filter by game compatibility
-            # TODO: Fix this logic and uncomment
-            # if 'allowed_games' in action and action['allowed_games']:
-            #     game_name = context.config.game.display_name
-            #     if game_name not in action['allowed_games']:
-            #         continue
+            if 'allowed_games' in action and action['allowed_games']:
+                game_name = context.config.game.display_name.lower().replace(" ", "")
+                cleaned_allowed_games = [g.lower().replace(" ", "") for g in action['allowed_games']]
+                if game_name not in cleaned_allowed_games:
+                    continue
 
             # Filter by conversation type
             is_multi_npc = context.npcs_in_conversation.contains_multiple_npcs()

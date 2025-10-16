@@ -103,8 +103,7 @@ def test_load_actions_from_json(tmp_path):
         "is-interrupting": False,
         "one-on-one": True,
         "multi-npc": False,
-        "radiant": False,
-        "info-text": "Test action completed"
+        "radiant": False
     }
     
     action_file_path = os.path.join(actions_folder, 'test_action.json')
@@ -139,8 +138,7 @@ def test_load_actions_from_json_wrong_file_type(tmp_path):
         "is-interrupting": False,
         "one-on-one": True,
         "multi-npc": False,
-        "radiant": False,
-        "info-text": "Test action completed"
+        "radiant": False
     }
     
     action_file_path = os.path.join(actions_folder, 'test_action.txt')

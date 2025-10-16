@@ -13,7 +13,7 @@ from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
 from src.config.definitions.vision_definitions import VisionDefinitions
-from src.config.definitions.function_llm_definitions import FunctionLLMDefinitions
+from src.config.definitions.action_definitions import ActionDefinitions
 import sys
 
 
@@ -57,18 +57,6 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_speech_end_indicators())
         llm_category.add_config_value(LLMDefinitions.get_narration_indicators())
         result.add_base_group(llm_category)
-
-        function_llm_category = ConfigValueGroup("Function LLM", "Function inference", "Settings for the Function LLM providers and Function calling management.", on_value_change_callback)
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_enable_veto())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_api_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_model_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_custom_token_count_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_temperature_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_top_p_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_frequency_penalty_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_max_tokens_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_timeout_value())
-        result.add_base_group(function_llm_category)
 
         tts_category = ConfigValueGroup("TTS", "Text-to-Speech", "Settings for the TTS methods Mantella supports.", on_value_change_callback)
         tts_category.add_config_value(TTSDefinitions.get_tts_service_config_value())
@@ -129,6 +117,15 @@ class MantellaConfigValueDefinitionsNew:
         vision_category.add_config_value(VisionDefinitions.get_vision_llm_params_config_value())
         vision_category.add_config_value(VisionDefinitions.get_use_game_screenshots_config_value())
         result.add_base_group(vision_category)
+
+        actions_category = ConfigValueGroup("Actions", "Actions", "Settings for in-game actions.", on_value_change_callback)
+        actions_category.add_config_value(ActionDefinitions.get_advanced_actions_enabled_config_value())
+        actions_category.add_config_value(ActionDefinitions.get_custom_function_model_config_value())
+        actions_category.add_config_value(ActionDefinitions.get_function_llm_api_config_value())
+        actions_category.add_config_value(ActionDefinitions.get_function_llm_model_config_value())
+        actions_category.add_config_value(ActionDefinitions.get_function_llm_custom_token_count_config_value())
+        actions_category.add_config_value(ActionDefinitions.get_function_llm_params_config_value())
+        result.add_base_group(actions_category)
 
         language_category = ConfigValueGroup("Language", "Language", "Change the language used by Mantella as well as keywords.", on_value_change_callback)
         language_category.add_config_value(LanguageDefinitions.get_language_config_value())

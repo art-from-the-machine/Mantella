@@ -1,0 +1,20 @@
+{
+    "identifier": "mantella_npc_forgiven",
+    "name": "StandDown",
+    "description": "Make an NPC(s) stop attacking the player / another NPC.",
+    "key": "StandDown",
+    "parameters": {
+        "source": {
+            "type": "array",
+            "description": "The NPC(s) to stop attacking. All NPCs in combat need to be listed for combat to end",
+            "items": {"type": "string"}
+        }
+    },
+    "required": ["source"],
+    "prompt": "If the player renounces their words, or to end combat, begin your response with '{key}:'.",
+    "allowed_games": ["skyrim"],
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}

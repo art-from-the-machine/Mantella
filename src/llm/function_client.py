@@ -14,74 +14,20 @@ class FunctionClient(ClientBase):
     '''
     @utils.time_it
     def __init__(self, config: ConfigLoader, secret_key_file: str, function_llm_secret_key_file: str) -> None:
-        self.__custom_function_model: bool = True # TODO: Allow chat LLM to be used for function calling
-        self.__config = config
-        self.__prompt = config.actions_prompt
-        
-        if self.__custom_function_model:
-            # TODO: Create function LLM params in config
-            setup_values = {'api_url': config.function_llm_api, 'llm': config.function_llm, 'llm_params': config.llm_params, 'custom_token_count': config.function_llm_custom_token_count}
-        else: # default to base LLM config values
-            setup_values = {'api_url': config.llm_api, 'llm': config.llm, 'llm_params': config.llm_params, 'custom_token_count': config.custom_token_count}
+        # Use custom function model config values
+        setup_values = {
+            'api_url': config.function_llm_api, 
+            'llm': config.function_llm, 
+            'llm_params': config.function_llm_params, 
+            'custom_token_count': config.function_llm_custom_token_count
+        }
         
         super().__init__(**setup_values, secret_key_files=[function_llm_secret_key_file, secret_key_file])
 
-        if self.__custom_function_model:
-            if self._is_local:
-                logging.info(f"Running local function model")
-            else:
-                logging.log(23, f"Running Mantella with custom function model '{config.function_llm}'")
-
-        FunctionManager.load_all_actions()
-
-        # TODO: Read tools from data/actions/ folder
-        self.__tools = [
-            {
-                "type": "function",
-                "function": {
-                    "name": "follow",
-                    "description": "Makes an NPC follow the player.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "npc_list": {
-                                "type": "array",
-                                "description": "The list of NPCs (by name) to follow the player. Defaults to all NPCs in the conversation.",
-                                "items": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "attack",
-                    "description": "Make any number of NPCs attack a target NPC.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "source_npc_list": {
-                                "type": "array",
-                                "description": "The list of NPCs (by name) to attack the target NPC. Defaults to all NPCs in the conversation.",
-                                "items": {
-                                    "type": "string"
-                                }
-                            },
-                            "target_npc": {
-                                "type": "string",
-                                "description": "The NPC (by name) to attack."
-                            }
-                        },
-                        "required": [
-                            "target_npc"
-                        ]
-                    }
-                }
-            }
-        ]
+        if self._is_local:
+            logging.info(f"Running local tool calling model")
+        else:
+            logging.log(23, f"Running Mantella with custom tool calling model '{config.function_llm}'")
 
 
     @utils.time_it
@@ -122,44 +68,45 @@ class FunctionClient(ClientBase):
 
 
     @utils.time_it
-    def check_for_actions(self, messages: message_thread, response_so_far: str, context) -> list[dict] | None:
+    def check_for_actions(self, messages: message_thread, tools: list[dict]) -> list[dict] | None:
         """Check if any actions should be called based on the conversation
         
         Args:
             messages: The conversation thread to analyze
-            response_so_far: The first sentence returned by the LLM for additional context
-            context: The conversation Context object for generating context-aware tools
+            tools: The context-aware tools list to use
             
         Returns:
-            Parsed function call results or None if no actions needed
+            List of tool calls or None if no actions needed / error
         """
-        
-        logging.log(23, f"Function LLM analyzing conversation for potential actions...")
-
-        # Generate context-aware tools dynamically
-        tools = FunctionManager.generate_context_aware_tools(context)
         
         if not tools:
             logging.debug("No available actions for current context")
             return None
-
-        thread = message_thread(self.__config, self.__prompt)
-        context_message = UserMessage(self.__config, f'User: {messages.get_last_message().text}\n\nAssistant: {response_so_far}')
-        thread.add_message(context_message)
         
-        # Call the function LLM with tools
-        tools_called = self.request_call_with_tools(thread, tools)
-        
-        if not tools_called:
-            logging.debug("No response from Function LLM")
+        try:
+            logging.log(23, f"Function LLM analyzing conversation for potential actions...")
+            
+            # Call the function LLM with tools
+            tools_called = self.request_call_with_tools(messages, tools)
+            
+            if not tools_called:
+                logging.debug("No actions chosen by tool calling LLM")
+                return None
+            
+            # Convert ChatCompletionMessageToolCall objects to dict format for further processing
+            tool_calls_dicts = []
+            for tool_call in tools_called:
+                tool_calls_dicts.append({
+                    "id": tool_call.id,
+                    "type": "function",
+                    "function": {
+                        "name": tool_call.function.name,
+                        "arguments": tool_call.function.arguments
+                    }
+                })
+            
+            return tool_calls_dicts
+            
+        except Exception as e:
+            logging.error(f"Tool calling LLM error: {e}. Skipping tool calling for this turn.")
             return None
-        
-        # Parse the function calls
-        parsed_tools = FunctionManager.parse_function_calls(tools_called)
-        
-        if parsed_tools:
-            logging.log(23, f"Function calling detected: {len(parsed_tools)} function(s) called")
-        else:
-            logging.debug("No function calls detected in LLM response")
-        
-        return parsed_tools

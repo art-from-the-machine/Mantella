@@ -24,7 +24,10 @@ class LLMClient(ClientBase):
             logging.info(f"Setting up vision language model...")
             self._image_client: ImageClient | None = ImageClient(config, secret_key_file, image_secret_key_file)
 
-        # TODO: Add proper config flag for function calling
-        # if True:
-        #     logging.info(f"Setting up function calling language model...")
-        #     self._function_client: FunctionClient | None = FunctionClient(config, secret_key_file, function_secret_key_file)
+        if config.advanced_actions_enabled and config.custom_function_model:
+            try:
+                logging.info(f"Setting up tool calling language model...")
+                self._function_client: FunctionClient | None = FunctionClient(config, secret_key_file, function_secret_key_file)
+            except Exception as e:
+                logging.error(f"Failed to initialize function calling LLM: {e}. Tool calling will be disabled.")
+                self._function_client = None

@@ -193,7 +193,7 @@ class Context:
                 else:
                     self.__ingame_events.append(f"The conversation now takes place {current_time[1]}.")
 
-        if weather != self.__weather:
+        if weather != self.__weather and weather is not None:
             if self.__weather != "":
                 self.__ingame_events.append(weather)
             self.__weather = weather
@@ -384,7 +384,7 @@ class Context:
 
         Args:
             prompt (str): The conversation specific system prompt to fill
-            include_player (bool, optional): _description_. Defaults to False.
+            actions_for_prompt (list[Action]): the list of possible actions
 
         Returns:
             str: the filled prompt
@@ -418,7 +418,9 @@ class Context:
         else:
             self.__prev_game_time = None, time_group
         conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
-        actions = self.__get_action_texts(actions_for_prompt)
+        
+        # Only include legacy action prompts if advanced actions are disabled
+        actions = self.__get_action_texts(actions_for_prompt) if not self.__config.advanced_actions_enabled else ""
 
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
         have_bios_been_dropped = False

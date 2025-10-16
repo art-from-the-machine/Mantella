@@ -56,13 +56,13 @@ class LLMTestClient(AIClient):
         return False
 
     @staticmethod
-    def get_model_list(service: str, secret_key_file: str, default_model: str = "google/gemma-2-9b-it:free", is_vision: bool = False) -> LLMModelList:
+    def get_model_list(service: str, secret_key_file: str, default_model: str = "google/gemma-3-27b-it:free", is_vision: bool = False) -> LLMModelList:
         """Returns a list of available LLM models
 
         Args:
             service (str): the service to query for LLM models
             secret_key_file (str): _description_
-            default_model (_type_, optional): _description_. Defaults to "google/gemma-2-9b-it:free".
+            default_model (_type_, optional): _description_. Defaults to "google/gemma-3-27b-it:free".
             is_vision (bool, optional): _description_. Defaults to False.
 
         Returns:

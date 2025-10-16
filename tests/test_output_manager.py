@@ -77,8 +77,7 @@ def mock_actions() -> list[Action]:
         is_interrupting=False,
         one_on_one=True,
         multi_npc=False,
-        radiant=False,
-        info_text="Waving action completed",
+        radiant=False
     )
     interrupt_action = Action(
         identifier="menu", 
@@ -89,8 +88,7 @@ def mock_actions() -> list[Action]:
         is_interrupting=True,
         one_on_one=True,
         multi_npc=False,
-        radiant=False,
-        info_text="Menu action completed",
+        radiant=False
     )
     return [basic_action, interrupt_action]
 

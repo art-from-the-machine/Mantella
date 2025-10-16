@@ -151,7 +151,6 @@ class PromptDefinitions:
     
     @staticmethod
     def get_skyrim_prompt_config_value() -> ConfigValue:
-        # TODO: Add back {actions} if tool calling is not enabled to allow fallback
         skyrim_prompt_value = """You are {name}, and you live in Skyrim. This is your background: {bio}
                                 Sometimes in-game events will be passed before the player response within brackets. You cannot respond with brackets yourself, they only exist to give context. Here is an example:
                                 (The player picked up a pair of gloves)
@@ -161,6 +160,7 @@ class PromptDefinitions:
                                 The time is {time} {time_group}.
                                 {weather}
                                 Remember to stay in character.
+                                {actions}
                                 The conversation takes place in {language}.
                                 {conversation_summary}"""
         return ConfigValueString("skyrim_prompt","Skyrim Prompt",PromptDefinitions.BASE_PROMPT_DESCRIPTION,skyrim_prompt_value,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES)])

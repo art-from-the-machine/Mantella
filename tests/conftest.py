@@ -24,6 +24,7 @@ from src.tts.piper import Piper
 from src.games.equipment import Equipment, EquipmentItem
 from src.llm.message_thread import message_thread
 from src.llm.messages import SystemMessage, UserMessage
+from src.actions.function_manager import FunctionManager
 
 @pytest.fixture
 def default_config(tmp_path: Path) -> ConfigLoader:
@@ -104,7 +105,8 @@ def default_mantella_route(default_config: ConfigLoader, english_language_info: 
     return mantella_route(
         config=default_config, 
         stt_secret_key_file='STT_SECRET_KEY.txt', 
-        image_secret_key_file='IMAGE_SECRET_KEY.txt', 
+        image_secret_key_file='IMAGE_SECRET_KEY.txt',
+        function_llm_secret_key_file='FUNCTION_GPT_SECRET_KEY.txt',
         secret_key_file='GPT_SECRET_KEY.txt', 
         language_info=english_language_info, 
         show_debug_messages=False
@@ -349,5 +351,13 @@ def sample_message_thread_no_function_needed(default_config: ConfigLoader, defau
     """Provides a message thread that should not trigger any functions"""
     thread = message_thread(default_config, default_system_message)
     user_message = UserMessage(default_config, "Hello, how are you today?")
+    thread.add_message(user_message)
+    return thread
+
+@pytest.fixture
+def sample_message_thread_multiple_functions_needed(default_config: ConfigLoader, default_system_message: str) -> message_thread:
+    """Provides a message thread that should trigger multiple functions"""
+    thread = message_thread(default_config, default_system_message)
+    user_message = UserMessage(default_config, "Follow me and then stand down.")
     thread.add_message(user_message)
     return thread

@@ -254,20 +254,6 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 self.llm_params = None
 
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
-
-            #FUNCTION_LLM
-            #self.function_enable_inference = self.__definitions.get_bool_value("enable_function_inference")
-            self.function_enable_veto = self.__definitions.get_bool_value("enable_function_veto")
-            self.function_llm_api = self.__definitions.get_string_value("function_llm_api")
-            self.function_llm = self.__definitions.get_string_value("function_llm_model")
-            self.function_llm_custom_token_count = self.__definitions.get_int_value("function_llm_custom_token_count")
-            self.function_llm_temperature = self.__definitions.get_float_value("function_llm_temperature")
-            self.function_llm_top_p = self.__definitions.get_float_value("function_llm_top_p")
-            self.function_LLM_timeout = self.__definitions.get_int_value("function_llm_timeout")
-
-            self.function_llm_stop = "</tool_call>"
-            self.function_llm_frequency_penalty = self.__definitions.get_float_value("function_llm_frequency_penalty")
-            self.function_llm_max_tokens = self.__definitions.get_int_value("function_llm_max_tokens")
             
             self.narration_handling: NarrationHandlingEnum = self.__definitions.get_enum_value("narration_handling", NarrationHandlingEnum)
             self.narrator_voice = self.__definitions.get_string_value("narrator_voice")
@@ -319,6 +305,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.vision_prompt = self.__definitions.get_string_value("vision_prompt")
             self.actions_prompt = self.__definitions.get_string_value("actions_prompt")
 
+            # TODO
             self.function_LLM_OpenAI_single_NPC_prompt = self.__definitions.get_string_value("function_llm_openai_single_npc_prompt")
             self.function_LLM_OpenAI_multi_NPC_prompt = self.__definitions.get_string_value("function_llm_openai_multi_npc_prompt")
             self.function_LLM_single_NPC_prompt = self.__definitions.get_string_value("function_llm_single_npc_prompt")
@@ -345,7 +332,21 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 logging.error(f"""Error in parsing LLM parameter list: {e}
 LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.vision_llm_params = None
-            
+
+            # Actions
+            self.advanced_actions_enabled = self.__definitions.get_bool_value("advanced_actions_enabled")
+            self.custom_function_model = self.__definitions.get_bool_value("custom_function_model")
+            self.function_llm_api = self.__definitions.get_string_value("function_llm_api")
+            self.function_llm = self.__definitions.get_string_value("function_llm")
+            self.function_llm = self.function_llm.split(' |')[0] if ' |' in self.function_llm else self.function_llm
+            self.function_llm_custom_token_count = self.__definitions.get_int_value("function_llm_custom_token_count")
+            try:
+                self.function_llm_params = json.loads(self.__definitions.get_string_value("function_llm_params").replace('\n', ''))
+            except Exception as e:
+                logging.error(f"""Error in parsing LLM parameter list: {e}
+LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+                self.function_llm_params = None
+
             pass
         except Exception as e:
             utils.play_error_sound()
@@ -377,8 +378,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                             one_on_one: bool = bool(content.get("one-on-one", ""))
                             multi_npc: bool = bool(content.get("multi-npc", ""))
                             radiant: bool = bool(content.get("radiant", ""))
-                            info_text: str = content.get("info-text", "")
-                            result.append(Action(identifier, name, key,description,prompt,is_interrupting, one_on_one,multi_npc,radiant,info_text))
+                            result.append(Action(identifier, name, key,description,prompt,is_interrupting, one_on_one,multi_npc,radiant))
             except Exception as e:
                 utils.play_error_sound()
                 logging.log(logging.WARNING, f"Could not load action definition file '{file}' in '{actions_folder}'. Most likely there is an error in the formating of the file. Error: {e}")

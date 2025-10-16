@@ -1,0 +1,24 @@
+{
+    "identifier": "mantella_npc_offended",
+    "name": "Attack",
+    "description": "Make NPC(s) attack another NPC / the player.",
+    "key": "Attack",
+    "parameters": {
+        "source": {
+            "type": "array",
+            "description": "The NPC(s) who will attack.",
+            "items": {"type": "string"}
+        },
+        "target": {
+            "type": "string",
+            "description": "The NPC to attack."
+        }
+    },
+    "required": ["source", "target"],
+    "prompt": "If the player says something highly offensive, begin your response with '{key}:'",
+    "allowed_games": ["skyrim"],
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}

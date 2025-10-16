@@ -186,12 +186,6 @@ class ClientBase(AIClient):
         with self._generation_lock:
             logging.log(28, 'Getting LLM response...')
 
-            if self._startup_async_client:
-                async_client = self._startup_async_client
-                self._startup_async_client = None # do not reuse the same client
-            else:
-                async_client = self.generate_async_client()
-
             if self._request_params:
                 request_params = self._request_params.copy() # copy of self._request_params to allow temporary override
             else:
@@ -213,16 +207,22 @@ class ClientBase(AIClient):
                 if self._image_client:
                     openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
 
-                # Check for function calls before main LLM response
-                # TODO: Add this as option when using second LLM for tool calling
-                # if self._function_client and tools:
-                #     function_results = self._function_client.check_for_actions(messages, tools)
-                #     if function_results:
-                #         logging.log(23, f"Function calling results: {function_results}")
-
-                # Add tools parameter to the API call if provided
+                # Handle tool calling: use dedicated function client if available, otherwise use main LLM
                 if tools:
-                    request_params["tools"] = tools
+                    if self._function_client:
+                        pre_fetched_tool_calls = self._function_client.check_for_actions(messages, tools)
+                        if pre_fetched_tool_calls:
+                            yield ("tool_calls", pre_fetched_tool_calls)
+                    else:
+                        # If custom function LLM isn't enabled, let the main LLM handle tool calling as well as text generation
+                        request_params["tools"] = tools
+                
+                # Create async client for main LLM streaming (after function client has run if applicable)
+                if self._startup_async_client:
+                    async_client = self._startup_async_client
+                    self._startup_async_client = None # do not reuse the same client
+                else:
+                    async_client = self.generate_async_client()
                 
                 # Tool call accumulation variables
                 accumulated_tool_calls = {}  # Dict to track partial tool calls by index
@@ -290,7 +290,8 @@ class ClientBase(AIClient):
                 else:
                     logging.error(f"LLM API Error: {e}")
             finally:
-                await async_client.close()
+                if async_client:
+                    await async_client.close()
 
 
     @utils.time_it
@@ -524,7 +525,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         return num_tokens
     
     @staticmethod
-    def get_model_list(service: str, secret_key_file: str, default_model: str = "google/gemma-2-9b-it:free", is_vision: bool = False) -> LLMModelList:
+    def get_model_list(service: str, secret_key_file: str, default_model: str = "google/gemma-3-27b-it:free", is_vision: bool = False, is_tool_calling: bool = False) -> LLMModelList:
         if service not in ['OpenAI', 'OpenRouter']:
             return LLMModelList([("Custom model","Custom model")], "Custom model", allows_manual_model_input=True)
         try:
@@ -558,9 +559,11 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                         context_size: int = model.model_extra["context_length"]
                         prompt_cost: float = float(model.model_extra["pricing"]["prompt"]) * multiplier
                         completion_cost: float = float(model.model_extra["pricing"]["completion"]) * multiplier
-                        vision_available: str = ' | Vision Available' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
-                        model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}"
-                        
+                        vision_available: str = ' | ✅ Vision' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
+                        tool_calling_available: str = ' | ✅ Advanced Actions' if 'tools' in model.model_extra['supported_parameters'] else ''
+                        reasoning_model: str = ' | ⚠️ Reasoning' if 'reasoning' in model.model_extra['supported_parameters'] else ''
+                        model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}{tool_calling_available}{reasoning_model}"
+
                         ClientBase.api_token_limits[model.id.split('/')[-1]] = context_size
                     else:
                         model_display_name = model.id
@@ -569,10 +572,16 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                 options.append((model_display_name, model.id))
             
             # check if any models are marked as vision-capable
-            has_vision_models = any(' | Vision Available' in name for name, _ in options)
+            has_vision_models = any(' | ✅ Vision' in name for name, _ in options)
             # filter model list if this is supposed to be a vision model list and there are models explicitly marked as such
             if is_vision and has_vision_models:
-                options = [(name, model_id) for name, model_id in options if ' | Vision Available' in name]
+                options = [(name, model_id) for name, model_id in options if ' | ✅ Vision' in name]
+
+            # check if any models are marked as tool-calling-capable
+            has_tool_calling_models = any(' | ✅ Advanced Actions' in name for name, _ in options)
+            # filter model list if this is supposed to be a vision model list and there are models explicitly marked as such
+            if is_tool_calling and has_tool_calling_models:
+                options = [(name, model_id) for name, model_id in options if ' | ✅ Advanced Actions' in name]
             
             return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
         except Exception as e:

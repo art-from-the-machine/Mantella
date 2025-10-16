@@ -4,9 +4,7 @@ data/**/*.wav
 !data/no_mic_input_detected.wav
 data/**/*.lip
 data/**/*.json
-!data/actions/conditions/*.json
-!data/actions/functions/*.json
-!data/actions/tooltips/*.json
+!data/actions/*.json
 data/**/*.txt
 !data/Fallout4/placeholder/*.lip
 data/tmp/

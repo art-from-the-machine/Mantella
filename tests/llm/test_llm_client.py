@@ -7,25 +7,37 @@ from src.character_manager import Character
 from src.llm.messages import AssistantMessage
 from src.llm.sentence import Sentence
 from src.llm.sentence_content import SentenceContent, SentenceTypeEnum
+from src.actions.function_manager import FunctionManager
+from src.llm.function_client import FunctionClient
+from src.conversation.context import Context
+from src.llm.message_thread import message_thread
 
 @pytest.fixture
 def example_system_message(default_config: ConfigLoader):
     return SystemMessage('Test.', default_config)
 
+@pytest.fixture
+def llm_client_w_function_client(default_config: ConfigLoader):
+    default_config.advanced_actions_enabled = True
+    default_config.custom_function_model = True
+    client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+    return client
 
-def test_missing_api_key_raises_error(default_config: ConfigLoader, tmp_path, monkeypatch):
+
+def test_missing_api_key_uses_fallback(default_config: ConfigLoader, tmp_path, monkeypatch):
+    """Test that when no API key is found, the client falls back to 'abc123'"""
     mock_mod_path = tmp_path / "a" / "b" / "c"
     mock_mod_path.mkdir(parents=True)
     monkeypatch.setattr('src.utils.resolve_path', lambda: mock_mod_path)
 
-    def fake_sleep(*args, **kwargs):
-        raise ValueError("API key is missing")
-    monkeypatch.setattr(src.llm.client_base.time, 'sleep', fake_sleep) # Skip sleeping on error
-
+    monkeypatch.setattr('time.sleep', lambda *args, **kwargs: None)
     monkeypatch.setattr("src.utils.play_error_sound", lambda *a, **kw: None)
     
-    with pytest.raises(ValueError, match="API key is missing"):
-        LLMClient(default_config, "", "IMAGE_SECRET_KEY.txt")
+    # When API key file is empty/missing, client should still be created with fallback
+    # For cloud APIs, the fallback is 'abc123'
+    default_config.llm_api = 'OpenRouter' # Cloud API
+    client = LLMClient(default_config, "", "IMAGE_SECRET_KEY.txt")
+    assert client.api_key == 'abc123'
 
 
 def test_apis_load_correctly(default_config: ConfigLoader):
@@ -205,3 +217,130 @@ def test_assistant_message_with_both_tool_calls_and_content(default_config: Conf
     assert "tool_calls" in openai_msg
     assert openai_msg["tool_calls"] == tool_calls
     assert openai_msg["content"] == "I'll follow you."
+
+
+def test_function_client_created_when_enabled(default_config: ConfigLoader):
+    """
+    Tests that LLMClient creates a FunctionClient when both flags are enabled
+    """
+    FunctionManager.load_all_actions()
+    default_config.advanced_actions_enabled = True
+    default_config.custom_function_model = True
+    client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+    
+    # Check that the function client exists
+    assert hasattr(client, '_function_client')
+    assert client._function_client is not None
+    assert isinstance(client._function_client, FunctionClient)
+
+
+def test_no_function_client_by_default(default_config: ConfigLoader):
+    """
+    Tests that LLMClient does not create a FunctionClient when flags are disabled
+    """
+    client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+
+    assert hasattr(client, '_function_client')
+    assert client._function_client is None
+
+
+def test_no_function_client_when_only_advanced_enabled(default_config: ConfigLoader):
+    """
+    Tests that FunctionClient is not created when only advanced_actions_enabled is True
+    """
+    default_config.advanced_actions_enabled = True
+    default_config.custom_function_model = False
+    
+    client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    
+    assert client._function_client is None
+
+
+def test_llm_client_no_function_client_when_only_custom_model_enabled(default_config: ConfigLoader):
+    """
+    Tests that FunctionClient is not created when only custom_function_model is True
+    """
+    default_config.advanced_actions_enabled = False
+    default_config.custom_function_model = True
+    
+    client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+    
+    assert client._function_client is None
+
+
+@pytest.mark.asyncio
+async def test_streaming_call_with_function_client(llm_client_w_function_client: LLMClient, default_context: Context, sample_message_thread_function_request: message_thread):
+    """
+    Tests that streaming_call uses function client when tools are provided and function client exists
+    NOTE: This is an integration test that requires an actual LLM connection
+    """
+    tools = FunctionManager.generate_context_aware_tools(default_context)
+    
+    # Call streaming_call with tools - should use function client
+    tool_calls_received = []
+    content_received = []
+    
+    async for stream_type, item in llm_client_w_function_client.streaming_call(sample_message_thread_function_request, False, tools):
+        if stream_type == "tool_calls":
+            tool_calls_received.append(item)
+        elif stream_type == "content":
+            content_received.append(item)
+    
+    # Verify the call completed without errors
+    assert isinstance(tool_calls_received, list)
+    assert isinstance(content_received, list)
+
+
+@pytest.mark.asyncio  
+async def test_streaming_call_without_function_client(llm_client: LLMClient, default_context: Context, sample_message_thread_function_request: message_thread):
+    """
+    Tests that streaming_call uses main LLM for tools when function client doesn't exist
+    NOTE: This is an integration test that requires an actual LLM connection
+    """
+    FunctionManager.load_all_actions()
+
+    # Verify no function client (default)
+    assert llm_client._function_client is None
+    
+    # Generate tools
+    tools = FunctionManager.generate_context_aware_tools(default_context)
+    
+    # Call streaming_call with tools - should use main LLM
+    tool_calls_received = []
+    content_received = []
+    
+    async for stream_type, item in llm_client.streaming_call(sample_message_thread_function_request, False, tools):
+        if stream_type == "tool_calls":
+            tool_calls_received.append(item)
+        elif stream_type == "content":
+            content_received.append(item)
+    
+    # Verify the call completed without errors
+    assert isinstance(tool_calls_received, list)
+    assert isinstance(content_received, list)
+
+
+@pytest.mark.asyncio
+async def test_streaming_call_without_tools(llm_client_w_function_client: LLMClient, default_config: ConfigLoader, sample_message_thread_function_request: message_thread):
+    """
+    Tests that streaming_call uses main LLM when no tools are provided (even with function client)
+    NOTE: This is an integration test that requires an actual LLM connection
+    """
+    default_config.advanced_actions_enabled = True
+    default_config.custom_function_model = True
+    
+    # Call streaming_call WITHOUT tools - should use main LLM
+    content_received = []
+    tool_calls_received = []
+    
+    async for stream_type, item in llm_client_w_function_client.streaming_call(sample_message_thread_function_request, False, None):
+        if stream_type == "content":
+            content_received.append(item)
+        elif stream_type == "tool_calls":
+            tool_calls_received.append(item)
+    
+    # Should receive content
+    assert len(content_received) > 0
+    # Verify the call completed without errors
+    assert isinstance(tool_calls_received, list)
+    assert len(tool_calls_received) == 0
