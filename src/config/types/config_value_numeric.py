@@ -7,8 +7,8 @@ from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 T = TypeVar('T', int, float)
 class ConfigValueNumeric(ConfigValue[T], ABC):
-    def __init__(self, identifier: str, name: str, description: str, default_value: T, min_value: T, max_value: T, constraints: list[ConfigValueConstraint[T]] = [],is_hidden: bool = False, tags: list[ConfigValueTag] = []):
-        super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
+    def __init__(self, identifier: str, name: str, description: str, default_value: T, min_value: T, max_value: T, constraints: list[ConfigValueConstraint[T]] = [],is_hidden: bool = False, tags: list[ConfigValueTag] = [], row_group: str | None = None):
+        super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags, row_group)
         self.__min_value: T = min_value
         self.__max_value: T = max_value
         self.__name: T = name

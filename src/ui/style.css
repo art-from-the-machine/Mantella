@@ -39,14 +39,24 @@
 [class^="setting-bool-container"] {
     display: flex !important;
     align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    gap: 10px !important;
 }
 
 .setting-bool-container-wide {
-    width: 80% !important;
+    width: 100% !important;
 }
 
 .setting-bool-container-narrow {
-    width: 50% !important;
+    width: 100% !important;
+}
+
+/* Make the checkbox wrapper flexible but not overflowing */
+[class^="setting-bool-container"] > *:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: calc(100% - 30px) !important;
 }
 
 [class^="setting-bool-container"] label {
@@ -59,11 +69,12 @@
 [class^="setting-bool-container"] label span {
     font-size: 1.1rem !important;
     font-weight: 500 !important;
+    white-space: nowrap !important;
 }
 
-/* Ensure tooltip stays with label */
+/* Ensure tooltip stays at the end and doesn't overlap */
 [class^="setting-bool-container"] .tooltip-container {
-    margin-left: 5px !important;
+    flex: 0 0 auto !important;
     flex-shrink: 0 !important;
 }
 
@@ -98,7 +109,7 @@
     width: 15px;
     height: 15px;
     border-radius: 50%;
-    background-color: #4CAF50;
+    background-color: #808080;
     color: white;
     font-size: 12px;
     font-weight: bold;
@@ -133,7 +144,8 @@
 
 .tooltip-content-right {
     max-width: 400px;
-    left: -100px;
+    right: 0px;
+    left: auto;
 }
 
 [class^="tooltip-content"]::after {
@@ -150,7 +162,8 @@
 }
 
 .tooltip-content-right::after {
-    left: 104px;
+    right: 4px;
+    left: auto;
 }
 
 /* Show tooltip on hover */

@@ -5,8 +5,8 @@ from src.config.types.config_value_numeric import ConfigValueNumeric
 
 
 class ConfigValueInt(ConfigValueNumeric[int]):
-    def __init__(self, identifier: str, name: str, description: str, default_value: int, min_value: int, max_value: int, constraints: list[ConfigValueConstraint[int]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = []):
-        super().__init__(identifier, name, description, default_value, min_value, max_value, constraints, is_hidden, tags)
+    def __init__(self, identifier: str, name: str, description: str, default_value: int, min_value: int, max_value: int, constraints: list[ConfigValueConstraint[int]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = [], row_group: str | None = None):
+        super().__init__(identifier, name, description, default_value, min_value, max_value, constraints, is_hidden, tags, row_group)
 
     def parse(self, config_value: str) -> ConfigValueConstraintResult:
         try:

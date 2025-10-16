@@ -47,16 +47,28 @@ Common parameters:
 - extra_body: Additional service-specific parameters
 
 Example with OpenRouter reasoning exclusion:
+```
 {
-    "max_tokens": 5000,
-    "temperature": 0.8,
+    "max_tokens": 250,
+    "temperature": 1,
+    "top_p": 0.9,
+    "stop": [
+        "#"
+    ],
     "extra_body": {
         "reasoning": {
-            "exclude": true
+            "exclude": true,
+            "enabled": false,
+            "max_tokens": 400
+        },
+        "provider": {
+            "only": [
+                "z-ai"
+            ]
         }
-    },
-    "stop": ["###"]
-}"""
+    }
+}
+```"""
         return ConfigValueString(
             "profile_parameters",
             "Parameters (JSON)",
@@ -64,4 +76,32 @@ Example with OpenRouter reasoning exclusion:
             default_json
         )
     
- 
+    @staticmethod
+    def get_example_profile_json_config_value() -> ConfigValue:
+        example_json = """{
+    "max_tokens": 250,
+    "temperature": 1,
+    "top_p": 0.9,
+    "stop": [
+        "#"
+    ],
+    "extra_body": {
+        "reasoning": {
+            "exclude": true,
+            "enabled": false,
+            "max_tokens": 400
+        },
+        "provider": {
+            "only": [
+                "z-ai"
+            ]
+        }
+    }
+}"""
+        description = """Example JSON profile showing advanced parameters including OpenRouter reasoning exclusion and provider filtering."""
+        return ConfigValueString(
+            "example_profile_json",
+            "Example Profile JSON",
+            description,
+            example_json
+        )

@@ -5,8 +5,8 @@ from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 
 class ConfigValueGroup(ConfigValue[list[ConfigValue]]):
-    def __init__(self, identifier: str, name: str, description: str, on_value_change_callback: Callable[..., Any] | None = None, is_hidden: bool = False, tags: list[ConfigValueTag] = []):
-        super().__init__(identifier, name, description, [],[], is_hidden, tags)
+    def __init__(self, identifier: str, name: str, description: str, on_value_change_callback: Callable[..., Any] | None = None, is_hidden: bool = False, tags: list[ConfigValueTag] = [], row_group: str | None = None):
+        super().__init__(identifier, name, description, [],[], is_hidden, tags, row_group)
         self.set_on_value_change_callback(on_value_change_callback)
 
     def add_config_value(self, new_value: ConfigValue):

@@ -6,11 +6,12 @@ from src.config.config_value_constraint import ConfigValueConstraint, ConfigValu
 
 class ConfigValueTag(StrEnum):
     advanced = "advanced"
+    basic = "basic"
     share_row = "share_row"
 
 T = TypeVar('T')
 class ConfigValue(ABC, Generic[T]):
-    def __init__(self, identifier: str, name: str, description: str, default_value: T, constraints: list[ConfigValueConstraint[T]], is_hidden: bool, tags: list[ConfigValueTag] = []) -> None:
+    def __init__(self, identifier: str, name: str, description: str, default_value: T, constraints: list[ConfigValueConstraint[T]], is_hidden: bool, tags: list[ConfigValueTag] = [], row_group: str | None = None) -> None:
         super().__init__()
         self.__identifier = identifier
         self.__name = name
@@ -20,6 +21,7 @@ class ConfigValue(ABC, Generic[T]):
         self.__constraints: list[ConfigValueConstraint[T]] = constraints
         self.__is_hidden: bool = is_hidden
         self.__tags: list[ConfigValueTag] = tags
+        self.__row_group: str | None = row_group
         self._on_value_change_callback: Callable[..., Any] | None = None
     
     @property
@@ -59,6 +61,10 @@ class ConfigValue(ABC, Generic[T]):
     @property
     def tags(self) -> list[ConfigValueTag]:
         return self.__tags
+    
+    @property
+    def row_group(self) -> str | None:
+        return self.__row_group
     
     def set_on_value_change_callback(self, on_value_change_callback: Callable[..., Any] | None):
         self._on_value_change_callback = on_value_change_callback

@@ -129,26 +129,26 @@ class OtherDefinitions:
         description = """Whether to generate and save conversation summaries when conversations end.
                         If enabled: Summaries will be generated and saved to help NPCs remember past conversations.
                         If disabled: No summaries will be generated, conversations will end without sending summary requests to the LLM."""
-        return ConfigValueBool("conversation_summary_enabled", "Enable Conversation Summaries", description, True)
+        return ConfigValueBool("conversation_summary_enabled", "Enable Conversation Summaries", description, True, tags=[ ConfigValueTag.share_row])
 
     @staticmethod
     def get_random_llm_one_on_one_enabled_config_value() -> ConfigValue:
         return ConfigValueBool(
             identifier="random_llm_one_on_one_enabled",
-            name="Enable Random LLM Selection (One-on-One)",
+            name="Enable Per-Conversation Random LLM Selection (One-on-One)",
             description="Enable random LLM selection from the one-on-one pool for each new one-on-one conversation.",
             default_value=False,
-            tags=["random_llm", "conversation"]
+            tags=["random_llm", "conversation", ConfigValueTag.share_row, ConfigValueTag.advanced]
         )
 
     @staticmethod
     def get_random_llm_multi_npc_enabled_config_value() -> ConfigValue:
         return ConfigValueBool(
             identifier="random_llm_multi_npc_enabled",
-            name="Enable Random LLM Selection (Multi-NPC)",
+            name="Enable Per-Conversation Random LLM Selection (Multi-NPC)",
             description="Enable random LLM selection from the multi-NPC pool for each new multi-NPC conversation.",
             default_value=False,
-            tags=["random_llm", "conversation"]
+            tags=["random_llm", "conversation", ConfigValueTag.share_row, ConfigValueTag.advanced]
         )
 
     @staticmethod
@@ -161,7 +161,7 @@ class OtherDefinitions:
                 "from the one-on-one pool. This overrides per-character LLM overrides for that request."
             ),
             default_value=False,
-            tags=["random_llm", "conversation"]
+            tags=["random_llm", "conversation", ConfigValueTag.share_row]
         )
 
     @staticmethod
@@ -174,7 +174,7 @@ class OtherDefinitions:
                 "from the multi-NPC pool. This overrides the per-conversation multi-NPC model selection."
             ),
             default_value=False,
-            tags=["random_llm", "conversation"]
+            tags=["random_llm", "conversation", ConfigValueTag.share_row]
         )
 
     @staticmethod
@@ -182,9 +182,9 @@ class OtherDefinitions:
         return ConfigValueString(
             identifier="llm_pool_one_on_one",
             name="LLM Pool (One-on-One)",
-            description="JSON array of LLM models for random selection in one-on-one conversations. Edit this JSON directly to manage your pool.\n\nExample format:\n[\n  {\"service\": \"OpenRouter\", \"model\": \"deepseek/deepseek-chat\"},\n  {\"service\": \"OpenRouter\", \"model\": \"anthropic/claude-3-haiku\"},\n  {\"service\": \"OpenAI\", \"model\": \"gpt-4o-mini\"}\n]",
+            description="JSON array of LLM models for random selection in one-on-one conversations. Edit this JSON directly to manage your pool.\n\nExample format:\n[\n  {\"service\": \"OpenRouter\", \"model\": \"deepseek/deepseek-chat\"},\n  {\"service\": \"OpenRouter\", \"model\": \"anthropic/claude-3-haiku\"},\n  {\"service\": \"OpenAI\", \"model\": \"gpt-4o-mini\"},\n  {\"service\": \"NanoGPT\", \"model\": \"gpt-4\"}\n]",
             default_value="[]",
-            tags=["random_llm", "conversation", "pool"]
+            tags=["random_llm", "conversation", "pool", ConfigValueTag.share_row]
         )
 
     @staticmethod
@@ -192,9 +192,9 @@ class OtherDefinitions:
         return ConfigValueString(
             identifier="llm_pool_multi_npc",
             name="LLM Pool (Multi-NPC)",
-            description="JSON array of LLM models for random selection in multi-NPC conversations. Edit this JSON directly to manage your pool.\n\nExample format:\n[\n  {\"service\": \"OpenRouter\", \"model\": \"meta-llama/llama-3.1-8b-instruct\"},\n  {\"service\": \"OpenRouter\", \"model\": \"anthropic/claude-3-sonnet\"}\n]",
+            description="JSON array of LLM models for random selection in multi-NPC conversations. Edit this JSON directly to manage your pool.\n\nExample format:\n[\n  {\"service\": \"OpenRouter\", \"model\": \"meta-llama/llama-3.1-8b-instruct\"},\n  {\"service\": \"OpenRouter\", \"model\": \"anthropic/claude-3-sonnet\"},\n  {\"service\": \"NanoGPT\", \"model\": \"gpt-4o\"}\n]",
             default_value="[]",
-            tags=["random_llm", "conversation", "pool"]
+            tags=["random_llm", "conversation", "pool", ConfigValueTag.share_row]
         )
 
     @staticmethod

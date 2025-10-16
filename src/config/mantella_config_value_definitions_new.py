@@ -113,27 +113,33 @@ class MantellaConfigValueDefinitionsNew:
         llm_category = ConfigValueGroup("LLM", "Large Language Model", "Settings for the LLM providers and the LLMs themselves.", on_value_change_callback)
         llm_category.add_config_value(LLMDefinitions.get_llm_api_config_value())
         llm_category.add_config_value(LLMDefinitions.get_model_config_value())
-        # llm_category.add_config_value(LLMDefinitions.get_llm_priority_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_api_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_model_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_model_config_value())
         llm_category.add_config_value(LLMDefinitions.get_max_response_sentences_single_config_value())
         llm_category.add_config_value(LLMDefinitions.get_max_response_sentences_multi_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_custom_token_count_config_value())
-        #llm_category.add_config_value(LLMDefinitions.get_llm_custom_service_url_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_wait_time_buffer_config_value())
-        # llm_category.add_config_value(LLMDefinitions.get_try_filter_narration())
         llm_category.add_config_value(LLMDefinitions.get_llm_params_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_sonnet_prompt_caching_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_allow_per_character_llm_overrides_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_enable_character_tag_reading_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_apply_profile_one_on_one_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_apply_profile_multi_npc_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_apply_profile_summaries_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_multi_npc_bios_only_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_multi_conversation_director_mode_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_params_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_llm_params_config_value())
+        
+        
+        # llm_category.add_config_value(LLMDefinitions.get_llm_priority_config_value())
+ 
+        # llm_category.add_config_value(LLMDefinitions.get_try_filter_narration())
         llm_category.add_config_value(OtherDefinitions.get_conversation_summary_enabled_config_value())
         
+        llm_category.add_config_value(LLMDefinitions.get_multi_conversation_director_mode_config_value())
+        
+               
+        
+        #llm_category.add_config_value(LLMDefinitions.get_llm_custom_service_url_config_value())
+        
+        
+        
+        
         # Random LLM Selection
-        llm_category.add_config_value(OtherDefinitions.get_random_llm_one_on_one_enabled_config_value())
-        llm_category.add_config_value(OtherDefinitions.get_random_llm_multi_npc_enabled_config_value())
+        
         llm_category.add_config_value(OtherDefinitions.get_random_llm_one_on_one_per_request_enabled_config_value())
         llm_category.add_config_value(OtherDefinitions.get_random_llm_multi_npc_per_request_enabled_config_value())
         llm_category.add_config_value(OtherDefinitions.get_llm_pool_one_on_one_config_value())
@@ -142,16 +148,21 @@ class MantellaConfigValueDefinitionsNew:
         # llm_category.add_config_value(LLMDefinitions.get_stop_llm_generation_on_assist_keyword())
         
         # Multi-NPC LLM Configuration
-        llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_api_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_multi_npc_model_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_sonnet_prompt_caching_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_bios_only_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_allow_per_character_llm_overrides_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_enable_character_tag_reading_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_one_on_one_enabled_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_multi_npc_enabled_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_wait_time_buffer_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_custom_token_count_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_custom_token_count_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_params_config_value())
+        
         
         # Summary LLM Configuration
-        llm_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_summary_model_config_value())
+        
         llm_category.add_config_value(LLMDefinitions.get_summary_custom_token_count_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_summary_llm_params_config_value())
+        
         
         llm_category.add_config_value(LLMDefinitions.get_narration_handling())
         llm_category.add_config_value(LLMDefinitions.get_narrator_voice())
@@ -276,11 +287,15 @@ class MantellaConfigValueDefinitionsNew:
         # other_category.add_config_value(OtherDefinitions.get_default_player_response_config_value())
         # other_category.add_config_value(OtherDefinitions.get_exit_on_first_exchange_config_value())
         result.add_base_group(other_category)
-        
-        model_profiles_category = ConfigValueGroup("Model Profiles", "Model Profiles", "Create and manage model parameter profiles for different LLM models.", on_value_change_callback)
+
+        model_profiles_category = ConfigValueGroup("Model Profiles", "Model Profiles", "Model profiles allow you to create parameter profiles for each model. These profiles can be applied across the entire system when profile application is enabled, making it convenient for users who want to assign different providers, temperatures, enable/disable thinking modes, and other parameters for different models. ", on_value_change_callback)
         model_profiles_category.add_config_value(ModelProfileDefinitions.get_selected_service_config_value())
         model_profiles_category.add_config_value(ModelProfileDefinitions.get_selected_model_config_value())
         model_profiles_category.add_config_value(ModelProfileDefinitions.get_profile_parameters_config_value())
+        model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_one_on_one_config_value())
+        model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_multi_npc_config_value())
+        model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_summaries_config_value())
+        model_profiles_category.add_config_value(ModelProfileDefinitions.get_example_profile_json_config_value())
         result.add_base_group(model_profiles_category)
       
         return result

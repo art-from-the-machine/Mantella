@@ -13,8 +13,8 @@ class FileOrFolder(Enum):
     FOLDER = 2
 
 class ConfigValuePath(ConfigValue[str]):
-    def __init__(self, identifier: str, name: str, description: str, default_value: str, file_or_folder_that_must_be_present: str | None, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = []):
-        super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
+    def __init__(self, identifier: str, name: str, description: str, default_value: str, file_or_folder_that_must_be_present: str | None, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = [], row_group: str | None = None):
+        super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags, row_group)
         self.__file_or_folder_that_must_be_present: str | None = file_or_folder_that_must_be_present
     
     @property

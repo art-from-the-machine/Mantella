@@ -47,7 +47,7 @@ class LLMDefinitions:
             If you are using an API (OpenAI, OpenRouter, NanoGPT, etc) ensure you have the correct secret key set in the appropriate file for the respective service you are using:
             - OpenAI/OpenRouter: `GPT_SECRET_KEY.txt`
             - NanoGPT: `NANOGPT_SECRET_KEY.txt` (or `GPT_SECRET_KEY.txt` as fallback)"""
-        return ConfigValueSelection("llm_api","LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True)
+        return ConfigValueSelection("llm_api","Single NPC LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
 
     @staticmethod
     def get_model_config_value() -> ConfigValue:
@@ -55,7 +55,7 @@ class LLMDefinitions:
                             The list does not provide all details about the models. For additional information please refer to the corresponding sites:
                             - OpenRouter: https://openrouter.ai/docs#models
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
-        return ConfigValueSelection("model","Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True)
+        return ConfigValueSelection("model","Single NPC Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
     
     @staticmethod
     def get_llm_priority_config_value() -> ConfigValue:
@@ -69,26 +69,26 @@ class LLMDefinitions:
     @staticmethod
     def get_max_response_sentences_single_config_value() -> ConfigValue:
         description = "The maximum number of sentences returned by the LLM on each response in a player<->NPC conversation. Lower this value to reduce waffling.\nNote: The setting 'Number Words TTS' in the Text-to-Speech tab takes precedence over this setting."
-        return ConfigValueInt("max_response_sentences_single","Max Sentences per Response (Single NPC)", description, 4, 1, 999, tags=[ConfigValueTag.share_row])
+        return ConfigValueInt("max_response_sentences_single","Max Sentences per Response (Single NPC)", description, 4, 1, 999, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
     
     @staticmethod
     def get_max_response_sentences_multi_config_value() -> ConfigValue:
         description = "The maximum number of sentences returned by the LLM on each response in a player<->multi-NPC conversation. Lower this value to reduce waffling.\nNote: The setting 'Number Words TTS' in the Text-to-Speech tab takes precedence over this setting."
-        return ConfigValueInt("max_response_sentences_multi","Max Sentences per Response (Multi NPC)", description, 12, 1, 999, tags=[ConfigValueTag.share_row])
+        return ConfigValueInt("max_response_sentences_multi","Max Sentences per Response (Multi NPC)", description, 12, 1, 999, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
     
     @staticmethod
     def get_custom_token_count_config_value() -> ConfigValue:
         description = """If the model chosen is not recognised by Mantella, the token count for the given model will default to this number.
                     If this is not the correct token count for your chosen model, you can change it here.
                     Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit."""
-        return ConfigValueInt("custom_token_count","Custom Token Count",description, 4096, 4096, 9999999)
+        return ConfigValueInt("custom_token_count","Single NPC Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced], row_group="token_count_row")
     
     @staticmethod
     def get_wait_time_buffer_config_value() -> ConfigValue:
         description = """Time to wait (in seconds) before generating the next voiceline.
                         Mantella waits for the duration of a given voiceline's .wav file + an extra buffer to account for processing overhead.
                         If you are noticing that some voicelines are not being said in-game, try increasing this buffer."""
-        return ConfigValueFloat("wait_time_buffer","Wait Time Buffer",description, 0, -999, 999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+        return ConfigValueFloat("wait_time_buffer","Wait Time Buffer",description, 0, -999, 999,tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_llm_params_config_value() -> ConfigValue:
@@ -99,56 +99,83 @@ class LLMDefinitions:
         description = """Parameters passed as part of the request to the LLM.
                         A list of the most common parameters can be found here: https://openrouter.ai/docs/parameters.
                         Note that available parameters can vary per LLM provider."""
-        return ConfigValueString("llm_params", "Parameters", description, value, tags=[ConfigValueTag.advanced])
+        return ConfigValueString("llm_params", "Single NPC Parameters", description, value, tags=[ConfigValueTag.basic], row_group="llm_params_row")
 
     @staticmethod
     def get_sonnet_prompt_caching_config_value() -> ConfigValue:
         description = (
-            "(OpenRouter + Sonnet only) Enable Anthropic prompt caching with a single breakpoint at the end of the static prompt. "
-            "Sends the required header and marks the system prompt for caching so the player's latest input stays at the end."
+            "(OpenRouter + Sonnet only) Enable Anthropic prompt caching. Save up to 85% on token costs when using Sonnet with OpenRouter"
         )
         return ConfigValueBool(
             "sonnet_prompt_caching_enabled",
             "Enable Sonnet Prompt Caching",
             description,
             False,
-            tags=[ConfigValueTag.advanced]
+            tags=[ ConfigValueTag.share_row, ConfigValueTag.advanced],
         )
 
     @staticmethod
     def get_allow_per_character_llm_overrides_config_value() -> ConfigValue:
         description = """Allow per-character LLM model overrides for one-on-one conversations.
-                        When enabled, individual characters can use different LLM models specified in the character CSV files (LLM-OR column for OpenRouter models).
+                        When enabled, individual characters can use different LLM models specified in the character CSV files.
+                        You need to add two new columns in the main CSV file and override csv/json files:
+                        - llm_service: specifies the service provider (e.g., "nano", "or").
+                        - model: specifies the model name.
                         The global LLM settings will still be used as the default for characters without specific overrides."""
-        return ConfigValueBool("allow_per_character_llm_overrides", "Allow Per-Character LLM Overrides", description, False, tags=[ConfigValueTag.advanced])
+        return ConfigValueBool("allow_per_character_llm_overrides", "Allow Per-Character LLM Overrides", description, False, tags=[ConfigValueTag.share_row, ConfigValueTag.advanced])
 
     @staticmethod
     def get_enable_character_tag_reading_config_value() -> ConfigValue:
         description = """Enable character tag reading and bio expansion.
                         When enabled, character tags from the CSV files will be processed and used to expand character bios with additional template information.
-                        When disabled, only the base character bio will be used without any tag-based expansions."""
-        return ConfigValueBool("enable_character_tag_reading", "Enable Character Tag Reading", description, True, tags=[ConfigValueTag.advanced])
+                        When disabled, only the base character bio will be used without any tag-based expansions.
+                        
+                        SETUP INSTRUCTIONS:
+                        1. Create a new CSV file at: data\\Skyrim\\bio_templates\\bio_templates.csv
+                        2. Add two columns to this file: 'tag' and 'description'
+                        3. Add a new column 'tags' to your main character CSV file (and any override files)
+                        
+                        HOW TO USE:
+                        In bio_templates.csv, define tags and their descriptions like this:
+                        tag,description
+                        warrior,Known for exceptional combat prowess and martial skills.
+                        mage,A master of arcane arts and ancient magic.
+                        thief,Skilled in stealth, lockpicking, and acquiring items discreetly.
+                        
+                        In your main character CSV file, add relevant tags to the 'tags' column for each character:
+                        tags
+                        warrior,mage
+                        thief
+                        warrior
+                        
+                        When character bios are rendered, the system will automatically inject the descriptions of all tags associated with that character into their bio.
+                        
+                        NOTES:
+                        - Multiple tags per character are supported (separate with commas)
+                        - Tag descriptions are combined seamlessly into the final bio
+                        - Tags are case-sensitive and must match exactly between the template file and character CSV"""
+        return ConfigValueBool("enable_character_tag_reading", "Enable Character Tag Reading", description, True, tags=[ConfigValueTag.share_row, ConfigValueTag.advanced])
 
     @staticmethod
     def get_apply_profile_one_on_one_config_value() -> ConfigValue:
         description = """Automatically apply saved LLM profile parameters for one-on-one conversations.
                         When enabled, if a profile exists for the selected model, its parameters will be used instead of the manually configured parameters.
                         When disabled, manually configured parameters will always be used."""
-        return ConfigValueBool("apply_profile_one_on_one", "Apply Profile for One-on-One Conversations", description, False, tags=[ConfigValueTag.advanced])
+        return ConfigValueBool("apply_profile_one_on_one", "Apply Profile for One-on-One Conversations", description, False, tags=[], row_group="apply_profile_row")
 
     @staticmethod 
     def get_apply_profile_multi_npc_config_value() -> ConfigValue:
         description = """Automatically apply saved LLM profile parameters for multi-NPC conversations.
                         When enabled, if a profile exists for the selected multi-NPC model, its parameters will be used instead of the manually configured parameters.
                         When disabled, manually configured parameters will always be used."""
-        return ConfigValueBool("apply_profile_multi_npc", "Apply Profile for Multi-NPC Conversations", description, False, tags=[ConfigValueTag.advanced])
+        return ConfigValueBool("apply_profile_multi_npc", "Apply Profile for Multi-NPC Conversations", description, False, tags=[], row_group="apply_profile_row")
 
     @staticmethod
     def get_apply_profile_summaries_config_value() -> ConfigValue:
         description = """Automatically apply saved LLM profile parameters for conversation summaries.
                         When enabled, if a profile exists for the selected summary model, its parameters will be used instead of the manually configured parameters.
                         When disabled, manually configured parameters will always be used."""
-        return ConfigValueBool("apply_profile_summaries", "Apply Profile for Summaries", description, False, tags=[ConfigValueTag.advanced])
+        return ConfigValueBool("apply_profile_summaries", "Apply Profile for Summaries", description, False, tags=[], row_group="apply_profile_row")
 
     #LLM output parsing options
 
@@ -213,7 +240,7 @@ class LLMDefinitions:
             If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.
             
             By default, summaries use the same LLM as conversations. Configure this to use a different (potentially cheaper) model for summaries."""
-        return ConfigValueSelection("summary_llm_api","Summary LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
+        return ConfigValueSelection("summary_llm_api","Summary LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
 
     @staticmethod
     def get_summary_model_config_value() -> ConfigValue:
@@ -222,22 +249,22 @@ class LLMDefinitions:
                             The list does not provide all details about the models. For additional information please refer to the corresponding sites:
                             - OpenRouter: https://openrouter.ai/docs#models
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
-        return ConfigValueSelection("summary_model","Summary Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.advanced])
+        return ConfigValueSelection("summary_model","Summary Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
     
     @staticmethod
     def get_summary_custom_token_count_config_value() -> ConfigValue:
         description = """If the summary model chosen is not recognised by Mantella, the token count for the given model will default to this number.
                     If this is not the correct token count for your chosen model, you can change it here.
                     Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit."""
-        return ConfigValueInt("summary_custom_token_count","Summary Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced])
-    
+        return ConfigValueInt("summary_custom_token_count","Summary Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced], row_group="token_count_row")
+
     @staticmethod
     def get_summary_llm_params_config_value() -> ConfigValue:
         description = """Parameters for the summary LLM model. These should be in JSON format.
                     Common parameters include temperature (0.0-2.0), top_p (0.0-1.0), frequency_penalty (0.0-1.0), presence_penalty (0.0-1.0).
                     Lower temperature values produce more consistent outputs, while higher values increase creativity."""
-        default_params = json.dumps({"temperature": 0.1, "top_p": 0.9})
-        return ConfigValueString("summary_llm_params","Summary LLM Parameters",description, default_params, tags=[ConfigValueTag.advanced])
+        default_params = json.dumps({"temperature": 0.1, "top_p": 0.9}, indent=4)
+        return ConfigValueString("summary_llm_params","Summary LLM Parameters",description, default_params, tags=[ConfigValueTag.basic], row_group="llm_params_row")
 
     # Multi-NPC LLM Configuration
     @staticmethod
@@ -250,7 +277,7 @@ class LLMDefinitions:
             If you are using an API (OpenAI, OpenRouter, NanoGPT, etc) ensure you have the correct secret key set in the appropriate file for the respective service you are using:
             - OpenAI/OpenRouter: `GPT_SECRET_KEY.txt`
             - NanoGPT: `NANOGPT_SECRET_KEY.txt` (or `GPT_SECRET_KEY.txt` as fallback)"""
-        return ConfigValueSelection("multi_npc_llm_api","Multi-NPC & Radiant LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
+        return ConfigValueSelection("multi_npc_llm_api","Multi-NPC & Radiant LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
 
     @staticmethod
     def get_multi_npc_model_config_value() -> ConfigValue:
@@ -260,28 +287,28 @@ class LLMDefinitions:
                             The list does not provide all details about the models. For additional information please refer to the corresponding sites:
                             - OpenRouter: https://openrouter.ai/docs#models
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
-        return ConfigValueSelection("multi_npc_model","Multi-NPC & Radiant Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.advanced])
+        return ConfigValueSelection("multi_npc_model","Multi-NPC & Radiant Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
     
     @staticmethod
     def get_multi_npc_custom_token_count_config_value() -> ConfigValue:
         description = """If the multi-NPC model chosen is not recognised by Mantella, the token count for the given model will default to this number.
                     If this is not the correct token count for your chosen model, you can change it here.
                     Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit."""
-        return ConfigValueInt("multi_npc_custom_token_count","Multi-NPC & Radiant Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced])
+        return ConfigValueInt("multi_npc_custom_token_count","Multi-NPC & Radiant Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced], row_group="token_count_row")
 
     @staticmethod
     def get_multi_npc_llm_params_config_value() -> ConfigValue:
         description = """Parameters for the multi-NPC LLM model. These should be in JSON format.
                     Common parameters include temperature (0.0-2.0), top_p (0.0-1.0), frequency_penalty (0.0-1.0), presence_penalty (0.0-1.0).
                     Higher temperature values can help with more dynamic multi-character interactions."""
-        default_params = json.dumps({"temperature": 0.8, "top_p": 0.9})
-        return ConfigValueString("multi_npc_llm_params","Multi-NPC & Radiant LLM Parameters",description, default_params, tags=[ConfigValueTag.advanced])
+        default_params = json.dumps({"temperature": 0.8, "top_p": 0.9}, indent=4)
+        return ConfigValueString("multi_npc_llm_params","Multi-NPC & Radiant LLM Parameters",description, default_params, tags=[ConfigValueTag.basic], row_group="llm_params_row")
 
     @staticmethod
     def get_multi_npc_bios_only_config_value() -> ConfigValue:
         description = """Send only character bios to the LLM in multi-NPC conversations.
                         When enabled, conversation summaries are omitted from prompts for multi-NPC chats. Other behaviors remain unchanged."""
-        return ConfigValueBool("multi_npc_bios_only", "Send Only Bios (Multi-NPC)", description, False)
+        return ConfigValueBool("multi_npc_bios_only", "Send Only Bios (Multi-NPC)", description, False, tags=[ConfigValueTag.share_row, ConfigValueTag.advanced])
 
     @staticmethod
     def get_multi_conversation_director_mode_config_value() -> ConfigValue:
@@ -289,5 +316,5 @@ class LLMDefinitions:
                         When enabled, multi-NPC conversations will use a specialized director-style prompt instead of the standard multi-NPC prompt.
                         This mode provides more detailed instructions for managing group conversations.
                         Note: This only affects Skyrim multi-NPC conversations, not radiant or single-NPC conversations."""
-        return ConfigValueBool("multi_conversation_director_mode", "Multi Conversation Director Mode", description, False)
+        return ConfigValueBool("multi_conversation_director_mode", "Multi Conversation Director Mode", description, False, tags=[ ConfigValueTag.share_row])
 

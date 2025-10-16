@@ -716,78 +716,80 @@ class StartUI(routeable):
                     )
                 )
 
-            gr.Markdown("### Bio Editor")
-            npc_dropdown = gr.Dropdown(choices=labels, label="NPC", multiselect=False, allow_custom_value=False)
-            bio_editor = gr.Text(value="", lines=12, label="Bio")
-            
-            info_line = gr.Markdown(value="", visible=True)
-            # Optional: user-chosen path for base-only NPCs; persisted in hidden config key
-            with gr.Row():
-                save_btn = gr.Button("Save", variant="primary", interactive=False)
-                refresh_btn = gr.Button("Refresh bios", variant="secondary")
+            with gr.Accordion(label="Bio Editor", open=True):
+                gr.Markdown("Manually edit character bios and conversation summaries. Select an NPC from the dropdown, modify their bio or summary, and save your changes.")
+                npc_dropdown = gr.Dropdown(choices=labels, label="NPC", multiselect=False, allow_custom_value=False)
+                bio_editor = gr.Text(value="", lines=12, label="Bio")
                 
-            summary_editor = gr.Text(value="", lines=12, label="Summary")
-            with gr.Row():
-                save_summary_btn = gr.Button("Save Summary", variant="primary", interactive=False)
-                refresh_summaries_btn = gr.Button("Refresh summaries", variant="secondary")
+                info_line = gr.Markdown(value="", visible=True)
+                # Optional: user-chosen path for base-only NPCs; persisted in hidden config key
+                with gr.Row():
+                    save_btn = gr.Button("Save", variant="primary", interactive=False)
+                    refresh_btn = gr.Button("Refresh bios", variant="secondary")
+                
+                summary_editor = gr.Text(value="", lines=12, label="Summary")
+                with gr.Row():
+                    save_summary_btn = gr.Button("Save Summary", variant="primary", interactive=False)
+                    refresh_summaries_btn = gr.Button("Refresh summaries", variant="secondary")
 
             # --- LLM Request section ---
-            gr.Markdown("### Bio Editor – LLM Request")
-            # Prompt profiles UI
-            try:
-                _profiles_json = config.definitions.get_string_value("bio_prompt_profiles") or "{}"
-                _profiles_dict = json.loads(_profiles_json)
-                if not isinstance(_profiles_dict, dict):
-                    _profiles_dict = {}
-            except Exception:
-                _profiles_dict = {}
-            _selected_prompt_name = config.definitions.get_string_value("bio_prompt_selected") or ""
-            prompt_names = sorted(list(_profiles_dict.keys())) if _profiles_dict else []
-            with gr.Row():
-                prompt_selector = gr.Dropdown(choices=prompt_names, value=_selected_prompt_name if _selected_prompt_name in prompt_names else None, label="Prompt profile", multiselect=False, allow_custom_value=False)
-                new_prompt_name = gr.Text(value="", label="New prompt name", max_lines=1)
-                save_prompt_btn = gr.Button("Save prompt", variant="primary")
-                delete_prompt_btn = gr.Button("Delete prompt", variant="secondary")
-            prompt_editor = gr.Text(value=_profiles_dict.get(_selected_prompt_name, ""), lines=8, label="Prompt (supports {bio} and {summary})")
-            params_editor = gr.Text(value=json.dumps({"max_tokens": 250}, indent=2), lines=6, label="Parameters (JSON)")
-            with gr.Row():
-                service_dropdown = gr.Dropdown(
-                    choices=["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"],
-                    value=config.definitions.get_string_value("bio_llm_api") or config.llm_api,
-                    multiselect=False,
-                    allow_custom_value=True,
-                    label="LLM Service"
-                )
-                # Build initial model dropdown mirroring LLM tab logic
+            with gr.Accordion(label="Bio Editor – LLM Request", open=True):
+                gr.Markdown("Use AI to generate or enhance character bios. Configure prompts, select an LLM service and model, then send requests to generate new bio content based on existing character information.")
+                # Prompt profiles UI
                 try:
-                    from src.llm.key_file_resolver import key_file_resolver as _kfr
-                    _service = config.definitions.get_string_value("bio_llm_api") or config.llm_api
-                    _skf = _kfr.get_key_files_for_service(_service, 'GPT_SECRET_KEY.txt')
-                    _skf0 = _skf[0] if _skf else 'GPT_SECRET_KEY.txt'
-                    _model_list = ClientBase.get_model_list(_service, _skf0, 'google/gemma-2-9b-it:free', False)
-                    _initial_model = config.definitions.get_string_value("bio_llm_model") or config.llm
-                    _selected_model = _initial_model if _model_list.is_model_in_list(_initial_model) else _model_list.default_model
+                    _profiles_json = config.definitions.get_string_value("bio_prompt_profiles") or "{}"
+                    _profiles_dict = json.loads(_profiles_json)
+                    if not isinstance(_profiles_dict, dict):
+                        _profiles_dict = {}
                 except Exception:
-                    _model_list = ClientBase.get_model_list("OpenRouter", 'GPT_SECRET_KEY.txt', 'google/gemma-2-9b-it:free', False)
-                    _selected_model = _model_list.default_model
-                model_dropdown = gr.Dropdown(
-                    value=_selected_model,
-                    choices=_model_list.available_models,
-                    multiselect=False,
-                    allow_custom_value=_model_list.allows_manual_model_input,
-                    label="Model"
-                )
-                update_models_btn = gr.Button("Update models", variant="secondary")
-            with gr.Row():
-                apply_profile_checkbox = gr.Checkbox(value=config.definitions.get_bool_value("bio_llm_apply_profile"), label="Apply model profile for this request")
-                temp_override = gr.Number(value=config.definitions.get_float_value("bio_llm_temperature_override"), label="Temperature override (-1 to ignore)", precision=2)
-                max_tokens_override = gr.Number(value=config.definitions.get_int_value("bio_llm_max_tokens_override"), label="Max tokens override (-1 to ignore)", precision=0)
-            send_request_btn = gr.Button("Send Request", variant="primary")
-            llm_response_editor = gr.Text(value="", lines=12, label="LLM Response")
-            with gr.Row():
-                save_from_llm_btn = gr.Button("Save Bio (from LLM response)", variant="primary", interactive=False)
-                refresh_llm_btn = gr.Button("Refresh bios", variant="secondary")
-            llm_info_line = gr.Markdown(value="", visible=True)
+                    _profiles_dict = {}
+                _selected_prompt_name = config.definitions.get_string_value("bio_prompt_selected") or ""
+                prompt_names = sorted(list(_profiles_dict.keys())) if _profiles_dict else []
+                with gr.Row():
+                    prompt_selector = gr.Dropdown(choices=prompt_names, value=_selected_prompt_name if _selected_prompt_name in prompt_names else None, label="Prompt profile", multiselect=False, allow_custom_value=False)
+                    new_prompt_name = gr.Text(value="", label="New prompt name", max_lines=1)
+                    save_prompt_btn = gr.Button("Save prompt", variant="primary")
+                    delete_prompt_btn = gr.Button("Delete prompt", variant="secondary")
+                prompt_editor = gr.Text(value=_profiles_dict.get(_selected_prompt_name, ""), lines=8, label="Prompt (supports {bio} and {summary})")
+                params_editor = gr.Text(value=json.dumps({"max_tokens": 250}, indent=2), lines=6, label="Parameters (JSON)")
+                with gr.Row():
+                    service_dropdown = gr.Dropdown(
+                        choices=["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"],
+                        value=config.definitions.get_string_value("bio_llm_api") or config.llm_api,
+                        multiselect=False,
+                        allow_custom_value=True,
+                        label="LLM Service"
+                    )
+                    # Build initial model dropdown mirroring LLM tab logic
+                    try:
+                        from src.llm.key_file_resolver import key_file_resolver as _kfr
+                        _service = config.definitions.get_string_value("bio_llm_api") or config.llm_api
+                        _skf = _kfr.get_key_files_for_service(_service, 'GPT_SECRET_KEY.txt')
+                        _skf0 = _skf[0] if _skf else 'GPT_SECRET_KEY.txt'
+                        _model_list = ClientBase.get_model_list(_service, _skf0, 'google/gemma-2-9b-it:free', False)
+                        _initial_model = config.definitions.get_string_value("bio_llm_model") or config.llm
+                        _selected_model = _initial_model if _model_list.is_model_in_list(_initial_model) else _model_list.default_model
+                    except Exception:
+                        _model_list = ClientBase.get_model_list("OpenRouter", 'GPT_SECRET_KEY.txt', 'google/gemma-2-9b-it:free', False)
+                        _selected_model = _model_list.default_model
+                    model_dropdown = gr.Dropdown(
+                        value=_selected_model,
+                        choices=_model_list.available_models,
+                        multiselect=False,
+                        allow_custom_value=_model_list.allows_manual_model_input,
+                        label="Model"
+                    )
+                    update_models_btn = gr.Button("Update models", variant="secondary")
+                with gr.Row():
+                    apply_profile_checkbox = gr.Checkbox(value=config.definitions.get_bool_value("bio_llm_apply_profile"), label="Apply model profile for this request")
+                    temp_override = gr.Number(value=config.definitions.get_float_value("bio_llm_temperature_override"), label="Temperature override (-1 to ignore)", precision=2)
+                    max_tokens_override = gr.Number(value=config.definitions.get_int_value("bio_llm_max_tokens_override"), label="Max tokens override (-1 to ignore)", precision=0)
+                send_request_btn = gr.Button("Send Request", variant="primary")
+                llm_response_editor = gr.Text(value="", lines=12, label="LLM Response")
+                with gr.Row():
+                    save_from_llm_btn = gr.Button("Save Bio (from LLM response)", variant="primary", interactive=False)
+                    refresh_llm_btn = gr.Button("Refresh bios", variant="secondary")
+                llm_info_line = gr.Markdown(value="", visible=True)
 
             def on_select(label: str, df: pd.DataFrame, l2k: dict[str, str], world_id: str):
                 # Clear info and load bio; enable save when selection exists

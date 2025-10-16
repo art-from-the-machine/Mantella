@@ -126,7 +126,7 @@ class PromptDefinitions:
                                     {actions}
                                     Remember, you can only respond as {names}. Ensure to use their full name when responding.
                                     The conversation takes place in {language}."""
-        return ConfigValueString("skyrim_multi_npc_prompt","Skyrim Multi-NPC Prompt",PromptDefinitions.BASE_PROMPT_DESCRIPTION,skyrim_multi_npc_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES)])
+        return ConfigValueString("skyrim_multi_npc_prompt","Skyrim Multi-NPC Prompt",PromptDefinitions.BASE_PROMPT_DESCRIPTION + "\n bios_and_summaries = combined bios and summaries for all NPCs in the conversation",skyrim_multi_npc_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES)])
 
     @staticmethod
     def get_skyrim_multi_npc_director_prompt_config_value() -> ConfigValue:
@@ -218,7 +218,7 @@ Content Guidelines:
 - The conversation is in {language}.
 
 """
-        return ConfigValueString("skyrim_multi_npc_director_prompt","Skyrim Multi-NPC Director Prompt",PromptDefinitions.BASE_PROMPT_DESCRIPTION,skyrim_multi_npc_director_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES)])
+        return ConfigValueString("skyrim_multi_npc_director_prompt","Skyrim Multi-NPC Director Prompt",PromptDefinitions.BASE_PROMPT_DESCRIPTION + "\n bios_and_summaries = combined bios and summaries for all NPCs in the conversation",skyrim_multi_npc_director_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES)])
 
     @staticmethod
     def get_skyrim_radiant_prompt_config_value() -> ConfigValue:

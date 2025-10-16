@@ -4,8 +4,8 @@ from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 
 class ConfigValueBool(ConfigValue[bool]):
-    def __init__(self, identifier: str, name: str, description: str, default_value: bool, constraints: list[ConfigValueConstraint[bool]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = []):
-        super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
+    def __init__(self, identifier: str, name: str, description: str, default_value: bool, constraints: list[ConfigValueConstraint[bool]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = [], row_group: str | None = None):
+        super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags, row_group)
     
     def parse(self, config_value: str) -> ConfigValueConstraintResult:
         try:

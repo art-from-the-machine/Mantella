@@ -4,8 +4,8 @@ from src.config.types.config_value_visitor import ConfigValueVisitor
 from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 class ConfigValueSelection(ConfigValue[str]):
-    def __init__(self, identifier: str, name: str, description: str, default_value: str, options: list[str], corresponding_enums: list[Enum] | None = None, allows_free_edit: bool = False, allows_values_not_in_options: bool = False, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = []):
-        super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags)
+    def __init__(self, identifier: str, name: str, description: str, default_value: str, options: list[str], corresponding_enums: list[Enum] | None = None, allows_free_edit: bool = False, allows_values_not_in_options: bool = False, constraints: list[ConfigValueConstraint[str]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = [], row_group: str | None = None):
+        super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags, row_group)
         self.__options: list[str] = options
         self.__corresponding_enums: list[Enum] | None = corresponding_enums
         self.__allows_free_edit = allows_free_edit

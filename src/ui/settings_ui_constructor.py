@@ -47,6 +47,8 @@ class SettingsUIConstructor(ConfigValueVisitor):
         self.__identifier_to_config_value: dict[str, ConfigValue] = {}
         self.__config_value_to_ui_element: dict[ConfigValue, Any] = {}
         self.__pending_shared_setting: SettingConfig | None = None
+        self.__row_groups: dict[str, list[SettingConfig]] = {}  # Track settings by row_group
+        self.__last_row_group: str | None = None  # Track the last row group being built
         self.__model_dependencies: list[tuple[str, str]] = []  # (model_id, service_id) pairs
         self.__profile_manager: ModelProfileManager | None = None
     
@@ -230,12 +232,15 @@ class SettingsUIConstructor(ConfigValueVisitor):
     
     def __create_tooltip(self, config_value: ConfigValue, is_second_setting: bool = False) -> str:
         """Creates the tooltip HTML for a config value"""
-        constraints_html = (f'<p class="constraints">' + 
-                          '<br>'.join(c.description for c in config_value.constraints) + 
-                          '</p>' if config_value.constraints else '')
-        tooltip_content = 'tooltip-content-right' if is_second_setting else 'tooltip-content-left'
+        constraints_html = (
+            f'<p class="constraints">' +
+            '<br>'.join(c.description for c in config_value.constraints) +
+            '</p>' if config_value.constraints else ''
+        )
+        use_right_aligned_tooltip = is_second_setting or isinstance(config_value, ConfigValueBool)
+        tooltip_content = 'tooltip-content-right' if use_right_aligned_tooltip else 'tooltip-content-left'
         description_html = (config_value.description or "").replace("\n", "<br>")
-        
+
         return f"""
         <div class="tooltip-container" role="tooltip" aria-label="{config_value.name} help">
             <span class="tooltip-icon" tabindex="0">?</span>
@@ -347,6 +352,25 @@ class SettingsUIConstructor(ConfigValueVisitor):
             additional_buttons
         )
 
+        # Handle row grouping
+        if config_value.row_group is not None:
+            # Check if we need to render a different pending row group first
+            if self.__last_row_group is not None and self.__last_row_group != config_value.row_group:
+                self.__render_row_group(self.__last_row_group)
+            
+            # Add to the current row group
+            if config_value.row_group not in self.__row_groups:
+                self.__row_groups[config_value.row_group] = []
+            self.__row_groups[config_value.row_group].append(current_setting)
+            self.__last_row_group = config_value.row_group
+            return
+        
+        # If we have a pending row group, render it now before processing this non-grouped item
+        if self.__last_row_group is not None:
+            self.__render_row_group(self.__last_row_group)
+            self.__last_row_group = None
+        
+        # Legacy share_row tag support (for backwards compatibility)
         if ConfigValueTag.share_row in config_value.tags:
             if self.__pending_shared_setting is not None:
                 self.__create_paired_settings(self.__pending_shared_setting, current_setting)
@@ -386,7 +410,8 @@ class SettingsUIConstructor(ConfigValueVisitor):
     def __construct_name_description_constraints(self, config_value: ConfigValue, is_second_setting: bool = False):
         with gr.Row():
             description_html = (config_value.description or "").replace("\n", "<br>")
-            tooltip_content = 'tooltip-content-right' if is_second_setting else 'tooltip-content-left'
+            use_right_aligned_tooltip = is_second_setting or isinstance(config_value, ConfigValueBool)
+            tooltip_content = 'tooltip-content-right' if use_right_aligned_tooltip else 'tooltip-content-left'
             tooltip_html = f"""
             <div style="display: flex; align-items: center;">
                 <h3 style="margin: 0; font-size: 1.25em;">{config_value.name}</h3>
@@ -405,26 +430,81 @@ class SettingsUIConstructor(ConfigValueVisitor):
         result: ConfigValueConstraintResult = config_value.does_value_cause_error(config_value.value)
         return self.__construct_error_message_panel(result.error_message, is_visible=not result.is_success)
 
+    def __render_row_group(self, group_id: str):
+        """Render all settings in a row group"""
+        if group_id in self.__row_groups and len(self.__row_groups[group_id]) > 0:
+            settings = self.__row_groups[group_id]
+            with gr.Row():
+                for i, setting in enumerate(settings):
+                    is_second_setting = i > 0
+                    with gr.Column(variant="panel", scale=1):
+                        components = self.__create_setting_components(setting, is_second_setting)
+                        self.__identifier_to_config_value[setting.config_value.identifier] = setting.config_value
+                        self.__config_value_to_ui_element[setting.config_value] = components.input_ui
+            # Clear the group after rendering
+            del self.__row_groups[group_id]
+
     def visit_ConfigValueGroup(self, config_value: ConfigValueGroup):
-        if not config_value.is_hidden:            
+        if not config_value.is_hidden:
+            if config_value.description and config_value.name == "Model Profiles":
+                gr.Markdown(config_value.description)
+            
             has_advanced_values = False
+            has_basic_values = False
             regular_settings = []
+            basic_settings = []
             advanced_settings = []
             for cf in config_value.value:
                 if not cf.is_hidden:
                     if ConfigValueTag.advanced in cf.tags:
                         advanced_settings.append(cf)
                         has_advanced_values = True
+                    elif ConfigValueTag.basic in cf.tags:
+                        basic_settings.append(cf)
+                        has_basic_values = True
                     else:
                         regular_settings.append(cf)
 
+            # Render basic settings in an accordion
+            if has_basic_values:
+                with gr.Accordion(label="Basic Settings", open=False):
+                    for cf in basic_settings:
+                        cf.accept_visitor(self)
+                    
+                    # Render any pending row group in basic section
+                    if self.__last_row_group is not None:
+                        self.__render_row_group(self.__last_row_group)
+                        self.__last_row_group = None
+                    
+                    # Render any remaining row groups in basic section
+                    for group_id in list(self.__row_groups.keys()):
+                        self.__render_row_group(group_id)
+
             for i, cf in enumerate(regular_settings):
                 cf.accept_visitor(self)
+            
+            # Render any pending row group after processing regular settings
+            if self.__last_row_group is not None:
+                self.__render_row_group(self.__last_row_group)
+                self.__last_row_group = None
+            
+            # Render any remaining row groups (shouldn't happen but just in case)
+            for group_id in list(self.__row_groups.keys()):
+                self.__render_row_group(group_id)
             
             if has_advanced_values:
                 with gr.Accordion(label="Advanced", open=False):
                     for cf in advanced_settings:
                         cf.accept_visitor(self)
+                    
+                    # Render any pending row group in advanced section
+                    if self.__last_row_group is not None:
+                        self.__render_row_group(self.__last_row_group)
+                        self.__last_row_group = None
+                    
+                    # Render any remaining row groups in advanced section
+                    for group_id in list(self.__row_groups.keys()):
+                        self.__render_row_group(group_id)
 
     def visit_ConfigValueInt(self, config_value: ConfigValueInt):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Number:
@@ -460,6 +540,18 @@ class SettingsUIConstructor(ConfigValueVisitor):
     def visit_ConfigValueString(self, config_value: ConfigValueString):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Text:
             config_value = typing.cast(ConfigValueString, raw_config_value)
+            
+            # Special handling for example profile JSON - make it readonly
+            if config_value.identifier == "example_profile_json":
+                return gr.Text(
+                    value=config_value.value,
+                    show_label=False,
+                    container=False,
+                    lines=15,  # Show all the JSON
+                    max_lines=15,
+                    elem_classes="multiline-textbox",
+                    interactive=False  # Make it readonly
+                )
             
             # Special handling for profile parameters - always allow multi-line
             if config_value.identifier == "profile_parameters":
@@ -642,8 +734,8 @@ class SettingsUIConstructor(ConfigValueVisitor):
                     parameters_config = self.__identifier_to_config_value.get("profile_parameters")
                     return parameters_config.value if parameters_config else ""
             
-            additional_buttons.append(("Save Profile", on_save_profile_click))
-            additional_buttons.append(("Delete Profile", on_delete_profile_click))
+            additional_buttons.append(("Save", on_save_profile_click))
+            additional_buttons.append(("Delete", on_delete_profile_click))
             
         self.__create_config_value_ui_element(config_value, create_input_component, False, True, True, additional_buttons)
     
