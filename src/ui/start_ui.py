@@ -7,6 +7,7 @@ from src.http.routes.routeable import routeable
 from src.ui.settings_ui_constructor import SettingsUIConstructor
 import logging
 import os
+import sys
 import pandas as pd
 from src.config.definitions.game_definitions import GameEnum
 import src.utils as utils
@@ -1335,9 +1336,22 @@ class StartUI(routeable):
                 logging.log(25, link)
     
     def __load_css(self):
-        with open('src/ui/style.css', 'r') as file:
-            css_content = file.read()
-        return css_content
+        # Determine CSS path based on whether we are running as an exe or from source
+        if getattr(sys, 'frozen', False):
+            exe_dir = os.path.dirname(sys.executable)
+            css_path = os.path.join(exe_dir, 'src', 'ui', 'style.css')
+        else:
+            css_path = os.path.join('src', 'ui', 'style.css')
+
+        try:
+            with open(css_path, 'r') as file:
+                css_content = file.read()
+                return css_content
+        except FileNotFoundError:
+            # Fallback: return empty CSS so the app still runs
+            logging.warning(f"StartUI: Could not find CSS file at {css_path}. UI will load without custom styles.")
+            return ""
+
     
     def _setup_route(self):
         pass
