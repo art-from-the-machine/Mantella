@@ -137,7 +137,7 @@ class GameStateManager:
                     return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCACTION,
                             comm_consts.KEY_REPLYTYPE_NPCACTION: {
                                 'mantella_actor_speaker': npcs_in_conversation.last_added_character.name,
-                                'mantella_actor_actions': [action.identifier],
+                                'mantella_actor_actions': [{'identifier': action.identifier}],
                                 }
                             }
 
@@ -202,8 +202,6 @@ class GameStateManager:
     def __abbreviate_text(self, text_to_abbreviate: str) -> str:
         return self.__game.modify_sentence_text_for_game(text_to_abbreviate)
 
-        
-    
     ##### utils #######
 
     @utils.time_it

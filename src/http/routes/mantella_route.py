@@ -9,7 +9,6 @@ from src.games.gameable import Gameable
 from src.games.skyrim import Skyrim
 from src.output_manager import ChatManager
 from src.llm.llm_client import LLMClient
-from src.llm.function_client import FunctionClient
 from src.game_manager import GameStateManager
 from src.http.routes.routeable import routeable
 from src.http.communication_constants import communication_constants as comm_consts
@@ -33,8 +32,8 @@ class mantella_route(routeable):
         self.__language_info: dict[Hashable, str] = language_info
         self.__secret_key_file: str = secret_key_file
         self.__function_llm_secret_key_file: str = function_llm_secret_key_file
-        self.__stt_secret_key_file = stt_secret_key_file
-        self.__image_secret_key_file: str = image_secret_key_file        
+        self.__stt_secret_key_file: str = stt_secret_key_file
+        self.__image_secret_key_file: str = image_secret_key_file
         self.__game: GameStateManager | None = None
 
         # if not self._can_route_be_used():
@@ -64,12 +63,10 @@ class mantella_route(routeable):
         llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file, self.__function_llm_secret_key_file)
 
         FunctionManager.load_all_actions()
-        # function_client = FunctionClient(self._config, self.__secret_key_file, self.__function_llm_secret_key_file)
         
         chat_manager = ChatManager(self._config, tts, llm_client)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, self.__stt_secret_key_file, self.__secret_key_file)
 
-    
     @utils.time_it
     def add_route_to_server(self, app: FastAPI):
         @app.post("/mantella")

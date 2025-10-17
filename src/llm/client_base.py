@@ -119,7 +119,7 @@ class ClientBase(AIClient):
 
     @utils.time_it
     def _request_call_full(self, messages: Message | message_thread) -> ChatCompletion | None:
-        """Protected method that returns the full chat completion object
+        """Returns the full chat completion object
         
         Args:
             messages: The messages to send to the LLM
@@ -224,8 +224,8 @@ class ClientBase(AIClient):
                 else:
                     async_client = self.generate_async_client()
                 
-                # Tool call accumulation variables
-                accumulated_tool_calls = {}  # Dict to track partial tool calls by index
+                # Dict to track partial tool calls by index
+                accumulated_tool_calls = {}
                 
                 async for chunk in await async_client.chat.completions.create(
                     model=self.model_name, 

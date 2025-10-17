@@ -44,11 +44,11 @@ class ConfigLoader:
                 try:
                     config_value = self.__definitions.get_config_value_definition(each_key)
                     config_value.parse(each_value)
-                except Exception as e:
+                except:
                     create_back_up_configini = True
                     # TODO: filter out warnings for ['game', 'skyrim_mod_folder', 'skyrimvr_mod_folder', 'fallout4_mod_folder', 'fallout4vr_mod_folder', fallout4vr_folder]
                     utils.play_error_sound()
-                    logging.warning(f"Could not identify config value '{each_key} = {each_value}' in current config.ini. Value will not be loaded. A backup of this config.ini will be created. Error : {e}")
+                    logging.warning(f"Could not identify config value '{each_key} = {each_value}' in current config.ini. Value will not be loaded. A backup of this config.ini will be created.")
 
         if create_back_up_configini:
             self.__write_config_state(self.__definitions, True)

@@ -1,6 +1,6 @@
 
 from regex import Regex
-from src.config.types.config_value import ConfigValue, ConfigValueTag
+from src.config.types.config_value import ConfigValue
 from src.config.types.config_value_string import ConfigValueString
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 
@@ -87,26 +87,14 @@ class PromptDefinitions:
             self.__allowed_prompt_variables = allowed_prompt_variables
 
         def apply_constraint(self, prompt: str) -> ConfigValueConstraintResult:
-            stop_marker = "NO_REGEX_FORMATTING_PAST_THIS_POINT"
-            # Split the prompt at the stop marker
-            prompt_before_marker = prompt.split(stop_marker, 1)[0]
-
             check_regex = Regex("{(?P<variable>.*?)}")
-            matches = check_regex.findall(prompt_before_marker)
+            matches = check_regex.findall(prompt)
             allowed = self.__allowed_prompt_variables
-
             for m in matches:
                 if not m in allowed:
                     if len(allowed) == 0:
-                        return ConfigValueConstraintResult(
-                            f"Found variable '{{{m}}}' in text. No variables allowed."
-                        )
-                    allowed_vars_msg = (
-                        f"{', '.join(allowed[:-1])} or {allowed[-1]}" if len(allowed) > 1 else allowed[0]
-                    )
-                    return ConfigValueConstraintResult(
-                        f"Found variable '{{{m}}}' in prompt which is not part of the allowed variables {allowed_vars_msg}"
-                    )
+                        return ConfigValueConstraintResult("Found variable '{" + m + "}' in text. No variables allowed.")
+                    return ConfigValueConstraintResult("Found variable '{" + m + "}'" + f" in prompt which is not part of the allowed variables {', '.join(allowed[:-1]) + ' or ' + allowed[-1]}")
             return ConfigValueConstraintResult()
     
     @staticmethod
@@ -221,12 +209,14 @@ class PromptDefinitions:
                                             Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {language}."""
         return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
     
+    @staticmethod
     def get_vision_prompt_config_value() -> ConfigValue:
         vision_prompt_description = """The prompt passed to the vision-capable LLM when `Custom Vision Model` is enabled."""
         vision_prompt = """This image is to give context and is from the player's point of view in the game of {game}. 
                             Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
         return ConfigValueString("vision_prompt","Vision Prompt",vision_prompt_description,vision_prompt)
     
+    @staticmethod
     def get_radiant_start_prompt_config_value() -> ConfigValue:
         radiant_start_prompt_description = """Once a radiant conversation has started and the radiant prompt has been passed to the LLM, the below text is passed in replace of the player response.
                                         This prompt is used to steer the radiant conversation.""" 

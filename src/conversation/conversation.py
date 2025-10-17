@@ -20,7 +20,6 @@ from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
 import src.utils as utils
-from src.function_inference.function_manager import get_function_manager_instance
 from src.actions.function_manager import FunctionManager
 
 class conversation_continue_type(Enum):
@@ -55,9 +54,7 @@ class Conversation:
         self.__sentences: SentenceQueue = SentenceQueue()
         self.__generation_thread: Thread | None = None
         self.__generation_start_lock: Lock = Lock()
-        #self.__actions: list[Action] = actions
-        self.__function_manager = get_function_manager_instance()
-        self.__function_manager.initialize(context_for_conversation, output_manager, None)
+        # self.__actions: list[Action] = actions
         self.last_sentence_audio_length = 0
         self.last_sentence_start_time = time.time()
         self.__end_conversation_keywords = utils.parse_keywords(context_for_conversation.config.end_conversation_keyword)
@@ -141,12 +138,7 @@ class Conversation:
         if next_sentence and len(next_sentence.text) > 0:
             if {'identifier': comm_consts.ACTION_REMOVECHARACTER} in next_sentence.actions:
                 self.__context.remove_character(next_sentence.speaker)
-            #check if the next function call has been vetoed by the LLm, if so then the function doesn't occur
-            if self.__function_manager.is_initialized() :
-                if self.__function_manager.check_LLM_functions_enabled() or self.__function_manager.llm_output_call_type == "function":
-                    next_sentence= self.__function_manager.take_post_response_actions(next_sentence)
-                    self.__messages.remove_LLM_warnings()
-            #if there is a next sentence and it actually has content, return it as something for an NPC to say 
+            #if there is a next sentence and it actually has content, return it as something for an NPC to say
             if self.last_sentence_audio_length > 0:
                 logging.debug(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
             # before immediately sending the next voiceline, give the player the chance to interrupt
@@ -225,15 +217,6 @@ class Conversation:
             logging.log(23, f"Text passed to NPC: {text}")
 
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
-        ConversationIsEnded =self.__has_conversation_ended(text)
-        if ConversationIsEnded==False and self.__function_manager.is_initialized():
-            if self.__function_manager.check_LLM_functions_enabled():
-                returnedLLMFunctionOutput=self.__function_manager.process_function_call(self.__messages,text)
-                if returnedLLMFunctionOutput:
-                    logging.log(23,f"Function call recognized! Sending message to roleplay LLM : {returnedLLMFunctionOutput}")              
-                    warning_message: UserMessage = UserMessage(returnedLLMFunctionOutput, player_character.name, True, is_LLM_warning = True) #Sends a warning message to the LLM so it roughly knows what the NPC is going to do and has a chance to stop it
-                    self.__messages.add_message(warning_message)  #consider making this a one of a singleton message
-
         if ejected_npc:
             self.__prepare_eject_npc_from_conversation(ejected_npc)
         elif self.__has_conversation_ended(text):
@@ -352,7 +335,6 @@ class Conversation:
                 self.__allow_mic_input = False
             # say goodbyes
             npc = self.__context.npcs_in_conversation.last_added_character
-            self.__messages.remove_LLM_warnings() #remove vote warning to prevent those from being part of the summary
             if npc:
                 goodbye_sentence = self.__output_manager.generate_sentence(SentenceContent(npc, config.goodbye_npc_response, SentenceTypeEnum.SPEECH, True))
                 if goodbye_sentence:

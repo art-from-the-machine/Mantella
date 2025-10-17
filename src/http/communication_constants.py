@@ -77,11 +77,3 @@ class communication_constants:
     ACTION_RELOADCONVERSATION: str = PREFIX + "reload_conversation"
     ACTION_ENDCONVERSATION: str = PREFIX + "end_conversation"
     ACTION_REMOVECHARACTER: str = PREFIX + "remove_character"
-
-
-
-    # Function data
-    FUNCTION_DATA_TARGET_IDS: str = PREFIX + "function_data_target_ids"
-    FUNCTION_DATA_TARGET_NAMES: str = PREFIX + "function_data_target_names"
-    FUNCTION_DATA_SOURCE_IDS: str = PREFIX + "function_data_source_ids"
-    FUNCTION_DATA_MODES: str = PREFIX + "function_data_modes"

@@ -8,7 +8,7 @@ from src.config.definitions.other_definitions import OtherDefinitions
 from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
-from src.config.definitions.function_llm_definitions import FunctionLLMDefinitions
+
 
 class MantellaConfigValueDefinitionsClassic:
     @staticmethod
@@ -70,10 +70,6 @@ class MantellaConfigValueDefinitionsClassic:
         prompt_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
         prompt_category.add_config_value(PromptDefinitions.get_memory_prompt_config_value())
         prompt_category.add_config_value(PromptDefinitions.get_resummarize_prompt_config_value())
-        prompt_category.add_config_value(PromptDefinitions.get_function_LLM_OpenAI_single_prompt_config_value())
-        prompt_category.add_config_value(PromptDefinitions.get_function_LLM_OpenAI_multi_prompt_config_value())
-        prompt_category.add_config_value(PromptDefinitions.get_function_LLM_single_prompt_config_value())
-        prompt_category.add_config_value(PromptDefinitions.get_function_LLM_multi_prompt_config_value())
         result.append(prompt_category)
         
         language_advanced_category = ConfigValueGroup("Language.Advanced", "Language advanced", "More advanced language settings.\nIf you are changing the base language to something else than 'en' you will most likely also want to adjust some of these ", on_value_change_callback)
@@ -128,19 +124,6 @@ class MantellaConfigValueDefinitionsClassic:
         http_category.add_config_value(OtherDefinitions.get_port_config_value())
         http_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         result.append(http_category)
-
-        function_llm_category = ConfigValueGroup("Function LLM", "Function inference", "Settings for the Function LLM providers and Function calling management.", on_value_change_callback)
-        #function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_enable_inference())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_enable_veto())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_api_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_model_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_custom_token_count_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_temperature_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_top_p_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_frequency_penalty_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_max_tokens_config_value())
-        function_llm_category.add_config_value(FunctionLLMDefinitions.get_function_llm_timeout_value())
-        result.append(function_llm_category)
         
         # debugging_category = ConfigValueGroup("Debugging", "Debugging", "Settings that might help debug problems with Mantella", on_value_change_callback)
         # debugging_category.add_config_value(OtherDefinitions.get_debugging_config_value())
