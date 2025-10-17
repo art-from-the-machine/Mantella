@@ -104,11 +104,11 @@ class LLMDefinitions:
     @staticmethod
     def get_sonnet_prompt_caching_config_value() -> ConfigValue:
         description = (
-            "(OpenRouter + Sonnet only) Enable Anthropic prompt caching. Save up to 85% on token costs when using Sonnet with OpenRouter"
+            "(OpenRouter + Claude) Enable Anthropic prompt caching for Anthropic Claude models via OpenRouter."
         )
         return ConfigValueBool(
             "sonnet_prompt_caching_enabled",
-            "Enable Sonnet Prompt Caching",
+            "Enable Claude Prompt Caching",
             description,
             False,
             tags=[ ConfigValueTag.share_row, ConfigValueTag.advanced],
@@ -126,8 +126,7 @@ class LLMDefinitions:
 
     @staticmethod
     def get_enable_character_tag_reading_config_value() -> ConfigValue:
-        description = """Enable character tag reading and bio expansion.
-                        When enabled, character tags from the CSV files will be processed and used to expand character bios with additional template information.
+        description = """When enabled, character tags from the CSV files will be processed and used to expand character bios with additional template information.
                         When disabled, only the base character bio will be used without any tag-based expansions.
                         
                         SETUP INSTRUCTIONS:
@@ -139,13 +138,10 @@ class LLMDefinitions:
                         In bio_templates.csv, define tags and their descriptions like this:
                         tag,description
                         warrior,Known for exceptional combat prowess and martial skills.
-                        mage,A master of arcane arts and ancient magic.
-                        thief,Skilled in stealth, lockpicking, and acquiring items discreetly.
                         
                         In your main character CSV file, add relevant tags to the 'tags' column for each character:
                         tags
                         warrior,mage
-                        thief
                         warrior
                         
                         When character bios are rendered, the system will automatically inject the descriptions of all tags associated with that character into their bio.

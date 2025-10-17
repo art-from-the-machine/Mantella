@@ -6,9 +6,9 @@ import logging
 
 
 class SonnetCacheConnector:
-    """Adds Anthropic prompt-caching for Claude Sonnet models via OpenRouter.
+    """Adds Anthropic prompt-caching for Claude models via OpenRouter.
 
-    - Only active when enabled and when using OpenRouter with a Sonnet model.
+    - Only active when enabled and when using OpenRouter with a Claude model.
     - Injects the required header and converts messages into Claude-compatible content blocks.
     - Applies a single cache breakpoint to the previous user message (before the latest user turn)
       so the entire conversation history (including assistant responses) can be cached while keeping 
@@ -31,7 +31,7 @@ class SonnetCacheConnector:
     @staticmethod
     def _is_sonnet_model(model_name: str) -> bool:
         name = (model_name or "").strip().lower()
-        return "sonnet" in name  # covers claude-3.5/3.7 sonnet variants
+        return "claude" in name  # applies to all Anthropic Claude variants
 
     def is_applicable(self, base_url: str, model_name: str) -> bool:
         if not self._enabled:
@@ -57,7 +57,7 @@ class SonnetCacheConnector:
             target_message["content"] = self._normalize_content(target_message.get("content"))
             self._apply_cache_control(target_message)
             logging.debug(
-                f"Sonnet cache: breakpoint at message {cache_index+1}/{len(transformed)} (role={target_message.get('role')}), "
+                f"Claude cache: breakpoint at message {cache_index+1}/{len(transformed)} (role={target_message.get('role')}), "
                 "caching all messages up to this point"
             )
 
@@ -105,7 +105,7 @@ class SonnetCacheConnector:
                 if idx == 0 and role == "system":
                     return idx
         
-        logging.debug("Sonnet cache: no suitable message found to cache (need at least system or previous user)")
+        logging.debug("Claude cache: no suitable message found to cache (need at least system or previous user)")
         return None
 
     def _apply_cache_control(self, message: Dict[str, Any]) -> None:
@@ -117,11 +117,11 @@ class SonnetCacheConnector:
                 updated_part["cache_control"] = {"type": "ephemeral", "ttl": "1h"}
                 contents[idx] = updated_part
                 message["content"] = contents
-                logging.debug(f"Sonnet cache: added cache_control to existing text block at index {idx}")
+                logging.debug(f"Claude cache: added cache_control to existing text block at index {idx}")
                 return
 
         contents.append({"type": "text", "text": "", "cache_control": {"type": "ephemeral", "ttl": "1h"}})
         message["content"] = contents
-        logging.debug("Sonnet cache: appended empty text block with cache_control")
+        logging.debug("Claude cache: appended empty text block with cache_control")
 
 
