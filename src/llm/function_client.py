@@ -6,14 +6,16 @@ from src.config.config_loader import ConfigLoader
 from src.llm.client_base import ClientBase
 from src.llm.message_thread import message_thread
 from src.llm.messages import Message
-from src.actions.function_manager import FunctionManager
-from src.llm.messages import UserMessage
+from src.llm.messages import SystemMessage
 
 class FunctionClient(ClientBase):
     '''LLM class to handle function calling / actions
     '''
     @utils.time_it
     def __init__(self, config: ConfigLoader, secret_key_file: str, function_llm_secret_key_file: str) -> None:
+        self.__config = config
+        self.__function_prompt: str = config.function_llm_prompt.format(game=config.game.display_name)
+        
         # Use custom function model config values
         setup_values = {
             'api_url': config.function_llm_api, 
@@ -86,8 +88,12 @@ class FunctionClient(ClientBase):
         try:
             logging.log(23, f"Function LLM analyzing conversation for potential actions...")
             
+            # Create a shortened context for the function LLM
+            # Use the system prompt + last few messages instead of full history for faster response
+            shortened_thread = self._create_shortened_context(messages)
+            
             # Call the function LLM with tools
-            tools_called = self.request_call_with_tools(messages, tools)
+            tools_called = self.request_call_with_tools(shortened_thread, tools)
             
             if not tools_called:
                 logging.debug("No actions chosen by tool calling LLM")
@@ -110,3 +116,29 @@ class FunctionClient(ClientBase):
         except Exception as e:
             logging.error(f"Tool calling LLM error: {e}. Skipping tool calling for this turn.")
             return None
+    
+    
+    def _create_shortened_context(self, full_thread: message_thread, max_messages: int = 5) -> message_thread:
+        """Create a shortened message thread for the function LLM
+        
+        Args:
+            full_thread: The full conversation thread
+            max_messages: Maximum number of recent messages to include (default: 5)
+            
+        Returns:
+            A new message_thread with shortened context
+        """
+        
+        # Create new thread with function LLM prompt
+        shortened = message_thread(self.__config, SystemMessage(self.__function_prompt, self.__config))
+        
+        # Get recent non-system messages (user + assistant exchanges)
+        all_messages = full_thread.get_talk_only(include_system_generated_messages=False)
+        
+        # Take last N messages
+        recent_messages = all_messages[-max_messages:] if len(all_messages) > max_messages else all_messages
+        
+        # Add to shortened thread
+        shortened.add_non_system_messages(recent_messages)
+        
+        return shortened

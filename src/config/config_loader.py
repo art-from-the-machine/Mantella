@@ -303,13 +303,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.memory_prompt = self.__definitions.get_string_value("memory_prompt")
             self.resummarize_prompt = self.__definitions.get_string_value("resummarize_prompt")
             self.vision_prompt = self.__definitions.get_string_value("vision_prompt")
-            self.actions_prompt = self.__definitions.get_string_value("actions_prompt")
-
-            # TODO
-            self.function_LLM_OpenAI_single_NPC_prompt = self.__definitions.get_string_value("function_llm_openai_single_npc_prompt")
-            self.function_LLM_OpenAI_multi_NPC_prompt = self.__definitions.get_string_value("function_llm_openai_multi_npc_prompt")
-            self.function_LLM_single_NPC_prompt = self.__definitions.get_string_value("function_llm_single_npc_prompt")
-            self.function_LLM_multi_NPC_prompt = self.__definitions.get_string_value("function_llm_multi_npc_prompt")
+            self.function_llm_prompt = self.__definitions.get_string_value("function_llm_prompt")
 
             # Vision
             self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')
