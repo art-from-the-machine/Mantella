@@ -1,6 +1,7 @@
 from threading import Lock
 from typing import AsyncGenerator, Any
 from openai import APIConnectionError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
+from openai.types.chat import ChatCompletion
 import logging
 import time
 import tiktoken
@@ -38,6 +39,7 @@ class ClientBase(AIClient):
         self._startup_async_client: AsyncOpenAI | None = None
         self._request_params: dict[str, Any] | None = llm_params
         self._image_client = None
+        self._function_client = None
 
         if 'https' in self._base_url: # Cloud LLM
             self._is_local: bool = False
@@ -116,10 +118,18 @@ class ClientBase(AIClient):
 
 
     @utils.time_it
-    def request_call(self, messages: Message | message_thread) -> str | None:
+    def _request_call_full(self, messages: Message | message_thread) -> ChatCompletion | None:
+        """Returns the full chat completion object
+        
+        Args:
+            messages: The messages to send to the LLM
+            
+        Returns:
+            The full chat completion object or None if the request failed
+        """
         with self._generation_lock:
             sync_client = self.generate_sync_client()        
-            chat_completion = None
+            chat_completion: ChatCompletion = None
             logging.log(28, 'Getting LLM response...')
 
             if isinstance(messages, Message) or isinstance(messages, ImageMessage):
@@ -143,29 +153,38 @@ class ClientBase(AIClient):
             finally:
                 sync_client.close()
 
-            if (
-                not chat_completion or 
-                not chat_completion.choices or 
-                chat_completion.choices.__len__() < 1 or 
-                not chat_completion.choices[0].message.content
-            ):
-                logging.info(f"LLM Response failed")
-                return None
+            return chat_completion
+
+
+    @utils.time_it
+    def request_call(self, messages: Message | message_thread) -> str | None:
+        """Makes a request to the LLM and returns just the message content
+        
+        Args:
+            messages: The messages to send to the LLM
             
-            reply = chat_completion.choices[0].message.content
-            return reply
+        Returns:
+            The LLM response message content or None if the request failed
+        """
+        chat_completion: ChatCompletion = self._request_call_full(messages)
+        
+        if (
+            not chat_completion or 
+            not chat_completion.choices or 
+            chat_completion.choices.__len__() < 1 or 
+            not chat_completion.choices[0].message.content
+        ):
+            logging.info(f"LLM Response failed")
+            return None
+        
+        reply = chat_completion.choices[0].message.content
+        return reply
         
 
     @utils.time_it
-    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool, tools: list[dict] = None) -> AsyncGenerator[tuple[str, str | list] | None, None]:
         with self._generation_lock:
             logging.log(28, 'Getting LLM response...')
-
-            if self._startup_async_client:
-                async_client = self._startup_async_client
-                self._startup_async_client = None # do not reuse the same client
-            else:
-                async_client = self.generate_async_client()
 
             if self._request_params:
                 request_params = self._request_params.copy() # copy of self._request_params to allow temporary override
@@ -188,6 +207,26 @@ class ClientBase(AIClient):
                 if self._image_client:
                     openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
 
+                # Handle tool calling: use dedicated function client if available, otherwise use main LLM
+                if tools:
+                    if self._function_client:
+                        pre_fetched_tool_calls = self._function_client.check_for_actions(messages, tools)
+                        if pre_fetched_tool_calls:
+                            yield ("tool_calls", pre_fetched_tool_calls)
+                    else:
+                        # If custom function LLM isn't enabled, let the main LLM handle tool calling as well as text generation
+                        request_params["tools"] = tools
+                
+                # Create async client for main LLM streaming (after function client has run if applicable)
+                if self._startup_async_client:
+                    async_client = self._startup_async_client
+                    self._startup_async_client = None # do not reuse the same client
+                else:
+                    async_client = self.generate_async_client()
+                
+                # Dict to track partial tool calls by index
+                accumulated_tool_calls = {}
+                
                 async for chunk in await async_client.chat.completions.create(
                     model=self.model_name, 
                     messages=openai_messages, 
@@ -195,11 +234,43 @@ class ClientBase(AIClient):
                     **request_params,
                 ):
                     try:
-                        if chunk and chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                            yield chunk.choices[0].delta.content
+                        if chunk and chunk.choices and chunk.choices[0].delta:
+                            delta = chunk.choices[0].delta
+                            
+                            # Handle regular content
+                            if delta.content:
+                                yield ("content", delta.content)
+                            
+                            # Accumulate tool calls by index
+                            if delta.tool_calls:
+                                for tool_call in delta.tool_calls:
+                                    idx = tool_call.index
+                                    if idx not in accumulated_tool_calls:
+                                        accumulated_tool_calls[idx] = {
+                                            "id": tool_call.id if tool_call.id else "",
+                                            "type": "function",
+                                            "function": {
+                                                "name": "",
+                                                "arguments": ""
+                                            }
+                                        }
+                                    
+                                    # Accumulate the parts
+                                    if tool_call.id:
+                                        accumulated_tool_calls[idx]["id"] = tool_call.id
+                                    if tool_call.function and tool_call.function.name:
+                                        accumulated_tool_calls[idx]["function"]["name"] += tool_call.function.name
+                                    if tool_call.function and tool_call.function.arguments:
+                                        accumulated_tool_calls[idx]["function"]["arguments"] += tool_call.function.arguments
+                            
                     except Exception as e:
                         logging.error(f"LLM API Connection Error: {e}")
                         break
+                
+                # After streaming completes, yield any accumulated tool calls
+                if accumulated_tool_calls:
+                    tool_calls_list = [accumulated_tool_calls[i] for i in sorted(accumulated_tool_calls.keys())]
+                    yield ("tool_calls", tool_calls_list)
             except Exception as e:
                 utils.play_error_sound()
                 if isinstance(e, APIConnectionError):
@@ -219,7 +290,8 @@ class ClientBase(AIClient):
                 else:
                     logging.error(f"LLM API Error: {e}")
             finally:
-                await async_client.close()
+                if async_client:
+                    await async_client.close()
 
 
     @utils.time_it
@@ -453,7 +525,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         return num_tokens
     
     @staticmethod
-    def get_model_list(service: str, secret_key_file: str, default_model: str = "google/gemma-2-9b-it:free", is_vision: bool = False) -> LLMModelList:
+    def get_model_list(service: str, secret_key_file: str, default_model: str = "google/gemma-3-27b-it:free", is_vision: bool = False, is_tool_calling: bool = False) -> LLMModelList:
         if service not in ['OpenAI', 'OpenRouter']:
             return LLMModelList([("Custom model","Custom model")], "Custom model", allows_manual_model_input=True)
         try:
@@ -487,9 +559,11 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                         context_size: int = model.model_extra["context_length"]
                         prompt_cost: float = float(model.model_extra["pricing"]["prompt"]) * multiplier
                         completion_cost: float = float(model.model_extra["pricing"]["completion"]) * multiplier
-                        vision_available: str = ' | Vision Available' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
-                        model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}"
-                        
+                        vision_available: str = ' | ✅ Vision' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
+                        tool_calling_available: str = ' | ✅ Advanced Actions' if 'tools' in model.model_extra['supported_parameters'] else ''
+                        reasoning_model: str = ' | ⚠️ Reasoning' if 'reasoning' in model.model_extra['supported_parameters'] else ''
+                        model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}{tool_calling_available}{reasoning_model}"
+
                         ClientBase.api_token_limits[model.id.split('/')[-1]] = context_size
                     else:
                         model_display_name = model.id
@@ -498,10 +572,16 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                 options.append((model_display_name, model.id))
             
             # check if any models are marked as vision-capable
-            has_vision_models = any(' | Vision Available' in name for name, _ in options)
+            has_vision_models = any(' | ✅ Vision' in name for name, _ in options)
             # filter model list if this is supposed to be a vision model list and there are models explicitly marked as such
             if is_vision and has_vision_models:
-                options = [(name, model_id) for name, model_id in options if ' | Vision Available' in name]
+                options = [(name, model_id) for name, model_id in options if ' | ✅ Vision' in name]
+
+            # check if any models are marked as tool-calling-capable
+            has_tool_calling_models = any(' | ✅ Advanced Actions' in name for name, _ in options)
+            # filter model list if this is supposed to be a vision model list and there are models explicitly marked as such
+            if is_tool_calling and has_tool_calling_models:
+                options = [(name, model_id) for name, model_id in options if ' | ✅ Advanced Actions' in name]
             
             return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
         except Exception as e:

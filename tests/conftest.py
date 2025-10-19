@@ -5,6 +5,7 @@ from src.output_manager import ChatManager
 from src.conversation.context import Context
 from src.remember.summaries import Summaries
 from src.llm.llm_client import LLMClient
+from src.llm.function_client import FunctionClient
 from src.characters_manager import Characters
 from src.config.config_loader import ConfigLoader
 from src.http.http_server import http_server
@@ -21,11 +22,18 @@ from src.character_manager import Character
 from src.games.skyrim import Skyrim
 from src.tts.piper import Piper
 from src.games.equipment import Equipment, EquipmentItem
+from src.llm.message_thread import message_thread
+from src.llm.messages import SystemMessage, UserMessage
+from src.actions.function_manager import FunctionManager
 
 @pytest.fixture
 def default_config(tmp_path: Path) -> ConfigLoader:
     # Set up default config by passing path without a config.ini file already present
     default_config = ConfigLoader(mygame_folder_path=str(tmp_path), game_override=GameEnum.SKYRIM)
+
+    # Load actions (simulating what setup.py does after logging is configured)
+    FunctionManager.load_all_actions()
+    default_config.actions = FunctionManager.get_legacy_actions()
 
     # Load the actual config file
     # NOTE: This does not work with user-defined save folder paths
@@ -60,14 +68,22 @@ def llm_client(default_config: ConfigLoader) -> LLMClient:
     return LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
 
 @pytest.fixture
+def default_function_client(default_config: ConfigLoader) -> FunctionClient:
+    """Provides a FunctionClient instance for testing"""
+    FunctionManager.load_all_actions() # This is called on server startup, but not when creating the client standalone
+    return FunctionClient(default_config, "GPT_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+
+@pytest.fixture
 def default_rememberer(skyrim: Skyrim, default_config: ConfigLoader, llm_client: LLMClient, english_language_info: dict) -> Summaries:
     """Fixture to create a Rememberer instance"""
     return Summaries(skyrim, default_config, llm_client, english_language_info['language'])
 
 @pytest.fixture
-def default_context(default_config: ConfigLoader, llm_client: LLMClient, default_rememberer: Summaries, english_language_info: dict) -> Context:
+def default_context(default_config: ConfigLoader, llm_client: LLMClient, default_rememberer: Summaries, english_language_info: dict, example_characters_pc_to_npc: Characters) -> Context:
     """Fixture to create a Context instance"""
-    return Context('1', default_config, llm_client, default_rememberer, english_language_info)
+    context = Context('1', default_config, llm_client, default_rememberer, english_language_info)
+    context.add_or_update_characters(example_characters_pc_to_npc.get_all_characters())
+    return context
 
 @pytest.fixture
 def default_chat_manager(default_config: ConfigLoader, piper: Piper, llm_client: LLMClient) -> ChatManager:
@@ -93,7 +109,8 @@ def default_mantella_route(default_config: ConfigLoader, english_language_info: 
     return mantella_route(
         config=default_config, 
         stt_secret_key_file='STT_SECRET_KEY.txt', 
-        image_secret_key_file='IMAGE_SECRET_KEY.txt', 
+        image_secret_key_file='IMAGE_SECRET_KEY.txt',
+        function_llm_secret_key_file='FUNCTION_GPT_SECRET_KEY.txt',
         secret_key_file='GPT_SECRET_KEY.txt', 
         language_info=english_language_info, 
         show_debug_messages=False
@@ -215,7 +232,13 @@ def example_skyrim_npc_character() -> Character:
         csv_in_game_voice_model = 'MaleEvenToned',
         advanced_voice_model = 'MaleEvenToned',
         voice_accent = 'en',
-        equipment = None,
+        equipment = Equipment({
+            'body': EquipmentItem('Iron Armor'),
+            'feet': EquipmentItem('Iron Boots'),
+            'hands': EquipmentItem('Iron Gauntlets'),
+            'head': EquipmentItem('Iron Helmet'),
+            'righthand': EquipmentItem('Iron Sword'),
+        }),
         custom_character_values = None,
     )
 
@@ -312,3 +335,33 @@ def skyrim(tmp_path, default_config: ConfigLoader) -> Skyrim:
     default_config.save_folder = str(tmp_path)
     
     return Skyrim(default_config)
+
+@pytest.fixture
+def default_system_message(default_config: ConfigLoader, default_context: Context) -> str:
+    """Provides a system message for the conversation"""
+    return default_context.generate_system_message(default_config.prompt, [])
+    
+
+@pytest.fixture
+def sample_message_thread_function_request(default_config: ConfigLoader, default_system_message: str) -> message_thread:
+    """Provides a message thread that should trigger the Follow action"""
+    thread = message_thread(default_config, default_system_message)
+    user_message = UserMessage(default_config, "Follow me. I need your help.")
+    thread.add_message(user_message)
+    return thread
+
+@pytest.fixture
+def sample_message_thread_no_function_needed(default_config: ConfigLoader, default_system_message: str) -> message_thread:
+    """Provides a message thread that should not trigger any functions"""
+    thread = message_thread(default_config, default_system_message)
+    user_message = UserMessage(default_config, "Hello, how are you today?")
+    thread.add_message(user_message)
+    return thread
+
+@pytest.fixture
+def sample_message_thread_multiple_functions_needed(default_config: ConfigLoader, default_system_message: str) -> message_thread:
+    """Provides a message thread that should trigger multiple functions"""
+    thread = message_thread(default_config, default_system_message)
+    user_message = UserMessage(default_config, "Follow me and then stand down.")
+    thread.add_message(user_message)
+    return thread

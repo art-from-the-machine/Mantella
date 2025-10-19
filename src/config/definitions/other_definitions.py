@@ -18,13 +18,7 @@ class OtherDefinitions:
                                         - If disabled: The LLM will not respond until the player speaks first."""
         return ConfigValueBool("automatic_greeting","Automatic Greeting",automatic_greeting_description,True)
     
-    #Conversation        
-    @staticmethod
-    def get_active_actions(actions: list[Action]) -> ConfigValue:
-        description = "The actions Mantella will provide."
-        default_value:list[str] = [a.name for a in actions]
-        return ConfigValueMultiSelection("active_actions","Actions",description, default_value, default_value)
-    
+    #Conversation
     @staticmethod
     def get_max_count_events_config_value() -> ConfigValue:
         max_count_events_description = """Maximum number of in-game events that are sent to the LLM per player message. 

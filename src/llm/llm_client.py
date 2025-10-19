@@ -3,13 +3,14 @@ import logging
 from openai import AsyncOpenAI
 from src.config.config_loader import ConfigLoader
 from src.llm.image_client import ImageClient
+from src.llm.function_client import FunctionClient
 from src.llm.client_base import ClientBase
 
 class LLMClient(ClientBase):
     '''LLM class to handle NPC responses
     '''
     @utils.time_it
-    def __init__(self, config: ConfigLoader, secret_key_file: str, image_secret_key_file: str) -> None:
+    def __init__(self, config: ConfigLoader, secret_key_file: str, image_secret_key_file: str, function_secret_key_file: str = None) -> None:
         super().__init__(config.llm_api, config.llm, config.llm_params, config.custom_token_count, [secret_key_file])
 
         if self._is_local:
@@ -22,3 +23,11 @@ class LLMClient(ClientBase):
         if config.vision_enabled:
             logging.info(f"Setting up vision language model...")
             self._image_client: ImageClient | None = ImageClient(config, secret_key_file, image_secret_key_file)
+
+        if config.advanced_actions_enabled and config.custom_function_model:
+            try:
+                logging.info(f"Setting up tool calling language model...")
+                self._function_client: FunctionClient | None = FunctionClient(config, secret_key_file, function_secret_key_file)
+            except Exception as e:
+                logging.error(f"Failed to initialize function calling LLM: {e}. Tool calling will be disabled.")
+                self._function_client = None

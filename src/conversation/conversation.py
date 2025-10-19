@@ -20,6 +20,7 @@ from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
 import src.utils as utils
+from src.actions.function_manager import FunctionManager
 
 class conversation_continue_type(Enum):
     NPC_TALK = 1
@@ -135,7 +136,7 @@ class Conversation:
         next_sentence: Sentence | None = self.retrieve_sentence_from_queue()
         
         if next_sentence and len(next_sentence.text) > 0:
-            if comm_consts.ACTION_REMOVECHARACTER in next_sentence.actions:
+            if {'identifier': comm_consts.ACTION_REMOVECHARACTER} in next_sentence.actions:
                 self.__context.remove_character(next_sentence.speaker)
             #if there is a next sentence and it actually has content, return it as something for an NPC to say
             if self.last_sentence_audio_length > 0:
@@ -245,7 +246,7 @@ class Conversation:
         return player_character_voiced_sentence
 
     @utils.time_it
-    def update_context(self, location: str | None, time: int, custom_ingame_events: list[str], weather: str, custom_context_values: dict[str, Any]):
+    def update_context(self, location: str | None, time: int, custom_ingame_events: list[str] | None, weather: str | None, custom_context_values: dict[str, Any] | None, config_settings: dict[str, Any] | None):
         """Updates the context with a new set of values
 
         Args:
@@ -254,7 +255,7 @@ class Conversation:
             custom_ingame_events (list[str]): a list of events that happend since the last update
             custom_context_values (dict[str, Any]): the current set of context values
         """
-        self.__context.update_context(location, time, custom_ingame_events, weather, custom_context_values)
+        self.__context.update_context(location, time, custom_ingame_events, weather, custom_context_values, config_settings)
         if self.__context.have_actors_changed:
             self.__update_conversation_type()
             self.__context.have_actors_changed = False
@@ -337,7 +338,7 @@ class Conversation:
             if npc:
                 goodbye_sentence = self.__output_manager.generate_sentence(SentenceContent(npc, config.goodbye_npc_response, SentenceTypeEnum.SPEECH, True))
                 if goodbye_sentence:
-                    goodbye_sentence.actions.append(comm_consts.ACTION_ENDCONVERSATION)
+                    goodbye_sentence.actions.append({'identifier': comm_consts.ACTION_ENDCONVERSATION})
                     self.__sentences.put(goodbye_sentence)
                     
     @utils.time_it
@@ -369,7 +370,11 @@ class Conversation:
         with self.__generation_start_lock:
             if not self.__generation_thread:
                 self.__sentences.is_more_to_come = True
-                self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions]).start()   
+                # Generate tools if advanced actions are enabled
+                tools = None
+                if self.context.config.advanced_actions_enabled:
+                    tools = FunctionManager.generate_context_aware_tools(self.__context)
+                self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions, tools]).start()
 
     @utils.time_it
     def __stop_generation(self):
@@ -388,7 +393,7 @@ class Conversation:
             # say goodbye
             goodbye_sentence = self.__output_manager.generate_sentence(SentenceContent(npc, self.__context.config.goodbye_npc_response, SentenceTypeEnum.SPEECH, False))
             if goodbye_sentence:
-                goodbye_sentence.actions.append(comm_consts.ACTION_REMOVECHARACTER)
+                goodbye_sentence.actions.append({'identifier':comm_consts.ACTION_REMOVECHARACTER})
                 self.__sentences.put(goodbye_sentence)        
 
     @utils.time_it
@@ -417,7 +422,7 @@ class Conversation:
         collecting_thoughts_text = self.__context.config.collecting_thoughts_npc_response
         collecting_thoughts_sentence = self.__output_manager.generate_sentence(SentenceContent(latest_npc, collecting_thoughts_text, SentenceTypeEnum.SPEECH, True))
         if collecting_thoughts_sentence:
-            collecting_thoughts_sentence.actions.append(comm_consts.ACTION_RELOADCONVERSATION)
+            collecting_thoughts_sentence.actions.append({'identifier': comm_consts.ACTION_RELOADCONVERSATION})
             self.__sentences.put_at_front(collecting_thoughts_sentence)
     
     @utils.time_it

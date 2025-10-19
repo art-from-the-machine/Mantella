@@ -291,10 +291,20 @@ class SettingsUIConstructor(ConfigValueVisitor):
         special_handlers: Dict[str, ModelConfig] = {
             "model": {
                 "dependent_config": "llm_api",
+                "secret_key_file": 'GPT_SECRET_KEY.txt',
+                "default_model": 'google/gemma-3-27b-it:free',
                 "model_list_getter": ClientBase.get_model_list,
             },
             "vision_model": {
                 "dependent_config": "vision_llm_api",
+                "secret_key_file": 'IMAGE_SECRET_KEY.txt',
+                "default_model": 'google/gemma-3-27b-it:free',
+                "model_list_getter": ClientBase.get_model_list,
+            },
+            "function_llm": {
+                "dependent_config": "function_llm_api",
+                "secret_key_file": 'FUNCTION_GPT_SECRET_KEY.txt',
+                "default_model": 'mistralai/mistral-small-3.2-24b-instruct',
                 "model_list_getter": ClientBase.get_model_list,
             }
         }
@@ -310,10 +320,11 @@ class SettingsUIConstructor(ConfigValueVisitor):
             handler = special_handlers.get(config_value.identifier)
             if handler:
                 service: str = self.__identifier_to_config_value[handler["dependent_config"]].value
-                secret_key_file = 'IMAGE_SECRET_KEY.txt' if config_value.identifier == 'vision_model' else 'GPT_SECRET_KEY.txt'
-                default_model = 'meta-llama/llama-3.2-11b-vision-instruct:free' if config_value.identifier == 'vision_model' else 'google/gemma-2-9b-it:free'
+                secret_key_file = handler.get("secret_key_file", 'GPT_SECRET_KEY.txt')
+                default_model = handler.get("default_model", 'google/gemma-3-27b-it:free')
                 is_vision = True if config_value.identifier == 'vision_model' else False
-                model_list = handler["model_list_getter"](service, secret_key_file, default_model, is_vision)
+                is_tool_calling = True if config_value.identifier == 'function_llm' else False
+                model_list = handler["model_list_getter"](service, secret_key_file, default_model, is_vision, is_tool_calling)
                 selected_model = config_value.value
                 
                 if not model_list.is_model_in_list(selected_model):

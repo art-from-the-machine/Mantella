@@ -42,6 +42,9 @@ class PromptDefinitions:
                                 "conversation_summaries",
                                 "actions"]
     
+    ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM = [
+                                "game"]
+    
     BASE_PROMPT_DESCRIPTION = """The starting prompt sent to the LLM when an NPC is selected.
                                 The following are dynamic variables that need to be contained in curly brackets {}:
                                 name = the NPC's name
@@ -76,6 +79,7 @@ class PromptDefinitions:
                                 conversation_summary = reads the latest conversation summaries for the NPCs stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt
                                 equipment = a basic description of the equipment the NPCs carry
                                 actions = instructions for the LLM to trigger actions"""
+
         
     class PromptChecker(ConfigValueConstraint[str]):
         def __init__(self, allowed_prompt_variables: list[str]) -> None:
@@ -212,6 +216,7 @@ class PromptDefinitions:
                             Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
         return ConfigValueString("vision_prompt","Vision Prompt",vision_prompt_description,vision_prompt)
     
+    @staticmethod
     def get_radiant_start_prompt_config_value() -> ConfigValue:
         radiant_start_prompt_description = """Once a radiant conversation has started and the radiant prompt has been passed to the LLM, the below text is passed in replace of the player response.
                                         This prompt is used to steer the radiant conversation.""" 
@@ -225,3 +230,14 @@ class PromptDefinitions:
                                             This prompt is used to guide the LLM to end the conversation naturally.""" 
         radiant_end_prompt = """Please wrap up the current topic between the NPCs in a natural way. Nobody is leaving, so there is no need for formal goodbyes."""
         return ConfigValueString("radiant_end_prompt","Radiant End Prompt",radiant_end_prompt_description,radiant_end_prompt,[PromptDefinitions.PromptChecker([])])
+    
+    @staticmethod
+    def get_function_llm_prompt_config_value() -> ConfigValue:
+        description = """The prompt sent to the separate function calling LLM when `Custom Function Model` is enabled.
+                            This LLM analyzes the recent conversation and determines which in-game actions (if any) should be triggered.
+                            The following are dynamic variables that need to be contained in curly brackets {}:
+                            game = the selected game"""
+        function_llm_prompt = """You are analyzing a conversation in {game} to determine if any in-game actions should be triggered. 
+                                Based on the recent dialogue, call the appropriate functions to execute actions. 
+                                If no actions are needed, do not call any functions."""
+        return ConfigValueString("function_llm_prompt","Tool Calling LLM Prompt",description,function_llm_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)])

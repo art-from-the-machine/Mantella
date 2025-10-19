@@ -17,8 +17,8 @@ class actions_parser(output_parser):
                 keyword = action.keyword + ":"
                 if keyword in cut_content.text:
                     cut_content.text = cut_content.text.replace(keyword,"").strip()
-                    cut_content.actions.append(action.identifier)
-                    logging.log(28, action.info_text)
+                    cut_content.actions.append({'identifier': action.identifier})
+                    logging.log(28, f'Action triggered: {action.name} ({action.identifier})')
                     if action.is_interrupting:
                         settings.stop_generation = True
         return cut_content, last_content

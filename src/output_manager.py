@@ -23,6 +23,8 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.llm.message_thread import message_thread
 from src.llm.ai_client import AIClient
+from src.actions.function_manager import FunctionManager
+from src.llm.messages import AssistantMessage
 from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
 
@@ -82,7 +84,7 @@ class ChatManager:
             return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file))
 
     @utils.time_it
-    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action]):
+    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action], tools: list[dict] | None):
         """Starts generating responses by the LLM for the current state of the input messages
 
         Args:
@@ -95,7 +97,7 @@ class ChatManager:
             return
         self.__is_generating = True
         
-        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions))
+        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions, tools))
     
     @utils.time_it
     def stop_generation(self):
@@ -108,7 +110,7 @@ class ChatManager:
         return
  
     @utils.time_it
-    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action]):
+    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], tools: list[dict] | None):
         """Stream response from LLM one sentence at a time"""
 
         raw_response: str = ''  # Track the raw response
@@ -118,6 +120,7 @@ class ChatManager:
         self.__is_first_sentence = True
         is_multi_npc = characters.contains_multiple_npcs()
         max_response_sentences = self.__config.max_response_sentences_single if not is_multi_npc else self.__config.max_response_sentences_multi
+        awaiting_actions = []
         max_retries = 5
         retries = 0
 
@@ -143,48 +146,100 @@ class ChatManager:
         try:
             current_sentence: str = ''
             settings: sentence_generation_settings = sentence_generation_settings(active_character)
-            while retries < max_retries:
+            
+            # Loop until we get a text response
+            # (LLMs tend to either return text or tool selection(s), but not both at the same time.
+            # So if only tools are returned, a second call is needed for a verbal response)
+            has_text_response = False
+            current_tools = tools  # Start with tools enabled
+            collected_tool_calls = []
+            
+            while not has_text_response and retries < max_retries:
                 try:
                     start_time = time.time()
-                    async for content in self.__client.streaming_call(messages=messages, is_multi_npc=is_multi_npc):
+                    async for item in self.__client.streaming_call(messages=messages, is_multi_npc=is_multi_npc, tools=current_tools):
                         if self.__stop_generation.is_set():
                             break
-                        if not content:
+                        if not item:
                             continue
 
                         if first_token:
                             logging.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to respond")
                             first_token = False
                         
-                        raw_response += content
-                        accumulator.accumulate(content)
-                        while accumulator.has_next_sentence():
-                            current_sentence = accumulator.get_next_sentence()
-                            # current_sentence += content
-                            parsed_sentence: SentenceContent | None = None
-                            # Apply parsers
-                            for parser in parser_chain:
-                                if not parsed_sentence:  # Try to extract a complete sentence
-                                    parsed_sentence, current_sentence = parser.cut_sentence(current_sentence, settings)
-                                if parsed_sentence:  # Apply modifications if we already have a sentence
-                                    parsed_sentence, pending_sentence = parser.modify_sentence_content(parsed_sentence, pending_sentence, settings)
+                        # Handle different types of streaming data
+                        if isinstance(item, tuple) and len(item) == 2:
+                            item_type, item_data = item
+                            
+                            if item_type == "content":
+                                # Handle regular text content
+                                has_text_response = True
+                                content = item_data
+                                raw_response += content
+                                accumulator.accumulate(content)
+                            elif item_type == "tool_calls":
+                                # Collect tool calls
+                                collected_tool_calls = item_data
+                                logging.log(23, f"Received {len(collected_tool_calls)} tool call(s)")
+                                
+                                # Parse tool calls to get action identifiers
+                                parsed_tools = FunctionManager.parse_function_calls(collected_tool_calls, characters)
+                                awaiting_actions.extend(parsed_tools)
+                                logging.log(23, f"Parsed actions: {awaiting_actions}")
+                        else:
+                            # Fallback for backward compatibility (if item is just a string)
+                            has_text_response = True
+                            content = item
+                            raw_response += content
+                            accumulator.accumulate(content)
+                        
+                        # Only process sentences if we have text content
+                        if has_text_response:
+                            while accumulator.has_next_sentence():
+                                current_sentence = accumulator.get_next_sentence()
+                                parsed_sentence: SentenceContent | None = None
+                                # Apply parsers
+                                for parser in parser_chain:
+                                    if not parsed_sentence:  # Try to extract a complete sentence
+                                        parsed_sentence, current_sentence = parser.cut_sentence(current_sentence, settings)
+                                    if parsed_sentence:  # Apply modifications if we already have a sentence
+                                        parsed_sentence, pending_sentence = parser.modify_sentence_content(parsed_sentence, pending_sentence, settings)
+                                    if settings.stop_generation:
+                                        break
                                 if settings.stop_generation:
                                     break
+                                accumulator.refuse(current_sentence)
+                                # Process sentences from the parser chain
+                                if parsed_sentence:
+                                    if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                                        parsed_sentence.actions.extend(awaiting_actions)
+                                        awaiting_actions = []
+                                        new_sentence = self.generate_sentence(parsed_sentence)
+                                        blocking_queue.put(new_sentence)
+                                        parsed_sentence = None
                             if settings.stop_generation:
                                 break
-                            accumulator.refuse(current_sentence)
-                            # Process sentences from the parser chain
-                            if parsed_sentence:
-                                if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
-                                    new_sentence = self.generate_sentence(parsed_sentence)
-                                    blocking_queue.put(new_sentence)
-                                    parsed_sentence = None
-                        if settings.stop_generation:
-                            break
-                        if settings.interrupting_action:
-                            # If there is an interrupting action, stop the generation after the next sentence
-                            settings.stop_generation = True
-                    break #if the streaming_call() completed without exception, break the while loop
+                            if settings.interrupting_action:
+                                # If there is an interrupting action, stop the generation after the next sentence
+                                settings.stop_generation = True
+                    
+                    # After streaming completes, check if we need to make a second call
+                    if collected_tool_calls and not has_text_response:
+                        # LLM chose tools but no text - need to make second call
+                        logging.log(23, f"Making second LLM call for text response...")
+                        
+                        # Create an assistant message with the tool calls and add to thread
+                        tool_call_message = AssistantMessage(self.__config)
+                        tool_call_message.tool_calls = collected_tool_calls
+                        messages.add_message(tool_call_message)
+                        
+                        # Maker second call without passing tools to ensure LLM generates text
+                        current_tools = None
+                        collected_tool_calls = []  # Reset for next iteration
+                        first_token = True  # Reset for timing the second call
+                        continue  # Loop again
+                    
+                    break  # Got text response or hit an error, exit loop
                             
                 except Exception as e:
                     retries += 1

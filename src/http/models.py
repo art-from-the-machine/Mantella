@@ -41,7 +41,7 @@ class ActorTalk(BaseModel):
     is_narration: bool = Field(..., alias=comm_consts.KEY_ACTOR_ISNARRATION)
     voice_file: str = Field(..., alias=comm_consts.KEY_ACTOR_VOICEFILE)
     line_duration: float = Field(..., alias=comm_consts.KEY_ACTOR_DURATION)
-    actions: List[str] = Field([], alias=comm_consts.KEY_ACTOR_ACTIONS)
+    actions: List[Dict[str, Any]] = Field([], alias=comm_consts.KEY_ACTOR_ACTIONS)
     topic_info_file: int = Field(..., alias=comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE)
 
 

@@ -7,6 +7,7 @@ import src.utils as utils
 import pandas as pd
 import sys
 from src.config.config_loader import ConfigLoader
+from src.actions.function_manager import FunctionManager
 
 class MantellaSetup:
     def __init__(self):
@@ -20,6 +21,9 @@ class MantellaSetup:
         self.save_folder = utils.get_my_games_directory(self._get_custom_user_folder())
         self.config = ConfigLoader(self.save_folder, config_file)    
         self._setup_logging(os.path.join(self.save_folder,logging_file), self.config.advanced_logs)
+        
+        FunctionManager.load_all_actions()
+        self.config.actions = FunctionManager.get_legacy_actions()
         
         logging.log(23, f'''Mantella.exe running in: 
     {os.getcwd()}

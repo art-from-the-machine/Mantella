@@ -28,6 +28,7 @@ class Context:
         self.__rememberer: Remembering = rememberer
         self.__language: dict[Hashable, str] = language
         self.__weather: str = ""
+        self.__config_settings: dict[str, Any] = {}
         self.__custom_context_values: dict[str, Any] = {}
         self.__ingame_time: int = 12
         self.__ingame_events: list[str] = []
@@ -85,6 +86,10 @@ class Context:
     def have_actors_changed(self, value: bool):
         self.__have_actors_changed = value
 
+    def get_config_setting(self, key: str) -> Any | None:
+        if self.__config_settings.__contains__(key):
+            return self.__config_settings[key]
+        return None
     @property
     def vision_hints(self) -> dict[Hashable, str]:
         return self.__vision_hints
@@ -112,7 +117,7 @@ class Context:
 
     @utils.time_it
     def get_custom_context_value(self, key: str) -> Any | None:
-        if self.__custom_context_values.__contains__(key):
+        if self.__custom_context_values and self.__custom_context_values.__contains__(key):
             return self.__custom_context_values[key]
         return None
 
@@ -158,7 +163,7 @@ class Context:
         return get_time_group(self.__ingame_time)
     
     @utils.time_it
-    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str, custom_context_values: dict[str, Any]):
+    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str, custom_context_values: dict[str, Any], config_settings: dict[str, Any] | None):
         self.__custom_context_values = custom_context_values
 
         if location:
@@ -188,7 +193,7 @@ class Context:
                 else:
                     self.__ingame_events.append(f"The conversation now takes place {current_time[1]}.")
 
-        if weather != self.__weather:
+        if weather != self.__weather and weather is not None:
             if self.__weather != "":
                 self.__ingame_events.append(weather)
             self.__weather = weather
@@ -202,6 +207,9 @@ class Context:
 
         if custom_ingame_events:
             self.__ingame_events.extend(custom_ingame_events)
+
+        if config_settings:
+            self.__config_settings = config_settings
     
     @utils.time_it
     def __update_ingame_events_on_npc_change(self, npc: Character):
@@ -225,7 +233,7 @@ class Context:
                 current_stats.get_custom_character_value("mantella_actor_pos_y") != npc.get_custom_character_value("mantella_actor_pos_y")):
                 current_stats.set_custom_character_value("mantella_actor_pos_y", npc.get_custom_character_value("mantella_actor_pos_y"))
         except Exception as e:
-            logging.info(f"Updating custom values failed: {e}")
+            logging.error(f"Updating custom values failed: {e}")
         if not npc.is_player_character:
             player_name = "the player"
             player = self.__npcs_in_conversation.get_player_character()
@@ -376,7 +384,7 @@ class Context:
 
         Args:
             prompt (str): The conversation specific system prompt to fill
-            include_player (bool, optional): _description_. Defaults to False.
+            actions_for_prompt (list[Action]): the list of possible actions
 
         Returns:
             str: the filled prompt
@@ -393,6 +401,8 @@ class Context:
                 player_description = game_sent_description
         if self.npcs_in_conversation.last_added_character:
             name: str = self.npcs_in_conversation.last_added_character.name
+        else:
+            name = self.get_character_names_as_text(False)
         names = self.get_character_names_as_text(False)
         names_w_player = self.get_character_names_as_text(True)
         bios = self.__get_bios_text()
@@ -408,7 +418,9 @@ class Context:
         else:
             self.__prev_game_time = None, time_group
         conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
-        actions = self.__get_action_texts(actions_for_prompt)
+        
+        # Only include legacy action prompts if advanced actions are disabled
+        actions = self.__get_action_texts(actions_for_prompt) if not self.__config.advanced_actions_enabled else ""
 
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
         have_bios_been_dropped = False

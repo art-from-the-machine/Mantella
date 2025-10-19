@@ -1,0 +1,39 @@
+{
+    "identifier": "move_character_near_npc",
+    "name": "Move",
+    "description": "Determine a target NPC for a character to move towards.",
+    "parameters": {
+        "npc_name": {
+            "type": "array",
+            "description": "The name of the target NPC.",
+            "items": {"type": "string"}
+        },
+        "npc_distance": {
+            "type": "array",
+            "description": "The distance from the target NPC.",
+            "items": {"type": "number"}
+        },
+        "target_npc_id": {
+            "type": "array",
+            "description": "The ID of the target NPC.",
+            "items": {"type": "string"}
+        }
+    },
+    "prompt": "`{key}` if requested to move or follow",
+    "required": ["target_npc_id"],
+    "allowed_games": ["fallout4","skyrim"],
+    "is_generic_npc_function": true,
+    "is_follower_function": true,
+    "is_settler_function": true,
+    "is_pre_dialogue": true,
+    "is_post_dialogue": false,
+    "key": "move_npc",
+    "is_interrupting": false,
+    "one_on_one": true,
+    "multi_npc": false,
+    "radiant": false,
+    "llm_feedback": "{speakerName} is about to move towards {llm_output_target_name} at {playerName}'s request. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
+    "parameter_package_key": ["npc_targeting_tooltip"],
+    "veto_warning": "{speakerName} is about to move towards {llm_output_target_name} at {playerName}'s request. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why.",
+    "conditions" : []
+}

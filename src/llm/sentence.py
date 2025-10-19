@@ -34,7 +34,7 @@ class Sentence:
         return self.__voice_line_duration
     
     @property
-    def actions(self) -> list[str]:
+    def actions(self) -> list[dict]:
         return self.__content.actions
     
     @property

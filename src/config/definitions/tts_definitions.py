@@ -57,7 +57,7 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     def get_lipgen_folder_config_value(is_hidden: bool = False) -> ConfigValue:
         #Note(Leidtier): Because this is a Frankenparameter, I just set it to be a string. It SHOULD be a path, but this would require a different handling of the default empty state
         description = """The LipGenerator program is required by Bethesda games to accurately lip sync voicelines.
-                        Please install the Creation Kit from Steam. Once installed, set this path to be the same path as your game folder (where the exectuable is located)."""
+                        Please install the Creation Kit from Steam. Once installed, set this path to be the same path as your game folder (where the executable is located)."""
         return ConfigValueString("lipgen_folder", "LipGenerator Folder", description, "", is_hidden=is_hidden)
     
     @staticmethod

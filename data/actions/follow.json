@@ -1,12 +1,21 @@
 {
     "identifier": "mantella_npc_follow",
     "name": "Follow",
-    "description": "The keyword used by the NPC when they are willing to become a follower.",
+    "description": "Make NPC(s) follow the player.",
     "key": "Follow",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "array",
+            "description": "The NPC(s) willing to follow.",
+            "items": {"type": "string"}
+        }
+    },
+    "required": ["source"],
     "prompt": "If the player asks you to follow them, and you are thoroughly convinced to do so, begin your response with '{key}:'",
+    "allowed_games": ["skyrim"],
     "is-interrupting": false,
     "one-on-one": true,
-    "multi-npc": false,
-    "radiant": false,
-    "info-text": "The NPC is willing to follow the player"
+    "multi-npc": true,
+    "radiant": false
 }

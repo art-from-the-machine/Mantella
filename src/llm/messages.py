@@ -90,6 +90,10 @@ class SystemMessage(Message):
     def get_dict_formatted_string(self) -> str:
         dictionary = {"role":"system", "content": self.get_formatted_content(),}
         return f"{dictionary}"
+    
+    def append_text(self, text_to_append: str):
+        """Appends a string to the system message text."""
+        self.text += text_to_append
         
 class AssistantMessage(Message):
     """An assistant message containing the response of an LLM to a request.
@@ -98,9 +102,20 @@ class AssistantMessage(Message):
     def __init__(self, config: ConfigLoader, is_system_generated_message: bool = False):
         super().__init__("", config, is_system_generated_message)
         self.__sentences: list[SentenceContent] = []
+        self.__tool_calls: list[dict] | None = None  # Store tool calls from LLM
     
     def add_sentence(self, new_sentence: Sentence):
         self.__sentences.append(new_sentence.content)
+    
+    @property
+    def tool_calls(self) -> list[dict] | None:
+        """Get the tool calls from this assistant message"""
+        return self.__tool_calls
+    
+    @tool_calls.setter
+    def tool_calls(self, value: list[dict] | None):
+        """Set the tool calls for this assistant message"""
+        self.__tool_calls = value
 
     def get_formatted_content(self) -> str:
         if len(self.__sentences) < 1:
@@ -126,7 +141,15 @@ class AssistantMessage(Message):
         return result
 
     def get_openai_message(self) -> ChatCompletionMessageParam:
-        return {"role":"assistant", "content": self.get_formatted_content(),}
+        # If this message has tool calls, include them in the OpenAI format
+        if self.__tool_calls:
+            content = self.get_formatted_content()
+            return {
+                "role": "assistant",
+                "content": content if content else None,
+                "tool_calls": self.__tool_calls
+            }
+        return {"role": "assistant", "content": self.get_formatted_content()}
     
     def get_dict_formatted_string(self) -> str:
         dictionary = {"role":"assistant", "content": self.get_formatted_content(),}
@@ -179,6 +202,10 @@ class UserMessage(Message):
     
     def set_ingame_time(self, time: str, time_group: str):
         self.__time = time, time_group
+
+    def append_text(self, text_to_append: str):
+        """Appends a string to the system message text."""
+        self.text += text_to_append
 
 
 class ImageMessage(Message):

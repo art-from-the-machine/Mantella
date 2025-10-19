@@ -107,7 +107,7 @@ class GameStateManager:
                 reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play, topicInfoID)
                 self.__first_line = False
 
-                if comm_consts.ACTION_RELOADCONVERSATION in sentence_to_play.actions:
+                if {'identifier': comm_consts.ACTION_RELOADCONVERSATION} in sentence_to_play.actions:
                     # Reload on next continue, but first inform the player that a reload will happen with the "gather thoughts" voiceline
                     self.__should_reload = True
             else:
@@ -137,10 +137,10 @@ class GameStateManager:
                     return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCACTION,
                             comm_consts.KEY_REPLYTYPE_NPCACTION: {
                                 'mantella_actor_speaker': npcs_in_conversation.last_added_character.name,
-                                'mantella_actor_actions': [action.identifier],
+                                'mantella_actor_actions': [{'identifier': action.identifier}],
                                 }
                             }
-        
+
         # if the player response is not an action command, return a regular player reply type
         if player_spoken_sentence:
             topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
@@ -187,7 +187,7 @@ class GameStateManager:
     
     @utils.time_it
     def sentence_to_json(self, sentence_to_prepare: Sentence, topicID: int) -> dict[str, Any]:
-        return {
+        json_dict = {
             comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.speaker.name,
             comm_consts.KEY_ACTOR_LINETOSPEAK: self.__abbreviate_text(sentence_to_prepare.text.strip()),
             comm_consts.KEY_ACTOR_ISNARRATION: sentence_to_prepare.is_narration,
@@ -196,6 +196,8 @@ class GameStateManager:
             comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions,
             comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE: topicID
         }
+
+        return json_dict
     
     def __abbreviate_text(self, text_to_abbreviate: str) -> str:
         return self.__game.modify_sentence_text_for_game(text_to_abbreviate)
@@ -217,8 +219,9 @@ class GameStateManager:
             location = None
             time = None
             ingame_events = None
-            weather = ""
-            custom_context_values: dict[str, Any] = {}
+            weather = None
+            config_settings: dict[str, Any] | None = None
+            custom_context_values: dict[str, Any] | None = None
             if json.__contains__(comm_consts.KEY_CONTEXT):
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_LOCATION):
                     location: str = json[comm_consts.KEY_CONTEXT].get(comm_consts.KEY_CONTEXT_LOCATION, None)
@@ -227,14 +230,19 @@ class GameStateManager:
                     time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_INGAMEEVENTS):
+                    logging.log(23, f'Received in-game events: {json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]}')
                     ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
                 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_WEATHER):
                     weather = self.__game.get_weather_description(json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_WEATHER])
 
+                if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CONFIG_SETTINGS):
+                    config_settings = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CONFIG_SETTINGS]
+
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
                     custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
-            self.__talk.update_context(location, time, ingame_events, weather, custom_context_values)
+
+                self.__talk.update_context(location, time, ingame_events, weather, custom_context_values, config_settings)
     
     @utils.time_it
     def load_character(self, json: dict[str, Any]) -> Character | None:
@@ -321,8 +329,11 @@ class GameStateManager:
                             equipment,
                             custom_values)
         except CharacterDoesNotExist:                 
-            logging.log(23, 'Restarting...')
+            logging.error('Character not loaded. Restarting...')
             return None 
+        except Exception as e:
+            logging.error(f'Error loading character: {e}')
+            return None
         
     def error_message(self, message: str) -> dict[str, Any]:
         return {

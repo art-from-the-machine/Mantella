@@ -23,6 +23,7 @@ def main():
             config=config, 
             stt_secret_key_file='STT_SECRET_KEY.txt', 
             image_secret_key_file='IMAGE_SECRET_KEY.txt', 
+            function_llm_secret_key_file='FUNCTION_GPT_SECRET_KEY.txt',
             secret_key_file='GPT_SECRET_KEY.txt', 
             language_info=language_info, 
             show_debug_messages=should_debug_http

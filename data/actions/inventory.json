@@ -1,12 +1,20 @@
 {
     "identifier": "mantella_npc_inventory",
     "name": "Inventory",
-    "description": "The keyword used by the NPC when they are willing to show their inventory.",
+    "description": "Open inventory to give / take items with the player.",
     "key": "Inventory",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "string",
+            "description": "The NPC to open their inventory."
+        }
+    },
+    "required": ["source"],
     "prompt": "To show the player what you have in your inventory or to give / take an item, begin your response with '{key}:'.",
+    "allowed_games": ["skyrim"],
     "is-interrupting": true,
     "one-on-one": true,
-    "multi-npc": false,
-    "radiant": false,
-    "info-text": "The NPC is willing to show their inventory to the player"
+    "multi-npc": true,
+    "radiant": false
 }
