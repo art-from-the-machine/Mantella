@@ -4,6 +4,7 @@ from pathlib import Path
 from src.actions.function_manager import FunctionManager
 from src.conversation.context import Context
 from src.characters_manager import Characters
+from src.conversation.action import Action
 
 def test_load_all_actions():
     """Test loading all actions from data/actions/ folder"""
@@ -35,6 +36,104 @@ def test_load_all_actions_structure():
         assert 'one-on-one' in action or 'one_on_one' in action
         assert 'multi-npc' in action or 'multi_npc' in action
         assert 'radiant' in action
+
+
+def test_load_all_actions_respects_enabled_flag(tmp_path):
+    """Test that actions with enabled: false are not loaded"""
+    FunctionManager._actions.clear()
+    
+    actions_dir = tmp_path / "actions"
+    actions_dir.mkdir()
+    
+    enabled_action = {
+        "identifier": "test_enabled",
+        "name": "EnabledAction",
+        "description": "Test",
+        "key": "Enabled",
+        "prompt": "Test",
+        "enabled": True,
+        "is-interrupting": False,
+        "one-on-one": True,
+        "multi-npc": False,
+        "radiant": False
+    }
+    
+    disabled_action = {
+        "identifier": "test_disabled",
+        "name": "DisabledAction",
+        "description": "Test",
+        "key": "Disabled",
+        "prompt": "Test",
+        "enabled": False,
+        "is-interrupting": False,
+        "one-on-one": True,
+        "multi-npc": False,
+        "radiant": False
+    }
+    
+    default_action = {
+        "identifier": "test_default",
+        "name": "DefaultAction",
+        "description": "Test",
+        "key": "Default",
+        "prompt": "Test",
+        "is-interrupting": False,
+        "one-on-one": True,
+        "multi-npc": False,
+        "radiant": False
+    }
+    
+    with open(actions_dir / "enabled.json", 'w') as f:
+        json.dump(enabled_action, f)
+    with open(actions_dir / "disabled.json", 'w') as f:
+        json.dump(disabled_action, f)
+    with open(actions_dir / "default.json", 'w') as f:
+        json.dump(default_action, f)
+    
+    # Load test actions
+    for file_path in actions_dir.glob("*.json"):
+        FunctionManager._load_action_file(file_path)
+    
+    # Only enabled and default actions should be loaded
+    assert 'mantella_test_enabled' in FunctionManager._actions
+    assert 'mantella_test_default' in FunctionManager._actions
+    assert 'mantella_test_disabled' not in FunctionManager._actions
+    assert len(FunctionManager._actions) == 2
+    
+    # Cleanup: Restore original actions
+    FunctionManager.load_all_actions()
+
+
+def test_get_legacy_actions():
+    """Test that get_legacy_actions returns Action objects"""
+    FunctionManager.load_all_actions()
+    
+    legacy_actions = FunctionManager.get_legacy_actions()
+    
+    assert isinstance(legacy_actions, list)
+    assert all(isinstance(action, Action) for action in legacy_actions)
+    
+    for action in legacy_actions:
+        assert hasattr(action, 'identifier')
+        assert hasattr(action, 'name')
+        assert hasattr(action, 'keyword')
+        assert hasattr(action, 'description')
+        assert hasattr(action, 'prompt_text')
+        assert hasattr(action, 'is_interrupting')
+        assert hasattr(action, 'use_in_on_on_one')
+        assert hasattr(action, 'use_in_multi_npc')
+        assert hasattr(action, 'use_in_radiant')
+
+
+def test_get_legacy_actions_matches_loaded_count():
+    """Test that get_legacy_actions returns same number as loaded actions"""
+    FunctionManager.load_all_actions()
+    
+    loaded_count = len(FunctionManager._actions)
+    legacy_actions = FunctionManager.get_legacy_actions()
+    
+    # Should have same number of actions
+    assert len(legacy_actions) == loaded_count
 
 
 def test_parse_function_calls_empty_list():

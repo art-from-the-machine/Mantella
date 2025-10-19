@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from openai.types.chat.chat_completion_message import ChatCompletionMessageToolCall
 from src.characters_manager import Characters
+from src.conversation.action import Action
 
 class FunctionManager:
     _actions: dict[str, dict] = {}  # Map identifier -> action data
@@ -123,6 +124,31 @@ class FunctionManager:
 
 
     @staticmethod
+    def get_legacy_actions() -> list:
+        """Convert loaded actions to legacy Action objects for prompt-based system
+        
+        Returns:
+            List of Action objects for use with the legacy prompt-based action system
+        """
+        
+        result = []
+        for action_data in FunctionManager._actions.values():
+            identifier = action_data['identifier']
+            name = action_data.get('name', '')
+            key = action_data.get('key', '')
+            description = action_data.get('description', '')
+            prompt = action_data.get('prompt', '')
+            is_interrupting = bool(action_data.get('is-interrupting', action_data.get('is_interrupting', False)))
+            one_on_one = bool(action_data.get('one-on-one', action_data.get('one_on_one', False)))
+            multi_npc = bool(action_data.get('multi-npc', action_data.get('multi_npc', False)))
+            radiant = bool(action_data.get('radiant', False))
+            
+            result.append(Action(identifier, name, key, description, prompt, is_interrupting, one_on_one, multi_npc, radiant))
+        
+        return result
+
+
+    @staticmethod
     def _load_action_file(file_path: Path) -> None:
         """Load a single action file"""
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -132,6 +158,11 @@ class FunctionManager:
         actions_data = data if isinstance(data, list) else [data]
 
         for action_data in actions_data:
+            # Skip disabled actions (default to enabled if not specified)
+            if not action_data.get('enabled', True):
+                logging.debug(f"Skipping disabled action: {action_data.get('identifier', 'unknown')}")
+                continue
+            
             # Ensure identifier starts with 'mantella_'
             action_data['identifier'] = f"mantella_{action_data['identifier']}" if not action_data['identifier'].startswith('mantella_') else action_data['identifier']
 

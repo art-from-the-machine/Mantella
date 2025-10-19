@@ -3,6 +3,7 @@
     "name": "Attack",
     "description": "Make NPC(s) attack another NPC / the player.",
     "key": "Attack",
+    "enabled": true,
     "parameters": {
         "source": {
             "type": "array",

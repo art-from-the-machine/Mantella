@@ -3,6 +3,7 @@
     "name": "Inventory",
     "description": "Open inventory to give / take items with the player.",
     "key": "Inventory",
+    "enabled": true,
     "parameters": {
         "source": {
             "type": "string",

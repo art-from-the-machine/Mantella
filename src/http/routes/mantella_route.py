@@ -61,8 +61,6 @@ class mantella_route(routeable):
             tts = Piper(self._config, game)
 
         llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file, self.__function_llm_secret_key_file)
-
-        FunctionManager.load_all_actions()
         
         chat_manager = ChatManager(self._config, tts, llm_client)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, self.__stt_secret_key_file, self.__secret_key_file)

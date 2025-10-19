@@ -79,7 +79,7 @@ def test_player_action_command(
     response = default_game_manager.player_input(example_player_input_textbox_action_command_request.model_dump(by_alias=True, exclude_none=True))
     
     # Assert that the response contains the action
-    assert response[comm_consts.KEY_REPLYTYPE_NPCACTION][comm_consts.KEY_ACTOR_ACTIONS][0] == 'mantella_npc_follow'
+    assert response[comm_consts.KEY_REPLYTYPE_NPCACTION][comm_consts.KEY_ACTOR_ACTIONS][0]['identifier'] == 'mantella_npc_follow'
 
 
 def test_sentence_to_json_with_dict_actions(default_game_manager: GameStateManager, example_skyrim_npc_character: Character):

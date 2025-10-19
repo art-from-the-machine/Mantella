@@ -1,4 +1,3 @@
-from src.conversation.action import Action
 from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_selection import ConfigValueSelection
 from src.config.types.config_value_string import ConfigValueString
@@ -22,8 +21,3 @@ class LanguageDefinitions:
     @staticmethod
     def get_collecting_thoughts_npc_response() -> ConfigValue:
         return ConfigValueString("collecting_thoughts_npc_response", "NPC Response: Collecting Thoughts","The response the NPC gives when they need to summarise the conversation because the maximum token count has been reached.","I need to gather my thoughts for a moment", tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
-
-    @staticmethod
-    def get_action_keyword_override(action: Action) -> ConfigValue:
-        identifier = action.identifier.lstrip("mantella_").lstrip("npc_")
-        return ConfigValueString(f"{identifier}_npc_response",f"NPC Response override: {action.name}",action.description, action.keyword, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])

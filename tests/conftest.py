@@ -31,6 +31,10 @@ def default_config(tmp_path: Path) -> ConfigLoader:
     # Set up default config by passing path without a config.ini file already present
     default_config = ConfigLoader(mygame_folder_path=str(tmp_path), game_override=GameEnum.SKYRIM)
 
+    # Load actions (simulating what setup.py does after logging is configured)
+    FunctionManager.load_all_actions()
+    default_config.actions = FunctionManager.get_legacy_actions()
+
     # Load the actual config file
     # NOTE: This does not work with user-defined save folder paths
     my_games_folder = utils.get_my_games_directory(custom_user_folder='')

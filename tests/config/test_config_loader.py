@@ -6,6 +6,8 @@ import configparser
 from unittest.mock import patch
 from src.config.definitions.game_definitions import GameEnum
 from src.conversation.action import Action
+from src.actions.function_manager import FunctionManager
+from src.conversation.action import Action
 
 
 def test_init_new_config_ini(tmp_path):
@@ -87,76 +89,18 @@ def test_have_all_config_values_loaded_correctly(default_config: ConfigLoader):
     assert default_config.have_all_config_values_loaded_correctly == True
 
 
-def test_load_actions_from_json(tmp_path):
-    '''Test loading actions from JSON files'''
-    # Create a test actions folder
-    actions_folder = os.path.join(tmp_path, 'actions')
-    os.makedirs(actions_folder, exist_ok=True)
+def test_actions_can_be_assigned(tmp_path):
+    '''Test that actions can be assigned from external code (like setup.py does)'''
     
-    # Create a test action JSON file
-    action_data = {
-        "identifier": "mantella_test_action",
-        "name": "Test",
-        "key": "Test",
-        "description": "A test action",
-        "prompt": "If the player asks you to use the Test keyword, begin your response with 'Test:'",
-        "is-interrupting": False,
-        "one-on-one": True,
-        "multi-npc": False,
-        "radiant": False
-    }
+    config_loader = ConfigLoader(tmp_path)
     
-    action_file_path = os.path.join(actions_folder, 'test_action.json')
-    with open(action_file_path, 'w') as f:
-        json.dump(action_data, f)
-
-    # Call the method directly
-    actions = ConfigLoader.load_actions_from_json(actions_folder)
+    # Simulate what setup.py does - load actions and assign them
+    FunctionManager.load_all_actions()
+    config_loader.actions = FunctionManager.get_legacy_actions()
     
-    # Verify an action was loaded
-    assert len(actions) == 1
-    
-    # Verify the action has the correct properties
-    action: Action = actions[0]
-    assert action.identifier == "mantella_test_action"
-    assert action.name == "Test"
-    assert action.keyword == "Test"
-
-def test_load_actions_from_json_wrong_file_type(tmp_path):
-    '''Test loading actions when file type is incorrect'''
-    # Create a test actions folder
-    actions_folder = os.path.join(tmp_path, 'actions')
-    os.makedirs(actions_folder, exist_ok=True)
-    
-    # Create a test action JSON file
-    action_data = {
-        "identifier": "mantella_test_action",
-        "name": "Test",
-        "key": "Test",
-        "description": "A test action",
-        "prompt": "If the player asks you to use the Test keyword, begin your response with 'Test:'",
-        "is-interrupting": False,
-        "one-on-one": True,
-        "multi-npc": False,
-        "radiant": False
-    }
-    
-    action_file_path = os.path.join(actions_folder, 'test_action.txt')
-    with open(action_file_path, 'w') as f:
-        json.dump(action_data, f)
-
-    # Call the method directly
-    actions = ConfigLoader.load_actions_from_json(actions_folder)
-    
-    # Verify no actions were loaded
-    assert len(actions) == 0
-
-def test_load_actions_from_json_no_files(tmp_path):
-    '''Test loading actions when there are no files'''
-    actions = ConfigLoader.load_actions_from_json(tmp_path)
-    
-    # Verify no actions were loaded
-    assert len(actions) == 0
+    # Verify actions were assigned
+    assert len(config_loader.actions) > 0
+    assert all(isinstance(action, Action) for action in config_loader.actions)
 
 
 @patch('os.path.exists')

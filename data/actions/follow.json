@@ -3,6 +3,7 @@
     "name": "Follow",
     "description": "Make NPC(s) follow the player.",
     "key": "Follow",
+    "enabled": true,
     "parameters": {
         "source": {
             "type": "array",

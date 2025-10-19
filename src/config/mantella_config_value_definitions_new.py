@@ -19,7 +19,7 @@ import sys
 
 class MantellaConfigValueDefinitionsNew:
     @staticmethod
-    def get_config_values(is_integrated: bool, actions: list[Action], on_value_change_callback: Callable[..., Any] | None = None) -> ConfigValues:
+    def get_config_values(is_integrated: bool, on_value_change_callback: Callable[..., Any] | None = None) -> ConfigValues:
         result: ConfigValues = ConfigValues()
         is_integrated = "--integrated" in sys.argv
         # hidden_category= ConfigValueGroup("Hidden", "Hidden", "Don't show these on the UI", on_value_change_callback, is_hidden=True)
@@ -132,8 +132,6 @@ class MantellaConfigValueDefinitionsNew:
         language_category.add_config_value(LanguageDefinitions.get_end_conversation_keyword_config_value())
         language_category.add_config_value(LanguageDefinitions.get_goodbye_npc_response())
         language_category.add_config_value(LanguageDefinitions.get_collecting_thoughts_npc_response())
-        for action in actions:
-            language_category.add_config_value(LanguageDefinitions.get_action_keyword_override(action))
         result.add_base_group(language_category)
 
         prompts_category = ConfigValueGroup("Prompts", "Prompts", "Change the basic prompts used by Mantella.", on_value_change_callback)
@@ -159,7 +157,6 @@ class MantellaConfigValueDefinitionsNew:
 
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
-        other_category.add_config_value(OtherDefinitions.get_active_actions(actions))
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
         other_category.add_config_value(OtherDefinitions.get_events_refresh_time_config_value())
         other_category.add_config_value(OtherDefinitions.get_hourly_time_config_value())

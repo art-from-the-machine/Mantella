@@ -23,9 +23,11 @@ class ConfigLoader:
         self.__is_initial_load: bool = True
         self.__file_name = os.path.join(mygame_folder_path, file_name)
         self.__game_override = game_override
-        path_to_actions = os.path.join(utils.resolve_path(),"data","actions")
-        self.__actions = ConfigLoader.load_actions_from_json(path_to_actions)
-        self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.is_run_integrated, self.__actions, self.__on_config_value_change)
+        
+        # Actions will be loaded in setup.py
+        self.actions = []
+        
+        self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.is_run_integrated, self.__on_config_value_change)
         if not os.path.exists(self.__file_name):
             logging.log(24,"Cannot find 'config.ini'. Assuming first time usage of MantellaSoftware and creating it.")
             self.__write_config_state(self.__definitions)
@@ -159,16 +161,10 @@ class ConfigLoader:
             self.mod_path_base = self.mod_path
             self.mod_path += "\\Sound\\Voice\\Mantella.esp"
 
-            selected_actions = self.__definitions.get_string_list_value("active_actions")
-            self.actions = [a for a in self.__actions if a.name in selected_actions]
-
             self.language = self.__definitions.get_string_value("language")
             self.end_conversation_keyword = self.__definitions.get_string_value("end_conversation_keyword")
             self.goodbye_npc_response = self.__definitions.get_string_value("goodbye_npc_response")
             self.collecting_thoughts_npc_response = self.__definitions.get_string_value("collecting_thoughts_npc_response")
-            for a in self.__actions:
-                identifier = a.identifier.lstrip("mantella_").lstrip("npc_")
-                a.keyword = self.__definitions.get_string_value(f"{identifier}_npc_response")
 
             #TTS
             self.tts_service: TTSEnum = self.__definitions.get_enum_value("tts_service", TTSEnum)
@@ -346,34 +342,3 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             utils.play_error_sound()
             logging.error('Parameter missing/invalid in config.ini file!')
             raise e
-    
-    @staticmethod
-    def load_actions_from_json(actions_folder: str) -> list[Action]:
-        result = []
-        os.makedirs(actions_folder, exist_ok=True)
-        override_files: list[str] = os.listdir(actions_folder)
-        for file in override_files:
-            try:
-                filename, extension = os.path.splitext(file)
-                full_path_file = os.path.join(actions_folder,file)
-                if extension == ".json":
-                    with open(full_path_file) as fp:
-                        json_object = json.load(fp)
-                        if isinstance(json_object, dict):#Otherwise it is already a list
-                            json_object = [json_object]
-                        for json_content in json_object:
-                            content: dict[str, str] = json_content
-                            identifier: str = content.get("identifier", "").lower() # IDs must be lower case to avoid issues with case sensitivity
-                            name: str = content.get("name", "")
-                            key: str = content.get("key", "")
-                            description: str = content.get("description", "")
-                            prompt: str = content.get("prompt", "")
-                            is_interrupting: bool = bool(content.get("is-interrupting", ""))
-                            one_on_one: bool = bool(content.get("one-on-one", ""))
-                            multi_npc: bool = bool(content.get("multi-npc", ""))
-                            radiant: bool = bool(content.get("radiant", ""))
-                            result.append(Action(identifier, name, key,description,prompt,is_interrupting, one_on_one,multi_npc,radiant))
-            except Exception as e:
-                utils.play_error_sound()
-                logging.log(logging.WARNING, f"Could not load action definition file '{file}' in '{actions_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
-        return result

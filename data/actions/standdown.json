@@ -3,6 +3,7 @@
     "name": "StandDown",
     "description": "Make an NPC(s) stop attacking the player / another NPC.",
     "key": "StandDown",
+    "enabled": true,
     "parameters": {
         "source": {
             "type": "array",
