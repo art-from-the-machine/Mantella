@@ -2,7 +2,7 @@ import os
 import json
 import logging
 import pandas as pd
-from typing import Dict, List
+from typing import Dict, List, Optional
 import src.utils as utils
 
 
@@ -149,9 +149,9 @@ class BioTemplateManager:
         
         logging.info(f"Created default bio templates CSV at {filepath}")
     
-    def get_template(self, tag: str) -> str:
+    def get_template(self, tag: str) -> Optional[str]:
         """Get bio template for a specific tag"""
-        return self.templates.get(tag, f"Has the trait: {tag}.")
+        return self.templates.get(tag)
     
     def expand_bio_with_tags(self, base_bio: str, tags_string: str) -> str:
         """Expand base bio with tag templates"""
@@ -175,11 +175,16 @@ class BioTemplateManager:
         if not tags:
             return base_bio
         
-        # Get templates for each tag
+        # Get templates for each tag (ignore missing or empty templates)
         tag_expansions = []
         for tag in tags:
             template = self.get_template(tag)
-            tag_expansions.append(template)
+            if template and template.strip():
+                tag_expansions.append(template)
+            elif template is None:
+                logging.warning(f"Tag '{tag}' not found in bio_templates.csv - ignoring")
+            elif not template.strip():
+                logging.warning(f"Tag '{tag}' found in bio_templates.csv but has empty description - ignoring")
         
         # Combine base bio with tag expansions, adding newlines between descriptions
         if tag_expansions:
