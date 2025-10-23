@@ -367,6 +367,18 @@ class Context:
             keys = self.get_characters_excluding_player().get_all_names()
         return Context.format_listing(keys)
     
+    def _resolve_bio_player_name(self, bio: str) -> str:
+        """Replace exact occurrences of {player_name} in a bio string.
+
+        If a player character is present, use their name; otherwise use
+        the literal text "the player". Matching is exact and case-sensitive.
+        """
+        if bio is None:
+            return bio
+        player = self.__npcs_in_conversation.get_player_character()
+        replacement = player.name if player else "the player"
+        return bio.replace("{player_name}", replacement)
+
     @utils.time_it
     def __get_bios_text(self) -> str:
         """Gets the bios of all characters in the conversation
@@ -376,11 +388,12 @@ class Context:
         """
         bio_descriptions = []
         for character in self.get_characters_excluding_player().get_all_characters():
+            resolved_bio = self._resolve_bio_player_name(character.bio)
             if len(self.__npcs_in_conversation) == 1:
-                bio_descriptions.append(character.bio)
+                bio_descriptions.append(resolved_bio)
             else:
                 # Add clear delimiters around each character's bio for multi-NPC conversations
-                bio_with_delimiters = f"[This is the beginning of {character.name}'s bio]\n{character.bio}\n[This is the end of {character.name}'s bio]"
+                bio_with_delimiters = f"[This is the beginning of {character.name}'s bio]\n{resolved_bio}\n[This is the end of {character.name}'s bio]"
                 bio_descriptions.append(bio_with_delimiters)
         return "\n\n".join(bio_descriptions)
     
@@ -396,7 +409,7 @@ class Context:
         
         for character in non_player_characters:
             # Get the bio
-            bio = character.bio
+            bio = self._resolve_bio_player_name(character.bio)
             
             # Get the summary for this specific character using the new interface method
             summary = ""

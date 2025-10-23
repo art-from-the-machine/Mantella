@@ -149,7 +149,8 @@ class LLMDefinitions:
                         NOTES:
                         - Multiple tags per character are supported (separate with commas)
                         - Tag descriptions are combined seamlessly into the final bio
-                        - Tags are case-sensitive and must match exactly between the template file and character CSV"""
+                        - Tags are case-sensitive and must match exactly between the template file and character CSV
+                        - Bios and bio templates may contain the exact placeholder {player_name}; it will be replaced with the current player's name, or with "the player" if no player is present."""
         return ConfigValueBool("enable_character_tag_reading", "Enable Character Tag Reading", description, True, tags=[ConfigValueTag.share_row, ConfigValueTag.advanced])
 
     @staticmethod
