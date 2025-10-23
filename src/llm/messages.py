@@ -172,6 +172,10 @@ class UserMessage(Message):
         self.__time: tuple[str,str] | None = None
         
 
+    @property
+    def player_character_name(self) -> str:
+        return self.__player_character_name
+
     def get_formatted_content(self) -> str:
         result = ""
         result += self.get_ingame_events_text()

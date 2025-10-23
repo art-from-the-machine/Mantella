@@ -280,11 +280,12 @@ Content Guidelines:
                                          	If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
                                                name = the NPC's name
                                                language = the selected language
-                                               game = the game selected""" 
+                                               game = the game selected
+                                               player_name = the name of the player character""" 
         memory_prompt = """You are tasked with summarizing the conversation between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}. 
                                             It is not necessary to comment on any mixups in communication such as mishearings. Text contained within brackets state in-game events. 
                                             Please summarize the conversation into a single paragraph in {language}."""
-        return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
+        return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "player_name"])])
     
     @staticmethod
     def get_resummarize_prompt_config_value() -> ConfigValue:
@@ -294,10 +295,11 @@ Content Guidelines:
                                             If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
                                                 name = the NPC's name
                                                 language = the selected language
-                                                game = the game selected""" 
+                                                game = the game selected
+                                                player_name = the name of the player character""" 
         resummarize_prompt = """You are tasked with summarizing the conversation history between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}.
                                             Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {language}."""
-        return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
+        return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "player_name"])])
     
     @staticmethod
     def get_vision_prompt_config_value() -> ConfigValue:

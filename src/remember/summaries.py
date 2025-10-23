@@ -166,10 +166,24 @@ class Summaries(Remembering):
     
     @utils.time_it
     def __create_new_conversation_summary(self, messages: message_thread, npc_name: str) -> str:
+        # Try to extract player name from the latest user message; default to 'the player'
+        player_name = "the player"
+        try:
+            talk_messages = messages.get_talk_only()
+            for m in reversed(talk_messages):
+                if isinstance(m, UserMessage):
+                    pn = m.player_character_name if hasattr(m, 'player_character_name') else ""
+                    if pn:
+                        player_name = pn
+                        break
+        except Exception:
+            pass
+
         prompt = self.__memory_prompt.format(
                     name=npc_name,
                     language=self.__language_name,
-                    game=self.__game
+                    game=self.__game,
+                    player_name=player_name
                 )
         while True:
             try:
@@ -219,10 +233,20 @@ class Summaries(Remembering):
             logging.info(f'Token limit of conversation summaries reached ({count_tokens_summaries} / {summary_limit} tokens). Creating new summary file...')
             while True:
                 try:
+                    # Try to extract player name from existing summaries if present is not needed here; default to last known from recent talks
+                    player_name = "the player"
+                    try:
+                        # Attempt to infer from latest user talk messages in current session
+                        # Note: we cannot access original conversation messages here, so fallback remains 'the player'
+                        pass
+                    except Exception:
+                        pass
+
                     prompt = self.__resummarize_prompt.format(
                         name=npc.name,
                         language=self.__language_name,
-                        game=self.__game
+                        game=self.__game,
+                        player_name=player_name
                     )
                     long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt, npc.name)
                     break
@@ -249,6 +273,10 @@ class Summaries(Remembering):
         if len(text_to_summarize) > 5:
             messages = message_thread(self.__config, prompt)
             messages.add_message(UserMessage(self.__config, text_to_summarize))
+
+            # Log the summary prompt being sent
+            logging.log(23, f'Summary prompt sent to LLM: {prompt.strip()}')
+
             summary = self.__summary_client.request_call(messages)
             if not summary:
                 logging.info(f"Summarizing conversation failed.")
