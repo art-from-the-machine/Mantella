@@ -236,13 +236,16 @@ class GameStateManager:
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_WEATHER):
                     weather = self.__game.get_weather_description(json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_WEATHER])
 
+                if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_NPCS_NEARBY):
+                    npcs_nearby = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_NPCS_NEARBY]
+
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CONFIG_SETTINGS):
                     config_settings = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CONFIG_SETTINGS]
 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
                     custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
 
-                self.__talk.update_context(location, time, ingame_events, weather, custom_context_values, config_settings)
+                self.__talk.update_context(location, time, ingame_events, weather, npcs_nearby, custom_context_values, config_settings)
     
     @utils.time_it
     def load_character(self, json: dict[str, Any]) -> Character | None:

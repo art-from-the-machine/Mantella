@@ -8,11 +8,13 @@
         "source": {
             "type": "array",
             "description": "The NPC(s) who will attack.",
-            "items": {"type": "string"}
+            "items": {"type": "string"},
+            "scope": "conversation"
         },
         "target": {
             "type": "string",
-            "description": "The NPC to attack."
+            "description": "The NPC to attack.",
+            "scope": "all_npcs_w_player"
         }
     },
     "required": ["source", "target"],

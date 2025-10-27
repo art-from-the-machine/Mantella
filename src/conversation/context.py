@@ -35,6 +35,7 @@ class Context:
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
         self.__game: GameEnum = config.game
+        self.__prev_nearby_npc_names: list[str] = []  # Cache for nearby NPC names
 
         self.__prev_location: str | None = None
         if self.__game.base_game == GameEnum.FALLOUT4:
@@ -163,7 +164,7 @@ class Context:
         return get_time_group(self.__ingame_time)
     
     @utils.time_it
-    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str, custom_context_values: dict[str, Any], config_settings: dict[str, Any] | None):
+    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any], config_settings: dict[str, Any] | None):
         self.__custom_context_values = custom_context_values
 
         if location:
@@ -198,12 +199,25 @@ class Context:
                 self.__ingame_events.append(weather)
             self.__weather = weather
 
+        # Update nearby NPCs in the Characters manager
+        self.__npcs_in_conversation.set_nearby_npcs(npcs_nearby)
+        
+        # Add vision hints to in-game events
         self.__vision_hints = ''
         if self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY) and self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY):
             self.set_vision_hints(
                 str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY)), 
                 str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY)))
             self.__ingame_events.append(self.__vision_hints)
+        elif npcs_nearby:
+            # Sort by distance and list names (nearest to furthest)
+            sorted_npcs = sorted(npcs_nearby, key=lambda x: float(x.get('distance', 0)))
+            nearby_names = [npc['name'] for npc in sorted_npcs if 'name' in npc]
+            # Only add event if the set of nearby NPCs has changed (not just order)
+            if nearby_names and set(nearby_names) != set(self.__prev_nearby_npc_names):
+                self.__vision_hints = "Characters nearby (from nearest to furthest): " + ", ".join(nearby_names)
+                self.__ingame_events.append(self.__vision_hints)
+                self.__prev_nearby_npc_names = nearby_names
 
         if custom_ingame_events:
             self.__ingame_events.extend(custom_ingame_events)
@@ -320,21 +334,23 @@ class Context:
         return Context.format_listing(relationships)
        
     @utils.time_it
-    def get_character_names_as_text(self, should_include_player: bool) -> str:
+    def get_character_names_as_text(self, include_player: bool, include_nearby: bool = False, nearby_only: bool = False) -> str:
         """Gets the names of the NPCs in the conversation as a natural language list
 
         Args:
-            player_name (str, optional): _description_. Defaults to "". The name of the player, if empty string, does not include the player into the list
+            include_player (bool): If True, includes the player in the list
+            include_nearby (bool): If True, includes nearby NPCs in the list
+            nearby_only (bool): If True, only includes nearby NPCs (not in conversation)
 
         Returns:
-            str: text containing the names of the NPC concatenated by ',' and 'and'
+            str: text containing the names concatenated by ',' and 'and'
         """
-        keys: list[str] = []
-        if should_include_player:
-            keys = self.npcs_in_conversation.get_all_names()
-        else:
-            keys = self.get_characters_excluding_player().get_all_names()
-        return Context.format_listing(keys)
+        names = self.__npcs_in_conversation.get_all_names_w_nearby(
+            include_player=include_player,
+            include_nearby=include_nearby,
+            nearby_only=nearby_only
+        )
+        return Context.format_listing(names)
     
     @utils.time_it
     def __get_bios_text(self) -> str:

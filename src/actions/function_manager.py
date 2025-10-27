@@ -49,30 +49,44 @@ class FunctionManager:
                     # Validate that arguments match the schema
                     validated_args = FunctionManager._validate_arguments_against_schema(parsed_arguments, defined_params, identifier)
                     
-                    # Validate NPCs named are actually in the conversation / exist
+                    # Validate entity names (NPCs, items, etc.) based on their scope
                     if characters:
-                        # Handle source parameter (NPCs performing action)
-                        if 'source' in validated_args:
-                            source_names = validated_args['source']
-                            if not isinstance(source_names, list):
-                                source_names = [source_names]
-                            validated_args['source'] = FunctionManager._validate_npc_names(
-                                source_names, characters, exclude_player=True  # Player can't be controlled
-                            )
+                        for param_name, param_value in list(validated_args.items()):
+                            # Get the parameter definition to check its scope
+                            param_def = defined_params.get(param_name, {})
+                            scope = param_def.get('scope')
+                            
+                            # Validate parameters with scopes
+                            if scope:
+                                # Ensure the value is a list for easier validation
+                                entity_names = param_value if isinstance(param_value, list) else [param_value]
 
-                            # Skip this action if no valid NPCs (e.g., all names were invalid)
-                            if len(validated_args['source']) == 0:
-                                logging.warning(f"Skipping action '{identifier}' - no valid source NPCs")
-                                continue
-                        
-                        # Handle target parameter (NPCs being acted upon)
-                        if 'target' in validated_args:
-                            target_names = validated_args['target']
-                            if not isinstance(target_names, list):
-                                target_names = [target_names]
-                            validated_args['target'] = FunctionManager._validate_npc_names(
-                                target_names, characters, exclude_player=False  # Player can be target
-                            )
+                                if scope.startswith('conversation') or scope.startswith('nearby') or scope.startswith('all_npcs'):
+                                    # Determine validation flags based on scope
+                                    include_player = scope.endswith('_w_player')
+                                    include_nearby = scope.startswith('nearby') or scope.startswith('all_npcs')
+                                    
+                                    # Validate the NPC names
+                                    validated_entities = FunctionManager._validate_npc_names(
+                                        entity_names, 
+                                        characters, 
+                                        exclude_player=not include_player,
+                                        include_nearby=include_nearby
+                                    )
+                                    
+                                # Update the validated args with the validated list
+                                # Preserve the original type (string or list)
+                                if isinstance(param_value, list):
+                                    validated_args[param_name] = validated_entities
+                                else:
+                                    # Single string expected, take first valid or skip action if not present
+                                    if validated_entities:
+                                        validated_args[param_name] = validated_entities[0]
+                                    else:
+                                        # No valid entities found, skip this action
+                                        logging.warning(f"Skipping action '{identifier}' - no valid entities for parameter '{param_name}'")
+                                        validated_args = {}  # Clear to skip action
+                                        break
 
                     parsed_tool = {
                         'identifier': identifier
@@ -251,13 +265,14 @@ class FunctionManager:
 
 
     @staticmethod
-    def _validate_npc_names(npc_names: list[str], characters: Characters, exclude_player: bool = True) -> list[str]:
-        """Validate that NPC names exist in the conversation
+    def _validate_npc_names(npc_names: list[str], characters: Characters, exclude_player: bool = True, include_nearby: bool = False) -> list[str]:
+        """Validate that NPC names exist based on scope
         
         Args:
             npc_names: List of NPC names to validate (from LLM)
-            characters: Characters manager containing character information
+            characters: Characters manager containing character and nearby NPC information
             exclude_player: If True, filter out player character (default: True)
+            include_nearby: If True, validate against conversation + nearby NPCs (default: False)
             
         Returns:
             List of valid, unique NPC names
@@ -265,8 +280,17 @@ class FunctionManager:
         if not npc_names:
             return []
         
-        # Build case-insensitive lookup: lowercase name -> actual name
-        char_names_lower = {name.lower(): name for name in characters.get_all_names()}
+        # Get the actual player name for "player" alias resolution
+        actual_player_name = characters.get_player_name()
+        
+        # Get all valid names based on scope
+        valid_name_list = characters.get_all_names_w_nearby(
+            include_player = not exclude_player,
+            include_nearby = include_nearby
+        )
+        
+        # Build case-insensitive lookup: lowercase -> actual name
+        char_names_lower = {name.lower(): name for name in valid_name_list}
         
         valid_names = []
         seen_lower = set()
@@ -277,39 +301,83 @@ class FunctionManager:
             if llm_lower in seen_lower:
                 continue
             
+            # Handle "player" alias - convert to actual player name
+            if llm_lower == "player":
+                if actual_player_name and not exclude_player:
+                    # Use the actual player name
+                    valid_names.append(actual_player_name)
+                    seen_lower.add(actual_player_name.lower())
+                continue
+            
             if llm_lower in char_names_lower:
-                actual_name = char_names_lower[llm_lower]
-                
-                # Skip player if excluded
-                if exclude_player and characters.get_character_by_name(actual_name).is_player_character:
-                    continue
-                
-                valid_names.append(llm_name)  # Preserve LLM casing
+                # Preserve LLM casing
+                valid_names.append(llm_name)
                 seen_lower.add(llm_lower)
             else:
-                logging.warning(f"NPC name '{llm_name}' not found in conversation. Available NPCs: {list(char_names_lower.values())}")
+                available = "conversation" if not include_nearby else "conversation + nearby"
+                logging.warning(f"NPC name '{llm_name}' not found in {available}. Available NPCs: {list(char_names_lower.values())}")
         
         return valid_names
 
 
     @staticmethod
     def _add_npc_context_to_parameters(parameters: dict, context) -> None:
-        """Add available NPC context to source/target parameters"""
+        """Add available NPC context to parameters based on their scope
+        
+        This function enhances parameter descriptions with lists of available entities
+        based on the 'scope' property defined in the action JSON.
+        
+        Supported scopes for NPCs:
+        - 'conversation': NPCs in conversation (excludes player)
+        - 'conversation_w_player': Everyone in conversation (includes player)
+        - 'nearby': Nearby NPCs not in conversation (excludes player)
+        - 'nearby_w_player': Nearby NPCs not in conversation (includes player)
+        - 'all_npcs': Conversation NPCs + nearby NPCs (excludes player)
+        - 'all_npcs_w_player': Everyone (conversation + nearby, includes player)
+        """
         if 'properties' not in parameters:
             return
 
-        # Get available NPCs
-        source_list = context.get_character_names_as_text(should_include_player=False) # Player can't be commanded
-        target_list = context.get_character_names_as_text(should_include_player=True)
-
-        # Add context to parameters that reference NPCs
+        # Process each parameter that has a scope defined
         for param_name, param_def in parameters['properties'].items():
+            scope = param_def.get('scope')
+            
+            # Skip parameters without scope (not entity references)
+            if not scope:
+                continue
+            
             current_desc = param_def.get('description', '')
             
-            # Handle different NPC parameter types
-            if 'source' in param_name.lower():
-                param_def['description'] = f"{current_desc} Available source NPCs: {source_list}".strip()
-            elif 'target' in param_name.lower():
-                param_def['description'] = f"{current_desc} Available target NPCs: {target_list}".strip()
-            elif 'npc_name' in param_name.lower():
-                param_def['description'] = f"{current_desc} Available NPCs: {target_list}".strip()
+            # Parse scope to get entity list
+            entity_list = FunctionManager._get_entities_for_scope(scope, context)
+            
+            # Append entity list to parameter description for LLM context
+            if entity_list:
+                param_def['description'] = f"{current_desc} Available: {entity_list}".strip()
+    
+    
+    @staticmethod
+    def _get_entities_for_scope(scope: str, context) -> str:
+        """Get list of available entities based on scope
+        
+        Args:
+            scope: Scope identifier (eg 'conversation', 'nearby', 'all_npcs_w_player')
+            context: Conversation context
+            
+        Returns:
+            Comma-separated list of entity names, or empty string if scope unknown
+        """
+        # Determine if player should be included based on '_w_player' suffix
+        include_player = scope.endswith('_w_player')
+        
+        # NPC scopes
+        if scope.startswith('conversation'):
+            return context.get_character_names_as_text(include_player=include_player, include_nearby=False)
+        elif scope.startswith('nearby'):
+            return context.get_character_names_as_text(include_player=include_player, nearby_only=True)
+        elif scope.startswith('all_npcs'):
+            return context.get_character_names_as_text(include_player=include_player, include_nearby=True)
+        
+        else:
+            logging.warning(f"Unknown scope '{scope}'. No entities will be added to parameter description.")
+            return ""

@@ -108,7 +108,7 @@ class multi_npc(conversation_type):
         if len(messages) == 1 and context_for_conversation.config.automatic_greeting:
             player_character: Character | None = context_for_conversation.npcs_in_conversation.get_player_character()
             if player_character:
-                message = UserMessage(context_for_conversation.config, f"{context_for_conversation.language['hello']} {context_for_conversation.get_character_names_as_text(should_include_player=False)}.", player_character.name, True)
+                message = UserMessage(context_for_conversation.config, f"{context_for_conversation.language['hello']} {context_for_conversation.get_character_names_as_text(include_player=False)}.", player_character.name, True)
                 message.is_multi_npc_message = True
                 return message
             return None
