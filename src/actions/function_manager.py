@@ -54,7 +54,7 @@ class FunctionManager:
                         for param_name, param_value in list(validated_args.items()):
                             # Get the parameter definition to check its scope
                             param_def = defined_params.get(param_name, {})
-                            scope = param_def.get('scope')
+                            scope: str | None = param_def.get('scope')
                             
                             # Validate parameters with scopes
                             if scope:
@@ -77,7 +77,14 @@ class FunctionManager:
                                 # Update the validated args with the validated list
                                 # Preserve the original type (string or list)
                                 if isinstance(param_value, list):
-                                    validated_args[param_name] = validated_entities
+                                    # For arrays, check if we have any valid entities
+                                    if validated_entities:
+                                        validated_args[param_name] = validated_entities
+                                    else:
+                                        # No valid entities found in array, skip this action
+                                        logging.warning(f"Skipping action '{identifier}' - no valid entities for parameter '{param_name}'")
+                                        validated_args = None  # Mark as skipped
+                                        break
                                 else:
                                     # Single string expected, take first valid or skip action if not present
                                     if validated_entities:
@@ -85,19 +92,21 @@ class FunctionManager:
                                     else:
                                         # No valid entities found, skip this action
                                         logging.warning(f"Skipping action '{identifier}' - no valid entities for parameter '{param_name}'")
-                                        validated_args = {}  # Clear to skip action
+                                        validated_args = None  # Mark as skipped
                                         break
 
-                    parsed_tool = {
-                        'identifier': identifier
-                    }
-                    
-                    # Only include arguments if there are any,
-                    # tools without actions will be treated as basic actions
-                    if validated_args:
-                        parsed_tool['arguments'] = validated_args
-                    
-                    parsed_tools.append(parsed_tool)
+                    # Only add the parsed tool if validation didn't fail
+                    if validated_args is not None:
+                        parsed_tool = {
+                            'identifier': identifier
+                        }
+                        
+                        # Only include arguments if there are any,
+                        # tools without actions will be treated as basic actions
+                        if validated_args:
+                            parsed_tool['arguments'] = validated_args
+                        
+                        parsed_tools.append(parsed_tool)
                 except Exception as e:
                     logging.error(f"Error parsing function call: {e}")
         

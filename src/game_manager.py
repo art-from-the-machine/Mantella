@@ -220,6 +220,7 @@ class GameStateManager:
             time = None
             ingame_events = None
             weather = None
+            npcs_nearby = None
             config_settings: dict[str, Any] | None = None
             custom_context_values: dict[str, Any] | None = None
             if json.__contains__(comm_consts.KEY_CONTEXT):

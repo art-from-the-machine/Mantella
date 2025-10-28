@@ -461,25 +461,6 @@ def test_parse_function_calls_with_validation_valid_source(example_characters_pc
     assert result[0]['arguments']['source'] == ['Guard']
 
 
-def test_parse_function_calls_with_validation_source_string_converted_to_list(example_characters_pc_to_npc: Characters):
-    """Test that single source string is converted to list"""
-    FunctionManager.load_all_actions()
-    
-    tool_calls = [
-        {
-            'function': {
-                'name': 'Follow',
-                'arguments': json.dumps({'source': 'Guard'})
-            }
-        }
-    ]
-    
-    result = FunctionManager.parse_function_calls(tool_calls, example_characters_pc_to_npc)
-    
-    assert len(result) == 1
-    assert result[0]['arguments']['source'] == ['Guard']
-
-
 def test_parse_function_calls_with_validation_invalid_source(example_characters_pc_to_npc: Characters):
     """Test parsing with invalid source parameter - action should be skipped"""
     FunctionManager.load_all_actions()
@@ -890,3 +871,326 @@ def test_parse_function_calls_hallucinated_args_removed_completely():
     assert result[0]['identifier'] == 'mantella_npc_offended'
     # All arguments were hallucinated and filtered out, so key should not be present
     assert 'arguments' not in result[0]
+
+
+class TestNearbyNPCValidation:
+    """Tests for NPC name validation with nearby NPCs"""
+
+    def test_validate_npc_names_conversation_scope(self, example_characters_with_nearby: Characters):
+        """Should validate against conversation participants only"""
+        
+        # LLM provides names - some in conversation, some nearby
+        llm_names = ["Guard", "Bandit", "Unknown"]
+        
+        result = FunctionManager._validate_npc_names(
+            llm_names, 
+            example_characters_with_nearby,
+            exclude_player=True,
+            include_nearby=False
+        )
+        
+        # Only "Guard" should be valid (in conversation)
+        assert len(result) == 1
+        assert "Guard" in result
+        assert "Bandit" not in result  # Nearby, not in conversation
+        assert "Unknown" not in result  # Doesn't exist
+
+    def test_validate_npc_names_all_npcs_scope(self, example_characters_with_nearby: Characters):
+        """Should validate against conversation + nearby NPCs"""
+        
+        llm_names = ["Guard", "Bandit", "Merchant", "Unknown"]
+        
+        result = FunctionManager._validate_npc_names(
+            llm_names,
+            example_characters_with_nearby,
+            exclude_player=True,
+            include_nearby=True
+        )
+        
+        # Guard (conversation) + Bandit + Merchant (nearby) should be valid
+        assert len(result) == 3
+        assert "Guard" in result
+        assert "Bandit" in result
+        assert "Merchant" in result
+        assert "Unknown" not in result
+
+    def test_validate_npc_names_player_alias_resolution(self, example_characters_pc_to_npc):
+        """Should resolve 'player' to actual player name"""
+        llm_names = ["player", "Guard"]
+        
+        result = FunctionManager._validate_npc_names(
+            llm_names,
+            example_characters_pc_to_npc,
+            exclude_player=False,  # Allow player
+            include_nearby=False
+        )
+        
+        assert len(result) == 2
+        assert "Dragonborn" in result  # Actual player name
+        assert "Guard" in result
+        assert "player" not in result  # Alias replaced
+
+    def test_validate_npc_names_player_excluded(self, example_characters_pc_to_npc):
+        """Should exclude player when exclude_player=True"""
+        llm_names = ["player", "Dragonborn", "Guard"]
+        
+        result = FunctionManager._validate_npc_names(
+            llm_names,
+            example_characters_pc_to_npc,
+            exclude_player=True,
+            include_nearby=False
+        )
+        
+        assert len(result) == 1
+        assert "Guard" in result
+        assert "Dragonborn" not in result
+        assert "player" not in result
+
+    def test_validate_npc_names_case_insensitive_matching(self, example_characters_with_nearby: Characters):
+        """Should match names case-insensitively but preserve LLM casing"""
+        
+        llm_names = ["GUARD", "bandit", "GuArD"]  # Various casings
+        
+        result = FunctionManager._validate_npc_names(
+            llm_names,
+            example_characters_with_nearby,
+            exclude_player=True,
+            include_nearby=True
+        )
+        
+        # Should match but preserve LLM casing, no duplicates
+        assert len(result) == 2
+        assert "GUARD" in result  # First occurrence preserved
+        assert "bandit" in result
+
+    def test_validate_npc_names_removes_duplicates(self, example_characters_pc_to_npc):
+        """Should remove duplicate NPC names"""
+        llm_names = ["Guard", "guard", "GUARD"]
+        
+        result = FunctionManager._validate_npc_names(
+            llm_names,
+            example_characters_pc_to_npc,
+            exclude_player=True,
+            include_nearby=False
+        )
+        
+        assert len(result) == 1
+        assert "Guard" in result  # First occurrence kept
+
+    def test_validate_npc_names_empty_list(self, example_characters_pc_to_npc):
+        """Should handle empty input gracefully"""
+        result = FunctionManager._validate_npc_names(
+            [],
+            example_characters_pc_to_npc,
+            exclude_player=True,
+            include_nearby=False
+        )
+        
+        assert result == []
+
+
+class TestParseWithNearbyNPCs:
+    """Tests for parse_function_calls with nearby NPCs"""
+
+    def test_parse_with_nearby_target_validation(self, example_characters_with_nearby: Characters):
+        """Should validate target parameter against nearby NPCs"""
+        FunctionManager.load_all_actions()
+        
+        # Attack action: source=conversation, target=all_npcs_w_player
+        tool_calls = [
+            {
+                'function': {
+                    'name': 'Attack',
+                    'arguments': json.dumps({
+                        'source': ['Guard'],
+                        'target': 'Bandit'  # Nearby NPC
+                    })
+                }
+            }
+        ]
+        
+        result = FunctionManager.parse_function_calls(tool_calls, example_characters_with_nearby)
+        
+        assert len(result) == 1
+        assert result[0]['identifier'] == 'mantella_npc_offended'
+        assert result[0]['arguments']['source'] == ['Guard']
+        assert result[0]['arguments']['target'] == 'Bandit'  # Validated against nearby
+
+    def test_parse_with_invalid_nearby_target(self, example_characters_with_nearby: Characters):
+        """Should skip action when required parameter is invalid"""
+        FunctionManager.load_all_actions()
+        
+        tool_calls = [
+            {
+                'function': {
+                    'name': 'Attack',
+                    'arguments': json.dumps({
+                        'source': ['Guard'],
+                        'target': 'NonExistentNPC'  # Not in conversation or nearby
+                    })
+                }
+            }
+        ]
+        
+        result = FunctionManager.parse_function_calls(tool_calls, example_characters_with_nearby)
+        
+        # Action should be skipped if target is invalid
+        assert len(result) == 0
+
+    def test_parse_follow_with_multiple_conversation_npcs(self, example_characters_multi_npc: Characters):
+        """Should validate multiple source NPCs from conversation"""
+        FunctionManager.load_all_actions()
+        
+        tool_calls = [
+            {
+                'function': {
+                    'name': 'Follow',
+                    'arguments': json.dumps({
+                        'source': ['Guard', 'Lydia']
+                    })
+                }
+            }
+        ]
+        
+        result = FunctionManager.parse_function_calls(tool_calls, example_characters_multi_npc)
+        
+        assert len(result) == 1
+        assert result[0]['identifier'] == 'mantella_npc_follow'
+        assert result[0]['arguments']['source'] == ['Guard', 'Lydia']
+
+    def test_parse_mixed_valid_invalid_sources(self, example_characters_pc_to_npc):
+        """Should filter out invalid NPCs but keep valid ones"""
+        FunctionManager.load_all_actions()
+        
+        tool_calls = [
+            {
+                'function': {
+                    'name': 'Follow',
+                    'arguments': json.dumps({
+                        'source': ['Guard', 'NonExistent', 'AnotherFake']
+                    })
+                }
+            }
+        ]
+        
+        result = FunctionManager.parse_function_calls(tool_calls, characters=example_characters_pc_to_npc)
+        
+        # Should keep only valid NPC
+        assert len(result) == 1
+        assert result[0]['arguments']['source'] == ['Guard']
+
+
+class TestToolGenerationWithNearby:
+    """Tests for generate_context_aware_tools with nearby NPCs"""
+
+    def test_adds_nearby_npcs_to_target_parameter(self, example_context_with_nearby: Context):
+        """Should add nearby NPCs to target parameter description"""
+        FunctionManager.load_all_actions()
+        
+        tools = FunctionManager.generate_context_aware_tools(example_context_with_nearby)
+        
+        # Find Attack action tool
+        attack_tool = None
+        for tool in tools:
+            if tool['function']['name'] == 'Attack':
+                attack_tool = tool
+                break
+        
+        assert attack_tool is not None
+        
+        # Target parameter should include nearby NPCs
+        target_desc = attack_tool['function']['parameters']['properties']['target']['description']
+        assert 'Bandit' in target_desc
+        assert 'Merchant' in target_desc
+
+    def test_conversation_scope_excludes_nearby(self, example_context_with_nearby: Context):
+        """Should not include nearby NPCs in conversation-scoped parameters"""
+        FunctionManager.load_all_actions()
+        
+        tools = FunctionManager.generate_context_aware_tools(example_context_with_nearby)
+        
+        # Find Follow action tool (source has "conversation" scope)
+        follow_tool = None
+        for tool in tools:
+            if tool['function']['name'] == 'Follow':
+                follow_tool = tool
+                break
+        
+        assert follow_tool is not None
+        
+        # Source parameter should NOT include nearby NPCs
+        source_desc = follow_tool['function']['parameters']['properties']['source']['description']
+        assert 'Guard' in source_desc  # Conversation NPC
+        assert 'Bandit' not in source_desc  # Nearby NPC
+
+    def test_no_nearby_npcs_graceful_handling(self, default_context):
+        """Should work normally when no nearby NPCs are set"""
+        FunctionManager.load_all_actions()
+        
+        # Don't set nearby NPCs (default empty)
+        tools = FunctionManager.generate_context_aware_tools(default_context)
+        
+        # Should still generate tools
+        assert len(tools) > 0
+        
+        # Find Attack action
+        attack_tool = None
+        for tool in tools:
+            if tool['function']['name'] == 'Attack':
+                attack_tool = tool
+                break
+        
+        assert attack_tool is not None
+        # Should only have conversation NPCs in description
+        target_desc = attack_tool['function']['parameters']['properties']['target']['description']
+        assert 'Guard' in target_desc
+
+
+class TestScopeEntityRetrieval:
+    """Tests for _get_entities_for_scope helper method"""
+
+    def test_conversation_scope_returns_npcs_only(self, default_context):
+        """Scope 'conversation' should return NPCs without player"""
+        result = FunctionManager._get_entities_for_scope('conversation', default_context)
+        
+        assert 'Guard' in result
+        assert 'Dragonborn' not in result  # Player excluded
+
+    def test_conversation_w_player_scope(self, default_context):
+        """Scope 'conversation_w_player' should include player"""
+        result = FunctionManager._get_entities_for_scope('conversation_w_player', default_context)
+        
+        assert 'Guard' in result
+        assert 'Dragonborn' in result
+
+    def test_nearby_scope(self, example_context_with_nearby: Context):
+        """Scope 'nearby' should return only nearby NPCs"""
+        
+        result = FunctionManager._get_entities_for_scope('nearby', example_context_with_nearby)
+        
+        assert 'Bandit' in result
+        assert 'Guard' not in result  # Conversation NPC excluded
+
+    def test_all_npcs_scope(self, example_context_with_nearby: Context):
+        """Scope 'all_npcs' should return conversation + nearby"""
+        
+        result = FunctionManager._get_entities_for_scope('all_npcs', example_context_with_nearby)
+        
+        assert 'Guard' in result  # Conversation
+        assert 'Bandit' in result  # Nearby
+        assert 'Dragonborn' not in result  # Player excluded
+
+    def test_all_npcs_w_player_scope(self, example_context_with_nearby: Context):
+        """Scope 'all_npcs_w_player' should return everyone"""
+        
+        result = FunctionManager._get_entities_for_scope('all_npcs_w_player', example_context_with_nearby)
+        
+        assert 'Guard' in result  # Conversation
+        assert 'Bandit' in result  # Nearby
+        assert 'Dragonborn' in result  # Player included
+
+    def test_unknown_scope_returns_empty(self, default_context):
+        """Unknown scope should return empty string and log warning"""
+        result = FunctionManager._get_entities_for_scope('invalid_scope', default_context)
+        
+        assert result == ""
