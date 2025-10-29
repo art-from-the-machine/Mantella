@@ -243,11 +243,49 @@ def example_skyrim_npc_character() -> Character:
     )
 
 @pytest.fixture
+def another_example_skyrim_npc_character() -> Character:
+    return Character(
+        base_id='1', 
+        ref_id='1', 
+        name='Lydia', 
+        gender=1, 
+        race='Nord',
+        is_player_character=False, 
+        bio='You are Lydia.', 
+        is_in_combat=False, 
+        is_enemy=False,
+        relationship_rank=0, 
+        is_generic_npc=False, 
+        ingame_voice_model='FemaleEvenToned',
+        tts_voice_model='FemaleEvenToned', 
+        csv_in_game_voice_model='FemaleEvenToned',
+        advanced_voice_model='FemaleEvenToned', 
+        voice_accent='en',
+        equipment = Equipment({
+            'body': EquipmentItem('Iron Armor'),
+            'feet': EquipmentItem('Iron Boots'),
+            'hands': EquipmentItem('Iron Gauntlets'),
+            'head': EquipmentItem('Iron Helmet'),
+            'righthand': EquipmentItem('Iron Sword'),
+        }),
+        custom_character_values=None
+    )
+
+@pytest.fixture
 def example_characters_pc_to_npc(example_skyrim_player_character: Character, example_skyrim_npc_character: Character) -> Characters:
     """Provides a Characters manager with the test character"""
     chars = Characters()
     chars.add_or_update_character(example_skyrim_player_character)
     chars.add_or_update_character(example_skyrim_npc_character)
+    return chars
+
+@pytest.fixture
+def example_characters_multi_npc(example_skyrim_player_character: Character, example_skyrim_npc_character: Character, another_example_skyrim_npc_character: Character) -> Characters:
+    """Provides a Characters manager with the test character"""
+    chars = Characters()
+    chars.add_or_update_character(example_skyrim_player_character)
+    chars.add_or_update_character(example_skyrim_npc_character)
+    chars.add_or_update_character(another_example_skyrim_npc_character)
     return chars
 
 @pytest.fixture
@@ -272,6 +310,26 @@ def example_fallout4_npc_character() -> Character:
         equipment = None,
         custom_character_values = None,
     )
+
+@pytest.fixture
+def example_nearby_npcs_data() -> list[dict]:
+    """Provides example nearby NPC data as would come from the game client"""
+    return [
+        {"name": "Bandit", "distance": 10.5},
+        {"name": "Merchant", "distance": 15.2}
+    ]
+
+@pytest.fixture
+def example_characters_with_nearby(example_characters_pc_to_npc: Characters, example_nearby_npcs_data: list[dict]) -> Characters:
+    """Provides a Characters manager with both conversation participants and nearby NPCs"""
+    example_characters_pc_to_npc.set_nearby_npcs(example_nearby_npcs_data)
+    return example_characters_pc_to_npc
+
+@pytest.fixture
+def example_context_with_nearby(default_context: Context, example_nearby_npcs_data: list[dict]) -> Context:
+    """Provides a Context with nearby NPCs set"""
+    default_context.npcs_in_conversation.set_nearby_npcs(example_nearby_npcs_data)
+    return default_context
 
 @pytest.fixture
 def example_start_conversation_request(example_player_actor: models.Actor, example_npc_actor: models.Actor) -> models.StartConversationRequest:

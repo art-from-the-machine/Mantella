@@ -8,7 +8,8 @@
         "source": {
             "type": "array",
             "description": "The NPC(s) to stop attacking. All NPCs in combat need to be listed for combat to end",
-            "items": {"type": "string"}
+            "items": {"type": "string"},
+            "scope": "conversation"
         }
     },
     "required": ["source"],

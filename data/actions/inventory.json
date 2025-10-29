@@ -7,7 +7,8 @@
     "parameters": {
         "source": {
             "type": "string",
-            "description": "The NPC to open their inventory."
+            "description": "The NPC to open their inventory.",
+            "scope": "conversation"
         }
     },
     "required": ["source"],

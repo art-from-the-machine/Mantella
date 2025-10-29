@@ -63,6 +63,7 @@ class communication_constants:
     KEY_CONTEXT_LOCATION: str = PREFIX + "location"
     KEY_CONTEXT_WEATHER = PREFIX + "weather"
     KEY_CONTEXT_TIME: str = PREFIX + "time"
+    KEY_CONTEXT_NPCS_NEARBY: str = PREFIX + "nearby_actors"
     KEY_CONTEXT_INGAMEEVENTS: str = PREFIX + "ingame_events"
     KEY_CONTEXT_CONFIG_SETTINGS: str = PREFIX + "config_settings"
     KEY_CONTEXT_CONFIG_SETTINGS_NPC_ANGER: str = PREFIX + "config_settings_npc_anger"

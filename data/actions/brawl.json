@@ -1,19 +1,19 @@
 {
-    "identifier": "mantella_npc_follow",
-    "name": "Follow",
-    "description": "Make NPC(s) follow the player.",
-    "key": "Follow",
+    "identifier": "mantella_npc_brawl",
+    "name": "Brawl",
+    "description": "Make NPC(s) non-lethally brawl the player.",
+    "key": "Brawl",
     "enabled": true,
     "parameters": {
         "source": {
             "type": "array",
-            "description": "The NPC(s) willing to follow.",
+            "description": "The NPC(s) who will start the brawl.",
             "items": {"type": "string"},
             "scope": "conversation"
         }
     },
     "required": ["source"],
-    "prompt": "If the player asks you to follow them, and you are thoroughly convinced to do so, begin your response with '{key}:'",
+    "prompt": "If the player picks a fight with you, begin your response with '{key}:'",
     "allowed_games": ["skyrim"],
     "is-interrupting": false,
     "one-on-one": true,
