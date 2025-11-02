@@ -1,0 +1,27 @@
+{
+    "identifier": "mantella_npc_moveto",
+    "name": "MoveTo",
+    "description": "Make NPC(s) move to a specific NPC.",
+    "key": "MoveTo",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "array",
+            "description": "The NPC(s) who will move.",
+            "items": {"type": "string"},
+            "scope": "conversation"
+        },
+        "target": {
+            "type": "string",
+            "description": "The NPC to move to.",
+            "scope": "all_npcs_w_player"
+        }
+    },
+    "required": ["source", "target"],
+    "prompt": "If the player asks you to move, begin your response with '{key}:'",
+    "allowed_games": ["skyrim"],
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}

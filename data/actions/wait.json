@@ -1,0 +1,22 @@
+{
+    "identifier": "mantella_npc_wait",
+    "name": "Wait",
+    "description": "Make an NPC(s) wait.",
+    "key": "Wait",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "array",
+            "description": "The NPC(s) to make wait.",
+            "items": {"type": "string"},
+            "scope": "conversation"
+        }
+    },
+    "required": ["source"],
+    "prompt": "To wait, begin your response with '{key}:'.",
+    "allowed_games": ["skyrim"],
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": false
+}
