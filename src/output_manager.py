@@ -235,7 +235,7 @@ class ChatManager:
                         tool_call_message.tool_calls = collected_tool_calls
                         messages.add_message(tool_call_message)
                         
-                        # Maker second call without passing tools to ensure LLM generates text
+                        # Make second call without passing tools to ensure LLM generates text
                         current_tools = None
                         collected_tool_calls = []  # Reset for next iteration
                         first_token = True  # Reset for timing the second call

@@ -1,0 +1,22 @@
+{
+    "identifier": "mantella_npc_loot",
+    "name": "Loot",
+    "description": "Make NPC(s) loot items in the area.",
+    "key": "Loot",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "array",
+            "description": "The NPC(s) who will loot items in the area.",
+            "items": {"type": "string"},
+            "scope": "conversation"
+        }
+    },
+    "required": ["source"],
+    "prompt": "If the player asks you to loot, begin your response with '{key}:'",
+    "allowed_games": ["skyrim"],
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}
