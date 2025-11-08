@@ -33,8 +33,8 @@ class Skyrim(Gameable):
         self.__image_analysis_filepath = ""
 
         # Initialize bio template manager with override support
-        # Use relative path like skyrim_characters.csv so it resolves from working directory
-        bio_templates_path = os.path.join('data', 'Skyrim', 'bio_templates')
+        # Use resolve_path() to handle packaged exe correctly
+        bio_templates_path = os.path.join(utils.resolve_path(), 'data', 'Skyrim', 'bio_templates')
         logging.info(f"Skyrim: Initializing BioTemplateManager with path: {bio_templates_path}")
         self.__bio_template_manager = BioTemplateManager(bio_templates_path, config)
 
@@ -76,7 +76,12 @@ class Skyrim(Gameable):
         tags = character_info.get("tags", "")
         expanded_bio = self.__bio_template_manager.expand_bio_with_tags(base_bio, tags)
 
-        return external_character_info(name, is_generic_npc, expanded_bio, actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None), character_info.get('llm_service', ''), character_info.get('model', ''))
+        # Handle pandas NaN values in CSV
+        tts_service_value = character_info.get('tts_service', '')
+        if pd.isna(tts_service_value) or str(tts_service_value).strip().lower() == 'nan':
+            tts_service_value = ''
+
+        return external_character_info(name, is_generic_npc, expanded_bio, actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None), tts_service_value, character_info.get('llm_service', ''), character_info.get('model', ''))
     
     @utils.time_it
     def find_best_voice_model(self, actor_race: str | None, actor_sex: int | None, ingame_voice_model: str, library_search:bool = True) -> str:

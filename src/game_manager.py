@@ -860,6 +860,7 @@ class GameStateManager:
             csv_in_game_voice_model: str = ""
             advanced_voice_model: str = ""
             voice_accent: str = ""
+            tts_service: str = ""
             llm_service: str = ""
             llm_model: str = ""
             is_player_character: bool = bool(json[comm_consts.KEY_ACTOR_ISPLAYER])
@@ -867,10 +868,12 @@ class GameStateManager:
                 already_loaded_character: Character | None = self.__talk.get_character(ref_id)
                 if already_loaded_character:
                     bio = already_loaded_character.bio
+                    # Carry over previously loaded values
                     tts_voice_model = already_loaded_character.tts_voice_model
                     csv_in_game_voice_model = already_loaded_character.csv_in_game_voice_model
                     advanced_voice_model = already_loaded_character.advanced_voice_model
                     voice_accent = already_loaded_character.voice_accent
+                    tts_service = getattr(already_loaded_character, 'tts_service', "")
                     llm_service = already_loaded_character.llm_service
                     llm_model = already_loaded_character.llm_model
                     is_generic_npc = already_loaded_character.is_generic_npc
@@ -882,6 +885,7 @@ class GameStateManager:
                 csv_in_game_voice_model = external_info.csv_in_game_voice_model
                 advanced_voice_model = external_info.advanced_voice_model
                 voice_accent = external_info.voice_accent
+                tts_service = getattr(external_info, 'tts_service', "")
                 llm_service = external_info.llm_service
                 llm_model = external_info.llm_model
                 is_generic_npc = external_info.is_generic_npc
@@ -912,6 +916,7 @@ class GameStateManager:
                             voice_accent,
                             equipment,
                             custom_values,
+                            tts_service,
                             llm_service,
                             llm_model)
         except CharacterDoesNotExist:                 

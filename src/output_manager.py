@@ -1,6 +1,7 @@
 import asyncio
 from threading import Lock
 import logging
+import os
 import time
 import unicodedata
 import wave
@@ -32,9 +33,15 @@ from src.random_llm_selector import RandomLLMSelector
 from src.llm.client_base import ClientBase
 from src.llm.key_file_resolver import key_file_resolver
 from src.llm.sonnet_cache_connector import SonnetCacheConnector
+from src.config.definitions.tts_definitions import TTSEnum
+from src.games.gameable import Gameable
+from src.tts.ttsable import TTSable
+from src.tts.piper import Piper
+from src.tts.xtts import XTTS
+from src.tts.xvasynth import xVASynth
 
 class ChatManager:
-    def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient, multi_npc_client: AIClient | None = None, api_file: str = "secret_keys.json"):
+    def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient, multi_npc_client: AIClient | None = None, api_file: str = "secret_keys.json", game: Gameable | None = None):
         self.loglevel = 28
         self.__config: ConfigLoader = config
         self.__tts: TTSable = tts
@@ -48,6 +55,9 @@ class ChatManager:
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
         self.__per_character_clients: dict[str, AIClient] = {}  # Cache for per-character LLM clients
+        self.__logged_tts_characters: set[str] = set()  # Track characters we've logged TTS info for in current response
+        self.__per_service_tts: dict[TTSEnum, TTSable] = {}  # Cache for per-service TTS
+        self.__game: Gameable | None = game
         
         # Store vision client reference independently to handle random selection and hot swaps
         self.__vision_client = getattr(client, '_image_client', None)
@@ -183,12 +193,17 @@ class ChatManager:
             self.__config = config
             self.__tts = tts
             self.__client = client
+            # Reset per-service TTS cache (will be rebuilt lazily)
+            self.__per_service_tts.clear()
             # Update vision client reference for hot swap
             self.__vision_client = getattr(client, '_image_client', None)
             
             # Clear per-character client cache so they get recreated with new settings
             self.__per_character_clients.clear()
-            
+
+            # Clear TTS logging tracking
+            self.__logged_tts_characters.clear()
+
             # Reset first sentence flag for new TTS instance
             self.__is_first_sentence = False
             
@@ -198,6 +213,53 @@ class ChatManager:
         except Exception as e:
             logging.error(f"ChatManager hot-swap failed: {e}")
             return False
+    
+    def _parse_tts_service_str(self, value: str | None) -> TTSEnum | None:
+        if not value:
+            return None
+        # Handle pandas NaN values and empty strings
+        value_str = str(value).strip().lower()
+        if value_str in ('nan', 'none', 'null', ''):
+            return None
+        normalized = value_str.replace('-', '').replace('_', '').replace(' ', '')
+        mapping = {
+            'piper': TTSEnum.PIPER,
+            'xtts': TTSEnum.XTTS,
+            'xvasynth': TTSEnum.XVASYNTH,
+            'xva': TTSEnum.XVASYNTH,
+        }
+        return mapping.get(normalized)
+    
+    def _get_or_create_tts(self, service: TTSEnum) -> TTSable:
+        # If requested service matches the default instance, reuse it
+        try:
+            if service == self.__config.tts_service:
+                return self.__tts
+        except Exception:
+            # If config is missing tts_service for any reason, proceed to cache check
+            pass
+        if service in self.__per_service_tts:
+            return self.__per_service_tts[service]
+        # Create new instance based on service
+        try:
+            if service == TTSEnum.PIPER:
+                if not self.__game:
+                    raise RuntimeError("Piper requires a game context")
+                instance = Piper(self.__config, self.__game)
+            elif service == TTSEnum.XTTS:
+                if not self.__game:
+                    raise RuntimeError("XTTS requires a game context")
+                instance = XTTS(self.__config, self.__game)
+            elif service == TTSEnum.XVASYNTH:
+                instance = xVASynth(self.__config)
+            else:
+                # Fallback to default TTS if unsupported enum
+                instance = self.__tts
+            self.__per_service_tts[service] = instance
+            return instance
+        except Exception as e:
+            logging.warning(f"Failed to initialize TTS service '{service}': {e}. Falling back to default TTS.")
+            return self.__tts
     
     @utils.time_it
     def generate_sentence(self, content: SentenceContent) -> Sentence:
@@ -225,10 +287,50 @@ class ChatManager:
             try:
                 if self.__config.narration_handling == NarrationHandlingEnum.USE_NARRATOR and content.sentence_type == SentenceTypeEnum.NARRATION:
                     synth_options = SynthesizationOptions(False, self.__is_first_sentence)
+                    logging.info(f"TTS for narration: using='default' (narrator)")
                     audio_file = self.__tts.synthesize(self.__config.narrator_voice, text, self.__config.narrator_voice, self.__config.narrator_voice, "en", synth_options, self.__config.narrator_voice)
                 else:
                     synth_options = SynthesizationOptions(character_to_talk.is_in_combat, self.__is_first_sentence)
-                    audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
+                    # Determine per-character TTS, with fallback to default
+                    audio_file = ""
+                    requested_tts_service_str = getattr(character_to_talk, 'tts_service', None) or ""
+                    selected_tts_service = self._parse_tts_service_str(requested_tts_service_str)
+
+                    # Log error for invalid TTS service specification
+                    if requested_tts_service_str and selected_tts_service is None:
+                        logging.error(f"Invalid TTS service '{requested_tts_service_str}' specified for character {character_to_talk.name}. Valid options: piper, xtts, xvasynth. Using default TTS instead.")
+
+                    # Log TTS info once per character per response
+                    if character_to_talk.name not in self.__logged_tts_characters:
+                        # Determine which voice model will be used based on priority
+                        final_voice_model = (character_to_talk.advanced_voice_model or
+                                           character_to_talk.tts_voice_model or
+                                           character_to_talk.in_game_voice_model or
+                                           character_to_talk.csv_in_game_voice_model or
+                                           "unknown")
+
+                        if selected_tts_service is not None:
+                            tts_service_name = selected_tts_service.display_name
+                        else:
+                            tts_service_name = "default"
+
+                        logging.info(f"TTS for {character_to_talk.name}: using {tts_service_name} with voice '{final_voice_model}'")
+                        self.__logged_tts_characters.add(character_to_talk.name)
+
+                    # Try per-character TTS first
+                    if selected_tts_service is not None:
+                        try:
+                            tts_instance = self._get_or_create_tts(selected_tts_service)
+                            audio_file = tts_instance.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
+                            # Verify audio file was actually created
+                            if not (audio_file and os.path.exists(audio_file) and os.path.getsize(audio_file) > 0):
+                                raise FileNotFoundError(f"Audio file not created or empty: {audio_file}")
+                        except Exception as e:
+                            logging.warning(f"Per-character TTS '{requested_tts_service_str}' failed: {e}. Falling back to default TTS.")
+                            audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
+                    else:
+                        # No per-character TTS requested, use default
+                        audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
             except Exception as e:
                 utils.play_error_sound()
                 error_text = f"Text-to-Speech Error: {e}"
@@ -302,7 +404,10 @@ class ChatManager:
             for i in indicators:
                 cut_indicators.add(i)
         accumulator: sentence_accumulator = sentence_accumulator(list(cut_indicators))
-       
+
+        # Reset TTS logging tracking for new response
+        self.__logged_tts_characters.clear()
+
         try:
             current_sentence: str = ''
             settings: sentence_generation_settings = sentence_generation_settings(active_character)

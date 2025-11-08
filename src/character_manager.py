@@ -4,7 +4,7 @@ from src.games.equipment import Equipment
 class Character:
     """Representation of a character in the game
     """
-    def __init__(self, base_id: str, ref_id: str,  name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, equipment:Equipment, custom_character_values: dict[str, Any], llm_service: str = "", llm_model: str = ""):
+    def __init__(self, base_id: str, ref_id: str,  name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, equipment:Equipment, custom_character_values: dict[str, Any], tts_service: str = "", llm_service: str = "", llm_model: str = ""):
         self.__base_id: str = base_id
         self.__ref_id: str = ref_id
         self.__name: str = name
@@ -23,6 +23,7 @@ class Character:
         self.__voice_accent = voice_accent #info.get('voice_accent', None)
         self.__equipment = equipment
         self.__custom_character_values: dict[str, Any] = custom_character_values
+        self.__tts_service: str = tts_service
         self.__llm_service: str = llm_service
         self.__llm_model: str = llm_model
 
@@ -165,6 +166,14 @@ class Character:
     @voice_accent.setter
     def voice_accent(self, value: str):
         self.__voice_accent = value
+
+    @property
+    def tts_service(self) -> str:
+        return self.__tts_service
+    
+    @tts_service.setter
+    def tts_service(self, value: str):
+        self.__tts_service = value
 
     @property
     def custom_character_values(self) -> dict[str, Any]:

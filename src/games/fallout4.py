@@ -76,7 +76,12 @@ class Fallout4(Gameable):
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
         actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
-        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None)) 
+        # Handle pandas NaN values in CSV
+        tts_service_value = character_info.get('tts_service', '')
+        if pd.isna(tts_service_value) or str(tts_service_value).strip().lower() == 'nan':
+            tts_service_value = ''
+
+        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None), tts_service_value) 
     
     @utils.time_it
     def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str, library_search:bool = True) -> str:

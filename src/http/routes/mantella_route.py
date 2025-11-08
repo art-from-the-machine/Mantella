@@ -66,7 +66,7 @@ class mantella_route(routeable):
 
             llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
             
-            chat_manager = ChatManager(self._config, tts, llm_client, None, self.__secret_key_file)
+            chat_manager = ChatManager(self._config, tts, llm_client, None, self.__secret_key_file, current_game)
             
             # Try to hot-swap the GameStateManager components with the existing game instance
             success = self.__game.hot_swap_settings(
@@ -111,7 +111,7 @@ class mantella_route(routeable):
 
         llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file)
         
-        chat_manager = ChatManager(self._config, tts, llm_client, None, self.__secret_key_file)
+        chat_manager = ChatManager(self._config, tts, llm_client, None, self.__secret_key_file, game)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, self.__stt_secret_key_file, self.__secret_key_file)
 
         # Set the global reference for UI access
