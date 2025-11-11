@@ -290,6 +290,9 @@ Content Guidelines:
     def get_memory_prompt_config_value() -> ConfigValue:
         memory_prompt_description = """The prompt used to summarize a conversation and save to the NPC's memories in data/game/conversations/NPC_Name/NPC_Name_summary_X.txt.
                                          	If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
+                                               bios = the background information/bios of the characters involved
+                                               names = the NPC's name(s) (same as name)
+                                               conversation_summaries = previous conversation summaries for context
                                                name = the NPC's name
                                                language = the selected language
                                                game = the game selected

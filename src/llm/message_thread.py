@@ -56,7 +56,7 @@ class message_thread():
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
         return message_thread.transform_to_openai_messages(self.__messages)
 
-    def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message | join_message | leave_message):
+    def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message):
         self.__messages.append(new_message)
 
     @utils.time_it
@@ -64,7 +64,7 @@ class message_thread():
         """Adds a list of messages to this message_thread. Omits system_messages 
 
         Args:
-            new_messages (list[message]): a list of messages to add
+            new_messages (list[Message]): a list of messages to add
         """
         for new_message in new_messages:
             if not isinstance(Message, SystemMessage):
@@ -97,7 +97,7 @@ class message_thread():
         
         kept_count = len(messages_to_keep)
         # Compute removed persistent messages: all persistent messages except the kept ones.
-        removed_messages: list[message] = persistent_messages if kept_count == 0 else persistent_messages[:len(persistent_messages) - kept_count]
+        removed_messages: list[Message] = persistent_messages if kept_count == 0 else persistent_messages[:len(persistent_messages) - kept_count]
         return removed_messages
 
     @utils.time_it
@@ -108,7 +108,7 @@ class message_thread():
             include_system_generated_messages (bool): if true, does not include user- and assistant_messages that are flagged as system messages
 
         Returns:
-            list[message]: the selection of messages in question
+            list[Message]: the selection of messages in question
         """
         result = []
         for message in self.__messages:
