@@ -286,9 +286,9 @@ class ClientBase(AIClient):
                     if (e.type == 'invalid_request_error') and (self._image_client): # invalid request
                         logging.error(f"Invalid request. Try disabling Vision in Mantella's settings and try again.")
                     else:
-                        logging.error(f"LLM API Error: {e}")
+                        logging.error(f"LLM API Streaming Error: {e}")
                 else:
-                    logging.error(f"LLM API Error: {e}")
+                    logging.error(f"LLM API Streaming Error: {e}")
             finally:
                 if async_client:
                     await async_client.close()

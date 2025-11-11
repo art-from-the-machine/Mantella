@@ -135,7 +135,10 @@ class Conversation:
         #Grab the next sentence from the queue
         next_sentence: Sentence | None = self.retrieve_sentence_from_queue()
         
-        if next_sentence and len(next_sentence.text) > 0:
+        # Check if this is an action-only sentence (no text, but has actions)
+        if next_sentence and len(next_sentence.text.strip()) == 0 and len(next_sentence.actions) > 0:
+            return comm_consts.KEY_REPLYTYPE_NPCACTION, next_sentence
+        elif next_sentence and len(next_sentence.text) > 0:
             if {'identifier': comm_consts.ACTION_REMOVECHARACTER} in next_sentence.actions:
                 self.__context.remove_character(next_sentence.speaker)
             #if there is a next sentence and it actually has content, return it as something for an NPC to say

@@ -97,6 +97,19 @@ class GameStateManager:
                 reply = self.player_input({"mantella_context": {}, "mantella_player_input": "", "mantella_request_type": "mantella_player_input"})
                 self.__first_line = False # since the NPC is already speaking in-game, setting this to True would just cause two voicelines to play at once
                 continue # continue conversation with new player input (ie call self.__talk.continue_conversation() again)
+            elif replyType == comm_consts.KEY_REPLYTYPE_NPCACTION:
+                # Action-only response (no voiceline)
+                if sentence_to_play and len(sentence_to_play.actions) > 0:
+                    logging.log(23, f"Sending action-only response with {len(sentence_to_play.actions)} action(s)")
+                    return {
+                        comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCACTION,
+                        comm_consts.KEY_REPLYTYPE_NPCACTION: {
+                            comm_consts.KEY_ACTOR_ACTIONS: sentence_to_play.actions
+                        }
+                    }
+                else:
+                    # If no actions, continue to next iteration
+                    continue
             else:
                 reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
                 break

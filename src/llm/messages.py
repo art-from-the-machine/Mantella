@@ -266,3 +266,27 @@ class ImageDescriptionMessage(Message):
                 }
             ]
         }
+
+class ToolMessage(Message):
+    """A tool result message representing the completion of a tool call"""
+    def __init__(self, config: ConfigLoader, tool_call_id: str, content: str = "done"):
+        super().__init__(content, config, True)  # Always system-generated
+        self.__tool_call_id = tool_call_id
+    
+    @property
+    def tool_call_id(self) -> str:
+        return self.__tool_call_id
+    
+    def get_formatted_content(self) -> str:
+        return self.text
+    
+    def get_openai_message(self) -> ChatCompletionMessageParam:
+        return {
+            "role": "tool",
+            "tool_call_id": self.__tool_call_id,
+            "content": self.get_formatted_content()
+        }
+    
+    def get_dict_formatted_string(self) -> str:
+        dictionary = {"role": "tool", "tool_call_id": self.__tool_call_id, "content": self.get_formatted_content()}
+        return f"{dictionary}"

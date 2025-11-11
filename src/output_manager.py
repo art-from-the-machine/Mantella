@@ -25,7 +25,7 @@ from src.character_manager import Character
 from src.llm.message_thread import message_thread
 from src.llm.ai_client import AIClient
 from src.actions.function_manager import FunctionManager
-from src.llm.messages import AssistantMessage
+from src.llm.messages import AssistantMessage, ToolMessage
 from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
 
@@ -121,7 +121,6 @@ class ChatManager:
         self.__is_first_sentence = True
         is_multi_npc = characters.contains_multiple_npcs()
         max_response_sentences = self.__config.max_response_sentences_single if not is_multi_npc else self.__config.max_response_sentences_multi
-        awaiting_actions = []
         max_retries = 5
         retries = 0
 
@@ -186,8 +185,12 @@ class ChatManager:
                                 
                                 # Parse tool calls to get action identifiers
                                 parsed_tools = FunctionManager.parse_function_calls(collected_tool_calls, characters)
-                                awaiting_actions.extend(parsed_tools)
-                                logging.log(23, f"Parsed actions: {awaiting_actions}")
+                                
+                                # Send actions immediately as an action-only sentence
+                                if parsed_tools:
+                                    logging.log(23, f"Parsed actions: {parsed_tools}")
+                                    action_only_sentence = SentenceContent(active_character, "", SentenceTypeEnum.SPEECH, True, parsed_tools)
+                                    blocking_queue.put(Sentence(action_only_sentence, "", 0))
                         else:
                             # Fallback for backward compatibility (if item is just a string)
                             has_text_response = True
@@ -214,8 +217,6 @@ class ChatManager:
                                 # Process sentences from the parser chain
                                 if parsed_sentence:
                                     if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
-                                        parsed_sentence.actions.extend(awaiting_actions)
-                                        awaiting_actions = []
                                         new_sentence = self.generate_sentence(parsed_sentence)
                                         blocking_queue.put(new_sentence)
                                         parsed_sentence = None
@@ -225,15 +226,25 @@ class ChatManager:
                                 # If there is an interrupting action, stop the generation after the next sentence
                                 settings.stop_generation = True
                     
-                    # After streaming completes, check if we need to make a second call
+                    # After streaming completes, add tool calls to history if any were made
+                    if collected_tool_calls:
+                        # Create an assistant message with the tool calls and add to thread
+                        tool_call_message = AssistantMessage(self.__config, True)
+                        tool_call_message.tool_calls = collected_tool_calls
+                        messages.add_message(tool_call_message)
+                        
+                        # Add fake tool result messages for each tool call (required by Anthropic)
+                        for tool_call in collected_tool_calls:
+                            tool_call_id = tool_call.get("id", "unknown")
+                            tool_result_message = ToolMessage(self.__config, tool_call_id, "done")
+                            messages.add_message(tool_result_message)
+                        
+                        logging.log(23, f"Added {len(collected_tool_calls)} tool call(s) and result(s) to message thread")
+                    
+                    # Check if a second call is needed for a text response
                     if collected_tool_calls and not has_text_response:
                         # LLM chose tools but no text - need to make second call
                         logging.log(23, f"Making second LLM call for text response...")
-                        
-                        # Create an assistant message with the tool calls and add to thread
-                        tool_call_message = AssistantMessage(self.__config)
-                        tool_call_message.tool_calls = collected_tool_calls
-                        messages.add_message(tool_call_message)
                         
                         # Make second call without passing tools to ensure LLM generates text
                         current_tools = None

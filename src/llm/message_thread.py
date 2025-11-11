@@ -1,6 +1,6 @@
 from copy import deepcopy
 from src.config.config_loader import ConfigLoader
-from src.llm.messages import Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage
+from src.llm.messages import Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage, ToolMessage
 from typing import Callable
 from openai.types.chat import ChatCompletionMessageParam
 from src import utils
@@ -55,7 +55,7 @@ class message_thread():
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
         return message_thread.transform_to_openai_messages(self.__messages)
 
-    def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage):
+    def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | ToolMessage):
         self.__messages.append(new_message)
 
     @utils.time_it
