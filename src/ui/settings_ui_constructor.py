@@ -766,6 +766,10 @@ class SettingsUIConstructor(ConfigValueVisitor):
             "profile_selected_model": {
                 "dependent_config": "profile_selected_service",
                 "model_list_getter": ClientBase.get_model_list,
+            },
+            "model_summaries": {
+                "dependent_config": "llm_api",
+                "model_list_getter": ClientBase.get_model_list,
             }
         }
 

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Hashable
+from typing import Any, Hashable, List
 from src.conversation.action import Action
 from src.http.communication_constants import communication_constants
 from src.conversation.conversation_log import conversation_log
@@ -12,7 +12,12 @@ from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 from src.config.definitions.game_definitions import GameEnum
 
-class Context:
+class add_or_update_result:
+    def __init__(self, added_npcs: List[Character], removed_npcs: List[Character]):
+        self.added_npcs: List[Character]  = added_npcs
+        self.removed_npcs: List[Character]  = removed_npcs
+
+class context:
     """Holds the context of a conversation
     """
     TOKEN_LIMIT_PERCENT: float = 0.45
@@ -164,22 +169,23 @@ class Context:
         self.__ingame_events.clear()
 
     @utils.time_it
-    def add_or_update_characters(self, new_list_of_npcs: list[Character]) -> list[Character]:
-        removed_npcs = []
+    def add_or_update_characters(self, new_list_of_npcs: list[Character]) -> add_or_update_result:
+        added_npcs: List[Character] = []
+        removed_npcs: List[Character] = []
         for npc in new_list_of_npcs:
             if not self.__npcs_in_conversation.contains_character(npc):
                 self.__npcs_in_conversation.add_or_update_character(npc)
                 #self.__ingame_events.append(f"{npc.name} has joined the conversation")
                 self.__have_actors_changed = True
+                added_npcs.append(npc)
             else:
-                #check for updates in the transient stats and generate update events
                 self.__update_ingame_events_on_npc_change(npc)
                 self.__npcs_in_conversation.add_or_update_character(npc)
         for npc in self.__npcs_in_conversation.get_all_characters():
             if not npc in new_list_of_npcs:
                 removed_npcs.append(npc)
                 self.__remove_character(npc)
-        return removed_npcs
+        return add_or_update_result(added_npcs, removed_npcs)
     
     @utils.time_it
     def remove_character(self, npc: Character):
@@ -348,7 +354,7 @@ class Context:
             trust = self.__get_trust(npc)
             relationships.append(f"{trust} to {npc.name}")
         
-        return Context.format_listing(relationships)
+        return context.format_listing(relationships)
        
     @utils.time_it
     def get_character_names_as_text(self, should_include_player: bool) -> str:
@@ -365,7 +371,7 @@ class Context:
             keys = self.npcs_in_conversation.get_all_names()
         else:
             keys = self.get_characters_excluding_player().get_all_names()
-        return Context.format_listing(keys)
+        return context.format_listing(keys)
     
     def _resolve_bio_player_name(self, bio: str) -> str:
         """Replace exact occurrences of {player_name} in a bio string.
@@ -558,3 +564,4 @@ class Context:
             if not actor.is_player_character:
                 new_characters.add_or_update_character(actor)
         return new_characters
+    

@@ -1,6 +1,6 @@
 from copy import deepcopy
 from src.config.config_loader import ConfigLoader
-from src.llm.messages import Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage
+from src.llm.messages import join_message, leave_message, Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage
 from typing import Callable
 from openai.types.chat import ChatCompletionMessageParam
 from src import utils
@@ -56,7 +56,7 @@ class message_thread():
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
         return message_thread.transform_to_openai_messages(self.__messages)
 
-    def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage):
+    def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message):
         self.__messages.append(new_message)
 
     @utils.time_it
@@ -64,7 +64,7 @@ class message_thread():
         """Adds a list of messages to this message_thread. Omits system_messages 
 
         Args:
-            new_messages (list[message]): a list of messages to add
+            new_messages (list[Message]): a list of messages to add
         """
         for new_message in new_messages:
             if not isinstance(Message, SystemMessage):
@@ -72,24 +72,33 @@ class message_thread():
     
     @utils.time_it
     def reload_message_thread(self, new_prompt: str, is_too_long: Callable[[list[Message], float], bool], percent_modifier: float):
-        """Reloads this message_thread with a new system_message prompt and drops all but the last X messages
+        """Reloads this message_thread with a new system_message prompt and drops all but the last X persistent messages.
+        Returns the persistent messages that were removed.
 
         Args:
-            new_prompt (str): the new prompt for the system_message
-            last_messages_to_keep (int): how many of the last messages to keep
+            new_prompt (str): The new prompt for the system_message.
+            is_too_long (Callable): Function to determine if the list of messages is too long.
+            percent_modifier01 (float): A percentage modifier (clamped between 0 and 1).
         """
         result: list[Message] = []
         result.append(SystemMessage(new_prompt, self.__config))
-        messages_to_keep: list[Message]  = []
-        for talk_message in reversed(self.get_talk_only()):
+        messages_to_keep: list[Message] = []
+        persistent_messages = self.get_persistent_messages()
+        
+        for talk_message in reversed(persistent_messages):
             messages_to_keep.append(talk_message)
             if is_too_long(messages_to_keep, percent_modifier):
                 messages_to_keep = messages_to_keep[:-1]
                 break
-            
+
         messages_to_keep.reverse()
         result.extend(messages_to_keep)
         self.__messages = result
+        
+        kept_count = len(messages_to_keep)
+        # Compute removed persistent messages: all persistent messages except the kept ones.
+        removed_messages: list[Message] = persistent_messages if kept_count == 0 else persistent_messages[:len(persistent_messages) - kept_count]
+        return removed_messages
 
     @utils.time_it
     def get_talk_only(self, include_system_generated_messages: bool = False) -> list[Message]:
@@ -99,7 +108,7 @@ class message_thread():
             include_system_generated_messages (bool): if true, does not include user- and assistant_messages that are flagged as system messages
 
         Returns:
-            list[message]: the selection of messages in question
+            list[Message]: the selection of messages in question
         """
         result = []
         for message in self.__messages:
@@ -110,6 +119,52 @@ class message_thread():
                     result.append(deepcopy(message))
         return result
     
+    @utils.time_it
+    def get_persistent_messages(self):
+        """ Returns a deepcopy of all the messages we want to persist over multiple turns. """
+        result = []
+        for message in self.__messages:
+            if isinstance(message, (AssistantMessage, UserMessage, join_message, leave_message)):
+                result.append(deepcopy(message))
+        return result
+    
+    @utils.time_it
+    def get_messages_of_type(self, typesTuple):
+        result = []
+        for message in self.__messages:
+            if isinstance(message, typesTuple):
+                result.append(deepcopy(message))
+        return result
+    
+    def insert_after_system_messages(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message):
+        # find the index of the first message that is not a system_message and has is_system_generated_message == false
+        index = 0
+        for i, message in enumerate(self.__messages):
+            if not isinstance(message, SystemMessage) and not message.is_system_generated_message:
+                index = i
+                break
+        self.__messages.insert(index, new_message)
+        
+    
+    
+    @utils.time_it
+    def get_persistent_messages(self):
+        """ Returns a deepcopy of all the messages we want to persist over multiple turns. """
+        result = []
+        for message in self.__messages:
+            if isinstance(message, (AssistantMessage, UserMessage, join_message, leave_message)):
+                result.append(deepcopy(message))
+        return result
+    
+    def insert_after_system_messages(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message):
+        # find the index of the first message that is not a system_message and has is_system_generated_message == false
+        index = 0
+        for i, message in enumerate(self.__messages):
+            if not isinstance(message, SystemMessage) and not message.is_system_generated_message:
+                index = i
+                break
+        self.__messages.insert(index, new_message)
+            
     @utils.time_it
     def get_last_message(self) -> Message:
         return self.__messages[len(self.__messages) -1]

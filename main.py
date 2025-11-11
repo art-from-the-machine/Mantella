@@ -2,6 +2,7 @@ from src.http.http_server import http_server
 import traceback
 from src.http.routes.routeable import routeable
 from src.http.routes.mantella_route import mantella_route
+from src.http.routes.config_route import config_route
 import logging
 from src.setup import MantellaSetup
 from src.ui.start_ui import StartUI
@@ -28,9 +29,11 @@ def main():
             show_debug_messages=should_debug_http
         )
         ui = StartUI(config)
+        config_reload = config_route(config, should_debug_http)
         routes: list[routeable] = [conversation, ui]
-        
-        mantella_http_server.start(int(config.port), routes, config.play_startup_sound, should_debug_http)
+            
+        #add the UI
+        mantella_http_server.start(int(config.port), routes, config.play_startup_sound, config.show_http_debug_messages)
 
     except Exception as e:
         logging.error("".join(traceback.format_exception(e)))

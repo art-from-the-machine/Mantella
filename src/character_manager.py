@@ -27,6 +27,9 @@ class Character:
         self.__llm_service: str = llm_service
         self.__llm_model: str = llm_model
 
+    def get_unique_id(self):
+        return self.name + self.ref_id
+    
     @property
     def base_id(self) -> str:
         return self.__base_id

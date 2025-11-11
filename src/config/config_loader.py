@@ -440,3 +440,22 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 utils.play_error_sound()
                 logging.log(logging.WARNING, f"Could not load action definition file '{file}' in '{actions_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
         return result
+    
+    def get_narration_indicators(self) -> tuple[str, str]:
+        if self.narration_indicators == NarrationIndicatorsEnum.BRACKETS:
+            return ("[", "]")
+        elif self.narration_indicators == NarrationIndicatorsEnum.ASTERISKS:
+            return ("*", "*")   
+        else:
+            return ("(", ")")
+    
+    # def get_config_value_json(self) -> str:
+    #     json_writer = ConfigJsonWriter()
+    #     for definition in self.__definitions.base_groups:
+    #         definition.accept_visitor(json_writer)
+    #     return json_writer.get_Json()
+
+        
+
+
+        

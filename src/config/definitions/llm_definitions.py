@@ -57,6 +57,7 @@ class LLMDefinitions:
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
         return ConfigValueSelection("model","Single NPC Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
     
+    
     @staticmethod
     def get_llm_priority_config_value() -> ConfigValue:
         description = """(OpenRouter only) Select the priority of choosing an LLM service provider:
