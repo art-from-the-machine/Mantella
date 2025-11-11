@@ -2,7 +2,6 @@ from src.http.http_server import http_server
 import traceback
 from src.http.routes.routeable import routeable
 from src.http.routes.mantella_route import mantella_route
-from src.http.routes.stt_route import stt_route
 from src.http.routes.config_route import config_route
 import logging
 from src.setup import MantellaSetup
@@ -30,9 +29,8 @@ def main():
             show_debug_messages=should_debug_http
         )
         ui = StartUI(config)
-        stt = stt_route(config, 'STT_SECRET_KEY.txt', 'GPT_SECRET_KEY.txt', should_debug_http)
         config_reload = config_route(config, should_debug_http)
-        routes: list[routeable] = [conversation, stt, ui]
+        routes: list[routeable] = [conversation, ui]
             
         #add the UI
         mantella_http_server.start(int(config.port), routes, config.play_startup_sound, config.show_http_debug_messages)

@@ -10,12 +10,10 @@ from src.llm.sentence import Sentence
 from src.output_manager import ChatManager
 from src.remember.remembering import Remembering
 from src.remember.summaries import Summaries
-from src.remember.batch_summaries import batch_summaries
-
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 from src.conversation.conversation import Conversation
-from src.conversation.context import Context
+from src.conversation.context import context as Context
 from src.character_manager import Character
 import src.utils as utils
 from src.http.communication_constants import communication_constants as comm_consts
@@ -35,8 +33,8 @@ class GameStateManager:
     WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
     @utils.time_it
-    def __init__(self, game: gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, summary_client:SummaryLLMCLient, stt_api_file: str, api_file: str):        
-        self.__game: gameable = game
+    def __init__(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, summary_client:SummaryLLMCLient, stt_api_file: str, api_file: str):        
+        self.__game: Gameable = game
         self.__config: ConfigLoader = config
         self.__language_info: dict[Hashable, str] = language_info 
         self.__client: LLMClient = client
@@ -210,7 +208,7 @@ class GameStateManager:
         # Clear per-character client cache to force recreation with new settings
         chat_manager.clear_per_character_client_cache()
             
-        self.__rememberer: remembering = summaries(game, config.memory_prompt, config.resummarize_prompt, summary_client or client, language_info['language'])
+        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'], summary_client)
 
         self.__talk: Conversation | None = None
         self.__mic_input: bool = False

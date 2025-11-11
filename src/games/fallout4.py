@@ -4,7 +4,7 @@ import shutil
 from typing import Any
 import pandas as pd
 from src.http.file_communication_compatibility import file_communication_compatibility
-from src.conversation.context import Context
+from src.conversation.context import context as Context
 #from src.audio.audio_playback import audio_playback
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader

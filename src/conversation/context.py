@@ -354,7 +354,7 @@ class context:
             trust = self.__get_trust(npc)
             relationships.append(f"{trust} to {npc.name}")
         
-        return Context.format_listing(relationships)
+        return context.format_listing(relationships)
        
     @utils.time_it
     def get_character_names_as_text(self, should_include_player: bool) -> str:
@@ -371,7 +371,7 @@ class context:
             keys = self.npcs_in_conversation.get_all_names()
         else:
             keys = self.get_characters_excluding_player().get_all_names()
-        return Context.format_listing(keys)
+        return context.format_listing(keys)
     
     def _resolve_bio_player_name(self, bio: str) -> str:
         """Replace exact occurrences of {player_name} in a bio string.

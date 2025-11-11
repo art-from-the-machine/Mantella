@@ -2,7 +2,7 @@ import pytest
 from src.game_manager import GameStateManager
 from src.conversation.conversation import Conversation
 from src.output_manager import ChatManager
-from src.conversation.context import Context
+from src.conversation.context import context as Context
 from src.remember.summaries import Summaries
 from src.llm.llm_client import LLMClient
 from src.characters_manager import Characters

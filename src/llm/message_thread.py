@@ -1,6 +1,6 @@
 from copy import deepcopy
 from src.config.config_loader import ConfigLoader
-from src.llm.messages import join_message, leave_message, join_message, leave_message, Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage
+from src.llm.messages import join_message, leave_message, Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage
 from typing import Callable
 from openai.types.chat import ChatCompletionMessageParam
 from src import utils
@@ -71,7 +71,7 @@ class message_thread():
                 self.__messages.append(new_message)
     
     @utils.time_it
-    def reload_message_thread(self, new_prompt: str, is_too_long: Callable[[list[message], float], bool], percent_modifier: float):
+    def reload_message_thread(self, new_prompt: str, is_too_long: Callable[[list[Message], float], bool], percent_modifier: float):
         """Reloads this message_thread with a new system_message prompt and drops all but the last X persistent messages.
         Returns the persistent messages that were removed.
 
@@ -124,7 +124,7 @@ class message_thread():
         """ Returns a deepcopy of all the messages we want to persist over multiple turns. """
         result = []
         for message in self.__messages:
-            if isinstance(message, (assistant_message, user_message, join_message, leave_message)):
+            if isinstance(message, (AssistantMessage, UserMessage, join_message, leave_message)):
                 result.append(deepcopy(message))
         return result
     
@@ -136,11 +136,11 @@ class message_thread():
                 result.append(deepcopy(message))
         return result
     
-    def insert_after_system_messages(self, new_message: user_message | assistant_message | image_message | image_description_message | join_message | leave_message):
+    def insert_after_system_messages(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message):
         # find the index of the first message that is not a system_message and has is_system_generated_message == false
         index = 0
         for i, message in enumerate(self.__messages):
-            if not isinstance(message, system_message) and not message.is_system_generated_message:
+            if not isinstance(message, SystemMessage) and not message.is_system_generated_message:
                 index = i
                 break
         self.__messages.insert(index, new_message)
@@ -152,15 +152,15 @@ class message_thread():
         """ Returns a deepcopy of all the messages we want to persist over multiple turns. """
         result = []
         for message in self.__messages:
-            if isinstance(message, (assistant_message, user_message, join_message, leave_message)):
+            if isinstance(message, (AssistantMessage, UserMessage, join_message, leave_message)):
                 result.append(deepcopy(message))
         return result
     
-    def insert_after_system_messages(self, new_message: user_message | assistant_message | image_message | image_description_message | join_message | leave_message):
+    def insert_after_system_messages(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message):
         # find the index of the first message that is not a system_message and has is_system_generated_message == false
         index = 0
         for i, message in enumerate(self.__messages):
-            if not isinstance(message, system_message) and not message.is_system_generated_message:
+            if not isinstance(message, SystemMessage) and not message.is_system_generated_message:
                 index = i
                 break
         self.__messages.insert(index, new_message)
