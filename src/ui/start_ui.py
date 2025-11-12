@@ -751,7 +751,7 @@ class StartUI(routeable):
                     new_prompt_name = gr.Text(value="", label="New prompt name", max_lines=1)
                     save_prompt_btn = gr.Button("Save prompt", variant="primary")
                     delete_prompt_btn = gr.Button("Delete prompt", variant="secondary")
-                prompt_editor = gr.Text(value=_profiles_dict.get(_selected_prompt_name, ""), lines=8, label="Prompt (supports {bio} and {summary})")
+                prompt_editor = gr.Text(value=_profiles_dict.get(_selected_prompt_name, ""), lines=8, label="Prompt (supports {bio}, {summary}, {player_description}, and {conversation_history})")
                 params_editor = gr.Text(value=json.dumps({"max_tokens": 250}, indent=2), lines=6, label="Parameters (JSON)")
                 with gr.Row():
                     service_dropdown = gr.Dropdown(
@@ -1009,9 +1009,10 @@ class StartUI(routeable):
                 return info
 
             # --- LLM helper handlers ---
-            def _render_prompt_text(template_text: str, bio_text: str, summary_text: str) -> str:
+            def _render_prompt_text(template_text: str, bio_text: str, summary_text: str, player_description: str = "", conversation_history: str = "") -> str:
                 """Render variables inside the prompt template.
-                Supports {bio} and {summary} (case-insensitive, allows whitespace inside braces).
+                Supports {bio}, {summary}, {player_description}, and {conversation_history} (case-insensitive, allows whitespace inside braces).
+                {conversation_history} is only available when there's an active conversation.
                 """
                 def repl(match: re.Match) -> str:
                     key = match.group(1).strip().lower()
@@ -1019,9 +1020,13 @@ class StartUI(routeable):
                         return bio_text or ""
                     if key == "summary":
                         return summary_text or ""
+                    if key == "player_description":
+                        return player_description or ""
+                    if key == "conversation_history":
+                        return conversation_history or ""
                     return match.group(0)
 
-                pattern = re.compile(r"\{\s*(bio|summary)\s*\}", re.IGNORECASE)
+                pattern = re.compile(r"\{\s*(bio|summary|player_description|conversation_history)\s*\}", re.IGNORECASE)
                 return pattern.sub(repl, template_text or "")
 
             def update_model_list_for_service(service_value: str) -> gr.Dropdown:
@@ -1052,7 +1057,22 @@ class StartUI(routeable):
                             current_summary = _load_summary_for_label(label, l2k, world_id) or ""
                     else:
                         current_bio = ""
-                    final_prompt = _render_prompt_text(raw_prompt or "", current_bio, current_summary)
+
+                    # Get conversation history if there's an active conversation
+                    current_conversation_history = ""
+                    try:
+                        from src.ui import settings_ui_constructor as sui
+                        gm = getattr(sui, '_game_manager_ref', None)
+                        if gm and hasattr(gm, '_GameStateManager__talk') and gm._GameStateManager__talk:
+                            # Get talk-only messages to avoid system prompts
+                            talk_messages = gm._GameStateManager__talk._Conversation__messages.get_talk_only(include_system_generated_messages=False)
+                            if talk_messages:
+                                from src.llm.message_thread import message_thread
+                                current_conversation_history = message_thread.transform_to_text(talk_messages).strip()
+                    except Exception as e:
+                        logging.debug(f"Bio Editor: Could not retrieve conversation history: {e}")
+
+                    final_prompt = _render_prompt_text(raw_prompt or "", current_bio, current_summary, config.player_character_description, current_conversation_history)
                     # Parse per-request params; ignore profile system, use only this
                     params_override = None
                     if params_text and params_text.strip():
