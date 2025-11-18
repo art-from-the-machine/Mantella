@@ -20,6 +20,7 @@
     "required": ["source", "target"],
     "prompt": "If the player asks you to move, begin your response with '{key}:'",
     "allowed_games": ["skyrim"],
+    "requires_response": false,
     "is-interrupting": false,
     "one-on-one": true,
     "multi-npc": true,

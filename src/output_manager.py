@@ -109,7 +109,26 @@ class ChatManager:
             time.sleep(0.01)
         self.__stop_generation.clear()
         return
- 
+    
+    @utils.time_it
+    def _add_tool_calls_to_history(self, messages: message_thread, tool_calls: list[dict]):
+        """Helper method to add tool calls and their results to message history
+        
+        Args:
+            messages: The message thread to add to
+            tool_calls: List of tool call dictionaries
+        """
+        # Create an assistant message with the tool calls
+        tool_call_message = AssistantMessage()
+        tool_call_message.tool_calls = tool_calls
+        messages.add_message(tool_call_message)
+        
+        # Add fake tool result messages for each tool call (required by Anthropic)
+        for tool_call in tool_calls:
+            tool_call_id = tool_call.get("id", "unknown")
+            tool_result_message = ToolMessage(tool_call_id, "done")
+            messages.add_message(tool_result_message)
+    
     @utils.time_it
     async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], tools: list[dict] | None):
         """Stream response from LLM one sentence at a time"""
@@ -154,6 +173,7 @@ class ChatManager:
             has_text_response = False
             current_tools = tools  # Start with tools enabled
             collected_tool_calls = []
+            tool_calls_added_this_turn = False  # Track if tool calls have been used in this iteration
             
             while not has_text_response and retries < max_retries:
                 try:
@@ -183,11 +203,33 @@ class ChatManager:
                                 collected_tool_calls = item_data
                                 logging.log(23, f"Received {len(collected_tool_calls)} tool call(s)")
                                 
+                                # Add tool calls to message history
+                                if not tool_calls_added_this_turn:
+                                    self._add_tool_calls_to_history(messages, collected_tool_calls)
+                                    tool_calls_added_this_turn = True
+                                
                                 # Parse tool calls to get action identifiers
                                 parsed_tools = FunctionManager.parse_function_calls(collected_tool_calls, characters)
                                 
-                                # Send actions immediately as an action-only sentence
+                                # Check if vision was requested - filter it out from game actions
+                                vision_requested = any(
+                                    tool.get('identifier') == 'mantella_npc_vision' 
+                                    for tool in parsed_tools if isinstance(tool, dict)
+                                )
+                                if vision_requested:
+                                    logging.log(23, "Vision requested for next LLM call")
+                                    settings.vision_requested = True
+                                    # Remove vision from parsed_tools so it doesn't go to the game
+                                    parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_npc_vision']
+                                
+                                # Send actions immediately as an action-only sentence (if any remain after filtering)
                                 if parsed_tools:
+                                    # If any of the actions require an in-game response, pause text generation
+                                    requires_followup = FunctionManager.any_action_requires_response(parsed_tools)
+                                    if requires_followup:
+                                        settings.interrupting_action = True
+                                        settings.stop_generation = True
+
                                     logging.log(23, f"Parsed actions: {parsed_tools}")
                                     action_only_sentence = SentenceContent(active_character, "", SentenceTypeEnum.SPEECH, True, parsed_tools)
                                     blocking_queue.put(Sentence(action_only_sentence, "", 0))
@@ -226,29 +268,24 @@ class ChatManager:
                                 # If there is an interrupting action, stop the generation after the next sentence
                                 settings.stop_generation = True
                     
-                    # After streaming completes, add tool calls to history if any were made
-                    if collected_tool_calls:
-                        # Create an assistant message with the tool calls and add to thread
-                        tool_call_message = AssistantMessage(self.__config, True)
-                        tool_call_message.tool_calls = collected_tool_calls
-                        messages.add_message(tool_call_message)
-                        
-                        # Add fake tool result messages for each tool call (required by Anthropic)
-                        for tool_call in collected_tool_calls:
-                            tool_call_id = tool_call.get("id", "unknown")
-                            tool_result_message = ToolMessage(self.__config, tool_call_id, "done")
-                            messages.add_message(tool_result_message)
-                        
-                        logging.log(23, f"Added {len(collected_tool_calls)} tool call(s) and result(s) to message thread")
-                    
                     # Check if a second call is needed for a text response
                     if collected_tool_calls and not has_text_response:
+                        # Skip second call if interrupting action detected - wait for game context instead
+                        if settings.interrupting_action:
+                            logging.log(23, "Skipping second LLM call - waiting for action response from game")
+                            break
+                        
                         # LLM chose tools but no text - need to make second call
                         logging.log(23, f"Making second LLM call for text response...")
+                        
+                        # If vision was requested, enable it for the next call
+                        if settings.vision_requested:
+                            self.__client.enable_vision_for_next_call()
                         
                         # Make second call without passing tools to ensure LLM generates text
                         current_tools = None
                         collected_tool_calls = []  # Reset for next iteration
+                        tool_calls_added_this_turn = False  # Reset for next iteration
                         first_token = True  # Reset for timing the second call
                         continue  # Loop again
                     

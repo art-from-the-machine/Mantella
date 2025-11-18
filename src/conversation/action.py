@@ -1,11 +1,12 @@
 class Action:
     def __init__(self, identifier: str, name: str, keyword: str, description: str, prompt_text: str, 
-                 is_interrupting: bool, one_on_one: bool, multi_npc: bool, radiant: bool) -> None:
+                 requires_response: bool, is_interrupting: bool, one_on_one: bool, multi_npc: bool, radiant: bool) -> None:
         self.__identifier = identifier
         self.__name = name
         self.__keyword = keyword
         self.__description = description
         self.__prompt_text = prompt_text
+        self.__requires_response = requires_response
         self.__is_interrupting = is_interrupting
         self.__one_on_one = one_on_one
         self.__multi_npc = multi_npc
@@ -34,6 +35,10 @@ class Action:
     @property
     def prompt_text(self) -> str:
         return self.__prompt_text
+    
+    @property
+    def requires_response(self) -> bool:
+        return self.__requires_response
     
     @property
     def is_interrupting(self) -> bool:

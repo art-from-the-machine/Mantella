@@ -53,6 +53,7 @@ class communication_constants:
     KEY_ACTOR_VOICEFILE: str = PREFIX + "actor_voice_file"
     KEY_ACTOR_DURATION: str = PREFIX + "actor_line_duration"
     KEY_ACTOR_ACTIONS: str = PREFIX + "actor_actions"
+    KEY_ACTOR_ACTIONS_REQUIRE_RESPONSE: str = PREFIX + "actions_require_response"
 
     KEY_ACTOR_PC_DESCRIPTION = PREFIX + "pc_description"
     KEY_ACTOR_PC_VOICEPLAYERINPUT = PREFIX + "pc_voiceplayerinput"

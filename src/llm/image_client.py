@@ -57,11 +57,18 @@ class ImageClient(ClientBase):
         if image is None:
             return openai_messages
         
+        # Find the last user message by walking backwards, skipping assistant/tool messages
+        last_user_message_idx = None
+        for i in range(len(openai_messages) - 1, -1, -1):
+            if openai_messages[i]['role'] == 'user':
+                last_user_message_idx = i
+                break
+        
         if not self.__custom_vision_model:
             # Add the image to the last user message or create a new message if needed
-            if openai_messages and openai_messages[-1]['role'] == 'user':
-                openai_messages[-1]['content'] = [
-                    {"type": "text", "text": openai_messages[-1]['content']},
+            if last_user_message_idx is not None:
+                openai_messages[last_user_message_idx]['content'] = [
+                    {"type": "text", "text": openai_messages[last_user_message_idx]['content']},
                     {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}", "detail": self.__detail}}
                 ]
             else:
@@ -87,9 +94,9 @@ class ImageClient(ClientBase):
                 logging.log(23, f"Image transcription: {image_transcription}")
 
                 # Add the image to the last user message or create a new message if needed
-                if openai_messages and openai_messages[-1]['role'] == 'user':
-                    openai_messages[-1]['content'] = [
-                        {"type": "text", "text": f"*{image_transcription}*\n{openai_messages[-1]['content']}"}
+                if last_user_message_idx is not None:
+                    openai_messages[last_user_message_idx]['content'] = [
+                        {"type": "text", "text": f"*{image_transcription}*\n{openai_messages[last_user_message_idx]['content']}"}
                     ]
                 else:
                     openai_messages.append({

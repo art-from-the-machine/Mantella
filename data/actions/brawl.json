@@ -15,6 +15,7 @@
     "required": ["source"],
     "prompt": "If the player picks a fight with you, begin your response with '{key}:'",
     "allowed_games": ["skyrim"],
+    "requires_response": false,
     "is-interrupting": false,
     "one-on-one": true,
     "multi-npc": true,

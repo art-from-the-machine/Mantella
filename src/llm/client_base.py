@@ -1,5 +1,6 @@
 from threading import Lock
 from typing import AsyncGenerator, Any
+from enum import Enum
 from openai import APIConnectionError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
 from openai.types.chat import ChatCompletion
 import logging
@@ -12,6 +13,15 @@ from src.llm.message_thread import message_thread
 from src.llm.messages import Message, ImageMessage, UserMessage
 from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
+from src.actions.function_manager import FunctionManager
+
+
+class VisionMode(Enum):
+    """Vision operating modes for LLM image context"""
+    DISABLED = "disabled" # No image client configured
+    ALWAYS_ON = "always_on" # Image client active, no Vision action active
+    ON_DEMAND = "on_demand" # Image client active, Vision action controls enablement
+
 
 class ClientBase(AIClient):
     '''Base class for connecting to OpenAI-compatible endpoints
@@ -40,6 +50,8 @@ class ClientBase(AIClient):
         self._request_params: dict[str, Any] | None = llm_params
         self._image_client = None
         self._function_client = None
+        self._enable_vision_next_call: bool = False
+        self._vision_mode: VisionMode = self._determine_vision_mode()
 
         if 'https' in self._base_url: # Cloud LLM
             self._is_local: bool = False
@@ -57,6 +69,36 @@ class ClientBase(AIClient):
         self._header: dict[str, str] = {"HTTP-Referer": referer, "X-Title": xtitle}
         self._token_limit: int = self.__get_token_limit(self._model_name, custom_token_count, self._is_local)
         self._encoding = self.__get_model_encoding(api_url, self._model_name)
+
+
+    def _determine_vision_mode(self) -> VisionMode:
+        """Determine vision operating mode based on configuration and action availability
+        
+        Returns:
+            VisionMode: The operating mode for vision
+        """
+        if not self._image_client:
+            return VisionMode.DISABLED
+        
+        if FunctionManager.is_vision_action_active():
+            return VisionMode.ON_DEMAND
+        else:
+            return VisionMode.ALWAYS_ON
+    
+    def enable_vision_for_next_call(self):
+        """Enable vision for the next streaming_call"""
+        self._enable_vision_next_call = True
+
+    def _should_enable_vision(self) -> bool:
+        """Determine if vision should be enabled for this LLM call"""
+        # Vision in always-on mode (Vision enabled and vision action is inactive)
+        if self._vision_mode == VisionMode.ALWAYS_ON:
+            return True
+        # Vision explicitly requested via tool call
+        elif self._enable_vision_next_call:
+            return True
+        else:
+            return False
 
 
     @property
@@ -204,8 +246,15 @@ class ClientBase(AIClient):
                     last_message = messages.get_last_message()
                     if isinstance(last_message, UserMessage):
                         vision_hints = last_message.get_ingame_events_text()
-                if self._image_client:
-                    openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
+                
+                # Determine if vision should be enabled for this call
+                if self._should_enable_vision():
+                    if self._image_client:
+                        openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
+                        logging.log(23, f"Vision enabled for this LLM call")
+                    else:
+                        logging.warning("Vision tool called but Vision not enabled in config - ignoring")
+                    self._enable_vision_next_call = False  # Reset flag after use
 
                 # Handle tool calling: use dedicated function client if available, otherwise use main LLM
                 if tools:

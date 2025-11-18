@@ -32,6 +32,7 @@ def test_load_all_actions_structure():
         assert 'description' in action
         assert 'key' in action
         assert 'prompt' in action
+        assert 'requires_response' in action
         assert 'is-interrupting' in action or 'is_interrupting' in action
         assert 'one-on-one' in action or 'one_on_one' in action
         assert 'multi-npc' in action or 'multi_npc' in action
@@ -52,6 +53,7 @@ def test_load_all_actions_respects_enabled_flag(tmp_path):
         "key": "Enabled",
         "prompt": "Test",
         "enabled": True,
+        "requires_response": False,
         "is-interrupting": False,
         "one-on-one": True,
         "multi-npc": False,
@@ -65,6 +67,7 @@ def test_load_all_actions_respects_enabled_flag(tmp_path):
         "key": "Disabled",
         "prompt": "Test",
         "enabled": False,
+        "requires_response": False,
         "is-interrupting": False,
         "one-on-one": True,
         "multi-npc": False,
@@ -77,6 +80,7 @@ def test_load_all_actions_respects_enabled_flag(tmp_path):
         "description": "Test",
         "key": "Default",
         "prompt": "Test",
+        "requires_response": False,
         "is-interrupting": False,
         "one-on-one": True,
         "multi-npc": False,

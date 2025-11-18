@@ -1,24 +1,24 @@
 {
-    "identifier": "mantella_npc_offended",
-    "name": "Attack",
-    "description": "Make NPC(s) attack another NPC / the player.",
-    "key": "Attack",
+    "identifier": "mantella_npc_teleport",
+    "name": "Teleport",
+    "description": "Make NPC(s) teleport to a specific NPC. Use this action when an NPC is stuck or needs to quickly change location.",
+    "key": "Teleport",
     "enabled": true,
     "parameters": {
         "source": {
             "type": "array",
-            "description": "The NPC(s) who will attack.",
+            "description": "The NPC(s) who will teleport.",
             "items": {"type": "string"},
             "scope": "conversation"
         },
         "target": {
             "type": "string",
-            "description": "The NPC to attack.",
+            "description": "The NPC to teleport to.",
             "scope": "all_npcs_w_player"
         }
     },
     "required": ["source", "target"],
-    "prompt": "If the player says something highly offensive, begin your response with '{key}:'",
+    "prompt": "If the player asks you to teleport, begin your response with '{key}:'",
     "allowed_games": ["skyrim"],
     "requires_response": false,
     "is-interrupting": false,
