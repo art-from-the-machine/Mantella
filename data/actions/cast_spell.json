@@ -1,0 +1,31 @@
+{
+    "identifier": "mantella_npc_castspell",
+    "name": "CastSpell",
+    "description": "Make NPC cast a spell on another NPC / themselves.",
+    "key": "CastSpell",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "string",
+            "description": "The NPC who will cast the spell.",
+            "scope": "conversation"
+        },
+        "target": {
+            "type": "string",
+            "description": "The NPC to cast the spell on. If this is the same name as the source, the NPC will cast the spell on themselves.",
+            "scope": "all_npcs_w_player"
+        },
+        "spellName": {
+            "type": "string",
+            "description": "The name of the spell to cast."
+        }
+    },
+    "required": ["source", "target"],
+    "prompt": "If the player asks you to cast a spell, begin your response with '{key}:'",
+    "allowed_games": ["skyrim"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}

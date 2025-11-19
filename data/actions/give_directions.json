@@ -1,0 +1,21 @@
+{
+    "identifier": "mantella_npc_givedirections",
+    "name": "GiveDirections",
+    "description": "Returns directions on how to reach a specified location.",
+    "key": "GiveDirections",
+    "enabled": true,
+    "parameters": {
+        "location": {
+            "type": "string",
+            "description": "The location to give directions to."
+        }
+    },
+    "required": ["location"],
+    "prompt": "To give directions to a location, begin your response with '{key}:'.",
+    "allowed_games": ["skyrim"],
+    "requires_response": true,
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": false
+}

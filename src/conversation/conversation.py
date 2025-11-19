@@ -58,6 +58,7 @@ class Conversation:
         self.last_sentence_audio_length = 0
         self.last_sentence_start_time = time.time()
         self.__end_conversation_keywords = utils.parse_keywords(context_for_conversation.config.end_conversation_keyword)
+        self.__awaiting_action_result: bool = False
 
     @property
     def has_already_ended(self) -> bool:
@@ -135,7 +136,12 @@ class Conversation:
         #Grab the next sentence from the queue
         next_sentence: Sentence | None = self.retrieve_sentence_from_queue()
         
-        if next_sentence and len(next_sentence.text) > 0:
+        # Check if this is an action-only sentence (no text, but has actions)
+        if next_sentence and len(next_sentence.text.strip()) == 0 and len(next_sentence.actions) > 0:
+            if FunctionManager.any_action_requires_response(next_sentence.actions):
+                self.__awaiting_action_result = True
+            return comm_consts.KEY_REPLYTYPE_NPCACTION, next_sentence
+        elif next_sentence and len(next_sentence.text) > 0:
             if {'identifier': comm_consts.ACTION_REMOVECHARACTER} in next_sentence.actions:
                 self.__context.remove_character(next_sentence.speaker)
             #if there is a next sentence and it actually has content, return it as something for an NPC to say
@@ -301,6 +307,35 @@ class Conversation:
         return message
 
     @utils.time_it
+    def resume_after_interrupting_action(self) -> bool:
+        """Inject a synthetic user message once action results arrive so the LLM can continue
+        
+        Returns:
+            bool: True if conversation was resumed, False if no action was awaiting or no events available
+        """
+        if not self.__awaiting_action_result:
+            return False
+
+        pending_events = self.__context.get_context_ingame_events()
+        if not pending_events:
+            return False
+
+        # Add synthetic user message containing just the new in-game events
+        player_character = self.__context.npcs_in_conversation.get_player_character()
+        player_name = player_character.name if player_character else ""
+        synthetic_message = UserMessage(self.__context.config, "", player_name, True)
+        synthetic_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
+        synthetic_message = self.update_game_events(synthetic_message)
+        self.__messages.add_message(synthetic_message)
+
+        self.__sentences.clear()
+        self.__awaiting_action_result = False
+        # Do not allow the LLM to use tools a second time in a row (can cause an endless loop)
+        self.__start_generating_npc_sentences(allow_tool_use=False)
+        
+        return True
+
+    @utils.time_it
     def retrieve_sentence_from_queue(self) -> Sentence | None:
         """Retrieves the next sentence from the queue.
         If there is a sentence, adds the sentence to the last assistant_message of the message_thread.
@@ -365,14 +400,14 @@ class Conversation:
         self.__save_conversation(is_reload=False)
     
     @utils.time_it
-    def __start_generating_npc_sentences(self):
+    def __start_generating_npc_sentences(self, allow_tool_use: bool = True):
         """Starts a background Thread to generate sentences into the SentenceQueue"""    
         with self.__generation_start_lock:
             if not self.__generation_thread:
                 self.__sentences.is_more_to_come = True
                 # Generate tools if advanced actions are enabled
                 tools = None
-                if self.context.config.advanced_actions_enabled:
+                if self.context.config.advanced_actions_enabled and allow_tool_use:
                     tools = FunctionManager.generate_context_aware_tools(self.__context)
                 self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions, tools]).start()
 

@@ -37,7 +37,10 @@ class FunctionManager:
                     try:
                         # While the LLM should return arguments in JSON format, 
                         # the OpenAI package returns them in a string format in case of malformed JSON
-                        parsed_arguments = json.loads(tool_call['function']['arguments'])
+                        if tool_call['function']['arguments']: # Not all actions have arguments
+                            parsed_arguments = json.loads(tool_call['function']['arguments'])
+                        else:
+                            parsed_arguments = {}
                     except json.JSONDecodeError:
                         logging.warning(f"Could not parse function arguments as JSON: {tool_call['function']['arguments']}")
                         parsed_arguments = {}
@@ -161,12 +164,13 @@ class FunctionManager:
             key = action_data.get('key', '')
             description = action_data.get('description', '')
             prompt = action_data.get('prompt', '')
+            requires_response = bool(action_data.get('requires_response', False))
             is_interrupting = bool(action_data.get('is-interrupting', action_data.get('is_interrupting', False)))
             one_on_one = bool(action_data.get('one-on-one', action_data.get('one_on_one', False)))
             multi_npc = bool(action_data.get('multi-npc', action_data.get('multi_npc', False)))
             radiant = bool(action_data.get('radiant', False))
             
-            result.append(Action(identifier, name, key, description, prompt, is_interrupting, one_on_one, multi_npc, radiant))
+            result.append(Action(identifier, name, key, description, prompt, requires_response, is_interrupting, one_on_one, multi_npc, radiant))
         
         return result
 
@@ -242,6 +246,44 @@ class FunctionManager:
             tools.append(tool)
 
         return tools
+
+
+    @staticmethod
+    def any_action_requires_response(actions: list[dict]) -> bool:
+        """Return True if any action in the list requires a response from the game
+        
+        Args:
+            actions: List of action dicts with 'identifier' keys
+            
+        Returns:
+            bool: True if at least one action requires game response
+        """
+        return any(
+            FunctionManager._action_requires_response(action.get('identifier', ''))
+            for action in actions if isinstance(action, dict)
+        )
+
+
+    @staticmethod
+    def _action_requires_response(identifier: str) -> bool:
+        """Check if a single action requires game response
+        
+        Args:
+            identifier: Action identifier string
+            
+        Returns:
+            bool: True if action has 'requires_response' flag set to True
+        """
+        action = FunctionManager._actions.get(identifier)
+        if not action:
+            return False
+        return bool(action.get('requires_response', False))
+
+
+    @staticmethod
+    def is_vision_action_active() -> bool:
+        """Return True if the Vision action is loaded and enabled"""
+        return 'mantella_npc_vision' in FunctionManager._actions
 
 
     @staticmethod

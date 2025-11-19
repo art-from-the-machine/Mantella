@@ -1,0 +1,14 @@
+{
+    "identifier": "mantella_npc_vision",
+    "name": "Vision",
+    "description": "Look at what the player sees.",
+    "key": "Vision",
+    "enabled": true,
+    "prompt": "To see what the player sees, begin your response with '{key}:'.",
+    "allowed_games": ["skyrim"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}

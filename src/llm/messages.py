@@ -11,19 +11,24 @@ from src import utils
 class Message(ABC):
     """Base class for messages 
     """
-    def __init__(self, text: str, config: ConfigLoader, is_system_generated_message: bool = False):
+    def __init__(self, text: str, config: ConfigLoader | None = None, is_system_generated_message: bool = False):
         self.__text: str = text
         self.__is_multi_npc_message: bool = False
         self.__is_system_generated_message = is_system_generated_message
-        if config.narration_indicators == NarrationIndicatorsEnum.BRACKETS:
-            self.__narration_start: str = "["
-            self.__narration_end: str = "]"
-        elif config.narration_indicators == NarrationIndicatorsEnum.ASTERISKS:
+        if config:
+            if config.narration_indicators == NarrationIndicatorsEnum.BRACKETS:
+                self.__narration_start: str = "["
+                self.__narration_end: str = "]"
+            elif config.narration_indicators == NarrationIndicatorsEnum.ASTERISKS:
+                self.__narration_start: str = "*"
+                self.__narration_end: str = "*"
+            else:
+                self.__narration_start: str = "("
+                self.__narration_end: str = ")"
+        else:
+            # Default narration indicators when config is None
             self.__narration_start: str = "*"
             self.__narration_end: str = "*"
-        else:
-            self.__narration_start: str = "("
-            self.__narration_end: str = ")"
 
     @property
     def text(self) -> str:
@@ -99,7 +104,7 @@ class AssistantMessage(Message):
     """An assistant message containing the response of an LLM to a request.
     Automatically appends the character name in front of the text if provided and if there is only one active_assistant_character
     """
-    def __init__(self, config: ConfigLoader, is_system_generated_message: bool = False):
+    def __init__(self, config: ConfigLoader | None = None, is_system_generated_message: bool = False):
         super().__init__("", config, is_system_generated_message)
         self.__sentences: list[SentenceContent] = []
         self.__tool_calls: list[dict] | None = None  # Store tool calls from LLM
@@ -266,3 +271,27 @@ class ImageDescriptionMessage(Message):
                 }
             ]
         }
+
+class ToolMessage(Message):
+    """A tool result message representing the completion of a tool call"""
+    def __init__(self, tool_call_id: str, content: str = "done"):
+        super().__init__(content, config=None, is_system_generated_message=True)
+        self.__tool_call_id = tool_call_id
+    
+    @property
+    def tool_call_id(self) -> str:
+        return self.__tool_call_id
+    
+    def get_formatted_content(self) -> str:
+        return self.text
+    
+    def get_openai_message(self) -> ChatCompletionMessageParam:
+        return {
+            "role": "tool",
+            "tool_call_id": self.__tool_call_id,
+            "content": self.get_formatted_content()
+        }
+    
+    def get_dict_formatted_string(self) -> str:
+        dictionary = {"role": "tool", "tool_call_id": self.__tool_call_id, "content": self.get_formatted_content()}
+        return f"{dictionary}"

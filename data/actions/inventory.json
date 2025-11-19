@@ -14,7 +14,8 @@
     "required": ["source"],
     "prompt": "To show the player what you have in your inventory or to give / take an item, begin your response with '{key}:'.",
     "allowed_games": ["skyrim"],
-    "is-interrupting": true,
+    "requires_response": false,
+    "is-interrupting": false,
     "one-on-one": true,
     "multi-npc": true,
     "radiant": false

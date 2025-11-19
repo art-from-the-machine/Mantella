@@ -17,6 +17,7 @@ from src.character_manager import Character
 import src.utils as utils
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
+from src.actions.function_manager import FunctionManager
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv/fallout4_characters.csv"""
@@ -90,6 +91,9 @@ class GameStateManager:
 
         self.__update_context(input_json)
 
+        if self.__talk.resume_after_interrupting_action():
+            logging.log(23, "Resuming conversation after interrupting action result")
+
         while True:
             replyType, sentence_to_play = self.__talk.continue_conversation()
             if replyType == comm_consts.KEY_REQUESTTYPE_TTS:
@@ -97,6 +101,22 @@ class GameStateManager:
                 reply = self.player_input({"mantella_context": {}, "mantella_player_input": "", "mantella_request_type": "mantella_player_input"})
                 self.__first_line = False # since the NPC is already speaking in-game, setting this to True would just cause two voicelines to play at once
                 continue # continue conversation with new player input (ie call self.__talk.continue_conversation() again)
+            elif replyType == comm_consts.KEY_REPLYTYPE_NPCACTION:
+                # Action-only response (no voiceline)
+                if sentence_to_play and len(sentence_to_play.actions) > 0:
+                    requires_response = FunctionManager.any_action_requires_response(sentence_to_play.actions)
+                    
+                    logging.log(23, f"Sending action-only response with {len(sentence_to_play.actions)} action(s), requires_response={requires_response}")
+                    return {
+                        comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCACTION,
+                        comm_consts.KEY_REPLYTYPE_NPCACTION: {
+                            comm_consts.KEY_ACTOR_ACTIONS: sentence_to_play.actions,
+                            comm_consts.KEY_ACTOR_ACTIONS_REQUIRE_RESPONSE: requires_response
+                        }
+                    }
+                else:
+                    # If no actions, continue to next iteration
+                    continue
             else:
                 reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
                 break

@@ -16,6 +16,7 @@ class Equipment:
     AMULET = "amulet"
     RIGHTHAND = "righthand"
     LEFTHAND = "lefthand"
+    SPELLS = "spells"
     DESCRIPTION_ORDER_ARMOR: list[str] = [BODY, HEAD, HANDS, FEET, AMULET]
 
     def __init__(self, slots_to_items: dict[str, EquipmentItem]) -> None:
@@ -34,24 +35,42 @@ class Equipment:
             if item:
                 worn_armor_items.append(item.name)
         armor_text = self.format_listing(worn_armor_items)
+
         # if armor_text == "":
         #     armor_text = "nothing"
+
         used_weapon_items: list[str] = []
         for slot in [self.RIGHTHAND, self.LEFTHAND]:
             item = self.get_item(slot)
             if item:
                 used_weapon_items.append(item.name)
         weapons_text = self.format_listing(used_weapon_items)
+
+        available_spells: list[str] = []
+        if self.__slots_to_items.__contains__(self.SPELLS):
+            spells_item = self.__slots_to_items[self.SPELLS]
+            # The spells are wrapped in an EquipmentItem, where name contains the list
+            if isinstance(spells_item, EquipmentItem):
+                spells_list = spells_item.name
+                if isinstance(spells_list, list):
+                    available_spells = [spell for spell in spells_list if spell and spell.strip()]
+        spells_text = self.format_listing(available_spells)
+
         equipment_desc = ""
-        if weapons_text == "" and armor_text == "":
-            return equipment_desc
-        elif weapons_text == "":
-            equipment_desc = f"{character_name} wears {armor_text}."
-        elif armor_text == "":
-            equipment_desc = f"{character_name} uses {weapons_text}."
-        else:
-            equipment_desc = f"{character_name} wears {armor_text} and uses {weapons_text}."
+        parts = []
+        
+        if armor_text:
+            parts.append(f"wears {armor_text}")
+        if weapons_text:
+            parts.append(f"uses {weapons_text}")
+        if spells_text:
+            parts.append(f"knows the spells {spells_text}")
+        
+        if parts:
+            equipment_desc = f"{character_name} {' and '.join(parts)}."
+        
         return utils.remove_extra_whitespace(equipment_desc)
+        
 
     @staticmethod
     @utils.time_it

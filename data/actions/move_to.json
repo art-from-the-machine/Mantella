@@ -1,24 +1,24 @@
 {
-    "identifier": "mantella_npc_offended",
-    "name": "Attack",
-    "description": "Make NPC(s) attack another NPC / the player.",
-    "key": "Attack",
+    "identifier": "mantella_npc_moveto",
+    "name": "MoveTo",
+    "description": "Make NPC(s) move to a specific NPC.",
+    "key": "MoveTo",
     "enabled": true,
     "parameters": {
         "source": {
             "type": "array",
-            "description": "The NPC(s) who will attack.",
+            "description": "The NPC(s) who will move.",
             "items": {"type": "string"},
             "scope": "conversation"
         },
         "target": {
             "type": "string",
-            "description": "The NPC to attack.",
+            "description": "The NPC to move to.",
             "scope": "all_npcs_w_player"
         }
     },
     "required": ["source", "target"],
-    "prompt": "If the player says something highly offensive, begin your response with '{key}:'",
+    "prompt": "If the player asks you to move, begin your response with '{key}:'",
     "allowed_games": ["skyrim"],
     "requires_response": false,
     "is-interrupting": false,
