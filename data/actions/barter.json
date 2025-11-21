@@ -1,0 +1,22 @@
+{
+    "identifier": "mantella_npc_barter",
+    "name": "Barter",
+    "description": "Show what an NPC has for sale.",
+    "key": "Barter",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "string",
+            "description": "The NPC to open their barter menu.",
+            "scope": "conversation"
+        }
+    },
+    "required": ["source"],
+    "prompt": "To show the player what you have for sale, begin your response with '{key}:'.",
+    "allowed_games": ["skyrim"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": false
+}
