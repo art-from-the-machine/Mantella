@@ -102,6 +102,7 @@ class Conversation:
         """
         greeting: UserMessage | None = self.__conversation_type.get_user_message(self.__context, self.__messages)
         if greeting:
+            greeting = self.update_game_events(greeting)
             self.__messages.add_message(greeting)
             self.__start_generating_npc_sentences()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, None
