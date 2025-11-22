@@ -1,6 +1,7 @@
 import logging
 import json
 from pathlib import Path
+from copy import deepcopy
 from openai.types.chat.chat_completion_message import ChatCompletionMessageToolCall
 from src.characters_manager import Characters
 from src.conversation.action import Action
@@ -68,13 +69,15 @@ class FunctionManager:
                                     # Determine validation flags based on scope
                                     include_player = scope.endswith('_w_player')
                                     include_nearby = scope.startswith('nearby') or scope.startswith('all_npcs')
+                                    nearby_only = scope.startswith('nearby')
                                     
                                     # Validate the NPC names
                                     validated_entities = FunctionManager._validate_npc_names(
                                         entity_names, 
                                         characters, 
                                         exclude_player=not include_player,
-                                        include_nearby=include_nearby
+                                        include_nearby=include_nearby,
+                                        nearby_only=nearby_only
                                     )
                                     
                                 # Update the validated args with the validated list
@@ -236,12 +239,13 @@ class FunctionManager:
             if 'parameters' in action:
                 tool['function']['parameters'] = {}
                 tool['function']['parameters']['type'] = 'object'
-                tool['function']['parameters']['properties'] = action['parameters']
+                tool['function']['parameters']['properties'] = deepcopy(action['parameters'])
                 if 'required' in action:
                     tool['function']['parameters']['required'] = action['required']
                 
-                # Add NPC context to source/target parameters
-                FunctionManager._add_npc_context_to_parameters(tool['function']['parameters'], context)
+                # Add context-aware entity listings, skipping tools when no scoped params have available entities
+                if not FunctionManager._add_npc_context_to_parameters(tool['function']['parameters'], context):
+                    continue
 
             tools.append(tool)
 
@@ -316,7 +320,7 @@ class FunctionManager:
 
 
     @staticmethod
-    def _validate_npc_names(npc_names: list[str], characters: Characters, exclude_player: bool = True, include_nearby: bool = False) -> list[str]:
+    def _validate_npc_names(npc_names: list[str], characters: Characters, exclude_player: bool = True, include_nearby: bool = False, nearby_only: bool = False) -> list[str]:
         """Validate that NPC names exist based on scope
         
         Args:
@@ -324,6 +328,7 @@ class FunctionManager:
             characters: Characters manager containing character and nearby NPC information
             exclude_player: If True, filter out player character (default: True)
             include_nearby: If True, validate against conversation + nearby NPCs (default: False)
+            nearby_only: If True, only allow nearby NPC names (default: False)
             
         Returns:
             List of valid, unique NPC names
@@ -337,7 +342,8 @@ class FunctionManager:
         # Get all valid names based on scope
         valid_name_list = characters.get_all_names_w_nearby(
             include_player = not exclude_player,
-            include_nearby = include_nearby
+            include_nearby = include_nearby,
+            nearby_only = nearby_only
         )
         
         # Build case-insensitive lookup: lowercase -> actual name
@@ -365,18 +371,23 @@ class FunctionManager:
                 valid_names.append(llm_name)
                 seen_lower.add(llm_lower)
             else:
-                available = "conversation" if not include_nearby else "conversation + nearby"
-                logging.warning(f"NPC name '{llm_name}' not found in {available}. Available NPCs: {list(char_names_lower.values())}")
+                if nearby_only:
+                    available = "nearby"
+                else:
+                    available = "in conversation" if not include_nearby else "in conversation + nearby"
+                logging.warning(f"NPC name '{llm_name}' not found {available}. Available NPCs: {list(char_names_lower.values())}")
         
         return valid_names
 
 
     @staticmethod
-    def _add_npc_context_to_parameters(parameters: dict, context) -> None:
+    def _add_npc_context_to_parameters(parameters: dict, context) -> bool:
         """Add available NPC context to parameters based on their scope
         
         This function enhances parameter descriptions with lists of available entities
         based on the 'scope' property defined in the action JSON.
+        Returns True when the tool should remain available, 
+        ie it has at least one scoped parameter with entities available (or has no scoped parameters at all)
         
         Supported scopes for NPCs:
         - 'conversation': NPCs in conversation (excludes player)
@@ -387,15 +398,20 @@ class FunctionManager:
         - 'all_npcs_w_player': Everyone (conversation + nearby, includes player)
         """
         if 'properties' not in parameters:
-            return
+            return True
 
         # Process each parameter that has a scope defined
+        scoped_params = 0
+        scoped_with_entities = 0
+        has_unscoped_params = False
         for param_name, param_def in parameters['properties'].items():
             scope = param_def.get('scope')
             
             # Skip parameters without scope (not entity references)
             if not scope:
+                has_unscoped_params = True
                 continue
+            scoped_params += 1
             
             current_desc = param_def.get('description', '')
             
@@ -405,6 +421,15 @@ class FunctionManager:
             # Append entity list to parameter description for LLM context
             if entity_list:
                 param_def['description'] = f"{current_desc} Available: {entity_list}".strip()
+                scoped_with_entities += 1
+            else:
+                param_def['description'] = f"{current_desc} No entities available."
+        
+        if scoped_params == 0:
+            return True
+        if scoped_with_entities > 0:
+            return True
+        return has_unscoped_params
     
     
     @staticmethod
