@@ -1,0 +1,23 @@
+{
+    "identifier": "mantella_npc_addtoconversation",
+    "name": "AddToConversation",
+    "description": "Add nearby NPC(s) to the conversation.",
+    "key": "AddToConversation",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "array",
+            "description": "The NPC(s) to add to the conversation.",
+            "items": {"type": "string"},
+            "scope": "nearby_w_player"
+        }
+    },
+    "required": ["source"],
+    "prompt": "If the player asks you to add NPCs to the conversation, begin your response with '{key}:'",
+    "allowed_games": ["skyrim"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}
