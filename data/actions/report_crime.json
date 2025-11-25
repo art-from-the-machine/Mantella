@@ -1,0 +1,22 @@
+{
+    "identifier": "mantella_npc_reportcrime",
+    "name": "ReportCrime",
+    "description": "Report a crime the player has committed.",
+    "key": "ReportCrime",
+    "enabled": true,
+    "parameters": {
+        "crime_gold": {
+            "type": "integer",
+            "description": "The bounty amount to report. Common crime bounties: Trespassing: 5, Lockpicking: 5, Loitering: 10, Pickpocketing: 25, Assault: 40, Jailbreak: 100, Murder: 1000.",
+            "minimum": 1,
+            "maximum": 1000
+        }
+    },
+    "required": ["crime_gold"],
+    "allowed_games": ["skyrim"],
+    "requires_response": true,
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}
