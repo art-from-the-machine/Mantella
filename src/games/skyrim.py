@@ -265,7 +265,9 @@ class Skyrim(Gameable):
             selected_row = matched.sample(n=1).iloc[0]
             hex_str = str(selected_row['id'])
             try:
-                return int(hex_str, 16)
+                idle_id = int(hex_str, 16)
+                logging.log(23, f"Resolved idle name '{idle_name}' to ID {idle_id}")
+                return idle_id
             except ValueError:
                 return None
         return None
