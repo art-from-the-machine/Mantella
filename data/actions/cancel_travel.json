@@ -1,0 +1,13 @@
+{
+    "identifier": "mantella_npc_canceltravel",
+    "name": "CancelTravel",
+    "description": "Cancels NPC travel plans set by the TravelTo action.",
+    "key": "CancelTravel",
+    "enabled": true,
+    "allowed_games": ["skyrim"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}
