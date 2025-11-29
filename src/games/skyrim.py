@@ -1,10 +1,11 @@
 import logging
 import os
 import shutil
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import pandas as pd
-from src.conversation.context import Context
+if TYPE_CHECKING:
+    from src.conversation.context import Context
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
@@ -38,6 +39,14 @@ class Skyrim(Gameable):
         except:
             logging.error(f'Unable to read / open "data/Skyrim/skyrim_weather.csv". If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
+
+        try:
+            idles_file = 'data/Skyrim/skyrim_idles.csv'
+            encoding = utils.get_file_encoding(idles_file)
+            self.__idles_table: pd.DataFrame = pd.read_csv(idles_file, engine='python', encoding=encoding)
+        except:
+            logging.warning(f'Unable to read / open "data/Skyrim/skyrim_idles.csv". Emote action will not be available.')
+            self.__idles_table = pd.DataFrame()
 
     @property
     def extender_name(self) -> str:
@@ -154,7 +163,7 @@ class Skyrim(Gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: Context, config: ConfigLoader, topicID: int, isFirstLine: bool = False):
+    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: 'Context', config: ConfigLoader, topicID: int, isFirstLine: bool = False):
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file = queue_output.voice_file
@@ -222,6 +231,44 @@ class Skyrim(Gameable):
             if weather_classification >= 0 and weather_classification < len(self.WEATHER_CLASSIFICATIONS):
                 return self.WEATHER_CLASSIFICATIONS[weather_classification]
         return ""
+
+    def get_enabled_idle_names(self) -> list[str]:
+        """Get list of enabled idle names for the Emote action enum
+        
+        Returns:
+            List of idle_name values where enabled column contains 'x'
+        """
+        if self.__idles_table.empty:
+            return []
+        
+        # Check for 'x' (case-insensitive) in enabled column
+        enabled_mask = self.__idles_table['enabled'].astype(str).str.lower().str.strip() == 'x'
+        return self.__idles_table.loc[enabled_mask, 'idle_name'].unique().tolist()
+
+    def resolve_idle_id(self, idle_name: str) -> int | None:
+        """Resolve an idle name to its FormID as an integer
+        
+        Args:
+            idle_name: The idle_name value from the CSV
+            
+        Returns:
+            The FormID as an integer, or None if not found
+            If multiple entries match, a random one is selected
+        """
+        if self.__idles_table.empty:
+            return None
+        
+        name_match = self.__idles_table['idle_name'].astype(str).str.lower() == idle_name.lower()
+        matched = self.__idles_table.loc[name_match]
+        if matched.shape[0] >= 1:
+            # Select a random row if multiple matches exist
+            selected_row = matched.sample(n=1).iloc[0]
+            hex_str = str(selected_row['id'])
+            try:
+                return int(hex_str, 16)
+            except ValueError:
+                return None
+        return None
 
 
     MALE_VOICE_MODELS_XVASYNTH: dict[str, str] = {

@@ -31,9 +31,10 @@ class Conversation:
     TOKEN_LIMIT_PERCENT: float = 0.9
     TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
     """Controls the flow of a conversation."""
-    def __init__(self, context_for_conversation: Context, output_manager: ChatManager, rememberer: Remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool) -> None:
+    def __init__(self, context_for_conversation: Context, output_manager: ChatManager, rememberer: Remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool, game = None) -> None:
         
         self.__context: Context = context_for_conversation
+        self.__game = game
         self.__mic_input: bool = mic_input
         self.__mic_ptt: bool = mic_ptt
         self.__allow_interruption: bool = context_for_conversation.config.allow_interruption # allow mic interruption
@@ -409,8 +410,8 @@ class Conversation:
                 # Generate tools if advanced actions are enabled
                 tools = None
                 if self.context.config.advanced_actions_enabled and allow_tool_use:
-                    tools = FunctionManager.generate_context_aware_tools(self.__context)
-                self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions, tools]).start()
+                    tools = FunctionManager.generate_context_aware_tools(self.__context, self.__game)
+                self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions, tools, self.__game]).start()
 
     @utils.time_it
     def __stop_generation(self):

@@ -28,6 +28,7 @@ from src.actions.function_manager import FunctionManager
 from src.llm.messages import AssistantMessage, ToolMessage
 from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
+from src.games.gameable import Gameable
 
 class ChatManager:
     def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient):
@@ -85,7 +86,7 @@ class ChatManager:
             return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file))
 
     @utils.time_it
-    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action], tools: list[dict] | None):
+    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action], tools: list[dict] | None, game: Gameable | None = None):
         """Starts generating responses by the LLM for the current state of the input messages
 
         Args:
@@ -93,12 +94,13 @@ class ChatManager:
             characters (Characters): _description_
             blocking_queue (SentenceQueue): _description_
             actions (list[Action]): _description_
+            game (Gameable | None): The game instance for resolving action parameters (optional)
         """
         if(not characters.last_added_character):
             return
         self.__is_generating = True
         
-        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions, tools))
+        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions, tools, game))
     
     @utils.time_it
     def stop_generation(self):
@@ -130,7 +132,7 @@ class ChatManager:
             messages.add_message(tool_result_message)
     
     @utils.time_it
-    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], tools: list[dict] | None):
+    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], tools: list[dict] | None, game: Gameable | None = None):
         """Stream response from LLM one sentence at a time"""
 
         raw_response: str = ''  # Track the raw response
@@ -209,7 +211,7 @@ class ChatManager:
                                     tool_calls_added_this_turn = True
                                 
                                 # Parse tool calls to get action identifiers
-                                parsed_tools = FunctionManager.parse_function_calls(collected_tool_calls, characters)
+                                parsed_tools = FunctionManager.parse_function_calls(collected_tool_calls, characters, game)
                                 
                                 # Check if vision was requested - filter it out from game actions
                                 vision_requested = any(

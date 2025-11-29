@@ -63,7 +63,7 @@ class GameStateManager:
             self.process_stt_setup(input_json)
         
         context_for_conversation = Context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
-        self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
+        self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt, self.__game)
         self.__update_context(input_json)
         self.__try_preload_voice_model()
         self.__talk.start_conversation()
