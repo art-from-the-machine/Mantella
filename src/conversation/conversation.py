@@ -442,10 +442,17 @@ class Conversation:
     def __save_conversations_for_characters(self, characters_to_save_for: list[Character], is_reload: bool):
         characters_object = Characters()
         for npc in characters_to_save_for:
+            characters_object.add_or_update_character(npc)
             if not npc.is_player_character:
-                characters_object.add_or_update_character(npc)
                 conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
-        self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload)
+        
+        # Get and clear pending shares (only on final save, not reload)
+        pending_shares = None
+        if not is_reload:
+            pending_shares = self.__context.npcs_in_conversation.get_pending_shares()
+            self.__context.npcs_in_conversation.clear_pending_shares()
+        
+        self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload, pending_shares)
 
     @utils.time_it
     def __initiate_reload_conversation(self):

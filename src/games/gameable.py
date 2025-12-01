@@ -172,6 +172,37 @@ class Gameable(ABC):
         """
         pass
 
+    def resolve_npc_refid_by_name(self, name: str) -> str | None:
+        """Resolve an NPC name to their ref_id
+        
+        Only returns a result if exactly one NPC with that name exists in the character CSV
+        This prevents ambiguity when multiple NPCs share the same name (eg guards)
+        
+        Args:
+            name: The name of the NPC to look up
+            
+        Returns:
+            str | None: ref_id if exactly one match found, None otherwise
+        """
+        ref_id = None
+        name_lower = name.lower()
+        name_match = self.character_df['name'].astype(str).str.lower() == name_lower
+        matching_rows = self.character_df.loc[name_match]
+        
+        if matching_rows.shape[0] == 1:
+            row = matching_rows.iloc[0]
+            ref_id = str(row.get('ref_id', ''))
+            if ref_id:
+                logging.info(f"Resolved NPC '{name}' to ref_id '{ref_id}'")
+            else:
+                logging.warning(f"NPC '{name}' found but has no ref_id in CSV")
+        elif matching_rows.shape[0] > 1:
+            logging.warning(f"Multiple NPCs found with name '{name}' ({matching_rows.shape[0]} matches) - cannot resolve unambiguously")
+        else:
+            logging.warning(f"No NPC found with name '{name}' in character CSV")
+        
+        return ref_id
+
     @utils.time_it
     def _get_matching_df_rows_matcher(self, base_id: str, character_name: str, race: str) -> pd.Series | None:
         character_name_lower = character_name.lower()

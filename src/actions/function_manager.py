@@ -99,15 +99,21 @@ class FunctionManager:
                                             validated_args = None
                                             break
                             
-                            # Resolve parameters to game IDs (eg idle names to FormIDs)
+                            # Resolve parameters to game IDs (eg idle names to FormIDs, NPC names to ref_ids)
                             if resolve_type and game and validated_args:
                                 resolved_value = FunctionManager._resolve_parameter_to_id(param_value, resolve_type, game)
                                 if resolved_value is not None:
-                                    validated_args[param_name] = resolved_value
+                                    # Add resolved ID as new argument with _id suffix
+                                    validated_args[f"{param_name}_id"] = resolved_value
+                                    validated_args[f'{param_name}_succeeded'] = True
                                 else:
-                                    logging.warning(f"Skipping action '{identifier}' - could not resolve '{param_value}' to {resolve_type} ID")
-                                    validated_args = None
-                                    break
+                                    # For NPC resolution, add failure feedback but don't skip the action
+                                    if resolve_type == 'npc':
+                                        validated_args[f'{param_name}_succeeded'] = False
+                                    else:
+                                        logging.warning(f"Skipping action '{identifier}' - could not resolve '{param_value}' to {resolve_type} ID")
+                                        validated_args = None
+                                        break
 
                     # Only add the parsed tool if validation didn't fail
                     if validated_args is not None:
@@ -119,6 +125,9 @@ class FunctionManager:
                         # tools without actions will be treated as basic actions
                         if validated_args:
                             parsed_tool['arguments'] = validated_args
+                        
+                        # Handle action-specific side effects
+                        FunctionManager._handle_action_side_effects(parsed_tool, identifier, characters)
                         
                         parsed_tools.append(parsed_tool)
                 except Exception as e:
@@ -305,6 +314,32 @@ class FunctionManager:
     def is_vision_action_active() -> bool:
         """Return True if the Vision action is loaded and enabled"""
         return 'mantella_npc_vision' in FunctionManager._actions
+
+
+    @staticmethod
+    def _handle_action_side_effects(parsed_tool: dict, identifier: str, characters: Characters | None) -> None:
+        """Handle action-specific side effects after parsing
+        
+        Args:
+            parsed_tool: The parsed tool dict with 'identifier' and 'arguments'
+            identifier: The action identifier
+            characters: The Characters manager (may be None)
+        """
+        # ShareConversation: store pending share for end of conversation
+        if identifier == 'mantella_npc_shareconversation' and characters:
+            args = parsed_tool.get('arguments', {})
+            if args.get('recipient_succeeded') and args.get('recipient_id'):
+                sharer_name = args.get('source', '')
+                recipient_name = args.get('recipient', '')
+                recipient_id = args.get('recipient_id', '')
+                was_added = characters.add_pending_share(sharer_name, recipient_name, recipient_id)
+                if was_added:
+                    args['debug_message'] = f"{sharer_name} will share this conversation with {recipient_name}."
+                else:
+                    args['debug_message'] = f"This conversation will already be shared with {recipient_name}."
+            else:
+                recipient_name = args.get('recipient', 'recipient')
+                args['debug_message'] = f"Could not find '{recipient_name}' to share conversation with."
 
 
     @staticmethod
@@ -538,10 +573,20 @@ class FunctionManager:
 
     @staticmethod
     def _resolve_parameter_to_id(value: str, resolve_type: str, game: Gameable) -> str | None:
-        """Resolve a parameter value to its in-game ID"""
+        """Resolve a parameter value to its in-game ID
+        
+        Args:
+            value: The parameter value to resolve (eg idle name or NPC name)
+            resolve_type: Type of resolution ('idle' or 'npc')
+            game: The Gameable instance for game-specific lookups
+            
+        Returns:
+            The resolved ID string, or None if resolution failed
+        """
         resolved_id = None
         if resolve_type == 'idle':
             if hasattr(game, 'resolve_idle_id'):
-                resolved_id = game.resolve_idle_id(value)
-                
+                resolved_id =  game.resolve_idle_id(value)
+        elif resolve_type == 'npc':
+            resolved_id = game.resolve_npc_refid_by_name(value)
         return resolved_id

@@ -210,7 +210,7 @@ class ChatManager:
                                     self._add_tool_calls_to_history(messages, collected_tool_calls)
                                     tool_calls_added_this_turn = True
                                 
-                                # Parse tool calls to get action identifiers
+                                # Parse tool calls
                                 parsed_tools = FunctionManager.parse_function_calls(collected_tool_calls, characters, game)
                                 
                                 # Check if vision was requested - filter it out from game actions
