@@ -101,6 +101,10 @@ class MantellaConfigValueDefinitionsNew:
         stt_category.add_config_value(STTDefinitions.get_stt_translate_config_value())
         stt_category.add_config_value(STTDefinitions.get_process_device_config_value())
         stt_category.add_config_value(STTDefinitions.get_moonshine_folder_config_value(is_integrated))
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_enabled_config_value())
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_timeout_config_value())
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_max_count_config_value())
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_message_config_value())
         result.add_base_group(stt_category)
 
         vision_category = ConfigValueGroup("Vision", "Vision", "Vision settings.", on_value_change_callback)

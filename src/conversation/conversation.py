@@ -42,6 +42,14 @@ class Conversation:
         self.__stt: Transcriber | None = stt
         self.__events_refresh_time: float = context_for_conversation.config.events_refresh_time  # Time in seconds before events are considered stale
         self.__transcribed_text: str | None = None
+        
+        # Silence auto-response settings
+        self.__silence_auto_response_enabled: bool = context_for_conversation.config.silence_auto_response_enabled
+        self.__silence_auto_response_timeout: float = context_for_conversation.config.silence_auto_response_timeout
+        self.__silence_auto_response_message: str = context_for_conversation.config.silence_auto_response_message
+        self.__silence_auto_response_max_count: int = context_for_conversation.config.silence_auto_response_max_count
+        self.__silence_auto_response_count: int = 0  # Track consecutive silent responses
+        
         if not self.__context.npcs_in_conversation.contains_player_character(): # TODO: fix this being set to a radiant conversation because of NPCs in conversation not yet being added
             self.__conversation_type: conversation_type = radiant(context_for_conversation.config)
         else:
@@ -201,10 +209,29 @@ class Conversation:
                 if not self.__stt.is_listening and self.__allow_mic_input:
                     self.__stt.start_listening(self.__get_mic_prompt())
                 
+                # Use timeout if enabled and the max consecutive silence count has not been reached
+                use_silence_timeout = self.__silence_auto_response_enabled and (self.__silence_auto_response_count < self.__silence_auto_response_max_count)
+                silence_timeout = self.__silence_auto_response_timeout if use_silence_timeout else 0
+                
                 # Start tracking how long it has taken to receive a player response
                 input_wait_start_time = time.time()
                 while not player_text:
-                    player_text = self.__stt.get_latest_transcription()
+                    player_text = self.__stt.get_latest_transcription(silence_timeout=silence_timeout)
+                    
+                    # Handle silence timeout (None returned)
+                    if player_text is None:
+                        self.__silence_auto_response_count += 1
+                        logging.log(23, f"Player silent for {self.__silence_auto_response_timeout} seconds. Auto-response count: {self.__silence_auto_response_count}/{self.__silence_auto_response_max_count}")
+                        player_text = self.__silence_auto_response_message
+                        
+                        # If max count reached, log that auto-response is now disabled
+                        if self.__silence_auto_response_count >= self.__silence_auto_response_max_count:
+                            logging.log(23, f"Max consecutive silence count ({self.__silence_auto_response_max_count}) reached. Auto-response disabled until player speaks")
+                        break
+                    elif player_text:
+                        # Player spoke -> reset the silence counter
+                        self.__silence_auto_response_count = 0
+                    
                 if time.time() - input_wait_start_time >= self.__events_refresh_time:
                     # If too much time has passed, in-game events need to be updated
                     events_need_updating = True

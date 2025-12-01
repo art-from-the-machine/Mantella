@@ -458,10 +458,26 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
 
     @utils.time_it
-    def get_latest_transcription(self) -> str:
-        """Get the latest transcription, blocking until speech ends."""
+    def get_latest_transcription(self, silence_timeout: float = 0) -> str | None:
+        """Get the latest transcription, blocking until speech ends or silence timeout
+        
+        Args:
+            silence_timeout: How long to wait (in seconds) for speech before returning None. If 0 or negative, waits indefinitely.
+        
+        Returns:
+            The transcribed text, or None if silence_timeout elapsed without any speech being detected
+        """
         while True:
-            self._transcription_ready.wait()
+            # Use timeout only if silence_timeout > 0 and player hasn't started speaking yet
+            use_timeout = silence_timeout > 0 and not self._speech_detected
+            timeout_value = silence_timeout if use_timeout else None
+            
+            received_transcription = self._transcription_ready.wait(timeout=timeout_value)
+            
+            if not received_transcription and use_timeout and not self._speech_detected:
+                logging.log(self.loglevel, f"Silence timeout of {silence_timeout} seconds reached without speech")
+                return None
+            
             with self._lock:
                 transcription = self._current_transcription
                 self._current_transcription = ''

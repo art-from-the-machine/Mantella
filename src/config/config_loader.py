@@ -230,6 +230,10 @@ class ConfigLoader:
             self.listen_timeout = self.__definitions.get_int_value("listen_timeout")
             self.external_whisper_service = self.__definitions.get_bool_value("external_whisper_service")
             self.whisper_url = self.__definitions.get_string_value("whisper_url")
+            self.silence_auto_response_enabled = self.__definitions.get_bool_value("silence_auto_response_enabled")
+            self.silence_auto_response_timeout = self.__definitions.get_float_value("silence_auto_response_timeout")
+            self.silence_auto_response_max_count = self.__definitions.get_int_value("silence_auto_response_max_count")
+            self.silence_auto_response_message = self.__definitions.get_string_value("silence_auto_response_message")
 
             #LLM
             self.max_response_sentences_single = self.__definitions.get_int_value("max_response_sentences_single")
