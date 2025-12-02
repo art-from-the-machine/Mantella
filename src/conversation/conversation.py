@@ -63,6 +63,11 @@ class Conversation:
         self.__sentences: SentenceQueue = SentenceQueue()
         self.__generation_thread: Thread | None = None
         self.__generation_start_lock: Lock = Lock()
+        
+        # Set up Listen action callback to apply extended pause to STT
+        if stt:
+            self.__output_manager.set_on_listen_requested(lambda pause_secs: stt.set_temporary_pause(pause_secs))
+        
         # self.__actions: list[Action] = actions
         self.last_sentence_audio_length = 0
         self.last_sentence_start_time = time.time()
@@ -206,11 +211,18 @@ class Conversation:
             # If the player's input does not already exist, parse mic input if mic is enabled
             if self.__mic_input and len(player_text) == 0:
                 player_text = None
+                
+                listen_mode_active = self.__output_manager.listen_requested
+                if listen_mode_active:
+                    self.__output_manager.clear_listen_requested()
+                
                 if not self.__stt.is_listening and self.__allow_mic_input:
                     self.__stt.start_listening(self.__get_mic_prompt())
                 
-                # Use timeout if enabled and the max consecutive silence count has not been reached
-                use_silence_timeout = self.__silence_auto_response_enabled and (self.__silence_auto_response_count < self.__silence_auto_response_max_count)
+                # Use timeout if timeout is enabled, max count is not reached, and Listen mode is not active
+                use_silence_timeout = (self.__silence_auto_response_enabled and 
+                                       self.__silence_auto_response_count < self.__silence_auto_response_max_count and
+                                       not listen_mode_active)
                 silence_timeout = self.__silence_auto_response_timeout if use_silence_timeout else 0
                 
                 # Start tracking how long it has taken to receive a player response

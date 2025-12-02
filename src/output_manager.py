@@ -29,6 +29,7 @@ from src.llm.messages import AssistantMessage, ToolMessage
 from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
 from src.games.gameable import Gameable
+from typing import Callable
 
 class ChatManager:
     def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient):
@@ -40,12 +41,39 @@ class ChatManager:
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
         self.__is_first_sentence: bool = False
+        self.__listen_requested: bool = False
+        self.__on_listen_requested: Callable[[float], None] | None = None  # Callback for Listen action
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
     @property
     def tts(self) -> TTSable:
         return self.__tts
+    
+    @property
+    def listen_requested(self) -> bool:
+        return self.__listen_requested
+    
+    def set_on_listen_requested(self, callback: Callable[[float], None]) -> None:
+        """Set a callback to be invoked when Listen action is triggered
+        
+        Args:
+            callback: Function that accepts pause_seconds (float) and applies the extended pause
+        """
+        self.__on_listen_requested = callback
+    
+    def set_listen_requested(self, pause_seconds: float = 10.0) -> None:
+        """Set the listen_requested flag and invoke callback if available
+        
+        Args:
+            pause_seconds: The pause duration to apply
+        """
+        self.__listen_requested = True
+        if self.__on_listen_requested:
+            self.__on_listen_requested(pause_seconds)
+    
+    def clear_listen_requested(self) -> None:
+        self.__listen_requested = False
     
     @utils.time_it
     def generate_sentence(self, content: SentenceContent) -> Sentence:
@@ -223,6 +251,18 @@ class ChatManager:
                                     settings.vision_requested = True
                                     # Remove vision from parsed_tools so it doesn't go to the game
                                     parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_npc_vision']
+                                
+                                # Check if listen was requested - filter it out from game actions
+                                listen_requested = any(
+                                    tool.get('identifier') == 'mantella_npc_listen' 
+                                    for tool in parsed_tools if isinstance(tool, dict)
+                                )
+                                if listen_requested:
+                                    pause_seconds = FunctionManager.get_action_pause_seconds('mantella_npc_listen') or 10.0
+                                    logging.log(23, f"Listen action triggered: Pause threshold increased to {pause_seconds} seconds for one turn")
+                                    self.set_listen_requested(pause_seconds)
+                                    # Remove listen from parsed_tools so it doesn't go to the game
+                                    parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_npc_listen']
                                 
                                 # Send actions immediately as an action-only sentence (if any remain after filtering)
                                 if parsed_tools:

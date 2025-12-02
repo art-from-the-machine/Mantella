@@ -315,6 +315,21 @@ class FunctionManager:
         """Return True if the Vision action is loaded and enabled"""
         return 'mantella_npc_vision' in FunctionManager._actions
 
+    @staticmethod
+    def get_action_pause_seconds(identifier: str) -> float:
+        """Get the pause_seconds value for an action if defined (Listen action)
+        
+        Args:
+            identifier: The action identifier
+            
+        Returns:
+            The pause_seconds value if defined, otherwise a default value
+        """
+        default_seconds = 10
+        action = FunctionManager._actions.get(identifier)
+        if not action:
+            return default_seconds
+        return action.get('pause_seconds', default_seconds)
 
     @staticmethod
     def _handle_action_side_effects(parsed_tool: dict, identifier: str, characters: Characters | None) -> None:

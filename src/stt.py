@@ -57,6 +57,7 @@ class Transcriber:
         self.min_refresh_secs = config.min_refresh_secs # Minimum time between transcription updates
         self.refresh_freq = self.min_refresh_secs // self.CHUNK_DURATION # Number of chunks between transcription updates
         self.pause_threshold = config.pause_threshold
+        self._temporary_pause_override: float | None = None  # Temporary pause threshold for Listen action
         self.audio_threshold = config.audio_threshold
         logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this `Speech-to-Text`->`Audio Threshold` value in the Mantella UI. If the mic is picking up too much background noise, try increasing this value.\n")
 
@@ -141,6 +142,21 @@ class Transcriber:
         """Check if speech has been detected."""
         with self._lock:
             return self._speech_detected
+    
+    def set_temporary_pause(self, pause_seconds: float) -> None:
+        """Set a temporary pause threshold override for the next transcription
+        
+        This is used by the Listen action to give the player more time to formulate their response.
+        The temporary pause will be automatically cleared after the next successful transcription.
+        
+        Args:
+            pause_seconds: The pause threshold in seconds
+        """
+        with self._lock:
+            self._temporary_pause_override = pause_seconds
+            # If already listening and speech hasn't been detected yet, recreate VAD iterator with new pause threshold
+            if self._running and not self._speech_detected:
+                self.vad_iterator = self._create_vad_iterator()
         
 
     @utils.time_it
@@ -408,11 +424,13 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
     def _create_vad_iterator(self) -> VADIterator:
         """Create a new VAD iterator with configured parameters."""
+        # Use temporary pause override if set, otherwise use configured pause threshold
+        effective_pause = self._temporary_pause_override if self._temporary_pause_override is not None else self.pause_threshold
         return VADIterator(
             model=self.vad_model,
             sampling_rate=self.SAMPLING_RATE,
             threshold=self.audio_threshold,
-            min_silence_duration_ms=int(self.pause_threshold * 1000),
+            min_silence_duration_ms=int(effective_pause * 1000),
             speech_pad_ms = 30 # default
         )
 
@@ -484,6 +502,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 if transcription:
                     self._transcription_ready.clear()
                     self._speech_detected = False
+                    self._temporary_pause_override = None  # Reset temporary pause after transcription
                     logging.log(self.loglevel, f"Player said '{transcription.strip()}'")
                     return transcription
                 
