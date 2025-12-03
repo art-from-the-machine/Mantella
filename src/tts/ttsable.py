@@ -1,18 +1,20 @@
 from abc import ABC, abstractmethod
-import datetime
-import winsound
 import logging
 from src.config.config_loader import ConfigLoader
 import src.utils as utils
 import os
 from pathlib import Path
-from subprocess import DEVNULL, STARTUPINFO, STARTF_USESHOWWINDOW
+from subprocess import DEVNULL
 import subprocess
-import time
 from src.tts.synthesization_options import SynthesizationOptions
 import requests
 import shutil
 from src.config.definitions.game_definitions import GameEnum
+import platform
+
+if platform.system == "Windows":
+    from subprocess import STARTUPINFO, STARTF_USESHOWWINDOW
+
 
 class TTSable(ABC):
     """Base class for different TTS services
@@ -28,7 +30,7 @@ class TTSable(ABC):
         self._times_checked = 0
         self._tts_print = config.tts_print # to print output to console
         self._save_folder = config.save_folder
-        self._output_path = os.getenv('TMP')
+        self._output_path = utils.get_tmp_dir()
         self._voiceline_folder = f"{self._output_path}/voicelines"
         os.makedirs(f"{self._voiceline_folder}/save", exist_ok=True)
         self._language = config.language
@@ -156,14 +158,20 @@ class TTSable(ABC):
         """
         @utils.time_it
         def run_facefx_command(command, facefx_path) -> None:
-            startupinfo = STARTUPINFO()
-            startupinfo.dwFlags |= STARTF_USESHOWWINDOW
-            
-            batch_file_path = Path(facefx_path) / "run_mantella_command.bat"
-            with open(batch_file_path, 'w', encoding='utf-8') as file:
-                file.write(f"@echo off\n{command} >nul 2>&1")
-
-            subprocess.run(batch_file_path, cwd=facefx_path, creationflags=subprocess.CREATE_NO_WINDOW)
+            if platform.system() == "Windows":
+                startupinfo = STARTUPINFO()
+                startupinfo.dwFlags |= STARTF_USESHOWWINDOW
+                creationflags = subprocess.CREATE_NO_WINDOW
+                batch_file_path = Path(facefx_path) / "run_mantella_command.bat"
+                with open(batch_file_path, 'w', encoding='utf-8') as file:
+                    file.write(f"@echo off\n{command} >nul 2>&1")
+                subprocess.run(batch_file_path, cwd=facefx_path, creationflags=creationflags)
+            else:
+                bash_file_path = Path(facefx_path) / "run_mantella_command.sh"
+                user_shell = utils.get_user_shell()
+                with open(bash_file_path, 'w', encoding='utf-8') as file:
+                    file.write(f"#!{user_shell}\nwine {command} > /home/philipp/facfx.log 2>&1")
+                subprocess.run([user_shell, str(bash_file_path)], cwd=facefx_path)
 
 
         def copy_placeholder_lip_file(lip_file: str, game: str) -> None:
