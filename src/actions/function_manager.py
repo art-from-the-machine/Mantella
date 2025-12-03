@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
+from openai.types.chat import ChatCompletionMessageToolCall
 from copy import deepcopy
-from openai.types.chat.chat_completion_message import ChatCompletionMessageToolCall
 from src.characters_manager import Characters
 from src.conversation.action import Action
 from src.games.gameable import Gameable

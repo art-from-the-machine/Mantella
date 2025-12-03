@@ -55,7 +55,7 @@ class ClientBase(AIClient):
         self._enable_vision_next_call: bool = False
         self._vision_mode: VisionMode = self._determine_vision_mode()
 
-        if 'https' in self._base_url: # Cloud LLM
+        if not utils.is_local_url(self._base_url): # Cloud LLM
             self._is_local: bool = False
             api_key = ClientBase._get_api_key(secret_key_files)
             if api_key:
