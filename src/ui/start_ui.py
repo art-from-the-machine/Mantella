@@ -14,7 +14,7 @@ class StartUI(routeable):
         self.__constructor = SettingsUIConstructor()
 
     def create_main_block(self) -> gr.Blocks:
-        with gr.Blocks(title="Mantella", fill_height=True, analytics_enabled=False, theme= self.__get_theme(), css=self.__load_css()) as main_block:
+        with gr.Blocks(title="Mantella", fill_height=True, analytics_enabled=False) as main_block:
             # with gr.Tab("Settings") as tabs:
             settings_page = self.__generate_settings_page()
             # with gr.Tab("Chat with NPCs", interactive=False):
@@ -62,7 +62,9 @@ class StartUI(routeable):
 
         gr.mount_gradio_app(app,
                             self.create_main_block(),
-                            path="/ui")
+                            path="/ui",
+                            theme= self.__get_theme(),
+                            css=self.__load_css())
         
         link = f'http://localhost:{str(self._config.port)}/ui?__theme=dark'
         logging.log(24, f'\nMantella settings can be changed via this link:')
