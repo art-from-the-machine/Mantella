@@ -1,0 +1,28 @@
+{
+    "identifier": "mantella_npc_flee",
+    "name": "Flee",
+    "description": "Make NPC(s) flee from a specific NPC / the player.",
+    "key": "Flee",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "array",
+            "description": "The NPC(s) who will flee.",
+            "items": {"type": "string"},
+            "scope": "conversation"
+        },
+        "target": {
+            "type": "string",
+            "description": "The NPC to flee from.",
+            "scope": "all_npcs_w_player"
+        }
+    },
+    "required": ["source", "target"],
+    "prompt": "If you need to escape from the player, begin your response with '{key}:'",
+    "allowed_games": ["skyrim"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}
