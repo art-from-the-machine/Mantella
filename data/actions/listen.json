@@ -9,6 +9,7 @@
     "allowed_games": ["skyrim", "fallout4"],
     "requires_response": false,
     "is-interrupting": false,
+    "allow_repeat": true,
     "one-on-one": false,
     "multi-npc": false,
     "radiant": false

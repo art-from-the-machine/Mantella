@@ -9,6 +9,7 @@ from src.games.gameable import Gameable
 
 class FunctionManager:
     _actions: dict[str, dict] = {}  # Map identifier -> action data
+    _last_tool_calls: list[dict] = []  # Cache of last turn's parsed tool calls for duplicate filtering
 
     @staticmethod
     def parse_function_calls(tools_called: list[ChatCompletionMessageToolCall], characters: Characters = None, game: Gameable | None = None) -> list[dict]:
@@ -126,12 +127,21 @@ class FunctionManager:
                         if validated_args:
                             parsed_tool['arguments'] = validated_args
                         
+                        # Check for duplicate tool call from previous turn
+                        if FunctionManager._is_duplicate_call(parsed_tool, action_def):
+                            logging.log(23, f"Filtered duplicate tool call: {identifier} with args {parsed_tool.get('arguments', {})}")
+                            continue
+                        
                         # Handle action-specific side effects
                         FunctionManager._handle_action_side_effects(parsed_tool, identifier, characters)
                         
                         parsed_tools.append(parsed_tool)
                 except Exception as e:
                     logging.error(f"Error parsing function call: {e}")
+        
+        # Update cache with this turn's tool calls
+        if len(parsed_tools) > 0:
+            FunctionManager._last_tool_calls = parsed_tools
         
         return parsed_tools
 
@@ -148,6 +158,7 @@ class FunctionManager:
             return
 
         FunctionManager._actions.clear()
+        FunctionManager._last_tool_calls = []
 
         # Load top-level action files
         for file_path in actions_dir.glob("*.json"):
@@ -309,6 +320,18 @@ class FunctionManager:
             return False
         return bool(action.get('requires_response', False))
 
+
+    @staticmethod
+    def _is_duplicate_call(parsed_tool: dict, action_def: dict) -> bool:
+        """Check if this tool call is a duplicate of one from the previous turn"""
+        if action_def.get('allow_repeat', False):
+            return False
+        
+        for last_call in FunctionManager._last_tool_calls:
+            if (parsed_tool.get('identifier') == last_call.get('identifier') and
+                parsed_tool.get('arguments', {}) == last_call.get('arguments', {})):
+                return True
+        return False
 
     @staticmethod
     def is_vision_action_active() -> bool:
