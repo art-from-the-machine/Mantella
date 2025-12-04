@@ -1,0 +1,24 @@
+{
+    "identifier": "mantella_npc_collectingredients",
+    "name": "CollectIngredients",
+    "description": "Make NPC(s) collect ingredients in the area.",
+    "key": "CollectIngredients",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "array",
+            "description": "The NPC(s) who will collect ingredients in the area.",
+            "items": {"type": "string"},
+            "scope": "conversation"
+        }
+    },
+    "required": ["source"],
+    "prompt": "If the player asks you to collect ingredients, begin your response with '{key}:'",
+    "allowed_games": ["skyrim"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}
