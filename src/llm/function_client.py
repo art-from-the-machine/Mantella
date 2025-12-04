@@ -1,7 +1,7 @@
 import src.utils as utils
 import logging
 from openai.types.chat import ChatCompletion
-from openai.types.chat.chat_completion_message import ChatCompletionMessageToolCall
+from openai.types.chat import ChatCompletionMessageToolCall
 from src.config.config_loader import ConfigLoader
 from src.llm.client_base import ClientBase
 from src.llm.message_thread import message_thread

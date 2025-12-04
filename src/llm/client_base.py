@@ -53,7 +53,7 @@ class ClientBase(AIClient):
         self._enable_vision_next_call: bool = False
         self._vision_mode: VisionMode = self._determine_vision_mode()
 
-        if 'https' in self._base_url: # Cloud LLM
+        if not utils.is_local_url(self._base_url): # Cloud LLM
             self._is_local: bool = False
             api_key = ClientBase._get_api_key(secret_key_files)
             if api_key:
@@ -586,7 +586,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             elif service == "OpenRouter":
                 default_model = default_model
                 secret_key_files = [secret_key_file, 'GPT_SECRET_KEY.txt'] if secret_key_file != 'GPT_SECRET_KEY.txt' else [secret_key_file]
-                secret_key = ClientBase._get_api_key(secret_key_files, not is_vision)
+                secret_key = ClientBase._get_api_key(secret_key_files, False)
                 if not secret_key:
                     return LLMModelList([(f"No secret key found in {secret_key_file}", "Custom model")], "Custom model", allows_manual_model_input=True)
                 # NOTE: while a secret key is not needed for this request, this may change in the future

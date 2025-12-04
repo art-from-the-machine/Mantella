@@ -32,12 +32,16 @@ class MantellaSetup:
         logging.log(23, f'''Mantella currently running for {self.config.game.display_name}. Mantella mod files located in: 
     {self.config.mod_path}''')
         if not self.config.have_all_config_values_loaded_correctly:
-            logging.error("Cannot start Mantella. Not all settings that are required are set to correct values. This error often occurs when you start Mantella.exe manually without setting up the `Game` tab in the Mantella UI.")
+            logging.error("Cannot start Mantella. Not all settings that are required are set to correct values:")
+            violations = self.config.get_constraint_failures()
+            for key in violations.keys():
+                for line in violations[key]:
+                    logging.error(line)
 
         # clean up old instances of exe runtime files
         utils.cleanup_mei(self.config.remove_mei_folders)
-        utils.cleanup_tmp(self.config.save_folder+'data\\tmp')
-        utils.cleanup_tmp(os.getenv('TMP')+'\\voicelines') # cleanup temp voicelines
+        utils.cleanup_tmp(os.path.join(self.config.save_folder, "data", "tmp"))
+        utils.cleanup_tmp(os.path.join(utils.get_tmp_dir(), "voicelines")) # cleanup temp voicelines
 
         self.language_info = self._get_language_info(language_file, self.config.language)
         

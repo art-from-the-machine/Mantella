@@ -7,10 +7,14 @@ import os
 from shutil import rmtree
 import wave
 from charset_normalizer import detect
-import winsound
+from playsound import playsound
 import platform
-import winreg
 from pathlib import Path
+from urllib.parse import urlparse
+
+if platform.system() == "Windows":
+    import winsound
+    import winreg
 
 
 def time_it(func):
@@ -55,21 +59,24 @@ def resolve_path():
 
 def play_mantella_ready_sound():
     try:
-        winsound.PlaySound(os.path.join(resolve_path(),'data','mantella_ready.wav'), winsound.SND_FILENAME | winsound.SND_ASYNC)
+        playsound(os.path.join(resolve_path(), 'data', 'mantella_ready.wav'), block=False)
     except:
         pass
 
 
 def play_no_mic_input_detected_sound():
     try:
-        winsound.PlaySound(os.path.join(resolve_path(),'data','no_mic_input_detected.wav'), winsound.SND_FILENAME | winsound.SND_ASYNC)
+        playsound(os.path.join(resolve_path(), 'data', 'mantella_ready.wav'), block=False)
     except:
         pass
 
 
 def play_error_sound():
     try:
-        winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
+        if platform.system == "Windows":
+            winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
+        else:
+            playsound(os.path.join(resolve_path(), 'data', 'error.wav'), block=False)
     except:
         pass
 
@@ -95,6 +102,28 @@ def get_audio_duration(audio_file: str):
     # wait `buffer` seconds longer to let processes finish running correctly
     duration = frames / float(rate)
     return duration
+
+
+def get_tmp_dir() -> str:
+    if platform.system() == "Windows":
+        return os.getenv("TMP")
+    else:
+        envvars = ["TMPDIR", "TEMP", "TMP"]
+        for envvar in envvars:
+            tmpdir = os.getenv(envvar)
+            if tmpdir is not None:
+                return tmpdir
+        return "/tmp"
+
+
+def get_user_shell() -> str:
+    if platform.system() == "Windows":
+        return None
+    else:
+        shell = os.getenv("SHELL")
+        if shell is not None:
+            return shell
+    return "/bin/bash"
 
 
 def cleanup_tmp(tmp_folder: str):
@@ -147,16 +176,16 @@ def get_my_games_directory(custom_user_folder='') -> str:
             documents_path = winreg.QueryValueEx(reg_key, "Personal")[0]
             winreg.CloseKey(reg_key)
         else:
-            homepath = os.getenv('HOMEPATH')
+            homepath = os.getenv('HOME')
             if homepath:
-                documents_path = os.path.realpath(homepath+'/Documents')
+                documents_path = os.path.realpath(homepath + '/Documents')
         if documents_path == "":
             print("ERROR: Could not find 'Documents' folder or equivalent!")
-        save_dir = Path(os.path.join(documents_path,"My Games","Mantella"))
+        save_dir = Path(os.path.join(documents_path, "My Games", "Mantella"))
     else:
         save_dir = Path(documents_path)
     save_dir.mkdir(parents=True, exist_ok=True)
-    return str(save_dir)+'\\'
+    return str(save_dir)
 
 
 def convert_to_skyrim_hex_format(identifier: str) -> str:
@@ -277,6 +306,11 @@ def get_openai_model_list():
     models = [Model(**model) for model in openai_models]
 
     return SyncPage(data=models)
+
+
+def is_local_url(url: str) -> bool:
+    domain = urlparse(url).netloc
+    return domain.startswith("10.") or domain.startswith("127.") or domain.startswith("192.168") or domain.startswith("172.")
 
 
 def get_model_token_limits():

@@ -4,30 +4,34 @@ import base64
 import os
 import src.utils as utils
 import numpy as np
-import win32gui
 import mss
 import cv2
 import ctypes
 from pathlib import Path
 from src.config.definitions.game_definitions import GameEnum
+import platform
+
+if platform.system() == "Windows":
+    import win32gui
+
 
 class ImageManager:
     '''
     Manages game window capture and image processing
     '''
-    
+
     @utils.time_it
-    def __init__(self, 
-                 game: GameEnum, 
-                 save_folder: str, 
-                 save_screenshot: bool, 
-                 image_quality: int, 
-                 low_resolution_mode: bool, 
-                 resize_method: str, 
-                 capture_offset: dict[str, int], 
+    def __init__(self,
+                 game: GameEnum,
+                 save_folder: str,
+                 save_screenshot: bool,
+                 image_quality: int,
+                 low_resolution_mode: bool,
+                 resize_method: str,
+                 capture_offset: dict[str, int],
                  use_game_screenshots: bool,
                  game_image_path: str | None) -> None:
-        
+
         WINDOW_TITLES = {
             GameEnum.SKYRIM: 'Skyrim Special Edition',
             GameEnum.SKYRIM_VR: 'Skyrim VR',
@@ -64,6 +68,9 @@ class ImageManager:
 
         self.__capture_params = None
 
+        if platform.system() != "Windows":
+            return
+
         try:
             ctypes.windll.user32.SetProcessDPIAware()
         except:
@@ -75,7 +82,7 @@ class ImageManager:
         if self.__capture_params is None:
             self.__capture_params = self._calculate_capture_params()
         return self.__capture_params
-    
+
 
     def reset_capture_params(self):
         self.__capture_params = None
@@ -101,7 +108,7 @@ class ImageManager:
         window_rect = win32gui.GetWindowRect(hwnd)
         client_rect = win32gui.GetClientRect(hwnd)
         client_left, client_top = win32gui.ClientToScreen(hwnd, (0, 0))
-        
+
         left_border = client_left - window_rect[0]
         top_border = client_top - window_rect[1]
 
@@ -115,7 +122,7 @@ class ImageManager:
 
     @utils.time_it
     def _resize_image(self, image: np.ndarray, width: int, height: int) -> np.ndarray:
-        '''Resize the image to the target resolution specified here: 
+        '''Resize the image to the target resolution specified here:
         https://platform.openai.com/docs/guides/vision/managing-images
 
         In summary:
@@ -215,6 +222,11 @@ class ImageManager:
         Returns:
             str: Base64 encoded JPEG image, or None if capture fails
         '''
+
+        if platform.system() != "Windows":
+            logging.warning("VLLM is supported only on Windows")
+            return None
+
         try:
             params = self.capture_params
             if not params:

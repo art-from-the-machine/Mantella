@@ -4,11 +4,14 @@ import time
 import logging
 import sys
 import os
-import winsound
+import platform
+import playsound
 from pathlib import Path
 from pytest import LogCaptureFixture
 from pytest import MonkeyPatch
 
+if platform.system() == "Windows":
+    import winsound
 
 @utils.time_it
 def decorated_dummy_function(delay=0.01):
@@ -85,9 +88,16 @@ def test_resolve_path_frozen(monkeypatch: MonkeyPatch):
 @pytest.fixture
 def fake_play_sound(monkeypatch: MonkeyPatch):
     calls = []
-    def fake_play(filename, flags):
+
+    def fake_play_winsound(filename, flags):
         calls.append((filename, flags))
-    monkeypatch.setattr(winsound, "PlaySound", fake_play)
+
+    def fake_play_playsound(filename):
+        calls.append((filename))
+
+    if platform.system() == "Windows":
+        monkeypatch.setattr(winsound, "PlaySound", fake_play_winsound)
+    monkeypatch.setattr(playsound, "playsound", fake_play_playsound)
     return calls
 
 def test_play_mantella_ready_sound(fake_play_sound, monkeypatch: MonkeyPatch):

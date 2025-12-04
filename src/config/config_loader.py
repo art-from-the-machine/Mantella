@@ -14,6 +14,8 @@ from src.config.config_file_writer import ConfigFileWriter
 import src.utils as utils
 from pathlib import Path
 import json
+import urllib
+
 
 class ConfigLoader:
     def __init__(self, mygame_folder_path: str, file_name='config.ini', game_override: GameEnum | None = None):
@@ -62,7 +64,7 @@ class ConfigLoader:
     @property
     def have_all_config_values_loaded_correctly(self) -> bool:
         return self.__definitions.have_all_loaded_values_succeded
-    
+
     @property
     def has_any_config_value_changed(self) -> bool:
         return self.__has_any_value_changed
@@ -70,6 +72,9 @@ class ConfigLoader:
     @property
     def definitions(self) -> ConfigValues:
         return self.__definitions
+
+    def get_constraint_failures(self) -> dict[str, list[str]]:
+        return self.__definitions.constraint_violations
     
     def update_config_loader_with_changed_config_values(self):
         self.__update_config_values_from_current_state()
@@ -100,9 +105,9 @@ class ConfigLoader:
                 # Working backwards from MantellaSoftware (where the .exe runs) -> Plugins -> F4SE/SKSE -> Data (mod folder)
                 self.mod_path = str(exe_folder.parent.parent.parent)
 
-                self.lipgen_path = self.game_path+"\\Tools\\LipGen\\"
-                self.facefx_path = self.mod_path+"\\Sound\\Voice\\Processing\\"
-                self.piper_path = str(Path(utils.resolve_path())) + "\\piper"
+                self.lipgen_path = os.path.join(self.game_path, "Tools", "LipGen")
+                self.facefx_path = os.path.join(self.mod_path, "Sound", "Voice", "Processing")
+                self.piper_path = os.path.join(str(Path(utils.resolve_path())), "piper")
                 self.moonshine_folder = str(Path(utils.resolve_path()))
 
                 game_parent_folder_name = os.path.basename(self.game_path).lower()
@@ -159,7 +164,7 @@ class ConfigLoader:
                 self.facefx_path = self.__definitions.get_string_value("facefx_folder")
 
             self.mod_path_base = self.mod_path
-            self.mod_path += "\\Sound\\Voice\\Mantella.esp"
+            self.mod_path += os.path.join("/", "Sound", "Voice", "Mantella.esp")
 
             self.language = self.__definitions.get_string_value("language")
             self.end_conversation_keyword = self.__definitions.get_string_value("end_conversation_keyword")
@@ -174,8 +179,15 @@ class ConfigLoader:
             validate_xtts_path = validate_xvasynth_path = validate_piper_path = False
 
             if self.tts_service == TTSEnum.XTTS:
-                if 'http://127.0.0.1:8020' in self.xtts_url: # Only validate the XTTS folder if running locally
-                   validate_xtts_path = True
+                 # Only validate the XTTS folder if running locally and is not already running
+                if 'http://127.0.0.1:8020' in self.xtts_url:
+                    try:
+                        if urllib.request.urlopen(self.xtts_url + "/get_models_list", timeout=0.5).getcode() == 200:
+                            validate_xtts_path = False
+                        else:
+                            validate_xtts_path = True
+                    except urllib.error.URLError:
+                        validate_xtts_path = True
             elif self.tts_service == TTSEnum.XVASYNTH:
                 validate_xvasynth_path = True
             elif self.tts_service == TTSEnum.PIPER:
