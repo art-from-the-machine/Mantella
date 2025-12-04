@@ -2,6 +2,7 @@ from src.image.image_manager import ImageManager
 import pytest
 import numpy as np
 import cv2
+import platform
 from pathlib import Path
 import os
 import base64
@@ -60,6 +61,7 @@ def mock_mss(mocker):
     return mock_sct
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_init_sets_window_title(default_config: ConfigLoader, tmp_path: Path):
     """Tests if the correct window title is selected based on the game"""
     default_config.save_folder = str(tmp_path) + os.sep
@@ -75,6 +77,7 @@ def test_init_sets_window_title(default_config: ConfigLoader, tmp_path: Path):
         assert im_f4vr._ImageManager__window_title == 'Fallout4VR'
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_init_sets_resize_method(default_config: ConfigLoader, image_manager: ImageManager):
     """Tests if the resize method string maps correctly to a cv2 constant"""
     assert image_manager._ImageManager__resize_method == cv2.INTER_NEAREST # Default config value
@@ -85,6 +88,7 @@ def test_init_sets_resize_method(default_config: ConfigLoader, image_manager: Im
     assert manager_cubic._ImageManager__resize_method == cv2.INTER_CUBIC
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_init_cleans_old_game_screenshot(default_config: ConfigLoader, tmp_path: Path):
     """Tests if an existing game screenshot is removed on init if configured"""
     default_config.save_folder = str(tmp_path) + os.sep
@@ -105,6 +109,7 @@ def test_init_cleans_old_game_screenshot(default_config: ConfigLoader, tmp_path:
     assert not game_screenshot_path.exists()
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_calculate_capture_params_success(image_manager: ImageManager, mock_win32gui):
     """Tests successful calculation of capture parameters"""
     params = image_manager._calculate_capture_params()
@@ -120,6 +125,7 @@ def test_calculate_capture_params_success(image_manager: ImageManager, mock_win3
     assert params['height'] == 580
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_calculate_capture_params_with_offset(mock_win32gui, default_config: ConfigLoader):
     """Tests capture parameters with offsets applied"""
     default_config.capture_offset = {'left': 5, 'top': 10, 'right': -15, 'bottom': -20}
@@ -138,6 +144,7 @@ def test_calculate_capture_params_with_offset(mock_win32gui, default_config: Con
     assert params['height'] == 560
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_calculate_capture_params_window_not_found(image_manager: ImageManager, mock_win32gui):
     """Tests behavior when the target window is not found"""
     mock_win32gui.patch('win32gui.FindWindow', return_value=0) # Simulate window not found
@@ -146,6 +153,7 @@ def test_calculate_capture_params_window_not_found(image_manager: ImageManager, 
     assert image_manager.capture_params is None
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_capture_params_caching_and_reset(image_manager: ImageManager, mock_win32gui):
     """Tests that capture parameters are cached and can be reset"""
     find_window_mock = mock_win32gui.patch('win32gui.FindWindow', return_value=123)
@@ -171,6 +179,7 @@ def test_capture_params_caching_and_reset(image_manager: ImageManager, mock_win3
     assert find_window_mock.call_count == 2 # FindWindow called again
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 @pytest.mark.parametrize("low_res_mode, input_w, input_h, expected_w, expected_h", [
     # Low Res Mode Tests
     (True, 1920, 1080, 512, 512), # Scale down wide
@@ -194,6 +203,7 @@ def test_resize_image(image_manager: ImageManager, low_res_mode, input_w, input_
     assert resized.shape == (expected_h, expected_w, 3)
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_encode_image_to_jpeg(image_manager: ImageManager):
     """Tests encoding a dummy image to JPEG format"""
     dummy_image = np.zeros((100, 100, 3), dtype=np.uint8)
@@ -203,6 +213,7 @@ def test_encode_image_to_jpeg(image_manager: ImageManager):
     assert buffer.tobytes().startswith(b'\xff\xd8')
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_save_screenshot_to_file(image_manager: ImageManager, tmp_path: Path):
     """Tests saving the screenshot data to a file"""
     image_manager._ImageManager__save_screenshot = True
@@ -224,6 +235,7 @@ def test_save_screenshot_to_file(image_manager: ImageManager, tmp_path: Path):
     assert content == dummy_bytes
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_get_image_success_takes_screenshot(image_manager: ImageManager, mock_win32gui, mock_mss):
     """Tests the successful flow of get_image using mss"""
     image_manager._ImageManager__use_game_screenshots = False # Ensure mss is used
@@ -240,6 +252,7 @@ def test_get_image_success_takes_screenshot(image_manager: ImageManager, mock_wi
     mock_mss.grab.assert_called_once()
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_get_image_success_uses_game_screenshot(image_manager: ImageManager, mocker):
     """Tests the successful flow of get_image using a game screenshot file"""
     image_manager._ImageManager__use_game_screenshots = True
@@ -271,6 +284,7 @@ def test_get_image_success_uses_game_screenshot(image_manager: ImageManager, moc
         pytest.fail("Output is not valid base64")
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_get_image_returns_none_if_window_not_found(image_manager: ImageManager, mock_win32gui):
     """Tests get_image returning None when the window isn't found"""
     mock_win32gui.patch('win32gui.FindWindow', return_value=0)
@@ -278,6 +292,7 @@ def test_get_image_returns_none_if_window_not_found(image_manager: ImageManager,
     assert img_str is None
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_get_image_returns_none_if_game_screenshot_missing(image_manager: ImageManager, mocker):
     """Tests get_image returning None when game screenshot file is expected but missing"""
     image_manager._ImageManager__use_game_screenshots = True
@@ -290,6 +305,7 @@ def test_get_image_returns_none_if_game_screenshot_missing(image_manager: ImageM
     mock_exists.assert_called_once()
 
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only supported on Windows")
 def test_get_image_handles_exception_and_resets_params(image_manager: ImageManager, mock_win32gui, mocker):
     """Tests error handling within get_image and resetting capture params"""
     image_manager._ImageManager__use_game_screenshots = False # Use mss path
