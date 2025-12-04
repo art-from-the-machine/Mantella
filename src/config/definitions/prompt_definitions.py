@@ -1,6 +1,7 @@
 
 from regex import Regex
 from src.config.types.config_value import ConfigValue
+from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_string import ConfigValueString
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 
@@ -225,11 +226,26 @@ class PromptDefinitions:
         return ConfigValueString("radiant_start_prompt","Radiant Start Prompt",radiant_start_prompt_description,radiant_start_prompt,[PromptDefinitions.PromptChecker([])])
 
     @staticmethod
+    def get_radiant_continue_prompt_config_value() -> ConfigValue:
+        radiant_continue_prompt_description = """The prompt sent to the LLM between turns in a radiant conversation to keep the conversation going.
+                                            This is used for intermediate turns when Radiant Max Turns is greater than 2."""
+        radiant_continue_prompt = """Continue the conversation, or call the EndConversation action if the conversation has naturally concluded."""
+        return ConfigValueString("radiant_continue_prompt","Radiant Continue Prompt",radiant_continue_prompt_description,radiant_continue_prompt,[PromptDefinitions.PromptChecker([])])
+
+    @staticmethod
     def get_radiant_end_prompt_config_value() -> ConfigValue:
         radiant_end_prompt_description = """The final prompt sent to the LLM before ending a radiant conversation.
                                             This prompt is used to guide the LLM to end the conversation naturally.""" 
         radiant_end_prompt = """Please wrap up the current topic between the NPCs in a natural way. Nobody is leaving, so there is no need for formal goodbyes."""
         return ConfigValueString("radiant_end_prompt","Radiant End Prompt",radiant_end_prompt_description,radiant_end_prompt,[PromptDefinitions.PromptChecker([])])
+    
+    @staticmethod
+    def get_radiant_max_turns_config_value() -> ConfigValue:
+        radiant_max_turns_description = """The maximum number of LLM response turns in a radiant conversation.
+                                            Higher values allow for longer conversations. 
+                                            If the EndConversation action is enabled for radiant conversation,
+                                            the LLM may choose to end the conversation earlier if it naturally concludes."""
+        return ConfigValueInt("radiant_max_turns", "Radiant Max Turns", radiant_max_turns_description, 2, 2, 999)
     
     @staticmethod
     def get_function_llm_prompt_config_value() -> ConfigValue:
