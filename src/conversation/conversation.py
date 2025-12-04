@@ -174,6 +174,11 @@ class Conversation:
             self.last_sentence_start_time = time.time()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, next_sentence
         else:
+            # Check if end conversation was requested via tool call
+            if self.__output_manager.end_conversation_requested:
+                self.__output_manager.clear_end_conversation_requested()
+                self.initiate_end_sequence()
+                return comm_consts.KEY_REPLYTYPE_NPCTALK, None
             #Ask the conversation type here, if we should end the conversation
             if self.__conversation_type.should_end(self.__context, self.__messages):
                 self.initiate_end_sequence()

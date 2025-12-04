@@ -43,6 +43,7 @@ class ChatManager:
         self.__is_first_sentence: bool = False
         self.__listen_requested: bool = False
         self.__on_listen_requested: Callable[[float], None] | None = None  # Callback for Listen action
+        self.__end_conversation_requested: bool = False
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
@@ -74,6 +75,17 @@ class ChatManager:
     
     def clear_listen_requested(self) -> None:
         self.__listen_requested = False
+    
+    @property
+    def end_conversation_requested(self) -> bool:
+        return self.__end_conversation_requested
+    
+    def set_end_conversation_requested(self) -> None:
+        """Set the end_conversation_requested flag when LLM calls EndConversation tool"""
+        self.__end_conversation_requested = True
+    
+    def clear_end_conversation_requested(self) -> None:
+        self.__end_conversation_requested = False
     
     @utils.time_it
     def generate_sentence(self, content: SentenceContent) -> Sentence:
@@ -263,6 +275,17 @@ class ChatManager:
                                     self.set_listen_requested(pause_seconds)
                                     # Remove listen from parsed_tools so it doesn't go to the game
                                     parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_npc_listen']
+                                
+                                # Check if end conversation was requested - filter it out from game actions
+                                end_conversation_requested = any(
+                                    tool.get('identifier') == 'mantella_end_conversation' 
+                                    for tool in parsed_tools if isinstance(tool, dict)
+                                )
+                                if end_conversation_requested:
+                                    logging.log(23, "End conversation action triggered via tool call")
+                                    self.set_end_conversation_requested()
+                                    # Remove end_conversation from parsed_tools so it doesn't go to the game directly
+                                    parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_end_conversation']
                                 
                                 # Send actions immediately as an action-only sentence (if any remain after filtering)
                                 if parsed_tools:

@@ -1,0 +1,15 @@
+{
+    "identifier": "mantella_end_conversation",
+    "name": "EndConversation",
+    "description": "End the current conversation.",
+    "key": "EndConversation",
+    "enabled": true,
+    "prompt": "When the conversation naturally concludes, begin your response with '{key}:'",
+    "allowed_games": ["skyrim", "fallout4"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": false,
+    "one-on-one": false,
+    "multi-npc": false,
+    "radiant": true
+}
