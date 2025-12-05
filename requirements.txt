@@ -22,5 +22,5 @@ pywin32==306
 mss==9.0.1
 opencv-python==4.10.0.84
 sounddevice==0.5.1
-silero_vad==5.1.2
+silero-vad-lite
 git+https://github.com/usefulsensors/moonshine.git@2f6282347950c8d711bd7319287babb87ec5a92d#subdirectory=moonshine-onnx
