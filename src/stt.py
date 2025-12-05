@@ -496,7 +496,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         """Identifies keyword in the input transcript"""
         if not transcript:
             return False
-        
+
         # Convert to a list even if there is only one activation name
         if isinstance(activation_names, str):
             activation_names = [activation_names]
@@ -505,12 +505,12 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         transcript_words = transcript.split()
         if set(transcript_words).intersection(activation_names):
             return True
-        
+
         # Alternatively, if the entire transcript is a keyword, return True
         for activation_name in activation_names:
             if transcript == activation_name:
                 return True
-        
+
         return False
 
 
