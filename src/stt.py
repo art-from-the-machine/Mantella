@@ -20,7 +20,7 @@ from moonshine_onnx import MoonshineOnnxModel, load_tokenizer
 import onnxruntime as ort
 from scipy.io import wavfile
 from sounddevice import InputStream
-from silero_vad import VADIterator, load_silero_vad
+from silero_vad_lite import SileroVAD
 
 import onnxruntime as ort
 ort.set_default_logger_severity(4)
@@ -108,8 +108,7 @@ class Transcriber:
             self.tokenizer = load_tokenizer()
         
         # Initialize VAD
-        self.vad_model = load_silero_vad(onnx=True)
-        self.vad_iterator: VADIterator = self._create_vad_iterator()
+        self.vad = SileroVAD(self.SAMPLING_RATE)
         
         # Audio processing state
         self._audio_buffer = np.array([], dtype=np.float32)
@@ -123,7 +122,6 @@ class Transcriber:
         
         # Speech detection state
         self._speech_detected = False
-        self._speech_start_time = 0
         self._speech_end_time = 0
         self._last_update_time = 0
         self._current_transcription = ""
@@ -347,33 +345,33 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     if not self._speech_detected:
                         # Keep limited lookback buffer when not recording
                         self._audio_buffer = self._audio_buffer[-lookback_size:]
-                    
-                    # Process with VAD
-                    speech_dict = self.vad_iterator(chunk)
-                    
-                    # Handle speech detection
-                    if speech_dict:
-                        if "start" in speech_dict and not self._speech_detected:
-                            logging.log(self.loglevel, 'Speech detected')
-                            self._speech_detected = True
-                            self._speech_start_time = time.time()
-                            self._last_update_time = time.time()
-                        
-                        if "end" in speech_dict and self._speech_detected:
-                            logging.log(self.loglevel, 'Speech ended')
-                            # If proactive mode is disabled, transcribe mic input only when speech end has been detected
-                            if not self.proactive_mic_mode:
-                                self._current_transcription = self._transcribe(self._audio_buffer)
-                            if self.__save_mic_input:
-                                self._save_audio(self._audio_buffer)
 
-                            self._transcription_ready.set()
-                            self._reset_state()
-                    
+                    # Process with VAD
+                    probability = self.vad.process(chunk)
+
+                    # Handle speech detection
+                    if probability > self.audio_threshold:
+                        self._last_update_time = time.time()
+
+                    if probability > self.audio_threshold and not self._speech_detected:
+                        logging.log(self.loglevel, 'Speech detected')
+                        self._speech_detected = True
+
+                    if probability <= self.audio_threshold and self._speech_detected and time.time() - self._last_update_time > self.pause_threshold:
+                        logging.log(self.loglevel, 'Speech ended')
+                        # If proactive mode is disabled, transcribe mic input only when speech end has been detected
+                        if not self.proactive_mic_mode:
+                            self._current_transcription = self._transcribe(self._audio_buffer)
+                        if self.__save_mic_input:
+                            self._save_audio(self._audio_buffer)
+
+                        self._transcription_ready.set()
+                        self._reset_state()
+
                     # Update transcription periodically during speech
                     elif self._speech_detected:
                         chunk_count += 1
-                        
+
                         # Check for maximum speech duration
                         if (len(self._audio_buffer) / self.SAMPLING_RATE) > self.listen_timeout:
                             logging.warning(f'Listen timeout of {self.listen_timeout} seconds reached. Processing mic input...')
@@ -381,7 +379,6 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                             self._transcription_ready.set()
 
                             self._reset_state()
-                            self._soft_reset_vad()
                         # Regular update during speech
                         elif (self.proactive_mic_mode) and (chunk_count >= self.refresh_freq):
                             logging.debug(f'Transcribing {self.min_refresh_secs} of mic input...')
@@ -391,7 +388,6 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                                 logging.warning(f'Could not transcribe input')
                                 self._transcription_ready.set()
                                 self._reset_state()
-                                self._soft_reset_vad()
 
                             chunk_count = 0  # Reset counter
             
@@ -406,17 +402,6 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 time.sleep(0.1)
 
 
-    def _create_vad_iterator(self) -> VADIterator:
-        """Create a new VAD iterator with configured parameters."""
-        return VADIterator(
-            model=self.vad_model,
-            sampling_rate=self.SAMPLING_RATE,
-            threshold=self.audio_threshold,
-            min_silence_duration_ms=int(self.pause_threshold * 1000),
-            speech_pad_ms = 30 # default
-        )
-
-
     def _create_input_callback(self, q: queue.Queue):
         """Create callback for audio input stream."""
         def input_callback(indata, frames, time, status):
@@ -429,18 +414,11 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         return input_callback
 
 
-    def _soft_reset_vad(self) -> None:
-        """Soft reset VAD iterator without affecting model state."""
-        self.vad_iterator.triggered = False
-        self.vad_iterator.temp_end = 0
-        self.vad_iterator.current_sample = 0
-
-
     def _reset_state(self) -> None:
         """Reset internal state."""
         self._speech_detected = False
         self._audio_buffer = np.array([], dtype=np.float32)
-        self.vad_iterator = self._create_vad_iterator()
+        self.vad = SileroVAD(self.SAMPLING_RATE)
         self._consecutive_empty_count = 0
 
 
