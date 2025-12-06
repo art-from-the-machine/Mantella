@@ -153,13 +153,19 @@ class GameStateManager:
         if not npcs_in_conversation.contains_multiple_npcs(): # actions are only enabled in 1-1 conversations
             for action in self.__config.actions:
                 # if the player response is just the name of an action, force the action to trigger
-                if action.keyword.lower() == cleaned_player_text.lower() and npcs_in_conversation.last_added_character:
+                if action.keyword.lower() == cleaned_player_text.lower().replace(' ','') and npcs_in_conversation.last_added_character:
                     # Handle internal actions that don't go to the game
                     if action.identifier == 'mantella_npc_listen':
                         # Set listen_requested flag so the next player turn has extended pause
                         pause_seconds = FunctionManager.get_action_pause_seconds('mantella_npc_listen')
                         self.__chat_manager.set_listen_requested(pause_seconds)
                         logging.log(23, f"Listen action triggered via keyword: Pause threshold increased to {pause_seconds} seconds for one turn")
+                        break # Don't send to game
+                    
+                    if action.identifier == 'mantella_npc_vision':
+                        # Enable vision for the next LLM call
+                        self.__client.enable_vision_for_next_call()
+                        logging.log(23, "Vision action triggered via keyword: Vision enabled for next LLM call")
                         break # Don't send to game
                     
                     return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCACTION,
