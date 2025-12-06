@@ -21,7 +21,6 @@
         }
     },
     "required": ["source", "target"],
-    "prompt": "If the player asks you to cast a spell, begin your response with '{key}:'",
     "allowed_games": ["skyrim"],
     "requires_response": false,
     "is-interrupting": false,

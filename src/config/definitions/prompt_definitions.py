@@ -64,7 +64,7 @@ class PromptDefinitions:
                                 player_description = a description of the player character (needs to be added in game or using the config value)
                                 player_equipment = a basic description of the equipment the player character carries
                                 equipment = a basic description of the equipment the NPCs carry
-                                actions = instructions for the LLM how to trigger actions"""
+                                actions = instructions for the LLM how to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools)"""
     
     BASE_RADIANT_DESCRIPTION = """The starting prompt sent to the LLM when a radiant conversation is started.
                                 The following are dynamic variables that need to be contained in curly brackets {}:
@@ -79,7 +79,7 @@ class PromptDefinitions:
                                 language = the selected language
                                 conversation_summary = reads the latest conversation summaries for the NPCs stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt
                                 equipment = a basic description of the equipment the NPCs carry
-                                actions = instructions for the LLM to trigger actions"""
+                                actions = instructions for the LLM to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools)"""
 
         
     class PromptChecker(ConfigValueConstraint[str]):

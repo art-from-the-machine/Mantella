@@ -391,7 +391,8 @@ class Context:
         """
         result = ""
         for a in actions:
-            result += a.prompt_text.format(key=a.keyword) + " "
+            if a.prompt_text:
+                result += a.prompt_text.format(key=a.keyword) + "\n"
         return result
     
     @utils.time_it

@@ -13,7 +13,6 @@
         }
     },
     "required": ["source"],
-    "prompt": "If the player asks you to add NPCs to the conversation, begin your response with '{key}:'",
     "allowed_games": ["skyrim"],
     "requires_response": false,
     "is-interrupting": false,
