@@ -1,19 +1,18 @@
 {
-    "identifier": "mantella_npc_wait",
-    "name": "Wait",
-    "description": "Make an NPC(s) wait.",
-    "key": "Wait",
+    "identifier": "mantella_npc_barter",
+    "name": "Barter",
+    "description": "Show what an NPC has for sale.",
+    "key": "Barter",
     "enabled": true,
     "parameters": {
         "source": {
-            "type": "array",
-            "description": "The NPC(s) to make wait.",
-            "items": {"type": "string"},
+            "type": "string",
+            "description": "The NPC to open their barter menu.",
             "scope": "conversation"
         }
     },
     "required": ["source"],
-    "prompt": "To wait, begin your response with '{key}:'.",
+    "prompt": "To show the player what you have for sale, begin your response with '{key}:'.",
     "allowed_games": ["skyrim"],
     "requires_response": false,
     "is-interrupting": false,

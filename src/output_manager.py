@@ -28,6 +28,8 @@ from src.actions.function_manager import FunctionManager
 from src.llm.messages import AssistantMessage, ToolMessage
 from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
+from src.games.gameable import Gameable
+from typing import Callable
 
 class ChatManager:
     def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient):
@@ -39,12 +41,51 @@ class ChatManager:
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
         self.__is_first_sentence: bool = False
+        self.__listen_requested: bool = False
+        self.__on_listen_requested: Callable[[float], None] | None = None  # Callback for Listen action
+        self.__end_conversation_requested: bool = False
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
     @property
     def tts(self) -> TTSable:
         return self.__tts
+    
+    @property
+    def listen_requested(self) -> bool:
+        return self.__listen_requested
+    
+    def set_on_listen_requested(self, callback: Callable[[float], None]) -> None:
+        """Set a callback to be invoked when Listen action is triggered
+        
+        Args:
+            callback: Function that accepts pause_seconds (float) and applies the extended pause
+        """
+        self.__on_listen_requested = callback
+    
+    def set_listen_requested(self, pause_seconds: float = 10.0) -> None:
+        """Set the listen_requested flag and invoke callback if available
+        
+        Args:
+            pause_seconds: The pause duration to apply
+        """
+        self.__listen_requested = True
+        if self.__on_listen_requested:
+            self.__on_listen_requested(pause_seconds)
+    
+    def clear_listen_requested(self) -> None:
+        self.__listen_requested = False
+    
+    @property
+    def end_conversation_requested(self) -> bool:
+        return self.__end_conversation_requested
+    
+    def set_end_conversation_requested(self) -> None:
+        """Set the end_conversation_requested flag when LLM calls EndConversation tool"""
+        self.__end_conversation_requested = True
+    
+    def clear_end_conversation_requested(self) -> None:
+        self.__end_conversation_requested = False
     
     @utils.time_it
     def generate_sentence(self, content: SentenceContent) -> Sentence:
@@ -85,7 +126,7 @@ class ChatManager:
             return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file))
 
     @utils.time_it
-    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action], tools: list[dict] | None):
+    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action], tools: list[dict] | None, game: Gameable | None = None):
         """Starts generating responses by the LLM for the current state of the input messages
 
         Args:
@@ -93,12 +134,13 @@ class ChatManager:
             characters (Characters): _description_
             blocking_queue (SentenceQueue): _description_
             actions (list[Action]): _description_
+            game (Gameable | None): The game instance for resolving action parameters (optional)
         """
         if(not characters.last_added_character):
             return
         self.__is_generating = True
         
-        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions, tools))
+        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions, tools, game))
     
     @utils.time_it
     def stop_generation(self):
@@ -130,7 +172,7 @@ class ChatManager:
             messages.add_message(tool_result_message)
     
     @utils.time_it
-    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], tools: list[dict] | None):
+    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], tools: list[dict] | None, game: Gameable | None = None):
         """Stream response from LLM one sentence at a time"""
 
         raw_response: str = ''  # Track the raw response
@@ -208,8 +250,8 @@ class ChatManager:
                                     self._add_tool_calls_to_history(messages, collected_tool_calls)
                                     tool_calls_added_this_turn = True
                                 
-                                # Parse tool calls to get action identifiers
-                                parsed_tools = FunctionManager.parse_function_calls(collected_tool_calls, characters)
+                                # Parse tool calls
+                                parsed_tools = FunctionManager.parse_function_calls(collected_tool_calls, characters, game)
                                 
                                 # Check if vision was requested - filter it out from game actions
                                 vision_requested = any(
@@ -221,6 +263,29 @@ class ChatManager:
                                     settings.vision_requested = True
                                     # Remove vision from parsed_tools so it doesn't go to the game
                                     parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_npc_vision']
+                                
+                                # Check if listen was requested - filter it out from game actions
+                                listen_requested = any(
+                                    tool.get('identifier') == 'mantella_npc_listen' 
+                                    for tool in parsed_tools if isinstance(tool, dict)
+                                )
+                                if listen_requested:
+                                    pause_seconds = FunctionManager.get_action_pause_seconds('mantella_npc_listen') or 10.0
+                                    logging.log(23, f"Listen action triggered: Pause threshold increased to {pause_seconds} seconds for one turn")
+                                    self.set_listen_requested(pause_seconds)
+                                    # Remove listen from parsed_tools so it doesn't go to the game
+                                    parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_npc_listen']
+                                
+                                # Check if end conversation was requested - filter it out from game actions
+                                end_conversation_requested = any(
+                                    tool.get('identifier') == 'mantella_end_conversation' 
+                                    for tool in parsed_tools if isinstance(tool, dict)
+                                )
+                                if end_conversation_requested:
+                                    logging.log(23, "End conversation action triggered via tool call")
+                                    self.set_end_conversation_requested()
+                                    # Remove end_conversation from parsed_tools so it doesn't go to the game directly
+                                    parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_end_conversation']
                                 
                                 # Send actions immediately as an action-only sentence (if any remain after filtering)
                                 if parsed_tools:

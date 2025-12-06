@@ -11,10 +11,10 @@
         }
     },
     "required": ["location"],
-    "prompt": "To give directions to a location, begin your response with '{key}:'.",
     "allowed_games": ["skyrim"],
     "requires_response": true,
     "is-interrupting": false,
+    "allow_repeat": false,
     "one-on-one": true,
     "multi-npc": true,
     "radiant": false

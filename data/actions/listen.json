@@ -1,0 +1,16 @@
+{
+    "identifier": "mantella_npc_listen",
+    "name": "Listen",
+    "description": "Listen carefully to what the player has to say, allowing them extra time to speak.",
+    "key": "Listen",
+    "enabled": true,
+    "prompt": "To listen attentively to the player, allowing them more time to formulate their response, begin your response with '{key}:'.",
+    "pause_seconds": 10.0,
+    "allowed_games": ["skyrim", "fallout4"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": true,
+    "one-on-one": false,
+    "multi-npc": false,
+    "radiant": false
+}

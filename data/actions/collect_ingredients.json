@@ -1,19 +1,19 @@
 {
-    "identifier": "mantella_npc_loot",
-    "name": "Loot",
-    "description": "Make NPC(s) loot items in the area.",
-    "key": "Loot",
+    "identifier": "mantella_npc_collectingredients",
+    "name": "CollectIngredients",
+    "description": "Make NPC(s) collect ingredients in the area.",
+    "key": "CollectIngredients",
     "enabled": true,
     "parameters": {
         "source": {
             "type": "array",
-            "description": "The NPC(s) who will loot items in the area.",
+            "description": "The NPC(s) who will collect ingredients in the area.",
             "items": {"type": "string"},
             "scope": "conversation"
         }
     },
     "required": ["source"],
-    "prompt": "If the player asks you to loot, begin your response with '{key}:'",
+    "prompt": "If the player asks you to collect ingredients, begin your response with '{key}:'",
     "allowed_games": ["skyrim"],
     "requires_response": false,
     "is-interrupting": false,

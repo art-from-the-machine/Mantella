@@ -1,0 +1,32 @@
+{
+    "identifier": "mantella_npc_travelto",
+    "name": "TravelTo",
+    "description": "Make NPC(s) travel to a specific location.",
+    "key": "TravelTo",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "array",
+            "description": "The NPC(s) who will travel.",
+            "items": {"type": "string"},
+            "scope": "conversation"
+        },
+        "location": {
+            "type": "string",
+            "description": "The location to travel to."
+        },
+        "leave_now": {
+            "type": "boolean",
+            "description": "If true, the NPC(s) will leave immediately instead of waiting for the conversation to end.",
+            "default": false
+        }
+    },
+    "required": ["source", "location"],
+    "allowed_games": ["skyrim"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}

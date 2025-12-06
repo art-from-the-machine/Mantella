@@ -39,7 +39,7 @@ class Summaries(Remembering):
         paragraphs = []
         for character in npcs_in_conversation.get_all_characters():
             if not character.is_player_character:          
-                conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)      
+                conversation_summary_file = self.__get_latest_conversation_summary_file_path(character.name, character.ref_id, world_id)      
                 if os.path.exists(conversation_summary_file):
                     with open(conversation_summary_file, 'r', encoding='utf-8') as f:
                         for line in f:
@@ -53,30 +53,52 @@ class Summaries(Remembering):
             return ""
 
     @utils.time_it
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False):
+    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None):
         summary = ''
+        
         for npc in npcs_in_conversation.get_all_characters():
             if not npc.is_player_character:
                 if len(summary) < 1: # if a summary has not already been generated, make one
                     summary = self.__create_new_conversation_summary(messages, npc.name)
                 if len(summary) > 0 or is_reload: # if a summary has been generated, give the same summary to all NPCs
-                    self.__append_new_conversation_summary(summary, npc, world_id)
+                    self.__append_new_conversation_summary(summary, npc.name, npc.ref_id, world_id)
+        
+        # Handle pending shares: write summary with prefix to recipient folders
+        if pending_shares and len(summary) > 0:
+            for sharer_name, recipient_name, recipient_ref_id in pending_shares:
+                # Build participant names list, excluding the sharer and annotating the player
+                participant_names = []
+                for npc in npcs_in_conversation.get_all_characters():
+                    if npc.name == sharer_name:
+                        continue  # Exclude sharer from participant list
+                    if npc.is_player_character:
+                        participant_names.append(f"{npc.name} (the player)")
+                    else:
+                        participant_names.append(npc.name)
+                
+                # Create prefixed summary
+                participants_text = ", ".join(participant_names) if participant_names else "others"
+                prefixed_summary = f"{sharer_name} shared with {recipient_name} a conversation with {participants_text}:\n{summary}"
+                
+                self.__append_new_conversation_summary(prefixed_summary, recipient_name, recipient_ref_id, world_id)
+                logging.info(f"Shared conversation summary with {recipient_name}")
 
     @utils.time_it
-    def __get_latest_conversation_summary_file_path(self, character: Character, world_id: str) -> str:
+    def __get_latest_conversation_summary_file_path(self, npc_name: str, npc_ref_id: str, world_id: str) -> str:
         """
         Get the path to the latest conversation summary file, prioritizing name_ref folders over legacy name folders.
         
         Args:
-            character: Character object containing name and ref_id
+            npc_name: Name of the NPC
+            npc_ref_id: The ref_id of the NPC
             world_id: ID of the game world
         
         Returns:
             str: Path to the latest conversation summary file
         """
         # Remove trailing numbers from character names (e.g., "Whiterun Guard 1" -> "Whiterun Guard")
-        base_name: str = utils.remove_trailing_number(character.name)
-        name_ref: str = f'{base_name} - {character.ref_id}'
+        base_name: str = utils.remove_trailing_number(npc_name)
+        name_ref: str = f'{base_name} - {npc_ref_id}'
         
         def get_folder_path(folder_name: str) -> str:
             return os.path.join(self.__game.conversation_folder_path, world_id, folder_name).replace(os.sep, '/')
@@ -131,9 +153,9 @@ class Summaries(Remembering):
         return ""
 
     @utils.time_it
-    def __append_new_conversation_summary(self, new_summary: str, npc: Character, world_id: str):
+    def __append_new_conversation_summary(self, new_summary: str, npc_name: str, npc_ref_id: str, world_id: str):
         # if this is not the first conversation
-        conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc, world_id)
+        conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc_name, npc_ref_id, world_id)
         if os.path.exists(conversation_summary_file):
             with open(conversation_summary_file, 'r', encoding='utf-8') as f:
                 previous_conversation_summaries = f.read()
@@ -160,11 +182,11 @@ class Summaries(Remembering):
             while True:
                 try:
                     prompt = self.__resummarize_prompt.format(
-                        name=npc.name,
+                        name=npc_name,
                         language=self.__language_name,
                         game=self.__game.game_name_in_filepath
                     )
-                    long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt, npc.name)
+                    long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt, npc_name)
                     break
                 except:
                     logging.error('Failed to summarize conversation. Retrying...')
@@ -180,8 +202,6 @@ class Summaries(Remembering):
 
             with open(new_conversation_summary_file, 'w', encoding='utf-8') as f:
                 f.write(long_conversation_summary)
-            
-            # npc.conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc)
 
     @utils.time_it
     def summarize_conversation(self, text_to_summarize: str, prompt: str, npc_name: str) -> str:

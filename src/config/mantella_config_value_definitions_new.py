@@ -101,6 +101,10 @@ class MantellaConfigValueDefinitionsNew:
         stt_category.add_config_value(STTDefinitions.get_stt_translate_config_value())
         stt_category.add_config_value(STTDefinitions.get_process_device_config_value())
         stt_category.add_config_value(STTDefinitions.get_moonshine_folder_config_value(is_integrated))
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_enabled_config_value())
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_timeout_config_value())
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_max_count_config_value())
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_message_config_value())
         result.add_base_group(stt_category)
 
         vision_category = ConfigValueGroup("Vision", "Vision", "Vision settings.", on_value_change_callback)
@@ -146,7 +150,9 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_vision_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_function_llm_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_radiant_start_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_radiant_continue_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_radiant_max_turns_config_value())
         result.add_base_group(prompts_category)
 
         startup_category = ConfigValueGroup("Startup", "Startup", "Startup settings.", on_value_change_callback)

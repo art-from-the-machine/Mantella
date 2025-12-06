@@ -31,9 +31,10 @@ class Conversation:
     TOKEN_LIMIT_PERCENT: float = 0.9
     TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
     """Controls the flow of a conversation."""
-    def __init__(self, context_for_conversation: Context, output_manager: ChatManager, rememberer: Remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool) -> None:
+    def __init__(self, context_for_conversation: Context, output_manager: ChatManager, rememberer: Remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool, game = None) -> None:
         
         self.__context: Context = context_for_conversation
+        self.__game = game
         self.__mic_input: bool = mic_input
         self.__mic_ptt: bool = mic_ptt
         self.__allow_interruption: bool = context_for_conversation.config.allow_interruption # allow mic interruption
@@ -41,6 +42,14 @@ class Conversation:
         self.__stt: Transcriber | None = stt
         self.__events_refresh_time: float = context_for_conversation.config.events_refresh_time  # Time in seconds before events are considered stale
         self.__transcribed_text: str | None = None
+        
+        # Silence auto-response settings
+        self.__silence_auto_response_enabled: bool = context_for_conversation.config.silence_auto_response_enabled
+        self.__silence_auto_response_timeout: float = context_for_conversation.config.silence_auto_response_timeout
+        self.__silence_auto_response_message: str = context_for_conversation.config.silence_auto_response_message
+        self.__silence_auto_response_max_count: int = context_for_conversation.config.silence_auto_response_max_count
+        self.__silence_auto_response_count: int = 0  # Track consecutive silent responses
+        
         if not self.__context.npcs_in_conversation.contains_player_character(): # TODO: fix this being set to a radiant conversation because of NPCs in conversation not yet being added
             self.__conversation_type: conversation_type = radiant(context_for_conversation.config)
         else:
@@ -54,6 +63,11 @@ class Conversation:
         self.__sentences: SentenceQueue = SentenceQueue()
         self.__generation_thread: Thread | None = None
         self.__generation_start_lock: Lock = Lock()
+        
+        # Set up Listen action callback to apply extended pause to STT
+        if stt:
+            self.__output_manager.set_on_listen_requested(lambda pause_secs: stt.set_temporary_pause(pause_secs))
+        
         # self.__actions: list[Action] = actions
         self.last_sentence_audio_length = 0
         self.last_sentence_start_time = time.time()
@@ -102,6 +116,7 @@ class Conversation:
         """
         greeting: UserMessage | None = self.__conversation_type.get_user_message(self.__context, self.__messages)
         if greeting:
+            greeting = self.update_game_events(greeting)
             self.__messages.add_message(greeting)
             self.__start_generating_npc_sentences()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, None
@@ -159,6 +174,11 @@ class Conversation:
             self.last_sentence_start_time = time.time()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, next_sentence
         else:
+            # Check if end conversation was requested via tool call
+            if self.__output_manager.end_conversation_requested:
+                self.__output_manager.clear_end_conversation_requested()
+                self.initiate_end_sequence()
+                return comm_consts.KEY_REPLYTYPE_NPCTALK, None
             #Ask the conversation type here, if we should end the conversation
             if self.__conversation_type.should_end(self.__context, self.__messages):
                 self.initiate_end_sequence()
@@ -196,13 +216,39 @@ class Conversation:
             # If the player's input does not already exist, parse mic input if mic is enabled
             if self.__mic_input and len(player_text) == 0:
                 player_text = None
+                
+                listen_mode_active = self.__output_manager.listen_requested
+                if listen_mode_active:
+                    self.__output_manager.clear_listen_requested()
+                
                 if not self.__stt.is_listening and self.__allow_mic_input:
                     self.__stt.start_listening(self.__get_mic_prompt())
+                
+                # Use timeout if timeout is enabled, max count is not reached, and Listen mode is not active
+                use_silence_timeout = (self.__silence_auto_response_enabled and 
+                                       self.__silence_auto_response_count < self.__silence_auto_response_max_count and
+                                       not listen_mode_active)
+                silence_timeout = self.__silence_auto_response_timeout if use_silence_timeout else 0
                 
                 # Start tracking how long it has taken to receive a player response
                 input_wait_start_time = time.time()
                 while not player_text:
-                    player_text = self.__stt.get_latest_transcription()
+                    player_text = self.__stt.get_latest_transcription(silence_timeout=silence_timeout)
+                    
+                    # Handle silence timeout (None returned)
+                    if player_text is None:
+                        self.__silence_auto_response_count += 1
+                        logging.log(23, f"Player silent for {self.__silence_auto_response_timeout} seconds. Auto-response count: {self.__silence_auto_response_count}/{self.__silence_auto_response_max_count}")
+                        player_text = self.__silence_auto_response_message
+                        
+                        # If max count reached, log that auto-response is now disabled
+                        if self.__silence_auto_response_count >= self.__silence_auto_response_max_count:
+                            logging.log(23, f"Max consecutive silence count ({self.__silence_auto_response_max_count}) reached. Auto-response disabled until player speaks")
+                        break
+                    elif player_text:
+                        # Player spoke -> reset the silence counter
+                        self.__silence_auto_response_count = 0
+                    
                 if time.time() - input_wait_start_time >= self.__events_refresh_time:
                     # If too much time has passed, in-game events need to be updated
                     events_need_updating = True
@@ -408,8 +454,8 @@ class Conversation:
                 # Generate tools if advanced actions are enabled
                 tools = None
                 if self.context.config.advanced_actions_enabled and allow_tool_use:
-                    tools = FunctionManager.generate_context_aware_tools(self.__context)
-                self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions, tools]).start()
+                    tools = FunctionManager.generate_context_aware_tools(self.__context, self.__game)
+                self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions, tools, self.__game]).start()
 
     @utils.time_it
     def __stop_generation(self):
@@ -440,10 +486,17 @@ class Conversation:
     def __save_conversations_for_characters(self, characters_to_save_for: list[Character], is_reload: bool):
         characters_object = Characters()
         for npc in characters_to_save_for:
+            characters_object.add_or_update_character(npc)
             if not npc.is_player_character:
-                characters_object.add_or_update_character(npc)
                 conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
-        self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload)
+        
+        # Get and clear pending shares (only on final save, not reload)
+        pending_shares = None
+        if not is_reload:
+            pending_shares = self.__context.npcs_in_conversation.get_pending_shares()
+            self.__context.npcs_in_conversation.clear_pending_shares()
+        
+        self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload, pending_shares)
 
     @utils.time_it
     def __initiate_reload_conversation(self):

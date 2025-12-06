@@ -1,0 +1,31 @@
+{
+    "identifier": "mantella_npc_leadto",
+    "name": "LeadTo",
+    "description": "Make NPC lead another NPC (or the player) to a specific location.",
+    "key": "LeadTo",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "string",
+            "description": "The NPC who will lead the way.",
+            "scope": "conversation"
+        },
+        "target": {
+            "type": "string",
+            "description": "The NPC (or player) who will be led.",
+            "scope": "conversation_w_player"
+        },
+        "location": {
+            "type": "string",
+            "description": "The location to travel to."
+        }
+    },
+    "required": ["source", "target", "location"],
+    "allowed_games": ["skyrim"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}

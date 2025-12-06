@@ -1,0 +1,29 @@
+{
+    "identifier": "mantella_npc_emote",
+    "name": "Emote",
+    "description": "Make NPC(s) perform an emote animation.",
+    "key": "Emote",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "array",
+            "description": "The NPC(s) who will perform the emote.",
+            "items": {"type": "string"},
+            "scope": "conversation"
+        },
+        "emote_name": {
+            "type": "string",
+            "description": "The emote to perform.",
+            "enum_source": "idles",
+            "resolve_to_id": "idle"
+        }
+    },
+    "required": ["source", "emote_name"],
+    "allowed_games": ["skyrim"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": true,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}

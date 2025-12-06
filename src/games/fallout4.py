@@ -1,10 +1,11 @@
 import logging
 import os
 import shutil
-from typing import Any
+from typing import Any, TYPE_CHECKING
 import pandas as pd
 from src.http.file_communication_compatibility import file_communication_compatibility
-from src.conversation.context import Context
+if TYPE_CHECKING:
+    from src.conversation.context import Context
 #from src.audio.audio_playback import audio_playback
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
@@ -183,7 +184,7 @@ class Fallout4(Gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: Context, config: ConfigLoader, topicID: int, isFirstLine: bool):
+    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: 'Context', config: ConfigLoader, topicID: int, isFirstLine: bool):
         audio_file = queue_output.voice_file
         if not os.path.exists(audio_file):
             return

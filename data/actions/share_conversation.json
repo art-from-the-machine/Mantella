@@ -1,0 +1,27 @@
+{
+    "identifier": "mantella_npc_shareconversation",
+    "name": "ShareConversation",
+    "description": "Share this conversation with an NPC who is not present once the conversation ends. They will remember what was discussed.",
+    "key": "ShareConversation",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "string",
+            "description": "The NPC in the conversation who will share the conversation details.",
+            "scope": "conversation"
+        },
+        "recipient": {
+            "type": "string",
+            "description": "The name of the NPC to share the conversation with.",
+            "resolve_to_id": "npc"
+        }
+    },
+    "required": ["source", "recipient"],
+    "allowed_games": ["skyrim"],
+    "requires_response": true,
+    "is-interrupting": false,
+    "allow_repeat": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}

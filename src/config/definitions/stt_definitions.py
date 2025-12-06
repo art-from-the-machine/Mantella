@@ -136,3 +136,24 @@ class STTDefinitions:
     def get_moonshine_folder_config_value(is_hidden: bool = False) -> ConfigValue:
         description = "The folder where Moonshine models are installed (where tiny/ and base/ folders exist)."
         return ConfigValueString("moonshine_folder", "Moonshine Folder", description, "", is_hidden=is_hidden, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_silence_auto_response_enabled_config_value() -> ConfigValue:
+        description = """If enabled, the AI will automatically generate a response if the player is silent for a period of time."""
+        return ConfigValueBool("silence_auto_response_enabled", "Auto-Response on Silence", description, False, tags=[ConfigValueTag.advanced])
+    
+    @staticmethod
+    def get_silence_auto_response_timeout_config_value() -> ConfigValue:
+        description = """How long to wait (in seconds) for the player to speak before automatically generating a response."""
+        return ConfigValueFloat("silence_auto_response_timeout", "Silence Timeout", description, 30.0, 1, 999, tags=[ConfigValueTag.advanced, ConfigValueTag.share_row])
+    
+    @staticmethod
+    def get_silence_auto_response_max_count_config_value() -> ConfigValue:
+        description = """The maximum number of consecutive auto-responses before auto-response is disabled (until the player speaks again).
+                        This is mainly to prevent runaway API costs if the player leaves the conversation running unattended."""
+        return ConfigValueInt("silence_auto_response_max_count", "Max Consecutive Silences", description, 5, 1, 999, tags=[ConfigValueTag.advanced, ConfigValueTag.share_row])
+    
+    @staticmethod
+    def get_silence_auto_response_message_config_value() -> ConfigValue:
+        description = """The message sent to the AI when the player is silent."""
+        return ConfigValueString("silence_auto_response_message", "Silence Message", description, "...", tags=[ConfigValueTag.advanced])

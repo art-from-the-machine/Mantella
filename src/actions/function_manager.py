@@ -1,20 +1,24 @@
 import logging
 import json
 from pathlib import Path
+from copy import deepcopy
 from openai.types.chat.chat_completion_message import ChatCompletionMessageToolCall
 from src.characters_manager import Characters
 from src.conversation.action import Action
+from src.games.gameable import Gameable
 
 class FunctionManager:
     _actions: dict[str, dict] = {}  # Map identifier -> action data
+    _last_tool_calls: list[dict] = []  # Cache of last turn's parsed tool calls for duplicate filtering
 
     @staticmethod
-    def parse_function_calls(tools_called: list[ChatCompletionMessageToolCall], characters: Characters = None) -> list[dict]:
+    def parse_function_calls(tools_called: list[ChatCompletionMessageToolCall], characters: Characters = None, game: Gameable | None = None) -> list[dict]:
         """Parse function calls from the LLM response and validate arguments
         
         Args:
             tools_called: The result from the LLM
             characters: Characters manager for NPC name validation (optional)
+            game: Game instance for resolving game-specific parameters like idle IDs (optional)
             
         Returns:
             List of parsed function call information with validated parameters
@@ -52,15 +56,15 @@ class FunctionManager:
                     # Validate that arguments match the schema
                     validated_args = FunctionManager._validate_arguments_against_schema(parsed_arguments, defined_params, identifier)
                     
-                    # Validate entity names (NPCs, items, etc.) based on their scope
-                    if characters:
+                    # Validate entity names and resolve IDs based on parameter definitions
+                    if validated_args:
                         for param_name, param_value in list(validated_args.items()):
-                            # Get the parameter definition to check its scope
                             param_def = defined_params.get(param_name, {})
                             scope: str | None = param_def.get('scope')
+                            resolve_type: str | None = param_def.get('resolve_to_id')
                             
-                            # Validate parameters with scopes
-                            if scope:
+                            # Validate parameters with scopes (NPC names, etc.)
+                            if scope and characters:
                                 # Ensure the value is a list for easier validation
                                 entity_names = param_value if isinstance(param_value, list) else [param_value]
 
@@ -68,34 +72,48 @@ class FunctionManager:
                                     # Determine validation flags based on scope
                                     include_player = scope.endswith('_w_player')
                                     include_nearby = scope.startswith('nearby') or scope.startswith('all_npcs')
+                                    nearby_only = scope.startswith('nearby')
                                     
                                     # Validate the NPC names
                                     validated_entities = FunctionManager._validate_npc_names(
                                         entity_names, 
                                         characters, 
                                         exclude_player=not include_player,
-                                        include_nearby=include_nearby
+                                        include_nearby=include_nearby,
+                                        nearby_only=nearby_only
                                     )
                                     
-                                # Update the validated args with the validated list
-                                # Preserve the original type (string or list)
-                                if isinstance(param_value, list):
-                                    # For arrays, check if we have any valid entities
-                                    if validated_entities:
-                                        validated_args[param_name] = validated_entities
+                                    # Update the validated args with the validated list
+                                    # Preserve the original type (string or list)
+                                    if isinstance(param_value, list):
+                                        if validated_entities:
+                                            validated_args[param_name] = validated_entities
+                                        else:
+                                            logging.warning(f"Skipping action '{identifier}' - no valid entities for parameter '{param_name}'")
+                                            validated_args = None
+                                            break
                                     else:
-                                        # No valid entities found in array, skip this action
-                                        logging.warning(f"Skipping action '{identifier}' - no valid entities for parameter '{param_name}'")
-                                        validated_args = None  # Mark as skipped
-                                        break
+                                        if validated_entities:
+                                            validated_args[param_name] = validated_entities[0]
+                                        else:
+                                            logging.warning(f"Skipping action '{identifier}' - no valid entities for parameter '{param_name}'")
+                                            validated_args = None
+                                            break
+                            
+                            # Resolve parameters to game IDs (eg idle names to FormIDs, NPC names to ref_ids)
+                            if resolve_type and game and validated_args:
+                                resolved_value = FunctionManager._resolve_parameter_to_id(param_value, resolve_type, game)
+                                if resolved_value is not None:
+                                    # Add resolved ID as new argument with _id suffix
+                                    validated_args[f"{param_name}_id"] = resolved_value
+                                    validated_args[f'{param_name}_succeeded'] = True
                                 else:
-                                    # Single string expected, take first valid or skip action if not present
-                                    if validated_entities:
-                                        validated_args[param_name] = validated_entities[0]
+                                    # For NPC resolution, add failure feedback but don't skip the action
+                                    if resolve_type == 'npc':
+                                        validated_args[f'{param_name}_succeeded'] = False
                                     else:
-                                        # No valid entities found, skip this action
-                                        logging.warning(f"Skipping action '{identifier}' - no valid entities for parameter '{param_name}'")
-                                        validated_args = None  # Mark as skipped
+                                        logging.warning(f"Skipping action '{identifier}' - could not resolve '{param_value}' to {resolve_type} ID")
+                                        validated_args = None
                                         break
 
                     # Only add the parsed tool if validation didn't fail
@@ -109,9 +127,21 @@ class FunctionManager:
                         if validated_args:
                             parsed_tool['arguments'] = validated_args
                         
+                        # Check for duplicate tool call from previous turn
+                        if FunctionManager._is_duplicate_call(parsed_tool, action_def):
+                            logging.log(23, f"Filtered duplicate tool call: {identifier} with args {parsed_tool.get('arguments', {})}")
+                            continue
+                        
+                        # Handle action-specific side effects
+                        FunctionManager._handle_action_side_effects(parsed_tool, identifier, characters)
+                        
                         parsed_tools.append(parsed_tool)
                 except Exception as e:
                     logging.error(f"Error parsing function call: {e}")
+        
+        # Update cache with this turn's tool calls
+        if len(parsed_tools) > 0:
+            FunctionManager._last_tool_calls = parsed_tools
         
         return parsed_tools
 
@@ -128,6 +158,7 @@ class FunctionManager:
             return
 
         FunctionManager._actions.clear()
+        FunctionManager._last_tool_calls = []
 
         # Load top-level action files
         for file_path in actions_dir.glob("*.json"):
@@ -198,8 +229,13 @@ class FunctionManager:
 
 
     @staticmethod
-    def generate_context_aware_tools(context) -> list[dict]:
-        """Generate OpenAI tools based on current conversation context"""
+    def generate_context_aware_tools(context, game: Gameable = None) -> list[dict]:
+        """Generate OpenAI tools based on current conversation context
+        
+        Args:
+            context: The conversation context
+            game: The Gameable instance for game-specific operations (e.g., idle lookups)
+        """
         tools = []
         
         for action in FunctionManager._actions.values():
@@ -236,12 +272,17 @@ class FunctionManager:
             if 'parameters' in action:
                 tool['function']['parameters'] = {}
                 tool['function']['parameters']['type'] = 'object'
-                tool['function']['parameters']['properties'] = action['parameters']
+                tool['function']['parameters']['properties'] = deepcopy(action['parameters'])
                 if 'required' in action:
                     tool['function']['parameters']['required'] = action['required']
                 
-                # Add NPC context to source/target parameters
-                FunctionManager._add_npc_context_to_parameters(tool['function']['parameters'], context)
+                # Populate dynamic enums and clean internal fields
+                if not FunctionManager._populate_dynamic_enums(tool['function']['parameters'], game, action['identifier']):
+                    continue
+                
+                # Add context-aware entity listings, skipping tools when no scoped params have available entities
+                if not FunctionManager._add_npc_context_to_parameters(tool['function']['parameters'], context):
+                    continue
 
             tools.append(tool)
 
@@ -281,9 +322,62 @@ class FunctionManager:
 
 
     @staticmethod
+    def _is_duplicate_call(parsed_tool: dict, action_def: dict) -> bool:
+        """Check if this tool call is a duplicate of one from the previous turn"""
+        if action_def.get('allow_repeat', False):
+            return False
+        
+        for last_call in FunctionManager._last_tool_calls:
+            if (parsed_tool.get('identifier') == last_call.get('identifier') and
+                parsed_tool.get('arguments', {}) == last_call.get('arguments', {})):
+                return True
+        return False
+
+    @staticmethod
     def is_vision_action_active() -> bool:
         """Return True if the Vision action is loaded and enabled"""
         return 'mantella_npc_vision' in FunctionManager._actions
+
+    @staticmethod
+    def get_action_pause_seconds(identifier: str) -> float:
+        """Get the pause_seconds value for an action if defined (Listen action)
+        
+        Args:
+            identifier: The action identifier
+            
+        Returns:
+            The pause_seconds value if defined, otherwise a default value
+        """
+        default_seconds = 10
+        action = FunctionManager._actions.get(identifier)
+        if not action:
+            return default_seconds
+        return action.get('pause_seconds', default_seconds)
+
+    @staticmethod
+    def _handle_action_side_effects(parsed_tool: dict, identifier: str, characters: Characters | None) -> None:
+        """Handle action-specific side effects after parsing
+        
+        Args:
+            parsed_tool: The parsed tool dict with 'identifier' and 'arguments'
+            identifier: The action identifier
+            characters: The Characters manager (may be None)
+        """
+        # ShareConversation: store pending share for end of conversation
+        if identifier == 'mantella_npc_shareconversation' and characters:
+            args = parsed_tool.get('arguments', {})
+            if args.get('recipient_succeeded') and args.get('recipient_id'):
+                sharer_name = args.get('source', '')
+                recipient_name = args.get('recipient', '')
+                recipient_id = args.get('recipient_id', '')
+                was_added = characters.add_pending_share(sharer_name, recipient_name, recipient_id)
+                if was_added:
+                    args['debug_message'] = f"{sharer_name} will share this conversation with {recipient_name}."
+                else:
+                    args['debug_message'] = f"This conversation will already be shared with {recipient_name}."
+            else:
+                recipient_name = args.get('recipient', 'recipient')
+                args['debug_message'] = f"Could not find '{recipient_name}' to share conversation with."
 
 
     @staticmethod
@@ -316,7 +410,7 @@ class FunctionManager:
 
 
     @staticmethod
-    def _validate_npc_names(npc_names: list[str], characters: Characters, exclude_player: bool = True, include_nearby: bool = False) -> list[str]:
+    def _validate_npc_names(npc_names: list[str], characters: Characters, exclude_player: bool = True, include_nearby: bool = False, nearby_only: bool = False) -> list[str]:
         """Validate that NPC names exist based on scope
         
         Args:
@@ -324,6 +418,7 @@ class FunctionManager:
             characters: Characters manager containing character and nearby NPC information
             exclude_player: If True, filter out player character (default: True)
             include_nearby: If True, validate against conversation + nearby NPCs (default: False)
+            nearby_only: If True, only allow nearby NPC names (default: False)
             
         Returns:
             List of valid, unique NPC names
@@ -337,7 +432,8 @@ class FunctionManager:
         # Get all valid names based on scope
         valid_name_list = characters.get_all_names_w_nearby(
             include_player = not exclude_player,
-            include_nearby = include_nearby
+            include_nearby = include_nearby,
+            nearby_only = nearby_only
         )
         
         # Build case-insensitive lookup: lowercase -> actual name
@@ -365,18 +461,57 @@ class FunctionManager:
                 valid_names.append(llm_name)
                 seen_lower.add(llm_lower)
             else:
-                available = "conversation" if not include_nearby else "conversation + nearby"
-                logging.warning(f"NPC name '{llm_name}' not found in {available}. Available NPCs: {list(char_names_lower.values())}")
+                if nearby_only:
+                    available = "nearby"
+                else:
+                    available = "in conversation" if not include_nearby else "in conversation + nearby"
+                logging.warning(f"NPC name '{llm_name}' not found {available}. Available NPCs: {list(char_names_lower.values())}")
         
         return valid_names
 
 
     @staticmethod
-    def _add_npc_context_to_parameters(parameters: dict, context) -> None:
+    def _populate_dynamic_enums(parameters: dict, game: Gameable, action_identifier: str) -> bool:
+        """Populate dynamic enum values and clean internal fields from parameter schema
+        
+        Returns True when the tool should remain available,
+        False when an enum_source has no available values (skip the action)
+        
+        Args:
+            parameters: The 'parameters' dict from the tool schema
+            game: The Gameable instance for game-specific lookups
+            action_identifier: Action name for logging purposes
+        """
+        if 'properties' not in parameters:
+            return True
+        
+        for param_name, param_def in parameters['properties'].items():
+            enum_source = param_def.get('enum_source')
+            if enum_source:
+                enum_values = FunctionManager._get_enum_values_for_source(enum_source, game)
+                if enum_values:
+                    param_def['enum'] = enum_values
+                else:
+                    logging.warning(f"Skipping action '{action_identifier}' - no enum values for source '{enum_source}'")
+                    return False
+                # Remove enum_source from the schema as the LLM doesn't need to see it
+                del param_def['enum_source']
+            
+            # Remove resolve_to_id from schema as the LLM doesn't need to see it
+            if 'resolve_to_id' in param_def:
+                del param_def['resolve_to_id']
+        
+        return True
+
+
+    @staticmethod
+    def _add_npc_context_to_parameters(parameters: dict, context) -> bool:
         """Add available NPC context to parameters based on their scope
         
         This function enhances parameter descriptions with lists of available entities
         based on the 'scope' property defined in the action JSON.
+        Returns True when the tool should remain available, 
+        ie it has at least one scoped parameter with entities available (or has no scoped parameters at all)
         
         Supported scopes for NPCs:
         - 'conversation': NPCs in conversation (excludes player)
@@ -387,15 +522,20 @@ class FunctionManager:
         - 'all_npcs_w_player': Everyone (conversation + nearby, includes player)
         """
         if 'properties' not in parameters:
-            return
+            return True
 
         # Process each parameter that has a scope defined
+        scoped_params = 0
+        scoped_with_entities = 0
+        has_unscoped_params = False
         for param_name, param_def in parameters['properties'].items():
             scope = param_def.get('scope')
             
             # Skip parameters without scope (not entity references)
             if not scope:
+                has_unscoped_params = True
                 continue
+            scoped_params += 1
             
             current_desc = param_def.get('description', '')
             
@@ -405,6 +545,15 @@ class FunctionManager:
             # Append entity list to parameter description for LLM context
             if entity_list:
                 param_def['description'] = f"{current_desc} Available: {entity_list}".strip()
+                scoped_with_entities += 1
+            else:
+                param_def['description'] = f"{current_desc} No entities available."
+        
+        if scoped_params == 0:
+            return True
+        if scoped_with_entities > 0:
+            return True
+        return has_unscoped_params
     
     
     @staticmethod
@@ -432,3 +581,50 @@ class FunctionManager:
         else:
             logging.warning(f"Unknown scope '{scope}'. No entities will be added to parameter description.")
             return ""
+
+
+    @staticmethod
+    def _get_enum_values_for_source(enum_source: str, game: Gameable) -> list[str]:
+        """Get enum values from a dynamic source
+        
+        Args:
+            enum_source: Source identifier (eg 'idles')
+            game: The Gameable instance for game-specific lookups
+            
+        Returns:
+            List of enum values, or empty list if source unknown or unavailable
+        """
+        if not game:
+            logging.warning(f"No game instance available for enum source lookup '{enum_source}'")
+            return []
+        elif enum_source == 'idles':
+            # Get enabled idle names from the game's idle table
+            if hasattr(game, 'get_enabled_idle_names'):
+                return game.get_enabled_idle_names()
+            else:
+                logging.warning(f"Game does not support idle enum source")
+                return []
+        else:
+            logging.warning(f"Unknown enum_source '{enum_source}'")
+            return []
+
+
+    @staticmethod
+    def _resolve_parameter_to_id(value: str, resolve_type: str, game: Gameable) -> str | None:
+        """Resolve a parameter value to its in-game ID
+        
+        Args:
+            value: The parameter value to resolve (eg idle name or NPC name)
+            resolve_type: Type of resolution ('idle' or 'npc')
+            game: The Gameable instance for game-specific lookups
+            
+        Returns:
+            The resolved ID string, or None if resolution failed
+        """
+        resolved_id = None
+        if resolve_type == 'idle':
+            if hasattr(game, 'resolve_idle_id'):
+                resolved_id =  game.resolve_idle_id(value)
+        elif resolve_type == 'npc':
+            resolved_id = game.resolve_npc_refid_by_name(value)
+        return resolved_id

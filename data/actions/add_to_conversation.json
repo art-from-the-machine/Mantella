@@ -1,24 +1,23 @@
 {
-    "identifier": "mantella_npc_wait",
-    "name": "Wait",
-    "description": "Make an NPC(s) wait.",
-    "key": "Wait",
+    "identifier": "mantella_npc_addtoconversation",
+    "name": "AddToConversation",
+    "description": "Add nearby NPC(s) to the conversation.",
+    "key": "AddToConversation",
     "enabled": true,
     "parameters": {
         "source": {
             "type": "array",
-            "description": "The NPC(s) to make wait.",
+            "description": "The NPC(s) to add to the conversation.",
             "items": {"type": "string"},
-            "scope": "conversation"
+            "scope": "nearby_w_player"
         }
     },
     "required": ["source"],
-    "prompt": "To wait, begin your response with '{key}:'.",
     "allowed_games": ["skyrim"],
     "requires_response": false,
     "is-interrupting": false,
     "allow_repeat": false,
     "one-on-one": true,
     "multi-npc": true,
-    "radiant": false
+    "radiant": true
 }

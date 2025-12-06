@@ -1,19 +1,19 @@
 {
-    "identifier": "mantella_npc_wait",
-    "name": "Wait",
-    "description": "Make an NPC(s) wait.",
-    "key": "Wait",
+    "identifier": "mantella_npc_unfollow",
+    "name": "Unfollow",
+    "description": "Make NPC(s) stop following the player.",
+    "key": "Unfollow",
     "enabled": true,
     "parameters": {
         "source": {
             "type": "array",
-            "description": "The NPC(s) to make wait.",
+            "description": "The NPC(s) to stop following.",
             "items": {"type": "string"},
             "scope": "conversation"
         }
     },
     "required": ["source"],
-    "prompt": "To wait, begin your response with '{key}:'.",
+    "prompt": "If the player asks you to stop following them, begin your response with '{key}:'",
     "allowed_games": ["skyrim"],
     "requires_response": false,
     "is-interrupting": false,
