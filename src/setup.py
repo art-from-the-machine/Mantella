@@ -27,7 +27,7 @@ class MantellaSetup:
         
         logging.log(23, f'''Mantella.exe running in: 
     {os.getcwd()}
-    config.ini, logging.log, and conversation histories available in:
+config.ini, logging.log, and conversation histories available in:
     {self.save_folder}''')
         logging.log(23, f'''Mantella currently running for {self.config.game.display_name}. Mantella mod files located in: 
     {self.config.mod_path}''')
