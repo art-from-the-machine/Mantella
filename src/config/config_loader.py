@@ -303,6 +303,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")
             self.radiant_max_turns = self.__definitions.get_int_value("radiant_max_turns")
             self.memory_prompt = self.__definitions.get_string_value("memory_prompt")
+            self.memory_prompt_datetime_prefix = self.__definitions.get_bool_value("memory_prompt_datetime_prefix")
             self.resummarize_prompt = self.__definitions.get_string_value("resummarize_prompt")
             self.vision_prompt = self.__definitions.get_string_value("vision_prompt")
             self.function_llm_prompt = self.__definitions.get_string_value("function_llm_prompt")

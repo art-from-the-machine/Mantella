@@ -3,6 +3,7 @@ from regex import Regex
 from src.config.types.config_value import ConfigValue
 from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_string import ConfigValueString
+from src.config.types.config_value_bool import ConfigValueBool
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 
 
@@ -20,7 +21,8 @@ class PromptDefinitions:
                                 "equipment",
                                 "location",
                                 "weather",
-                                "time", 
+                                "time",
+                                "current_day",
                                 "time_group", 
                                 "language", 
                                 "conversation_summary",
@@ -36,7 +38,8 @@ class PromptDefinitions:
                                 "equipment",
                                 "location",
                                 "weather",
-                                "time", 
+                                "time",
+                                "current_day",
                                 "time_group", 
                                 "language", 
                                 "conversation_summary",
@@ -106,7 +109,7 @@ class PromptDefinitions:
                                 Who do you think these belong to?
                                 You are having a conversation with {player_name} (the player) who is {trust} in {location}. {player_name} {player_description} {player_equipment} {equipment}
                                 This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
-                                The time is {time} {time_group}.
+                                The time is {time} {time_group} on Day {current_day}.
                                 {weather}
                                 Remember to stay in character.
                                 {actions}
@@ -122,7 +125,7 @@ class PromptDefinitions:
                                     {equipment}
                                     And here are their conversation histories: 
                                     {conversation_summaries}
-                                    The time is {time} {time_group}.
+                                    The time is {time} {time_group} on Day {current_day}.
                                     {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'.
                                     Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable).
@@ -137,7 +140,7 @@ class PromptDefinitions:
                                     Here are their backgrounds: 
                                     {bios}                                    
                                     {conversation_summaries}
-                                    The time is {time} {time_group}.
+                                    The time is {time} {time_group} on Day {current_day}.
                                     {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
                                     Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable). 
@@ -198,6 +201,11 @@ class PromptDefinitions:
         return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
     
     @staticmethod
+    def get_memory_prompt_datetime_prefix_config_value() -> ConfigValue:
+        description = """Whether to prepend a timestamp of when the conversation took place (eg "[Day 42, 5 in the early evening]") to the summary."""
+        return ConfigValueBool("memory_prompt_datetime_prefix","Memory Prompt Datetime Prefix",description,True)
+    
+    @staticmethod
     def get_resummarize_prompt_config_value() -> ConfigValue:
         resummarize_prompt_description = """Memories build up over time in data/game/conversations/NPC_Name/NPC_Name_summary_X.txt.
                                             When these memories become too long to fit into the chosen LLM's maximum context length, these memories need to be condensed down.
@@ -207,7 +215,7 @@ class PromptDefinitions:
                                                 language = the selected language
                                                 game = the game selected""" 
         resummarize_prompt = """You are tasked with summarizing the conversation history between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}.
-                                            Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {language}."""
+                                            Each paragraph represents a conversation at a new point in time. Timestamps in square brackets (eg [Day 42, 5 in the early evening]) indicate when each conversation occurred. Please summarize these conversations into a single paragraph in {language}."""
         return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
     
     @staticmethod

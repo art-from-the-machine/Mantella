@@ -146,6 +146,7 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_multi_npc_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_radiant_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_memory_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_memory_prompt_datetime_prefix_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_resummarize_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_vision_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_function_llm_prompt_config_value())
