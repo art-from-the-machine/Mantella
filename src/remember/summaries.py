@@ -53,13 +53,13 @@ class Summaries(Remembering):
             return ""
 
     @utils.time_it
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None):
+    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None):
         summary = ''
         
         for npc in npcs_in_conversation.get_all_characters():
             if not npc.is_player_character:
                 if len(summary) < 1: # if a summary has not already been generated, make one
-                    summary = self.__create_new_conversation_summary(messages, npc.name)
+                    summary = self.__create_new_conversation_summary(messages, npc.name, end_timestamp)
                 if len(summary) > 0 or is_reload: # if a summary has been generated, give the same summary to all NPCs
                     self.__append_new_conversation_summary(summary, npc.name, npc.ref_id, world_id)
         
@@ -133,7 +133,7 @@ class Summaries(Remembering):
         return f"{target_folder}/{base_name}_summary_{latest_file_number}.txt"
     
     @utils.time_it
-    def __create_new_conversation_summary(self, messages: message_thread, npc_name: str) -> str:
+    def __create_new_conversation_summary(self, messages: message_thread, npc_name: str, end_timestamp: float | None = None) -> str:
         prompt = self.__memory_prompt.format(
                     name=npc_name,
                     language=self.__language_name,
@@ -142,7 +142,12 @@ class Summaries(Remembering):
         while True:
             try:
                 if len(messages) >= 5:
-                    return self.summarize_conversation(messages.transform_to_dict_representation(messages.get_talk_only()), prompt, npc_name)
+                    summary = self.summarize_conversation(messages.transform_to_dict_representation(messages.get_talk_only()), prompt, npc_name)
+                    # Prepend timestamp to summary if available
+                    if summary and end_timestamp is not None and self.__config.memory_prompt_datetime_prefix:
+                        timestamp_prefix = self.__format_timestamp(end_timestamp)
+                        summary = f"{timestamp_prefix}\n{summary}"
+                    return summary
                 else:
                     logging.info(f"Conversation summary not saved. Not enough dialogue spoken.")
                 break
@@ -203,6 +208,22 @@ class Summaries(Remembering):
             with open(new_conversation_summary_file, 'w', encoding='utf-8') as f:
                 f.write(long_conversation_summary)
 
+    @utils.time_it
+    def __format_timestamp(self, game_days: float) -> str:
+        """Formats a game timestamp into readable format: [Day X, Y in the evening]
+        
+        Args:
+            game_days: Game time as days passed (eg 42.75 = Day 42, 6pm)
+        
+        Returns:
+            str: Formatted timestamp like "[Day 42, 6 in the evening]"
+        """
+        days = int(game_days)
+        hours = int((game_days - days) * 24)
+        in_game_time_twelve_hour = hours - 12 if hours > 12 else hours
+        
+        return f"[Day {days}, {in_game_time_twelve_hour} {utils.get_time_group(hours)}]"
+    
     @utils.time_it
     def summarize_conversation(self, text_to_summarize: str, prompt: str, npc_name: str) -> str:
         summary = ''

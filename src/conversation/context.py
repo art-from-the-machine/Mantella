@@ -31,6 +31,7 @@ class Context:
         self.__config_settings: dict[str, Any] = {}
         self.__custom_context_values: dict[str, Any] = {}
         self.__ingame_time: int = 12
+        self.__game_days: float = 1.0  # Full game timestamp (days.fraction)
         self.__ingame_events: list[str] = []
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
@@ -164,8 +165,12 @@ class Context:
         return get_time_group(self.__ingame_time)
     
     @utils.time_it
-    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any], config_settings: dict[str, Any] | None):
+    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any], config_settings: dict[str, Any] | None, game_days: float | None = None):
         self.__custom_context_values = custom_context_values
+
+        # Store game_days if provided
+        if game_days is not None:
+            self.__game_days = game_days
 
         if location:
             if location != '':
@@ -430,6 +435,10 @@ class Context:
         weather = self.__weather
         time = self.__ingame_time - 12 if self.__ingame_time > 12 else self.__ingame_time
         time_group = get_time_group(self.__ingame_time)
+        
+        # Calculate current day number from game_days
+        current_day = int(self.__game_days) if self.__game_days > 1 else 1
+        
         if self.__hourly_time:
             self.__prev_game_time = str(time), time_group
         else:
@@ -457,7 +466,8 @@ class Context:
                 equipment = equipment,
                 location=location,
                 weather = weather,
-                time=time, 
+                time=time,
+                current_day=current_day,
                 time_group=time_group, 
                 language=self.__language['language'], 
                 conversation_summary=content[1],

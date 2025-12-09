@@ -22,6 +22,7 @@ class communication_constants:
 
     KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"
     KEY_STARTCONVERSATION_USENARRATOR: str = PREFIX + "use_narrator"
+    KEY_ENDCONVERSATION_TIMESTAMP: str = PREFIX + "end_timestamp"
     KEY_CONTINUECONVERSATION_TOPICINFOFILE: str = PREFIX + "topicinfofile"
     KEY_INPUTTYPE: str = PREFIX + "input_type"
     KEY_INPUTTYPE_MIC: str = PREFIX + "mic_input"
@@ -64,6 +65,7 @@ class communication_constants:
     KEY_CONTEXT_LOCATION: str = PREFIX + "location"
     KEY_CONTEXT_WEATHER = PREFIX + "weather"
     KEY_CONTEXT_TIME: str = PREFIX + "time"
+    KEY_CONTEXT_GAMEDAYS: str = PREFIX + "gamedays"
     KEY_CONTEXT_NPCS_NEARBY: str = PREFIX + "nearby_actors"
     KEY_CONTEXT_INGAMEEVENTS: str = PREFIX + "ingame_events"
     KEY_CONTEXT_CONFIG_SETTINGS: str = PREFIX + "config_settings"

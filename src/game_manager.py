@@ -187,7 +187,9 @@ class GameStateManager:
     @utils.time_it
     def end_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(self.__talk):
-            self.__talk.end()
+            # Extract end timestamp from game client
+            end_timestamp = input_json.get(comm_consts.KEY_ENDCONVERSATION_TIMESTAMP, None)
+            self.__talk.end(end_timestamp)
             self.__talk = None
 
         logging.log(24, '\nConversations not starting when you select an NPC? See here:')
@@ -252,6 +254,7 @@ class GameStateManager:
             
             location = None
             time = None
+            game_days = None
             ingame_events = None
             weather = None
             npcs_nearby = None
@@ -263,6 +266,9 @@ class GameStateManager:
                 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_TIME):
                     time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
+
+                if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_GAMEDAYS):
+                    game_days: float = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_GAMEDAYS]
 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_INGAMEEVENTS):
                     logging.log(23, f'Received in-game events: {json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]}')
@@ -280,7 +286,7 @@ class GameStateManager:
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
                     custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
 
-                self.__talk.update_context(location, time, ingame_events, weather, npcs_nearby, custom_context_values, config_settings)
+                self.__talk.update_context(location, time, ingame_events, weather, npcs_nearby, custom_context_values, config_settings, game_days)
     
     @utils.time_it
     def load_character(self, json: dict[str, Any]) -> Character | None:

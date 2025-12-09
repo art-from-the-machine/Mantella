@@ -298,7 +298,7 @@ class Conversation:
         return player_character_voiced_sentence
 
     @utils.time_it
-    def update_context(self, location: str | None, time: int, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any] | None, config_settings: dict[str, Any] | None):
+    def update_context(self, location: str | None, time: int, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any] | None, config_settings: dict[str, Any] | None, game_days: float | None = None):
         """Updates the context with a new set of values
 
         Args:
@@ -306,8 +306,9 @@ class Conversation:
             time (int): the current ingame time
             custom_ingame_events (list[str]): a list of events that happend since the last update
             custom_context_values (dict[str, Any]): the current set of context values
+            game_days (float): the full game timestamp (days.fraction)
         """
-        self.__context.update_context(location, time, custom_ingame_events, weather, npcs_nearby, custom_context_values, config_settings)
+        self.__context.update_context(location, time, custom_ingame_events, weather, npcs_nearby, custom_context_values, config_settings, game_days)
         if self.__context.have_actors_changed:
             self.__update_conversation_type()
             self.__context.have_actors_changed = False
@@ -437,13 +438,16 @@ class Conversation:
         return None
 
     @utils.time_it
-    def end(self):
+    def end(self, end_timestamp: float | None = None):
         """Ends a conversation
+        
+        Args:
+            end_timestamp: Optional game timestamp (days passed as float) when conversation ends
         """
         self.__has_already_ended = True
         self.__stop_generation()
         self.__sentences.clear()
-        self.__save_conversation(is_reload=False)
+        self.__save_conversation(is_reload=False, end_timestamp=end_timestamp)
     
     @utils.time_it
     def __start_generating_npc_sentences(self, allow_tool_use: bool = True):
@@ -478,12 +482,12 @@ class Conversation:
                 self.__sentences.put(goodbye_sentence)        
 
     @utils.time_it
-    def __save_conversation(self, is_reload: bool):
+    def __save_conversation(self, is_reload: bool, end_timestamp: float | None = None):
         """Saves conversation log and state for each NPC in the conversation"""
-        self.__save_conversations_for_characters(self.__context.npcs_in_conversation.get_all_characters(), is_reload)
+        self.__save_conversations_for_characters(self.__context.npcs_in_conversation.get_all_characters(), is_reload, end_timestamp)
 
     @utils.time_it
-    def __save_conversations_for_characters(self, characters_to_save_for: list[Character], is_reload: bool):
+    def __save_conversations_for_characters(self, characters_to_save_for: list[Character], is_reload: bool, end_timestamp: float | None = None):
         characters_object = Characters()
         for npc in characters_to_save_for:
             characters_object.add_or_update_character(npc)
@@ -496,7 +500,7 @@ class Conversation:
             pending_shares = self.__context.npcs_in_conversation.get_pending_shares()
             self.__context.npcs_in_conversation.clear_pending_shares()
         
-        self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload, pending_shares)
+        self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload, pending_shares, end_timestamp)
 
     @utils.time_it
     def __initiate_reload_conversation(self):
