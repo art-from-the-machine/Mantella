@@ -10,6 +10,7 @@ from src.games.gameable import Gameable
 class FunctionManager:
     _actions: dict[str, dict] = {}  # Map identifier -> action data
     _last_tool_calls: list[dict] = []  # Cache of last turn's parsed tool calls for duplicate filtering
+    _disabled_action_names: list[str] = []  # Track disabled actions for logging
 
     @staticmethod
     def parse_function_calls(tools_called: list[ChatCompletionMessageToolCall], characters: Characters = None, game: Gameable | None = None) -> list[dict]:
@@ -159,6 +160,7 @@ class FunctionManager:
 
         FunctionManager._actions.clear()
         FunctionManager._last_tool_calls = []
+        FunctionManager._disabled_action_names = []
 
         # Load top-level action files
         for file_path in actions_dir.glob("*.json"):
@@ -177,7 +179,20 @@ class FunctionManager:
         #         except Exception as e:
         #             logging.warning(f"Failed to load function file {file_path}: {e}")
 
-        logging.log(23, f"Loaded {len(FunctionManager._actions)} actions from data/actions/")
+        logging.log(23, f"Loaded {len(FunctionManager._actions)} actions from: {actions_dir}")
+        
+        # Log enabled actions
+        enabled_names = [action.get('name', 'Unknown') for action in FunctionManager._actions.values()]
+        if enabled_names:
+            logging.log(23, f"Enabled actions: {', '.join(enabled_names)}")
+        else:
+            logging.log(23, "Enabled actions: None")
+        
+        # Log disabled actions
+        if FunctionManager._disabled_action_names:
+            logging.log(23, f"Disabled actions: {', '.join(FunctionManager._disabled_action_names)}\n")
+        else:
+            logging.log(23, "")
 
 
     @staticmethod
@@ -218,7 +233,7 @@ class FunctionManager:
         for action_data in actions_data:
             # Skip disabled actions (default to enabled if not specified)
             if not action_data.get('enabled', True):
-                logging.debug(f"Skipping disabled action: {action_data.get('identifier', 'unknown')}")
+                FunctionManager._disabled_action_names.append(action_data.get('name', 'Unknown'))
                 continue
             
             # Ensure identifier starts with 'mantella_'
