@@ -13,12 +13,17 @@ import winreg
 from pathlib import Path
 
 
+def get_logger():
+    return logging.getLogger("Mantella")
+
+logger = get_logger()
+
 def time_it(func):
     def wrapper(*args, **kwargs):
         start = time.time()
         result = func(*args, **kwargs)
         end = time.time()
-        logging.debug(f"Function {func.__module__}.{func.__name__} took {round(end - start, 5)} seconds to execute")
+        logger.debug(f"Function {func.__module__}.{func.__name__} took {round(end - start, 5)} seconds to execute")
         return result
     return wrapper
 
@@ -109,7 +114,7 @@ def cleanup_tmp(tmp_folder: str):
                 elif (os.path.isdir(file_path)) and (file_path != mei_bundle):
                     rmtree(file_path)
             except Exception as e:
-                logging.error(f"Failed to delete tmp folder: {e}")
+                logger.error(f"Failed to delete tmp folder: {e}")
 
 
 def cleanup_mei(remove_mei_folders: bool):
@@ -134,9 +139,9 @@ def cleanup_mei(remove_mei_folders: bool):
                         file_removed += 1
                     except PermissionError:  # mainly to allow simultaneous pyinstaller instances
                         pass
-                logging.log(24, f'{file_removed} previous runtime folder(s) cleaned up from {dir_mei}')
+                logger.log(24, f'{file_removed} previous runtime folder(s) cleaned up from {dir_mei}')
             else:
-                logging.warning(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in {dir_mei}. See the Startup->Advanced tab in the Mantella UI for more information.")
+                logger.warning(f"Warning: {len(mei_files)} previous Mantella.exe runtime folder(s) found in {dir_mei}. See the Startup->Advanced tab in the Mantella UI for more information.")
         
 
 def get_my_games_directory(custom_user_folder='') -> str:

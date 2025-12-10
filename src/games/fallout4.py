@@ -1,4 +1,3 @@
-import logging
 import os
 import shutil
 from typing import Any, TYPE_CHECKING
@@ -15,6 +14,8 @@ from src.games.gameable import Gameable
 import src.utils as utils
 from src.config.definitions.game_definitions import GameEnum
 from src.config.definitions.tts_definitions import TTSEnum
+
+logger = utils.get_logger()
 
 
 class Fallout4(Gameable):
@@ -125,7 +126,7 @@ class Fallout4(Gameable):
                 # Assuming there's only one match, get the value from the 'voice_model' column
                 voice_model = matching_row_by_id['voice_model'].iloc[0]
             else:
-                logging.log(23, "No matching voice ID found. Attempting voice_file_name match.")
+                logger.log(23, "No matching voice ID found. Attempting voice_file_name match.")
 
                 matching_row_by_name = self.__FO4_Voice_folder_and_models_df[self.__FO4_Voice_folder_and_models_df['voice_file_name'].str.lower() == actor_voice_model_name.lower()]
                 if not matching_row_by_name.empty:
@@ -200,8 +201,8 @@ class Fallout4(Gameable):
         if config.save_audio_data_to_character_folder:
             voice_folder_path = os.path.join(mod_folder,queue_output.speaker.in_game_voice_model)
             if not os.path.exists(voice_folder_path):
-                logging.warning(f"{voice_folder_path} has been created for the first time. Please restart Fallout 4 to interact with this NPC.")
-                logging.info("Creating voice folders...")
+                logger.warning(f"{voice_folder_path} has been created for the first time. Please restart Fallout 4 to interact with this NPC.")
+                logger.info("Creating voice folders...")
                 self._create_all_voice_folders(mod_folder, "fallout4_voice_folder")
         else:
             voice_folder_path = os.path.join(mod_folder, self.MANTELLA_VOICE_FOLDER)
@@ -214,10 +215,10 @@ class Fallout4(Gameable):
             shutil.copyfile(fuz_file, fuz_filepath)
         except Exception as e:
             # only warn on failure
-            logging.warning(e)
+            logger.warning(e)
 
         self.__last_played_voiceline = queue_output.voice_file
-        logging.info(f"{speaker.name}: {queue_output.text}")
+        logger.info(f"{speaker.name}: {queue_output.text}")
 
     @utils.time_it
     def __delete_last_played_voiceline(self):

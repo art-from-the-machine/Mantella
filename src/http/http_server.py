@@ -5,6 +5,9 @@ import uvicorn
 from src.http.routes.routeable import routeable
 from src import utils
 
+logger = utils.get_logger()
+
+
 class http_server:
     """A simple http server using FastAPI. Can be started using different routes.
     """
@@ -51,8 +54,8 @@ class http_server:
         if play_startup_sound:
             utils.play_mantella_ready_sound()
         
-        logging.log(24, '\nConversations not starting when you select an NPC? See here:')
-        logging.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
-        logging.log(24, '\nWaiting for player to select an NPC...')
+        logger.log(24, '\nConversations not starting when you select an NPC? See here:')
+        logger.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
+        logger.log(24, '\nWaiting for player to select an NPC...')
     
         uvicorn.run(self.__app, port=port)

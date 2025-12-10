@@ -1,4 +1,3 @@
-import logging
 from typing import Any, Hashable
 from src.conversation.action import Action
 from src.http.communication_constants import communication_constants
@@ -11,6 +10,9 @@ from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 from src.config.definitions.game_definitions import GameEnum
+
+logger = utils.get_logger()
+
 
 class Context:
     """Holds the context of a conversation
@@ -252,7 +254,7 @@ class Context:
                 current_stats.get_custom_character_value("mantella_actor_pos_y") != npc.get_custom_character_value("mantella_actor_pos_y")):
                 current_stats.set_custom_character_value("mantella_actor_pos_y", npc.get_custom_character_value("mantella_actor_pos_y"))
         except Exception as e:
-            logging.error(f"Updating custom values failed: {e}")
+            logger.error(f"Updating custom values failed: {e}")
         if not npc.is_player_character:
             player_name = "the player"
             player = self.__npcs_in_conversation.get_player_character()
@@ -451,7 +453,7 @@ class Context:
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
         have_bios_been_dropped = False
         have_summaries_been_dropped = False
-        logging.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')
+        logger.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')
         for content in removal_content:
             result = prompt.format(
                 player_name = player_name,
@@ -482,11 +484,11 @@ class Context:
             else:
                 break
         
-        logging.log(23, f'Prompt sent to LLM ({self.__client.get_count_tokens(result)} tokens): {result.strip()}')
+        logger.log(23, f'Prompt sent to LLM ({self.__client.get_count_tokens(result)} tokens): {result.strip()}')
         if have_summaries_been_dropped and have_bios_been_dropped:
-            logging.log(logging.WARNING, f'Both the bios and summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations and will have limited knowledge of who they are.')
+            logger.log(logger.WARNING, f'Both the bios and summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations and will have limited knowledge of who they are.')
         elif have_summaries_been_dropped:
-            logging.log(logging.WARNING, f'The summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations.')
+            logger.log(logger.WARNING, f'The summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations.')
         return result
     
     @utils.time_it

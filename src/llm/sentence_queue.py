@@ -1,8 +1,10 @@
-import logging
 import queue
 import threading
 from src.llm.sentence import Sentence
 from src import utils
+
+logger = utils.get_logger()
+
 
 class SentenceQueue:
     __logging_level = 42
@@ -72,4 +74,4 @@ class SentenceQueue:
     @utils.time_it
     def log(self, text: str):
         if(self.__should_log):
-            logging.log(self.__logging_level, text)
+            logger.log(self.__logging_level, text)

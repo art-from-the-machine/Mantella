@@ -2,9 +2,9 @@ from src.http.http_server import http_server
 import traceback
 from src.http.routes.routeable import routeable
 from src.http.routes.mantella_route import mantella_route
-import logging
 from src.setup import MantellaSetup
 from src.ui.start_ui import StartUI
+import src.utils as utils
 
 def main():
     try:
@@ -13,8 +13,10 @@ def main():
             logging_file='logging.log', 
             language_file='data/language_support.csv')
 
+        logger = utils.get_logger()
+
         mantella_version = '0.14 Preview 1'
-        logging.log(24, f'\nMantella v{mantella_version}')
+        logger.log(24, f'\nMantella v{mantella_version}')
 
         mantella_http_server = http_server()
 
@@ -34,7 +36,7 @@ def main():
         mantella_http_server.start(int(config.port), routes, config.play_startup_sound, should_debug_http)
 
     except Exception as e:
-        logging.error("".join(traceback.format_exception(e)))
+        logger.error("".join(traceback.format_exception(e)))
         input("Press Enter to exit.")
 
 if __name__ == '__main__':

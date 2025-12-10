@@ -20,20 +20,21 @@ class MantellaSetup:
         self._set_cwd_to_exe_dir()
         self.save_folder = utils.get_my_games_directory(self._get_custom_user_folder())
         self.config = ConfigLoader(self.save_folder, config_file)    
-        self._setup_logging(os.path.join(self.save_folder,logging_file), self.config.advanced_logs)
+        self._setup_logging(os.path.join(self.save_folder, logging_file), self.config.advanced_logs)
         
         FunctionManager.load_all_actions()
         FunctionManager.log_actions_enabled(self.config.advanced_actions_enabled)
         self.config.actions = FunctionManager.get_legacy_actions()
-        
-        logging.log(23, f'''Mantella.exe running in: 
+
+        logger = utils.get_logger()
+        logger.log(23, f'''Mantella.exe running in:
     {os.getcwd()}
 Conversation histories, config.ini, and logging.log available in:
     {self.save_folder}''')
-        logging.log(23, f'''Mantella currently running for {self.config.game.display_name}. Mantella mod files located in: 
+        logger.log(23, f'''Mantella currently running for {self.config.game.display_name}. Mantella mod files located in:
     {self.config.mod_path}''')
         if not self.config.have_all_config_values_loaded_correctly:
-            logging.error("Cannot start Mantella. Not all settings that are required are set to correct values. This error often occurs when you start Mantella.exe manually without setting up the `Game` tab in the Mantella UI.")
+            logger.error("Cannot start Mantella. Not all settings that are required are set to correct values. This error often occurs when you start Mantella.exe manually without setting up the `Game` tab in the Mantella UI.")
 
         # clean up old instances of exe runtime files
         utils.cleanup_mei(self.config.remove_mei_folders)
@@ -78,14 +79,16 @@ Conversation histories, config.ini, and logging.log available in:
     def _setup_logging(self, file_name, advanced_logs=False):
         '''Configure logging with custom levels and formatters'''
         logging_level = logging.DEBUG if advanced_logs else logging.INFO
-        logging.basicConfig(level=logging_level, format='%(levelname)s: %(message)s', handlers=[], encoding='utf-8')
+        logger = utils.get_logger()
+        logger.propagate = False
+        logger.level = logging_level
 
         # create custom formatter
         formatter = cf.CustomFormatter()
 
         # add formatter to ch
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(logging_level)
         console_handler.setFormatter(formatter)
 
         # Create a formatter for file output
@@ -93,12 +96,12 @@ Conversation histories, config.ini, and logging.log available in:
 
         # Create a file handler and set the formatter
         file_handler = logging.FileHandler(file_name, encoding='utf-8')
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(logging_level)
         file_handler.setFormatter(file_formatter)
 
         # Add the handlers to the logger
-        logging.getLogger().addHandler(console_handler)
-        logging.getLogger().addHandler(file_handler)
+        logger.addHandler(console_handler)
+        logger.addHandler(file_handler)
 
         # custom levels
         logging.addLevelName(21, "INFO")

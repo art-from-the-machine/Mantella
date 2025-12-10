@@ -1,4 +1,3 @@
-import logging
 from typing import Any, Hashable
 import regex
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
@@ -18,6 +17,9 @@ import src.utils as utils
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
 from src.actions.function_manager import FunctionManager
+
+logger = utils.get_logger()
+
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv/fallout4_characters.csv"""
@@ -92,7 +94,7 @@ class GameStateManager:
         self.__update_context(input_json)
 
         if self.__talk.resume_after_interrupting_action():
-            logging.log(23, "Resuming conversation after interrupting action result")
+            logger.log(23, "Resuming conversation after interrupting action result")
 
         while True:
             replyType, sentence_to_play = self.__talk.continue_conversation()
@@ -106,7 +108,7 @@ class GameStateManager:
                 if sentence_to_play and len(sentence_to_play.actions) > 0:
                     requires_response = FunctionManager.any_action_requires_response(sentence_to_play.actions)
                     
-                    logging.log(23, f"Sending action-only response with {len(sentence_to_play.actions)} action(s), requires_response={requires_response}")
+                    logger.log(23, f"Sending action-only response with {len(sentence_to_play.actions)} action(s), requires_response={requires_response}")
                     return {
                         comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCACTION,
                         comm_consts.KEY_REPLYTYPE_NPCACTION: {
@@ -151,6 +153,7 @@ class GameStateManager:
         cleaned_player_text = utils.clean_text(updated_player_text)
         npcs_in_conversation = self.__talk.context.npcs_in_conversation
         if not npcs_in_conversation.contains_multiple_npcs(): # actions are only enabled in 1-1 conversations
+            print(self.__config.actions)
             for action in self.__config.actions:
                 # if the player response is just the name of an action, force the action to trigger
                 if action.keyword.lower() == cleaned_player_text.lower().replace(' ','') and npcs_in_conversation.last_added_character:
@@ -159,13 +162,13 @@ class GameStateManager:
                         # Set listen_requested flag so the next player turn has extended pause
                         pause_seconds = FunctionManager.get_action_pause_seconds('mantella_npc_listen')
                         self.__chat_manager.set_listen_requested(pause_seconds)
-                        logging.log(23, f"Listen action triggered via keyword: Pause threshold increased to {pause_seconds} seconds for one turn")
+                        logger.log(23, f"Listen action triggered via keyword: Pause threshold increased to {pause_seconds} seconds for one turn")
                         break # Don't send to game
                     
                     if action.identifier == 'mantella_npc_vision':
                         # Enable vision for the next LLM call
                         self.__client.enable_vision_for_next_call()
-                        logging.log(23, "Vision action triggered via keyword: Vision enabled for next LLM call")
+                        logger.log(23, "Vision action triggered via keyword: Vision enabled for next LLM call")
                         break # Don't send to game
                     
                     return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCACTION,
@@ -192,9 +195,9 @@ class GameStateManager:
             self.__talk.end(end_timestamp)
             self.__talk = None
 
-        logging.log(24, '\nConversations not starting when you select an NPC? See here:')
-        logging.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
-        logging.log(24, '\nWaiting for player to select an NPC...')
+        logger.log(24, '\nConversations not starting when you select an NPC? See here:')
+        logger.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
+        logger.log(24, '\nWaiting for player to select an NPC...')
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_ENDCONVERSATION}
     
     def process_stt_setup(self, input_json: dict[str, Any]):
@@ -271,7 +274,7 @@ class GameStateManager:
                     game_days: float = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_GAMEDAYS]
 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_INGAMEEVENTS):
-                    logging.log(23, f'Received in-game events: {json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]}')
+                    logger.log(23, f'Received in-game events: {json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]}')
                     ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
                 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_WEATHER):
@@ -373,10 +376,10 @@ class GameStateManager:
                             equipment,
                             custom_values)
         except CharacterDoesNotExist:                 
-            logging.error('Character not loaded. Restarting...')
+            logger.error('Character not loaded. Restarting...')
             return None 
         except Exception as e:
-            logging.error(f'Error loading character: {e}')
+            logger.error(f'Error loading character: {e}')
             return None
         
     def error_message(self, message: str) -> dict[str, Any]:

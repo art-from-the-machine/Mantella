@@ -1,7 +1,6 @@
 import sys
 import numpy as np
 from faster_whisper import WhisperModel
-import logging
 from src.config.config_loader import ConfigLoader
 import src.utils as utils
 import requests
@@ -20,10 +19,14 @@ from moonshine_onnx import MoonshineOnnxModel, load_tokenizer
 import onnxruntime as ort
 from scipy.io import wavfile
 from sounddevice import InputStream
-from silero_vad import VADIterator, load_silero_vad
+from silero_vad_lite import SileroVAD
+
+logger = utils.get_logger()
+
 
 import onnxruntime as ort
 ort.set_default_logger_severity(4)
+
 
 class Transcriber:
     """Handles real-time speech-to-text transcription using Moonshine."""
@@ -59,7 +62,7 @@ class Transcriber:
         self.pause_threshold = config.pause_threshold
         self._temporary_pause_override: float | None = None  # Temporary pause threshold for Listen action
         self.audio_threshold = config.audio_threshold
-        logging.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this `Speech-to-Text`->`Audio Threshold` value in the Mantella UI. If the mic is picking up too much background noise, try increasing this value.\n")
+        logger.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this `Speech-to-Text`->`Audio Threshold` value in the Mantella UI. If the mic is picking up too much background noise, try increasing this value.\n")
 
         self.__audio_input_error_count = 0
         self.__mic_input_process_error_count = 0
@@ -85,7 +88,7 @@ class Transcriber:
             # if using faster_whisper, load model selected by player, otherwise skip this step
             if not self.external_whisper_service:
                 if self.process_device == 'cuda':
-                    logging.error(f'''Depending on your NVIDIA CUDA version, setting the Whisper process device to `cuda` may cause errors! For more information, see here: https://github.com/SYSTRAN/faster-whisper#gpu''')
+                    logger.error(f'''Depending on your NVIDIA CUDA version, setting the Whisper process device to `cuda` may cause errors! For more information, see here: https://github.com/SYSTRAN/faster-whisper#gpu''')
                     try:
                         self.transcribe_model = WhisperModel(self.whisper_model, device=self.process_device)
                     except Exception as e:
@@ -95,16 +98,16 @@ class Transcriber:
                     self.transcribe_model = WhisperModel(self.whisper_model, device=self.process_device, compute_type="float32")
         else:
             if self.language != 'en':
-                logging.warning(f"Selected language is '{self.language}', but Moonshine only supports English. Please change the selected speech-to-text model to Whisper in `Speech-to-Text`->`STT Service` in the Mantella UI")
+                logger.warning(f"Selected language is '{self.language}', but Moonshine only supports English. Please change the selected speech-to-text model to Whisper in `Speech-to-Text`->`STT Service` in the Mantella UI")
 
             if self.moonshine_model == 'moonshine/tiny':
-                logging.warning('Speech-to-text model set to Moonshine Tiny. If mic input is being transcribed incorrectly, try switching to a larger model in the `Speech-to-Text` tab of the Mantella UI')
+                logger.warning('Speech-to-text model set to Moonshine Tiny. If mic input is being transcribed incorrectly, try switching to a larger model in the `Speech-to-Text` tab of the Mantella UI')
             
             if os.path.exists(f'{self.moonshine_model_path}/encoder_model.onnx'):
-                logging.log(self.loglevel, 'Loading local Moonshine model...')
+                logger.log(self.loglevel, 'Loading local Moonshine model...')
                 self.transcribe_model = MoonshineOnnxModel(models_dir=self.moonshine_model_path, model_name=self.moonshine_model)
             else:
-                logging.log(self.loglevel, 'Loading Moonshine model from Hugging Face...')
+                logger.log(self.loglevel, 'Loading Moonshine model from Hugging Face...')
                 self.transcribe_model = MoonshineOnnxModel(model_name=self.moonshine_model, model_precision=self.moonshine_precision)
             self.tokenizer = load_tokenizer()
         
@@ -204,7 +207,7 @@ class Transcriber:
                             api_key: str = f.readline().strip()
                 
             if not api_key:
-                logging.error(f'''No secret key found in GPT_SECRET_KEY.txt. Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
+                logger.error(f'''No secret key found in GPT_SECRET_KEY.txt. Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
 If you would prefer to run speech-to-text locally, please ensure the `Speech-to-Text`->`External Whisper Service` setting in the Mantella UI is disabled.''')
                 input("Press Enter to continue.")
@@ -226,10 +229,10 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         if (self.proactive_mic_mode) and (len(self.transcription_times) % 5 == 0):
             max_transcription_time = max(self.transcription_times[-5:])
             if max_transcription_time > self.min_refresh_secs:
-                logging.warning(f'Mic transcription took {round(max_transcription_time,3)} to process. To improve performance, try setting `Speech-to-Text`->`Refresh Frequency` to a value slightly higher than {round(max_transcription_time,3)} in the Mantella UI')
+                logger.warning(f'Mic transcription took {round(max_transcription_time,3)} to process. To improve performance, try setting `Speech-to-Text`->`Refresh Frequency` to a value slightly higher than {round(max_transcription_time,3)} in the Mantella UI')
 
         if self.proactive_mic_mode:
-            logging.log(self.loglevel, f'Interim transcription: {transcription}')
+            logger.log(self.loglevel, f'Interim transcription: {transcription}')
         
         # Only update the transcription if it contains a value, otherwise keep the existing transcription
         if transcription:
@@ -262,13 +265,13 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 utils.play_error_sound()
                 if e.code in [404, 'model_not_found']:
                     if self.whisper_service == 'OpenAI':
-                        logging.error(f"Selected Whisper model '{self.whisper_model}' does not exist in the OpenAI service. Try changing 'Speech-to-Text'->'Model Size' to 'whisper-1' in the Mantella UI")
+                        logger.error(f"Selected Whisper model '{self.whisper_model}' does not exist in the OpenAI service. Try changing 'Speech-to-Text'->'Model Size' to 'whisper-1' in the Mantella UI")
                     elif self.whisper_service == 'Groq':
-                        logging.error(f"Selected Whisper model '{self.whisper_model}' does not exist in the Groq service. Try changing 'Speech-to-Text'->'Model Size' to one of the following models in the Mantella UI: https://console.groq.com/docs/speech-text#supported-models")
+                        logger.error(f"Selected Whisper model '{self.whisper_model}' does not exist in the Groq service. Try changing 'Speech-to-Text'->'Model Size' to one of the following models in the Mantella UI: https://console.groq.com/docs/speech-text#supported-models")
                     else:
-                        logging.error(f"Selected Whisper model '{self.whisper_model}' does not exist in the selected service {self.whisper_service}. Try changing 'Speech-to-Text'->'Model Size' to a compatible model in the Mantella UI")
+                        logger.error(f"Selected Whisper model '{self.whisper_model}' does not exist in the selected service {self.whisper_service}. Try changing 'Speech-to-Text'->'Model Size' to a compatible model in the Mantella UI")
                 else:
-                    logging.error(f'STT error: {e}')
+                    logger.error(f'STT error: {e}')
                 input("Press Enter to exit.")
             client.close()
             if utils.clean_text(response_data.text) in self.__ignore_list: # common phrases hallucinated by Whisper
@@ -279,7 +282,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             files = {'file': ('audio.wav', audio_file, 'audio/wav')}
             response = requests.post(self.whisper_url, files=files, data=data)
             if response.status_code != 200:
-                logging.error(f'STT Error: {response.content}')
+                logger.error(f'STT Error: {response.content}')
             response_data = json.loads(response.text)
             if 'text' in response_data:
                 if utils.clean_text(response_data['text']) in self.__ignore_list: # common phrases hallucinated by Whisper
@@ -339,7 +342,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             daemon = True
         )
         self._processing_thread.start()
-        logging.log(self.loglevel, 'Listening...')
+        logger.log(self.loglevel, 'Listening...')
 
 
     def _process_audio(self) -> None:
@@ -353,7 +356,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 chunk, status = self._audio_queue.get(timeout=0.1)
                 if status:
                     if self.__processing_audio_error_count % self.__warning_frequency == 0:
-                        logging.log(23, f"STT WARNING: Processing audio error: {status}")
+                        logger.log(23, f"STT WARNING: Processing audio error: {status}")
                     self.__processing_audio_error_count += 1
                     continue
 
@@ -370,13 +373,13 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     # Handle speech detection
                     if speech_dict:
                         if "start" in speech_dict and not self._speech_detected:
-                            logging.log(self.loglevel, 'Speech detected')
+                            logger.log(self.loglevel, 'Speech detected')
                             self._speech_detected = True
                             self._speech_start_time = time.time()
                             self._last_update_time = time.time()
                         
                         if "end" in speech_dict and self._speech_detected:
-                            logging.log(self.loglevel, 'Speech ended')
+                            logger.log(self.loglevel, 'Speech ended')
                             # If proactive mode is disabled, transcribe mic input only when speech end has been detected
                             if not self.proactive_mic_mode:
                                 self._current_transcription = self._transcribe(self._audio_buffer)
@@ -392,7 +395,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                         
                         # Check for maximum speech duration
                         if (len(self._audio_buffer) / self.SAMPLING_RATE) > self.listen_timeout:
-                            logging.warning(f'Listen timeout of {self.listen_timeout} seconds reached. Processing mic input...')
+                            logger.warning(f'Listen timeout of {self.listen_timeout} seconds reached. Processing mic input...')
                             self._current_transcription = self._transcribe(self._audio_buffer)
                             self._transcription_ready.set()
 
@@ -400,11 +403,11 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                             self._soft_reset_vad()
                         # Regular update during speech
                         elif (self.proactive_mic_mode) and (chunk_count >= self.refresh_freq):
-                            logging.debug(f'Transcribing {self.min_refresh_secs} of mic input...')
+                            logger.debug(f'Transcribing {self.min_refresh_secs} of mic input...')
                             self._current_transcription = self._transcribe(self._audio_buffer)
 
                             if self._consecutive_empty_count >= self._max_consecutive_empty:
-                                logging.warning(f'Could not transcribe input')
+                                logger.warning(f'Could not transcribe input')
                                 self._transcription_ready.set()
                                 self._reset_state()
                                 self._soft_reset_vad()
@@ -412,11 +415,11 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                             chunk_count = 0  # Reset counter
             
             except queue.Empty:
-                logging.debug('Queue is empty')
+                logger.debug('Queue is empty')
                 continue
             except Exception as e:
                 if self.__mic_input_process_error_count % self.__warning_frequency == 0:
-                    logging.log(23, f'STT WARNING: Error processing mic input: {str(e)}')
+                    logger.log(23, f'STT WARNING: Error processing mic input: {str(e)}')
                 self.__mic_input_process_error_count += 1
                 self._reset_state()
                 time.sleep(0.1)
@@ -440,7 +443,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         def input_callback(indata, frames, time, status):
             if status:
                 if self.__audio_input_error_count % self.__warning_frequency == 0:
-                    logging.log(23, f"STT WARNING: Audio input error: {status}")
+                    logger.log(23, f"STT WARNING: Audio input error: {status}")
                 self.__audio_input_error_count += 1
             # Store both data and status in queue
             q.put((indata.copy().flatten(), status))
@@ -493,7 +496,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             received_transcription = self._transcription_ready.wait(timeout=timeout_value)
             
             if not received_transcription and use_timeout and not self._speech_detected:
-                logging.log(self.loglevel, f"Silence timeout of {silence_timeout} seconds reached without speech")
+                logger.log(self.loglevel, f"Silence timeout of {silence_timeout} seconds reached without speech")
                 return None
             
             with self._lock:
@@ -503,12 +506,12 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     self._transcription_ready.clear()
                     self._speech_detected = False
                     self._temporary_pause_override = None  # Reset temporary pause after transcription
-                    logging.log(self.loglevel, f"Player said '{transcription.strip()}'")
+                    logger.log(self.loglevel, f"Player said '{transcription.strip()}'")
                     return transcription
                 
             if self.play_cough_sound:
                 utils.play_no_mic_input_detected_sound()
-            logging.warning('Could not detect speech from mic input')
+            logger.warning('Could not detect speech from mic input')
 
             self._transcription_ready.clear()
             self._speech_detected = False
@@ -544,7 +547,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 break
                 
         self._reset_state()
-        logging.log(self.loglevel, 'Stopped listening for mic input')
+        logger.log(self.loglevel, 'Stopped listening for mic input')
 
 
     @staticmethod
