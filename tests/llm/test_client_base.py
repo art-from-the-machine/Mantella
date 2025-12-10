@@ -113,7 +113,7 @@ def test_openrouter_missing_key(mock_get_key):
 def test_openrouter_success():
     """Test successful OpenRouter model list retrieval"""
     result = ClientBase.get_model_list("OpenRouter", "key.txt")
-    assert any("google/gemma-3-27b-it:free" in opt[1] for opt in result.available_models)
+    assert any("mistralai/mistral-small-3.1-24b-instruct:free" in opt[1] for opt in result.available_models)
     assert result.allows_manual_model_input is False
 
 
