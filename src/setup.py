@@ -23,11 +23,12 @@ class MantellaSetup:
         self._setup_logging(os.path.join(self.save_folder,logging_file), self.config.advanced_logs)
         
         FunctionManager.load_all_actions()
+        FunctionManager.log_actions_enabled(self.config.advanced_actions_enabled)
         self.config.actions = FunctionManager.get_legacy_actions()
         
         logging.log(23, f'''Mantella.exe running in: 
     {os.getcwd()}
-config.ini, logging.log, and conversation histories available in:
+Conversation histories, config.ini, and logging.log available in:
     {self.save_folder}''')
         logging.log(23, f'''Mantella currently running for {self.config.game.display_name}. Mantella mod files located in: 
     {self.config.mod_path}''')

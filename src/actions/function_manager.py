@@ -180,13 +180,27 @@ class FunctionManager:
         #             logging.warning(f"Failed to load function file {file_path}: {e}")
 
         logging.log(23, f"Loaded {len(FunctionManager._actions)} actions from: {actions_dir}")
+
+
+    @staticmethod
+    def log_actions_enabled(advanced_actions_enabled: bool) -> None:
+        """Log a summary of available actions based on current mode
         
-        # Log enabled actions
-        enabled_names = [action.get('name', 'Unknown') for action in FunctionManager._actions.values()]
-        if enabled_names:
-            logging.log(23, f"Enabled actions: {', '.join(enabled_names)}")
+        Args:
+            advanced_actions_enabled: Whether advanced (tool-based) actions are enabled
+        """
+        if advanced_actions_enabled:
+            # All loaded actions are available
+            enabled_names = [action.get('name', 'Unknown') for action in FunctionManager._actions.values()]
         else:
-            logging.log(23, "Enabled actions: None")
+            # Only actions with prompts (Basic actions) are available
+            enabled_names = [action.get('name', 'Unknown') for action in FunctionManager._actions.values() if action.get('prompt')]
+        
+        mode = "Enabled" if advanced_actions_enabled else "Basic"
+        if enabled_names:
+            logging.log(23, f"{mode} actions: {', '.join(enabled_names)}")
+        else:
+            logging.log(23, f"{mode} actions: None")
         
         # Log disabled actions
         if FunctionManager._disabled_action_names:
@@ -205,6 +219,8 @@ class FunctionManager:
         
         result = []
         for action_data in FunctionManager._actions.values():
+            if action_data.get('prompt') is None:
+                continue  # Skip actions without prompts for legacy system
             identifier = action_data['identifier']
             name = action_data.get('name', '')
             key = action_data.get('key', '')
