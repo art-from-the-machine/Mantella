@@ -1,6 +1,9 @@
-import logging
+import src.utils as utils
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
 from src.llm.sentence_content import SentenceContent
+
+logger = utils.get_logger()
+
 
 class clean_sentence_parser(output_parser):
     """Class to track narrations in the current output of the LLM."""
@@ -15,7 +18,7 @@ class clean_sentence_parser(output_parser):
             """Remove 'As an XYZ,' from beginning of sentence"""
             if sentence.startswith('As a'):
                 if ', ' in sentence:
-                    logging.log(28, f"Removed '{sentence.split(', ')[0]} from response")
+                    logger.log(28, f"Removed '{sentence.split(', ')[0]} from response")
                     sentence = sentence.replace(sentence.split(', ')[0]+', ', '')
             return sentence
         

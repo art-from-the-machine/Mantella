@@ -1,7 +1,10 @@
-import logging
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
 from src.llm.sentence_content import SentenceContent
 from src.conversation.action import Action
+import src.utils as utils
+
+logger = utils.get_logger()
+
     
 class actions_parser(output_parser):
     def __init__(self, actions: list[Action]) -> None:
@@ -18,7 +21,7 @@ class actions_parser(output_parser):
                 if keyword in cut_content.text:
                     cut_content.text = cut_content.text.replace(keyword,"").strip()
                     cut_content.actions.append({'identifier': action.identifier})
-                    logging.log(28, f'Action triggered: {action.name} ({action.identifier})')
+                    logger.log(28, f'Action triggered: {action.name} ({action.identifier})')
                     if action.is_interrupting:
                         settings.stop_generation = True
         return cut_content, last_content

@@ -1,5 +1,4 @@
 from datetime import datetime
-import logging
 import base64
 import os
 import src.utils as utils
@@ -10,6 +9,9 @@ import cv2
 import ctypes
 from pathlib import Path
 from src.config.definitions.game_definitions import GameEnum
+
+logger = utils.get_logger()
+
 
 class ImageManager:
     '''
@@ -55,7 +57,7 @@ class ImageManager:
             self.__game_image_file_path: str = str(Path(game_image_path) / "Mantella_Vision.jpg")
             if self.__use_game_screenshots:
                 if os.path.exists(self.__game_image_file_path):
-                    logging.log(23, f'Removing leftover in-game vision screenshot from previous run...')
+                    logger.log(23, f'Removing leftover in-game vision screenshot from previous run...')
                     os.remove(self.__game_image_file_path)
 
         if self.__save_screenshot:
@@ -67,7 +69,7 @@ class ImageManager:
         try:
             ctypes.windll.user32.SetProcessDPIAware()
         except:
-            logging.warning('Failed to read monitor DPI. Images may not be saved in the correct dimensions.')
+            logger.warning('Failed to read monitor DPI. Images may not be saved in the correct dimensions.')
 
 
     @property
@@ -94,7 +96,7 @@ class ImageManager:
             gog_title = self.__window_title + ' GOG'
             hwnd = win32gui.FindWindow(None, gog_title)
             if not hwnd:
-                logging.error(f"Window '{self.__window_title}' not found")
+                logger.error(f"Window '{self.__window_title}' not found")
                 self.__capture_params = None
                 return None
 
@@ -244,7 +246,7 @@ class ImageManager:
         
         except Exception as e:
             utils.play_error_sound()
-            logging.error(f"An error occurred: {e}")
+            logger.error(f"An error occurred: {e}")
             self.reset_capture_params() # reset the window capture coordinates
             return None
         

@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 from src.config.config_loader import ConfigLoader
@@ -10,6 +9,9 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.remember.remembering import Remembering
 from src import utils
+
+logger = utils.get_logger()
+
 
 class Summaries(Remembering):
     """ Stores a conversation as a summary in a text file.
@@ -81,7 +83,7 @@ class Summaries(Remembering):
                 prefixed_summary = f"{sharer_name} shared with {recipient_name} a conversation with {participants_text}:\n{summary}"
                 
                 self.__append_new_conversation_summary(prefixed_summary, recipient_name, recipient_ref_id, world_id)
-                logging.info(f"Shared conversation summary with {recipient_name}")
+                logger.info(f"Shared conversation summary with {recipient_name}")
 
     @utils.time_it
     def __get_latest_conversation_summary_file_path(self, npc_name: str, npc_ref_id: str, world_id: str) -> str:
@@ -121,13 +123,13 @@ class Summaries(Remembering):
         # Determine which folder path to use based on existence
         if os.path.exists(name_ref_path):
             target_folder = name_ref_path
-            logging.info(f"Loaded latest summary file from: {target_folder}")
+            logger.info(f"Loaded latest summary file from: {target_folder}")
         elif os.path.exists(name_path):
             target_folder = name_path
-            logging.info(f"Loaded latest summary file from: {target_folder}")
+            logger.info(f"Loaded latest summary file from: {target_folder}")
         else:
             target_folder = name_ref_path  # Use name_ref format for new folders
-            logging.info(f"{name_ref_path} does not exist. A new summary file will be created.")
+            logger.info(f"{name_ref_path} does not exist. A new summary file will be created.")
         
         latest_file_number = get_latest_file_number(target_folder)
         return f"{target_folder}/{base_name}_summary_{latest_file_number}.txt"
@@ -149,10 +151,10 @@ class Summaries(Remembering):
                         summary = f"{timestamp_prefix}\n{summary}"
                     return summary
                 else:
-                    logging.info(f"Conversation summary not saved. Not enough dialogue spoken.")
+                    logger.info(f"Conversation summary not saved. Not enough dialogue spoken.")
                 break
             except:
-                logging.error('Failed to summarize conversation. Retrying...')
+                logger.error('Failed to summarize conversation. Retrying...')
                 time.sleep(5)
                 continue
         return ""
@@ -183,7 +185,7 @@ class Summaries(Remembering):
         count_tokens_summaries = self.__client.get_count_tokens(conversation_summaries)
         # if summaries token limit is reached, summarize the summaries
         if count_tokens_summaries > summary_limit:
-            logging.info(f'Token limit of conversation summaries reached ({count_tokens_summaries} / {summary_limit} tokens). Creating new summary file...')
+            logger.info(f'Token limit of conversation summaries reached ({count_tokens_summaries} / {summary_limit} tokens). Creating new summary file...')
             while True:
                 try:
                     prompt = self.__resummarize_prompt.format(
@@ -194,7 +196,7 @@ class Summaries(Remembering):
                     long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt, npc_name)
                     break
                 except:
-                    logging.error('Failed to summarize conversation. Retrying...')
+                    logger.error('Failed to summarize conversation. Retrying...')
                     time.sleep(5)
                     continue
 
@@ -232,7 +234,7 @@ class Summaries(Remembering):
             messages.add_message(UserMessage(self.__config, text_to_summarize))
             summary = self.__client.request_call(messages)
             if not summary:
-                logging.error(f"Summarizing conversation failed.")
+                logger.error(f"Summarizing conversation failed.")
                 return ""
 
             summary = summary.replace('The assistant', npc_name)
@@ -243,9 +245,9 @@ class Summaries(Remembering):
             summary = summary.replace('the user', 'the player')
             summary += '\n\n'
 
-            logging.log(self.loglevel, f'Conversation summary: {summary.strip()}')
-            logging.info(f"Conversation summary saved")
+            logger.log(self.loglevel, f'Conversation summary: {summary.strip()}')
+            logger.info(f"Conversation summary saved")
         else:
-            logging.info(f"Conversation summary not saved. Not enough dialogue spoken.")
+            logger.info(f"Conversation summary not saved. Not enough dialogue spoken.")
 
         return summary

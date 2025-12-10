@@ -1,6 +1,5 @@
 from src.config.config_loader import ConfigLoader
 from src.tts.ttsable import TTSable
-import logging
 import src.utils as utils
 import os
 import re
@@ -13,6 +12,9 @@ import time
 import sys
 from src.tts.synthesization_options import SynthesizationOptions
 from src.config.definitions.game_definitions import GameEnum
+
+logger = utils.get_logger()
+
 
 class TTSServiceFailure(Exception):
     pass
@@ -41,7 +43,7 @@ class xVASynth(TTSable):
         if not self._facefx_path:
             self._facefx_path = self.__xvasynth_path + "/resources/app/plugins/lip_fuz"
 
-        logging.log(self._loglevel, f'Connecting to xVASynth...')
+        logger.log(self._loglevel, f'Connecting to xVASynth...')
         self._check_if_xvasynth_is_running()
 
 
@@ -67,7 +69,7 @@ class xVASynth(TTSable):
 
     @utils.time_it
     def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None, voice_gender: int | None = None, voice_race: str | None = None):
-        logging.log(self._loglevel, 'Loading voice model...')
+        logger.log(self._loglevel, 'Loading voice model...')
  
         # this is a game check for Fallout4/Skyrim to correctly search the XVASynth voice models for the right game.
         if self._game.base_game == GameEnum.FALLOUT4:
@@ -79,7 +81,7 @@ class xVASynth(TTSable):
         voice_path = f"{self.__model_path}{XVASynthAcronym}{voice.lower().replace(' ', '')}"
 
         if not os.path.exists(voice_path+'.json'):
-            logging.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from {XVASynthModNexusLink} (Ctrl+F for '{XVASynthAcronym}{voice.lower().replace(' ', '')}').")
+            logger.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from {XVASynthModNexusLink} (Ctrl+F for '{XVASynthAcronym}{voice.lower().replace(' ', '')}').")
             raise VoiceModelNotFound()
 
         with open(voice_path+'.json', 'r', encoding='utf-8') as f:
@@ -106,7 +108,7 @@ class xVASynth(TTSable):
         #are here to prevent the static issues by loading the model by following a sequence of model versions of 
         # 3.0 -> 1.1  (will fail to load) -> 3.0 -> 1.1 -> make a dummy voice sample with _synthesize_line -> 1.0 (will fail to load) -> 3.0 -> 1.0 again
         if voice_model_json.get('modelVersion') == 1.0:
-            logging.log(self._loglevel, '1.0 model detected running following sequence to bypass voice model issues : 3.0 -> 1.1  (will fail to load) -> 3.0 -> 1.1 -> make a dummy voice sample with _synthesize_line -> 1.0 (will fail to load) -> 3.0 -> 1.0 again')
+            logger.log(self._loglevel, '1.0 model detected running following sequence to bypass voice model issues : 3.0 -> 1.1  (will fail to load) -> 3.0 -> 1.1 -> make a dummy voice sample with _synthesize_line -> 1.0 (will fail to load) -> 3.0 -> 1.0 again')
             if self._game.base_game == GameEnum.FALLOUT4:
                 backup_voice='piper'
                 self._run_backup_model(backup_voice)
@@ -123,9 +125,9 @@ class xVASynth(TTSable):
         try:
             requests.post(self.__loadmodel_url, json=model_change)
             self._last_voice = voice
-            logging.log(self._loglevel, f'Target model {voice} loaded.')
+            logger.log(self._loglevel, f'Target model {voice} loaded.')
         except:
-            logging.error(f'Target model {voice} failed to load.')
+            logger.error(f'Target model {voice} failed to load.')
             #This step is vital to get older voice models (1,1 and lower) to run
             if self._game.base_game == GameEnum.FALLOUT4:
                 backup_voice='piper'
@@ -135,9 +137,9 @@ class xVASynth(TTSable):
             try:
                 requests.post(self.__loadmodel_url, json=model_change)
                 self._last_voice = voice
-                logging.log(self._loglevel, f'Voice model {voice} loaded.')
+                logger.log(self._loglevel, f'Voice model {voice} loaded.')
             except:
-                logging.error(f'model {voice} failed to load. Try restarting Mantella')
+                logger.error(f'model {voice} failed to load. Try restarting Mantella')
                 input('\nPress any key to stop Mantella...')
                 sys.exit(0)
     
@@ -201,7 +203,7 @@ class xVASynth(TTSable):
                 result.append(current_line.strip())
 
         result = group_sentences(result, max_length)
-        logging.debug(f'Split sentence into : {result}')
+        logger.debug(f'Split sentence into : {result}')
 
         return result
     
@@ -216,7 +218,7 @@ class xVASynth(TTSable):
                 merged_audio = np.concatenate((merged_audio, audio))
                 sf.write(voiceline_file_name, merged_audio, samplerate)
             except:
-                logging.error(f'Could not find voiceline file: {audio_file}')
+                logger.error(f'Could not find voiceline file: {audio_file}')
 
 
     @utils.time_it
@@ -247,12 +249,12 @@ class xVASynth(TTSable):
                 break  # exit the loop if the request is successful
             except ConnectionError as e:
                 if attempt < max_attempts - 1:  # if not the last attempt
-                    logging.warning(f"Connection error while synthesizing voiceline. Restarting xVASynth server... ({attempt})")
+                    logger.warning(f"Connection error while synthesizing voiceline. Restarting xVASynth server... ({attempt})")
                     if voicemodelversion!='1.0':
                         self._run_xvasynth_server()
                         self.change_voice(self._last_voice)
                 else:
-                    logging.error(f"Failed to synthesize line after {max_attempts} attempts. Skipping voiceline: {line}")
+                    logger.error(f"Failed to synthesize line after {max_attempts} attempts. Skipping voiceline: {line}")
                     break
 
 
@@ -279,11 +281,11 @@ class xVASynth(TTSable):
                 break  # Exit the loop if the request is successful
             except ConnectionError as e:
                 if attempt < max_attempts - 1:  # Not the last attempt
-                    logging.warning(f"Connection error while synthesizing voiceline. Restarting xVASynth server... ({attempt})")
+                    logger.warning(f"Connection error while synthesizing voiceline. Restarting xVASynth server... ({attempt})")
                     self._run_xvasynth_server()
                     self.change_voice(self._last_voice)
                 else:
-                    logging.error(f"Failed to synthesize line after {max_attempts} attempts. Skipping voiceline: {linesBatch}")
+                    logger.error(f"Failed to synthesize line after {max_attempts} attempts. Skipping voiceline: {linesBatch}")
                     break
 
 
@@ -293,7 +295,7 @@ class xVASynth(TTSable):
         try:
             if (self._times_checked > 15):
                 # break loop
-                logging.error(f'Could not connect to xVASynth after {self._times_checked} attempts. Ensure that xVASynth is running and restart Mantella.')
+                logger.error(f'Could not connect to xVASynth after {self._times_checked} attempts. Ensure that xVASynth is running and restart Mantella.')
                 raise TTSServiceFailure()
 
             # contact local xVASynth server; ~2 second timeout
@@ -323,13 +325,13 @@ class xVASynth(TTSable):
 
             time.sleep(1)
         except:
-            logging.error(f'Could not run xVASynth. Ensure that the path "{self.__xvasynth_path}" is correct.')
+            logger.error(f'Could not run xVASynth. Ensure that the path "{self.__xvasynth_path}" is correct.')
             raise TTSServiceFailure()
         
 
     @utils.time_it
     def _run_backup_model(self, voice):
-        logging.log(self._loglevel, f'Attempting to load backup model {voice}.')
+        logger.log(self._loglevel, f'Attempting to load backup model {voice}.')
         #This function exists only to force XVASynth to play older models properly by resetting them by loading models in sequence
         
         #If for some reason the model fails to load (for example, because it's an older model) then Mantella will attempt to load a backup model. 
@@ -345,7 +347,7 @@ class xVASynth(TTSable):
             #voice='malenord'
         voice_path = f"{self.__model_path}{XVASynthAcronym}{voice.lower().replace(' ', '')}"
         if not os.path.exists(voice_path+'.json'):
-            logging.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from {XVASynthModNexusLink} (Ctrl+F for '{XVASynthAcronym}{voice.lower().replace(' ', '')}').")
+            logger.error(f"Voice model does not exist in location '{voice_path}'. Please ensure that the correct path has been set in config.ini (xvasynth_folder) and that the model has been downloaded from {XVASynthModNexusLink} (Ctrl+F for '{XVASynthAcronym}{voice.lower().replace(' ', '')}').")
             raise VoiceModelNotFound()
 
         with open(voice_path+'.json', 'r', encoding='utf-8') as f:
@@ -369,6 +371,6 @@ class xVASynth(TTSable):
         }
         try:
             requests.post(self.__loadmodel_url, json=backup_model_change)
-            logging.log(self._loglevel, f'Backup model {voice} loaded.')
+            logger.log(self._loglevel, f'Backup model {voice} loaded.')
         except:
-            logging.error(f"Backup model {voice} failed to load")
+            logger.error(f"Backup model {voice} failed to load")

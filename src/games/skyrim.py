@@ -1,4 +1,3 @@
-import logging
 import os
 import shutil
 from typing import Any, TYPE_CHECKING
@@ -13,6 +12,8 @@ from src.games.external_character_info import external_character_info
 from src.games.gameable import Gameable
 import src.utils as utils
 from src.config.definitions.tts_definitions import TTSEnum
+
+logger = utils.get_logger()
 
 
 class Skyrim(Gameable):
@@ -37,7 +38,7 @@ class Skyrim(Gameable):
             encoding = utils.get_file_encoding(weather_file)
             self.__weather_table: pd.DataFrame = pd.read_csv(weather_file, engine='python', encoding=encoding)
         except:
-            logging.error(f'Unable to read / open "data/Skyrim/skyrim_weather.csv". If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
+            logger.error(f'Unable to read / open "data/Skyrim/skyrim_weather.csv". If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
 
         try:
@@ -45,7 +46,7 @@ class Skyrim(Gameable):
             encoding = utils.get_file_encoding(idles_file)
             self.__idles_table: pd.DataFrame = pd.read_csv(idles_file, engine='python', encoding=encoding)
         except:
-            logging.warning(f'Unable to read / open "data/Skyrim/skyrim_idles.csv". Emote action will not be available.')
+            logger.warning(f'Unable to read / open "data/Skyrim/skyrim_idles.csv". Emote action will not be available.')
             self.__idles_table = pd.DataFrame()
 
     @property
@@ -176,8 +177,8 @@ class Skyrim(Gameable):
         if config.save_audio_data_to_character_folder:
             voice_folder_path = os.path.join(mod_folder, queue_output.speaker.in_game_voice_model)
             if not os.path.exists(voice_folder_path):
-                logging.warning(f"{voice_folder_path} has been created for the first time. Please restart Skyrim to interact with this NPC.")
-                logging.info("Creating voice folders...")
+                logger.warning(f"{voice_folder_path} has been created for the first time. Please restart Skyrim to interact with this NPC.")
+                logger.info("Creating voice folders...")
                 self._create_all_voice_folders(mod_folder, "skyrim_voice_folder")
         else:
             voice_folder_path = os.path.join(mod_folder, self.MANTELLA_VOICE_FOLDER)
@@ -207,12 +208,12 @@ class Skyrim(Gameable):
             # only warn on failure
             pass
 
-        logging.log(23, f"{speaker.name} should speak")
+        logger.log(23, f"{speaker.name} should speak")
 
     @utils.time_it
     def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:
         if ('assist' in text) and (count_sentence_in_text > 0):
-            logging.log(23, f"'assist' keyword found. Ignoring sentence: {text.strip()}")
+            logger.log(23, f"'assist' keyword found. Ignoring sentence: {text.strip()}")
             return False
         return True
     
@@ -266,7 +267,7 @@ class Skyrim(Gameable):
             hex_str = str(selected_row['id'])
             try:
                 idle_id = int(hex_str, 16)
-                logging.log(23, f"Resolved idle name '{idle_name}' to ID {idle_id}")
+                logger.log(23, f"Resolved idle name '{idle_name}' to ID {idle_id}")
                 return idle_id
             except ValueError:
                 return None

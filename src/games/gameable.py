@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import json
-import logging
 import os
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
@@ -18,6 +17,9 @@ import threading
 import wave
 import shutil
 
+logger = utils.get_logger()
+
+
 class Gameable(ABC):
     """Abstract class for different implementations of games to support. 
     Make a subclass for every game that Mantella is supposed to support and implement this interface
@@ -34,17 +36,17 @@ class Gameable(ABC):
         try:
             self.__character_df: pd.DataFrame = self.__get_character_df(path_to_character_df)
         except:
-            logging.error(f'Unable to read / open {path_to_character_df}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
+            logger.error(f'Unable to read / open {path_to_character_df}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
         
         self._is_vr: bool = config.game.is_vr
         #Apply character overrides
         mod_overrides_folder = os.path.join(*[config.mod_path_base, self.extender_name, "Plugins","MantellaSoftware","data",f"{mantella_game_folder_path}","character_overrides"])
         self.__apply_character_overrides(mod_overrides_folder, self.__character_df.columns.values.tolist())
-        personal_overrides_folder = os.path.join(config.save_folder, f"data/{mantella_game_folder_path}/character_overrides")     
+        personal_overrides_folder = os.path.join(config.save_folder, f"data/{mantella_game_folder_path}/character_overrides")
         self.__apply_character_overrides(personal_overrides_folder, self.__character_df.columns.values.tolist())
 
-        self.__conversation_folder_path = config.save_folder + f"data/{mantella_game_folder_path}/conversations"
+        self.__conversation_folder_path = os.path.join(config.save_folder, "data", mantella_game_folder_path, "conversations")
         conversation_log.game_path = self.__conversation_folder_path
     
     @property
@@ -193,13 +195,13 @@ class Gameable(ABC):
             row = matching_rows.iloc[0]
             ref_id = str(row.get('ref_id', ''))
             if ref_id:
-                logging.info(f"Resolved NPC '{name}' to ref_id '{ref_id}'")
+                logger.info(f"Resolved NPC '{name}' to ref_id '{ref_id}'")
             else:
-                logging.warning(f"NPC '{name}' found but has no ref_id in CSV")
+                logger.warning(f"NPC '{name}' found but has no ref_id in CSV")
         elif matching_rows.shape[0] > 1:
-            logging.warning(f"Multiple NPCs found with name '{name}' ({matching_rows.shape[0]} matches) - cannot resolve unambiguously")
+            logger.warning(f"Multiple NPCs found with name '{name}' ({matching_rows.shape[0]} matches) - cannot resolve unambiguously")
         else:
-            logging.warning(f"No NPC found with name '{name}' in character CSV")
+            logger.warning(f"No NPC found with name '{name}' in character CSV")
         
         return ref_id
 
@@ -252,7 +254,7 @@ class Gameable(ABC):
         for matcher in ordered_matchers:
             view = self.character_df.loc[ordered_matchers[matcher]]
             if view.shape[0] == 1: #If there is exactly one match
-                logging.info(f'Matched {character_name} in CSV by {matcher}')
+                logger.info(f'Matched {character_name} in CSV by {matcher}')
                 return ordered_matchers[matcher]
             
         return None
@@ -262,7 +264,7 @@ class Gameable(ABC):
         character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
         matcher = self._get_matching_df_rows_matcher(base_id, character_name, character_race)
         if isinstance(matcher, type(None)):
-            logging.info(f"Could not find {character_name} in {self.game_name_in_filepath}_characters.csv. Loading as a generic NPC.")
+            logger.info(f"Could not find {character_name} in {self.game_name_in_filepath}_characters.csv. Loading as a generic NPC.")
             character_info = self.load_unnamed_npc(character_name, character_race, gender, ingame_voice_model)
             is_generic_npc = True
         else:
@@ -323,7 +325,7 @@ class Gameable(ABC):
                                 if value and not pd.isna(value) and value != "":
                                     self.character_df.loc[matcher, entry] = value
             except Exception as e:
-                logging.log(logging.WARNING, f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
+                logger.log(logger.WARNING, f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
 
     @utils.time_it
     def _create_all_voice_folders(self, mod_path: str, voice_folder_col: str):

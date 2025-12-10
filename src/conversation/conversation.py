@@ -1,5 +1,4 @@
 from enum import Enum
-import logging
 from threading import Thread, Lock
 import time
 from typing import Any
@@ -21,6 +20,9 @@ from src.http.communication_constants import communication_constants as comm_con
 from src.stt import Transcriber
 import src.utils as utils
 from src.actions.function_manager import FunctionManager
+
+logger = utils.get_logger()
+
 
 class conversation_continue_type(Enum):
     NPC_TALK = 1
@@ -161,7 +163,7 @@ class Conversation:
                 self.__context.remove_character(next_sentence.speaker)
             #if there is a next sentence and it actually has content, return it as something for an NPC to say
             if self.last_sentence_audio_length > 0:
-                logging.debug(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
+                logger.debug(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
             # before immediately sending the next voiceline, give the player the chance to interrupt
             while time.time() - self.last_sentence_start_time < self.last_sentence_audio_length:
                 if self.__stt and self.__stt.has_player_spoken:
@@ -238,12 +240,12 @@ class Conversation:
                     # Handle silence timeout (None returned)
                     if player_text is None:
                         self.__silence_auto_response_count += 1
-                        logging.log(23, f"Player silent for {self.__silence_auto_response_timeout} seconds. Auto-response count: {self.__silence_auto_response_count}/{self.__silence_auto_response_max_count}")
+                        logger.log(23, f"Player silent for {self.__silence_auto_response_timeout} seconds. Auto-response count: {self.__silence_auto_response_count}/{self.__silence_auto_response_max_count}")
                         player_text = self.__silence_auto_response_message
                         
                         # If max count reached, log that auto-response is now disabled
                         if self.__silence_auto_response_count >= self.__silence_auto_response_max_count:
-                            logging.log(23, f"Max consecutive silence count ({self.__silence_auto_response_max_count}) reached. Auto-response disabled until player speaks")
+                            logger.log(23, f"Max consecutive silence count ({self.__silence_auto_response_max_count}) reached. Auto-response disabled until player speaks")
                         break
                     elif player_text:
                         # Player spoke -> reset the silence counter
@@ -252,7 +254,7 @@ class Conversation:
                 if time.time() - input_wait_start_time >= self.__events_refresh_time:
                     # If too much time has passed, in-game events need to be updated
                     events_need_updating = True
-                    logging.debug('Updating game events...')
+                    logger.debug('Updating game events...')
                     return player_text, events_need_updating, None
                 
                 # Stop listening once input has been detected to give the NPC a chance to speak
@@ -266,7 +268,7 @@ class Conversation:
             self.__messages.add_message(new_message)
             player_voiceline = self.__get_player_voiceline(player_character, player_text)
             text = new_message.text
-            logging.log(23, f"Text passed to NPC: {text}")
+            logger.log(23, f"Text passed to NPC: {text}")
 
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
         if ejected_npc:
@@ -281,7 +283,7 @@ class Conversation:
 
     def __get_mic_prompt(self):
         mic_prompt = f"This is a conversation with {self.__context.get_character_names_as_text(False)} in {self.__context.location}."
-        #logging.log(23, f'Context for mic transcription: {mic_prompt}')
+        #logger.log(23, f'Context for mic transcription: {mic_prompt}')
         return mic_prompt
     
     @utils.time_it
@@ -349,7 +351,7 @@ class Conversation:
         self.__context.clear_context_ingame_events()        
 
         if message.count_ingame_events() > 0:            
-            logging.log(28, f'In-game events since previous exchange:\n{message.get_ingame_events_text()}')
+            logger.log(28, f'In-game events since previous exchange:\n{message.get_ingame_events_text()}')
 
         return message
 

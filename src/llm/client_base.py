@@ -3,7 +3,6 @@ from typing import AsyncGenerator, Any
 from enum import Enum
 from openai import APIConnectionError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
 from openai.types.chat import ChatCompletion
-import logging
 import time
 import tiktoken
 import os
@@ -14,6 +13,8 @@ from src.llm.messages import Message, ImageMessage, UserMessage
 from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
 from src.actions.function_manager import FunctionManager
+
+logger = utils.get_logger()
 
 
 class VisionMode(Enum):
@@ -172,7 +173,7 @@ class ClientBase(AIClient):
         with self._generation_lock:
             sync_client = self.generate_sync_client()        
             chat_completion: ChatCompletion = None
-            logging.log(28, 'Getting LLM response...')
+            logger.log(28, 'Getting LLM response...')
 
             if isinstance(messages, Message) or isinstance(messages, ImageMessage):
                 openai_messages = [messages.get_openai_message()]
@@ -190,7 +191,7 @@ class ClientBase(AIClient):
                     **request_params,
                 )
             except RateLimitError:
-                logging.warning('Could not connect to LLM API, retrying in 5 seconds...')
+                logger.warning('Could not connect to LLM API, retrying in 5 seconds...')
                 time.sleep(5)
             finally:
                 sync_client.close()
@@ -216,7 +217,7 @@ class ClientBase(AIClient):
             chat_completion.choices.__len__() < 1 or 
             not chat_completion.choices[0].message.content
         ):
-            logging.info(f"LLM Response failed")
+            logger.info(f"LLM Response failed")
             return None
         
         reply = chat_completion.choices[0].message.content
@@ -226,7 +227,7 @@ class ClientBase(AIClient):
     @utils.time_it
     async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool, tools: list[dict] = None) -> AsyncGenerator[tuple[str, str | list] | None, None]:
         with self._generation_lock:
-            logging.log(28, 'Getting LLM response...')
+            logger.log(28, 'Getting LLM response...')
 
             if self._request_params:
                 request_params = self._request_params.copy() # copy of self._request_params to allow temporary override
@@ -251,9 +252,9 @@ class ClientBase(AIClient):
                 if self._should_enable_vision():
                     if self._image_client:
                         openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
-                        logging.log(23, f"Vision enabled for this LLM call")
+                        logger.log(23, f"Vision enabled for this LLM call")
                     else:
-                        logging.warning("Vision tool called but Vision not enabled in config - ignoring")
+                        logger.warning("Vision tool called but Vision not enabled in config - ignoring")
                     self._enable_vision_next_call = False  # Reset flag after use
 
                 # Handle tool calling: use dedicated function client if available, otherwise use main LLM
@@ -313,7 +314,7 @@ class ClientBase(AIClient):
                                         accumulated_tool_calls[idx]["function"]["arguments"] += tool_call.function.arguments
                             
                     except Exception as e:
-                        logging.error(f"LLM API Connection Error: {e}")
+                        logger.error(f"LLM API Connection Error: {e}")
                         break
                 
                 # After streaming completes, yield any accumulated tool calls
@@ -328,16 +329,16 @@ class ClientBase(AIClient):
                             service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
                         else:
                             service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
-                        logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+                        logger.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
                     else:
-                        logging.error(f"LLM API Error: {e}")
+                        logger.error(f"LLM API Error: {e}")
                 elif isinstance(e, BadRequestError):
                     if (e.type == 'invalid_request_error') and (self._image_client): # invalid request
-                        logging.error(f"Invalid request. Try disabling Vision in Mantella's settings and try again.")
+                        logger.error(f"Invalid request. Try disabling Vision in Mantella's settings and try again.")
                     else:
-                        logging.error(f"LLM API Streaming Error: {e}")
+                        logger.error(f"LLM API Streaming Error: {e}")
                 else:
-                    logging.error(f"LLM API Streaming Error: {e}")
+                    logger.error(f"LLM API Streaming Error: {e}")
             finally:
                 if async_client:
                     await async_client.close()
@@ -431,7 +432,7 @@ class ClientBase(AIClient):
         if not api_key or api_key == '':
                 if show_error:
                     utils.play_error_sound()
-                    logging.critical(f'''No secret key found in GPT_SECRET_KEY.txt.
+                    logger.critical(f'''No secret key found in GPT_SECRET_KEY.txt.
 Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
@@ -463,16 +464,16 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         if llm in token_limit_dict:
             token_limit = token_limit_dict[llm]
         else:
-            logging.log(23, f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count}. This number can be changed via the `Large Language Model`->`Custom Token Count` / `Vision`->`Custom Vision Model Token Count` settings in the Mantella UI")
+            logger.log(23, f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count}. This number can be changed via the `Large Language Model`->`Custom Token Count` / `Vision`->`Custom Vision Model Token Count` settings in the Mantella UI")
             try:
                 token_limit = custom_token_count
             except ValueError:
-                logging.error(f"Invalid custom_token_count value: {custom_token_count}. It should be a valid integer. Please update your configuration.")
+                logger.error(f"Invalid custom_token_count value: {custom_token_count}. It should be a valid integer. Please update your configuration.")
                 token_limit = 4096  # Default to 4096 in case of an error.
         if token_limit <= 4096:
             if is_local:
                 llm = 'Local language model'
-            logging.warning(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
+            logger.warning(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
         
         return token_limit
     
@@ -501,7 +502,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             try:
                 encoding = tiktoken.get_encoding('cl100k_base') # try loading a generic encoding
             except:
-                logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `Large Language Model`->`LLM Service` in the Mantella UI and follow the instructions to change this setting')
+                logger.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `Large Language Model`->`LLM Service` in the Mantella UI and follow the instructions to change this setting')
                 raise
         
         return encoding
@@ -592,11 +593,11 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                 # NOTE: while a secret key is not needed for this request, this may change in the future
                 client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
                 # don't log initial 'HTTP Request: GET https://openrouter.ai/api/v1/models "HTTP/1.1 200 OK"'
-                logging.getLogger('openai').setLevel(logging.ERROR)
-                logging.getLogger("httpx").setLevel(logging.ERROR)
+                logger.getLogger('openai').setLevel(logger.ERROR)
+                logger.getLogger("httpx").setLevel(logger.ERROR)
                 models = client.models.list()
-                logging.getLogger('openai').setLevel(logging.INFO)
-                logging.getLogger("httpx").setLevel(logging.INFO)
+                logger.getLogger('openai').setLevel(logger.INFO)
+                logger.getLogger("httpx").setLevel(logger.INFO)
                 client.close()
                 allow_manual_model_input = False
 

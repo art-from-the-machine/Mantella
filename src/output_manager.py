@@ -1,6 +1,5 @@
 import asyncio
 from threading import Lock
-import logging
 import time
 import unicodedata
 from openai import APIConnectionError
@@ -30,6 +29,9 @@ from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
 from src.games.gameable import Gameable
 from typing import Callable
+
+logger = utils.get_logger()
+
 
 class ChatManager:
     def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient):
@@ -105,7 +107,7 @@ class ChatManager:
         
         # Check for short voicelines before sending to TTS
         if len(content.text.strip()) < 3:
-            logging.warning(f"Skipping TTS for voiceline that is too-short: '{content.text.strip()}'")
+            logger.warning(f"Skipping TTS for voiceline that is too-short: '{content.text.strip()}'")
             # Return a sentence object without audio - skipping TTS entirely
             return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, True), "", 0)
 
@@ -120,7 +122,7 @@ class ChatManager:
             except Exception as e:
                 utils.play_error_sound()
                 error_text = f"Text-to-Speech Error: {e}"
-                logging.log(29, error_text)
+                logger.log(29, error_text)
                 return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, True), "", 0, error_text)
             self.__is_first_sentence = False
             return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file))
@@ -227,7 +229,7 @@ class ChatManager:
                             continue
 
                         if first_token:
-                            logging.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to respond")
+                            logger.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to respond")
                             first_token = False
                         
                         # Handle different types of streaming data
@@ -243,7 +245,7 @@ class ChatManager:
                             elif item_type == "tool_calls":
                                 # Collect tool calls
                                 collected_tool_calls = item_data
-                                logging.log(23, f"Received {len(collected_tool_calls)} tool call(s)")
+                                logger.log(23, f"Received {len(collected_tool_calls)} tool call(s)")
                                 
                                 # Add tool calls to message history
                                 if not tool_calls_added_this_turn:
@@ -259,7 +261,7 @@ class ChatManager:
                                     for tool in parsed_tools if isinstance(tool, dict)
                                 )
                                 if vision_requested:
-                                    logging.log(23, "Vision requested for next LLM call")
+                                    logger.log(23, "Vision requested for next LLM call")
                                     settings.vision_requested = True
                                     # Remove vision from parsed_tools so it doesn't go to the game
                                     parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_npc_vision']
@@ -271,7 +273,7 @@ class ChatManager:
                                 )
                                 if listen_requested:
                                     pause_seconds = FunctionManager.get_action_pause_seconds('mantella_npc_listen') or 10.0
-                                    logging.log(23, f"Listen action triggered: Pause threshold increased to {pause_seconds} seconds for one turn")
+                                    logger.log(23, f"Listen action triggered: Pause threshold increased to {pause_seconds} seconds for one turn")
                                     self.set_listen_requested(pause_seconds)
                                     # Remove listen from parsed_tools so it doesn't go to the game
                                     parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_npc_listen']
@@ -282,7 +284,7 @@ class ChatManager:
                                     for tool in parsed_tools if isinstance(tool, dict)
                                 )
                                 if end_conversation_requested:
-                                    logging.log(23, "End conversation action triggered via tool call")
+                                    logger.log(23, "End conversation action triggered via tool call")
                                     self.set_end_conversation_requested()
                                     # Remove end_conversation from parsed_tools so it doesn't go to the game directly
                                     parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_end_conversation']
@@ -295,7 +297,7 @@ class ChatManager:
                                         settings.interrupting_action = True
                                         settings.stop_generation = True
 
-                                    logging.log(23, f"Parsed actions: {parsed_tools}")
+                                    logger.log(23, f"Parsed actions: {parsed_tools}")
                                     action_only_sentence = SentenceContent(active_character, "", SentenceTypeEnum.SPEECH, True, parsed_tools)
                                     blocking_queue.put(Sentence(action_only_sentence, "", 0))
                         else:
@@ -337,11 +339,11 @@ class ChatManager:
                     if collected_tool_calls and not has_text_response:
                         # Skip second call if interrupting action detected - wait for game context instead
                         if settings.interrupting_action:
-                            logging.log(23, "Skipping second LLM call - waiting for action response from game")
+                            logger.log(23, "Skipping second LLM call - waiting for action response from game")
                             break
                         
                         # LLM chose tools but no text - need to make second call
-                        logging.log(23, f"Making second LLM call for text response...")
+                        logger.log(23, f"Making second LLM call for text response...")
                         
                         # If vision was requested, enable it for the next call
                         if settings.vision_requested:
@@ -359,7 +361,7 @@ class ChatManager:
                 except Exception as e:
                     retries += 1
                     utils.play_error_sound()
-                    logging.error(f"LLM API Error: {e}")
+                    logger.error(f"LLM API Error: {e}")
                     
                     error_response = "I can't find the right words at the moment."
                     new_sentence = self.generate_sentence(SentenceContent(active_character, error_response, SentenceTypeEnum.SPEECH, True))
@@ -368,23 +370,23 @@ class ChatManager:
                         break
                     
                     if retries >= max_retries:
-                        logging.log(self.loglevel, f"Max retries reached ({retries}).")
+                        logger.log(self.loglevel, f"Max retries reached ({retries}).")
                         break
                     
-                    logging.log(self.loglevel, 'Retrying connection to API...')
+                    logger.log(self.loglevel, 'Retrying connection to API...')
                     time.sleep(5)
 
         except Exception as e:
             utils.play_error_sound()
             if isinstance(e, APIConnectionError):
                 if (hasattr(e, 'code')) and (e.code in [401, 'invalid_api_key']): # incorrect API key
-                    logging.error(f"Invalid API key. Please ensure you have selected the right model for your service (OpenAI / OpenRouter) via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+                    logger.error(f"Invalid API key. Please ensure you have selected the right model for your service (OpenAI / OpenRouter) via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
                 elif isinstance(e, UnboundLocalError):
-                    logging.error('No voice file generated for voice line. Please check your TTS service for errors. The reason for this error is often because a voice model could not be found.')
+                    logger.error('No voice file generated for voice line. Please check your TTS service for errors. The reason for this error is often because a voice model could not be found.')
                 else:
-                    logging.error(f"LLM API Error: {e}")
+                    logger.error(f"LLM API Error: {e}")
             else:
-                logging.error(f"LLM API Error: {e}")
+                logger.error(f"LLM API Error: {e}")
         finally:
             # Handle any remaining content
             if parsed_sentence:
@@ -396,7 +398,7 @@ class ChatManager:
                 if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or pending_sentence.sentence_type != SentenceTypeEnum.NARRATION:
                     new_sentence = self.generate_sentence(pending_sentence)
                     blocking_queue.put(new_sentence)
-            logging.log(23, f"Full raw response ({self.__client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")
+            logger.log(23, f"Full raw response ({self.__client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")
             blocking_queue.is_more_to_come = False
             # This sentence is required to make sure there is one in case the game is already waiting for it
             # before the ChatManager realises there is not another message coming from the LLM

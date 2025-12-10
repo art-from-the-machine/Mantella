@@ -1,7 +1,9 @@
 import typing
 import gradio as gr
 from typing import Any, Callable, TypeVar, NamedTuple, Dict, TypedDict, Optional
-import logging
+import src.utils as utils
+
+logger = utils.get_logger()
 
 from src.llm.client_base import ClientBase
 from src.config.types.config_value_path import ConfigValuePath
@@ -173,7 +175,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
         if result.is_success:
             if config_value.value != new_value:
                 config_value.value = new_value
-                logging.info(f'{config_value.name} set to {config_value.value}')
+                logger.info(f'{config_value.name} set to {config_value.value}')
             return self.__construct_error_message_panel('', is_visible=False)
         else:
             return self.__construct_error_message_panel(result.error_message, is_visible=True)
