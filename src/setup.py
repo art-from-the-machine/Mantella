@@ -31,7 +31,7 @@ class MantellaSetup:
 Conversation histories, config.ini, and logging.log available in:
     {self.save_folder}''')
         logging.log(23, f'''Mantella currently running for {self.config.game.display_name}. Mantella mod files located in: 
-    {self.config.mod_path}''')
+    {self.config.mod_path_base}''')
         if not self.config.have_all_config_values_loaded_correctly:
             logging.error("Cannot start Mantella. Not all settings that are required are set to correct values. This error often occurs when you start Mantella.exe manually without setting up the `Game` tab in the Mantella UI.")
 
