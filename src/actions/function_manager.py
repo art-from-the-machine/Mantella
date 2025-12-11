@@ -300,10 +300,11 @@ class FunctionManager:
                 }
             }
 
-            # Only add parameters if they exist
+            
+            tool['function']['parameters'] = {}
+            tool['function']['parameters']['type'] = 'object'
+            # Only populate parameters if they exist
             if 'parameters' in action:
-                tool['function']['parameters'] = {}
-                tool['function']['parameters']['type'] = 'object'
                 tool['function']['parameters']['properties'] = deepcopy(action['parameters'])
                 if 'required' in action:
                     tool['function']['parameters']['required'] = action['required']
