@@ -273,9 +273,9 @@ class FunctionManager:
         for action in FunctionManager._actions.values():
             # Filter by game compatibility
             if 'allowed_games' in action and action['allowed_games']:
-                game_name = context.config.game.display_name.lower().replace(" ", "")
+                base_game_name = context.config.game.base_game.display_name.lower().replace(" ", "")
                 cleaned_allowed_games = [g.lower().replace(" ", "") for g in action['allowed_games']]
-                if game_name not in cleaned_allowed_games:
+                if base_game_name not in cleaned_allowed_games:
                     continue
 
             # Filter by conversation type
