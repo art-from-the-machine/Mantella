@@ -586,7 +586,8 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             elif service == "OpenRouter":
                 default_model = default_model
                 secret_key_files = [secret_key_file, 'GPT_SECRET_KEY.txt'] if secret_key_file != 'GPT_SECRET_KEY.txt' else [secret_key_file]
-                secret_key = ClientBase._get_api_key(secret_key_files, not is_vision)
+                show_error = not is_vision and not is_tool_calling # Only show error for base LLM
+                secret_key = ClientBase._get_api_key(secret_key_files, show_error=show_error)
                 if not secret_key:
                     return LLMModelList([(f"No secret key found in {secret_key_file}", "Custom model")], "Custom model", allows_manual_model_input=True)
                 # NOTE: while a secret key is not needed for this request, this may change in the future
