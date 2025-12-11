@@ -6,6 +6,7 @@ from openai.types.chat.chat_completion_message import ChatCompletionMessageToolC
 from src.characters_manager import Characters
 from src.conversation.action import Action
 from src.games.gameable import Gameable
+from src import utils
 
 class FunctionManager:
     _actions: dict[str, dict] = {}  # Map identifier -> action data
@@ -151,8 +152,7 @@ class FunctionManager:
     def load_all_actions() -> None:
         """Load all actions from the data/actions/ folder at server startup"""
         # Get the project root directory (two levels up from this file)
-        project_root = Path(__file__).parent.parent.parent
-        actions_dir = project_root / "data" / "actions"
+        actions_dir = Path(utils.resolve_path()) / "data" / "actions"
         
         if not actions_dir.exists():
             logging.warning(f"Actions directory '{actions_dir}' not found")
@@ -179,7 +179,8 @@ class FunctionManager:
         #         except Exception as e:
         #             logging.warning(f"Failed to load function file {file_path}: {e}")
 
-        logging.log(23, f"Loaded {len(FunctionManager._actions)} actions from: {actions_dir}")
+        logging.log(23, f"""Loaded {len(FunctionManager._actions)} actions from: 
+    {actions_dir}""")
 
 
     @staticmethod
