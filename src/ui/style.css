@@ -143,7 +143,8 @@
 }
 
 .tooltip-content-right {
-    max-width: 400px;
+    /* Wider help popover (responsive) */
+    max-width: clamp(360px, 55vw, 900px);
     right: 0px;
     left: auto;
 }
