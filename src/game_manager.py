@@ -748,6 +748,18 @@ class GameStateManager:
         logging.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
         logging.log(24, '\nWaiting for player to select an NPC...')
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_ENDCONVERSATION}
+
+    @utils.time_it
+    def save_summary_only(self) -> bool:
+        """Trigger summary/log saving without ending the active conversation.
+
+        Returns:
+            bool: True if a conversation existed and the save was triggered, False otherwise.
+        """
+        if not self.__talk:
+            return False
+        self.__talk.save_summary_only()
+        return True
     
     def process_stt_setup(self, input_json: dict[str, Any]):
         '''Process the STT setup (mic / text / push-to-talk) based on the settings passed in the input JSON'''

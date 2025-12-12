@@ -203,3 +203,10 @@ class OtherDefinitions:
                         This refreshes character data that is cached in memory.
                         Note: If there is an active conversation, it will be ended before reloading."""
         return ConfigValueString("reload_character_data", "Reload Character Data", description, "")
+
+    @staticmethod
+    def get_save_summary_now_config_value() -> ConfigValue:
+        description = """Trigger saving a conversation summary (and log) without ending the active conversation.
+                        Useful if the game crashes and Mantella doesn't receive the normal end-conversation event.
+                        Note: When the conversation later ends normally, another summary may be generated again."""
+        return ConfigValueString("save_summary_now", "Save Summary Now", description, "")

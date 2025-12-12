@@ -483,6 +483,25 @@ class Conversation:
         self.__save_summary_for_characters(self.__messages, self.__context.npcs_in_conversation.get_all_characters())
 
     @utils.time_it
+    def save_summary_only(self, is_reload: bool = False) -> None:
+        """Triggers a summary/log save WITHOUT ending the conversation.
+
+        Important: The rememberer may mutate the message thread (e.g., by inserting join/leave messages).
+        To avoid affecting the live conversation state, we take a snapshot of persistent messages.
+        """
+        try:
+            # Snapshot persistent messages so the rememberer can safely mutate the copy.
+            messages_snapshot = message_thread(self.__context.config, None)
+            messages_snapshot.add_non_system_messages(self.__messages.get_persistent_messages())
+            self.__save_summary_for_characters(
+                messages_snapshot,
+                self.__context.npcs_in_conversation.get_all_characters(),
+                is_reload=is_reload
+            )
+        except Exception as e:
+            logging.error(f"save_summary_only failed: {e}", exc_info=True)
+
+    @utils.time_it
     def __save_conversation_log_for_characters(self, characters_to_save_for: list[Character] ):
         """Saves all messages of the conversation to a json file for each NPC in the conversation"""
         for npc in characters_to_save_for:

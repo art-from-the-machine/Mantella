@@ -618,8 +618,28 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 except Exception as e:
                     logging.error(f"Error during character data reload: {e}", exc_info=True)
                     return f" An error occurred: {str(e)}"
-            
+
             additional_buttons.append(("Reload", on_reload_click))
+
+        elif config_value.identifier == "save_summary_now":
+            def on_save_summary_click() -> str:
+                """Trigger summary/log saving without ending the current conversation."""
+                global _game_manager_ref
+                try:
+                    if _game_manager_ref:
+                        logging.info("Manual summary trigger via UI button (will save summary/log if enabled)...")
+                        ok = _game_manager_ref.save_summary_only()
+                        if ok:
+                            return " Summary/log save triggered (conversation continues)."
+                        return " No active conversation to summarize."
+                    else:
+                        logging.warning("Manual summary clicked, but game manager reference is not set. The game might not have been started.")
+                        return " Game not started. Please start the game first."
+                except Exception as e:
+                    logging.error(f"Error triggering summary-only via UI: {e}", exc_info=True)
+                    return f" An error occurred: {str(e)}"
+
+            additional_buttons.append(("Save Summary", on_save_summary_click))
         
         # Add model profile management buttons
         elif config_value.identifier == "profile_parameters":
