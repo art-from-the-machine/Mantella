@@ -272,7 +272,7 @@ class Gameable(ABC):
 
         return character_info, is_generic_npc
     
-    def __validate_override_match(self, matcher: pd.Series, override_base_id, override_race) -> pd.Series | None:
+    def __validate_override_match(self, matcher: pd.Series, override_base_id, override_race, override_name: str | None = None) -> pd.Series | None:
         """Validates that a matcher result actually matches the override's identifying fields.
         
         This prevents distinct overrides (e.g., two NPCs with same name but different IDs) from
@@ -283,6 +283,7 @@ class Gameable(ABC):
             matcher: Boolean series from _get_matching_df_rows_matcher
             override_base_id: base_id from the override entry (may be empty, any type)
             override_race: race from the override entry (may be empty, any type)
+            override_name: name from the override entry (may be empty, any type)
             
         Returns:
             Validated matcher series, or None if validation fails
@@ -293,15 +294,42 @@ class Gameable(ABC):
         # Coerce inputs to strings to handle JSON non-string values
         obid = str(override_base_id or "").strip()
         orace = str(override_race or "").strip()
+        oname = str(override_name or "").strip()
             
         candidate_rows = self.character_df.loc[matcher]
         
+        # Build a validation mask over the candidate rows
+        validation_mask = pd.Series(True, index=candidate_rows.index)
+
+        # Validate name if provided
+        if oname:
+            candidate_names = candidate_rows["name"].fillna("").astype(str).str.strip().str.lower()
+            override_name_normalized = oname.lower()
+            name_match_mask = candidate_names == override_name_normalized
+
+            # If no candidate has this name, treat as "no match" so we can create a new row
+            if not name_match_mask.any():
+                try:
+                    logging.info(
+                        "Override validation: treating override as NEW row because no "
+                        f"candidate name matches (override name='{oname}', "
+                        f"candidates={candidate_names.unique().tolist()})"
+                    )
+                except Exception:
+                    pass
+                return None
+
+            # Restrict candidates to rows whose name matches
+            validation_mask &= name_match_mask
+
         # If override has no identifying info beyond name, accept the match as-is
         if not obid and not orace:
+            # If we filtered by name, preserve that restriction
+            if oname:
+                validation_mask = validation_mask.reindex(matcher.index, fill_value=False)
+                validated_matcher = matcher & validation_mask
+                return validated_matcher if validated_matcher.any() else None
             return matcher
-        
-        # Build a validation mask
-        validation_mask = pd.Series(True, index=candidate_rows.index)
         
         # Validate base_id if provided - use same partial-ID logic as the matcher
         if obid:
@@ -376,6 +404,24 @@ class Gameable(ABC):
             try:
                 filename, extension = os.path.splitext(file)
                 full_path_file = os.path.join(overrides_folder,file)
+                def _as_clean_str(v) -> str:
+                    if v is None:
+                        return ""
+                    if pd.isna(v):
+                        return ""
+                    if not isinstance(v, str):
+                        v = str(v)
+                    return v.strip()
+
+                def _append_csv(existing: str, incoming: str) -> str:
+                    existing = _as_clean_str(existing)
+                    incoming = _as_clean_str(incoming)
+                    if not incoming:
+                        return existing
+                    if not existing:
+                        return incoming
+                    return f"{existing},{incoming}"
+
                 if extension == ".json":
                     with open(full_path_file) as fp:
                         json_object = json.load(fp)
@@ -383,43 +429,80 @@ class Gameable(ABC):
                             json_object = [json_object]
                         for json_content in json_object:
                             content: dict[str, str] = json_content
+                            # Ensure append-only `tags` can be consumed even if the base CSV didn't have the column yet
+                            headers = list(character_df_column_headers)
+                            if "tags" in content and "tags" not in headers:
+                                headers.append("tags")
+                                if "tags" not in self.character_df.columns:
+                                    self.character_df["tags"] = ""
                             name = content.get("name", "")
                             base_id = content.get("base_id", "")
                             race = content.get("race", "")
                             matcher = self._get_matching_df_rows_matcher(base_id, name, race)
                             # Validate that the match actually corresponds to this override's identifying fields
-                            matcher = self.__validate_override_match(matcher, base_id, race)
+                            matcher = self.__validate_override_match(matcher, base_id, race, name)
                             if isinstance(matcher, type(None)): #character not in csv, add as new row
                                 row = []
-                                for entry in character_df_column_headers:
+                                for entry in headers:
                                     value = content.get(entry, "")
                                     row.append(value)
                                 self.character_df.loc[len(self.character_df.index)] = row
                             else: #character is in csv, update row
-                                for entry in character_df_column_headers:
+                                for entry in headers:
                                     value = content.get(entry, None)
-                                    if value and value != "":
-                                        self.character_df.loc[matcher, entry] = value
+                                    if entry == "tags":
+                                        incoming = _as_clean_str(value)
+                                        if incoming:
+                                            existing_series = self.character_df.loc[matcher, entry] if entry in self.character_df.columns else ""
+                                            try:
+                                                existing_value = existing_series.iloc[0]  # type: ignore[attr-defined]
+                                            except Exception:
+                                                existing_value = existing_series
+                                            combined = _append_csv(existing_value, incoming)
+                                            self.character_df.loc[matcher, entry] = combined
+                                    else:
+                                        # Default overwrite behavior (including `tags`)
+                                        incoming = _as_clean_str(value)
+                                        if incoming:
+                                            self.character_df.loc[matcher, entry] = incoming
                 elif extension == ".csv":
                     extra_df = self.__get_character_df(full_path_file)
+                    # Ensure append-only `tags` can be consumed even if the base CSV didn't have the column yet
+                    headers = list(character_df_column_headers)
+                    if "tags" in extra_df.columns and "tags" not in headers:
+                        headers.append("tags")
+                        if "tags" not in self.character_df.columns:
+                            self.character_df["tags"] = ""
                     for i in range(extra_df.shape[0]):#for each row in df
                         name = self.get_string_from_df(extra_df.iloc[i], "name")
                         base_id = self.get_string_from_df(extra_df.iloc[i], "base_id")
                         race = self.get_string_from_df(extra_df.iloc[i], "race")
                         matcher = self._get_matching_df_rows_matcher(base_id, name, race)
                         # Validate that the match actually corresponds to this override's identifying fields
-                        matcher = self.__validate_override_match(matcher, base_id, race)
+                        matcher = self.__validate_override_match(matcher, base_id, race, name)
                         if isinstance(matcher, type(None)): #character not in csv, add as new row
                             row = []
-                            for entry in character_df_column_headers:
+                            for entry in headers:
                                 value = self.get_string_from_df(extra_df.iloc[i], entry)
                                 row.append(value)
                             self.character_df.loc[len(self.character_df.index)] = row
                         else: #character is in csv, update row
-                            for entry in character_df_column_headers:
+                            for entry in headers:
                                 value = extra_df.iloc[i].get(entry, None)
-                                if value and not pd.isna(value) and value != "":
-                                    self.character_df.loc[matcher, entry] = value
+                                if entry == "tags":
+                                    incoming = _as_clean_str(value)
+                                    if incoming:
+                                        existing_series = self.character_df.loc[matcher, entry] if entry in self.character_df.columns else ""
+                                        try:
+                                            existing_value = existing_series.iloc[0]  # type: ignore[attr-defined]
+                                        except Exception:
+                                            existing_value = existing_series
+                                        combined = _append_csv(existing_value, incoming)
+                                        self.character_df.loc[matcher, entry] = combined
+                                else:
+                                    incoming = _as_clean_str(value)
+                                    if incoming:
+                                        self.character_df.loc[matcher, entry] = incoming
             except Exception as e:
                 logging.log(logging.WARNING, f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
 

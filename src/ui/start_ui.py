@@ -369,6 +369,27 @@ class StartUI(routeable):
                 filename, extension = os.path.splitext(target_path)
                 ext = extension.lower()
                 
+                def _clean(v) -> str:
+                    if v is None:
+                        return ''
+                    try:
+                        if pd.isna(v):
+                            return ''
+                    except Exception:
+                        pass
+                    if not isinstance(v, str):
+                        v = str(v)
+                    return v.strip()
+                
+                def _append_csv(existing: str, incoming: str) -> str:
+                    existing = _clean(existing)
+                    incoming = _clean(incoming)
+                    if not incoming:
+                        return existing
+                    if not existing:
+                        return incoming
+                    return f"{existing},{incoming}"
+                
                 if ext == '.json':
                     # Handle JSON file
                     if os.path.exists(target_path):
@@ -395,8 +416,13 @@ class StartUI(routeable):
                             content['bio'] = bio_text
                             if optional_values.get('ref_id') is not None:
                                 content['ref_id'] = optional_values['ref_id']
+                            if optional_values.get('tags_overwrite') is not None:
+                                content['tags_overwrite'] = optional_values['tags_overwrite']
+                            # `tags` should append (not overwrite) when updating existing entry
                             if optional_values.get('tags') is not None:
-                                content['tags'] = optional_values['tags']
+                                incoming = _clean(optional_values['tags'])
+                                if incoming:
+                                    content['tags'] = _append_csv(content.get('tags', ''), incoming)
                             updated = True
                             break
                     
@@ -405,6 +431,8 @@ class StartUI(routeable):
                         new_entry = {'name': name, 'base_id': base_id, 'race': race, 'bio': bio_text}
                         if optional_values.get('ref_id') is not None:
                             new_entry['ref_id'] = optional_values['ref_id']
+                        if optional_values.get('tags_overwrite') is not None:
+                            new_entry['tags_overwrite'] = optional_values['tags_overwrite']
                         if optional_values.get('tags') is not None:
                             new_entry['tags'] = optional_values['tags']
                         items.append(new_entry)
@@ -456,7 +484,13 @@ class StartUI(routeable):
                         # Update optional columns only if we have new values, otherwise preserve existing
                         for col_name, col_value in optional_values.items():
                             if col_value is not None and col_name in df.columns:
-                                df.loc[m, col_name] = col_value
+                                if col_name == 'tags':
+                                    incoming = _clean(col_value)
+                                    if incoming:
+                                        existing_val = df.loc[m, col_name].iloc[0]
+                                        df.loc[m, col_name] = _append_csv(existing_val, incoming)
+                                else:
+                                    df.loc[m, col_name] = col_value
                     else:
                         # Add new entry at the end
                         new_row = {'name': name, 'base_id': base_id, 'race': race, 'bio': bio_text}

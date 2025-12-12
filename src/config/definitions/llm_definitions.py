@@ -129,24 +129,22 @@ class LLMDefinitions:
     def get_enable_character_tag_reading_config_value() -> ConfigValue:
         description = """When enabled, character tags from the CSV files will be processed and used to expand character bios with additional template information.
                         When disabled, only the base character bio will be used without any tag-based expansions.
-                        
                         SETUP INSTRUCTIONS:
                         1. Create a new CSV file at: data\\Skyrim\\bio_templates\\bio_templates.csv
                         2. Add two columns to this file: 'tag' and 'description'
-                        3. Add a new column 'tags' to your main character CSV file (and any override files)
-                        
+                        3. Add a new column 'tags_overwrite' to your main character CSV file (and any override files)
+                        4. Add a new column 'tags' to your main character CSV file (and any override files)
                         HOW TO USE:
                         In bio_templates.csv, define tags and their descriptions like this:
                         tag,description
-                        warrior,Known for exceptional combat prowess and martial skills.
-                        
-                        In your main character CSV file, add relevant tags to the 'tags' column for each character:
+                        warrior,Known for exceptional combat prowess.
+                        In your main character CSV file, add relevant tags to the 'tags_overwrite'/'tags' column for each character:
                         tags
-                        warrior,mage
-                        warrior
-                        
+                        warrior,mage                        
+                        The contents of 'tags' will be combined with 'tags_overwrite' at runtime when rendering bios.
+                        - 'tags_overwrite' follows normal override behavior (can be overwritten by override files)
+                        - 'tags' will be appended across stacked override files    
                         When character bios are rendered, the system will automatically inject the descriptions of all tags associated with that character into their bio.
-                        
                         NOTES:
                         - Multiple tags per character are supported (separate with commas)
                         - Tag descriptions are combined seamlessly into the final bio

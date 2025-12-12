@@ -73,8 +73,29 @@ class Skyrim(Gameable):
 
         # Process bio with tags if they exist
         base_bio = character_info["bio"]
+        tags_overwrite = character_info.get("tags_overwrite", "")
         tags = character_info.get("tags", "")
-        expanded_bio = self.__bio_template_manager.expand_bio_with_tags(base_bio, tags)
+
+        # Compute effective tags at runtime:
+        # - `tags_overwrite` may be overwritten by overrides
+        # - `tags` accumulates across overrides
+        def _clean(v: Any) -> str:
+            if v is None:
+                return ""
+            if pd.isna(v):
+                return ""
+            s = v if isinstance(v, str) else str(v)
+            return s.strip()
+
+        tags_overwrite_s = _clean(tags_overwrite)
+        tags_s = _clean(tags)
+        effective_tags = (
+            f"{tags_overwrite_s},{tags_s}"
+            if tags_overwrite_s and tags_s
+            else (tags_overwrite_s or tags_s)
+        )
+
+        expanded_bio = self.__bio_template_manager.expand_bio_with_tags(base_bio, effective_tags)
 
         # Handle pandas NaN values in CSV
         tts_service_value = character_info.get('tts_service', '')
