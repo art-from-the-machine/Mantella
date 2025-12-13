@@ -46,6 +46,8 @@ class Conversation:
         else:
             self.__conversation_type: conversation_type = pc_to_npc(context_for_conversation.config)        
         self.__messages: message_thread = message_thread(self.__context.config, None)
+        # When a new NPC joins mid-conversation, log the (updated) system prompt once.
+        self.__log_prompt_on_next_regen: bool = False
         self.__output_manager: ChatManager = output_manager
         self.__rememberer: Remembering = rememberer
         self.__llm_client = llm_client
@@ -144,6 +146,10 @@ class Conversation:
             new_character (Character): the character to add or update
         """
         update_result = self.__context.add_or_update_characters(new_character)
+        # If a non-player NPC joined, log the prompt the next time we regenerate it.
+        # (Prompt regeneration itself happens in update_context() when have_actors_changed is true.)
+        if any((not npc.is_player_character) for npc in update_result.added_npcs):
+            self.__log_prompt_on_next_regen = True
         if len(update_result.removed_npcs) > 0:
             all_characters = self.__context.npcs_in_conversation.get_all_characters()
             all_characters.extend(update_result.removed_npcs)
@@ -327,7 +333,32 @@ class Conversation:
             custom_ingame_events (list[str]): a list of events that happend since the last update
             custom_context_values (dict[str, Any]): the current set of context values
         """
+        # Snapshot prompt-relevant values so we can refresh the system prompt if they change.
+        old_location = self.__context.location
+        old_time = self.__context.ingame_time
+        old_weather = self.__context.weather
+
         self.__context.update_context(location, time, custom_ingame_events, weather, custom_context_values)
+
+        # Keep {location}/{time}/{weather} in the system prompt aligned with current game state.
+        # Do NOT remove system-generated messages here; that is reserved for actor/type changes.
+        try:
+            prompt_context_changed = (
+                old_location != self.__context.location or
+                old_time != self.__context.ingame_time or
+                old_weather != self.__context.weather
+            )
+            if prompt_context_changed and self.__messages and len(self.__messages) > 0:
+                new_prompt = self.__conversation_type.generate_prompt(self.__context)
+                is_multi = self.__context.npcs_in_conversation.contains_multiple_npcs()
+                self.__messages.modify_messages(
+                    new_prompt,
+                    multi_npc_conversation=is_multi,
+                    remove_system_flagged_messages=False
+                )
+        except Exception as e:
+            logging.debug(f"Failed to refresh system prompt after context update: {e}")
+
         if self.__context.have_actors_changed:
             self.__update_conversation_type()
             self.__context.have_actors_changed = False
@@ -348,8 +379,16 @@ class Conversation:
             else:
                 self.__conversation_type = pc_to_npc(self.__context.config)
 
-            new_prompt = self.__conversation_type.generate_prompt(self.__context)        
-            if len(self.__messages) == 0:
+            # Only log the prompt when creating the initial message thread (conversation start),
+            # or when a new NPC has joined and we regenerated the prompt.
+            # Note: NPC join/leave messages can be added before the initial system prompt is created,
+            # so "len == 0" is not a reliable indicator. We log only when no SystemMessage exists yet.
+            is_initial_prompt = not self.__messages.has_message_type(SystemMessage)
+            should_log_prompt = is_initial_prompt or self.__log_prompt_on_next_regen
+            new_prompt = self.__conversation_type.generate_prompt(self.__context, should_log=should_log_prompt)
+            # Reset after use so we only log once per join event.
+            self.__log_prompt_on_next_regen = False
+            if is_initial_prompt:
                 self.__messages: message_thread = message_thread(self.__context.config, new_prompt)
             else:
                 self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
@@ -364,7 +403,7 @@ class Conversation:
             for message in removed_messages:
                 removed_messages_thread.add_message(message)
             # Summarize the removed messages
-            self.__save_summary_for_characters(removed_messages_thread, self.__context.npcs_in_conversation.get_all_characters(), true)
+            self.__save_summary_for_characters(removed_messages_thread, self.__context.npcs_in_conversation.get_all_characters(), True)
             conversation_log.save_conversation_log(self.__context.npcs_in_conversation.get_all_characters(), removed_messages, self.__context.world_id)
         
 

@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Hashable, List
+import re
 from src.conversation.action import Action
 from src.http.communication_constants import communication_constants
 from src.conversation.conversation_log import conversation_log
@@ -104,6 +105,10 @@ class context:
     @property
     def location(self) -> str:
         return self.__location
+
+    @property
+    def weather(self) -> str:
+        return self.__weather
     
     @property
     def language(self) -> dict[Hashable, str]:
@@ -204,7 +209,67 @@ class context:
     
     @utils.time_it
     def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str, custom_context_values: dict[str, Any]):
+        def _apply_structured_context_events(events: list[str]):
+            """Best-effort parsing of structured context events to keep system prompt variables fresh.
+
+            Some game integrations send context changes (e.g., location/time/weather) as in-game events
+            but do not update the dedicated context fields on every request. Since the system prompt
+            variables ({location}/{time}/{weather}) read from the stored context values, we interpret
+            Mantella-formatted event strings as authoritative updates.
+            """
+            if not events:
+                return
+
+            location_re = re.compile(r"^\s*The location is now\s+(?P<loc>.+?)\s*\.?\s*$", re.IGNORECASE)
+            time_re = re.compile(r"^\s*The time is\s+(?P<hour>\d{1,2})\s+(?P<group>.+?)\s*\.?\s*$", re.IGNORECASE)
+            weather_re = re.compile(r"^\s*The weather\b.*", re.IGNORECASE)
+
+            for raw in events:
+                if not raw or not isinstance(raw, str):
+                    continue
+                event = raw.strip()
+
+                m_loc = location_re.match(event)
+                if m_loc:
+                    new_loc = m_loc.group("loc").strip()
+                    if new_loc:
+                        self.__location = new_loc
+                        # Keep prev_location aligned to avoid repeated "location is now" events.
+                        self.__prev_location = new_loc
+                    continue
+
+                m_time = time_re.match(event)
+                if m_time:
+                    try:
+                        hour12 = int(m_time.group("hour"))
+                        group = m_time.group("group").strip().lower()
+                        # Infer 24h time from Mantella's time-group wording.
+                        if "midnight" in group:
+                            self.__ingame_time = 0
+                        else:
+                            hour12 = hour12 % 12  # 12 -> 0 (helps noon/midnight-ish edge cases)
+                            if any(k in group for k in ["afternoon", "evening", "at night", "night"]):
+                                self.__ingame_time = hour12 + 12
+                            else:
+                                self.__ingame_time = hour12
+                        # Keep prev_game_time aligned so we don't repeatedly re-emit the time-change event.
+                        in_game_time_twelve_hour = self.__ingame_time - 12 if self.__ingame_time > 12 else self.__ingame_time
+                        if self.__hourly_time:
+                            self.__prev_game_time = str(in_game_time_twelve_hour), get_time_group(self.__ingame_time)
+                        else:
+                            self.__prev_game_time = None, get_time_group(self.__ingame_time)
+                    except Exception:
+                        pass
+                    continue
+
+                # Weather is often already a complete sentence (e.g., "The weather is pleasant.")
+                if weather_re.match(event):
+                    if event != self.__weather:
+                        self.__weather = event
+
         self.__custom_context_values = custom_context_values
+        if custom_ingame_events:
+            _apply_structured_context_events(custom_ingame_events)
 
         if location:
             if location != '':
@@ -468,12 +533,13 @@ class context:
         return result
     
     @utils.time_it
-    def generate_system_message(self, prompt: str, actions_for_prompt: list[Action]) -> str:
+    def generate_system_message(self, prompt: str, actions_for_prompt: list[Action], should_log: bool = False) -> str:
         """Fills the variables in the prompt with the values calculated from the context
 
         Args:
             prompt (str): The conversation specific system prompt to fill
-            include_player (bool, optional): _description_. Defaults to False.
+            actions_for_prompt (list[Action]): The list of actions to include in the prompt
+            should_log (bool): Whether to log the generated prompt. Defaults to False.
 
         Returns:
             str: the filled prompt
@@ -550,7 +616,8 @@ class context:
             else:
                 break
         
-        logging.log(23, f'Prompt sent to LLM ({self.__client.get_count_tokens(result)} tokens): {result.strip()}')
+        if should_log:
+            logging.log(23, f'Prompt sent to LLM ({self.__client.get_count_tokens(result)} tokens): {result.strip()}')
         if have_summaries_been_dropped and have_bios_been_dropped:
             logging.log(logging.WARNING, f'Both the bios and summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations and will have limited knowledge of who they are.')
         elif have_summaries_been_dropped:
