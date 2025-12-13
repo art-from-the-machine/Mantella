@@ -89,11 +89,10 @@ class Skyrim(Gameable):
 
         tags_overwrite_s = _clean(tags_overwrite)
         tags_s = _clean(tags)
-        effective_tags = (
-            f"{tags_overwrite_s},{tags_s}"
-            if tags_overwrite_s and tags_s
-            else (tags_overwrite_s or tags_s)
-        )
+
+        # Precedence rule:
+        # If `tags_overwrite` is set (non-empty), it fully replaces accumulated `tags`.
+        effective_tags = tags_overwrite_s if tags_overwrite_s else tags_s
 
         expanded_bio = self.__bio_template_manager.expand_bio_with_tags(base_bio, effective_tags)
 

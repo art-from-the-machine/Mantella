@@ -141,9 +141,9 @@ class LLMDefinitions:
                         In your main character CSV file, add relevant tags to the 'tags_overwrite'/'tags' column for each character:
                         tags
                         warrior,mage                        
-                        The contents of 'tags' will be combined with 'tags_overwrite' at runtime when rendering bios.
-                        - 'tags_overwrite' follows normal override behavior (can be overwritten by override files)
-                        - 'tags' will be appended across stacked override files    
+                        RUNTIME BEHAVIOR:
+                        - 'tags' will be appended across stacked override files
+                        - If 'tags_overwrite' is non-empty for a character, it takes precedence and becomes the ONLY effective tags for that character (ignores 'tags')
                         When character bios are rendered, the system will automatically inject the descriptions of all tags associated with that character into their bio.
                         NOTES:
                         - Multiple tags per character are supported (separate with commas)
