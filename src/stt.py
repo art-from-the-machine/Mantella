@@ -19,7 +19,7 @@ from moonshine_onnx import MoonshineOnnxModel, load_tokenizer
 import onnxruntime as ort
 from scipy.io import wavfile
 from sounddevice import InputStream
-from silero_vad_lite import SileroVAD
+from silero_vad import VADIterator, load_silero_vad
 
 logger = utils.get_logger()
 
