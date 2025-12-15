@@ -5,7 +5,7 @@ from openai.types.chat.chat_completion_message import ChatCompletionMessageToolC
 from src.characters_manager import Characters
 from src.conversation.action import Action
 from src.games.gameable import Gameable
-import src.utils as utils
+from src import utils
 
 logger = utils.get_logger()
 
@@ -154,9 +154,8 @@ class FunctionManager:
     def load_all_actions() -> None:
         """Load all actions from the data/actions/ folder at server startup"""
         # Get the project root directory (two levels up from this file)
-        project_root = Path(__file__).parent.parent.parent
-        actions_dir = project_root / "data" / "actions"
-
+        actions_dir = Path(utils.resolve_path()) / "data" / "actions"
+        
         if not actions_dir.exists():
             logger.warning(f"Actions directory '{actions_dir}' not found")
             return
@@ -182,7 +181,8 @@ class FunctionManager:
         #         except Exception as e:
         #             logger.warning(f"Failed to load function file {file_path}: {e}")
 
-        logger.log(23, f"Loaded {len(FunctionManager._actions)} actions from: {actions_dir}")
+        logger.log(23, f"""Loaded {len(FunctionManager._actions)} actions from: 
+    {actions_dir}""")
 
 
     @staticmethod
@@ -275,9 +275,9 @@ class FunctionManager:
         for action in FunctionManager._actions.values():
             # Filter by game compatibility
             if 'allowed_games' in action and action['allowed_games']:
-                game_name = context.config.game.display_name.lower().replace(" ", "")
+                base_game_name = context.config.game.base_game.display_name.lower().replace(" ", "")
                 cleaned_allowed_games = [g.lower().replace(" ", "") for g in action['allowed_games']]
-                if game_name not in cleaned_allowed_games:
+                if base_game_name not in cleaned_allowed_games:
                     continue
 
             # Filter by conversation type
@@ -302,10 +302,11 @@ class FunctionManager:
                 }
             }
 
-            # Only add parameters if they exist
+            
+            tool['function']['parameters'] = {}
+            tool['function']['parameters']['type'] = 'object'
+            # Only populate parameters if they exist
             if 'parameters' in action:
-                tool['function']['parameters'] = {}
-                tool['function']['parameters']['type'] = 'object'
                 tool['function']['parameters']['properties'] = deepcopy(action['parameters'])
                 if 'required' in action:
                     tool['function']['parameters']['required'] = action['required']
