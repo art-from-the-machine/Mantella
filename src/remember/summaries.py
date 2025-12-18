@@ -118,8 +118,14 @@ class Summaries(Remembering):
         return ""
 
     @utils.time_it
-    def may_add_missing_join_leave_messages(self, messages: message_thread) -> bool:
-        """ Adds missing join and leave messages to the beginning / end of the message thread."""
+    def may_add_missing_join_leave_messages(self, messages: message_thread, npcs_in_conversation: Characters | None = None) -> bool:
+        """ Adds missing join and leave messages to the beginning / end of the message thread.
+        
+        Args:
+            messages: The message thread to check and update
+            npcs_in_conversation: Optional Characters object containing NPCs that should be in the conversation.
+                                  If provided, join messages will be added for NPCs that are missing them.
+        """
         hadMissingMessages = False
         characters_found = {}
         characters_joined = {}
@@ -138,6 +144,13 @@ class Summaries(Remembering):
                 characters_left[name] = message.character
                 characters_found[name] = message.character
 
+        # If npcs_in_conversation is provided, ensure all NPCs in it have join messages
+        if npcs_in_conversation:
+            for npc in npcs_in_conversation.get_all_characters():
+                if not npc.is_player_character:
+                    name = npc.name
+                    if name not in characters_found:
+                        characters_found[name] = npc
     
         # Insert the missing messages at the appropriate places
         if len(characters_joined) < len(characters_found):
@@ -155,7 +168,7 @@ class Summaries(Remembering):
     @utils.time_it
     def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False):
         summary = ''
-        self.may_add_missing_join_leave_messages(messages)
+        self.may_add_missing_join_leave_messages(messages, npcs_in_conversation)
 
         characters = self.get_character_lookup_dict(messages)
         npc_message_threads: Dict[str, CharacterSummaryParameters] = self.get_threads_for_summarization(messages, characters)
