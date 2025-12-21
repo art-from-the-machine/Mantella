@@ -157,7 +157,7 @@ class XTTS(TTSable):
             # data = np.clip(data, -1.0, 1.0)  # Uncomment if needed
             data_16bit = np.int16(data * 32767)
         elif not np.issubdtype(data.dtype, np.int16):
-            # If data is not floating-point or int16, consider logger or handling this case explicitly
+            # If data is not floating-point or int16, consider logging or handling this case explicitly
             # For simplicity, this example just converts to int16 without scaling
             data_16bit = data.astype(np.int16)
         else:

@@ -153,7 +153,6 @@ class GameStateManager:
         cleaned_player_text = utils.clean_text(updated_player_text)
         npcs_in_conversation = self.__talk.context.npcs_in_conversation
         if not npcs_in_conversation.contains_multiple_npcs(): # actions are only enabled in 1-1 conversations
-            print(self.__config.actions)
             for action in self.__config.actions:
                 # if the player response is just the name of an action, force the action to trigger
                 if action.keyword.lower() == cleaned_player_text.lower().replace(' ','') and npcs_in_conversation.last_added_character:
