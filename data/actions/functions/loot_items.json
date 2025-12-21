@@ -1,0 +1,28 @@
+{
+    "identifier": "npc_loot_items",
+    "name": "Loot Items",
+    "description": "Use this function to loot items. If the type of item to loot is unspecified, then use 'any'.",
+    "parameters": {
+        "item_mode": {
+            "type": "string",
+            "description": "The type of item to loot."
+        }
+    },
+    "prompt": "`{key}` if requested to loot, scavenge or collect items",
+    "required": ["item_mode"],
+    "allowed_games": ["fallout4","skyrim"],
+    "is_generic_npc_function": true,
+    "is_follower_function": true,
+    "is_settler_function": true,
+    "is_pre_dialogue": true,
+    "is_post_dialogue": false,
+    "key": "loot_items",
+    "is_interrupting": false,
+    "one_on_one": true,
+    "multi_npc": false,
+    "radiant": false,
+    "llm_feedback": "{speakerName} is about to scavenge {llm_output_mode} items at {playerName}'s request. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
+    "parameter_package_key": ["loot_items_tooltip"],
+    "veto_warning" : "{speakerName} is about to scavenge {llm_output_mode} items at {playerName}'s request. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why.",
+    "conditions" : []
+}

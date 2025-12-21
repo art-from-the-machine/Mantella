@@ -1,0 +1,44 @@
+{
+    "identifier": "move_characters_near_npc",
+    "name": "Multi Move",
+    "description": "Determine one or more NPCs that will move towards another NPC.",
+    "parameters": {
+        "npc_name": {
+            "type": "array",
+            "description": "The name of the target NPC.",
+            "items": {"type": "string"}
+        },
+        "npc_distance": {
+            "type": "array",
+            "description": "The distance from the target NPC.",
+            "items": {"type": "number"}
+         },
+        "target_npc_id": {
+            "type": "array",
+            "description": "The ID of the target NPC.",
+            "items": {"type": "string"}
+        },
+        "source_npc_ids": {
+            "type": "array",
+            "description": "An array containing the IDs of one or more NPCs that will be moving towards the target. ",
+            "items": {"type": "number"}
+        }
+    },
+    "prompt": "`{key}` if requested to move or follow",
+    "required": ["target_npc_id","source_npc_ids"],
+    "allowed_games": ["fallout4","skyrim"],
+    "is_generic_npc_function": true,
+    "is_follower_function": true,
+    "is_settler_function": true,
+    "is_pre_dialogue": true,
+    "is_post_dialogue": false,
+    "key": "multi_move_npc",
+    "is_interrupting": false,
+    "one_on_one": false,
+    "multi_npc": true,
+    "radiant": false,
+    "llm_feedback": "{llm_output_source_names} are about to move towards {llm_output_target_name} at {playerName}'s request. {llm_output_source_names} will complete this action to the best of their ability and find a rationalization for the action if needed.",
+    "parameter_package_key": ["npc_targeting_tooltip", "npc_participants_playerless_tooltip"],
+    "veto_warning": "{llm_output_source_names} are about to move towards {llm_output_target_name} at {playerName}'s request. Begin your response with <veto> if any NPC would refuse to do so then explain in first person in character why.",
+    "conditions" : []
+}

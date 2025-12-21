@@ -2,28 +2,33 @@ from abc import ABC, abstractmethod
 from openai.types.chat import ChatCompletionMessageParam
 from src.config.definitions.llm_definitions import NarrationIndicatorsEnum
 from src.config.config_loader import ConfigLoader
-from src.llm.sentence_content import SentenceTypeEnum, sentence_content
+from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from src.character_manager import Character
 
-from src.llm.sentence import sentence
+from src.llm.sentence import Sentence
 from src import utils
 
-class message(ABC):
+class Message(ABC):
     """Base class for messages 
     """
-    def __init__(self, text: str, config: ConfigLoader, is_system_generated_message: bool = False):
+    def __init__(self, text: str, config: ConfigLoader | None = None, is_system_generated_message: bool = False):
         self.__text: str = text
         self.__is_multi_npc_message: bool = False
         self.__is_system_generated_message = is_system_generated_message
-        if config.narration_indicators == NarrationIndicatorsEnum.BRACKETS:
-            self.__narration_start: str = "["
-            self.__narration_end: str = "]"
-        elif config.narration_indicators == NarrationIndicatorsEnum.ASTERISKS:
+        if config:
+            if config.narration_indicators == NarrationIndicatorsEnum.BRACKETS:
+                self.__narration_start: str = "["
+                self.__narration_end: str = "]"
+            elif config.narration_indicators == NarrationIndicatorsEnum.ASTERISKS:
+                self.__narration_start: str = "*"
+                self.__narration_end: str = "*"
+            else:
+                self.__narration_start: str = "("
+                self.__narration_end: str = ")"
+        else:
+            # Default narration indicators when config is None
             self.__narration_start: str = "*"
             self.__narration_end: str = "*"
-        else:
-            self.__narration_start: str = "("
-            self.__narration_end: str = ")"
 
     @property
     def text(self) -> str:
@@ -74,7 +79,7 @@ class message(ABC):
     def get_dict_formatted_string(self) -> str:
         pass
 
-class system_message(message):
+class SystemMessage(Message):
     """A message with the role 'system'. Usually used as the initial main prompt of an exchange with the LLM
     """
 
@@ -90,17 +95,32 @@ class system_message(message):
     def get_dict_formatted_string(self) -> str:
         dictionary = {"role":"system", "content": self.get_formatted_content(),}
         return f"{dictionary}"
+    
+    def append_text(self, text_to_append: str):
+        """Appends a string to the system message text."""
+        self.text += text_to_append
         
-class assistant_message(message):
+class AssistantMessage(Message):
     """An assistant message containing the response of an LLM to a request.
     Automatically appends the character name in front of the text if provided and if there is only one active_assistant_character
     """
-    def __init__(self, config: ConfigLoader, is_system_generated_message: bool = False):
+    def __init__(self, config: ConfigLoader | None = None, is_system_generated_message: bool = False):
         super().__init__("", config, is_system_generated_message)
-        self.__sentences: list[sentence_content] = []
+        self.__sentences: list[SentenceContent] = []
+        self.__tool_calls: list[dict] | None = None  # Store tool calls from LLM
     
-    def add_sentence(self, new_sentence: sentence):
+    def add_sentence(self, new_sentence: Sentence):
         self.__sentences.append(new_sentence.content)
+    
+    @property
+    def tool_calls(self) -> list[dict] | None:
+        """Get the tool calls from this assistant message"""
+        return self.__tool_calls
+    
+    @tool_calls.setter
+    def tool_calls(self, value: list[dict] | None):
+        """Set the tool calls for this assistant message"""
+        self.__tool_calls = value
 
     def get_formatted_content(self) -> str:
         if len(self.__sentences) < 1:
@@ -126,13 +146,21 @@ class assistant_message(message):
         return result
 
     def get_openai_message(self) -> ChatCompletionMessageParam:
-        return {"role":"assistant", "content": self.get_formatted_content(),}
+        # If this message has tool calls, include them in the OpenAI format
+        if self.__tool_calls:
+            content = self.get_formatted_content()
+            return {
+                "role": "assistant",
+                "content": content if content else None,
+                "tool_calls": self.__tool_calls
+            }
+        return {"role": "assistant", "content": self.get_formatted_content()}
     
     def get_dict_formatted_string(self) -> str:
         dictionary = {"role":"assistant", "content": self.get_formatted_content(),}
         return f"{dictionary}"
 
-class user_message(message):
+class UserMessage(Message):
     """A user message sent to the LLM. Contains the text from the player and optionally it's name.
     Ingame Events can be added as a list[str]. Each ingame event will be placed before the text of the player in asterisks 
     """
@@ -180,8 +208,12 @@ class user_message(message):
     def set_ingame_time(self, time: str, time_group: str):
         self.__time = time, time_group
 
+    def append_text(self, text_to_append: str):
+        """Appends a string to the system message text."""
+        self.text += text_to_append
 
-class image_message(message):
+
+class ImageMessage(Message):
     """A image message sent to the LLM. Contains the a base64 encode image and accompanying description text.
     """
     def __init__(self, config: ConfigLoader, encoded_image: str, text: str = "", resolution: str = "auto", is_system_generated_message: bool = False):
@@ -215,7 +247,7 @@ class image_message(message):
             ]
         }
     
-class image_description_message(message):
+class ImageDescriptionMessage(Message):
     """An image description message, similar to a user message but interacted with by the conversation object"""
     def __init__(self, config: ConfigLoader, text: str = "", is_system_generated_message: bool = False):
         super().__init__(text, config, is_system_generated_message)
@@ -239,3 +271,27 @@ class image_description_message(message):
                 }
             ]
         }
+
+class ToolMessage(Message):
+    """A tool result message representing the completion of a tool call"""
+    def __init__(self, tool_call_id: str, content: str = "done"):
+        super().__init__(content, config=None, is_system_generated_message=True)
+        self.__tool_call_id = tool_call_id
+    
+    @property
+    def tool_call_id(self) -> str:
+        return self.__tool_call_id
+    
+    def get_formatted_content(self) -> str:
+        return self.text
+    
+    def get_openai_message(self) -> ChatCompletionMessageParam:
+        return {
+            "role": "tool",
+            "tool_call_id": self.__tool_call_id,
+            "content": self.get_formatted_content()
+        }
+    
+    def get_dict_formatted_string(self) -> str:
+        dictionary = {"role": "tool", "tool_call_id": self.__tool_call_id, "content": self.get_formatted_content()}
+        return f"{dictionary}"

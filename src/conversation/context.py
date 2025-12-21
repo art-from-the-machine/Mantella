@@ -1,41 +1,47 @@
-import logging
 from typing import Any, Hashable
-from src.conversation.action import action
+from src.conversation.action import Action
 from src.http.communication_constants import communication_constants
 from src.conversation.conversation_log import conversation_log
 from src.characters_manager import Characters
-from src.remember.remembering import remembering
+from src.remember.remembering import Remembering
 from src import utils
 from src.utils import get_time_group
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
+from src.config.definitions.game_definitions import GameEnum
 
-class context:
+logger = utils.get_logger()
+
+
+class Context:
     """Holds the context of a conversation
     """
     TOKEN_LIMIT_PERCENT: float = 0.45
 
     @utils.time_it
-    def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: remembering, language: dict[Hashable, str]) -> None:
+    def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: Remembering, language: dict[Hashable, str]) -> None:
         self.__world_id = world_id
         self.__hourly_time = config.hourly_time
         self.__prev_game_time: tuple[str | None, str] | None = None
         self.__npcs_in_conversation: Characters = Characters()
         self.__config: ConfigLoader = config
         self.__client: LLMClient = client
-        self.__rememberer: remembering = rememberer
+        self.__rememberer: Remembering = rememberer
         self.__language: dict[Hashable, str] = language
         self.__weather: str = ""
+        self.__config_settings: dict[str, Any] = {}
         self.__custom_context_values: dict[str, Any] = {}
         self.__ingame_time: int = 12
+        self.__game_days: float = 1.0  # Full game timestamp (days.fraction)
         self.__ingame_events: list[str] = []
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
-        self.__game = config.game
+        self.__game: GameEnum = config.game
+        self.__prev_nearby_npc_names: list[str] = []  # Cache for nearby NPC names
 
         self.__prev_location: str | None = None
-        if self.__game == "Fallout4" or self.__game == "Fallout4VR":
+        if self.__game.base_game == GameEnum.FALLOUT4:
             self.__location: str = 'the Commonwealth'
         else:
             self.__location: str = "Skyrim"
@@ -84,6 +90,10 @@ class context:
     def have_actors_changed(self, value: bool):
         self.__have_actors_changed = value
 
+    def get_config_setting(self, key: str) -> Any | None:
+        if self.__config_settings.__contains__(key):
+            return self.__config_settings[key]
+        return None
     @property
     def vision_hints(self) -> dict[Hashable, str]:
         return self.__vision_hints
@@ -111,7 +121,7 @@ class context:
 
     @utils.time_it
     def get_custom_context_value(self, key: str) -> Any | None:
-        if self.__custom_context_values.__contains__(key):
+        if self.__custom_context_values and self.__custom_context_values.__contains__(key):
             return self.__custom_context_values[key]
         return None
 
@@ -157,14 +167,18 @@ class context:
         return get_time_group(self.__ingame_time)
     
     @utils.time_it
-    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str, custom_context_values: dict[str, Any]):
+    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any], config_settings: dict[str, Any] | None, game_days: float | None = None):
         self.__custom_context_values = custom_context_values
+
+        # Store game_days if provided
+        if game_days is not None:
+            self.__game_days = game_days
 
         if location:
             if location != '':
                 self.__location = location
             else:
-                if self.__game == "Fallout4" or self.__game == "Fallout4VR":
+                if self.__game.base_game == GameEnum.FALLOUT4:
                     self.__location: str = 'the Commonwealth'
                 else:
                     self.__location: str = "Skyrim"
@@ -187,20 +201,36 @@ class context:
                 else:
                     self.__ingame_events.append(f"The conversation now takes place {current_time[1]}.")
 
-        if weather != self.__weather:
+        if weather != self.__weather and weather is not None:
             if self.__weather != "":
                 self.__ingame_events.append(weather)
             self.__weather = weather
 
+        # Update nearby NPCs in the Characters manager
+        self.__npcs_in_conversation.set_nearby_npcs(npcs_nearby)
+        
+        # Add vision hints to in-game events
         self.__vision_hints = ''
         if self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY) and self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY):
             self.set_vision_hints(
                 str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY)), 
                 str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY)))
             self.__ingame_events.append(self.__vision_hints)
+        elif npcs_nearby:
+            # Sort by distance and list names (nearest to furthest)
+            sorted_npcs = sorted(npcs_nearby, key=lambda x: float(x.get('distance', 0)))
+            nearby_names = [npc['name'] for npc in sorted_npcs if 'name' in npc]
+            # Only add event if the set of nearby NPCs has changed (not just order)
+            if nearby_names and set(nearby_names) != set(self.__prev_nearby_npc_names):
+                self.__vision_hints = "Characters nearby (from nearest to furthest): " + ", ".join(nearby_names)
+                self.__ingame_events.append(self.__vision_hints)
+                self.__prev_nearby_npc_names = nearby_names
 
         if custom_ingame_events:
             self.__ingame_events.extend(custom_ingame_events)
+
+        if config_settings:
+            self.__config_settings = config_settings
     
     @utils.time_it
     def __update_ingame_events_on_npc_change(self, npc: Character):
@@ -224,7 +254,7 @@ class context:
                 current_stats.get_custom_character_value("mantella_actor_pos_y") != npc.get_custom_character_value("mantella_actor_pos_y")):
                 current_stats.set_custom_character_value("mantella_actor_pos_y", npc.get_custom_character_value("mantella_actor_pos_y"))
         except Exception as e:
-            logging.info(f"Updating custom values failed: {e}")
+            logger.error(f"Updating custom values failed: {e}")
         if not npc.is_player_character:
             player_name = "the player"
             player = self.__npcs_in_conversation.get_player_character()
@@ -308,24 +338,26 @@ class context:
             trust = self.__get_trust(npc)
             relationships.append(f"{trust} to {npc.name}")
         
-        return context.format_listing(relationships)
+        return Context.format_listing(relationships)
        
     @utils.time_it
-    def get_character_names_as_text(self, should_include_player: bool) -> str:
+    def get_character_names_as_text(self, include_player: bool, include_nearby: bool = False, nearby_only: bool = False) -> str:
         """Gets the names of the NPCs in the conversation as a natural language list
 
         Args:
-            player_name (str, optional): _description_. Defaults to "". The name of the player, if empty string, does not include the player into the list
+            include_player (bool): If True, includes the player in the list
+            include_nearby (bool): If True, includes nearby NPCs in the list
+            nearby_only (bool): If True, only includes nearby NPCs (not in conversation)
 
         Returns:
-            str: text containing the names of the NPC concatenated by ',' and 'and'
+            str: text containing the names concatenated by ',' and 'and'
         """
-        keys: list[str] = []
-        if should_include_player:
-            keys = self.npcs_in_conversation.get_all_names()
-        else:
-            keys = self.get_characters_excluding_player().get_all_names()
-        return context.format_listing(keys)
+        names = self.__npcs_in_conversation.get_all_names_w_nearby(
+            include_player=include_player,
+            include_nearby=include_nearby,
+            nearby_only=nearby_only
+        )
+        return Context.format_listing(names)
     
     @utils.time_it
     def __get_bios_text(self) -> str:
@@ -355,27 +387,28 @@ class context:
         return " ".join(equipment_descriptions)
     
     @utils.time_it
-    def __get_action_texts(self, actions: list[action]) -> str:
+    def __get_action_texts(self, actions: list[Action]) -> str:
         """Generates the prompt text for the available actions
 
         Args:
-            actions (list[action]): the list of possible actions. Already filtered for conversation type and config choices
+            actions (list[Action]): the list of possible actions. Already filtered for conversation type and config choices
 
         Returns:
             str: the text for the {actions} variable
         """
         result = ""
         for a in actions:
-            result += a.prompt_text.format(key=a.keyword) + " "
+            if a.prompt_text:
+                result += a.prompt_text.format(key=a.keyword) + "\n"
         return result
     
     @utils.time_it
-    def generate_system_message(self, prompt: str, actions_for_prompt: list[action]) -> str:
+    def generate_system_message(self, prompt: str, actions_for_prompt: list[Action]) -> str:
         """Fills the variables in the prompt with the values calculated from the context
 
         Args:
             prompt (str): The conversation specific system prompt to fill
-            include_player (bool, optional): _description_. Defaults to False.
+            actions_for_prompt (list[Action]): the list of possible actions
 
         Returns:
             str: the filled prompt
@@ -392,6 +425,8 @@ class context:
                 player_description = game_sent_description
         if self.npcs_in_conversation.last_added_character:
             name: str = self.npcs_in_conversation.last_added_character.name
+        else:
+            name = self.get_character_names_as_text(False)
         names = self.get_character_names_as_text(False)
         names_w_player = self.get_character_names_as_text(True)
         bios = self.__get_bios_text()
@@ -402,17 +437,23 @@ class context:
         weather = self.__weather
         time = self.__ingame_time - 12 if self.__ingame_time > 12 else self.__ingame_time
         time_group = get_time_group(self.__ingame_time)
+        
+        # Calculate current day number from game_days
+        current_day = int(self.__game_days) if self.__game_days > 1 else 1
+        
         if self.__hourly_time:
             self.__prev_game_time = str(time), time_group
         else:
             self.__prev_game_time = None, time_group
         conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
-        actions = self.__get_action_texts(actions_for_prompt)
+        
+        # Only include legacy action prompts if advanced actions are disabled
+        actions = self.__get_action_texts(actions_for_prompt) if not self.__config.advanced_actions_enabled else ""
 
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
         have_bios_been_dropped = False
         have_summaries_been_dropped = False
-        logging.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')
+        logger.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')
         for content in removal_content:
             result = prompt.format(
                 player_name = player_name,
@@ -427,7 +468,8 @@ class context:
                 equipment = equipment,
                 location=location,
                 weather = weather,
-                time=time, 
+                time=time,
+                current_day=current_day,
                 time_group=time_group, 
                 language=self.__language['language'], 
                 conversation_summary=content[1],
@@ -442,11 +484,11 @@ class context:
             else:
                 break
         
-        logging.log(23, f'Prompt sent to LLM ({self.__client.get_count_tokens(result)} tokens): {result.strip()}')
+        logger.log(23, f'Prompt sent to LLM ({self.__client.get_count_tokens(result)} tokens): {result.strip()}')
         if have_summaries_been_dropped and have_bios_been_dropped:
-            logging.log(logging.WARNING, f'Both the bios and summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations and will have limited knowledge of who they are.')
+            logger.log(logger.WARNING, f'Both the bios and summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations and will have limited knowledge of who they are.')
         elif have_summaries_been_dropped:
-            logging.log(logging.WARNING, f'The summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations.')
+            logger.log(logger.WARNING, f'The summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations.')
         return result
     
     @utils.time_it

@@ -1,6 +1,5 @@
 from src.config.config_loader import ConfigLoader
-from src.tts.ttsable import ttsable
-import logging
+from src.tts.ttsable import TTSable
 import requests
 from typing import Any
 import soundfile as sf
@@ -12,11 +11,15 @@ import time
 from src.tts.synthesization_options import SynthesizationOptions
 from src import utils
 from threading import Thread
+from src.config.definitions.game_definitions import GameEnum
+
+logger = utils.get_logger()
+
 
 class TTSServiceFailure(Exception):
     pass
 
-class xtts(ttsable):
+class XTTS(TTSable):
     """XTTS TTS handler
     """
     @utils.time_it
@@ -41,7 +44,7 @@ class xtts(ttsable):
         if not self._facefx_path :
             self._facefx_path = self.__xtts_server_path + "/plugins/lip_fuz"
 
-        logging.log(self._loglevel, f'Connecting to XTTS...')
+        logger.log(self._loglevel, f'Connecting to XTTS...')
         self._check_if_xtts_is_running()
 
         if self.__xtts_default_model in ['main','v2.0.2']:
@@ -61,15 +64,15 @@ class xtts(ttsable):
 
     @utils.time_it
     def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None, voice_gender: int | None = None, voice_race: str | None = None):
-        logging.log(self._loglevel, 'Loading voice model...')
+        logger.log(self._loglevel, 'Loading voice model...')
 
         selected_voice: str | None = self._select_voice_type(voice, in_game_voice, csv_in_game_voice, advanced_voice_model)
 
-        if (selected_voice and selected_voice.lower() in ['maleeventoned','femaleeventoned']) and (self._game == 'Fallout4'):
+        if (selected_voice and selected_voice.lower() in ['maleeventoned','femaleeventoned']) and (self._game.base_game == GameEnum.FALLOUT4):
             selected_voice = 'fo4_'+ selected_voice
         
         if not selected_voice:
-            logging.log(self._loglevel, 'Error could not identify voice model!')
+            logger.log(self._loglevel, 'Error could not identify voice model!')
             return
         
         voice = selected_voice
@@ -108,7 +111,7 @@ class xtts(ttsable):
             else:
                 return []
         except requests.exceptions.ConnectionError as e:
-            logging.warning(e)
+            logger.warning(e)
             return []
         
         
@@ -121,14 +124,14 @@ class xtts(ttsable):
                 all_speakers = response.json()
                 current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
                 if len(current_language_speakers) == 0: # if there are no speakers for the chosen language, fall back to English voice models
-                    logging.warning(f"No voice models found in XTTS's speakers/{self._language} folder. Attempting to load English voice models instead...")
+                    logger.warning(f"No voice models found in XTTS's speakers/{self._language} folder. Attempting to load English voice models instead...")
                     self._language = 'en'
                     current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
                 return current_language_speakers
             else:
                 return {}
         except requests.exceptions.ConnectionError as e:
-            logging.warning(e)
+            logger.warning(e)
             return {}
     
     
@@ -173,7 +176,7 @@ class xtts(ttsable):
                 voice_cleaned = self._sanitize_voice_name(voice_type)
                 if voice_cleaned in self.__available_speakers:
                     return voice_cleaned
-        logging.error(f'Could not find voice model {voice} in XTTS models list')
+        logger.error(f'Could not find voice model {voice} in XTTS models list')
     
 
     @utils.time_it
@@ -192,7 +195,7 @@ class xtts(ttsable):
         if response and response.status_code == 200:
             self._convert_to_16bit(io.BytesIO(response.content), save_path)
         elif response:
-            logging.error(f"Failed with '{self._last_voice}'. HTTP Error: {response.status_code}")
+            logger.error(f"Failed with '{self._last_voice}'. HTTP Error: {response.status_code}")
 
 
     @utils.time_it
@@ -208,14 +211,14 @@ class xtts(ttsable):
             # contact local XTTS server; ~2 second timeout
             response = requests.get(self.__xtts_url, timeout=2)
             if response.status_code >= 500:
-                logging.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
+                logger.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
                 self._run_xtts_server()
         except requests.exceptions.RequestException as err:
             if ('Connection aborted' in err.__str__()):
                 # so it is alive
                 return
 
-            logging.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
+            logger.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
             self._run_xtts_server()
         
 
@@ -251,10 +254,10 @@ class xtts(ttsable):
                 time.sleep(1)
         
             if not server_ready:
-                logging.error("XTTS server did not start within the expected time.")
+                logger.error("XTTS server did not start within the expected time.")
                 raise TTSServiceFailure()
         
         except Exception as e:
             utils.play_error_sound()
-            logging.error(f'Could not run XTTS. Ensure that the path "{self.__xtts_server_path}" is correct. Error: {e}')
+            logger.error(f'Could not run XTTS. Ensure that the path "{self.__xtts_server_path}" is correct. Error: {e}')
             #raise TTSServiceFailure()

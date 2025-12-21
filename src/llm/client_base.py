@@ -1,25 +1,48 @@
 from threading import Lock
 from typing import AsyncGenerator, Any
+from enum import Enum
 from openai import APIConnectionError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
-import logging
+from openai.types.chat import ChatCompletion
 import time
 import tiktoken
 import os
 from pathlib import Path
 from src.llm.ai_client import AIClient
 from src.llm.message_thread import message_thread
-from src.llm.messages import message, image_message, user_message
+from src.llm.messages import Message, ImageMessage, UserMessage
 from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
+from src.actions.function_manager import FunctionManager
+
+logger = utils.get_logger()
+
+
+class VisionMode(Enum):
+    """Vision operating modes for LLM image context"""
+    DISABLED = "disabled" # No image client configured
+    ALWAYS_ON = "always_on" # Image client active, no Vision action active
+    ON_DEMAND = "on_demand" # Image client active, Vision action controls enablement
+
 
 class ClientBase(AIClient):
     '''Base class for connecting to OpenAI-compatible endpoints
+
+    Handles API key management, client generation (sync/async), request execution,
+    token counting, endpoint resolution, and model list retrieval
     '''
     api_token_limits = {}
     tiktoken_cache_dir = "data"
     os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
 
     def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, secret_key_files: list[str]) -> None:
+        '''
+        Args:
+            api_url (str): The API endpoint URL or a known service name (e.g., 'OpenAI', 'OpenRouter')
+            llm (str): The name of the language model to use
+            llm_params (dict[str, Any] | None): Additional parameters for the LLM requests (eg temperature, max_tokens)
+            custom_token_count (int): A fallback token limit if the model's limit isn't known
+            secret_key_files (list[str]): A list of filenames to search for the API key, in order of priority
+        '''
         super().__init__()
         self._generation_lock: Lock = Lock()
         self._model_name: str = llm
@@ -27,6 +50,9 @@ class ClientBase(AIClient):
         self._startup_async_client: AsyncOpenAI | None = None
         self._request_params: dict[str, Any] | None = llm_params
         self._image_client = None
+        self._function_client = None
+        self._enable_vision_next_call: bool = False
+        self._vision_mode: VisionMode = self._determine_vision_mode()
 
         if 'https' in self._base_url: # Cloud LLM
             self._is_local: bool = False
@@ -44,6 +70,36 @@ class ClientBase(AIClient):
         self._header: dict[str, str] = {"HTTP-Referer": referer, "X-Title": xtitle}
         self._token_limit: int = self.__get_token_limit(self._model_name, custom_token_count, self._is_local)
         self._encoding = self.__get_model_encoding(api_url, self._model_name)
+
+
+    def _determine_vision_mode(self) -> VisionMode:
+        """Determine vision operating mode based on configuration and action availability
+        
+        Returns:
+            VisionMode: The operating mode for vision
+        """
+        if not self._image_client:
+            return VisionMode.DISABLED
+        
+        if FunctionManager.is_vision_action_active():
+            return VisionMode.ON_DEMAND
+        else:
+            return VisionMode.ALWAYS_ON
+    
+    def enable_vision_for_next_call(self):
+        """Enable vision for the next streaming_call"""
+        self._enable_vision_next_call = True
+
+    def _should_enable_vision(self) -> bool:
+        """Determine if vision should be enabled for this LLM call"""
+        # Vision in always-on mode (Vision enabled and vision action is inactive)
+        if self._vision_mode == VisionMode.ALWAYS_ON:
+            return True
+        # Vision explicitly requested via tool call
+        elif self._enable_vision_next_call:
+            return True
+        else:
+            return False
 
 
     @property
@@ -105,13 +161,21 @@ class ClientBase(AIClient):
 
 
     @utils.time_it
-    def request_call(self, messages: message | message_thread) -> str | None:
+    def _request_call_full(self, messages: Message | message_thread) -> ChatCompletion | None:
+        """Returns the full chat completion object
+        
+        Args:
+            messages: The messages to send to the LLM
+            
+        Returns:
+            The full chat completion object or None if the request failed
+        """
         with self._generation_lock:
             sync_client = self.generate_sync_client()        
-            chat_completion = None
-            logging.log(28, 'Getting LLM response...')
+            chat_completion: ChatCompletion = None
+            logger.log(28, 'Getting LLM response...')
 
-            if isinstance(messages, message) or isinstance(messages, image_message):
+            if isinstance(messages, Message) or isinstance(messages, ImageMessage):
                 openai_messages = [messages.get_openai_message()]
             else:
                 openai_messages = messages.get_openai_messages()
@@ -127,29 +191,43 @@ class ClientBase(AIClient):
                     **request_params,
                 )
             except RateLimitError:
-                logging.warning('Could not connect to LLM API, retrying in 5 seconds...')
+                logger.warning('Could not connect to LLM API, retrying in 5 seconds...')
                 time.sleep(5)
             finally:
                 sync_client.close()
 
-            if not chat_completion or chat_completion.choices.__len__() < 1 or not chat_completion.choices[0].message.content:
-                logging.info(f"LLM Response failed")
-                return None
+            return chat_completion
+
+
+    @utils.time_it
+    def request_call(self, messages: Message | message_thread) -> str | None:
+        """Makes a request to the LLM and returns just the message content
+        
+        Args:
+            messages: The messages to send to the LLM
             
-            reply = chat_completion.choices[0].message.content
-            return reply
+        Returns:
+            The LLM response message content or None if the request failed
+        """
+        chat_completion: ChatCompletion = self._request_call_full(messages)
+        
+        if (
+            not chat_completion or 
+            not chat_completion.choices or 
+            chat_completion.choices.__len__() < 1 or 
+            not chat_completion.choices[0].message.content
+        ):
+            logger.info(f"LLM Response failed")
+            return None
+        
+        reply = chat_completion.choices[0].message.content
+        return reply
         
 
     @utils.time_it
-    async def streaming_call(self, messages: message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool, tools: list[dict] = None) -> AsyncGenerator[tuple[str, str | list] | None, None]:
         with self._generation_lock:
-            logging.log(28, 'Getting LLM response...')
-
-            if self._startup_async_client:
-                async_client = self._startup_async_client
-                self._startup_async_client = None # do not reuse the same client
-            else:
-                async_client = self.generate_async_client()
+            logger.log(28, 'Getting LLM response...')
 
             if self._request_params:
                 request_params = self._request_params.copy() # copy of self._request_params to allow temporary override
@@ -160,18 +238,45 @@ class ClientBase(AIClient):
             try:
                 # Prepare the messages including the image if provided
                 vision_hints = ''
-                if isinstance(messages, message):
+                if isinstance(messages, Message):
                     openai_messages = [messages.get_openai_message()]
-                    if isinstance(messages, user_message):
+                    if isinstance(messages, UserMessage):
                         vision_hints = messages.get_ingame_events_text()
                 else:
                     openai_messages = messages.get_openai_messages()
                     last_message = messages.get_last_message()
-                    if isinstance(last_message, user_message):
+                    if isinstance(last_message, UserMessage):
                         vision_hints = last_message.get_ingame_events_text()
-                if self._image_client:
-                    openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
+                
+                # Determine if vision should be enabled for this call
+                if self._should_enable_vision():
+                    if self._image_client:
+                        openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
+                        logger.log(23, f"Vision enabled for this LLM call")
+                    else:
+                        logger.warning("Vision tool called but Vision not enabled in config - ignoring")
+                    self._enable_vision_next_call = False  # Reset flag after use
 
+                # Handle tool calling: use dedicated function client if available, otherwise use main LLM
+                if tools:
+                    if self._function_client:
+                        pre_fetched_tool_calls = self._function_client.check_for_actions(messages, tools)
+                        if pre_fetched_tool_calls:
+                            yield ("tool_calls", pre_fetched_tool_calls)
+                    else:
+                        # If custom function LLM isn't enabled, let the main LLM handle tool calling as well as text generation
+                        request_params["tools"] = tools
+                
+                # Create async client for main LLM streaming (after function client has run if applicable)
+                if self._startup_async_client:
+                    async_client = self._startup_async_client
+                    self._startup_async_client = None # do not reuse the same client
+                else:
+                    async_client = self.generate_async_client()
+                
+                # Dict to track partial tool calls by index
+                accumulated_tool_calls = {}
+                
                 async for chunk in await async_client.chat.completions.create(
                     model=self.model_name, 
                     messages=openai_messages, 
@@ -179,11 +284,43 @@ class ClientBase(AIClient):
                     **request_params,
                 ):
                     try:
-                        if chunk and chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                            yield chunk.choices[0].delta.content
+                        if chunk and chunk.choices and chunk.choices[0].delta:
+                            delta = chunk.choices[0].delta
+                            
+                            # Handle regular content
+                            if delta.content:
+                                yield ("content", delta.content)
+                            
+                            # Accumulate tool calls by index
+                            if delta.tool_calls:
+                                for tool_call in delta.tool_calls:
+                                    idx = tool_call.index
+                                    if idx not in accumulated_tool_calls:
+                                        accumulated_tool_calls[idx] = {
+                                            "id": tool_call.id if tool_call.id else "",
+                                            "type": "function",
+                                            "function": {
+                                                "name": "",
+                                                "arguments": ""
+                                            }
+                                        }
+                                    
+                                    # Accumulate the parts
+                                    if tool_call.id:
+                                        accumulated_tool_calls[idx]["id"] = tool_call.id
+                                    if tool_call.function and tool_call.function.name:
+                                        accumulated_tool_calls[idx]["function"]["name"] += tool_call.function.name
+                                    if tool_call.function and tool_call.function.arguments:
+                                        accumulated_tool_calls[idx]["function"]["arguments"] += tool_call.function.arguments
+                            
                     except Exception as e:
-                        logging.error(f"LLM API Connection Error: {e}")
+                        logger.error(f"LLM API Connection Error: {e}")
                         break
+                
+                # After streaming completes, yield any accumulated tool calls
+                if accumulated_tool_calls:
+                    tool_calls_list = [accumulated_tool_calls[i] for i in sorted(accumulated_tool_calls.keys())]
+                    yield ("tool_calls", tool_calls_list)
             except Exception as e:
                 utils.play_error_sound()
                 if isinstance(e, APIConnectionError):
@@ -192,22 +329,32 @@ class ClientBase(AIClient):
                             service_connection_attempt = 'OpenRouter' # check if player means to connect to OpenRouter
                         else:
                             service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
-                        logging.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
+                        logger.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
                     else:
-                        logging.error(f"LLM API Error: {e}")
+                        logger.error(f"LLM API Error: {e}")
                 elif isinstance(e, BadRequestError):
                     if (e.type == 'invalid_request_error') and (self._image_client): # invalid request
-                        logging.error(f"Invalid request. Try disabling Vision in Mantella's settings and try again.")
+                        logger.error(f"Invalid request. Try disabling Vision in Mantella's settings and try again.")
                     else:
-                        logging.error(f"LLM API Error: {e}")
+                        logger.error(f"LLM API Streaming Error: {e}")
                 else:
-                    logging.error(f"LLM API Error: {e}")
+                    logger.error(f"LLM API Streaming Error: {e}")
             finally:
-                await async_client.close()
+                if async_client:
+                    await async_client.close()
 
 
     @utils.time_it
     def __get_endpoint(self, api_url_or_name: str) -> str:
+        '''
+        Resolves a service name (eg 'openai', 'koboldcpp') if known, or else assumes the input is a direct URL
+
+        Args:
+            api_url_or_name (str): The service name or the direct API base URL
+
+        Returns:
+            endpoint (str): The resolved API endpoint URL
+        '''
         endpoints = {
             'openai': 'https://api.openai.com/v1', # don't set an endpoint, just use the OpenAI default
             'openrouter': 'https://openrouter.ai/api/v1',
@@ -270,7 +417,7 @@ class ClientBase(AIClient):
                     api_key = f.readline().strip()
                     if api_key:
                         break
-            except FileNotFoundError:
+            except (FileNotFoundError, PermissionError):
                 pass
             
             # try to check locally (same folder as executable)
@@ -279,27 +426,35 @@ class ClientBase(AIClient):
                     api_key = f.readline().strip()
                     if api_key:
                         break
-            except FileNotFoundError:
+            except (FileNotFoundError, PermissionError):
                 pass
 
         if not api_key or api_key == '':
                 if show_error:
                     utils.play_error_sound()
-                    logging.critical(f'''No secret key found in GPT_SECRET_KEY.txt.
+                    logger.critical(f'''No secret key found in GPT_SECRET_KEY.txt.
 Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
-If you are running a model locally, please ensure the service (Kobold / Text generation web UI) is selected and running via: http://localhost:4999/ui
+If you are running a model locally, please ensure the service (eg Kobold / Text generation web UI) is selected and running via: http://localhost:4999/ui
 For more information, see here: https://art-from-the-machine.github.io/Mantella/''')
-                    # Keep the Mantella window open and display the above message until the window is closed
-                    while True:
-                        time.sleep(1000)
+                    time.sleep(3)
 
         return api_key
     
 
     @utils.time_it
     def __get_token_limit(self, llm, custom_token_count: int, is_local):
+        '''Determines the token limit for the given LLM, using known values, manual overrides, or a default
+
+        Args:
+            llm (str): The name of the language model
+            custom_token_count (int): A user-defined fallback token count from the config
+            is_local (bool): Whether the model is running locally
+
+        Returns:
+            token_limit (int): The determined token limit for the model
+        '''
         manual_limits = utils.get_model_token_limits()
         token_limit_dict = {**self.api_token_limits, **manual_limits}
 
@@ -309,22 +464,31 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         if llm in token_limit_dict:
             token_limit = token_limit_dict[llm]
         else:
-            logging.log(23, f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count} (this number can be changed via the `custom_token_count` setting in config.ini)")
+            logger.log(23, f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count}. This number can be changed via the `Large Language Model`->`Custom Token Count` / `Vision`->`Custom Vision Model Token Count` settings in the Mantella UI")
             try:
                 token_limit = custom_token_count
             except ValueError:
-                logging.error(f"Invalid custom_token_count value: {custom_token_count}. It should be a valid integer. Please update your configuration.")
+                logger.error(f"Invalid custom_token_count value: {custom_token_count}. It should be a valid integer. Please update your configuration.")
                 token_limit = 4096  # Default to 4096 in case of an error.
         if token_limit <= 4096:
             if is_local:
                 llm = 'Local language model'
-            logging.warning(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
+            logger.warning(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
         
         return token_limit
     
 
     @utils.time_it
     def __get_model_encoding(self, api_url: str, llm: str) -> tiktoken.Encoding:
+        '''Gets the appropriate tiktoken encoding for the specified model or a sensible default
+
+        Args:
+            api_url (str): The API service/URL being used
+            llm (str): The name of the language model
+
+        Returns:
+            tiktoken.Encoding: The encoding object for token counting
+        '''
         chosenmodel = llm
         # if using an alternative API to OpenAI, use encoding for GPT-3.5 by default
         # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
@@ -338,27 +502,35 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             try:
                 encoding = tiktoken.get_encoding('cl100k_base') # try loading a generic encoding
             except:
-                logging.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `Large Language Model`->`LLM Service` in the Mantella UI and follow the instructions to change this setting')
+                logger.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `Large Language Model`->`LLM Service` in the Mantella UI and follow the instructions to change this setting')
                 raise
         
         return encoding
     
     @utils.time_it
-    def get_count_tokens(self, messages: message_thread | list[message] | message | str) -> int:
+    def get_count_tokens(self, messages: message_thread | list[Message] | Message | str) -> int:
         if isinstance(messages, message_thread | list) :
             return self.__num_tokens_from_messages(messages)
-        elif isinstance(messages, message):
+        elif isinstance(messages, Message):
             return self.__num_tokens_from_message(messages)
         else:
             return len(self._encoding.encode(messages))
 
     @utils.time_it
-    def is_too_long(self, messages: message_thread | list[message] | message | str, token_limit_percent: float) -> bool:
+    def is_too_long(self, messages: message_thread | list[Message] | Message | str, token_limit_percent: float) -> bool:
         countTokens: int = self.get_count_tokens(messages)
         return countTokens > self.token_limit * token_limit_percent
 
     @utils.time_it
-    def __num_tokens_from_messages(self, messages: message_thread | list[message]) -> int:
+    def __num_tokens_from_messages(self, messages: message_thread | list[Message]) -> int:
+        '''Calculates token count for a list of messages formatted for OpenAI API calls
+
+        Args:
+            messages (message_thread | list[Message]): The messages to count tokens for
+
+        Returns:
+            num_tokens (int): The estimated total token count
+        '''
         messages_to_check = []
         if isinstance(messages, message_thread):
             messages_to_check = messages.get_openai_messages()
@@ -379,22 +551,31 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         return num_tokens
     
     @utils.time_it
-    def __num_tokens_from_message(self, message_to_measure: message | str) -> int:
+    def __num_tokens_from_message(self, message_to_measure: Message | str) -> int:
+        '''Calculates the approximate token count for a single Message object or string,
+        considering the overhead of the message structure
+
+        Args:
+            message_to_measure (Message | str): The message or string content
+
+        Returns:
+            num_tokens (int): Estimated token count
+        '''
         text: str = ""
-        if isinstance(message_to_measure, message):
+        if isinstance(message_to_measure, Message):
             text = message_to_measure.get_formatted_content()
         else:
             text = message_to_measure
 
         num_tokens = 4 # every message follows <im_start>{role/name}\n{content}<im_end>\n
         num_tokens += len(text)
-        if isinstance(message_to_measure, message) and message_to_measure.get_openai_message().__contains__("name"):# if there's a name, the role is omitted
+        if isinstance(message_to_measure, Message) and message_to_measure.get_openai_message().__contains__("name"):# if there's a name, the role is omitted
             num_tokens += -1# role is always required and always 1 token
         
         return num_tokens
     
     @staticmethod
-    def get_model_list(service: str, secret_key_file: str, default_model: str = "google/gemma-2-9b-it:free", is_vision: bool = False) -> LLMModelList:
+    def get_model_list(service: str, secret_key_file: str, default_model: str = "mistralai/mistral-small-3.1-24b-instruct:free", is_vision: bool = False, is_tool_calling: bool = False) -> LLMModelList:
         if service not in ['OpenAI', 'OpenRouter']:
             return LLMModelList([("Custom model","Custom model")], "Custom model", allows_manual_model_input=True)
         try:
@@ -406,17 +587,18 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             elif service == "OpenRouter":
                 default_model = default_model
                 secret_key_files = [secret_key_file, 'GPT_SECRET_KEY.txt'] if secret_key_file != 'GPT_SECRET_KEY.txt' else [secret_key_file]
-                secret_key = ClientBase._get_api_key(secret_key_files, not is_vision)
+                show_error = not is_vision and not is_tool_calling # Only show error for base LLM
+                secret_key = ClientBase._get_api_key(secret_key_files, show_error=show_error)
                 if not secret_key:
                     return LLMModelList([(f"No secret key found in {secret_key_file}", "Custom model")], "Custom model", allows_manual_model_input=True)
                 # NOTE: while a secret key is not needed for this request, this may change in the future
                 client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
                 # don't log initial 'HTTP Request: GET https://openrouter.ai/api/v1/models "HTTP/1.1 200 OK"'
-                logging.getLogger('openai').setLevel(logging.ERROR)
-                logging.getLogger("httpx").setLevel(logging.ERROR)
+                logger.getLogger('openai').setLevel(logger.ERROR)
+                logger.getLogger("httpx").setLevel(logger.ERROR)
                 models = client.models.list()
-                logging.getLogger('openai').setLevel(logging.INFO)
-                logging.getLogger("httpx").setLevel(logging.INFO)
+                logger.getLogger('openai').setLevel(logger.INFO)
+                logger.getLogger("httpx").setLevel(logger.INFO)
                 client.close()
                 allow_manual_model_input = False
 
@@ -428,9 +610,11 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                         context_size: int = model.model_extra["context_length"]
                         prompt_cost: float = float(model.model_extra["pricing"]["prompt"]) * multiplier
                         completion_cost: float = float(model.model_extra["pricing"]["completion"]) * multiplier
-                        vision_available: str = ' | Vision Available' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
-                        model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}"
-                        
+                        vision_available: str = ' | ✅ Vision' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
+                        tool_calling_available: str = ' | ✅ Advanced Actions' if 'tools' in model.model_extra['supported_parameters'] else ''
+                        reasoning_model: str = ' | ⚠️ Reasoning' if 'reasoning' in model.model_extra['supported_parameters'] else ''
+                        model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}{tool_calling_available}{reasoning_model}"
+
                         ClientBase.api_token_limits[model.id.split('/')[-1]] = context_size
                     else:
                         model_display_name = model.id
@@ -439,10 +623,16 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                 options.append((model_display_name, model.id))
             
             # check if any models are marked as vision-capable
-            has_vision_models = any(' | Vision Available' in name for name, _ in options)
+            has_vision_models = any(' | ✅ Vision' in name for name, _ in options)
             # filter model list if this is supposed to be a vision model list and there are models explicitly marked as such
             if is_vision and has_vision_models:
-                options = [(name, model_id) for name, model_id in options if ' | Vision Available' in name]
+                options = [(name, model_id) for name, model_id in options if ' | ✅ Vision' in name]
+
+            # check if any models are marked as tool-calling-capable
+            has_tool_calling_models = any(' | ✅ Advanced Actions' in name for name, _ in options)
+            # filter model list if this is supposed to be a vision model list and there are models explicitly marked as such
+            if is_tool_calling and has_tool_calling_models:
+                options = [(name, model_id) for name, model_id in options if ' | ✅ Advanced Actions' in name]
             
             return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
         except Exception as e:

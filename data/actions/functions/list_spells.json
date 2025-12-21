@@ -1,0 +1,29 @@
+{
+    "identifier": "list_spells",
+    "name": "List Spells",
+    "description": "Use this function to list the spells of a NPC.",
+    "parameters": {
+        "list_spells_mode": {
+            "type": "array",
+            "description": "List of all available spells.",
+            "items": {"type": "string"}
+        }
+    },
+    "prompt": "`{key}` if requested to list the spells that a NPC has or knows.",
+    "required": ["list_spells_mode"],
+    "allowed_games": ["skyrim"],
+    "is_generic_npc_function": true,
+    "is_follower_function": true,
+    "is_settler_function": true,
+    "is_pre_dialogue": true,
+    "is_post_dialogue": false,
+    "key": "list_spells",
+    "is_interrupting": false,
+    "one_on_one": true,
+    "multi_npc": false,
+    "radiant": false,
+    "llm_feedback": "{speakerName} is about to give a list of the available following spells {llm_output_mode} at {playerName}'s request. List the spells in first person in natural conversation. {speakerName} will complete this action to the best of their ability and find a rationalization for the action if needed.",
+    "parameter_package_key": ["mantella_npc_spell_list_package"],
+    "veto_warning" : "{speakerName} is about to give a list of the available following spells {llm_output_mode} at {playerName}'s request. List the spells in first person in natural conversation. Begin your response with <veto> if {speakerName} would refuse to do so then explain in first person in character why.",
+    "conditions" : []
+}

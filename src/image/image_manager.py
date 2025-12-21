@@ -1,5 +1,4 @@
 from datetime import datetime
-import logging
 import base64
 import os
 import src.utils as utils
@@ -9,6 +8,10 @@ import mss
 import cv2
 import ctypes
 from pathlib import Path
+from src.config.definitions.game_definitions import GameEnum
+
+logger = utils.get_logger()
+
 
 class ImageManager:
     '''
@@ -17,7 +20,7 @@ class ImageManager:
     
     @utils.time_it
     def __init__(self, 
-                 game: str, 
+                 game: GameEnum, 
                  save_folder: str, 
                  save_screenshot: bool, 
                  image_quality: int, 
@@ -28,12 +31,13 @@ class ImageManager:
                  game_image_path: str | None) -> None:
         
         WINDOW_TITLES = {
-            'Skyrim': 'Skyrim Special Edition',
-            'SkyrimVR': 'Skyrim VR',
-            'Fallout4': 'Fallout4',
-            'Fallout4VR': 'Fallout4VR'
+            GameEnum.SKYRIM: 'Skyrim Special Edition',
+            GameEnum.SKYRIM_VR: 'Skyrim VR',
+            GameEnum.FALLOUT4: 'Fallout4',
+            GameEnum.FALLOUT4_VR: 'Fallout4VR'
         }
-        self.__window_title: str = WINDOW_TITLES.get(game, game)
+        # Get window title from game enum, or as a last resort try using the display name
+        self.__window_title: str = WINDOW_TITLES.get(game, game.display_name)
         self.__save_screenshot: bool = save_screenshot
         self.__image_quality: int = image_quality
         self.__capture_offset: dict[str, int] = capture_offset
@@ -53,7 +57,7 @@ class ImageManager:
             self.__game_image_file_path: str = str(Path(game_image_path) / "Mantella_Vision.jpg")
             if self.__use_game_screenshots:
                 if os.path.exists(self.__game_image_file_path):
-                    logging.log(23, f'Removing leftover in-game vision screenshot from previous run...')
+                    logger.log(23, f'Removing leftover in-game vision screenshot from previous run...')
                     os.remove(self.__game_image_file_path)
 
         if self.__save_screenshot:
@@ -65,7 +69,7 @@ class ImageManager:
         try:
             ctypes.windll.user32.SetProcessDPIAware()
         except:
-            logging.warning('Failed to read monitor DPI. Images may not be saved in the correct dimensions.')
+            logger.warning('Failed to read monitor DPI. Images may not be saved in the correct dimensions.')
 
 
     @property
@@ -88,9 +92,13 @@ class ImageManager:
         '''
         hwnd = win32gui.FindWindow(None, self.__window_title)
         if not hwnd:
-            logging.error(f"Window '{self.__window_title}' not found")
-            self.__capture_params = None
-            return None
+            # Check if the game version is GOG
+            gog_title = self.__window_title + ' GOG'
+            hwnd = win32gui.FindWindow(None, gog_title)
+            if not hwnd:
+                logger.error(f"Window '{self.__window_title}' not found")
+                self.__capture_params = None
+                return None
 
         window_rect = win32gui.GetWindowRect(hwnd)
         client_rect = win32gui.GetClientRect(hwnd)
@@ -238,7 +246,7 @@ class ImageManager:
         
         except Exception as e:
             utils.play_error_sound()
-            logging.error(f"An error occurred: {e}")
+            logger.error(f"An error occurred: {e}")
             self.reset_capture_params() # reset the window capture coordinates
             return None
         

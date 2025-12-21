@@ -30,6 +30,9 @@ class ConfigValueSelection(ConfigValue[str]):
     def get_corresponding_enum(self) -> Enum | None:
         if not self.__corresponding_enums:
             return None
+        elif isinstance(self.value, Enum):
+            if self.value in self.__corresponding_enums:
+                return self.value
         else:
             try:
                 index = self.__options.index(self.value)
@@ -43,7 +46,7 @@ class ConfigValueSelection(ConfigValue[str]):
             return result
         if value_to_check in self.__options or self.__allows_free_edit or self.__allows_values_not_in_options:
             return ConfigValueConstraintResult()
-        return ConfigValueConstraintResult(f"{self.__name} must be either {', '.join(self.__options[:-1]) + ' or ' + self.__options[-1]}")
+        return ConfigValueConstraintResult(f"{self.name} must be either {', '.join(self.__options[:-1]) + ' or ' + self.__options[-1]}")
     
     def parse(self, config_value: str) -> ConfigValueConstraintResult:
         try:

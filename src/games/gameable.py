@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
 import json
-import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 import pandas as pd
 from src.conversation.conversation_log import conversation_log
-from src.conversation.context import context
+if TYPE_CHECKING:
+    from src.conversation.context import Context
 from src.config.config_loader import ConfigLoader
-from src.llm.sentence import sentence
+from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
 import src.utils as utils
 import sounddevice as sd
@@ -17,7 +17,10 @@ import threading
 import wave
 import shutil
 
-class gameable(ABC):
+logger = utils.get_logger()
+
+
+class Gameable(ABC):
     """Abstract class for different implementations of games to support. 
     Make a subclass for every game that Mantella is supposed to support and implement this interface
     Anything that is specific to a certain game should end up in one of these subclasses.
@@ -33,17 +36,17 @@ class gameable(ABC):
         try:
             self.__character_df: pd.DataFrame = self.__get_character_df(path_to_character_df)
         except:
-            logging.error(f'Unable to read / open {path_to_character_df}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
+            logger.error(f'Unable to read / open {path_to_character_df}. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
         
-        self._is_vr: bool = 'vr' in config.game.lower()
+        self._is_vr: bool = config.game.is_vr
         #Apply character overrides
         mod_overrides_folder = os.path.join(*[config.mod_path_base, self.extender_name, "Plugins","MantellaSoftware","data",f"{mantella_game_folder_path}","character_overrides"])
         self.__apply_character_overrides(mod_overrides_folder, self.__character_df.columns.values.tolist())
-        personal_overrides_folder = os.path.join(config.save_folder, f"data/{mantella_game_folder_path}/character_overrides")     
+        personal_overrides_folder = os.path.join(config.save_folder, f"data/{mantella_game_folder_path}/character_overrides")
         self.__apply_character_overrides(personal_overrides_folder, self.__character_df.columns.values.tolist())
 
-        self.__conversation_folder_path = config.save_folder + f"data/{mantella_game_folder_path}/conversations"
+        self.__conversation_folder_path = os.path.join(config.save_folder, "data", mantella_game_folder_path, "conversations")
         conversation_log.game_path = self.__conversation_folder_path
     
     @property
@@ -105,7 +108,7 @@ class gameable(ABC):
         pass    
 
     @abstractmethod
-    def prepare_sentence_for_game(self, queue_output: sentence, context_of_conversation: context, config: ConfigLoader, topicID: int, isFirstLine: bool):
+    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: 'Context', config: ConfigLoader, topicID: int, isFirstLine: bool):
         """Does what ever is needed to play a sentence ingame
 
         Args:
@@ -171,6 +174,37 @@ class gameable(ABC):
         """
         pass
 
+    def resolve_npc_refid_by_name(self, name: str) -> str | None:
+        """Resolve an NPC name to their ref_id
+        
+        Only returns a result if exactly one NPC with that name exists in the character CSV
+        This prevents ambiguity when multiple NPCs share the same name (eg guards)
+        
+        Args:
+            name: The name of the NPC to look up
+            
+        Returns:
+            str | None: ref_id if exactly one match found, None otherwise
+        """
+        ref_id = None
+        name_lower = name.lower()
+        name_match = self.character_df['name'].astype(str).str.lower() == name_lower
+        matching_rows = self.character_df.loc[name_match]
+        
+        if matching_rows.shape[0] == 1:
+            row = matching_rows.iloc[0]
+            ref_id = str(row.get('ref_id', ''))
+            if ref_id:
+                logger.info(f"Resolved NPC '{name}' to ref_id '{ref_id}'")
+            else:
+                logger.warning(f"NPC '{name}' found but has no ref_id in CSV")
+        elif matching_rows.shape[0] > 1:
+            logger.warning(f"Multiple NPCs found with name '{name}' ({matching_rows.shape[0]} matches) - cannot resolve unambiguously")
+        else:
+            logger.warning(f"No NPC found with name '{name}' in character CSV")
+        
+        return ref_id
+
     @utils.time_it
     def _get_matching_df_rows_matcher(self, base_id: str, character_name: str, race: str) -> pd.Series | None:
         character_name_lower = character_name.lower()
@@ -220,7 +254,7 @@ class gameable(ABC):
         for matcher in ordered_matchers:
             view = self.character_df.loc[ordered_matchers[matcher]]
             if view.shape[0] == 1: #If there is exactly one match
-                logging.info(f'Matched {character_name} in CSV by {matcher}')
+                logger.info(f'Matched {character_name} in CSV by {matcher}')
                 return ordered_matchers[matcher]
             
         return None
@@ -230,7 +264,7 @@ class gameable(ABC):
         character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
         matcher = self._get_matching_df_rows_matcher(base_id, character_name, character_race)
         if isinstance(matcher, type(None)):
-            logging.info(f"Could not find {character_name} in {self.game_name_in_filepath}_characters.csv. Loading as a generic NPC.")
+            logger.info(f"Could not find {character_name} in {self.game_name_in_filepath}_characters.csv. Loading as a generic NPC.")
             character_info = self.load_unnamed_npc(character_name, character_race, gender, ingame_voice_model)
             is_generic_npc = True
         else:
@@ -291,7 +325,7 @@ class gameable(ABC):
                                 if value and not pd.isna(value) and value != "":
                                     self.character_df.loc[matcher, entry] = value
             except Exception as e:
-                logging.log(logging.WARNING, f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
+                logger.log(logger.WARNING, f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
 
     @utils.time_it
     def _create_all_voice_folders(self, mod_path: str, voice_folder_col: str):

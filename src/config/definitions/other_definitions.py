@@ -1,4 +1,4 @@
-from src.conversation.action import action
+from src.conversation.action import Action
 from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_int import ConfigValueInt
@@ -18,13 +18,7 @@ class OtherDefinitions:
                                         - If disabled: The LLM will not respond until the player speaks first."""
         return ConfigValueBool("automatic_greeting","Automatic Greeting",automatic_greeting_description,True)
     
-    #Conversation        
-    @staticmethod
-    def get_active_actions(actions: list[action]) -> ConfigValue:
-        description = "The actions Mantella will provide."
-        default_value:list[str] = [a.name for a in actions]
-        return ConfigValueMultiSelection("active_actions","Actions",description, default_value, default_value)
-    
+    #Conversation
     @staticmethod
     def get_max_count_events_config_value() -> ConfigValue:
         max_count_events_description = """Maximum number of in-game events that are sent to the LLM per player message. 

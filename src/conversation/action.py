@@ -1,16 +1,16 @@
-class action:
+class Action:
     def __init__(self, identifier: str, name: str, keyword: str, description: str, prompt_text: str, 
-                 is_interrupting: bool, one_on_one: bool, multi_npc: bool, radiant: bool, info_text: str) -> None:
+                 requires_response: bool, is_interrupting: bool, one_on_one: bool, multi_npc: bool, radiant: bool) -> None:
         self.__identifier = identifier
         self.__name = name
         self.__keyword = keyword
         self.__description = description
         self.__prompt_text = prompt_text
+        self.__requires_response = requires_response
         self.__is_interrupting = is_interrupting
         self.__one_on_one = one_on_one
         self.__multi_npc = multi_npc
         self.__radiant = radiant
-        self.__info_text = info_text
 
     @property
     def identifier(self) -> str:
@@ -37,6 +37,10 @@ class action:
         return self.__prompt_text
     
     @property
+    def requires_response(self) -> bool:
+        return self.__requires_response
+    
+    @property
     def is_interrupting(self) -> bool:
         return self.__is_interrupting
     
@@ -51,7 +55,3 @@ class action:
     @property
     def use_in_radiant(self) -> bool:
         return self.__radiant
-    
-    @property
-    def info_text(self) -> str:
-        return self.__info_text

@@ -1,5 +1,5 @@
 from typing import Any, Callable
-from src.conversation.action import action
+from src.conversation.action import Action
 from src.config.config_values import ConfigValues
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value import ConfigValue
@@ -13,12 +13,13 @@ from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
 from src.config.definitions.vision_definitions import VisionDefinitions
+from src.config.definitions.action_definitions import ActionDefinitions
 import sys
 
 
 class MantellaConfigValueDefinitionsNew:
     @staticmethod
-    def get_config_values(is_integrated: bool, actions: list[action], on_value_change_callback: Callable[..., Any] | None = None) -> ConfigValues:
+    def get_config_values(is_integrated: bool, on_value_change_callback: Callable[..., Any] | None = None) -> ConfigValues:
         result: ConfigValues = ConfigValues()
         is_integrated = "--integrated" in sys.argv
         # hidden_category= ConfigValueGroup("Hidden", "Hidden", "Don't show these on the UI", on_value_change_callback, is_hidden=True)
@@ -40,8 +41,9 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_llm_api_config_value())
         llm_category.add_config_value(LLMDefinitions.get_model_config_value())
         # llm_category.add_config_value(LLMDefinitions.get_llm_priority_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_max_response_sentences_single_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_max_response_sentences_multi_config_value())
         llm_category.add_config_value(LLMDefinitions.get_custom_token_count_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_max_response_sentences_config_value())
         #llm_category.add_config_value(LLMDefinitions.get_llm_custom_service_url_config_value())
         llm_category.add_config_value(LLMDefinitions.get_wait_time_buffer_config_value())
         # llm_category.add_config_value(LLMDefinitions.get_try_filter_narration())
@@ -99,6 +101,10 @@ class MantellaConfigValueDefinitionsNew:
         stt_category.add_config_value(STTDefinitions.get_stt_translate_config_value())
         stt_category.add_config_value(STTDefinitions.get_process_device_config_value())
         stt_category.add_config_value(STTDefinitions.get_moonshine_folder_config_value(is_integrated))
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_enabled_config_value())
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_timeout_config_value())
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_max_count_config_value())
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_message_config_value())
         result.add_base_group(stt_category)
 
         vision_category = ConfigValueGroup("Vision", "Vision", "Vision settings.", on_value_change_callback)
@@ -116,13 +122,20 @@ class MantellaConfigValueDefinitionsNew:
         vision_category.add_config_value(VisionDefinitions.get_use_game_screenshots_config_value())
         result.add_base_group(vision_category)
 
+        actions_category = ConfigValueGroup("Actions", "Actions", "Settings for in-game actions.", on_value_change_callback)
+        actions_category.add_config_value(ActionDefinitions.get_advanced_actions_enabled_config_value())
+        actions_category.add_config_value(ActionDefinitions.get_custom_function_model_config_value())
+        actions_category.add_config_value(ActionDefinitions.get_function_llm_api_config_value())
+        actions_category.add_config_value(ActionDefinitions.get_function_llm_model_config_value())
+        actions_category.add_config_value(ActionDefinitions.get_function_llm_custom_token_count_config_value())
+        actions_category.add_config_value(ActionDefinitions.get_function_llm_params_config_value())
+        result.add_base_group(actions_category)
+
         language_category = ConfigValueGroup("Language", "Language", "Change the language used by Mantella as well as keywords.", on_value_change_callback)
         language_category.add_config_value(LanguageDefinitions.get_language_config_value())
         language_category.add_config_value(LanguageDefinitions.get_end_conversation_keyword_config_value())
         language_category.add_config_value(LanguageDefinitions.get_goodbye_npc_response())
         language_category.add_config_value(LanguageDefinitions.get_collecting_thoughts_npc_response())
-        for action in actions:
-            language_category.add_config_value(LanguageDefinitions.get_action_keyword_override(action))
         result.add_base_group(language_category)
 
         prompts_category = ConfigValueGroup("Prompts", "Prompts", "Change the basic prompts used by Mantella.", on_value_change_callback)
@@ -133,10 +146,14 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_multi_npc_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_radiant_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_memory_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_memory_prompt_datetime_prefix_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_resummarize_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_vision_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_function_llm_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_radiant_start_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_radiant_continue_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_radiant_max_turns_config_value())
         result.add_base_group(prompts_category)
 
         startup_category = ConfigValueGroup("Startup", "Startup", "Startup settings.", on_value_change_callback)
@@ -147,7 +164,6 @@ class MantellaConfigValueDefinitionsNew:
 
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
-        other_category.add_config_value(OtherDefinitions.get_active_actions(actions))
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
         other_category.add_config_value(OtherDefinitions.get_events_refresh_time_config_value())
         other_category.add_config_value(OtherDefinitions.get_hourly_time_config_value())

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 
 from src.character_manager import Character
-from src.llm.sentence_content import SentenceTypeEnum, sentence_content
+from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 
 class MarkedTextStateEnum(Enum):
     UNMARKED = 1
@@ -18,6 +18,8 @@ class sentence_generation_settings:
         self.__current_text_state: MarkedTextStateEnum = MarkedTextStateEnum.UNMARKED
         self.__current_speaker: Character = current_speaker
         self.__stop_generation: bool = False
+        self.__interrupting_action: bool = False
+        self.__vision_requested: bool = False
     
     @property
     def sentence_type(self) -> SentenceTypeEnum:
@@ -59,14 +61,33 @@ class sentence_generation_settings:
     def stop_generation(self, stop_generation: bool):
         self.__stop_generation = stop_generation
 
+    @property
+    def interrupting_action(self) -> bool:
+        return self.__interrupting_action
+    
+    @interrupting_action.setter
+    def interrupting_action(self, interrupting_action: bool):
+        self.__interrupting_action = interrupting_action
+
+    @property
+    def vision_requested(self) -> bool:
+        return self.__vision_requested
+    
+    @vision_requested.setter
+    def vision_requested(self, vision_requested: bool):
+        self.__vision_requested = vision_requested
+
 class output_parser(ABC):
     def __init__(self) -> None:
         super().__init__()
 
     @abstractmethod
-    def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[sentence_content|None, str]:
+    def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[SentenceContent|None, str]:
         pass
 
     @abstractmethod
-    def modify_sentence_content(self, cut_content: sentence_content, last_content: sentence_content | None, settings: sentence_generation_settings) -> tuple[sentence_content | None, sentence_content | None]:
+    def modify_sentence_content(self, cut_content: SentenceContent, last_content: SentenceContent | None, settings: sentence_generation_settings) -> tuple[SentenceContent | None, SentenceContent | None]:
         return cut_content, last_content
+    
+    def get_cut_indicators(self) -> list[str]:
+        return []
