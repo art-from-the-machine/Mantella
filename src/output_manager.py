@@ -226,7 +226,7 @@ class ChatManager:
                 while not has_text_response and retries < max_retries:
                     try:
                         start_time = time.time()
-                        async for item in self.__client.streaming_call(messages=messages, is_multi_npc=is_multi_npc, tools=current_tools):
+                        async for item in self.__client.streaming_call(messages=messages, is_multi_npc=is_multi_npc, opentelemetry_context=opentelemetry_context, tools=current_tools):
                             if self.__stop_generation.is_set():
                                 break
                             if not item:

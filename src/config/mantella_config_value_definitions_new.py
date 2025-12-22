@@ -13,7 +13,6 @@ from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
 from src.config.definitions.vision_definitions import VisionDefinitions
-from src.config.definitions.telemetry_definitions import TelemetryDefinitions
 from src.config.definitions.action_definitions import ActionDefinitions
 import sys
 
@@ -175,6 +174,9 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         other_category.add_config_value(OtherDefinitions.get_advanced_logs_config_value())
+        other_category.add_config_value(OtherDefinitions.get_enable_telemetry_config_value())
+        other_category.add_config_value(OtherDefinitions.get_telemetry_otlp_endpoint_config_value())
+        other_category.add_config_value(OtherDefinitions.get_telemetry_protocol_config_value())
         # other_category.add_config_value(OtherDefinitions.get_debugging_config_value())
         # other_category.add_config_value(OtherDefinitions.get_play_audio_from_script_config_value())
         # other_category.add_config_value(OtherDefinitions.get_debugging_npc_config_value())
@@ -182,11 +184,5 @@ class MantellaConfigValueDefinitionsNew:
         # other_category.add_config_value(OtherDefinitions.get_default_player_response_config_value())
         # other_category.add_config_value(OtherDefinitions.get_exit_on_first_exchange_config_value())
         result.add_base_group(other_category)
-
-        telemetry_category = ConfigValueGroup("Telemetry", "Telemetry", "Telemetry settings.", on_value_change_callback)
-        telemetry_category.add_config_value(TelemetryDefinitions.get_enable_telemetry_config_value())
-        telemetry_category.add_config_value(TelemetryDefinitions.get_telemetry_otlp_endpoint_config_value())
-        telemetry_category.add_config_value(TelemetryDefinitions.get_telemetry_protocol_config_value())
-        result.add_base_group(telemetry_category)
 
         return result
