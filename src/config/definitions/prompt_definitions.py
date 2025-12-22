@@ -1,7 +1,9 @@
 
 from regex import Regex
 from src.config.types.config_value import ConfigValue
+from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_string import ConfigValueString
+from src.config.types.config_value_bool import ConfigValueBool
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 
 
@@ -19,7 +21,8 @@ class PromptDefinitions:
                                 "equipment",
                                 "location",
                                 "weather",
-                                "time", 
+                                "time",
+                                "current_day",
                                 "time_group", 
                                 "language", 
                                 "conversation_summary",
@@ -35,12 +38,16 @@ class PromptDefinitions:
                                 "equipment",
                                 "location",
                                 "weather",
-                                "time", 
+                                "time",
+                                "current_day",
                                 "time_group", 
                                 "language", 
                                 "conversation_summary",
                                 "conversation_summaries",
                                 "actions"]
+    
+    ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM = [
+                                "game"]
     
     BASE_PROMPT_DESCRIPTION = """The starting prompt sent to the LLM when an NPC is selected.
                                 The following are dynamic variables that need to be contained in curly brackets {}:
@@ -60,7 +67,7 @@ class PromptDefinitions:
                                 player_description = a description of the player character (needs to be added in game or using the config value)
                                 player_equipment = a basic description of the equipment the player character carries
                                 equipment = a basic description of the equipment the NPCs carry
-                                actions = instructions for the LLM how to trigger actions"""
+                                actions = instructions for the LLM how to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools)"""
     
     BASE_RADIANT_DESCRIPTION = """The starting prompt sent to the LLM when a radiant conversation is started.
                                 The following are dynamic variables that need to be contained in curly brackets {}:
@@ -75,7 +82,8 @@ class PromptDefinitions:
                                 language = the selected language
                                 conversation_summary = reads the latest conversation summaries for the NPCs stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt
                                 equipment = a basic description of the equipment the NPCs carry
-                                actions = instructions for the LLM to trigger actions"""
+                                actions = instructions for the LLM to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools)"""
+
         
     class PromptChecker(ConfigValueConstraint[str]):
         def __init__(self, allowed_prompt_variables: list[str]) -> None:
@@ -101,7 +109,7 @@ class PromptDefinitions:
                                 Who do you think these belong to?
                                 You are having a conversation with {player_name} (the player) who is {trust} in {location}. {player_name} {player_description} {player_equipment} {equipment}
                                 This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
-                                The time is {time} {time_group}.
+                                The time is {time} {time_group} on Day {current_day}.
                                 {weather}
                                 Remember to stay in character.
                                 {actions}
@@ -117,7 +125,7 @@ class PromptDefinitions:
                                     {equipment}
                                     And here are their conversation histories: 
                                     {conversation_summaries}
-                                    The time is {time} {time_group}.
+                                    The time is {time} {time_group} on Day {current_day}.
                                     {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'.
                                     Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable).
@@ -132,7 +140,7 @@ class PromptDefinitions:
                                     Here are their backgrounds: 
                                     {bios}                                    
                                     {conversation_summaries}
-                                    The time is {time} {time_group}.
+                                    The time is {time} {time_group} on Day {current_day}.
                                     {weather}
                                     You are tasked with providing the responses for the NPCs. Please begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'. 
                                     Please use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable). 
@@ -193,6 +201,11 @@ class PromptDefinitions:
         return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
     
     @staticmethod
+    def get_memory_prompt_datetime_prefix_config_value() -> ConfigValue:
+        description = """Whether to prepend a timestamp of when the conversation took place (eg "[Day 42, 5 in the early evening]") to the summary."""
+        return ConfigValueBool("memory_prompt_datetime_prefix","Memory Prompt Datetime Prefix",description,True)
+    
+    @staticmethod
     def get_resummarize_prompt_config_value() -> ConfigValue:
         resummarize_prompt_description = """Memories build up over time in data/game/conversations/NPC_Name/NPC_Name_summary_X.txt.
                                             When these memories become too long to fit into the chosen LLM's maximum context length, these memories need to be condensed down.
@@ -202,7 +215,7 @@ class PromptDefinitions:
                                                 language = the selected language
                                                 game = the game selected""" 
         resummarize_prompt = """You are tasked with summarizing the conversation history between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}.
-                                            Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {language}."""
+                                            Each paragraph represents a conversation at a new point in time. Timestamps in square brackets (eg [Day 42, 5 in the early evening]) indicate when each conversation occurred. Please summarize these conversations into a single paragraph in {language}."""
         return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
     
     @staticmethod
@@ -212,6 +225,7 @@ class PromptDefinitions:
                             Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
         return ConfigValueString("vision_prompt","Vision Prompt",vision_prompt_description,vision_prompt)
     
+    @staticmethod
     def get_radiant_start_prompt_config_value() -> ConfigValue:
         radiant_start_prompt_description = """Once a radiant conversation has started and the radiant prompt has been passed to the LLM, the below text is passed in replace of the player response.
                                         This prompt is used to steer the radiant conversation.""" 
@@ -220,8 +234,34 @@ class PromptDefinitions:
         return ConfigValueString("radiant_start_prompt","Radiant Start Prompt",radiant_start_prompt_description,radiant_start_prompt,[PromptDefinitions.PromptChecker([])])
 
     @staticmethod
+    def get_radiant_continue_prompt_config_value() -> ConfigValue:
+        radiant_continue_prompt_description = """The prompt sent to the LLM between turns in a radiant conversation to keep the conversation going.
+                                            This is used for intermediate turns when Radiant Max Turns is greater than 2."""
+        radiant_continue_prompt = """Continue the conversation, or call the EndConversation action if the conversation has naturally concluded."""
+        return ConfigValueString("radiant_continue_prompt","Radiant Continue Prompt",radiant_continue_prompt_description,radiant_continue_prompt,[PromptDefinitions.PromptChecker([])])
+
+    @staticmethod
     def get_radiant_end_prompt_config_value() -> ConfigValue:
         radiant_end_prompt_description = """The final prompt sent to the LLM before ending a radiant conversation.
                                             This prompt is used to guide the LLM to end the conversation naturally.""" 
         radiant_end_prompt = """Please wrap up the current topic between the NPCs in a natural way. Nobody is leaving, so there is no need for formal goodbyes."""
         return ConfigValueString("radiant_end_prompt","Radiant End Prompt",radiant_end_prompt_description,radiant_end_prompt,[PromptDefinitions.PromptChecker([])])
+    
+    @staticmethod
+    def get_radiant_max_turns_config_value() -> ConfigValue:
+        radiant_max_turns_description = """The maximum number of LLM response turns in a radiant conversation.
+                                            Higher values allow for longer conversations. 
+                                            If the EndConversation action is enabled for radiant conversation,
+                                            the LLM may choose to end the conversation earlier if it naturally concludes."""
+        return ConfigValueInt("radiant_max_turns", "Radiant Max Turns", radiant_max_turns_description, 2, 2, 999)
+    
+    @staticmethod
+    def get_function_llm_prompt_config_value() -> ConfigValue:
+        description = """The prompt sent to the separate function calling LLM when `Custom Function Model` is enabled.
+                            This LLM analyzes the recent conversation and determines which in-game actions (if any) should be triggered.
+                            The following are dynamic variables that need to be contained in curly brackets {}:
+                            game = the selected game"""
+        function_llm_prompt = """You are analyzing a conversation in {game} to determine if any in-game actions should be triggered. 
+                                Based on the recent dialogue, call the appropriate functions to execute actions. 
+                                If no actions are needed, do not call any functions."""
+        return ConfigValueString("function_llm_prompt","Tool Calling LLM Prompt",description,function_llm_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)])

@@ -1,6 +1,6 @@
 from copy import deepcopy
 from src.config.config_loader import ConfigLoader
-from src.llm.messages import Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage
+from src.llm.messages import Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage, ToolMessage
 from typing import Callable
 from openai.types.chat import ChatCompletionMessageParam
 from src import utils
@@ -55,7 +55,7 @@ class message_thread():
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
         return message_thread.transform_to_openai_messages(self.__messages)
 
-    def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage):
+    def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | ToolMessage):
         self.__messages.append(new_message)
 
     @utils.time_it
@@ -102,10 +102,10 @@ class message_thread():
         """
         result = []
         for message in self.__messages:
-            if isinstance(message, (AssistantMessage, UserMessage)):
+            if isinstance(message, (AssistantMessage, UserMessage, ToolMessage)):
                 if include_system_generated_messages:
                     result.append(deepcopy(message)) # TODO: Once assistant_message uses Character instead of str, this needs to be improved, don't want deepcopies of Character
-                elif not message.is_system_generated_message:
+                elif isinstance(message, ToolMessage) or not message.is_system_generated_message:
                     result.append(deepcopy(message))
         return result
     
@@ -137,7 +137,7 @@ class message_thread():
             messages_to_remove: list[Message] = []
             self.__messages[0].text = new_prompt
             for m in self.__messages:
-                if m.is_system_generated_message and remove_system_flagged_messages and not isinstance(m, SystemMessage):
+                if m.is_system_generated_message and remove_system_flagged_messages and not (isinstance(m, SystemMessage) or isinstance(m, ToolMessage)):
                     messages_to_remove.append(m)
                 m.is_multi_npc_message = multi_npc_conversation
             for m in messages_to_remove:
@@ -181,3 +181,27 @@ class message_thread():
             self.replace_message_type(message_instance,message_type)
         else:
             self.add_message(message_instance)
+
+    @utils.time_it
+    def clone_with_new_system_message(self, new_system_message: str | SystemMessage) -> "message_thread":
+        """Return a shallow copy of this thread with a replacement system prompt
+
+        Args:
+            new_system_message: Replacement prompt (string or SystemMessage instance)
+
+        Returns:
+            A new message_thread sharing the same conversation messages but with the
+            system prompt replaced. Original thread is unmodified.
+        """
+        if isinstance(new_system_message, str):
+            new_system_message = SystemMessage(new_system_message, self.__config)
+
+        # Create new thread with the replacement system message
+        cloned_thread = message_thread(self.__config, new_system_message)
+
+        # Add all non-system messages from the original thread
+        for msg in self.__messages:
+            if not isinstance(msg, SystemMessage):
+                cloned_thread.add_message(msg)
+
+        return cloned_thread

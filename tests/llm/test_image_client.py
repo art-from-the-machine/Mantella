@@ -97,15 +97,18 @@ def test_add_image_integrated_mode_no_image(image_client_default_llm: ImageClien
     assert result_messages == original_messages_copy # Messages should be identical
 
 
-def test_add_image_custom_mode_structure(image_client_custom_llm: ImageClient, sample_openai_messages: list):
+def test_add_image_custom_mode_structure(image_client_custom_llm: ImageClient, sample_openai_messages: list, mocker):
     """
-    Tests the message structure modification in custom mode, involving a real API call for transcription
-    Replaces ImageManager, requires working vision LLM endpoint
+    Tests the message structure modification in custom mode.
+    Mocks both ImageManager and request_call to avoid real API calls.
     """
     placeholder_b64 = load_placeholder_image_base64()
 
     # Replace the real ImageManager with a fake one
     image_client_custom_llm._ImageClient__image_manager = FakeImageManager(placeholder_b64)
+    
+    # Mock the request_call to return a fake transcription
+    mocker.patch.object(image_client_custom_llm, 'request_call', return_value="This is the Mantella logo.")
 
     original_user_content = sample_openai_messages[-1]['content']
     result_messages = image_client_custom_llm.add_image_to_messages(list(sample_openai_messages), "The image is a logo.")
@@ -164,12 +167,15 @@ def test_add_image_appends_new_message_if_needed(image_client_default_llm: Image
     assert last_message['content'][1]['image_url']['url'].endswith(placeholder_b64)
 
 
-def test_add_image_appends_new_message_if_needed_custom(image_client_custom_llm: ImageClient, sample_openai_messages_no_user: list):
+def test_add_image_appends_new_message_if_needed_custom(image_client_custom_llm: ImageClient, sample_openai_messages_no_user: list, mocker):
     """Tests adding an image creates a new user message if the last message isn't 'user' (custom mode)"""
     placeholder_b64 = load_placeholder_image_base64()
 
     image_client_custom_llm._ImageClient__image_manager = FakeImageManager(placeholder_b64)
     original_length = len(sample_openai_messages_no_user)
+    
+    # Mock the request_call to return a fake transcription
+    mocker.patch.object(image_client_custom_llm, 'request_call', return_value="This is a test image.")
 
     result_messages = image_client_custom_llm.add_image_to_messages(list(sample_openai_messages_no_user), "hint")
 

@@ -68,9 +68,9 @@ def test_mantella_end_conversation_endpoint(
     # Respond back to the NPC talk interim step
     response = production_like_client.post("/mantella", json=example_continue_conversation_request.model_dump(by_alias=True, exclude_none=True))
     assert response.json()[comm_consts.KEY_REPLYTYPE_NPCTALK][comm_consts.KEY_ACTOR_LINETOSPEAK] == "Safe travels"
-    assert comm_consts.ACTION_ENDCONVERSATION in response.json()[comm_consts.KEY_REPLYTYPE_NPCTALK][comm_consts.KEY_ACTOR_ACTIONS]
+    assert response.json()[comm_consts.KEY_REPLYTYPE_NPCTALK][comm_consts.KEY_ACTOR_ACTIONS] == [{'identifier': comm_consts.ACTION_ENDCONVERSATION}]
 
-    # End comversation
+    # End conversation
     end_conversation_request = models.EndConversationRequest(request_type=comm_consts.KEY_REQUESTTYPE_ENDCONVERSATION).model_dump(by_alias=True)
     response = production_like_client.post("/mantella", json=end_conversation_request)
     assert response.status_code == 200
@@ -98,6 +98,7 @@ def test_mantella_reload_conversation(
     # Continue conversation - should trigger reload
     response = production_like_client.post("/mantella", json=example_continue_conversation_request.model_dump(by_alias=True, exclude_none=True))
     assert response.json()[comm_consts.KEY_REPLYTYPE_NPCTALK][comm_consts.KEY_ACTOR_LINETOSPEAK] == "I need to gather my thoughts for a moment"
+    assert response.json()[comm_consts.KEY_REPLYTYPE_NPCTALK][comm_consts.KEY_ACTOR_ACTIONS] == [{"identifier": comm_consts.ACTION_RELOADCONVERSATION}]
 
     # Patch TOKEN_LIMIT_PERCENT back to 0.9
     monkeypatch.setattr(conv_module.Conversation, "TOKEN_LIMIT_PERCENT", 0.9)
@@ -134,7 +135,8 @@ def test_setup_route_combinations(default_config: ConfigLoader, english_language
     route = mantella_route(
         config=default_config, 
         stt_secret_key_file='STT_SECRET_KEY.txt', 
-        image_secret_key_file='IMAGE_SECRET_KEY.txt', 
+        image_secret_key_file='IMAGE_SECRET_KEY.txt',
+        function_llm_secret_key_file='FUNCTION_GPT_SECRET_KEY.txt',
         secret_key_file='GPT_SECRET_KEY.txt', 
         language_info=english_language_info, 
         show_debug_messages=False
@@ -152,7 +154,8 @@ def test_setup_route_ends_conversation(default_config: ConfigLoader, english_lan
     route = mantella_route(
         config=default_config, 
         stt_secret_key_file='STT_SECRET_KEY.txt', 
-        image_secret_key_file='IMAGE_SECRET_KEY.txt', 
+        image_secret_key_file='IMAGE_SECRET_KEY.txt',
+        function_llm_secret_key_file='FUNCTION_GPT_SECRET_KEY.txt',
         secret_key_file='GPT_SECRET_KEY.txt', 
         language_info=english_language_info, 
         show_debug_messages=False

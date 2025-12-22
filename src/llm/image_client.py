@@ -1,11 +1,13 @@
 import src.utils as utils
-import logging
 from openai.types.chat import ChatCompletionMessageParam
 import unicodedata
 from src.config.config_loader import ConfigLoader
 from src.image.image_manager import ImageManager
 from src.llm.client_base import ClientBase
 from src.llm.messages import ImageMessage
+
+logger = utils.get_logger()
+
 
 class ImageClient(ClientBase):
     '''Image class to handle LLM vision
@@ -24,9 +26,9 @@ class ImageClient(ClientBase):
 
         if self.__custom_vision_model:
             if self._is_local:
-                logging.info(f"Running local vision model")
+                logger.info(f"Running local vision model")
             else:
-                logging.log(23, f"Running Mantella with custom vision model '{config.vision_llm}'")
+                logger.log(23, f"Running Mantella with custom vision model '{config.vision_llm}'")
 
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
@@ -57,11 +59,18 @@ class ImageClient(ClientBase):
         if image is None:
             return openai_messages
         
+        # Find the last user message by walking backwards, skipping assistant/tool messages
+        last_user_message_idx = None
+        for i in range(len(openai_messages) - 1, -1, -1):
+            if openai_messages[i]['role'] == 'user':
+                last_user_message_idx = i
+                break
+        
         if not self.__custom_vision_model:
             # Add the image to the last user message or create a new message if needed
-            if openai_messages and openai_messages[-1]['role'] == 'user':
-                openai_messages[-1]['content'] = [
-                    {"type": "text", "text": openai_messages[-1]['content']},
+            if last_user_message_idx is not None:
+                openai_messages[last_user_message_idx]['content'] = [
+                    {"type": "text", "text": openai_messages[last_user_message_idx]['content']},
                     {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}", "detail": self.__detail}}
                 ]
             else:
@@ -84,12 +93,12 @@ class ImageClient(ClientBase):
                 # filter transcription to full sentences
                 image_transcription = image_transcription if last_punctuation == -1 else image_transcription[:last_punctuation + 1]
 
-                logging.log(23, f"Image transcription: {image_transcription}")
+                logger.log(23, f"Image transcription: {image_transcription}")
 
                 # Add the image to the last user message or create a new message if needed
-                if openai_messages and openai_messages[-1]['role'] == 'user':
-                    openai_messages[-1]['content'] = [
-                        {"type": "text", "text": f"*{image_transcription}*\n{openai_messages[-1]['content']}"}
+                if last_user_message_idx is not None:
+                    openai_messages[last_user_message_idx]['content'] = [
+                        {"type": "text", "text": f"*{image_transcription}*\n{openai_messages[last_user_message_idx]['content']}"}
                     ]
                 else:
                     openai_messages.append({

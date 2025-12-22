@@ -1,4 +1,3 @@
-import logging
 from typing import Any, Hashable
 import regex
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
@@ -17,6 +16,10 @@ from src.character_manager import Character
 import src.utils as utils
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
+from src.actions.function_manager import FunctionManager
+
+logger = utils.get_logger()
+
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv/fallout4_characters.csv"""
@@ -62,7 +65,7 @@ class GameStateManager:
             self.process_stt_setup(input_json)
         
         context_for_conversation = Context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
-        self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt)
+        self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt, self.__game)
         self.__update_context(input_json)
         self.__try_preload_voice_model()
         self.__talk.start_conversation()
@@ -90,6 +93,9 @@ class GameStateManager:
 
         self.__update_context(input_json)
 
+        if self.__talk.resume_after_interrupting_action():
+            logger.log(23, "Resuming conversation after interrupting action result")
+
         while True:
             replyType, sentence_to_play = self.__talk.continue_conversation()
             if replyType == comm_consts.KEY_REQUESTTYPE_TTS:
@@ -97,6 +103,22 @@ class GameStateManager:
                 reply = self.player_input({"mantella_context": {}, "mantella_player_input": "", "mantella_request_type": "mantella_player_input"})
                 self.__first_line = False # since the NPC is already speaking in-game, setting this to True would just cause two voicelines to play at once
                 continue # continue conversation with new player input (ie call self.__talk.continue_conversation() again)
+            elif replyType == comm_consts.KEY_REPLYTYPE_NPCACTION:
+                # Action-only response (no voiceline)
+                if sentence_to_play and len(sentence_to_play.actions) > 0:
+                    requires_response = FunctionManager.any_action_requires_response(sentence_to_play.actions)
+                    
+                    logger.log(23, f"Sending action-only response with {len(sentence_to_play.actions)} action(s), requires_response={requires_response}")
+                    return {
+                        comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCACTION,
+                        comm_consts.KEY_REPLYTYPE_NPCACTION: {
+                            comm_consts.KEY_ACTOR_ACTIONS: sentence_to_play.actions,
+                            comm_consts.KEY_ACTOR_ACTIONS_REQUIRE_RESPONSE: requires_response
+                        }
+                    }
+                else:
+                    # If no actions, continue to next iteration
+                    continue
             else:
                 reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
                 break
@@ -107,7 +129,7 @@ class GameStateManager:
                 reply[comm_consts.KEY_REPLYTYPE_NPCTALK] = self.sentence_to_json(sentence_to_play, topicInfoID)
                 self.__first_line = False
 
-                if comm_consts.ACTION_RELOADCONVERSATION in sentence_to_play.actions:
+                if {'identifier': comm_consts.ACTION_RELOADCONVERSATION} in sentence_to_play.actions:
                     # Reload on next continue, but first inform the player that a reload will happen with the "gather thoughts" voiceline
                     self.__should_reload = True
             else:
@@ -133,14 +155,28 @@ class GameStateManager:
         if not npcs_in_conversation.contains_multiple_npcs(): # actions are only enabled in 1-1 conversations
             for action in self.__config.actions:
                 # if the player response is just the name of an action, force the action to trigger
-                if action.keyword.lower() == cleaned_player_text.lower() and npcs_in_conversation.last_added_character:
+                if action.keyword.lower() == cleaned_player_text.lower().replace(' ','') and npcs_in_conversation.last_added_character:
+                    # Handle internal actions that don't go to the game
+                    if action.identifier == 'mantella_npc_listen':
+                        # Set listen_requested flag so the next player turn has extended pause
+                        pause_seconds = FunctionManager.get_action_pause_seconds('mantella_npc_listen')
+                        self.__chat_manager.set_listen_requested(pause_seconds)
+                        logger.log(23, f"Listen action triggered via keyword: Pause threshold increased to {pause_seconds} seconds for one turn")
+                        break # Don't send to game
+                    
+                    if action.identifier == 'mantella_npc_vision':
+                        # Enable vision for the next LLM call
+                        self.__client.enable_vision_for_next_call()
+                        logger.log(23, "Vision action triggered via keyword: Vision enabled for next LLM call")
+                        break # Don't send to game
+                    
                     return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCACTION,
                             comm_consts.KEY_REPLYTYPE_NPCACTION: {
                                 'mantella_actor_speaker': npcs_in_conversation.last_added_character.name,
-                                'mantella_actor_actions': [action.identifier],
+                                'mantella_actor_actions': [{'identifier': action.identifier}],
                                 }
                             }
-        
+
         # if the player response is not an action command, return a regular player reply type
         if player_spoken_sentence:
             topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
@@ -153,12 +189,14 @@ class GameStateManager:
     @utils.time_it
     def end_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(self.__talk):
-            self.__talk.end()
+            # Extract end timestamp from game client
+            end_timestamp = input_json.get(comm_consts.KEY_ENDCONVERSATION_TIMESTAMP, None)
+            self.__talk.end(end_timestamp)
             self.__talk = None
 
-        logging.log(24, '\nConversations not starting when you select an NPC? See here:')
-        logging.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
-        logging.log(24, '\nWaiting for player to select an NPC...')
+        logger.log(24, '\nConversations not starting when you select an NPC? See here:')
+        logger.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
+        logger.log(24, '\nWaiting for player to select an NPC...')
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_ENDCONVERSATION}
     
     def process_stt_setup(self, input_json: dict[str, Any]):
@@ -187,7 +225,7 @@ class GameStateManager:
     
     @utils.time_it
     def sentence_to_json(self, sentence_to_prepare: Sentence, topicID: int) -> dict[str, Any]:
-        return {
+        json_dict = {
             comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.speaker.name,
             comm_consts.KEY_ACTOR_LINETOSPEAK: self.__abbreviate_text(sentence_to_prepare.text.strip()),
             comm_consts.KEY_ACTOR_ISNARRATION: sentence_to_prepare.is_narration,
@@ -196,6 +234,8 @@ class GameStateManager:
             comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions,
             comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE: topicID
         }
+
+        return json_dict
     
     def __abbreviate_text(self, text_to_abbreviate: str) -> str:
         return self.__game.modify_sentence_text_for_game(text_to_abbreviate)
@@ -216,9 +256,12 @@ class GameStateManager:
             
             location = None
             time = None
+            game_days = None
             ingame_events = None
-            weather = ""
-            custom_context_values: dict[str, Any] = {}
+            weather = None
+            npcs_nearby = None
+            config_settings: dict[str, Any] | None = None
+            custom_context_values: dict[str, Any] | None = None
             if json.__contains__(comm_consts.KEY_CONTEXT):
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_LOCATION):
                     location: str = json[comm_consts.KEY_CONTEXT].get(comm_consts.KEY_CONTEXT_LOCATION, None)
@@ -226,15 +269,26 @@ class GameStateManager:
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_TIME):
                     time: int = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_TIME]
 
+                if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_GAMEDAYS):
+                    game_days: float = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_GAMEDAYS]
+
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_INGAMEEVENTS):
+                    logger.log(23, f'Received in-game events: {json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]}')
                     ingame_events: list[str] = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_INGAMEEVENTS]
                 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_WEATHER):
                     weather = self.__game.get_weather_description(json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_WEATHER])
 
+                if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_NPCS_NEARBY):
+                    npcs_nearby = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_NPCS_NEARBY]
+
+                if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CONFIG_SETTINGS):
+                    config_settings = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CONFIG_SETTINGS]
+
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
                     custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
-            self.__talk.update_context(location, time, ingame_events, weather, custom_context_values)
+
+                self.__talk.update_context(location, time, ingame_events, weather, npcs_nearby, custom_context_values, config_settings, game_days)
     
     @utils.time_it
     def load_character(self, json: dict[str, Any]) -> Character | None:
@@ -321,8 +375,11 @@ class GameStateManager:
                             equipment,
                             custom_values)
         except CharacterDoesNotExist:                 
-            logging.log(23, 'Restarting...')
+            logger.error('Character not loaded. Restarting...')
             return None 
+        except Exception as e:
+            logger.error(f'Error loading character: {e}')
+            return None
         
     def error_message(self, message: str) -> dict[str, Any]:
         return {

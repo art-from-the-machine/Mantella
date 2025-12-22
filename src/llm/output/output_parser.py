@@ -18,6 +18,8 @@ class sentence_generation_settings:
         self.__current_text_state: MarkedTextStateEnum = MarkedTextStateEnum.UNMARKED
         self.__current_speaker: Character = current_speaker
         self.__stop_generation: bool = False
+        self.__interrupting_action: bool = False
+        self.__vision_requested: bool = False
     
     @property
     def sentence_type(self) -> SentenceTypeEnum:
@@ -58,6 +60,22 @@ class sentence_generation_settings:
     @stop_generation.setter
     def stop_generation(self, stop_generation: bool):
         self.__stop_generation = stop_generation
+
+    @property
+    def interrupting_action(self) -> bool:
+        return self.__interrupting_action
+    
+    @interrupting_action.setter
+    def interrupting_action(self, interrupting_action: bool):
+        self.__interrupting_action = interrupting_action
+
+    @property
+    def vision_requested(self) -> bool:
+        return self.__vision_requested
+    
+    @vision_requested.setter
+    def vision_requested(self, vision_requested: bool):
+        self.__vision_requested = vision_requested
 
 class output_parser(ABC):
     def __init__(self) -> None:

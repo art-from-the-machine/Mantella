@@ -1,7 +1,10 @@
-import logging
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
 from src.llm.sentence_content import SentenceContent
 from src.conversation.action import Action
+import src.utils as utils
+
+logger = utils.get_logger()
+
     
 class actions_parser(output_parser):
     def __init__(self, actions: list[Action]) -> None:
@@ -17,12 +20,10 @@ class actions_parser(output_parser):
                 keyword = action.keyword + ":"
                 if keyword in cut_content.text:
                     cut_content.text = cut_content.text.replace(keyword,"").strip()
-                    cut_content.actions.append(action.identifier)
-                    logging.log(28, action.info_text)
-                    # TODO: Add back this functionality while keeping the first delivered sentence intact
-                    # ie "Inventory: Here you go." instead of just "Inventory:" with no further response
-                    # if action.is_interrupting:
-                    #     settings.stop_generation = True
+                    cut_content.actions.append({'identifier': action.identifier})
+                    logger.log(28, f'Action triggered: {action.name} ({action.identifier})')
+                    if action.is_interrupting:
+                        settings.stop_generation = True
         return cut_content, last_content
     
     def get_cut_indicators(self) -> list[str]:
