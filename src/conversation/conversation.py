@@ -5,6 +5,7 @@ from typing import Any
 from src.llm.ai_client import AIClient
 from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from opentelemetry import context as OpenTelemetryContext
+from src.telemetry.telemetry import set_parent_context
 from src.characters_manager import Characters
 from src.conversation.conversation_log import conversation_log
 from src.conversation.action import Action
@@ -462,8 +463,13 @@ class Conversation:
                 tools = None
                 if self.context.config.advanced_actions_enabled and allow_tool_use:
                     tools = FunctionManager.generate_context_aware_tools(self.__context, self.__game)
-                opentelemetry_context = OpenTelemetryContext.get_current() 
-                self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions, opentelemetry_context, tools, self.__game]).start()
+                # Capture current OpenTelemetry context for the new thread
+                opentelemetry_context = OpenTelemetryContext.get_current()
+                def thread_target():
+                    set_parent_context(opentelemetry_context)
+                    self.__output_manager.generate_response(self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions, tools, self.__game)
+                self.__generation_thread = Thread(target=thread_target)
+                self.__generation_thread.start()
 
     @utils.time_it
     def __stop_generation(self):

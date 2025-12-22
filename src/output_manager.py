@@ -16,7 +16,6 @@ from src.llm.output.sentence_end_parser import sentence_end_parser
 from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from src.conversation.action import Action
 from src.llm.sentence_queue import SentenceQueue
-from opentelemetry.context.context import Context as OpenTelemetryContext
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
 from src import utils
@@ -28,7 +27,7 @@ from src.actions.function_manager import FunctionManager
 from src.llm.messages import AssistantMessage, ToolMessage
 from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
-from src.telemetry.telemetry import create_span_with_parent
+from src.telemetry.telemetry import create_span_from_thread
 from src.games.gameable import Gameable
 from typing import Callable
 
@@ -130,7 +129,7 @@ class ChatManager:
             return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file))
 
     @utils.time_it
-    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action], opentelemetry_context: OpenTelemetryContext, tools: list[dict] | None, game: Gameable | None = None):
+    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action], tools: list[dict] | None, game: Gameable | None = None):
         """Starts generating responses by the LLM for the current state of the input messages
 
         Args:
@@ -144,7 +143,7 @@ class ChatManager:
             return
         self.__is_generating = True
         
-        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions, opentelemetry_context, tools, game))
+        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions, tools, game))
     
     @utils.time_it
     def stop_generation(self):
@@ -176,9 +175,9 @@ class ChatManager:
             messages.add_message(tool_result_message)
     
     @utils.time_it
-    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], opentelemetry_context: OpenTelemetryContext, tools: list[dict] | None, game: Gameable | None = None):
+    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], tools: list[dict] | None, game: Gameable | None = None):
         """Stream response from LLM one sentence at a time"""
-        with create_span_with_parent("process_response", opentelemetry_context) as span:
+        with create_span_from_thread("process_response") as span:
             span.set_attribute("active_character.name", active_character.name)
 
             raw_response: str = ''  # Track the raw response
@@ -226,7 +225,7 @@ class ChatManager:
                 while not has_text_response and retries < max_retries:
                     try:
                         start_time = time.time()
-                        async for item in self.__client.streaming_call(messages=messages, is_multi_npc=is_multi_npc, opentelemetry_context=opentelemetry_context, tools=current_tools):
+                        async for item in self.__client.streaming_call(messages=messages, is_multi_npc=is_multi_npc, tools=current_tools):
                             if self.__stop_generation.is_set():
                                 break
                             if not item:

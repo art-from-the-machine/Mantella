@@ -12,8 +12,7 @@ from src.llm.message_thread import message_thread
 from src.llm.messages import Message, ImageMessage, UserMessage
 from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
-from opentelemetry.context.context import Context as OpenTelemetryContext
-from src.telemetry.telemetry import create_span_with_parent
+from src.telemetry.telemetry import create_span_from_thread
 from src.actions.function_manager import FunctionManager
 
 logger = utils.get_logger()
@@ -227,8 +226,8 @@ class ClientBase(AIClient):
         
     
     @utils.time_it
-    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool, opentelemetry_context: OpenTelemetryContext, tools: list[dict] = None) -> AsyncGenerator[tuple[str, str | list] | None, None]:
-        with create_span_with_parent("llm_streaming_call", opentelemetry_context) as span:
+    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool, tools: list[dict] = None) -> AsyncGenerator[tuple[str, str | list] | None, None]:
+        with create_span_from_thread("llm_streaming_call") as span:
             with self._generation_lock:
                 logger.log(28, 'Getting LLM response...')
 

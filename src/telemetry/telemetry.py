@@ -229,6 +229,31 @@ class _DummySpan:
 # Global instance
 telemetry_manager = TelemetryManager()
 
+# Thread-local storage for parent context (used for cross-thread trace continuity)
+_thread_local = threading.local()
+
+
+def set_parent_context(ctx) -> None:
+    """Store the parent OpenTelemetry context for this thread.
+    
+    Call this at the start of a new thread to maintain trace continuity.
+    The stored context will be used by create_span_from_thread() to create
+    child spans that are properly linked to the parent trace.
+    """
+    _thread_local.parent_context = ctx
+
+
+def get_parent_context():
+    """Get the stored parent context for this thread, or None if not set."""
+    return getattr(_thread_local, 'parent_context', None)
+
+
+def clear_parent_context() -> None:
+    """Clear the stored parent context for this thread."""
+    if hasattr(_thread_local, 'parent_context'):
+        del _thread_local.parent_context
+
+
 # Convenience functions
 
 def get_telemetry_manager() -> TelemetryManager:
@@ -241,8 +266,16 @@ def create_span(name: str, attributes: Optional[Dict[str, Any]] = None):
     return telemetry_manager.create_span(name, attributes)
 
 
-def create_span_with_parent(name: str, parent_context, attributes: Optional[Dict[str, Any]] = None):
-    """Create a span with a specific parent context (useful for cross-thread operations)."""
+def create_span_from_thread(name: str, attributes: Optional[Dict[str, Any]] = None):
+    """Create a span that links to the parent context set via set_parent_context().
+    
+    Use this in spawned threads to maintain trace continuity. Before calling this,
+    ensure set_parent_context() was called at the start of the thread.
+    
+    On the first call after set_parent_context(), this uses the stored parent context
+    and then clears it. Subsequent calls will use the current context (which includes
+    any spans created since then), enabling proper nesting of child spans.
+    """
     if not telemetry_manager._is_initialized or not telemetry_manager._context.telemetry_enabled:
         return _DummySpan()
     
@@ -251,14 +284,22 @@ def create_span_with_parent(name: str, parent_context, attributes: Optional[Dict
         span_attributes.update(attributes)
     
     from opentelemetry import context as otel_context
-    from opentelemetry import trace as otel_trace
     
-    if hasattr(parent_context, 'span_id'):  # It's a SpanContext
-        ctx = otel_context.set_span_context(otel_context.get_current(), parent_context)
+    # Check if we have a stored parent context (first call in thread)
+    parent_context = get_parent_context()
+    if parent_context is not None:
+        # First call in this thread - use the stored parent context and clear it
+        clear_parent_context()
+        
+        if hasattr(parent_context, 'span_id'):  # It's a SpanContext
+            ctx = otel_context.set_span_context(otel_context.get_current(), parent_context)
+        else:
+            ctx = parent_context
+        
+        return telemetry_manager._tracer.start_as_current_span(name, context=ctx, attributes=span_attributes)
     else:
-        ctx = parent_context
-    
-    return telemetry_manager._tracer.start_as_current_span(name, context=ctx, attributes=span_attributes)
+        # Subsequent calls - use current context (which now includes spans created in this thread)
+        return telemetry_manager._tracer.start_as_current_span(name, attributes=span_attributes)
 
 
 def add_global_attribute(key: str, value: Any):

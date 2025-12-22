@@ -11,7 +11,7 @@ import winsound
 import platform
 import winreg
 from pathlib import Path
-from src.telemetry.telemetry import get_telemetry_manager
+from src.telemetry.telemetry import get_telemetry_manager, create_span_from_thread
 
 def get_logger():
     return logging.getLogger("Mantella")
@@ -22,13 +22,11 @@ def time_it(func):
     def wrapper(*args, **kwargs):
         telemetryManager = get_telemetry_manager()
         if telemetryManager._context.telemetry_enabled:
-            with telemetryManager.create_span(f"{func.__module__}.{func.__name__}") as span:
+            # Use create_span_from_thread to support cross-thread trace continuity
+            with create_span_from_thread(f"{func.__module__}.{func.__name__}") as span:
                 span.set_attribute("function_name", func.__name__)
                 span.set_attribute("module_name", func.__module__)
-                span.set_attribute("args", str(args))
-                span.set_attribute("kwargs", str(kwargs))
                 result = func(*args, **kwargs)
-                span.set_attribute("result", str(result))
         else:
             start = time.time()
             result = func(*args, **kwargs)
@@ -36,7 +34,6 @@ def time_it(func):
             logger.debug(f"Function {func.__module__}.{func.__name__} took {round(end - start, 5)} seconds to execute")
 
         return result
-        
     return wrapper
 
 
