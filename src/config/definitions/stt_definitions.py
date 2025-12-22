@@ -79,7 +79,8 @@ class STTDefinitions:
                         See here for a comparison of languages and their Whisper performance: 
                         https://github.com/openai/whisper#available-models-and-languages
                         
-                        skyrim-whisper-base.en is the base.en, trained on Skyrim dialogue. It is more accurate in transcribing more prominent NPCs and Locations of Skyrim"""
+                        faster-skyrim-whisper-base.en is trained on Skyrim dialogue. It is more accurate in transcribing Skyrim names and locations:
+                        https://github.com/mikastamm/skyrim-whisper-base.en"""
         options = ["tiny", "tiny.en", 
                    "base", "base.en", "Numbat/faster-skyrim-whisper-base.en",
                    "small", "small.en", "distil-small.en", 
