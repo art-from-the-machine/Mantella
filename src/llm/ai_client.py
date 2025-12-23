@@ -5,7 +5,6 @@ from src.llm.message_thread import message_thread
 from src.llm.messages import Message
 from src.llm.llm_model_list import LLMModelList
 
-
 class AIClient(ABC):
 
     @abstractmethod
@@ -22,7 +21,7 @@ class AIClient(ABC):
         pass
 
     @abstractmethod
-    def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
+    def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool, tools: list[dict] = None) -> AsyncGenerator[str | None, None]:
         """A standard streaming call to the LLM. Forwards the output of 'client.chat.completions.create' 
         This method generates a new client, calls 'client.chat.completions.create' in a streaming way, yields the result immediately and closes when finished
 
@@ -52,13 +51,13 @@ class AIClient(ABC):
 
     @staticmethod
     @abstractmethod
-    def get_model_list(service: str, secret_key_file: str, default_model: str = "google/gemma-3-27b-it:free", is_vision: bool = False, is_tool_calling: bool = False) -> LLMModelList:
+    def get_model_list(service: str, secret_key_file: str, default_model: str = "mistralai/mistral-small-3.1-24b-instruct:free", is_vision: bool = False, is_tool_calling: bool = False) -> LLMModelList:
         """Returns a list of available LLM models
 
         Args:
             service (str): the service to query for LLM models
             secret_key_file (str): _description_
-            default_model (_type_, optional): _description_. Defaults to "google/gemma-3-27b-it:free".
+            default_model (_type_, optional): _description_. Defaults to "mistralai/mistral-small-3.1-24b-instruct:free".
             is_vision (bool, optional): _description_. Defaults to False.
             is_tool_calling (bool, optional): _description_. Defaults to False.
 

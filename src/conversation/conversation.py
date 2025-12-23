@@ -1,10 +1,11 @@
 from enum import Enum
-import logging
 from threading import Thread, Lock
 import time
 from typing import Any
 from src.llm.ai_client import AIClient
 from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
+from opentelemetry import context as OpenTelemetryContext
+from src.telemetry.telemetry import set_parent_context
 from src.characters_manager import Characters
 from src.conversation.conversation_log import conversation_log
 from src.conversation.action import Action
@@ -22,6 +23,9 @@ from src.stt import Transcriber
 import src.utils as utils
 from src.actions.function_manager import FunctionManager
 
+logger = utils.get_logger()
+
+
 class conversation_continue_type(Enum):
     NPC_TALK = 1
     PLAYER_TALK = 2
@@ -31,9 +35,10 @@ class Conversation:
     TOKEN_LIMIT_PERCENT: float = 0.9
     TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
     """Controls the flow of a conversation."""
-    def __init__(self, context_for_conversation: Context, output_manager: ChatManager, rememberer: Remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool) -> None:
+    def __init__(self, context_for_conversation: Context, output_manager: ChatManager, rememberer: Remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool, game = None) -> None:
         
         self.__context: Context = context_for_conversation
+        self.__game = game
         self.__mic_input: bool = mic_input
         self.__mic_ptt: bool = mic_ptt
         self.__allow_interruption: bool = context_for_conversation.config.allow_interruption # allow mic interruption
@@ -41,6 +46,14 @@ class Conversation:
         self.__stt: Transcriber | None = stt
         self.__events_refresh_time: float = context_for_conversation.config.events_refresh_time  # Time in seconds before events are considered stale
         self.__transcribed_text: str | None = None
+        
+        # Silence auto-response settings
+        self.__silence_auto_response_enabled: bool = context_for_conversation.config.silence_auto_response_enabled
+        self.__silence_auto_response_timeout: float = context_for_conversation.config.silence_auto_response_timeout
+        self.__silence_auto_response_message: str = context_for_conversation.config.silence_auto_response_message
+        self.__silence_auto_response_max_count: int = context_for_conversation.config.silence_auto_response_max_count
+        self.__silence_auto_response_count: int = 0  # Track consecutive silent responses
+        
         if not self.__context.npcs_in_conversation.contains_player_character(): # TODO: fix this being set to a radiant conversation because of NPCs in conversation not yet being added
             self.__conversation_type: conversation_type = radiant(context_for_conversation.config)
         else:
@@ -54,6 +67,11 @@ class Conversation:
         self.__sentences: SentenceQueue = SentenceQueue()
         self.__generation_thread: Thread | None = None
         self.__generation_start_lock: Lock = Lock()
+        
+        # Set up Listen action callback to apply extended pause to STT
+        if stt:
+            self.__output_manager.set_on_listen_requested(lambda pause_secs: stt.set_temporary_pause(pause_secs))
+        
         # self.__actions: list[Action] = actions
         self.last_sentence_audio_length = 0
         self.last_sentence_start_time = time.time()
@@ -102,6 +120,7 @@ class Conversation:
         """
         greeting: UserMessage | None = self.__conversation_type.get_user_message(self.__context, self.__messages)
         if greeting:
+            greeting = self.update_game_events(greeting)
             self.__messages.add_message(greeting)
             self.__start_generating_npc_sentences()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, None
@@ -146,7 +165,7 @@ class Conversation:
                 self.__context.remove_character(next_sentence.speaker)
             #if there is a next sentence and it actually has content, return it as something for an NPC to say
             if self.last_sentence_audio_length > 0:
-                logging.debug(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
+                logger.debug(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
             # before immediately sending the next voiceline, give the player the chance to interrupt
             while time.time() - self.last_sentence_start_time < self.last_sentence_audio_length:
                 if self.__stt and self.__stt.has_player_spoken:
@@ -159,6 +178,11 @@ class Conversation:
             self.last_sentence_start_time = time.time()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, next_sentence
         else:
+            # Check if end conversation was requested via tool call
+            if self.__output_manager.end_conversation_requested:
+                self.__output_manager.clear_end_conversation_requested()
+                self.initiate_end_sequence()
+                return comm_consts.KEY_REPLYTYPE_NPCTALK, None
             #Ask the conversation type here, if we should end the conversation
             if self.__conversation_type.should_end(self.__context, self.__messages):
                 self.initiate_end_sequence()
@@ -196,17 +220,43 @@ class Conversation:
             # If the player's input does not already exist, parse mic input if mic is enabled
             if self.__mic_input and len(player_text) == 0:
                 player_text = None
+                
+                listen_mode_active = self.__output_manager.listen_requested
+                if listen_mode_active:
+                    self.__output_manager.clear_listen_requested()
+                
                 if not self.__stt.is_listening and self.__allow_mic_input:
                     self.__stt.start_listening(self.__get_mic_prompt())
+                
+                # Use timeout if timeout is enabled, max count is not reached, and Listen mode is not active
+                use_silence_timeout = (self.__silence_auto_response_enabled and 
+                                       self.__silence_auto_response_count < self.__silence_auto_response_max_count and
+                                       not listen_mode_active)
+                silence_timeout = self.__silence_auto_response_timeout if use_silence_timeout else 0
                 
                 # Start tracking how long it has taken to receive a player response
                 input_wait_start_time = time.time()
                 while not player_text:
-                    player_text = self.__stt.get_latest_transcription()
+                    player_text = self.__stt.get_latest_transcription(silence_timeout=silence_timeout)
+                    
+                    # Handle silence timeout (None returned)
+                    if player_text is None:
+                        self.__silence_auto_response_count += 1
+                        logger.log(23, f"Player silent for {self.__silence_auto_response_timeout} seconds. Auto-response count: {self.__silence_auto_response_count}/{self.__silence_auto_response_max_count}")
+                        player_text = self.__silence_auto_response_message
+                        
+                        # If max count reached, log that auto-response is now disabled
+                        if self.__silence_auto_response_count >= self.__silence_auto_response_max_count:
+                            logger.log(23, f"Max consecutive silence count ({self.__silence_auto_response_max_count}) reached. Auto-response disabled until player speaks")
+                        break
+                    elif player_text:
+                        # Player spoke -> reset the silence counter
+                        self.__silence_auto_response_count = 0
+                    
                 if time.time() - input_wait_start_time >= self.__events_refresh_time:
                     # If too much time has passed, in-game events need to be updated
                     events_need_updating = True
-                    logging.debug('Updating game events...')
+                    logger.debug('Updating game events...')
                     return player_text, events_need_updating, None
                 
                 # Stop listening once input has been detected to give the NPC a chance to speak
@@ -220,7 +270,7 @@ class Conversation:
             self.__messages.add_message(new_message)
             player_voiceline = self.__get_player_voiceline(player_character, player_text)
             text = new_message.text
-            logging.log(23, f"Text passed to NPC: {text}")
+            logger.log(23, f"Text passed to NPC: {text}")
 
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
         if ejected_npc:
@@ -235,7 +285,7 @@ class Conversation:
 
     def __get_mic_prompt(self):
         mic_prompt = f"This is a conversation with {self.__context.get_character_names_as_text(False)} in {self.__context.location}."
-        #logging.log(23, f'Context for mic transcription: {mic_prompt}')
+        #logger.log(23, f'Context for mic transcription: {mic_prompt}')
         return mic_prompt
     
     @utils.time_it
@@ -252,7 +302,7 @@ class Conversation:
         return player_character_voiced_sentence
 
     @utils.time_it
-    def update_context(self, location: str | None, time: int, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any] | None, config_settings: dict[str, Any] | None):
+    def update_context(self, location: str | None, time: int, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any] | None, config_settings: dict[str, Any] | None, game_days: float | None = None):
         """Updates the context with a new set of values
 
         Args:
@@ -260,8 +310,9 @@ class Conversation:
             time (int): the current ingame time
             custom_ingame_events (list[str]): a list of events that happend since the last update
             custom_context_values (dict[str, Any]): the current set of context values
+            game_days (float): the full game timestamp (days.fraction)
         """
-        self.__context.update_context(location, time, custom_ingame_events, weather, npcs_nearby, custom_context_values, config_settings)
+        self.__context.update_context(location, time, custom_ingame_events, weather, npcs_nearby, custom_context_values, config_settings, game_days)
         if self.__context.have_actors_changed:
             self.__update_conversation_type()
             self.__context.have_actors_changed = False
@@ -302,7 +353,7 @@ class Conversation:
         self.__context.clear_context_ingame_events()        
 
         if message.count_ingame_events() > 0:            
-            logging.log(28, f'In-game events since previous exchange:\n{message.get_ingame_events_text()}')
+            logger.log(28, f'In-game events since previous exchange:\n{message.get_ingame_events_text()}')
 
         return message
 
@@ -391,13 +442,16 @@ class Conversation:
         return None
 
     @utils.time_it
-    def end(self):
+    def end(self, end_timestamp: float | None = None):
         """Ends a conversation
+        
+        Args:
+            end_timestamp: Optional game timestamp (days passed as float) when conversation ends
         """
         self.__has_already_ended = True
         self.__stop_generation()
         self.__sentences.clear()
-        self.__save_conversation(is_reload=False)
+        self.__save_conversation(is_reload=False, end_timestamp=end_timestamp)
     
     @utils.time_it
     def __start_generating_npc_sentences(self, allow_tool_use: bool = True):
@@ -408,8 +462,14 @@ class Conversation:
                 # Generate tools if advanced actions are enabled
                 tools = None
                 if self.context.config.advanced_actions_enabled and allow_tool_use:
-                    tools = FunctionManager.generate_context_aware_tools(self.__context)
-                self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions, tools]).start()
+                    tools = FunctionManager.generate_context_aware_tools(self.__context, self.__game)
+                # Capture current OpenTelemetry context for the new thread
+                opentelemetry_context = OpenTelemetryContext.get_current()
+                def thread_target():
+                    set_parent_context(opentelemetry_context)
+                    self.__output_manager.generate_response(self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions, tools, self.__game)
+                self.__generation_thread = Thread(target=thread_target)
+                self.__generation_thread.start()
 
     @utils.time_it
     def __stop_generation(self):
@@ -432,18 +492,25 @@ class Conversation:
                 self.__sentences.put(goodbye_sentence)        
 
     @utils.time_it
-    def __save_conversation(self, is_reload: bool):
+    def __save_conversation(self, is_reload: bool, end_timestamp: float | None = None):
         """Saves conversation log and state for each NPC in the conversation"""
-        self.__save_conversations_for_characters(self.__context.npcs_in_conversation.get_all_characters(), is_reload)
+        self.__save_conversations_for_characters(self.__context.npcs_in_conversation.get_all_characters(), is_reload, end_timestamp)
 
     @utils.time_it
-    def __save_conversations_for_characters(self, characters_to_save_for: list[Character], is_reload: bool):
+    def __save_conversations_for_characters(self, characters_to_save_for: list[Character], is_reload: bool, end_timestamp: float | None = None):
         characters_object = Characters()
         for npc in characters_to_save_for:
+            characters_object.add_or_update_character(npc)
             if not npc.is_player_character:
-                characters_object.add_or_update_character(npc)
                 conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
-        self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload)
+        
+        # Get and clear pending shares (only on final save, not reload)
+        pending_shares = None
+        if not is_reload:
+            pending_shares = self.__context.npcs_in_conversation.get_pending_shares()
+            self.__context.npcs_in_conversation.clear_pending_shares()
+        
+        self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload, pending_shares, end_timestamp)
 
     @utils.time_it
     def __initiate_reload_conversation(self):

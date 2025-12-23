@@ -1,5 +1,4 @@
 import configparser
-import logging
 import os
 import sys
 from typing import Any
@@ -15,6 +14,7 @@ import src.utils as utils
 from pathlib import Path
 import json
 import urllib
+logger = utils.get_logger()
 
 
 class ConfigLoader:
@@ -31,15 +31,15 @@ class ConfigLoader:
         
         self.__definitions: ConfigValues = MantellaConfigValueDefinitionsNew.get_config_values(self.is_run_integrated, self.__on_config_value_change)
         if not os.path.exists(self.__file_name):
-            logging.log(24,"Cannot find 'config.ini'. Assuming first time usage of MantellaSoftware and creating it.")
+            logger.log(24,"Cannot find 'config.ini'. Assuming first time usage of MantellaSoftware and creating it.")
             self.__write_config_state(self.__definitions)
 
         config = configparser.ConfigParser()
         try:
             config.read(self.__file_name, encoding='utf-8')
         except Exception as e:
-            logging.error(repr(e))
-            logging.error(f'Unable to read / open config.ini. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters.')
+            logger.error(repr(e))
+            logger.error(f'Unable to read / open config.ini. If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters.')
             input("Press Enter to exit.")
 
         create_back_up_configini = False
@@ -52,7 +52,7 @@ class ConfigLoader:
                     create_back_up_configini = True
                     # TODO: filter out warnings for ['game', 'skyrim_mod_folder', 'skyrimvr_mod_folder', 'fallout4_mod_folder', 'fallout4vr_mod_folder', fallout4vr_folder]
                     utils.play_error_sound()
-                    logging.warning(f"Could not identify config value '{each_key} = {each_value}' in current config.ini. Value will not be loaded. A backup of this config.ini will be created.")
+                    logger.warning(f"Could not identify config value '{each_key} = {each_value}' in current config.ini. Value will not be loaded. A backup of this config.ini will be created.")
 
         if create_back_up_configini:
             self.__write_config_state(self.__definitions, True)
@@ -91,7 +91,7 @@ class ConfigLoader:
             writer.write(self.__file_name, definitions, create_back_up_configini)
         except Exception as e:
             utils.play_error_sound()
-            logging.error(24, f"Failed to write default 'config.ini'. Possible reason: MantellaSoftware does not have rights to write at its location. Exception: {repr(e)}")    
+            logger.error(24, f"Failed to write default 'config.ini'. Possible reason: MantellaSoftware does not have rights to write at its location. Exception: {repr(e)}")
 
     def __update_config_values_from_current_state(self):
         self.__definitions.clear_constraint_violations()
@@ -242,6 +242,10 @@ class ConfigLoader:
             self.listen_timeout = self.__definitions.get_int_value("listen_timeout")
             self.external_whisper_service = self.__definitions.get_bool_value("external_whisper_service")
             self.whisper_url = self.__definitions.get_string_value("whisper_url")
+            self.silence_auto_response_enabled = self.__definitions.get_bool_value("silence_auto_response_enabled")
+            self.silence_auto_response_timeout = self.__definitions.get_float_value("silence_auto_response_timeout")
+            self.silence_auto_response_max_count = self.__definitions.get_int_value("silence_auto_response_max_count")
+            self.silence_auto_response_message = self.__definitions.get_string_value("silence_auto_response_message")
 
             #LLM
             self.max_response_sentences_single = self.__definitions.get_int_value("max_response_sentences_single")
@@ -257,7 +261,7 @@ class ConfigLoader:
             try:
                 self.llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("llm_params").replace('\n', ''))
             except Exception as e:
-                logging.error(f"""Error in parsing LLM parameter list: {e}
+                logger.error(f"""Error in parsing LLM parameter list: {e}
 LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.llm_params = None
 
@@ -307,8 +311,11 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 self.radiant_prompt = self.__definitions.get_string_value("skyrim_radiant_prompt")
 
             self.radiant_start_prompt = self.__definitions.get_string_value("radiant_start_prompt")
+            self.radiant_continue_prompt = self.__definitions.get_string_value("radiant_continue_prompt")
             self.radiant_end_prompt = self.__definitions.get_string_value("radiant_end_prompt")
+            self.radiant_max_turns = self.__definitions.get_int_value("radiant_max_turns")
             self.memory_prompt = self.__definitions.get_string_value("memory_prompt")
+            self.memory_prompt_datetime_prefix = self.__definitions.get_bool_value("memory_prompt_datetime_prefix")
             self.resummarize_prompt = self.__definitions.get_string_value("resummarize_prompt")
             self.vision_prompt = self.__definitions.get_string_value("vision_prompt")
             self.function_llm_prompt = self.__definitions.get_string_value("function_llm_prompt")
@@ -331,10 +338,15 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             try:
                 self.vision_llm_params = json.loads(self.__definitions.get_string_value("vision_llm_params").replace('\n', ''))
             except Exception as e:
-                logging.error(f"""Error in parsing LLM parameter list: {e}
+                logger.error(f"""Error in parsing LLM parameter list: {e}
 LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.vision_llm_params = None
 
+            # Telemetry
+            self.enable_telemetry = self.__definitions.get_bool_value("enable_telemetry")
+            self.telemetry_otlp_endpoint = self.__definitions.get_string_value("telemetry_otlp_endpoint")
+            self.telemetry_protocol = self.__definitions.get_string_value("telemetry_protocol")
+            
             # Actions
             self.advanced_actions_enabled = self.__definitions.get_bool_value("advanced_actions_enabled")
             self.custom_function_model = self.__definitions.get_bool_value("custom_function_model")
@@ -345,12 +357,12 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             try:
                 self.function_llm_params = json.loads(self.__definitions.get_string_value("function_llm_params").replace('\n', ''))
             except Exception as e:
-                logging.error(f"""Error in parsing LLM parameter list: {e}
+                logger.error(f"""Error in parsing LLM parameter list: {e}
 LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.function_llm_params = None
 
             pass
         except Exception as e:
             utils.play_error_sound()
-            logging.error('Parameter missing/invalid in config.ini file!')
+            logger.error('Parameter missing/invalid in config.ini file!')
             raise e

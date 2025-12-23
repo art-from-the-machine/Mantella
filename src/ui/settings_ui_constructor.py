@@ -1,7 +1,9 @@
 import typing
 import gradio as gr
 from typing import Any, Callable, TypeVar, NamedTuple, Dict, TypedDict, Optional
-import logging
+import src.utils as utils
+
+logger = utils.get_logger()
 
 from src.llm.client_base import ClientBase
 from src.config.types.config_value_path import ConfigValuePath
@@ -173,7 +175,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
         if result.is_success:
             if config_value.value != new_value:
                 config_value.value = new_value
-                logging.info(f'{config_value.name} set to {config_value.value}')
+                logger.info(f'{config_value.name} set to {config_value.value}')
             return self.__construct_error_message_panel('', is_visible=False)
         else:
             return self.__construct_error_message_panel(result.error_message, is_visible=True)
@@ -292,7 +294,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
             "model": {
                 "dependent_config": "llm_api",
                 "secret_key_file": 'GPT_SECRET_KEY.txt',
-                "default_model": 'google/gemma-3-27b-it:free',
+                "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
                 "model_list_getter": ClientBase.get_model_list,
             },
             "vision_model": {
@@ -304,7 +306,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
             "function_llm": {
                 "dependent_config": "function_llm_api",
                 "secret_key_file": 'FUNCTION_GPT_SECRET_KEY.txt',
-                "default_model": 'mistralai/mistral-small-3.2-24b-instruct',
+                "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
                 "model_list_getter": ClientBase.get_model_list,
             }
         }
@@ -321,7 +323,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
             if handler:
                 service: str = self.__identifier_to_config_value[handler["dependent_config"]].value
                 secret_key_file = handler.get("secret_key_file", 'GPT_SECRET_KEY.txt')
-                default_model = handler.get("default_model", 'google/gemma-3-27b-it:free')
+                default_model = handler.get("default_model", 'mistralai/mistral-small-3.1-24b-instruct:free')
                 is_vision = True if config_value.identifier == 'vision_model' else False
                 is_tool_calling = True if config_value.identifier == 'function_llm' else False
                 model_list = handler["model_list_getter"](service, secret_key_file, default_model, is_vision, is_tool_calling)

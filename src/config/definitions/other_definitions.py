@@ -74,6 +74,19 @@ class OtherDefinitions:
         description = """Save advanced logs to Mantella's My Games/Mantella/logging.log file.
                         Useful for troubleshooting issues."""
         return ConfigValueBool("advanced_logs", "Advanced Logs", description, False, tags=[ConfigValueTag.advanced])
+
+    #Telemetry
+    @staticmethod
+    def get_enable_telemetry_config_value() -> ConfigValue:
+        return ConfigValueBool("enable_telemetry", "Developers - Enable Telemetry", "Enable Open Telemetry for tracing. Note that a telemetry observability platform must also be configured.", False, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_telemetry_otlp_endpoint_config_value() -> ConfigValue:
+        return ConfigValueString("telemetry_otlp_endpoint", "Developers - Open Telemetry Endpoint", "The endpoint for the Open Telemetry observability platform (eg Jaeger).", "http://localhost:4318/v1/traces", tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+    
+    @staticmethod
+    def get_telemetry_protocol_config_value() -> ConfigValue:
+        return ConfigValueString("telemetry_protocol", "Developers - Open Telemetry Protocol", "The protocol for Open Telemetry (can be 'http/protobuf' or 'grpc').", "http/protobuf", tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     #Debugging
     @staticmethod

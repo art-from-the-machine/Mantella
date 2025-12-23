@@ -7,7 +7,10 @@ class Characters:
     """
     def __init__(self):
         self.__active_characters: dict[str, Character] = {}
-        self.__nearby_npcs: list[dict[str, Any]] = []  # Lightweight nearby NPC data
+        # Lightweight nearby NPC data
+        self.__nearby_npcs: list[dict[str, Any]] = []
+        # List of non-participant NPCs that will receive a summary of the conversation once the conversation ends
+        self.__pending_shares: list[tuple[str, str, str]] = []
         self.__last_added_character: Character | None = None
         self.__player_character: Character | None = None
     
@@ -114,3 +117,28 @@ class Characters:
                 names.extend(self.get_nearby_npc_names())
             
             return names
+
+    def add_pending_share(self, sharer_name: str, recipient_name: str, recipient_ref_id: str) -> bool:
+        """Add an NPC to the list of non-conversation participants to receive a summary of the conversation once it ends
+        
+        Args:
+            sharer_name: The name of the NPC who is sharing the conversation
+            recipient_name: The name of the NPC who will receive the summary
+            recipient_ref_id: The ref_id of the recipient NPC
+        
+        Returns:
+            bool: True if recipient was added, False if recipient was already in the pending shares list
+        """
+        # Check if this recipient is already in pending shares
+        for _, _, existing_ref_id in self.__pending_shares:
+            if existing_ref_id == recipient_ref_id:
+                return False
+        
+        self.__pending_shares.append((sharer_name, recipient_name, recipient_ref_id))
+        return True
+    
+    def get_pending_shares(self) -> list[tuple[str, str, str]]:
+        return self.__pending_shares.copy()
+    
+    def clear_pending_shares(self):
+        self.__pending_shares.clear()

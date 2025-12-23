@@ -102,10 +102,10 @@ class message_thread():
         """
         result = []
         for message in self.__messages:
-            if isinstance(message, (AssistantMessage, UserMessage)):
+            if isinstance(message, (AssistantMessage, UserMessage, ToolMessage)):
                 if include_system_generated_messages:
                     result.append(deepcopy(message)) # TODO: Once assistant_message uses Character instead of str, this needs to be improved, don't want deepcopies of Character
-                elif not message.is_system_generated_message:
+                elif isinstance(message, ToolMessage) or not message.is_system_generated_message:
                     result.append(deepcopy(message))
         return result
     
@@ -137,7 +137,7 @@ class message_thread():
             messages_to_remove: list[Message] = []
             self.__messages[0].text = new_prompt
             for m in self.__messages:
-                if m.is_system_generated_message and remove_system_flagged_messages and not isinstance(m, SystemMessage):
+                if m.is_system_generated_message and remove_system_flagged_messages and not (isinstance(m, SystemMessage) or isinstance(m, ToolMessage)):
                     messages_to_remove.append(m)
                 m.is_multi_npc_message = multi_npc_conversation
             for m in messages_to_remove:

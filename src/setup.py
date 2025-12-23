@@ -7,6 +7,7 @@ import src.utils as utils
 import pandas as pd
 import sys
 from src.config.config_loader import ConfigLoader
+from src.telemetry.telemetry import get_telemetry_manager
 from src.actions.function_manager import FunctionManager
 
 class MantellaSetup:
@@ -15,36 +16,38 @@ class MantellaSetup:
         self.config = None
         self.language_info = {}
 
-    def initialise(self, config_file, logging_file, language_file) -> tuple[ConfigLoader, dict[Hashable, str]]:
+    def initialise(self, config_file, logging_file, language_file, mantella_version) -> tuple[ConfigLoader, dict[Hashable, str]]:
         '''Initialize Mantella with configuration, logging, and language settings'''
         self._set_cwd_to_exe_dir()
         self.save_folder = utils.get_my_games_directory(self._get_custom_user_folder())
         self.config = ConfigLoader(self.save_folder, config_file)    
-        self._setup_logging(os.path.join(self.save_folder,logging_file), self.config.advanced_logs)
+        self._setup_logging(os.path.join(self.save_folder, logging_file), self.config.advanced_logs)
         
         FunctionManager.load_all_actions()
+        FunctionManager.log_actions_enabled(self.config.advanced_actions_enabled)
         self.config.actions = FunctionManager.get_legacy_actions()
-        
-        logging.log(23, f'''Mantella.exe running in: 
+
+        logger = utils.get_logger()
+        logger.log(23, f'''Mantella.exe running in:
     {os.getcwd()}
-    config.ini, logging.log, and conversation histories available in:
+Conversation histories, config.ini, and logging.log available in:
     {self.save_folder}''')
-        logging.log(23, f'''Mantella currently running for {self.config.game.display_name}. Mantella mod files located in: 
-    {self.config.mod_path}''')
+        logger.log(23, f'''Mantella currently running for {self.config.game.display_name}. Mantella mod files located in: 
+    {self.config.mod_path_base}''')
         if not self.config.have_all_config_values_loaded_correctly:
-            logging.error("Cannot start Mantella. Not all settings that are required are set to correct values:")
+            logger.error("Cannot start Mantella. Not all settings that are required are set to correct values:")
             violations = self.config.get_constraint_failures()
             for key in violations.keys():
                 for line in violations[key]:
-                    logging.error(line)
-
+                    logger.error(line)
         # clean up old instances of exe runtime files
         utils.cleanup_mei(self.config.remove_mei_folders)
         utils.cleanup_tmp(os.path.join(self.config.save_folder, "data", "tmp"))
         utils.cleanup_tmp(os.path.join(utils.get_tmp_dir(), "voicelines")) # cleanup temp voicelines
 
         self.language_info = self._get_language_info(language_file, self.config.language)
-        
+        self._setup_telemetry(self.config, mantella_version)
+
         return self.config, self.language_info
 
     def _set_cwd_to_exe_dir(self):
@@ -81,14 +84,16 @@ class MantellaSetup:
     def _setup_logging(self, file_name, advanced_logs=False):
         '''Configure logging with custom levels and formatters'''
         logging_level = logging.DEBUG if advanced_logs else logging.INFO
-        logging.basicConfig(level=logging_level, format='%(levelname)s: %(message)s', handlers=[], encoding='utf-8')
+        logger = utils.get_logger()
+        logger.propagate = False
+        logger.level = logging_level
 
         # create custom formatter
         formatter = cf.CustomFormatter()
 
         # add formatter to ch
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(logging_level)
         console_handler.setFormatter(formatter)
 
         # Create a formatter for file output
@@ -96,12 +101,12 @@ class MantellaSetup:
 
         # Create a file handler and set the formatter
         file_handler = logging.FileHandler(file_name, encoding='utf-8')
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(logging_level)
         file_handler.setFormatter(file_formatter)
 
         # Add the handlers to the logger
-        logging.getLogger().addHandler(console_handler)
-        logging.getLogger().addHandler(file_handler)
+        logger.addHandler(console_handler)
+        logger.addHandler(file_handler)
 
         # custom levels
         logging.addLevelName(21, "INFO")
@@ -125,3 +130,12 @@ class MantellaSetup:
         except:
             logging.error(f"Could not load language '{language}'. Please set a valid language in config.ini\n")
             return {}
+
+    def _setup_telemetry(self, config: ConfigLoader, version: str):
+        telemetry_manager = get_telemetry_manager()
+        enable_telemetry = getattr(config, 'enable_telemetry', False)
+        telemetry_manager.initialize(
+            config=config,
+            version=version,
+            enable_telemetry=enable_telemetry,
+        )

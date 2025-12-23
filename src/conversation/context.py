@@ -1,4 +1,3 @@
-import logging
 from typing import Any, Hashable
 from src.conversation.action import Action
 from src.http.communication_constants import communication_constants
@@ -11,6 +10,9 @@ from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 from src.config.definitions.game_definitions import GameEnum
+
+logger = utils.get_logger()
+
 
 class Context:
     """Holds the context of a conversation
@@ -31,6 +33,7 @@ class Context:
         self.__config_settings: dict[str, Any] = {}
         self.__custom_context_values: dict[str, Any] = {}
         self.__ingame_time: int = 12
+        self.__game_days: float = 1.0  # Full game timestamp (days.fraction)
         self.__ingame_events: list[str] = []
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
@@ -164,8 +167,12 @@ class Context:
         return get_time_group(self.__ingame_time)
     
     @utils.time_it
-    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any], config_settings: dict[str, Any] | None):
+    def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any], config_settings: dict[str, Any] | None, game_days: float | None = None):
         self.__custom_context_values = custom_context_values
+
+        # Store game_days if provided
+        if game_days is not None:
+            self.__game_days = game_days
 
         if location:
             if location != '':
@@ -247,7 +254,7 @@ class Context:
                 current_stats.get_custom_character_value("mantella_actor_pos_y") != npc.get_custom_character_value("mantella_actor_pos_y")):
                 current_stats.set_custom_character_value("mantella_actor_pos_y", npc.get_custom_character_value("mantella_actor_pos_y"))
         except Exception as e:
-            logging.error(f"Updating custom values failed: {e}")
+            logger.error(f"Updating custom values failed: {e}")
         if not npc.is_player_character:
             player_name = "the player"
             player = self.__npcs_in_conversation.get_player_character()
@@ -391,7 +398,8 @@ class Context:
         """
         result = ""
         for a in actions:
-            result += a.prompt_text.format(key=a.keyword) + " "
+            if a.prompt_text:
+                result += a.prompt_text.format(key=a.keyword) + "\n"
         return result
     
     @utils.time_it
@@ -429,6 +437,10 @@ class Context:
         weather = self.__weather
         time = self.__ingame_time - 12 if self.__ingame_time > 12 else self.__ingame_time
         time_group = get_time_group(self.__ingame_time)
+        
+        # Calculate current day number from game_days
+        current_day = int(self.__game_days) if self.__game_days > 1 else 1
+        
         if self.__hourly_time:
             self.__prev_game_time = str(time), time_group
         else:
@@ -441,7 +453,7 @@ class Context:
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
         have_bios_been_dropped = False
         have_summaries_been_dropped = False
-        logging.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')
+        logger.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')
         for content in removal_content:
             result = prompt.format(
                 player_name = player_name,
@@ -456,7 +468,8 @@ class Context:
                 equipment = equipment,
                 location=location,
                 weather = weather,
-                time=time, 
+                time=time,
+                current_day=current_day,
                 time_group=time_group, 
                 language=self.__language['language'], 
                 conversation_summary=content[1],
@@ -471,11 +484,11 @@ class Context:
             else:
                 break
         
-        logging.log(23, f'Prompt sent to LLM ({self.__client.get_count_tokens(result)} tokens): {result.strip()}')
+        logger.log(23, f'Prompt sent to LLM ({self.__client.get_count_tokens(result)} tokens): {result.strip()}')
         if have_summaries_been_dropped and have_bios_been_dropped:
-            logging.log(logging.WARNING, f'Both the bios and summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations and will have limited knowledge of who they are.')
+            logger.log(logger.WARNING, f'Both the bios and summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations and will have limited knowledge of who they are.')
         elif have_summaries_been_dropped:
-            logging.log(logging.WARNING, f'The summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations.')
+            logger.log(logger.WARNING, f'The summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations.')
         return result
     
     @utils.time_it

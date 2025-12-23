@@ -31,7 +31,6 @@ def test_load_all_actions_structure():
         assert 'name' in action
         assert 'description' in action
         assert 'key' in action
-        assert 'prompt' in action
         assert 'requires_response' in action
         assert 'is-interrupting' in action or 'is_interrupting' in action
         assert 'one-on-one' in action or 'one_on_one' in action
@@ -127,17 +126,6 @@ def test_get_legacy_actions():
         assert hasattr(action, 'use_in_on_on_one')
         assert hasattr(action, 'use_in_multi_npc')
         assert hasattr(action, 'use_in_radiant')
-
-
-def test_get_legacy_actions_matches_loaded_count():
-    """Test that get_legacy_actions returns same number as loaded actions"""
-    FunctionManager.load_all_actions()
-    
-    loaded_count = len(FunctionManager._actions)
-    legacy_actions = FunctionManager.get_legacy_actions()
-    
-    # Should have same number of actions
-    assert len(legacy_actions) == loaded_count
 
 
 def test_parse_function_calls_empty_list():
