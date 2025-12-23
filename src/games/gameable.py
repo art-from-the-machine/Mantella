@@ -325,7 +325,7 @@ class Gameable(ABC):
                                 if value and not pd.isna(value) and value != "":
                                     self.character_df.loc[matcher, entry] = value
             except Exception as e:
-                logger.log(logger.WARNING, f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
+                logger.warning(f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
 
     @utils.time_it
     def _create_all_voice_folders(self, mod_path: str, voice_folder_col: str):
