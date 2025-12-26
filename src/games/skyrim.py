@@ -1,10 +1,10 @@
-import logging
 import os
 import shutil
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import pandas as pd
-from src.conversation.context import Context
+if TYPE_CHECKING:
+    from src.conversation.context import Context
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
@@ -12,6 +12,8 @@ from src.games.external_character_info import external_character_info
 from src.games.gameable import Gameable
 import src.utils as utils
 from src.config.definitions.tts_definitions import TTSEnum
+
+logger = utils.get_logger()
 
 
 class Skyrim(Gameable):
@@ -36,8 +38,16 @@ class Skyrim(Gameable):
             encoding = utils.get_file_encoding(weather_file)
             self.__weather_table: pd.DataFrame = pd.read_csv(weather_file, engine='python', encoding=encoding)
         except:
-            logging.error(f'Unable to read / open "data/Skyrim/skyrim_weather.csv". If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
+            logger.error(f'Unable to read / open "data/Skyrim/skyrim_weather.csv". If you have recently edited this file, please try reverting to a previous version. This error is normally due to using special characters, or saving the CSV in an incompatible format.')
             input("Press Enter to exit.")
+
+        try:
+            idles_file = 'data/Skyrim/skyrim_idles.csv'
+            encoding = utils.get_file_encoding(idles_file)
+            self.__idles_table: pd.DataFrame = pd.read_csv(idles_file, engine='python', encoding=encoding)
+        except:
+            logger.warning(f'Unable to read / open "data/Skyrim/skyrim_idles.csv". Emote action will not be available.')
+            self.__idles_table = pd.DataFrame()
 
     @property
     def extender_name(self) -> str:
@@ -154,7 +164,7 @@ class Skyrim(Gameable):
         return character_info
     
     @utils.time_it
-    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: Context, config: ConfigLoader, topicID: int, isFirstLine: bool = False):
+    def prepare_sentence_for_game(self, queue_output: Sentence, context_of_conversation: 'Context', config: ConfigLoader, topicID: int, isFirstLine: bool = False):
         """Save voicelines and subtitles to the correct game folders"""
 
         audio_file = queue_output.voice_file
@@ -167,8 +177,8 @@ class Skyrim(Gameable):
         if config.save_audio_data_to_character_folder:
             voice_folder_path = os.path.join(mod_folder, queue_output.speaker.in_game_voice_model)
             if not os.path.exists(voice_folder_path):
-                logging.warning(f"{voice_folder_path} has been created for the first time. Please restart Skyrim to interact with this NPC.")
-                logging.info("Creating voice folders...")
+                logger.warning(f"{voice_folder_path} has been created for the first time. Please restart Skyrim to interact with this NPC.")
+                logger.info("Creating voice folders...")
                 self._create_all_voice_folders(mod_folder, "skyrim_voice_folder")
         else:
             voice_folder_path = os.path.join(mod_folder, self.MANTELLA_VOICE_FOLDER)
@@ -198,12 +208,12 @@ class Skyrim(Gameable):
             # only warn on failure
             pass
 
-        logging.log(23, f"{speaker.name} should speak")
+        logger.log(23, f"{speaker.name} should speak")
 
     @utils.time_it
     def is_sentence_allowed(self, text: str, count_sentence_in_text: int) -> bool:
         if ('assist' in text) and (count_sentence_in_text > 0):
-            logging.log(23, f"'assist' keyword found. Ignoring sentence: {text.strip()}")
+            logger.log(23, f"'assist' keyword found. Ignoring sentence: {text.strip()}")
             return False
         return True
     
@@ -222,6 +232,46 @@ class Skyrim(Gameable):
             if weather_classification >= 0 and weather_classification < len(self.WEATHER_CLASSIFICATIONS):
                 return self.WEATHER_CLASSIFICATIONS[weather_classification]
         return ""
+
+    def get_enabled_idle_names(self) -> list[str]:
+        """Get list of enabled idle names for the Emote action enum
+        
+        Returns:
+            List of idle_name values where enabled column contains 'x'
+        """
+        if self.__idles_table.empty:
+            return []
+        
+        # Check for 'x' (case-insensitive) in enabled column
+        enabled_mask = self.__idles_table['enabled'].astype(str).str.lower().str.strip() == 'x'
+        return self.__idles_table.loc[enabled_mask, 'idle_name'].unique().tolist()
+
+    def resolve_idle_id(self, idle_name: str) -> int | None:
+        """Resolve an idle name to its FormID as an integer
+        
+        Args:
+            idle_name: The idle_name value from the CSV
+            
+        Returns:
+            The FormID as an integer, or None if not found
+            If multiple entries match, a random one is selected
+        """
+        if self.__idles_table.empty:
+            return None
+        
+        name_match = self.__idles_table['idle_name'].astype(str).str.lower() == idle_name.lower()
+        matched = self.__idles_table.loc[name_match]
+        if matched.shape[0] >= 1:
+            # Select a random row if multiple matches exist
+            selected_row = matched.sample(n=1).iloc[0]
+            hex_str = str(selected_row['id'])
+            try:
+                idle_id = int(hex_str, 16)
+                logger.log(23, f"Resolved idle name '{idle_name}' to ID {idle_id}")
+                return idle_id
+            except ValueError:
+                return None
+        return None
 
 
     MALE_VOICE_MODELS_XVASYNTH: dict[str, str] = {

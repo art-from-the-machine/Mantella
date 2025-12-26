@@ -1,11 +1,11 @@
 import json
-import logging
 import os
 from pathlib import Path
 import sys
 import src.utils as utils
 from src.character_manager import Character
 from openai.types.chat import ChatCompletionMessageParam
+
 
 class conversation_log:
     game_path: str = "" # <- This gets set in the __init__ of gameable. Not clean but cleaner than other options

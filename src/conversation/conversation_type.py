@@ -121,6 +121,7 @@ class radiant(conversation_type):
         super().__init__(config)
         self.__user_start_prompt = config.radiant_start_prompt
         self.__user_end_prompt = config.radiant_end_prompt
+        self.__user_continue_prompt = config.radiant_continue_prompt
 
     @utils.time_it
     def generate_prompt(self, context_for_conversation: Context) -> str:
@@ -132,12 +133,23 @@ class radiant(conversation_type):
         message_thread_to_adjust.modify_messages(prompt, True, True)
     
     @utils.time_it
-    def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:        
+    def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:
+        # Calculate message thresholds from radiant_max_turns config
+        # Message structure: [system] [start_prompt] [llm_1] [continue] [llm_2] ... [end_prompt] [llm_final]
+        # End prompt should be injected at: (max_turns * 2) + 1
+        max_turns = self._config.radiant_max_turns
+        end_prompt_threshold = (max_turns * 2) + 1
+        
         text = ""
         if len(messages) == 1:
+            # Only system message exists = inject start prompt
             text = self.__user_start_prompt
-        elif len(messages) == 3:
+        elif len(messages) == end_prompt_threshold:
+            # Inject end prompt
             text = self.__user_end_prompt
+        elif len(messages) < end_prompt_threshold and len(messages) % 2 == 1:
+            # Intermediate turns = prompt to continue conversation
+            text = self.__user_continue_prompt
         else:
             return None
         reply = UserMessage(context_for_conversation.config, text, "", True)
@@ -145,4 +157,7 @@ class radiant(conversation_type):
         return reply
     
     def should_end(self, context_for_conversation: Context, messages: message_thread) -> bool:
-        return len(messages) > 4
+        # End conversation after: (max_turns * 2) + 2 messages
+        max_turns = self._config.radiant_max_turns
+        end_threshold = (max_turns * 2) + 2
+        return len(messages) > end_threshold

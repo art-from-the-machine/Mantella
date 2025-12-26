@@ -1,5 +1,4 @@
 import src.utils as utils
-import logging
 from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion_message import ChatCompletionMessageToolCall
 from src.config.config_loader import ConfigLoader
@@ -7,6 +6,9 @@ from src.llm.client_base import ClientBase
 from src.llm.message_thread import message_thread
 from src.llm.messages import Message
 from src.llm.messages import SystemMessage
+
+logger = utils.get_logger()
+
 
 class FunctionClient(ClientBase):
     '''LLM class to handle function calling / actions
@@ -27,9 +29,9 @@ class FunctionClient(ClientBase):
         super().__init__(**setup_values, secret_key_files=[function_llm_secret_key_file, secret_key_file])
 
         if self._is_local:
-            logging.info(f"Running local tool calling model")
+            logger.info(f"Running local tool calling model")
         else:
-            logging.log(23, f"Running Mantella with custom tool calling model '{config.function_llm}'")
+            logger.log(23, f"Running Mantella with custom tool calling model '{config.function_llm}'")
 
 
     @utils.time_it
@@ -57,7 +59,7 @@ class FunctionClient(ClientBase):
             chat_completion: ChatCompletion = self._request_call_full(messages)
             
             if not chat_completion or not chat_completion.choices or len(chat_completion.choices) < 1:
-                logging.info("Function LLM response failed")
+                logger.info("Function LLM response failed")
                 return None
             
             tool_calls = getattr(chat_completion.choices[0].message, 'tool_calls', None)
@@ -82,11 +84,11 @@ class FunctionClient(ClientBase):
         """
         
         if not tools:
-            logging.debug("No available actions for current context")
+            logger.debug("No available actions for current context")
             return None
         
         try:
-            logging.log(23, f"Function LLM analyzing conversation for potential actions...")
+            logger.log(23, f"Function LLM analyzing conversation for potential actions...")
             
             # Replace the system prompt with the function LLM prompt
             shortened_thread = messages.clone_with_new_system_message(self.__function_prompt)
@@ -95,7 +97,7 @@ class FunctionClient(ClientBase):
             tools_called = self.request_call_with_tools(shortened_thread, tools)
             
             if not tools_called:
-                logging.debug("No actions chosen by tool calling LLM")
+                logger.debug("No actions chosen by tool calling LLM")
                 return None
             
             # Convert ChatCompletionMessageToolCall objects to dict format for further processing
@@ -113,5 +115,5 @@ class FunctionClient(ClientBase):
             return tool_calls_dicts
             
         except Exception as e:
-            logging.error(f"Tool calling LLM error: {e}. Skipping tool calling for this turn.")
+            logger.error(f"Tool calling LLM error: {e}. Skipping tool calling for this turn.")
             return None

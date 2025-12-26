@@ -1,9 +1,11 @@
-import logging
 from typing import Callable, OrderedDict
 from src.character_manager import Character
 from src.characters_manager import Characters
 from src.llm.output.output_parser import MarkedTextStateEnum, output_parser, sentence_generation_settings
 from src.llm.sentence_content import SentenceContent
+import src.utils as utils
+
+logger = utils.get_logger()
 
 
 class change_character_parser(output_parser):
@@ -42,7 +44,7 @@ class change_character_parser(output_parser):
                     return SentenceContent(current_settings.current_speaker, cleaned_prefix_rest, current_settings.sentence_type, False), rest
                 else: #New sentence starts with character change
                     if character.is_player_character:
-                        logging.log(28, f"Stopped LLM from speaking on behalf of the player")
+                        logger.log(28, f"Stopped LLM from speaking on behalf of the player")
                         current_settings.stop_generation = True
                         return None, ""
                     current_settings.current_speaker = character

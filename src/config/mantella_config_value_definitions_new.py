@@ -101,6 +101,10 @@ class MantellaConfigValueDefinitionsNew:
         stt_category.add_config_value(STTDefinitions.get_stt_translate_config_value())
         stt_category.add_config_value(STTDefinitions.get_process_device_config_value())
         stt_category.add_config_value(STTDefinitions.get_moonshine_folder_config_value(is_integrated))
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_enabled_config_value())
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_timeout_config_value())
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_max_count_config_value())
+        stt_category.add_config_value(STTDefinitions.get_silence_auto_response_message_config_value())
         result.add_base_group(stt_category)
 
         vision_category = ConfigValueGroup("Vision", "Vision", "Vision settings.", on_value_change_callback)
@@ -142,11 +146,14 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_multi_npc_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_radiant_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_memory_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_memory_prompt_datetime_prefix_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_resummarize_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_vision_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_function_llm_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_radiant_start_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_radiant_continue_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_radiant_max_turns_config_value())
         result.add_base_group(prompts_category)
 
         startup_category = ConfigValueGroup("Startup", "Startup", "Startup settings.", on_value_change_callback)
@@ -167,6 +174,9 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         other_category.add_config_value(OtherDefinitions.get_advanced_logs_config_value())
+        other_category.add_config_value(OtherDefinitions.get_enable_telemetry_config_value())
+        other_category.add_config_value(OtherDefinitions.get_telemetry_otlp_endpoint_config_value())
+        other_category.add_config_value(OtherDefinitions.get_telemetry_protocol_config_value())
         # other_category.add_config_value(OtherDefinitions.get_debugging_config_value())
         # other_category.add_config_value(OtherDefinitions.get_play_audio_from_script_config_value())
         # other_category.add_config_value(OtherDefinitions.get_debugging_npc_config_value())
@@ -174,5 +184,5 @@ class MantellaConfigValueDefinitionsNew:
         # other_category.add_config_value(OtherDefinitions.get_default_player_response_config_value())
         # other_category.add_config_value(OtherDefinitions.get_exit_on_first_exchange_config_value())
         result.add_base_group(other_category)
-      
+
         return result

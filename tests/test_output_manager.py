@@ -74,6 +74,7 @@ def mock_actions() -> list[Action]:
         keyword="Wave",
         description="Waves at the player",
         prompt_text="If the player asks you to wave, begin your response with 'Wave:'.",
+        requires_response=False,
         is_interrupting=False,
         one_on_one=True,
         multi_npc=False,
@@ -85,6 +86,7 @@ def mock_actions() -> list[Action]:
         keyword="Menu",
         description="Opens the menu",
         prompt_text="If the player asks you to open the menu, begin your response with 'Menu:'.",
+        requires_response=False,
         is_interrupting=True,
         one_on_one=True,
         multi_npc=False,
@@ -192,7 +194,7 @@ async def test_process_response_with_tool_calls(output_manager: ChatManager, exa
     client.response_pattern = ["I'll ", "follow ", "you."]
     
     # Mock FunctionManager.parse_function_calls
-    def mock_parse(tool_calls, characters=None):
+    def mock_parse(tool_calls, characters=None, game=None):
         return [{"identifier": "mantella_npc_follow"}]
     monkeypatch.setattr("src.actions.function_manager.FunctionManager.parse_function_calls", mock_parse)
     
@@ -200,17 +202,20 @@ async def test_process_response_with_tool_calls(output_manager: ChatManager, exa
     
     output_sentences = get_sentence_list_from_queue(mock_queue)
     
-    # Should have sentences: text response + empty terminator
-    assert len(output_sentences) == 2
+    # Should have sentences: action-only sentence + text response + empty terminator
+    assert len(output_sentences) == 3
     
-    # First sentence should have the text and the action attached
-    sentence = output_sentences[0]
-    assert "follow" in sentence.content.text.lower()
-
+    # First sentence should be action-only (empty text, but has actions)
+    action_sentence = output_sentences[0]
+    assert action_sentence.content.text == ""
     action_identifiers = []
-    for action in sentence.content.actions:
+    for action in action_sentence.content.actions:
         action_identifiers.append(action['identifier'])
     assert "mantella_npc_follow" in action_identifiers
+    
+    # Second sentence should have the text response
+    text_sentence = output_sentences[1]
+    assert "follow" in text_sentence.content.text.lower()
 
 
 @pytest.mark.asyncio
@@ -240,7 +245,7 @@ async def test_process_response_with_multiple_tool_calls(output_manager: ChatMan
     ]
     client.response_pattern = ["Okay, ", "let's ", "go."]
     
-    def mock_parse(tool_calls, characters=None):
+    def mock_parse(tool_calls, characters=None, game=None):
         return [
             {"identifier": "mantella_npc_follow"},
             {"identifier": "mantella_draw_weapon"}
@@ -251,14 +256,13 @@ async def test_process_response_with_multiple_tool_calls(output_manager: ChatMan
     
     output_sentences = get_sentence_list_from_queue(mock_queue)
     
-    # Should have sentences: text response + empty terminator
-    assert len(output_sentences) == 2
+    # Should have sentences: action-only sentence + text response + empty terminator
+    assert len(output_sentences) == 3
     
-    # First sentence should have both actions attached
-    sentence = output_sentences[0]
-
+    # First sentence should be action-only with both actions attached
+    action_sentence = output_sentences[0]
     action_identifiers = []
-    for action in sentence.content.actions:
+    for action in action_sentence.content.actions:
         action_identifiers.append(action['identifier'])
     assert "mantella_npc_follow" in action_identifiers
     assert "mantella_draw_weapon" in action_identifiers
@@ -282,7 +286,7 @@ async def test_process_response_tool_calls_added_to_message_thread(output_manage
     ]
     client.response_pattern = ["Never ", "should ", "have ", "come ", "here."]
     
-    def mock_parse(tool_calls, characters=None):
+    def mock_parse(tool_calls, characters=None, game=None):
         return [{"identifier": "mantella_attack", "arguments": {"target": "bandit"}}]
     monkeypatch.setattr("src.actions.function_manager.FunctionManager.parse_function_calls", mock_parse)
     
@@ -326,7 +330,7 @@ async def test_process_response_stores_full_action_dicts(output_manager: ChatMan
     client.response_pattern = ["Of ", "course, ", "we'll ", "follow."]
     
     # Mock parse_function_calls to return full action dicts with validated arguments
-    def mock_parse(tool_calls, characters=None):
+    def mock_parse(tool_calls, characters=None, game=None):
         return [{
             "identifier": "mantella_npc_follow",
             "arguments": {"source": ["Lydia", "Serana"]}
@@ -337,14 +341,14 @@ async def test_process_response_stores_full_action_dicts(output_manager: ChatMan
     
     output_sentences = get_sentence_list_from_queue(mock_queue)
     
-    # Should have sentences: text response + empty terminator
-    assert len(output_sentences) == 2
+    # Should have sentences: action-only sentence + text response + empty terminator
+    assert len(output_sentences) == 3
     
-    # First sentence should have the full action dict stored, not just the identifier
-    sentence = output_sentences[0]
-    assert len(sentence.content.actions) == 1
+    # First sentence should be action-only with the full action dict stored
+    action_sentence = output_sentences[0]
+    assert len(action_sentence.content.actions) == 1
     
-    action = sentence.content.actions[0]
+    action = action_sentence.content.actions[0]
     assert isinstance(action, dict)
     assert action["identifier"] == "mantella_npc_follow"
     assert "arguments" in action
@@ -381,7 +385,7 @@ async def test_process_response_stores_multiple_full_action_dicts(output_manager
     client.response_pattern = ["Ready ", "for ", "battle."]
     
     # Mock parse_function_calls to return multiple full action dicts
-    def mock_parse(tool_calls, characters=None):
+    def mock_parse(tool_calls, characters=None, game=None):
         return [
             {
                 "identifier": "mantella_npc_follow",
@@ -398,21 +402,21 @@ async def test_process_response_stores_multiple_full_action_dicts(output_manager
     
     output_sentences = get_sentence_list_from_queue(mock_queue)
     
-    # Should have sentences: text response + empty terminator
-    assert len(output_sentences) == 2
+    # Should have sentences: action-only sentence + text response + empty terminator
+    assert len(output_sentences) == 3
     
-    # First sentence should have both full action dicts stored
-    sentence = output_sentences[0]
-    assert len(sentence.content.actions) == 2
+    # First sentence should be action-only with both full action dicts stored
+    action_sentence = output_sentences[0]
+    assert len(action_sentence.content.actions) == 2
     
     # Verify first action
-    action1 = sentence.content.actions[0]
+    action1 = action_sentence.content.actions[0]
     assert isinstance(action1, dict)
     assert action1["identifier"] == "mantella_npc_follow"
     assert action1["arguments"] == {"source": ["Erik"]}
     
     # Verify second action
-    action2 = sentence.content.actions[1]
+    action2 = action_sentence.content.actions[1]
     assert isinstance(action2, dict)
     assert action2["identifier"] == "mantella_draw_weapon"
     assert action2["arguments"] == {"weapon_type": "sword"}
