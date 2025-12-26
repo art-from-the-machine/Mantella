@@ -226,7 +226,7 @@ class ImageManager:
         '''
 
         if platform.system() != "Windows":
-            logging.warning("VLLM is supported only on Windows")
+            logger.warning("Vision LLM is supported only on Windows")
             return None
 
         try:

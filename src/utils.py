@@ -74,21 +74,29 @@ def resolve_path():
 
 def play_mantella_ready_sound():
     try:
-        playsound(os.path.join(resolve_path(), 'data', 'mantella_ready.wav'), block=False)
+        mantella_ready_wav_path = os.path.join(resolve_path(), 'data', 'mantella_ready.wav')
+        if platform.system() == "Windows":
+            winsound.PlaySound(mantella_ready_wav_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
+        else:
+            playsound(mantella_ready_wav_path, block=False)
     except:
         pass
 
 
 def play_no_mic_input_detected_sound():
     try:
-        playsound(os.path.join(resolve_path(), 'data', 'mantella_ready.wav'), block=False)
+        no_mic_input_detected_wav_path = os.path.join(resolve_path(),'data','no_mic_input_detected.wav')
+        if platform.system() == "Windows":
+            winsound.PlaySound(no_mic_input_detected_wav_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
+        else:
+            playsound(no_mic_input_detected_wav_path, block=False)
     except:
         pass
 
 
 def play_error_sound():
     try:
-        if platform.system == "Windows":
+        if platform.system() == "Windows":
             winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
         else:
             playsound(os.path.join(resolve_path(), 'data', 'error.wav'), block=False)
