@@ -65,6 +65,13 @@ class ImageManager:
             os.makedirs(self.__image_path, exist_ok=True)
 
         self.__capture_params = None
+        self.__mock_image_data: str | None = None
+        # Enable mock images via environment variable: MANTELLA_MOCK_VISION=1
+        self.__mock_image_enabled: bool = os.environ.get('MANTELLA_MOCK_VISION', '').lower() in ('1', 'true', 'yes')
+        self.__mock_image_directory: str | None = os.environ.get('MANTELLA_MOCK_VISION_DIR') or None
+
+        if self.__mock_image_enabled:
+            self._load_mock_image()
 
         try:
             ctypes.windll.user32.SetProcessDPIAware()
@@ -82,6 +89,37 @@ class ImageManager:
     def reset_capture_params(self):
         self.__capture_params = None
 
+    def enable_mock_images(self, mock_directory: str | None = None):
+        self.__mock_image_directory = mock_directory if mock_directory else None
+        self.__mock_image_enabled = True
+        self._load_mock_image()
+
+    def disable_mock_images(self):
+        self.__mock_image_enabled = False
+        self.__mock_image_data = None
+
+
+    def _load_mock_image(self):
+        directory = self.__mock_image_directory or 'test_images'
+        mock_dir = Path(directory)
+
+        if not mock_dir.exists():
+            logger.warning(f"Mock image directory '{directory}' not found")
+            return
+
+        for pattern in ('*.jpg', '*.jpeg', '*.png'):
+            mock_paths = list(mock_dir.glob(pattern))
+            if mock_paths:
+                mock_path = mock_paths[0]
+                try:
+                    with open(mock_path, 'rb') as mock_file:
+                        encoded = base64.b64encode(mock_file.read()).decode('utf-8')
+                        self.__mock_image_data = encoded
+                        logger.log(23, f"Using mock image for vision: {mock_path.name}")
+                except Exception as error:
+                    logger.warning(f"Failed to load mock image '{mock_path}': {error}")
+                break
+
 
     @utils.time_it
     def _calculate_capture_params(self) -> dict[str, int]:
@@ -97,6 +135,8 @@ class ImageManager:
             hwnd = win32gui.FindWindow(None, gog_title)
             if not hwnd:
                 logger.error(f"Window '{self.__window_title}' not found")
+                if self.__mock_image_enabled and not self.__mock_image_data:
+                    logger.warning("Vision fallback: place a .jpg/.png in 'test_images' to send mock images.")
                 self.__capture_params = None
                 return None
 
@@ -220,6 +260,8 @@ class ImageManager:
         try:
             params = self.capture_params
             if not params:
+                if self.__mock_image_enabled and self.__mock_image_data:
+                    return self.__mock_image_data
                 return None
   
             # Capture

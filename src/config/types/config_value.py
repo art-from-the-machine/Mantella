@@ -7,6 +7,7 @@ from src.config.config_value_constraint import ConfigValueConstraint, ConfigValu
 class ConfigValueTag(StrEnum):
     advanced = "advanced"
     share_row = "share_row"
+    debug = "debug"
 
 T = TypeVar('T')
 class ConfigValue(ABC, Generic[T]):

@@ -85,7 +85,7 @@ class STTDefinitions:
                    "base", "base.en", "Numbat/faster-skyrim-whisper-base.en",
                    "small", "small.en", "distil-small.en", 
                    "medium", "medium.en", "distil-medium.en", 
-                   "large-v1", "large-v2", "large-v3", "distil-large-v2", "distil-large-v3", 
+                   "large-v1", "large-v2", "large-v3", "distil-large-v2", "distil-large-v3", "large-v3-turbo", 
                    "whisper-1"]
         return ConfigValueSelection("whisper_model_size", "Whisper Model", description, "base", options, allows_free_edit=True, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
@@ -121,8 +121,8 @@ class STTDefinitions:
 
     @staticmethod
     def get_stt_language_config_value() -> ConfigValue:
-        description = """The player's spoken language."""
-        return ConfigValueSelection("stt_language","Whisper STT Language",description,"default",["default","en", "ar", "cs", "da", "de", "el", "es", "fi", "fr", "hi", "hu", "it", "ja", "ko", "nl", "pl", "pt", "ro", "ru", "sv", "sw", "uk", "ha", "tr", "vi", "yo"], tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+        description = """The player's spoken language. Set to 'auto' to automatically detect the language for each utterance."""
+        return ConfigValueSelection("stt_language","Whisper STT Language",description,"default",["default","auto","en", "ar", "cs", "da", "de", "el", "es", "fi", "fr", "hi", "hu", "it", "ja", "ko", "nl", "pl", "pt", "ro", "ru", "sv", "sw", "uk", "ha", "tr", "vi", "yo"], tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
 
     @staticmethod
     def get_stt_translate_config_value() -> ConfigValue:
