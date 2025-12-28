@@ -7,7 +7,6 @@ import os
 from shutil import rmtree
 import wave
 from charset_normalizer import detect
-from playsound import playsound
 import platform
 from pathlib import Path
 from urllib.parse import urlparse
@@ -17,6 +16,8 @@ from src.telemetry.telemetry import get_telemetry_manager, create_span_from_thre
 if platform.system() == "Windows":
     import winsound
     import winreg
+else:
+    from playsound import playsound
 
 def get_logger():
     return logging.getLogger("Mantella")
