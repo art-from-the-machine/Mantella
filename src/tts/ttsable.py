@@ -171,7 +171,7 @@ class TTSable(ABC):
                 bash_file_path = Path(facefx_path) / "run_mantella_command.sh"
                 user_shell = utils.get_user_shell()
                 with open(bash_file_path, 'w', encoding='utf-8') as file:
-                    file.write(f"#!{user_shell}\nwine {command} > /home/philipp/facfx.log 2>&1")
+                    file.write(f"#!{user_shell}\nwine {command} > /dev/null 2>&1")
                 subprocess.run([user_shell, str(bash_file_path)], cwd=facefx_path)
 
 
