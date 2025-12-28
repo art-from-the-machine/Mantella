@@ -11,6 +11,7 @@ from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
 from src.games.gameable import Gameable
+from src.wiki.wiki_fetcher import WikiFetcher
 import src.utils as utils
 from src.config.definitions.game_definitions import GameEnum
 from src.config.definitions.tts_definitions import TTSEnum
@@ -39,6 +40,12 @@ class Fallout4(Gameable):
         #self.__playback: audio_playback = audio_playback(config)
         self.__last_played_voiceline: str | None = None
         self.__image_analysis_filepath = config.game_path
+        # Wiki fetcher for enriching character bios
+        self.__wiki_fetcher = WikiFetcher(config.save_folder, config)
+    
+    def set_wiki_llm_client(self, llm_client):
+        """Set the LLM client for wiki extraction."""
+        self.__wiki_fetcher.set_llm_client(llm_client)
 
     @property
     def extender_name(self) -> str:
@@ -76,9 +83,27 @@ class Fallout4(Gameable):
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
-        actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
+        actor_voice_model_name = ingame_voice_model.split('<')[1].split('>')[0]
 
-        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None)) 
+        # DEBUG: Log what's in character_info to track override issues
+        logger.info(f"[LOAD CHAR DEBUG] character_info keys: {list(character_info.keys())}")
+        logger.info(f"[LOAD CHAR DEBUG] name='{character_info.get('name')}', prompt_name='{character_info.get('prompt_name', 'NOT SET')}'")
+
+        # Enrich bio with wiki content if available
+        bio = character_info.get("bio", "")
+        bio_url = character_info.get("bio_url", "")
+        
+        if bio_url and not is_generic_npc:
+            wiki_content = self.__wiki_fetcher.get_character_wiki(bio_url, character_info.get("name", name))
+            if wiki_content:
+                # Append wiki content after existing bio
+                if bio:
+                    bio = f"{bio}\n\n{wiki_content}"
+                else:
+                    bio = wiki_content
+                logger.info(f"[WIKI] Enriched bio for {character_info.get('name')} with wiki content")
+
+        return external_character_info(character_info["name"], is_generic_npc, bio, actor_voice_model_name, character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None), character_info.get('voice_language', None), character_info.get('prompt_name', None)) 
     
     @utils.time_it
     def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str, library_search:bool = True) -> str:
@@ -179,6 +204,8 @@ class Fallout4(Gameable):
             'bio': f'You are a {"male" if actor_sex==0 else "female"} {actor_race if actor_race.lower() != name.lower() else ""} {name}.',
             'voice_model': voice_model,
             'advanced_voice_model': '',
+            'voice_accent': None,
+            'voice_language': None,
             'fallout4_voice_folder': FO4_voice_folder,
         }
 

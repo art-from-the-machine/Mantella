@@ -69,6 +69,17 @@ class Characters:
         return list(self.__active_characters.keys())
     
     @utils.time_it
+    def get_all_prompt_names(self, include_player: bool = True) -> list[str]:
+        """Get prompt_names (display names) for all characters
+        """
+        names = []
+        for char in self.__active_characters.values():
+            if not include_player and char.is_player_character:
+                continue
+            names.append(char.prompt_name)
+        return names
+    
+    @utils.time_it
     def contains_player_character(self) -> bool:
         return self.__player_character != None
     

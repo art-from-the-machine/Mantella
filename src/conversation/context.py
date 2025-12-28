@@ -18,6 +18,16 @@ class Context:
     """Holds the context of a conversation
     """
     TOKEN_LIMIT_PERCENT: float = 0.45
+    
+    # Language code to full name mapping for LLM prompts
+    LANGUAGE_CODE_TO_NAME = {
+        'en': 'English', 'ar': 'Arabic', 'cs': 'Czech', 'da': 'Danish', 'de': 'German',
+        'el': 'Greek', 'es': 'Spanish', 'fi': 'Finnish', 'fr': 'French', 'hi': 'Hindi',
+        'hu': 'Hungarian', 'it': 'Italian', 'ja': 'Japanese', 'ko': 'Korean', 'nl': 'Dutch',
+        'pl': 'Polish', 'pt': 'Portuguese', 'ro': 'Romanian', 'ru': 'Russian', 'sv': 'Swedish',
+        'sw': 'Swahili', 'uk': 'Ukrainian', 'ha': 'Hausa', 'tr': 'Turkish', 'vi': 'Vietnamese',
+        'yo': 'Yoruba', 'zh': 'Chinese', 'zh-cn': 'Chinese', 'sk': 'Slovak'
+    }
 
     @utils.time_it
     def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: Remembering, language: dict[Hashable, str]) -> None:
@@ -336,7 +346,7 @@ class Context:
         relationships = []
         for npc in self.get_characters_excluding_player().get_all_characters():
             trust = self.__get_trust(npc)
-            relationships.append(f"{trust} to {npc.name}")
+            relationships.append(f"{trust} to {npc.prompt_name}")
         
         return Context.format_listing(relationships)
        
@@ -367,11 +377,12 @@ class Context:
             str: the bios concatenated together into a single string
         """
         bio_descriptions = []
-        for character in self.get_characters_excluding_player().get_all_characters():
-            if len(self.__npcs_in_conversation) == 1:
+        npcs_only = self.get_characters_excluding_player()
+        for character in npcs_only.get_all_characters():
+            if len(npcs_only) == 1:
                 bio_descriptions.append(character.bio)
             else:
-                bio_descriptions.append(f"{character.name}: {character.bio}")
+                bio_descriptions.append(f"{character.prompt_name}: {character.bio}")
         return "\n".join(bio_descriptions)
     
     @utils.time_it
@@ -424,7 +435,7 @@ class Context:
             if game_sent_description and game_sent_description != "":
                 player_description = game_sent_description
         if self.npcs_in_conversation.last_added_character:
-            name: str = self.npcs_in_conversation.last_added_character.name
+            name: str = self.npcs_in_conversation.last_added_character.prompt_name
         else:
             name = self.get_character_names_as_text(False)
         names = self.get_character_names_as_text(False)
@@ -450,6 +461,14 @@ class Context:
         # Only include legacy action prompts if advanced actions are disabled
         actions = self.__get_action_texts(actions_for_prompt) if not self.__config.advanced_actions_enabled else ""
 
+        # Determine conversation language - use NPC's language if set, otherwise global language
+        conversation_language = self.__language['language']
+        if self.npcs_in_conversation.last_added_character and self.npcs_in_conversation.last_added_character.voice_language:
+            conversation_language = self.npcs_in_conversation.last_added_character.voice_language
+        
+        # Convert language code to full name for LLM prompt
+        conversation_language_name = Context.LANGUAGE_CODE_TO_NAME.get(conversation_language, conversation_language)
+
         removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
         have_bios_been_dropped = False
         have_summaries_been_dropped = False
@@ -471,7 +490,7 @@ class Context:
                 time=time,
                 current_day=current_day,
                 time_group=time_group, 
-                language=self.__language['language'], 
+                language=conversation_language_name, 
                 conversation_summary=content[1],
                 conversation_summaries=content[1],
                 actions = actions

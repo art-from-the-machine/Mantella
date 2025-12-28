@@ -109,12 +109,16 @@ class Summaries(Remembering):
             if not os.path.exists(folder_path):
                 return 1
                 
-            txt_files = [f for f in os.listdir(folder_path) if f.endswith('.txt')]
-            if not txt_files:
-                return 1
-                
-            file_numbers = [int(os.path.splitext(f)[0].split('_')[-1]) for f in txt_files]
-            return max(file_numbers)
+            # Only match summary files: summary_1.txt, summary_2.txt, etc.
+            import re
+            summary_pattern = re.compile(r'^summary_(\d+)\.txt$')
+            file_numbers = []
+            for f in os.listdir(folder_path):
+                match = summary_pattern.match(f)
+                if match:
+                    file_numbers.append(int(match.group(1)))
+            
+            return max(file_numbers) if file_numbers else 1
         
         # Check folders in priority order
         name_ref_path = get_folder_path(name_ref)

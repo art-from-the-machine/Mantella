@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import logging
 from src.config.config_loader import ConfigLoader
 from src.character_manager import Character
 from src.llm.message_thread import message_thread
@@ -82,7 +83,10 @@ class pc_to_npc(conversation_type):
             if player_character:
                 for actor in context_for_conversation.npcs_in_conversation.get_all_characters():
                     if not actor.is_player_character:
-                        message = UserMessage(context_for_conversation.config, f"{context_for_conversation.language['hello']} {actor.name}.", player_character.name, True)
+                        # Use prompt_name (display name like "Bruno Duzek") not internal name (like "Sturges")
+                        greeting_text = f"{context_for_conversation.language['hello']} {actor.prompt_name}."
+                        
+                        message = UserMessage(context_for_conversation.config, greeting_text, player_character.name, True)
                         message.is_multi_npc_message = False
                         return message
             return None
@@ -108,7 +112,10 @@ class multi_npc(conversation_type):
         if len(messages) == 1 and context_for_conversation.config.automatic_greeting:
             player_character: Character | None = context_for_conversation.npcs_in_conversation.get_player_character()
             if player_character:
-                message = UserMessage(context_for_conversation.config, f"{context_for_conversation.language['hello']} {context_for_conversation.get_character_names_as_text(include_player=False)}.", player_character.name, True)
+                # Use prompt_names (display names like "Bruno Duzek") not internal names (like "Sturges")
+                prompt_names = context_for_conversation.npcs_in_conversation.get_all_prompt_names(include_player=False)
+                names_text = ", ".join(prompt_names[:-1]) + " and " + prompt_names[-1] if len(prompt_names) > 1 else prompt_names[0] if prompt_names else ""
+                message = UserMessage(context_for_conversation.config, f"{context_for_conversation.language['hello']} {names_text}.", player_character.name, True)
                 message.is_multi_npc_message = True
                 return message
             return None

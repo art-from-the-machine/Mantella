@@ -310,7 +310,7 @@ class GameStateManager:
             gender: int = int(json[comm_consts.KEY_ACTOR_GENDER])
             race: str = str(json[comm_consts.KEY_ACTOR_RACE])
             actor_voice_model: str = str(json[comm_consts.KEY_ACTOR_VOICETYPE])
-            ingame_voice_model: str = actor_voice_model.split('<')[1].split(' ')[0]
+            ingame_voice_model: str = actor_voice_model.split('<')[1].split('>')[0]
             is_in_combat: bool = bool(json[comm_consts.KEY_ACTOR_ISINCOMBAT])
             is_enemy: bool = bool(json[comm_consts.KEY_ACTOR_ISENEMY])
             relationship_rank: int = int(json[comm_consts.KEY_ACTOR_RELATIONSHIPRANK])
@@ -328,6 +328,8 @@ class GameStateManager:
             csv_in_game_voice_model: str = ""
             advanced_voice_model: str = ""
             voice_accent: str = ""
+            voice_language: str = ""
+            prompt_name: str = None
             is_player_character: bool = bool(json[comm_consts.KEY_ACTOR_ISPLAYER])
             if self.__talk and self.__talk.contains_character(ref_id):
                 already_loaded_character: Character | None = self.__talk.get_character(ref_id)
@@ -337,18 +339,24 @@ class GameStateManager:
                     csv_in_game_voice_model = already_loaded_character.csv_in_game_voice_model
                     advanced_voice_model = already_loaded_character.advanced_voice_model
                     voice_accent = already_loaded_character.voice_accent
+                    voice_language = already_loaded_character.voice_language
                     is_generic_npc = already_loaded_character.is_generic_npc
+                    prompt_name = already_loaded_character.prompt_name
             elif self.__talk and not is_player_character :#If this is not the player and the character has not already been loaded
                 external_info: external_character_info = self.__game.load_external_character_info(base_id, character_name, race, gender, actor_voice_model)
                 
+                # DEBUG: Log external_info to track override issues                
                 bio = external_info.bio
                 tts_voice_model = external_info.tts_voice_model
                 csv_in_game_voice_model = external_info.csv_in_game_voice_model
                 advanced_voice_model = external_info.advanced_voice_model
                 voice_accent = external_info.voice_accent
+                voice_language = external_info.voice_language
                 is_generic_npc = external_info.is_generic_npc
+                # Always use the name from external_info (CSV/override), not the game name
+                character_name = external_info.name
+                prompt_name = external_info.prompt_name
                 if is_generic_npc:
-                    character_name = external_info.name
                     ingame_voice_model = external_info.ingame_voice_model
             elif self.__talk and is_player_character and self.__config.voice_player_input:
                 if custom_values.__contains__(comm_consts.KEY_ACTOR_PC_VOICEMODEL):
@@ -372,8 +380,10 @@ class GameStateManager:
                             csv_in_game_voice_model,
                             advanced_voice_model,
                             voice_accent,
+                            voice_language,
                             equipment,
-                            custom_values)
+                            custom_values,
+                            prompt_name)
         except CharacterDoesNotExist:                 
             logger.error('Character not loaded. Restarting...')
             return None 
@@ -424,7 +434,8 @@ class GameStateManager:
                     character_to_talk.advanced_voice_model, 
                     character_to_talk.voice_accent, 
                     voice_gender=character_to_talk.gender, 
-                    voice_race=character_to_talk.race
+                    voice_race=character_to_talk.race,
+                    voice_language=character_to_talk.voice_language
                 )
             else:
                 return self.error_message("Could not load initial character to talk to. Please try again.")

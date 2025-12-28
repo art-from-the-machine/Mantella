@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
+import yaml
 import pandas as pd
 from src.conversation.conversation_log import conversation_log
 if TYPE_CHECKING:
@@ -232,6 +233,8 @@ class Gameable(ABC):
         name_match = self.character_df['name'].astype(str).str.lower() == character_name_lower
 
         race_match = self.character_df['race'].astype(str).str.lower() == race_lower
+        
+        logger.info(f"[MATCH] base_id='{full_id_search}', name='{character_name_lower}', race='{race_lower}' → ID:{id_match.sum()}, Name:{name_match.sum()}, Race:{race_match.sum()}")
 
         # Partial ID match with decreasing lengths
         partial_id_match = pd.Series(False, index=self.character_df.index)
@@ -261,10 +264,11 @@ class Gameable(ABC):
 
     @utils.time_it
     def find_character_info(self, base_id: str, character_name: str, race: str, gender: int, ingame_voice_model: str):
-        character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
+        character_race = race.split('<')[1].split('Race')[0].strip().rstrip('>') # Remove 'Race' suffix and trailing '>'
+        logger.info(f"[FIND] name='{character_name}', base_id='{base_id}', race='{character_race}'")
         matcher = self._get_matching_df_rows_matcher(base_id, character_name, character_race)
         if isinstance(matcher, type(None)):
-            logger.info(f"Could not find {character_name} in {self.game_name_in_filepath}_characters.csv. Loading as a generic NPC.")
+            logger.info(f"Could not find {character_name} in {self.game_name_in_filepath}_characters.csv. Loading as a generic NPC. race: {character_race} gender: {gender} ingame_voice_model: {ingame_voice_model}")
             character_info = self.load_unnamed_npc(character_name, character_race, gender, ingame_voice_model)
             is_generic_npc = True
         else:
@@ -272,60 +276,114 @@ class Gameable(ABC):
             character_info = result.to_dict('records')[0]
             if (character_info['voice_model'] is None) or (pd.isnull(character_info['voice_model'])) or (character_info['voice_model'] == ''):
                 character_info['voice_model'] = self.find_best_voice_model(race, gender, ingame_voice_model) 
-            is_generic_npc = False                                   
+            is_generic_npc = False
+        
+        # Convert NaN values to None to prevent JSON serialization errors in TTS
+        for key, value in character_info.items():
+            if pd.isna(value):
+                character_info[key] = None
 
         return character_info, is_generic_npc
     
+    # Fields that should never be overwritten (used for matching/identity)
+    PROTECTED_OVERRIDE_FIELDS = ['base_id', 'ref_id', 'baseid_int', 'refid_int', 'name']
+
     @utils.time_it
     def __apply_character_overrides(self, overrides_folder: str, character_df_column_headers: list[str]):
+        """Load and apply all character override files from the overrides folder."""
         os.makedirs(overrides_folder, exist_ok=True)
-        override_files: list[str] = os.listdir(overrides_folder)
-        for file in override_files:
+        
+        for file in os.listdir(overrides_folder):
             try:
-                filename, extension = os.path.splitext(file)
-                full_path_file = os.path.join(overrides_folder,file)
+                full_path = os.path.join(overrides_folder, file)
+                extension = os.path.splitext(file)[1].lower()
+                
                 if extension == ".json":
-                    with open(full_path_file) as fp:
-                        json_object = json.load(fp)
-                        if isinstance(json_object, dict):#Otherwise it is already a list
-                            json_object = [json_object]
-                        for json_content in json_object:
-                            content: dict[str, str] = json_content
-                            name = content.get("name", "")
-                            base_id = content.get("base_id", "")
-                            race = content.get("race", "")
-                            matcher = self._get_matching_df_rows_matcher(base_id, name, race)
-                            if isinstance(matcher, type(None)): #character not in csv, add as new row
-                                row = []
-                                for entry in character_df_column_headers:
-                                    value = content.get(entry, "")
-                                    row.append(value)
-                                self.character_df.loc[len(self.character_df.index)] = row
-                            else: #character is in csv, update row
-                                for entry in character_df_column_headers:
-                                    value = content.get(entry, None)
-                                    if value and value != "":
-                                        self.character_df.loc[matcher, entry] = value
+                    self.__apply_json_override(full_path, character_df_column_headers)
+                elif extension in [".yaml", ".yml"]:
+                    self.__apply_yaml_override(full_path, character_df_column_headers)
                 elif extension == ".csv":
-                    extra_df = self.__get_character_df(full_path_file)
-                    for i in range(extra_df.shape[0]):#for each row in df
-                        name = self.get_string_from_df(extra_df.iloc[i], "name")
-                        base_id = self.get_string_from_df(extra_df.iloc[i], "base_id")
-                        race = self.get_string_from_df(extra_df.iloc[i], "race")
-                        matcher = self._get_matching_df_rows_matcher(base_id, name, race)
-                        if isinstance(matcher, type(None)): #character not in csv, add as new row
-                            row = []
-                            for entry in character_df_column_headers:
-                                value = self.get_string_from_df(extra_df.iloc[i], entry)
-                                row.append(value)
-                            self.character_df.loc[len(self.character_df.index)] = row
-                        else: #character is in csv, update row
-                            for entry in character_df_column_headers:
-                                value = extra_df.iloc[i].get(entry, None)
-                                if value and not pd.isna(value) and value != "":
-                                    self.character_df.loc[matcher, entry] = value
+                    self.__apply_csv_override(full_path, character_df_column_headers)
+                    
             except Exception as e:
-                logger.log(logger.WARNING, f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
+                logger.warning(f"Could not load character override file '{file}' in '{overrides_folder}'. Most likely there is an error in the formating of the file. Error: {e}")
+
+    def __apply_json_override(self, file_path: str, column_headers: list[str]):
+        """Apply overrides from a JSON file."""
+        with open(file_path, encoding='utf-8') as fp:
+            data = json.load(fp)
+            entries = [data] if isinstance(data, dict) else data
+            for content in entries:
+                self.__apply_single_override(content, column_headers, "JSON")
+
+    def __apply_yaml_override(self, file_path: str, column_headers: list[str]):
+        """Apply overrides from a YAML file (supports multi-line bios and structured content)."""
+        with open(file_path, 'r', encoding='utf-8') as fp:
+            data = yaml.safe_load(fp)
+            entries = [data] if isinstance(data, dict) else data
+            for content in entries:
+                self.__apply_single_override(content, column_headers, "YAML")
+
+    def __apply_csv_override(self, file_path: str, column_headers: list[str]):
+        """Apply overrides from a CSV file."""
+        extra_df = self.__get_character_df(file_path)
+        for i in range(extra_df.shape[0]):
+            row_data = extra_df.iloc[i]
+            name = self.get_string_from_df(row_data, "name")
+            base_id = self.get_string_from_df(row_data, "base_id")
+            race = self.get_string_from_df(row_data, "race")
+            
+            matcher = self._get_matching_df_rows_matcher(base_id, name, race)
+            if matcher is None:
+                # Add new character
+                row = [self.get_string_from_df(row_data, col) for col in column_headers]
+                self.character_df.loc[len(self.character_df.index)] = row
+            else:
+                # Update existing character
+                for col in column_headers:
+                    value = row_data.get(col, None)
+                    if value and not pd.isna(value) and value != "":
+                        self.character_df.loc[matcher, col] = value
+
+    def __apply_single_override(self, content: dict, column_headers: list[str], source_type: str):
+        """Apply a single character override to the DataFrame."""
+        name = content.get("name", "")
+        base_id = content.get("base_id", "")
+        race = content.get("race", "")
+        
+        matcher = self._get_matching_df_rows_matcher(base_id, name, race)
+        
+        if matcher is None:
+            # Character not in CSV - add as new row
+            self.__add_new_character(content, column_headers)
+        else:
+            # Character exists - update row
+            self.__update_existing_character(content, column_headers, matcher, base_id, source_type)
+
+    def __add_new_character(self, content: dict, column_headers: list[str]):
+        """Add a new character row to the DataFrame."""
+        row = [content.get(col, "") for col in column_headers]
+        self.character_df.loc[len(self.character_df.index)] = row
+        logger.info(f"[OVERRIDE] Added new character: {content.get('name', 'Unknown')}")
+
+    def __update_existing_character(self, content: dict, column_headers: list[str], matcher, base_id: str, source_type: str):
+        """Update an existing character in the DataFrame."""
+        logger.info(f"[OVERRIDE {source_type}] Updating character base_id={base_id}")
+        
+        # Handle 'name' specially - use it as 'prompt_name' instead of overwriting the internal name
+        if content.get('name'):
+            logger.info(f"[OVERRIDE {source_type}] Setting prompt_name='{content['name']}'")
+            self.character_df.loc[matcher, 'prompt_name'] = content['name']
+        
+        # Update other fields
+        for col in column_headers:
+            if col in self.PROTECTED_OVERRIDE_FIELDS:
+                continue
+            value = content.get(col)
+            if value and value != "":
+                preview = str(value)[:50] + "..." if len(str(value)) > 50 else str(value)
+                logger.info(f"[OVERRIDE {source_type}] Setting {col}='{preview}'")
+                self.character_df.loc[matcher, col] = value
 
     @utils.time_it
     def _create_all_voice_folders(self, mod_path: str, voice_folder_col: str):
@@ -394,3 +452,4 @@ class Gameable(ABC):
         with wave.open(os.path.join(voice_folder_path, f"{filename}.wav"), 'wb') as muted_wav:
             muted_wav.setparams(params)
             muted_wav.writeframes(muted_frames)
+

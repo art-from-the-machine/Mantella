@@ -14,6 +14,7 @@ from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
 from src.telemetry.telemetry import create_span_from_thread
 from src.actions.function_manager import FunctionManager
+from src.llm import llm_debug
 
 logger = utils.get_logger()
 
@@ -131,6 +132,11 @@ class ClientBase(AIClient):
     def max_tokens_param(self) -> int:
         """Returns the max_tokens value from request params, or defaults to 250"""
         return self._request_params.get("max_tokens", 250) if self._request_params else 250
+    
+    @property
+    def function_client(self) -> AIClient | None:
+        """Returns the function/tool-calling client if configured, else None."""
+        return self._function_client
 
 
     @utils.time_it
@@ -249,6 +255,13 @@ class ClientBase(AIClient):
                         last_message = messages.get_last_message()
                         if isinstance(last_message, UserMessage):
                             vision_hints = last_message.get_ingame_events_text()
+                        
+                    # Debug logging (enable with MANTELLA_LLM_DEBUG=1)
+                    llm_debug.log_llm_request(
+                        openai_messages,
+                        vision_mode=self._vision_mode.value if self._vision_mode else None,
+                        vision_hints=vision_hints
+                    )
                     
                     # Determine if vision should be enabled for this call
                     if self._should_enable_vision():

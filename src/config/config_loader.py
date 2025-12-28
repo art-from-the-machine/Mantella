@@ -289,15 +289,17 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
 
             self.save_audio_data_to_character_folder = self.__definitions.get_bool_value("save_audio_data_to_character_folder")
 
-            #new separate prompts for Fallout 4 have been added 
+            # Game-specific prompts
             if self.game.base_game == GameEnum.FALLOUT4:
                 self.prompt = self.__definitions.get_string_value("fallout4_prompt")
                 self.multi_npc_prompt = self.__definitions.get_string_value("fallout4_multi_npc_prompt")
                 self.radiant_prompt = self.__definitions.get_string_value("fallout4_radiant_prompt")
+                self.stt_prompt = self.__definitions.get_string_value("stt_prompt_fallout4")
             else:
                 self.prompt = self.__definitions.get_string_value("skyrim_prompt")
                 self.multi_npc_prompt = self.__definitions.get_string_value("skyrim_multi_npc_prompt")
                 self.radiant_prompt = self.__definitions.get_string_value("skyrim_radiant_prompt")
+                self.stt_prompt = self.__definitions.get_string_value("stt_prompt_skyrim")
 
             self.radiant_start_prompt = self.__definitions.get_string_value("radiant_start_prompt")
             self.radiant_continue_prompt = self.__definitions.get_string_value("radiant_continue_prompt")

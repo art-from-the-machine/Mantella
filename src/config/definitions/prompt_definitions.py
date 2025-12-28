@@ -265,3 +265,19 @@ class PromptDefinitions:
                                 Based on the recent dialogue, call the appropriate functions to execute actions. 
                                 If no actions are needed, do not call any functions."""
         return ConfigValueString("function_llm_prompt","Tool Calling LLM Prompt",description,function_llm_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)])
+    
+    @staticmethod
+    def get_stt_prompt_fallout4_config_value() -> ConfigValue:
+        description = """Static vocabulary to help Whisper recognize Fallout 4 terms.
+                        Dynamic vocabulary (proper nouns from conversation) is added automatically.
+                        Keep under 500 chars - dynamic vocab adds more. Total limit ~900 chars."""
+        default_prompt = """Vault-Tec, Nuka-Cola, Commonwealth, wasteland, caps, RadAway, Stimpak, Brotherhood of Steel, Institute, Railroad, Minutemen, synth, deathclaw, Diamond City, Goodneighbor, Sanctuary Hills, Preston Garvey, Nick Valentine, Piper, Codsworth, Dogmeat, Paladin Danse, Prydwen, Vertibird"""
+        return ConfigValueString("stt_prompt_fallout4", "Fallout 4 STT Vocabulary", description, default_prompt)
+    
+    @staticmethod
+    def get_stt_prompt_skyrim_config_value() -> ConfigValue:
+        description = """Static vocabulary to help Whisper recognize Skyrim terms.
+                        Dynamic vocabulary (proper nouns from conversation) is added automatically.
+                        Keep under 500 chars - dynamic vocab adds more. Total limit ~900 chars."""
+        default_prompt = """Skyrim, Tamriel, Whiterun, Solitude, Riften, Windhelm, Markarth, Dragonborn, Dovahkiin, Thu'um, Fus Ro Dah, Jarl, Thane, septim, skooma, Companions, Thieves Guild, Dark Brotherhood, Stormcloaks, Imperials, Thalmor, Greybeards, Alduin, Paarthurnax, Lydia, Serana, draugr, dragon"""
+        return ConfigValueString("stt_prompt_skyrim", "Skyrim STT Vocabulary", description, default_prompt)

@@ -121,6 +121,13 @@ class message_thread():
         return None
     
     @utils.time_it
+    def get_last_user_message(self):
+        for message in reversed(self.__messages):
+            if isinstance(message, UserMessage):
+                return message
+        return None
+    
+    @utils.time_it
     def append_text_to_last_assistant_message(self, text_to_append: str):
         """Appends a text to the last assistant message. 
 
@@ -205,3 +212,8 @@ class message_thread():
                 cloned_thread.add_message(msg)
 
         return cloned_thread
+
+    def get_last_n_messages(self, n: int) -> list[Message]:
+        """Returns the last n messages from the thread."""
+        return self.__messages[-n:] if len(self.__messages) >= n else self.__messages[:]
+

@@ -22,6 +22,7 @@ from src.http.communication_constants import communication_constants as comm_con
 from src.stt import Transcriber
 import src.utils as utils
 from src.actions.function_manager import FunctionManager
+from src.llm import llm_debug
 
 logger = utils.get_logger()
 
@@ -34,6 +35,9 @@ class conversation_continue_type(Enum):
 class Conversation:
     TOKEN_LIMIT_PERCENT: float = 0.9
     TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
+    # Whisper prompt limits (total ~224 tokens max)
+    WHISPER_PROMPT_MAX_CHARS: int = 850
+    DYNAMIC_VOCAB_MAX_TERMS: int = 40
     """Controls the flow of a conversation."""
     def __init__(self, context_for_conversation: Context, output_manager: ChatManager, rememberer: Remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool, game = None) -> None:
         
@@ -42,6 +46,7 @@ class Conversation:
         self.__mic_input: bool = mic_input
         self.__mic_ptt: bool = mic_ptt
         self.__allow_interruption: bool = context_for_conversation.config.allow_interruption # allow mic interruption
+        logger.debug(f'Conversation initialized with allow_interruption={self.__allow_interruption}')
         self.__is_player_interrupting = False
         self.__stt: Transcriber | None = stt
         self.__events_refresh_time: float = context_for_conversation.config.events_refresh_time  # Time in seconds before events are considered stale
@@ -61,7 +66,7 @@ class Conversation:
         self.__messages: message_thread = message_thread(self.__context.config, None)
         self.__output_manager: ChatManager = output_manager
         self.__rememberer: Remembering = rememberer
-        self.__llm_client = llm_client
+        self.__llm_client: AIClient = llm_client
         self.__has_already_ended: bool = False
         self.__allow_mic_input: bool = True # this flag ensures mic input is disabled on conversation end
         self.__sentences: SentenceQueue = SentenceQueue()
@@ -77,6 +82,7 @@ class Conversation:
         self.last_sentence_start_time = time.time()
         self.__end_conversation_keywords = utils.parse_keywords(context_for_conversation.config.end_conversation_keyword)
         self.__awaiting_action_result: bool = False
+        self.__dynamic_vocab: str = ""  # LLM-generated vocabulary for Whisper
 
     @property
     def has_already_ended(self) -> bool:
@@ -110,6 +116,20 @@ class Conversation:
             all_characters = self.__context.npcs_in_conversation.get_all_characters()
             all_characters.extend(characters_removed_by_update)
             self.__save_conversations_for_characters(all_characters, is_reload=True)
+        
+        # Set LLM debug log path to the character's conversation folder
+        self.__update_llm_debug_path()
+    
+    def __update_llm_debug_path(self):
+        """Update LLM debug log path to current character's conversation folder."""
+        npc = self.__context.npcs_in_conversation.last_added_character
+        if npc and not npc.is_player_character:
+            from src.conversation.conversation_log import conversation_log
+            from pathlib import Path
+            base_name = utils.remove_trailing_number(npc.name)
+            folder_name = f'{base_name} - {npc.ref_id}'
+            folder_path = Path(conversation_log.game_path) / self.__context.world_id / folder_name
+            llm_debug.set_log_folder(folder_path)
 
     @utils.time_it
     def start_conversation(self) -> tuple[str, Sentence | None]:
@@ -149,6 +169,13 @@ class Conversation:
         
         # restart mic listening as soon as NPC's first sentence is processed
         if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and not self.__stt.is_listening and self.__allow_mic_input and not isinstance(self.__conversation_type, radiant):
+            # Wait for current NPC audio to finish playing to avoid mic picking up speaker audio
+            time_elapsed = time.time() - self.last_sentence_start_time
+            remaining_audio_time = self.last_sentence_audio_length - time_elapsed
+            if remaining_audio_time > 0:
+                logger.debug(f'[Interruption Mode] Waiting {round(remaining_audio_time, 1)} seconds for NPC audio to finish before starting interruption listening')
+                time.sleep(remaining_audio_time)
+            
             mic_prompt = self.__get_mic_prompt()
             self.__stt.start_listening(mic_prompt)
         
@@ -161,12 +188,12 @@ class Conversation:
                 self.__awaiting_action_result = True
             return comm_consts.KEY_REPLYTYPE_NPCACTION, next_sentence
         elif next_sentence and len(next_sentence.text) > 0:
+            # Stop mic if it's listening (player's turn ended, NPC is talking now)
+            if self.__stt and self.__stt.is_listening and not self.__allow_interruption:
+                self.__stt.stop_listening()
             if {'identifier': comm_consts.ACTION_REMOVECHARACTER} in next_sentence.actions:
                 self.__context.remove_character(next_sentence.speaker)
-            #if there is a next sentence and it actually has content, return it as something for an NPC to say
-            if self.last_sentence_audio_length > 0:
-                logger.debug(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
-            # before immediately sending the next voiceline, give the player the chance to interrupt
+            # Before sending next voiceline, give the player the chance to interrupt
             while time.time() - self.last_sentence_start_time < self.last_sentence_audio_length:
                 if self.__stt and self.__stt.has_player_spoken:
                     self.__stop_generation()
@@ -195,6 +222,12 @@ class Conversation:
                     self.__start_generating_npc_sentences()
                     return comm_consts.KEY_REPLYTYPE_NPCTALK, None
                 else:
+                    # Wait for the last NPC sentence to finish playing before allowing player input
+                    if not self.__allow_interruption:
+                        remaining = self.last_sentence_audio_length - (time.time() - self.last_sentence_start_time)
+                        if remaining > 0:
+                            logger.debug(f'Waiting {round(remaining, 1)}s for NPC audio before mic')
+                            time.sleep(remaining)
                     return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
 
     @utils.time_it
@@ -221,20 +254,27 @@ class Conversation:
             if self.__mic_input and len(player_text) == 0:
                 player_text = None
                 
+                if not self.__allow_mic_input:
+                    return '', False, None
+                
                 listen_mode_active = self.__output_manager.listen_requested
                 if listen_mode_active:
                     self.__output_manager.clear_listen_requested()
                 
-                if not self.__stt.is_listening and self.__allow_mic_input:
+                if not self.__stt.is_listening:
+                    # Wait for NPC's audio to finish to avoid mic picking up speaker
+                    remaining = self.last_sentence_audio_length - (time.time() - self.last_sentence_start_time)
+                    if remaining > 0:
+                        logger.debug(f'Waiting {round(remaining, 1)}s for NPC audio before mic')
+                        time.sleep(remaining)
                     self.__stt.start_listening(self.__get_mic_prompt())
                 
-                # Use timeout if timeout is enabled, max count is not reached, and Listen mode is not active
+                # Use timeout if enabled, max count not reached, and Listen mode not active
                 use_silence_timeout = (self.__silence_auto_response_enabled and 
                                        self.__silence_auto_response_count < self.__silence_auto_response_max_count and
                                        not listen_mode_active)
                 silence_timeout = self.__silence_auto_response_timeout if use_silence_timeout else 0
                 
-                # Start tracking how long it has taken to receive a player response
                 input_wait_start_time = time.time()
                 while not player_text:
                     player_text = self.__stt.get_latest_transcription(silence_timeout=silence_timeout)
@@ -259,9 +299,7 @@ class Conversation:
                     logger.debug('Updating game events...')
                     return player_text, events_need_updating, None
                 
-                # Stop listening once input has been detected to give the NPC a chance to speak
-                # This also needs to apply when interruptions are allowed, 
-                # otherwise the player could constantly speak over the NPC and never hear a response
+                # Stop listening once input detected to give NPC a chance to speak
                 self.__stt.stop_listening()
             
             new_message: UserMessage = UserMessage(self.__context.config, player_text, player_character.name, False)
@@ -271,6 +309,8 @@ class Conversation:
             player_voiceline = self.__get_player_voiceline(player_character, player_text)
             text = new_message.text
             logger.log(23, f"Text passed to NPC: {text}")
+            
+            llm_debug.log_player_transcript(player_text, self.__stt.prompt if self.__stt else None)
 
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
         if ejected_npc:
@@ -283,10 +323,90 @@ class Conversation:
 
         return player_text, events_need_updating, player_voiceline
 
-    def __get_mic_prompt(self):
-        mic_prompt = f"This is a conversation with {self.__context.get_character_names_as_text(False)} in {self.__context.location}."
-        #logger.log(23, f'Context for mic transcription: {mic_prompt}')
-        return mic_prompt
+    def __get_mic_prompt(self) -> str:
+        """Generate a context-aware prompt for Whisper transcription.
+        
+        Whisper works best with a simple vocabulary list under 900 chars (224 tokens).
+        No speaker labels, no quotes, no conversation history - just comma-separated terms.
+        """
+        config = self.__context.config
+        prompt_names = self.__context.npcs_in_conversation.get_all_prompt_names(include_player=False)
+        npc_name = prompt_names[0] if prompt_names else "NPC"
+        
+        # Use dynamic vocab if available (already includes static + conversation terms)
+        # Otherwise fall back to static vocab from config
+        if self.__dynamic_vocab:
+            vocab = self.__dynamic_vocab
+        else:
+            # Static vocab from config (only used before first LLM response)
+            vocab = config.stt_prompt
+        
+        # Build final prompt: NPC name, location, vocabulary
+        prompt = f"{npc_name}, {self.__context.location}. {vocab}"
+        
+        # Ensure under Whisper's limit (~224 tokens)
+        if len(prompt) > self.WHISPER_PROMPT_MAX_CHARS:
+            prompt = prompt[:self.WHISPER_PROMPT_MAX_CHARS].rsplit(",", 1)[0]
+        
+        return prompt
+    
+    def update_dynamic_vocab(self):
+        """Update dynamic vocabulary in background thread.
+        
+        Extracts key terms from conversation context to improve Whisper recognition.
+        Called after full LLM response is complete.
+        """
+        Thread(target=self.__extract_dynamic_vocab, daemon=True).start()
+    
+    def __extract_dynamic_vocab(self):
+        """Use LLM to combine static vocab with conversation-specific terms."""
+        try:
+            # Get recent conversation for context
+            recent_messages = self.__messages.get_last_n_messages(6)
+            conversation_text = ""
+            for msg in recent_messages:
+                if isinstance(msg, SystemMessage):
+                    continue
+                content = msg.get_formatted_content() if isinstance(msg, AssistantMessage) else msg.text
+                if content:
+                    conversation_text += f"{content}\n"
+            
+            if not conversation_text.strip():
+                return
+            
+            # Get static vocab from config
+            static_vocab = self.__context.config.stt_prompt
+            
+            # Add NPC names and location
+            npc_names = self.__context.npcs_in_conversation.get_all_prompt_names(include_player=False)
+            context_terms = ", ".join(npc_names) + ", " + self.__context.location
+            
+            # Build prompt: combine existing vocab with conversation
+            prompt = f"""
+            Combine this vocabulary with terms from the conversation.
+            Keep important existing terms, add new names/locations/items from conversation.
+            Return ONLY comma-separated terms. Max 40 total.
+
+            Current vocab: {context_terms}, {static_vocab}
+
+            Conversation:
+            {conversation_text}
+
+            Combined vocab:"""
+                                    
+            # Use function_client (smaller/faster model) if available
+            client = self.__llm_client.function_client or self.__llm_client
+            vocab_message = UserMessage(self.__context.config, prompt, "system", True)
+            response = client.request_call(vocab_message)
+            
+            if response:
+                self.__dynamic_vocab = response.strip().replace("\n", ", ")
+                logger.debug(f"LLM vocab: {self.__dynamic_vocab[:100]}...")
+            
+            llm_debug.log_dynamic_vocab(prompt, self.__dynamic_vocab if response else None)
+            
+        except Exception as e:
+            logger.warning(f"Failed to generate dynamic vocab: {e}")
     
     @utils.time_it
     def __get_player_voiceline(self, player_character: Character | None, player_text: str) -> Sentence | None:
@@ -348,14 +468,76 @@ class Conversation:
         if self.__is_player_interrupting:
             all_ingame_events.append('Interrupting...')
             self.__is_player_interrupting = False
-        max_events = min(len(all_ingame_events) ,self.__context.config.max_count_events)
-        message.add_event(all_ingame_events[-max_events:])
+        
+        # Filter and merge events before sending to LLM
+        filtered_events = self.__filter_and_merge_events(all_ingame_events)
+        
+        max_events = min(len(filtered_events), self.__context.config.max_count_events)
+        message.add_event(filtered_events[-max_events:])
         self.__context.clear_context_ingame_events()        
 
         if message.count_ingame_events() > 0:            
             logger.log(28, f'In-game events since previous exchange:\n{message.get_ingame_events_text()}')
 
         return message
+    
+    def __filter_and_merge_events(self, events: list[str]) -> list[str]:
+        """Filter out minor events and merge repeated events within time window
+        
+        Args:
+            events: Raw list of in-game events (ordered chronologically)
+            
+        Returns:
+            Filtered and merged list of events
+        """
+        if not events:
+            return []
+        
+        # Keywords for events to filter out (minor/irrelevant events)
+        minor_event_keywords = [
+            'picked up', 'dropped', 'equipped', 'unequipped'
+        ]
+        
+        # Keywords for important items/events to keep even if they match minor keywords
+        important_keywords = [
+            'weapon', 'armor', 'quest', 'key', 'holotape', 'note',
+            'attacking', 'attacked', 'enemy', 'combat', 'died', 'killed',
+            'entered', 'left', 'arrived', 'location'
+        ]
+        
+        # Filter out minor events
+        filtered_events = []
+        for event in events:
+            event_lower = event.lower()
+            is_minor = any(keyword in event_lower for keyword in minor_event_keywords)
+            is_important = any(keyword in event_lower for keyword in important_keywords)
+            
+            if not is_minor or is_important:
+                filtered_events.append(event)
+        
+        # Smart merging: merge consecutive identical events, keep separated ones
+        # Events are chronological, so we process them in order
+        merged_events = []
+        i = 0
+        while i < len(filtered_events):
+            current_event = filtered_events[i]
+            count = 1
+            
+            # Count consecutive identical events (within the time window)
+            j = i + 1
+            while j < len(filtered_events) and filtered_events[j] == current_event:
+                count += 1
+                j += 1
+            
+            # Add event (with count if repeated consecutively)
+            if count > 1:
+                merged_events.append(f"{current_event} (x{count})")
+            else:
+                merged_events.append(current_event)
+            
+            i = j  # Skip to next different event
+        
+        return merged_events
 
     @utils.time_it
     def resume_after_interrupting_action(self) -> bool:

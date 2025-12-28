@@ -40,6 +40,9 @@ class Transcriber:
     def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str):
         self.loglevel = 27
         self.language = config.stt_language
+        # Convert 'auto' to None for Whisper auto-detection
+        if self.language == 'auto':
+            self.language = None
         self.task = "translate" if config.stt_translate == 1 else "transcribe"
         self.stt_service = config.stt_service
         self.full_moonshine_model = config.moonshine_model
@@ -221,6 +224,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         if self.stt_service == 'moonshine':
             transcription = self.moonshine_transcribe(audio)
         else:
+            logger.log(self.loglevel, f'whisper_transcribe prompt: {self.prompt}')
             transcription = self.whisper_transcribe(audio, self.prompt)
 
         self.transcription_times.append((time.time() - self._speech_end_time))
@@ -243,8 +247,13 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
     @utils.time_it
     def whisper_transcribe(self, audio: np.ndarray, prompt: str):
         if self.transcribe_model: # local model
-            segments, _ = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=5, vad_filter=False, initial_prompt=prompt)
+            # Higher beam_size = better accuracy but slower (5 is default, 10 is better)
+            # vad_filter=True helps filter out non-speech audio for better transcription
+            segments, info = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=10, vad_filter=True, initial_prompt=prompt)
             result_text = ' '.join(segment.text for segment in segments)
+            # Log detected language if auto-detection was used
+            if self.language is None and info.language:
+                logger.log(self.loglevel, f'Detected language: {info.language} (probability: {info.language_probability:.2f})')
             if utils.clean_text(result_text) in self.__ignore_list: # common phrases hallucinated by Whisper
                 return ''
             return result_text
@@ -258,7 +267,11 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         if 'openai' in self.whisper_url: # OpenAI compatible endpoint
             client = self.__generate_sync_client()
             try:
-                response_data = client.audio.transcriptions.create(model=self.whisper_model, language=self.language, file=audio_file, prompt=prompt)
+                # Only pass language if it's set (not None for auto-detection)
+                if self.language is None:
+                    response_data = client.audio.transcriptions.create(model=self.whisper_model, file=audio_file, prompt=prompt)
+                else:
+                    response_data = client.audio.transcriptions.create(model=self.whisper_model, language=self.language, file=audio_file, prompt=prompt)
             except Exception as e:
                 utils.play_error_sound()
                 if e.code in [404, 'model_not_found']:
