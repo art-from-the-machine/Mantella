@@ -10,6 +10,7 @@ from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 from src.config.definitions.game_definitions import GameEnum
+from src.wiki.wiki_loader import load_character_wiki
 
 logger = utils.get_logger()
 
@@ -460,6 +461,14 @@ class Context:
         
         # Only include legacy action prompts if advanced actions are disabled
         actions = self.__get_action_texts(actions_for_prompt) if not self.__config.advanced_actions_enabled else ""
+        
+        # Load wiki content for the character (if available)
+        wiki = ""
+        if self.npcs_in_conversation.last_added_character:
+            char_name = self.npcs_in_conversation.last_added_character.name
+            # Use base_game so Fallout4VR loads from Fallout4 folder
+            game_name = self.__config.game.base_game.display_name  # e.g., "Fallout4"
+            wiki = load_character_wiki(char_name, game_name)
 
         # Determine conversation language - use NPC's language if set, otherwise global language
         conversation_language = self.__language['language']
@@ -493,7 +502,8 @@ class Context:
                 language=conversation_language_name, 
                 conversation_summary=content[1],
                 conversation_summaries=content[1],
-                actions = actions
+                actions = actions,
+                wiki = wiki
                 )
             if self.__client.is_too_long(result, self.TOKEN_LIMIT_PERCENT):
                 if content[0] != "":

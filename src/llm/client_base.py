@@ -1,5 +1,6 @@
+from contextlib import contextmanager
 from threading import Lock
-from typing import AsyncGenerator, Any
+from typing import AsyncGenerator, Any, Generator
 from enum import Enum
 from openai import APIConnectionError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
 from openai.types.chat import ChatCompletion
@@ -132,6 +133,30 @@ class ClientBase(AIClient):
     def max_tokens_param(self) -> int:
         """Returns the max_tokens value from request params, or defaults to 250"""
         return self._request_params.get("max_tokens", 250) if self._request_params else 250
+    
+    @contextmanager
+    def override_params(self, **kwargs: Any) -> Generator[None, None, None]:
+        """Context manager to temporarily override request parameters.
+        
+        Usage:
+            with client.override_params(max_tokens=2000, temperature=0.3):
+                response = client.request_call(msg)
+        
+        Args:
+            **kwargs: Parameters to override (e.g., max_tokens, temperature, stop)
+        """
+        original_params = self._request_params.copy() if self._request_params else None
+        
+        if self._request_params is None:
+            self._request_params = {}
+        
+        for key, value in kwargs.items():
+            self._request_params[key] = value
+        
+        try:
+            yield
+        finally:
+            self._request_params = original_params
     
     @property
     def function_client(self) -> AIClient | None:

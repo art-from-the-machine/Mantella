@@ -27,7 +27,8 @@ class PromptDefinitions:
                                 "language", 
                                 "conversation_summary",
                                 "conversation_summaries",
-                                "actions"]
+                                "actions",
+                                "wiki"]
     
     ALLOWED_PROMPT_VARIABLES_RADIANT = [
                                 "game",
@@ -67,7 +68,8 @@ class PromptDefinitions:
                                 player_description = a description of the player character (needs to be added in game or using the config value)
                                 player_equipment = a basic description of the equipment the player character carries
                                 equipment = a basic description of the equipment the NPCs carry
-                                actions = instructions for the LLM how to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools)"""
+                                actions = instructions for the LLM how to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools)
+                                wiki = wiki information for the NPC (if available in data/Game/wiki/characters/)"""
     
     BASE_RADIANT_DESCRIPTION = """The starting prompt sent to the LLM when a radiant conversation is started.
                                 The following are dynamic variables that need to be contained in curly brackets {}:
@@ -151,16 +153,40 @@ class PromptDefinitions:
 
     @staticmethod
     def get_fallout4_prompt_config_value() -> ConfigValue:
-        fallout4_prompt = """You are {name}, and you live in the post-apocalyptic Commonwealth of Fallout. This is your background: {bio}
-                            Sometimes in-game events will be passed before the player response within. You cannot respond with brackets yourself, they only exist to give context. Here is an example:
-                            (The player picked up a pair of gloves)
-                            Who do you think these belong to?
-                            You are having a conversation with {trust} (the player) in {location}.
-                            This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
-                            {actions}
-                            The time is {time} {time_group}.
-                            The conversation takes place in {language}.
-                            {conversation_summary}"""
+        fallout4_prompt = """<character>
+You are {name}, a wasteland survivor in the post-apocalyptic Commonwealth.
+Background: {bio}
+Note: "Sole Survivor" refers to the player ({player_name}).
+</character>
+
+<context>
+Conversation with {player_name} ({trust}) in {location}.
+Time: {time} {time_group}. Language: {language}.
+</context>
+
+<events>
+In-game events appear in brackets before player text. Example:
+(The player picked up a pair of gloves)
+Who do you think these belong to?
+React to significant events only (combat, danger, important items). Ignore minor events.
+</events>
+
+<transcription>
+Player dialogue is voice-transcribed and may contain phonetic errors.
+Interpret what the player likely meant based on context. Do not correct them or ask for clarification unless truly unclear.
+</transcription>
+
+<output_format>
+Output spoken dialogue only. No parenthetical actions, no asterisks, no stage directions.
+Keep responses brief, 1-3 sentences. This will be spoken aloud.
+Do not repeat what the player said.
+</output_format>
+
+<tone>
+Speak authentically as a wasteland survivor. Use profanity naturally when it fits your character.
+</tone>
+{actions}
+{conversation_summary}"""
         return ConfigValueString("fallout4_prompt","Fallout 4 Prompt",PromptDefinitions.BASE_PROMPT_DESCRIPTION,fallout4_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES)])
 
     @staticmethod

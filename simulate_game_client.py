@@ -67,7 +67,7 @@ class GameClientSimulator:
             response = self.session.post(
                 self.server_url,
                 json=request_data,
-                timeout=30
+                timeout=60  # 2 minutes for mic input + STT processing
             )
             response.raise_for_status()
             response_data = response.json()

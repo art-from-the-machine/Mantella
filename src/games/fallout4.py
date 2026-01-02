@@ -11,7 +11,6 @@ from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
 from src.games.gameable import Gameable
-from src.wiki.wiki_fetcher import WikiFetcher
 import src.utils as utils
 from src.config.definitions.game_definitions import GameEnum
 from src.config.definitions.tts_definitions import TTSEnum
@@ -40,12 +39,6 @@ class Fallout4(Gameable):
         #self.__playback: audio_playback = audio_playback(config)
         self.__last_played_voiceline: str | None = None
         self.__image_analysis_filepath = config.game_path
-        # Wiki fetcher for enriching character bios
-        self.__wiki_fetcher = WikiFetcher(config.save_folder, config)
-    
-    def set_wiki_llm_client(self, llm_client):
-        """Set the LLM client for wiki extraction."""
-        self.__wiki_fetcher.set_llm_client(llm_client)
 
     @property
     def extender_name(self) -> str:
