@@ -360,6 +360,11 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         """Process audio data in a separate thread."""
         lookback_size = self.LOOKBACK_CHUNKS * self.CHUNK_SIZE
         chunk_count = 0
+        debug_counter = 0  # Separate counter for debug logging
+        
+        # Smoothing: keep last N probabilities to avoid ending on brief dips
+        from collections import deque
+        prob_history: deque[float] = deque(maxlen=10)  # ~320ms of history at 32ms/chunk
         
         while self._running:
             try:
@@ -380,16 +385,32 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
                     # Process with VAD
                     probability = self.vad.process(chunk)
+                    prob_history.append(probability)
+                    
+                    # Use smoothed probability for speech-end detection (avoids ending on brief dips)
+                    smoothed_prob = sum(prob_history) / len(prob_history) if prob_history else probability
+                    
+                    # Hysteresis: use lower threshold to END speech (more tolerant during speech)
+                    end_threshold = self.audio_threshold # * 0.5  # Half the start threshold
+                    
+                    # Debug: log probability periodically (~every 2s) - less verbose
+                    debug_counter += 1
+                    # if debug_counter % 60 == 0:
+                    #     logger.debug(f'VAD prob={probability:.3f} smooth={smoothed_prob:.3f} speech={self._speech_detected}')
 
-                    # Handle speech detection
+                    # Handle speech detection (use raw probability for quick detection)
                     if probability > self.audio_threshold:
                         self._last_update_time = time.time()
+                    # # During speech, also update time if above end_threshold (more tolerant)
+                    # elif self._speech_detected and smoothed_prob > end_threshold:
+                    #     self._last_update_time = time.time()
 
                     if probability > self.audio_threshold and not self._speech_detected:
                         logger.log(self.loglevel, 'Speech detected')
                         self._speech_detected = True
 
-                    if probability <= self.audio_threshold and self._speech_detected and time.time() - self._last_update_time > self.pause_threshold:
+                    # Use smoothed probability and lower end_threshold for speech-end
+                    if smoothed_prob <= end_threshold and self._speech_detected and time.time() - self._last_update_time > self.pause_threshold:
                         logger.log(self.loglevel, 'Speech ended')
                         # If proactive mode is disabled, transcribe mic input only when speech end has been detected
                         if not self.proactive_mic_mode:

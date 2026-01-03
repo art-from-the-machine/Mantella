@@ -293,14 +293,14 @@ class Conversation:
                         # Player spoke -> reset the silence counter
                         self.__silence_auto_response_count = 0
                     
+                # Stop listening once input detected to give NPC a chance to speak
+                self.__stt.stop_listening()
+                
                 if time.time() - input_wait_start_time >= self.__events_refresh_time:
                     # If too much time has passed, in-game events need to be updated
                     events_need_updating = True
                     logger.debug('Updating game events...')
                     return player_text, events_need_updating, None
-                
-                # Stop listening once input detected to give NPC a chance to speak
-                self.__stt.stop_listening()
             
             new_message: UserMessage = UserMessage(self.__context.config, player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
