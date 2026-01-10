@@ -15,15 +15,17 @@ _enabled: bool = os.environ.get('MANTELLA_LLM_DEBUG', '').lower() in ('1', 'true
 
 
 def set_log_folder(folder_path: str | Path):
-    """Set the folder where llm_debug.log will be written. Clears existing log."""
+    """Set the folder where llm_debug.log will be written."""
     global _log_path
     folder = Path(folder_path)
     folder.mkdir(parents=True, exist_ok=True)
-    _log_path = folder / 'llm_debug.log'
+    new_path = folder / 'llm_debug.log'
     
-    # Clear file on new conversation
-    with open(_log_path, 'w', encoding='ascii', errors='replace') as f:
-        f.write(f"=== LLM Debug Log - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n\n")
+    # Only write header if this is a NEW path (different conversation)
+    if _log_path != new_path:
+        _log_path = new_path
+        with open(_log_path, 'w', encoding='ascii', errors='replace') as f:
+            f.write(f"=== LLM Debug Log - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n\n")
 
 
 def log(text: str):

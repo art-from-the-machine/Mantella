@@ -48,6 +48,7 @@ class Context:
         self.__ingame_events: list[str] = []
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
+        self.__game_context_changed: bool = False
         self.__game: GameEnum = config.game
         self.__prev_nearby_npc_names: list[str] = []  # Cache for nearby NPC names
 
@@ -101,6 +102,14 @@ class Context:
     def have_actors_changed(self, value: bool):
         self.__have_actors_changed = value
 
+    @property
+    def game_context_changed(self) -> bool:
+        return self.__game_context_changed
+    
+    @game_context_changed.setter
+    def game_context_changed(self, value: bool):
+        self.__game_context_changed = value
+
     def get_config_setting(self, key: str) -> Any | None:
         if self.__config_settings.__contains__(key):
             return self.__config_settings[key]
@@ -135,6 +144,222 @@ class Context:
         if self.__custom_context_values and self.__custom_context_values.__contains__(key):
             return self.__custom_context_values[key]
         return None
+    
+    def get_game_context(self) -> str:
+        """Build complete game context string from all custom context values.
+        
+        Includes: situation, player state, nearby NPCs, NPC relationship, quests.
+        Returns content WITHOUT wrapper tags - the prompt template provides those.
+        """
+        sections = []
+        
+        # === SITUATION ===
+        situation_parts = []
+        
+        # Location info (from location type context or fallback to regular location)
+        loc_context = self.get_custom_context_value(communication_constants.KEY_CONTEXT_LOCATION_TYPE)
+        if loc_context:
+            loc_info = self._parse_location_context(loc_context)
+            if loc_info:
+                situation_parts.append(f"Location: {loc_info}")
+        
+        # Time
+        if self.__ingame_time:
+            time_str = self._format_time(self.__ingame_time)
+            situation_parts.append(f"Time: {time_str}")
+        
+        if situation_parts:
+            sections.append("=== SITUATION ===\n" + "\n".join(situation_parts))
+        
+        # === PLAYER STATE ===
+        player_state = self.get_custom_context_value(communication_constants.KEY_CONTEXT_PLAYER_STATE)
+        if player_state:
+            state_info = self._parse_player_state(player_state)
+            if state_info:
+                sections.append("=== PLAYER STATE ===\n" + state_info)
+        
+        # === NEARBY NPCS ===
+        nearby_npcs = self.get_custom_context_value(communication_constants.KEY_CONTEXT_NEARBY_NPCS)
+        if nearby_npcs:
+            npcs_info = self._parse_nearby_npcs(nearby_npcs)
+            if npcs_info:
+                sections.append("=== NEARBY NPCS ===\n" + npcs_info)
+        
+        # === NPC RELATIONSHIP ===
+        npc_role = self.get_custom_context_value(communication_constants.KEY_CONTEXT_NPC_ROLE)
+        if npc_role:
+            role_info = self._parse_npc_role(npc_role)
+            if role_info:
+                sections.append("=== YOUR RELATIONSHIP WITH PLAYER ===\n" + role_info)
+        
+        # === QUESTS ===
+        quest_context = self.get_custom_context_value(communication_constants.KEY_CONTEXT_NPC_QUESTS)
+        if quest_context:
+            from src.wiki.quest_context import build_quest_context
+            parsed = build_quest_context(quest_context)
+            if parsed:
+                sections.append("=== QUESTS ===\n" + parsed)
+        
+        return "\n\n".join(sections)
+    
+    def _parse_player_state(self, raw: str) -> str:
+        """Parse player state from Papyrus format.
+        
+        Input: "level:15|weapon:10mm Pistol|power_armor|sneaking|in_combat"
+        Output: Formatted player state info.
+        """
+        if not raw:
+            return ""
+        
+        parts = raw.split("|")
+        level = ""
+        weapon = ""
+        flags = []
+        
+        for part in parts:
+            if part.startswith("level:"):
+                level = part.split(":", 1)[1]
+            elif part.startswith("weapon:"):
+                weapon = part.split(":", 1)[1]
+            elif part == "power_armor":
+                flags.append("In Power Armor")
+            elif part == "sneaking":
+                flags.append("Sneaking")
+            elif part == "in_combat":
+                flags.append("In Combat")
+            elif part == "searching":
+                flags.append("Searching for enemies")
+        
+        lines = []
+        if level:
+            lines.append(f"Level: {level}")
+        if weapon:
+            lines.append(f"Equipped: {weapon}")
+        if flags:
+            lines.append("Status: " + ", ".join(flags))
+        
+        # Add health/rad from existing values
+        health = self.get_custom_context_value("mantella_player_health_percent")
+        rad = self.get_custom_context_value("mantella_player_rad_percent")
+        if health is not None or rad is not None:
+            health_pct = int(health * 100) if health else 100
+            rad_pct = int(rad * 100) if rad else 0
+            lines.append(f"Health: {health_pct}% | Radiation: {rad_pct}%")
+        
+        return "\n".join(lines)
+    
+    def _parse_nearby_npcs(self, raw: str) -> str:
+        """Parse nearby NPCs from Papyrus format.
+        
+        Input: "Name:distance:role|Name2:distance2:role2"
+        Output: Formatted list of nearby NPCs.
+        """
+        if not raw:
+            return ""
+        
+        lines = []
+        for entry in raw.split("|"):
+            if not entry:
+                continue
+            parts = entry.split(":")
+            if len(parts) >= 2:
+                name = parts[0]
+                distance = parts[1] if len(parts) > 1 else ""
+                role = parts[2] if len(parts) > 2 else ""
+                
+                line = f"- {name}"
+                if distance:
+                    line += f" ({distance} units)"
+                if role:
+                    line += f" - {role}"
+                lines.append(line)
+        
+        return "\n".join(lines) if lines else ""
+    
+    def _parse_npc_role(self, raw: str) -> str:
+        """Parse NPC role/relationship from Papyrus format.
+        
+        Input: "companion|relationship:3|faction:settler|essential"
+        Output: Formatted relationship info.
+        """
+        if not raw:
+            return ""
+        
+        parts = raw.split("|")
+        lines = []
+        
+        is_companion = False
+        relationship = 0
+        faction = ""
+        flags = []
+        
+        for part in parts:
+            if part == "companion":
+                is_companion = True
+            elif part.startswith("relationship:"):
+                relationship = int(part.split(":", 1)[1])
+            elif part.startswith("faction:"):
+                faction = part.split(":", 1)[1]
+            elif part == "essential":
+                flags.append("Essential")
+            elif part == "bleeding_out":
+                flags.append("Bleeding Out")
+        
+        # Relationship rank meanings
+        rel_names = {
+            -4: "Archnemesis", -3: "Enemy", -2: "Foe", -1: "Rival",
+            0: "Acquaintance", 1: "Friend", 2: "Confidant", 3: "Ally", 4: "Lover"
+        }
+        
+        if is_companion:
+            lines.append("Role: Companion (following player)")
+        
+        rel_name = rel_names.get(relationship, "Unknown")
+        lines.append(f"Affinity: {rel_name} ({relationship})")
+        
+        if faction:
+            lines.append(f"Faction: {faction.title()}")
+        
+        if flags:
+            lines.append("Status: " + ", ".join(flags))
+        
+        return "\n".join(lines)
+    
+    def _parse_location_context(self, raw: str) -> str:
+        """Parse location context from Papyrus format.
+        
+        Input: "name:Sanctuary Hills|interior" or "exterior"
+        Output: Formatted location string.
+        """
+        if not raw:
+            return ""
+        
+        parts = raw.split("|")
+        name = ""
+        loc_type = ""
+        
+        for part in parts:
+            if part.startswith("name:"):
+                name = part.split(":", 1)[1]
+            elif part in ("interior", "exterior"):
+                loc_type = part
+        
+        result = name if name else self.__location
+        if loc_type:
+            result += f" ({loc_type})"
+        
+        return result
+    
+    def _format_time(self, hour: int) -> str:
+        """Format hour into readable time string."""
+        if hour == 0:
+            return "midnight"
+        elif hour == 12:
+            return "noon"
+        elif hour < 12:
+            return f"{hour} in the morning"
+        else:
+            return f"{hour - 12} in the afternoon" if hour < 18 else f"{hour - 12} in the evening"
 
     @utils.time_it
     def get_context_ingame_events(self) -> list[str]:
@@ -179,6 +404,13 @@ class Context:
     
     @utils.time_it
     def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any], config_settings: dict[str, Any] | None, game_days: float | None = None):
+        # Check if game context (quest info) is newly available
+        old_quest_context = self.__custom_context_values.get(communication_constants.KEY_CONTEXT_NPC_QUESTS) if self.__custom_context_values else None
+        new_quest_context = custom_context_values.get(communication_constants.KEY_CONTEXT_NPC_QUESTS) if custom_context_values else None
+        if new_quest_context and new_quest_context != old_quest_context:
+            self.__game_context_changed = True
+            logger.info(f"Game context updated with quest info: {new_quest_context[:100]}..." if len(new_quest_context) > 100 else f"Game context updated: {new_quest_context}")
+        
         self.__custom_context_values = custom_context_values
 
         # Store game_days if provided
@@ -462,13 +694,38 @@ class Context:
         # Only include legacy action prompts if advanced actions are disabled
         actions = self.__get_action_texts(actions_for_prompt) if not self.__config.advanced_actions_enabled else ""
         
-        # Load wiki content for the character (if available)
-        wiki = ""
+        # Get game context (quests, etc.) from Papyrus
+        game_context = self.get_game_context()
+        has_quest_context = bool(game_context)
+        logger.info(f"generate_system_message: game_context length = {len(game_context)}, has content = {has_quest_context}")
+        
+        # Character background: wiki → bio (simple priority)
+        # TODO:: make it  as function? maybe only fallout4 ???
         if self.npcs_in_conversation.last_added_character:
-            char_name = self.npcs_in_conversation.last_added_character.name
-            # Use base_game so Fallout4VR loads from Fallout4 folder
-            game_name = self.__config.game.base_game.display_name  # e.g., "Fallout4"
-            wiki = load_character_wiki(char_name, game_name)
+            char = self.npcs_in_conversation.last_added_character
+            char_name = char.name
+            
+            # Priority 1: Wiki from override file
+            if char.wiki and char.wiki.strip():
+                bios = char.wiki
+                logger.info(f"Using wiki from override ({len(bios)} chars)")
+            else:
+                # Priority 2: Wiki from wiki_loader
+                game_name = self.__config.game.base_game.display_name
+                wiki_content = load_character_wiki(
+                    char_name, game_name, 
+                    strip_quests=has_quest_context, 
+                    player_name=player_name
+                )
+                if wiki_content:
+                    bios = wiki_content
+                    logger.info(f"Using wiki from loader ({len(bios)} chars)")
+                elif char.bio and char.bio.strip():
+                    # Priority 3: Bio (fallback)
+                    bios = char.bio
+                    logger.info(f"Using bio as fallback ({len(bios)} chars)")
+
+        
 
         # Determine conversation language - use NPC's language if set, otherwise global language
         conversation_language = self.__language['language']
@@ -503,7 +760,8 @@ class Context:
                 conversation_summary=content[1],
                 conversation_summaries=content[1],
                 actions = actions,
-                wiki = wiki
+                wiki = "",  # Deprecated: kept for backwards compatibility, content now in {bio}
+                game_context = game_context
                 )
             if self.__client.is_too_long(result, self.TOKEN_LIMIT_PERCENT):
                 if content[0] != "":

@@ -83,6 +83,7 @@ class Conversation:
         self.__end_conversation_keywords = utils.parse_keywords(context_for_conversation.config.end_conversation_keyword)
         self.__awaiting_action_result: bool = False
         self.__dynamic_vocab: str = ""  # LLM-generated vocabulary for Whisper
+        self.__waiting_for_game_context: bool = False  # Delay LLM until game context arrives (for two-way communication)
 
     @property
     def has_already_ended(self) -> bool:
@@ -103,6 +104,14 @@ class Conversation:
     @property
     def stt(self) -> Transcriber | None:
         return self.__stt
+    
+    @property
+    def waiting_for_game_context(self) -> bool:
+        return self.__waiting_for_game_context
+    
+    @waiting_for_game_context.setter
+    def waiting_for_game_context(self, value: bool):
+        self.__waiting_for_game_context = value
     
     @utils.time_it
     def add_or_update_character(self, new_character: list[Character]):
@@ -142,10 +151,28 @@ class Conversation:
         if greeting:
             greeting = self.update_game_events(greeting)
             self.__messages.add_message(greeting)
+            # If waiting for game context (two-way communication), delay LLM call
+            if self.__waiting_for_game_context:
+                logger.info("Delaying LLM call - waiting for game context from Papyrus/simulator")
+                return comm_consts.KEY_REPLYTYPE_NPCTALK, None
             self.__start_generating_npc_sentences()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, None
         else:
             return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
+    
+    def start_generation_after_context(self):
+        """Start LLM generation after game context has been received.
+        
+        Called when two-way communication completes and game context is available.
+        """
+        if self.__waiting_for_game_context:
+            logger.info("Game context received - starting LLM generation now")
+            self.__waiting_for_game_context = False
+            # Update the prompt with new game context
+            self.__update_conversation_type()
+            self.__start_generating_npc_sentences()
+            return True
+        return False
 
     @utils.time_it
     def continue_conversation(self) -> tuple[str, Sentence | None]:
@@ -432,10 +459,14 @@ class Conversation:
             custom_context_values (dict[str, Any]): the current set of context values
             game_days (float): the full game timestamp (days.fraction)
         """
+        logger.debug(f"conversation.update_context called, custom_context_values keys: {list(custom_context_values.keys()) if custom_context_values else []}")
         self.__context.update_context(location, time, custom_ingame_events, weather, npcs_nearby, custom_context_values, config_settings, game_days)
-        if self.__context.have_actors_changed:
+        logger.debug(f"After context.update_context: actors_changed={self.__context.have_actors_changed}, game_context_changed={self.__context.game_context_changed}")
+        if self.__context.have_actors_changed or self.__context.game_context_changed:
+            logger.info(f"Regenerating prompt (actors_changed={self.__context.have_actors_changed}, game_context_changed={self.__context.game_context_changed})")
             self.__update_conversation_type()
             self.__context.have_actors_changed = False
+            self.__context.game_context_changed = False
 
     @utils.time_it
     def __update_conversation_type(self):
@@ -453,12 +484,19 @@ class Conversation:
             else:
                 self.__conversation_type = pc_to_npc(self.__context.config)
 
-            new_prompt = self.__conversation_type.generate_prompt(self.__context)        
+            logger.info(f"Generating new prompt with conversation_type={type(self.__conversation_type).__name__}")
+            new_prompt = self.__conversation_type.generate_prompt(self.__context)
+            # Check if game_context is in the generated prompt
+            has_game_context = "<game_context>" in new_prompt
+            logger.info(f"Generated prompt has game_context: {has_game_context}, prompt length: {len(new_prompt)}")
+            
             if len(self.__messages) == 0:
                 self.__messages: message_thread = message_thread(self.__context.config, new_prompt)
             else:
                 self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
                 self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
+        else:
+            logger.warning("__update_conversation_type skipped: conversation has already ended")
 
     @utils.time_it
     def update_game_events(self, message: UserMessage) -> UserMessage:

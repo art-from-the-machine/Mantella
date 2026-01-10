@@ -40,6 +40,182 @@ def play_audio(filename: str):
         logging.error(f"Could not play audio: {e}")
 
 
+class GameContextSimulator:
+    """Simulates all game context data that Papyrus would gather."""
+    
+    # Simulated quest database - maps decimal FormID to (quest_name, status, stage)
+    SIMULATED_QUESTS = {
+        # Preston Garvey quests
+        1703964: ("When Freedom Calls", "running", 50),
+        1160046: ("Sanctuary", "completed", 0),
+        238679: ("The First Step", "not_started", 0),
+        726866: ("Taking Independence", "running", 100),
+        1270569: ("Old Guns", "not_started", 0),
+        1495094: ("Inside Job", "not_started", 0),
+        776964: ("Form Ranks", "not_started", 0),
+        1099338: ("Defend the Castle", "not_started", 0),
+        # Nick Valentine quests
+        106457: ("Long Time Coming", "running", 100),
+        # General quests
+        106969: ("Out of Time", "completed", 0),
+    }
+    
+    # Simulated player state
+    PLAYER_STATE = {
+        "level": 15,
+        "weapon": "10mm Pistol",
+        "power_armor": False,
+        "sneaking": False,
+        "in_combat": False,
+        "health_percent": 0.85,
+        "rad_percent": 0.05
+    }
+    
+    # Simulated nearby NPCs (name, distance, role)
+    NEARBY_NPCS = [
+        ("Sturges", 150, "settler"),
+        ("Mama Murphy", 200, "settler"),
+        ("Marcy Long", 180, "settler"),
+        ("Jun Long", 190, "settler"),
+    ]
+    
+    # Simulated NPC roles for conversation participants
+    NPC_ROLES = {
+        "Preston Garvey": {
+            "companion": True,
+            "relationship": 3,  # Ally
+            "faction": "minutemen",
+            "essential": True
+        },
+        "Piper Wright": {
+            "companion": True,
+            "relationship": 2,  # Confidant
+            "faction": "companion",
+            "essential": True
+        },
+        "Nick Valentine": {
+            "companion": True,
+            "relationship": 2,
+            "faction": "companion",
+            "essential": True
+        },
+        "Sturges": {
+            "companion": False,
+            "relationship": 1,  # Friend
+            "faction": "settler",
+            "essential": False
+        }
+    }
+    
+    # Simulated location
+    LOCATION = {
+        "name": "Sanctuary Hills",
+        "type": "settlement",
+        "interior": False
+    }
+    
+    def get_player_state_string(self) -> str:
+        """Generate player state string like Papyrus would."""
+        parts = [f"level:{self.PLAYER_STATE['level']}"]
+        
+        if self.PLAYER_STATE["weapon"]:
+            parts.append(f"weapon:{self.PLAYER_STATE['weapon']}")
+        if self.PLAYER_STATE["power_armor"]:
+            parts.append("power_armor")
+        if self.PLAYER_STATE["sneaking"]:
+            parts.append("sneaking")
+        if self.PLAYER_STATE["in_combat"]:
+            parts.append("in_combat")
+        
+        return "|".join(parts)
+    
+    def get_nearby_npcs_string(self) -> str:
+        """Generate nearby NPCs string like Papyrus would."""
+        entries = []
+        for name, distance, role in self.NEARBY_NPCS:
+            entries.append(f"{name}:{distance}:{role}")
+        return "|".join(entries)
+    
+    def get_npc_role_string(self, npc_name: str) -> str:
+        """Generate NPC role string for a specific NPC."""
+        if npc_name not in self.NPC_ROLES:
+            return "relationship:0"
+        
+        role = self.NPC_ROLES[npc_name]
+        parts = []
+        
+        if role.get("companion"):
+            parts.append("companion")
+        
+        parts.append(f"relationship:{role.get('relationship', 0)}")
+        
+        if role.get("faction"):
+            parts.append(f"faction:{role['faction']}")
+        
+        if role.get("essential"):
+            parts.append("essential")
+        
+        return "|".join(parts)
+    
+    def get_location_string(self) -> str:
+        """Generate location string like Papyrus would."""
+        parts = []
+        if self.LOCATION.get("name"):
+            parts.append(f"name:{self.LOCATION['name']}")
+        
+        if self.LOCATION.get("interior"):
+            parts.append("interior")
+        else:
+            parts.append("exterior")
+        
+        return "|".join(parts)
+    
+    def simulate_quest_check(self, quest_ids: list[int]) -> str:
+        """Simulate Papyrus CheckQuestsFromFormIDs function."""
+        if not quest_ids:
+            return ""
+        
+        results = []
+        for form_id in quest_ids:
+            if form_id in self.SIMULATED_QUESTS:
+                name, status, stage = self.SIMULATED_QUESTS[form_id]
+                if status == "completed":
+                    results.append(f"{name}:completed")
+                elif status == "running":
+                    results.append(f"{name}:running:{stage}")
+                else:
+                    results.append(f"{name}:not_started")
+        
+        return "|".join(results)
+    
+    def get_full_context(self, npc_name: str, quest_ids: list[int] | None = None) -> dict:
+        """Get all simulated game context values."""
+        context = {
+            # Player state
+            comm_consts.KEY_CONTEXT_PLAYER_STATE: self.get_player_state_string(),
+            "mantella_player_health_percent": self.PLAYER_STATE["health_percent"],
+            "mantella_player_rad_percent": self.PLAYER_STATE["rad_percent"],
+            
+            # Nearby NPCs
+            comm_consts.KEY_CONTEXT_NEARBY_NPCS: self.get_nearby_npcs_string(),
+            
+            # NPC role
+            comm_consts.KEY_CONTEXT_NPC_ROLE: self.get_npc_role_string(npc_name),
+            
+            # Location
+            comm_consts.KEY_CONTEXT_LOCATION_TYPE: self.get_location_string(),
+        }
+        
+        # Quest context if quest IDs provided
+        if quest_ids:
+            quest_string = self.simulate_quest_check(quest_ids)
+            if quest_string:
+                context[comm_consts.KEY_CONTEXT_NPC_QUESTS] = quest_string
+                logging.info(f"🎮 Quest context: {quest_string}")
+        
+        return context
+
+
 class GameClientSimulator:
     """Simulates a game client sending HTTP requests to Mantella server"""
     
@@ -52,6 +228,10 @@ class GameClientSimulator:
         self.server_url = f"{server_url}/mantella"
         self.session = requests.Session()
         self.turn_counter = 0
+        self.pending_quest_context = ""  # Simulates Papyrus _pendingQuestContext
+        self.game_context = GameContextSimulator()
+        self.current_npc_name = ""
+        self.pending_quest_ids: list[int] = []
         
     def send_request(self, request_data: dict) -> dict:
         """Send an HTTP POST request to Mantella server
@@ -67,7 +247,7 @@ class GameClientSimulator:
             response = self.session.post(
                 self.server_url,
                 json=request_data,
-                timeout=60  # 2 minutes for mic input + STT processing
+                timeout=120  # 2 minutes for mic input + STT processing
             )
             response.raise_for_status()
             response_data = response.json()
@@ -101,6 +281,8 @@ class GameClientSimulator:
         Returns:
             Server response
         """
+        self.current_npc_name = npc_data['name']
+        
         # Parse NPC data
         base_id = npc_data['base_id']
         try:
@@ -183,6 +365,17 @@ class GameClientSimulator:
                 comm_consts.KEY_CONTEXT_CUSTOMVALUES: {}
             }
         
+        # Add ALL game context (simulates BuildCustomContextValues in Papyrus)
+        if comm_consts.KEY_CONTEXT_CUSTOMVALUES not in context:
+            context[comm_consts.KEY_CONTEXT_CUSTOMVALUES] = {}
+        
+        # Get full simulated game context
+        game_ctx = self.game_context.get_full_context(
+            self.current_npc_name, 
+            self.pending_quest_ids if self.pending_quest_ids else None
+        )
+        context[comm_consts.KEY_CONTEXT_CUSTOMVALUES].update(game_ctx)
+        
         request = {
             comm_consts.KEY_REQUESTTYPE: comm_consts.KEY_REQUESTTYPE_CONTINUECONVERSATION,
             comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE: 1,
@@ -210,6 +403,16 @@ class GameClientSimulator:
                 comm_consts.KEY_CONTEXT_CUSTOMVALUES: {}
             }
         
+        # Add ALL game context
+        if comm_consts.KEY_CONTEXT_CUSTOMVALUES not in context:
+            context[comm_consts.KEY_CONTEXT_CUSTOMVALUES] = {}
+        
+        game_ctx = self.game_context.get_full_context(
+            self.current_npc_name,
+            self.pending_quest_ids if self.pending_quest_ids else None
+        )
+        context[comm_consts.KEY_CONTEXT_CUSTOMVALUES].update(game_ctx)
+        
         request = {
             comm_consts.KEY_REQUESTTYPE: comm_consts.KEY_REQUESTTYPE_PLAYERINPUT,
             comm_consts.KEY_REQUESTTYPE_PLAYERINPUT: player_text,
@@ -227,6 +430,19 @@ class GameClientSimulator:
         
         logging.info("Sending END CONVERSATION request...")
         return self.send_request(request)
+    
+    def process_start_response(self, response: dict) -> None:
+        """Process start_conversation_completed response like Papyrus does
+        
+        Extracts quest IDs and stores them for later use.
+        """
+        if comm_consts.KEY_QUEST_IDS_TO_CHECK in response:
+            quest_ids = response[comm_consts.KEY_QUEST_IDS_TO_CHECK]
+            logging.info(f"📋 Received quest FormIDs to check: {quest_ids}")
+            self.pending_quest_ids = quest_ids
+        else:
+            logging.info("📋 No quest IDs received from server")
+            self.pending_quest_ids = []
 
 
 def select_npc() -> dict:
@@ -244,9 +460,29 @@ def select_npc() -> dict:
     for i, npc in enumerate(npcs[:10], 1):
         print(f"  {i}. {npc['name']}")
     
-    choice = input(f"\n👉 Select NPC (1-10) or press Enter for first: ").strip()
-    idx = int(choice) - 1 if choice else 0
-    selected = npcs[idx]
+    choice = input(f"\n👉 Enter number (1-10), name to search, or Enter for first: ").strip()
+    
+    if not choice:
+        selected = npcs[0]
+    elif choice.isdigit():
+        idx = int(choice) - 1
+        selected = npcs[idx]
+    else:
+        # Search by name (case-insensitive)
+        matches = [n for n in npcs if choice.lower() in n['name'].lower()]
+        if not matches:
+            print(f"❌ No NPC found matching '{choice}'")
+            return select_npc()
+        elif len(matches) == 1:
+            selected = matches[0]
+        else:
+            print(f"\n🔍 Found {len(matches)} matches:")
+            for i, npc in enumerate(matches[:10], 1):
+                print(f"  {i}. {npc['name']}")
+            sub_choice = input(f"\n👉 Select (1-{min(10, len(matches))}): ").strip()
+            idx = int(sub_choice) - 1 if sub_choice else 0
+            selected = matches[idx]
+    
     print(f"\n✓ Selected: {selected['name']}\n")
     return selected
 
@@ -299,8 +535,17 @@ def main():
     # Select NPC
     selected_npc = select_npc()
     
+    # Show simulated game context
     print("="*60)
-    print("Starting Conversation")
+    print("Simulated Game Context:")
+    print("="*60)
+    print(f"  Player: Level {client.game_context.PLAYER_STATE['level']}, {client.game_context.PLAYER_STATE['weapon']}")
+    print(f"  Location: {client.game_context.LOCATION['name']}")
+    print(f"  NPC Role: {client.game_context.get_npc_role_string(selected_npc['name'])}")
+    print(f"  Nearby: {', '.join(n[0] for n in client.game_context.NEARBY_NPCS)}")
+    print("="*60)
+    
+    print("\nStarting Conversation")
     print("="*60)
     if USE_MICROPHONE:
         print("\n🎤 Speak into your microphone when prompted")
@@ -311,6 +556,11 @@ def main():
     # Start conversation
     start_response = client.start_conversation(selected_npc, use_microphone=USE_MICROPHONE)
     print(f"✓ Conversation started: {start_response.get(comm_consts.KEY_REPLYTYPE)}")
+    
+    # Process the response like Papyrus does (check for quest IDs)
+    client.process_start_response(start_response)
+    if client.pending_quest_ids:
+        print(f"📋 Will send quest context for {len(client.pending_quest_ids)} quests")
     
     # Base context for conversation
     base_context = {
@@ -398,8 +648,6 @@ def main():
                 # Check if events need updating
                 if player_reply_type == comm_consts.KEY_REQUESTTYPE_TTS:
                     logging.info("Events updated, re-sending player input...")
-                    # In real game, you would update context and resend with the same text
-                    # Use the transcribed/typed text from before
                     player_response = client.player_input(player_text, current_context)
                     player_reply_type = player_response.get(comm_consts.KEY_REPLYTYPE)
                 
@@ -435,4 +683,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

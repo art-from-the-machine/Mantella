@@ -89,7 +89,7 @@ class Gameable(ABC):
     def __get_character_df(self, file_name: str) -> pd.DataFrame:
         encoding = utils.get_file_encoding(file_name)
         character_df = pd.read_csv(file_name, engine='python', encoding=encoding)
-
+        character_df['wiki'] = ""
         return character_df
     
     @abstractmethod
@@ -375,15 +375,17 @@ class Gameable(ABC):
             logger.info(f"[OVERRIDE {source_type}] Setting prompt_name='{content['name']}'")
             self.character_df.loc[matcher, 'prompt_name'] = content['name']
         
-        # Update other fields
-        for col in column_headers:
+        # Update all fields including wiki
+        for col in column_headers + ['wiki']:  # Include wiki even if not in CSV headers
             if col in self.PROTECTED_OVERRIDE_FIELDS:
                 continue
             value = content.get(col)
-            if value and value != "":
-                preview = str(value)[:50] + "..." if len(str(value)) > 50 else str(value)
-                logger.info(f"[OVERRIDE {source_type}] Setting {col}='{preview}'")
-                self.character_df.loc[matcher, col] = value
+            # Skip None values (YAML null) and empty strings
+            if value is None or value == "":
+                continue
+            preview = str(value)[:50] + "..." if len(str(value)) > 50 else str(value)
+            logger.info(f"[OVERRIDE {source_type}] Setting {col}='{preview}'")
+            self.character_df.loc[matcher, col] = value
 
     @utils.time_it
     def _create_all_voice_folders(self, mod_path: str, voice_folder_col: str):

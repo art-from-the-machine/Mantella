@@ -1,11 +1,12 @@
 class external_character_info:
     """_summary_
     """
-    def __init__(self, name: str, is_generic_npc: bool, bio: str, ingame_voice_model: str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, voice_language: str, prompt_name: str = None) -> None:
+    def __init__(self, name: str, is_generic_npc: bool, bio: str, ingame_voice_model: str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, voice_language: str, prompt_name: str = None, wiki: str = "") -> None:
         self.__name: str = name
         self.__prompt_name: str = prompt_name if prompt_name else name
         self.__is_generic_npc: bool = is_generic_npc
         self.__bio: str = bio
+        self.__wiki: str = wiki
         self.__ingame_voice_model: str = ingame_voice_model
         self.__tts_voice_model: str = tts_voice_model  
         self.__csv_in_game_voice_model: str = csv_in_game_voice_model
@@ -28,6 +29,10 @@ class external_character_info:
     @property
     def bio(self) -> str:
         return self.__bio
+    
+    @property
+    def wiki(self) -> str:
+        return self.__wiki
     
     @property
     def ingame_voice_model(self) -> str:

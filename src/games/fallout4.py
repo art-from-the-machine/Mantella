@@ -82,21 +82,16 @@ class Fallout4(Gameable):
         logger.info(f"[LOAD CHAR DEBUG] character_info keys: {list(character_info.keys())}")
         logger.info(f"[LOAD CHAR DEBUG] name='{character_info.get('name')}', prompt_name='{character_info.get('prompt_name', 'NOT SET')}'")
 
-        # Enrich bio with wiki content if available
         bio = character_info.get("bio", "")
-        bio_url = character_info.get("bio_url", "")
-        
-        if bio_url and not is_generic_npc:
-            wiki_content = self.__wiki_fetcher.get_character_wiki(bio_url, character_info.get("name", name))
-            if wiki_content:
-                # Append wiki content after existing bio
-                if bio:
-                    bio = f"{bio}\n\n{wiki_content}"
-                else:
-                    bio = wiki_content
-                logger.info(f"[WIKI] Enriched bio for {character_info.get('name')} with wiki content")
+        wiki = character_info.get("wiki", "")
 
-        return external_character_info(character_info["name"], is_generic_npc, bio, actor_voice_model_name, character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None), character_info.get('voice_language', None), character_info.get('prompt_name', None)) 
+        return external_character_info(
+            character_info["name"], is_generic_npc, bio, actor_voice_model_name, 
+            character_info['voice_model'], character_info['fallout4_voice_folder'], 
+            character_info['advanced_voice_model'], character_info.get('voice_accent', None), 
+            character_info.get('voice_language', None), character_info.get('prompt_name', None),
+            wiki=wiki
+        ) 
     
     @utils.time_it
     def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str, library_search:bool = True) -> str:

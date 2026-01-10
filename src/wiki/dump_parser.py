@@ -264,7 +264,7 @@ class FandomDumpParser:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             title,
-            self._clean_formid(self._get_arg(infobox, 'formid')),
+            self._clean_formid(self._get_arg_raw(infobox, 'formid')),
             self._get_arg(infobox, 'race'),
             self._get_arg(infobox, 'gender'),
             self._get_arg(infobox, 'role'),
@@ -281,7 +281,7 @@ class FandomDumpParser:
             (formid, edid, title, quest_type, location, wiki_content)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (
-            self._clean_formid(self._get_arg(infobox, 'formid')),
+            self._clean_formid(self._get_arg_raw(infobox, 'formid')),
             self._get_arg(infobox, 'edid'),
             title,
             self._get_arg(infobox, 'type'),
@@ -291,15 +291,22 @@ class FandomDumpParser:
         self.stats['quests'] += 1
     
     def _get_arg(self, template, name: str) -> str:
-        """Extract template argument value."""
+        """Extract template argument value (cleaned of markup)."""
         arg = template.get_arg(name)
         if arg and arg.value:
             text = wtp.remove_markup(str(arg.value))
             return ' '.join(text.split()).strip()
         return ""
     
+    def _get_arg_raw(self, template, name: str) -> str:
+        """Extract template argument value (raw, keeps templates like {{ID|...}})."""
+        arg = template.get_arg(name)
+        if arg and arg.value:
+            return str(arg.value).strip()
+        return ""
+    
     def _clean_formid(self, raw: str) -> str:
-        """Clean FormID from template markup."""
+        """Clean FormID from template markup like {{ID|001a001c}}."""
         if not raw:
             return ""
         # Remove {{ID|...}} wrapper

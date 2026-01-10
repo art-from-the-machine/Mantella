@@ -142,6 +142,20 @@ class WikiDB:
         return [dict(row) for row in cur.fetchall()]
     
     # -------------------------------------------------------------------------
+    # Special pages
+    # -------------------------------------------------------------------------
+    
+    def get_quests_overview_page(self) -> Optional[str]:
+        """Get the 'Fallout 4 quests' overview page content.
+        
+        This page has complete tables of all quests with quest givers (NPCs).
+        """
+        page = self.get_page("Fallout 4 quests")
+        if page:
+            return page.get('wiki_content', '')
+        return None
+    
+    # -------------------------------------------------------------------------
     # Stats
     # -------------------------------------------------------------------------
     

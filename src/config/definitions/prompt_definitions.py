@@ -28,7 +28,8 @@ class PromptDefinitions:
                                 "conversation_summary",
                                 "conversation_summaries",
                                 "actions",
-                                "wiki"]
+                                "wiki",
+                                "game_context"]
     
     ALLOWED_PROMPT_VARIABLES_RADIANT = [
                                 "game",
