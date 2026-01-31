@@ -279,7 +279,11 @@ class context:
                     self.__location: str = 'the Commonwealth'
                 else:
                     self.__location: str = "Skyrim"
-            if (self.__location != self.__prev_location) and (self.__prev_location != None):
+            if self.__prev_location is None:
+                # Emit initial location so it appears in conversation history.
+                self.__prev_location = self.__location
+                self.__ingame_events.append(f"The location is now {self.__location}.")
+            elif self.__location != self.__prev_location:
                 self.__prev_location = self.__location
                 self.__ingame_events.append(f"The location is now {location}.")
         
