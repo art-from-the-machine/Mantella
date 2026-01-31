@@ -44,13 +44,13 @@ class Equipment:
         weapons_text = self.format_listing(used_weapon_items)
         equipment_desc = ""
         if weapons_text == "" and armor_text == "":
-            return equipment_desc
+            equipment_desc = f"{character_name} is naked now."
         elif weapons_text == "":
-            equipment_desc = f"{character_name} wears {armor_text}."
+            equipment_desc = f"All the outfits that {character_name} wears are {armor_text}."
         elif armor_text == "":
-            equipment_desc = f"{character_name} uses {weapons_text}."
+            equipment_desc = f"{character_name} is naked now."
         else:
-            equipment_desc = f"{character_name} wears {armor_text} and uses {weapons_text}."
+            equipment_desc = f"All the outfits that {character_name} wears are {armor_text}. {character_name} uses {weapons_text}."
         return utils.remove_extra_whitespace(equipment_desc)
 
     @staticmethod

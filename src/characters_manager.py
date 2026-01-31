@@ -41,6 +41,7 @@ class Characters:
             self.__active_characters[new_character.name].is_in_combat = new_character.is_in_combat
             self.__active_characters[new_character.name].relationship_rank = new_character.relationship_rank
             self.__active_characters[new_character.name].custom_character_values = new_character.custom_character_values
+            self.__active_characters[new_character.name].equipment = new_character.equipment
     
     @utils.time_it
     def remove_character(self, character_to_remove: Character):

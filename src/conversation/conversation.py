@@ -333,22 +333,12 @@ class Conversation:
             custom_ingame_events (list[str]): a list of events that happend since the last update
             custom_context_values (dict[str, Any]): the current set of context values
         """
-        # Snapshot prompt-relevant values so we can refresh the system prompt if they change.
-        old_location = self.__context.location
-        old_time = self.__context.ingame_time
-        old_weather = self.__context.weather
-
         self.__context.update_context(location, time, custom_ingame_events, weather, custom_context_values)
 
-        # Keep {location}/{time}/{weather} in the system prompt aligned with current game state.
-        # Do NOT remove system-generated messages here; that is reserved for actor/type changes.
+        # Always refresh the system prompt so {location}/{time}/{weather}/{equipment}/{player_equipment}
+        # stay aligned with current game state. Do NOT remove system-generated messages here.
         try:
-            prompt_context_changed = (
-                old_location != self.__context.location or
-                old_time != self.__context.ingame_time or
-                old_weather != self.__context.weather
-            )
-            if prompt_context_changed and self.__messages and len(self.__messages) > 0:
+            if self.__messages and len(self.__messages) > 0:
                 new_prompt = self.__conversation_type.generate_prompt(self.__context)
                 is_multi = self.__context.npcs_in_conversation.contains_multiple_npcs()
                 self.__messages.modify_messages(

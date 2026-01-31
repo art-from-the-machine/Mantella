@@ -189,6 +189,10 @@ class Character:
     @property
     def equipment(self) -> Equipment:
         return self.__equipment
+    
+    @equipment.setter
+    def equipment(self, value: Equipment):
+        self.__equipment = value
 
     @property
     def llm_service(self) -> str:
