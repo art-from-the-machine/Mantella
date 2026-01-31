@@ -1,3 +1,10 @@
+import os
+# Disable symlinks for Hugging Face Hub on Windows to avoid privilege issues
+os.environ['HF_HUB_DISABLE_SYMLINKS'] = '1'
+
+# MUST import onnxruntime before pandas to avoid DLL conflicts on Windows
+import onnxruntime  # noqa: F401
+
 from src.http.http_server import http_server
 import traceback
 from src.http.routes.routeable import routeable

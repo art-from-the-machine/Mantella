@@ -43,19 +43,40 @@ def play_audio(filename: str):
 class GameContextSimulator:
     """Simulates all game context data that Papyrus would gather."""
     
-    # Simulated quest database - maps decimal FormID to (quest_name, status, stage)
+    # Simulated quest database - maps decimal FormID to (quest_name, status, stage, locations)
+    # Based on actual game output for Preston Garvey
+    # locations = list of "LocationName (AliasName)" strings for radiant quests (via Lighthouse extender)
     SIMULATED_QUESTS = {
-        # Preston Garvey quests
-        1703964: ("When Freedom Calls", "running", 50),
-        1160046: ("Sanctuary", "completed", 0),
-        238679: ("The First Step", "not_started", 0),
-        726866: ("Taking Independence", "running", 100),
-        1270569: ("Old Guns", "not_started", 0),
-        1495094: ("Inside Job", "not_started", 0),
-        776964: ("Form Ranks", "not_started", 0),
-        1099338: ("Defend the Castle", "not_started", 0),
+        # Preston Garvey / Minutemen main quests
+        1703964: ("When Freedom Calls", "completed", 0, []),  # 0x001A0038
+        238679: ("The First Step", "not_started", 0, []),     # 0x0003A467
+        726866: ("Taking Independence", "not_started", 0, []), # 0x000B1752
+        1270569: ("Old Guns", "not_started", 0, []),          # 0x00136399
+        1099338: ("Defend the Castle", "not_started", 0, []), # 0x0010C64A (note: game shows "Defend The Castle")
+        776964: ("Form Ranks", "not_started", 0, []),         # 0x000BDA44
+        1160046: ("Sanctuary", "completed", 0, []),           # 0x0011B06E
+        1495094: ("Inside Job", "not_started", 0, []),        # 0x0016CF26
+        658758: ("The Nuclear Option", "not_started", 0, []), # 0x000A0D46 (Minutemen ending)
+        1082598: ("With Our Powers Combined", "not_started", 0, []), # 0x00108966
+        527718: ("Out of the Fire", "not_started", 0, []),    # 0x00080D66
+        1245511: ("Troubled Waters", "not_started", 0, []),   # 0x00130147
+        
+        # Preston Garvey radiant quests (with <Alias> placeholders and resolved locations with alias names)
+        622902: ("Raider Troubles at <Alias=ActualLocation>", "running", 50, ["Outpost Zimonja (ActualLocation)", "BADTFL Regional Office (RaiderDungeon)"]),  # 0x00098136
+        622903: ("Clearing the Way for <Alias=ActualLocation>", "not_started", 0, []),
+        622904: ("Defend <Alias=ActualLocation>", "not_started", 0, []),
+        622905: ("Defend the artillery at <Alias=ActualLocation>", "not_started", 0, []),
+        622906: ("Ghoul Problem at <Alias=ActualLocation>", "not_started", 0, []),
+        622907: ("<Alias=ActualLocation>: Greenskins", "not_started", 0, []),  # Super Mutant Troubles
+        622908: ("Kidnapping at <Alias=ActualLocation>", "not_started", 0, []),
+        622909: ("Resettle Refugees at <Alias=HostileWorkshopLocation>", "not_started", 0, []),
+        622910: ("Rogue Courser at <Alias=Dungeon>", "not_started", 0, []),
+        622911: ("Stop the Raiding at <Alias=ActualLocation>", "not_started", 0, []),
+        622912: ("Taking Point: <Alias=HostileWorkshopLocation>", "not_started", 0, []),
+        
         # Nick Valentine quests
-        106457: ("Long Time Coming", "running", 100),
+        106457: ("Long Time Coming", "running", 100, []),
+        
         # General quests
         106969: ("Out of Time", "completed", 0),
     }
@@ -171,20 +192,35 @@ class GameContextSimulator:
         return "|".join(parts)
     
     def simulate_quest_check(self, quest_ids: list[int]) -> str:
-        """Simulate Papyrus CheckQuestsFromFormIDs function."""
+        """Simulate Papyrus CheckQuestsFromFormIDs function.
+        
+        Format: QuestName:status[:stage][:Location1~Location2]
+        Matches actual game output with Lighthouse Papyrus Extender location data.
+        """
         if not quest_ids:
             return ""
         
         results = []
         for form_id in quest_ids:
             if form_id in self.SIMULATED_QUESTS:
-                name, status, stage = self.SIMULATED_QUESTS[form_id]
+                quest_data = self.SIMULATED_QUESTS[form_id]
+                name = quest_data[0]
+                status = quest_data[1]
+                stage = quest_data[2]
+                locations = quest_data[3] if len(quest_data) > 3 else []
+                
+                # Build quest entry: Name:Status[:Stage][:Location1~Location2]
                 if status == "completed":
-                    results.append(f"{name}:completed")
+                    entry = f"{name}:completed"
                 elif status == "running":
-                    results.append(f"{name}:running:{stage}")
+                    entry = f"{name}:running:{stage}"
+                    # Add locations for running radiant quests (via Lighthouse extender)
+                    if locations:
+                        entry += ":" + "~".join(locations)
                 else:
-                    results.append(f"{name}:not_started")
+                    entry = f"{name}:not_started"
+                
+                results.append(entry)
         
         return "|".join(results)
     

@@ -309,8 +309,6 @@ class GameStateManager:
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
                     custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
                     logger.debug(f"Custom context values received: {list(custom_context_values.keys()) if custom_context_values else []}")
-                    if custom_context_values and comm_consts.KEY_CONTEXT_NPC_QUESTS in custom_context_values:
-                        logger.info(f"Quest context in request: {custom_context_values[comm_consts.KEY_CONTEXT_NPC_QUESTS]}")
 
                 self.__talk.update_context(location, time, ingame_events, weather, npcs_nearby, custom_context_values, config_settings, game_days)
     

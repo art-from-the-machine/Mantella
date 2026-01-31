@@ -25,6 +25,7 @@ class LLMClient(ClientBase):
         if config.vision_enabled:
             logger.info(f"Setting up vision language model...")
             self._image_client: ImageClient | None = ImageClient(config, secret_key_file, image_secret_key_file)
+            self._determine_vision_mode(config.game)
 
         if config.advanced_actions_enabled and config.custom_function_model:
             try:

@@ -72,6 +72,7 @@ class ImageManager:
 
         if self.__mock_image_enabled:
             self._load_mock_image()
+            logger.log(23, f"Mock vision enabled - using images from: {self.__mock_image_directory or 'test_images'}")
 
         try:
             ctypes.windll.user32.SetProcessDPIAware()
@@ -258,10 +259,14 @@ class ImageManager:
             str: Base64 encoded JPEG image, or None if capture fails
         '''
         try:
+            # If mock images are enabled and available, use them directly
+            if self.__mock_image_enabled and self.__mock_image_data:
+                logger.log(23, "Using mock image for vision")
+                return self.__mock_image_data
+            
             params = self.capture_params
             if not params:
-                if self.__mock_image_enabled and self.__mock_image_data:
-                    return self.__mock_image_data
+                logger.warning("No capture params available - cannot capture screenshot")
                 return None
   
             # Capture

@@ -55,7 +55,7 @@ class ClientBase(AIClient):
         self._image_client = None
         self._function_client = None
         self._enable_vision_next_call: bool = False
-        self._vision_mode: VisionMode = self._determine_vision_mode()
+        self._vision_mode: VisionMode = VisionMode.DISABLED 
 
         if 'https' in self._base_url: # Cloud LLM
             self._is_local: bool = False
@@ -75,19 +75,24 @@ class ClientBase(AIClient):
         self._encoding = self.__get_model_encoding(api_url, self._model_name)
 
 
-    def _determine_vision_mode(self) -> VisionMode:
+    def _determine_vision_mode(self, game=None):
         """Determine vision operating mode based on configuration and action availability
         
-        Returns:
-            VisionMode: The operating mode for vision
+        Args:
+            game: The game config/enum to check action compatibility against
         """
         if not self._image_client:
-            return VisionMode.DISABLED
+            self._vision_mode = VisionMode.DISABLED
+            return
         
-        if FunctionManager.is_vision_action_active():
-            return VisionMode.ON_DEMAND
+        # Check if vision action is enabled for this specific game
+        if game and FunctionManager.is_vision_action_enabled_for_game(game):
+            self._vision_mode = VisionMode.ON_DEMAND 
         else:
-            return VisionMode.ALWAYS_ON
+            # Vision is enabled but no game-specific vision action - always include images
+            self._vision_mode = VisionMode.ALWAYS_ON
+        
+        logger.log(23, f"Vision mode: {self._vision_mode.value}")
     
     def enable_vision_for_next_call(self):
         """Enable vision for the next streaming_call"""

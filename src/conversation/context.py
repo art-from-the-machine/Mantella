@@ -409,7 +409,8 @@ class Context:
         new_quest_context = custom_context_values.get(communication_constants.KEY_CONTEXT_NPC_QUESTS) if custom_context_values else None
         if new_quest_context and new_quest_context != old_quest_context:
             self.__game_context_changed = True
-            logger.info(f"Game context updated with quest info: {new_quest_context[:100]}..." if len(new_quest_context) > 100 else f"Game context updated: {new_quest_context}")
+            # Log full quest context without truncation so we can see FormIDs and locations
+            logger.info(f"Game context updated with quest info: {new_quest_context}")
         
         self.__custom_context_values = custom_context_values
 

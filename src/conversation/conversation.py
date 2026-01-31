@@ -181,8 +181,6 @@ class Conversation:
         Returns:
             tuple[str, sentence | None]: Returns a tuple consisting of a reply type and an optional sentence
         """
-        if self.has_already_ended:
-            return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None        
         if self.__llm_client.is_too_long(self.__messages, self.TOKEN_LIMIT_PERCENT):
             # Check if conversation too long and if yes initiate intermittent reload
             self.__initiate_reload_conversation()
@@ -208,6 +206,10 @@ class Conversation:
         
         #Grab the next sentence from the queue
         next_sentence: Sentence | None = self.retrieve_sentence_from_queue()
+        
+        # If conversation has ended and no more sentences, return end conversation
+        if self.has_already_ended and not next_sentence:
+            return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None
         
         # Check if this is an action-only sentence (no text, but has actions)
         if next_sentence and len(next_sentence.text.strip()) == 0 and len(next_sentence.actions) > 0:
@@ -646,6 +648,8 @@ class Conversation:
                 if goodbye_sentence:
                     goodbye_sentence.actions.append({'identifier': comm_consts.ACTION_ENDCONVERSATION})
                     self.__sentences.put(goodbye_sentence)
+            # Mark conversation as ended to prevent further continue_conversation calls
+            self.__has_already_ended = True
                     
     @utils.time_it
     def contains_character(self, ref_id: str) -> bool:

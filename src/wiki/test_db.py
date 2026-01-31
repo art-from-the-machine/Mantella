@@ -134,8 +134,12 @@ def lookup_character(name: str):
     db.close()
 
 
-def lookup_quest(title: str):
-    """Look up and save quest data to file (raw only)."""
+def lookup_quest(query: str):
+    """Look up and save quest data to file (raw only).
+    
+    Args:
+        query: Quest title or hex FormID (e.g., "When Freedom Calls" or "001A001C")
+    """
     db = WikiDB()
     
     if not db.is_available:
@@ -143,19 +147,32 @@ def lookup_quest(title: str):
         return
     
     start = time.perf_counter()
-    quest = db.get_quest_by_title(title)
+    
+    # Try lookup by FormID first if query looks like a hex ID
+    quest = None
+    if len(query) <= 8 and all(c in '0123456789ABCDEFabcdef' for c in query):
+        # Looks like a FormID - pad to 8 chars and try lookup
+        formid_hex = query.upper().zfill(8)
+        quest = db.get_quest_by_formid(formid_hex)
+        if quest:
+            print(f"Looked up by FormID: {formid_hex}")
+    
+    # Fallback to title lookup
+    if not quest:
+        quest = db.get_quest_by_title(query)
+    
     lookup_ms = (time.perf_counter() - start) * 1000
     
     print(f"Lookup time: {lookup_ms:.3f} ms")
     
     if not quest:
-        print(f"Quest '{title}' not found")
+        print(f"Quest '{query}' not found")
         
-        matches = db.search_quests(title, limit=10)
+        matches = db.search_quests(query, limit=10)
         if matches:
             print("\nDid you mean:")
             for m in matches:
-                print(f"  - {m['title']}")
+                print(f"  - {m['title']} (FormID: {m['formid']})")
         
         db.close()
         return
@@ -188,7 +205,7 @@ def lookup_quest(title: str):
     full_output = "\n".join(lines)
     
     # Save to file
-    safe_name = title.replace(" ", "_").replace("/", "_").replace(":", "_")
+    safe_name = query.replace(" ", "_").replace("/", "_").replace(":", "_")
     output_file = Path(f"data/Fallout4/wiki_data/{safe_name}_QUEST_RAW.txt")
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(full_output, encoding='utf-8')
@@ -202,6 +219,32 @@ def lookup_quest(title: str):
     print(f"Location: {quest['location']}")
     print(f"Raw wiki: {len(raw)} chars")
     print(f"\nSAVED TO: {output_file.absolute()}")
+    
+    # Show simulated quest context parsing
+    print("\n" + "=" * 60)
+    print("SIMULATED QUEST CONTEXT (what game sends -> what LLM sees)")
+    print("=" * 60)
+    
+    # Convert hex FormID to decimal for simulation
+    try:
+        formid_decimal = int(quest['formid'], 16)
+        
+        # Simulate running quest at stage 50
+        simulated_entry = f"{formid_decimal}:{quest['title']}:running:50"
+        print(f"\nSimulated game entry: {simulated_entry}")
+        
+        # Parse it through quest_context
+        from src.wiki.quest_context import build_quest_context
+        parsed = build_quest_context(simulated_entry)
+        
+        print(f"\nParsed for LLM prompt:")
+        print("-" * 40)
+        if parsed:
+            print(parsed)
+        else:
+            print("(no wiki enrichment available)")
+    except Exception as e:
+        print(f"Error simulating quest context: {e}")
     
     db.close()
 

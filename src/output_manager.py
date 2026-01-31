@@ -267,6 +267,8 @@ class ChatManager:
                                     if vision_requested:
                                         logger.log(23, "Vision requested for next LLM call")
                                         settings.vision_requested = True
+                                        # Enable vision immediately for the next LLM streaming iteration
+                                        self.__client.enable_vision_for_next_call()
                                         # Remove vision from parsed_tools so it doesn't go to the game
                                         parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_npc_vision']
                                     
@@ -313,26 +315,28 @@ class ChatManager:
                             
                             # Only process sentences if we have text content
                             if has_text_response:
+                                # Process all accumulated sentences
                                 while accumulator.has_next_sentence():
                                     current_sentence = accumulator.get_next_sentence()
                                     parsed_sentence: SentenceContent | None = None
+                                    
                                     # Apply parsers
                                     for parser in parser_chain:
                                         if not parsed_sentence:  # Try to extract a complete sentence
                                             parsed_sentence, current_sentence = parser.cut_sentence(current_sentence, settings)
                                         if parsed_sentence:  # Apply modifications if we already have a sentence
                                             parsed_sentence, pending_sentence = parser.modify_sentence_content(parsed_sentence, pending_sentence, settings)
-                                        if settings.stop_generation:
-                                            break
-                                    if settings.stop_generation:
-                                        break
+                                    
                                     accumulator.refuse(current_sentence)
+                                    
                                     # Process sentences from the parser chain
                                     if parsed_sentence:
                                         if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
                                             new_sentence = self.generate_sentence(parsed_sentence)
                                             blocking_queue.put(new_sentence)
                                             parsed_sentence = None
+                                
+                                # Stop consuming more tokens from stream if generation should stop
                                 if settings.stop_generation:
                                     break
                                 if settings.interrupting_action:
@@ -348,10 +352,6 @@ class ChatManager:
                             
                             # LLM chose tools but no text - need to make second call
                             logger.log(23, f"Making second LLM call for text response...")
-                            
-                            # If vision was requested, enable it for the next call
-                            if settings.vision_requested:
-                                self.__client.enable_vision_for_next_call()
                             
                             # Make second call without passing tools to ensure LLM generates text
                             current_tools = None
