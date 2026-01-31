@@ -207,7 +207,12 @@ class LLMServiceProviderFactory:
     
     def get_provider(self, service_name: str) -> LLMServiceProvider | None:
         """Get a service provider by name"""
-        return self._providers.get(service_name.lower().strip())
+        if not service_name:
+            return None
+        normalized = str(service_name).strip().lower()
+        if normalized in ('nan', 'none', 'null', ''):
+            return None
+        return self._providers.get(normalized)
     
     def register_provider(self, provider: LLMServiceProvider) -> None:
         """Register a new service provider"""
@@ -219,7 +224,12 @@ class LLMServiceProviderFactory:
     
     def is_supported_service(self, service_name: str) -> bool:
         """Check if a service is supported"""
-        return service_name.lower().strip() in self._providers
+        if not service_name:
+            return False
+        normalized = str(service_name).strip().lower()
+        if normalized in ('nan', 'none', 'null', ''):
+            return False
+        return normalized in self._providers
 
 
 # Global factory instance
