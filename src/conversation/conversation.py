@@ -519,7 +519,10 @@ class Conversation:
     @utils.time_it
     def __save_summary(self):
         """Saves conversation log and state for each NPC in the conversation"""
-        self.__save_summary_for_characters(self.__messages, self.__context.npcs_in_conversation.get_all_characters())
+        self.__save_summary_for_characters(
+            self.__messages,
+            self.__context.npcs_in_conversation.get_all_characters()
+        )
 
     @utils.time_it
     def save_summary_only(self, is_reload: bool = False) -> None:
@@ -535,7 +538,8 @@ class Conversation:
             self.__save_summary_for_characters(
                 messages_snapshot,
                 self.__context.npcs_in_conversation.get_all_characters(),
-                is_reload=is_reload
+                is_reload=is_reload,
+                force=True
             )
         except Exception as e:
             logging.error(f"save_summary_only failed: {e}", exc_info=True)
@@ -548,7 +552,13 @@ class Conversation:
                 conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
                 
     @utils.time_it
-    def __save_summary_for_characters(self, messages_to_summarize:message_thread, characters_to_save_for: list[Character], is_reload=False):
+    def __save_summary_for_characters(
+        self,
+        messages_to_summarize: message_thread,
+        characters_to_save_for: list[Character],
+        is_reload: bool = False,
+        force: bool = False
+    ):
         characters_object = Characters()
         for npc in characters_to_save_for:
             if not npc.is_player_character:
@@ -557,8 +567,9 @@ class Conversation:
         
        
         
-        # Only save conversation state (which triggers summary generation) if summaries are enabled
-        if self.__context.config.conversation_summary_enabled:
+        # Only save conversation state (which triggers summary generation) if summaries are enabled,
+        # unless explicitly forced (e.g., manual button).
+        if force or self.__context.config.conversation_summary_enabled:
             # Save the summary
             self.__rememberer.save_conversation_state(messages_to_summarize, characters_object, self.__context.world_id, is_reload)
             # Save the log
