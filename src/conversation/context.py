@@ -510,6 +510,27 @@ class context:
         return "\n\n".join(character_sections)
     
     @utils.time_it
+    def get_npc_equipment_snapshot(self) -> str:
+        """Returns a snapshot of all NPC equipment descriptions for comparison purposes.
+        
+        Returns:
+            str: Concatenated equipment descriptions (same format as __get_npc_equipment_text)
+        """
+        return self.__get_npc_equipment_text()
+    
+    @utils.time_it
+    def get_player_equipment_snapshot(self) -> str:
+        """Returns a snapshot of player equipment description for comparison purposes.
+        
+        Returns:
+            str: Player equipment description
+        """
+        player: Character | None = self.__npcs_in_conversation.get_player_character()
+        if player:
+            return player.equipment.get_equipment_description(player.name)
+        return ""
+    
+    @utils.time_it
     def __get_npc_equipment_text(self) -> str:
         """Gets the equipment description of all npcs in the conversation
 

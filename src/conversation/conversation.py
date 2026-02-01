@@ -333,12 +333,28 @@ class Conversation:
             custom_ingame_events (list[str]): a list of events that happend since the last update
             custom_context_values (dict[str, Any]): the current set of context values
         """
+        # Snapshot prompt-relevant values so we can refresh the system prompt if they change.
+        old_location = self.__context.location
+        old_time = self.__context.ingame_time
+        old_weather = self.__context.weather
+        old_equipment = self.__context.get_npc_equipment_snapshot()
+        old_player_equipment = self.__context.get_player_equipment_snapshot()
+
         self.__context.update_context(location, time, custom_ingame_events, weather, custom_context_values)
 
-        # Always refresh the system prompt so {location}/{time}/{weather}/{equipment}/{player_equipment}
-        # stay aligned with current game state. Do NOT remove system-generated messages here.
+        # Keep {location}/{time}/{weather}/{equipment}/{player_equipment} in the system prompt aligned with current game state.
+        # Do NOT remove system-generated messages here; that is reserved for actor/type changes.
         try:
-            if self.__messages and len(self.__messages) > 0:
+            new_equipment = self.__context.get_npc_equipment_snapshot()
+            new_player_equipment = self.__context.get_player_equipment_snapshot()
+            prompt_context_changed = (
+                old_location != self.__context.location or
+                old_time != self.__context.ingame_time or
+                old_weather != self.__context.weather or
+                old_equipment != new_equipment or
+                old_player_equipment != new_player_equipment
+            )
+            if prompt_context_changed and self.__messages and len(self.__messages) > 0:
                 new_prompt = self.__conversation_type.generate_prompt(self.__context)
                 is_multi = self.__context.npcs_in_conversation.contains_multiple_npcs()
                 self.__messages.modify_messages(
