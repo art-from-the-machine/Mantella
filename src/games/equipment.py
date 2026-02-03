@@ -46,11 +46,11 @@ class Equipment:
         if weapons_text == "" and armor_text == "":
             equipment_desc = f"{character_name} is naked now."
         elif weapons_text == "":
-            equipment_desc = f"All the outfits that {character_name} wears are {armor_text}."
+            equipment_desc = f"{character_name} wears {armor_text}."
         elif armor_text == "":
             equipment_desc = f"{character_name} is naked now."
         else:
-            equipment_desc = f"All the outfits that {character_name} wears are {armor_text}. {character_name} uses {weapons_text}."
+            equipment_desc = f"{character_name} wears {armor_text}. {character_name} uses {weapons_text}."
         return utils.remove_extra_whitespace(equipment_desc)
 
     @staticmethod
