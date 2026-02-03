@@ -57,6 +57,7 @@ class ImageClient(ClientBase):
         '''
         image = self.__image_manager.get_image()
         if image is None:
+            logger.error("No image found")
             return openai_messages
         
         # Find the last user message by walking backwards, skipping assistant/tool messages
@@ -68,6 +69,7 @@ class ImageClient(ClientBase):
         
         if not self.__custom_vision_model:
             # Add the image to the last user message or create a new message if needed
+            logger.debug(f"Adding image to messages: {len(openai_messages)} messages")
             if last_user_message_idx is not None:
                 openai_messages[last_user_message_idx]['content'] = [
                     {"type": "text", "text": openai_messages[last_user_message_idx]['content']},

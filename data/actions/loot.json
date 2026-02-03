@@ -1,20 +1,26 @@
 {
     "identifier": "mantella_npc_loot",
     "name": "Loot",
-    "description": "Make NPC(s) loot items in the area.",
+    "description": "Make NPC(s) scavenge or loot items in the area.",
     "key": "Loot",
     "enabled": true,
     "parameters": {
         "source": {
             "type": "array",
-            "description": "The NPC(s) who will loot items in the area.",
+            "description": "The NPC(s) who will scavenge or loot items in the area.",
             "items": {"type": "string"},
             "scope": "conversation"
+        },
+        "mode": {
+            "type": "string",
+            "description": "The type of items to scavenge.",
+            "enum": ["weapons", "armor", "junk", "consumables", "any"],
+            "default": "any"
         }
     },
     "required": ["source"],
-    "prompt": "If the player asks you to loot, begin your response with '{key}:'",
-    "allowed_games": ["skyrim"],
+    "prompt": "If the player asks you to scavenge or loot items, begin your response with '{key}:'",
+    "allowed_games": ["skyrim", "skyrimvr", "fallout4", "fallout4vr"],
     "requires_response": false,
     "is-interrupting": false,
     "allow_repeat": false,

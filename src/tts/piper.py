@@ -163,7 +163,7 @@ class Piper(TTSable):
             return None
 
     @utils.time_it
-    def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None, voice_gender: str | None = None, voice_race: str | None = None):
+    def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None, voice_gender: str | None = None, voice_race: str | None = None, voice_language: str | None = None):
         if voice_gender is not None:
             self._current_actor_gender = voice_gender
         if voice_race is not None:

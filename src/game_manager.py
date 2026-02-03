@@ -1,6 +1,7 @@
 from typing import Any, Hashable
 import regex
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
+from src.config.definitions.game_definitions import GameEnum
 from src.games.equipment import Equipment, EquipmentItem
 from src.games.external_character_info import external_character_info
 from src.games.gameable import Gameable
@@ -68,12 +69,27 @@ class GameStateManager:
         self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt, self.__game)
         self.__update_context(input_json)
         self.__try_preload_voice_model()
-        self.__talk.start_conversation()
-            
-        return {
-            comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED,
-            comm_consts.KEY_STARTCONVERSATION_USENARRATOR: self.__conv_has_narrator}
         
+        # Build response
+        response: dict[str, Any] = {
+            comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED,
+            comm_consts.KEY_STARTCONVERSATION_USENARRATOR: self.__conv_has_narrator
+        }
+        
+        # For Fallout 4: Look up quest FormIDs for the NPC so Papyrus can check their status
+        # If quest IDs are found, delay LLM call until game sends back quest context
+        if self.__config.game.base_game == GameEnum.FALLOUT4:
+            quest_ids = self._get_quest_ids_for_conversation(input_json)
+            if quest_ids:
+                logger.info(f"Quest FormIDs for conversation: {quest_ids} - delaying LLM until context arrives")
+                response[comm_consts.KEY_QUEST_IDS_TO_CHECK] = quest_ids
+                # Delay LLM call until game sends back quest context
+                self.__talk.waiting_for_game_context = True
+        
+        self.__talk.start_conversation()
+        
+        return response
+    
     
     @utils.time_it
     def continue_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
@@ -92,6 +108,10 @@ class GameStateManager:
         topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
 
         self.__update_context(input_json)
+        
+        # If we were waiting for game context (two-way communication), start LLM now
+        if self.__talk.waiting_for_game_context:
+            self.__talk.start_generation_after_context()
 
         if self.__talk.resume_after_interrupting_action():
             logger.log(23, "Resuming conversation after interrupting action result")
@@ -287,6 +307,7 @@ class GameStateManager:
 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
                     custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
+                    logger.debug(f"Custom context values received: {list(custom_context_values.keys()) if custom_context_values else []}")
 
                 self.__talk.update_context(location, time, ingame_events, weather, npcs_nearby, custom_context_values, config_settings, game_days)
     
@@ -310,7 +331,7 @@ class GameStateManager:
             gender: int = int(json[comm_consts.KEY_ACTOR_GENDER])
             race: str = str(json[comm_consts.KEY_ACTOR_RACE])
             actor_voice_model: str = str(json[comm_consts.KEY_ACTOR_VOICETYPE])
-            ingame_voice_model: str = actor_voice_model.split('<')[1].split(' ')[0]
+            ingame_voice_model: str = actor_voice_model.split('<')[1].split('>')[0]
             is_in_combat: bool = bool(json[comm_consts.KEY_ACTOR_ISINCOMBAT])
             is_enemy: bool = bool(json[comm_consts.KEY_ACTOR_ISENEMY])
             relationship_rank: int = int(json[comm_consts.KEY_ACTOR_RELATIONSHIPRANK])
@@ -324,31 +345,42 @@ class GameStateManager:
                 equipment = Equipment(self.__convert_to_equipment_item_dictionary(json[comm_consts.KEY_ACTOR_EQUIPMENT]))
             is_generic_npc: bool = False
             bio: str = ""
+            wiki: str = ""
             tts_voice_model: str = ""
             csv_in_game_voice_model: str = ""
             advanced_voice_model: str = ""
             voice_accent: str = ""
+            voice_language: str = ""
+            prompt_name: str = None
             is_player_character: bool = bool(json[comm_consts.KEY_ACTOR_ISPLAYER])
             if self.__talk and self.__talk.contains_character(ref_id):
                 already_loaded_character: Character | None = self.__talk.get_character(ref_id)
                 if already_loaded_character:
                     bio = already_loaded_character.bio
+                    wiki = already_loaded_character.wiki
                     tts_voice_model = already_loaded_character.tts_voice_model
                     csv_in_game_voice_model = already_loaded_character.csv_in_game_voice_model
                     advanced_voice_model = already_loaded_character.advanced_voice_model
                     voice_accent = already_loaded_character.voice_accent
+                    voice_language = already_loaded_character.voice_language
                     is_generic_npc = already_loaded_character.is_generic_npc
+                    prompt_name = already_loaded_character.prompt_name
             elif self.__talk and not is_player_character :#If this is not the player and the character has not already been loaded
                 external_info: external_character_info = self.__game.load_external_character_info(base_id, character_name, race, gender, actor_voice_model)
                 
+                # DEBUG: Log external_info to track override issues                
                 bio = external_info.bio
+                wiki = external_info.wiki
                 tts_voice_model = external_info.tts_voice_model
                 csv_in_game_voice_model = external_info.csv_in_game_voice_model
                 advanced_voice_model = external_info.advanced_voice_model
                 voice_accent = external_info.voice_accent
+                voice_language = external_info.voice_language
                 is_generic_npc = external_info.is_generic_npc
+                # Always use the name from external_info (CSV/override), not the game name
+                character_name = external_info.name
+                prompt_name = external_info.prompt_name
                 if is_generic_npc:
-                    character_name = external_info.name
                     ingame_voice_model = external_info.ingame_voice_model
             elif self.__talk and is_player_character and self.__config.voice_player_input:
                 if custom_values.__contains__(comm_consts.KEY_ACTOR_PC_VOICEMODEL):
@@ -372,14 +404,60 @@ class GameStateManager:
                             csv_in_game_voice_model,
                             advanced_voice_model,
                             voice_accent,
+                            voice_language,
                             equipment,
-                            custom_values)
+                            custom_values,
+                            prompt_name,
+                            wiki=wiki)
         except CharacterDoesNotExist:                 
             logger.error('Character not loaded. Restarting...')
             return None 
         except Exception as e:
             logger.error(f'Error loading character: {e}')
             return None
+    
+    def _get_quest_ids_for_conversation(self, input_json: dict[str, Any]) -> list[int]:
+        """Look up quest FormIDs for the NPCs in conversation.
+        
+        Returns list of decimal FormIDs that Papyrus can check for quest status.
+        Uses int array since F4SE_HTTP supports getIntArray.
+        """
+        try:
+            from src.wiki.quest_lookup import get_quest_lookup
+            
+            actors = input_json.get(comm_consts.KEY_ACTORS, [])
+            if not actors:
+                return []
+            
+            # Get quest lookup (uses singleton)
+            quest_lookup = get_quest_lookup()
+            if not quest_lookup.is_available:
+                return []
+            
+            all_formids: list[int] = []
+            for actor_json in actors:
+                # Skip player character
+                if actor_json.get(comm_consts.KEY_ACTOR_ISPLAYER, False):
+                    continue
+                
+                npc_name = actor_json.get(comm_consts.KEY_ACTOR_NAME, "")
+                if npc_name:
+                    # get_quest_formids_for_npc returns decimal strings
+                    formid_strs = quest_lookup.get_quest_formids_for_npc(npc_name)
+                    for fid in formid_strs:
+                        try:
+                            all_formids.append(int(fid))
+                        except ValueError:
+                            pass
+            
+            # Remove duplicates and limit
+            unique_formids = list(dict.fromkeys(all_formids))[:30]  # Max 30 quests
+            logger.info(f"Quest FormIDs for conversation: {unique_formids}")
+            return unique_formids
+            
+        except Exception as e:
+            logger.error(f"Error looking up quest IDs: {e}")
+            return []
         
     def error_message(self, message: str) -> dict[str, Any]:
         return {
@@ -424,7 +502,8 @@ class GameStateManager:
                     character_to_talk.advanced_voice_model, 
                     character_to_talk.voice_accent, 
                     voice_gender=character_to_talk.gender, 
-                    voice_race=character_to_talk.race
+                    voice_race=character_to_talk.race,
+                    voice_language=character_to_talk.voice_language
                 )
             else:
                 return self.error_message("Could not load initial character to talk to. Please try again.")

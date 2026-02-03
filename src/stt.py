@@ -40,6 +40,9 @@ class Transcriber:
     def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str):
         self.loglevel = 27
         self.language = config.stt_language
+        # Convert 'auto' to None for Whisper auto-detection
+        if self.language == 'auto':
+            self.language = None
         self.task = "translate" if config.stt_translate == 1 else "transcribe"
         self.stt_service = config.stt_service
         self.full_moonshine_model = config.moonshine_model
@@ -88,7 +91,7 @@ class Transcriber:
             # if using faster_whisper, load model selected by player, otherwise skip this step
             if not self.external_whisper_service:
                 if self.process_device == 'cuda':
-                    logger.error(f'''Depending on your NVIDIA CUDA version, setting the Whisper process device to `cuda` may cause errors! For more information, see here: https://github.com/SYSTRAN/faster-whisper#gpu''')
+                    logger.warning(f'''Depending on your NVIDIA CUDA version, setting the Whisper process device to `cuda` may cause errors! For more information, see here: https://github.com/SYSTRAN/faster-whisper#gpu''')
                     try:
                         self.transcribe_model = WhisperModel(self.whisper_model, device=self.process_device)
                     except Exception as e:
@@ -221,6 +224,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         if self.stt_service == 'moonshine':
             transcription = self.moonshine_transcribe(audio)
         else:
+            logger.log(self.loglevel, f'whisper_transcribe prompt: {self.prompt}')
             transcription = self.whisper_transcribe(audio, self.prompt)
 
         self.transcription_times.append((time.time() - self._speech_end_time))
@@ -243,8 +247,13 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
     @utils.time_it
     def whisper_transcribe(self, audio: np.ndarray, prompt: str):
         if self.transcribe_model: # local model
-            segments, _ = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=5, vad_filter=False, initial_prompt=prompt)
+            # Higher beam_size = better accuracy but slower (5 is default, 10 is better)
+            # vad_filter=True helps filter out non-speech audio for better transcription
+            segments, info = self.transcribe_model.transcribe(audio, task=self.task, language=self.language, beam_size=10, vad_filter=True, initial_prompt=prompt)
             result_text = ' '.join(segment.text for segment in segments)
+            # Log detected language if auto-detection was used
+            if self.language is None and info.language:
+                logger.log(self.loglevel, f'Detected language: {info.language} (probability: {info.language_probability:.2f})')
             if utils.clean_text(result_text) in self.__ignore_list: # common phrases hallucinated by Whisper
                 return ''
             return result_text
@@ -258,7 +267,11 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         if 'openai' in self.whisper_url: # OpenAI compatible endpoint
             client = self.__generate_sync_client()
             try:
-                response_data = client.audio.transcriptions.create(model=self.whisper_model, language=self.language, file=audio_file, prompt=prompt)
+                # Only pass language if it's set (not None for auto-detection)
+                if self.language is None:
+                    response_data = client.audio.transcriptions.create(model=self.whisper_model, file=audio_file, prompt=prompt)
+                else:
+                    response_data = client.audio.transcriptions.create(model=self.whisper_model, language=self.language, file=audio_file, prompt=prompt)
             except Exception as e:
                 utils.play_error_sound()
                 if e.code in [404, 'model_not_found']:
@@ -347,6 +360,11 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         """Process audio data in a separate thread."""
         lookback_size = self.LOOKBACK_CHUNKS * self.CHUNK_SIZE
         chunk_count = 0
+        debug_counter = 0  # Separate counter for debug logging
+        
+        # Smoothing: keep last N probabilities to avoid ending on brief dips
+        from collections import deque
+        prob_history: deque[float] = deque(maxlen=10)  # ~320ms of history at 32ms/chunk
         
         while self._running:
             try:
@@ -367,16 +385,32 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
                     # Process with VAD
                     probability = self.vad.process(chunk)
+                    prob_history.append(probability)
+                    
+                    # Use smoothed probability for speech-end detection (avoids ending on brief dips)
+                    smoothed_prob = sum(prob_history) / len(prob_history) if prob_history else probability
+                    
+                    # Hysteresis: use lower threshold to END speech (more tolerant during speech)
+                    end_threshold = self.audio_threshold # * 0.5  # Half the start threshold
+                    
+                    # Debug: log probability periodically (~every 2s) - less verbose
+                    debug_counter += 1
+                    # if debug_counter % 60 == 0:
+                    #     logger.debug(f'VAD prob={probability:.3f} smooth={smoothed_prob:.3f} speech={self._speech_detected}')
 
-                    # Handle speech detection
+                    # Handle speech detection (use raw probability for quick detection)
                     if probability > self.audio_threshold:
                         self._last_update_time = time.time()
+                    # # During speech, also update time if above end_threshold (more tolerant)
+                    # elif self._speech_detected and smoothed_prob > end_threshold:
+                    #     self._last_update_time = time.time()
 
                     if probability > self.audio_threshold and not self._speech_detected:
                         logger.log(self.loglevel, 'Speech detected')
                         self._speech_detected = True
 
-                    if probability <= self.audio_threshold and self._speech_detected and time.time() - self._last_update_time > self.pause_threshold:
+                    # Use smoothed probability and lower end_threshold for speech-end
+                    if smoothed_prob <= end_threshold and self._speech_detected and time.time() - self._last_update_time > self.pause_threshold:
                         logger.log(self.loglevel, 'Speech ended')
                         # If proactive mode is disabled, transcribe mic input only when speech end has been detected
                         if not self.proactive_mic_mode:

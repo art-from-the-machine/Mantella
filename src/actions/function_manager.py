@@ -370,8 +370,45 @@ class FunctionManager:
 
     @staticmethod
     def is_vision_action_active() -> bool:
-        """Return True if the Vision action is loaded and enabled"""
+        """Return True if the Vision action is loaded (regardless of game)"""
         return 'mantella_npc_vision' in FunctionManager._actions
+    
+    @staticmethod
+    def is_action_enabled_for_game(action_identifier: str, game) -> bool:
+        """Return True if the action is loaded AND enabled for the specified game
+        
+        Args:
+            action_identifier: The action identifier (e.g., 'mantella_npc_vision')
+            game: The GameEnum with base_game property
+        """
+        if action_identifier not in FunctionManager._actions:
+            return False
+        
+        action = FunctionManager._actions[action_identifier]
+        
+        # Check allowed_games filter
+        allowed_games = action.get('allowed_games')
+        if allowed_games:
+            # GameEnum has base_game which has display_name
+            try:
+                base_game_name = game.base_game.display_name.lower().replace(" ", "")
+            except AttributeError:
+                # Fallback for direct GameEnum or string
+                try:
+                    base_game_name = game.display_name.lower().replace(" ", "")
+                except AttributeError:
+                    base_game_name = str(game).lower().replace(" ", "")
+            
+            cleaned_allowed_games = [g.lower().replace(" ", "") for g in allowed_games]
+            if base_game_name not in cleaned_allowed_games:
+                return False
+        
+        return True
+    
+    @staticmethod
+    def is_vision_action_enabled_for_game(game) -> bool:
+        """Return True if the Vision action is loaded AND enabled for the specified game"""
+        return FunctionManager.is_action_enabled_for_game('mantella_npc_vision', game)
 
     @staticmethod
     def get_action_pause_seconds(identifier: str) -> float:

@@ -27,7 +27,9 @@ class PromptDefinitions:
                                 "language", 
                                 "conversation_summary",
                                 "conversation_summaries",
-                                "actions"]
+                                "actions",
+                                "wiki",
+                                "game_context"]
     
     ALLOWED_PROMPT_VARIABLES_RADIANT = [
                                 "game",
@@ -67,7 +69,8 @@ class PromptDefinitions:
                                 player_description = a description of the player character (needs to be added in game or using the config value)
                                 player_equipment = a basic description of the equipment the player character carries
                                 equipment = a basic description of the equipment the NPCs carry
-                                actions = instructions for the LLM how to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools)"""
+                                actions = instructions for the LLM how to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools)
+                                wiki = wiki information for the NPC (if available in data/Game/wiki/characters/)"""
     
     BASE_RADIANT_DESCRIPTION = """The starting prompt sent to the LLM when a radiant conversation is started.
                                 The following are dynamic variables that need to be contained in curly brackets {}:
@@ -151,16 +154,40 @@ class PromptDefinitions:
 
     @staticmethod
     def get_fallout4_prompt_config_value() -> ConfigValue:
-        fallout4_prompt = """You are {name}, and you live in the post-apocalyptic Commonwealth of Fallout. This is your background: {bio}
-                            Sometimes in-game events will be passed before the player response within. You cannot respond with brackets yourself, they only exist to give context. Here is an example:
-                            (The player picked up a pair of gloves)
-                            Who do you think these belong to?
-                            You are having a conversation with {trust} (the player) in {location}.
-                            This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
-                            {actions}
-                            The time is {time} {time_group}.
-                            The conversation takes place in {language}.
-                            {conversation_summary}"""
+        fallout4_prompt = """<character>
+You are {name}, a wasteland survivor in the post-apocalyptic Commonwealth.
+Background: {bio}
+Note: "Sole Survivor" refers to the player ({player_name}).
+</character>
+
+<context>
+Conversation with {player_name} ({trust}) in {location}.
+Time: {time} {time_group}. Language: {language}.
+</context>
+
+<events>
+In-game events appear in brackets before player text. Example:
+(The player picked up a pair of gloves)
+Who do you think these belong to?
+React to significant events only (combat, danger, important items). Ignore minor events.
+</events>
+
+<transcription>
+Player dialogue is voice-transcribed and may contain phonetic errors.
+Interpret what the player likely meant based on context. Do not correct them or ask for clarification unless truly unclear.
+</transcription>
+
+<output_format>
+Output spoken dialogue only. No parenthetical actions, no asterisks, no stage directions.
+Keep responses brief, 1-3 sentences. This will be spoken aloud.
+Do not repeat what the player said.
+</output_format>
+
+<tone>
+Speak authentically as a wasteland survivor. Use profanity naturally when it fits your character.
+</tone>
+{actions}
+{conversation_summary}"""
         return ConfigValueString("fallout4_prompt","Fallout 4 Prompt",PromptDefinitions.BASE_PROMPT_DESCRIPTION,fallout4_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES)])
 
     @staticmethod
@@ -265,3 +292,19 @@ class PromptDefinitions:
                                 Based on the recent dialogue, call the appropriate functions to execute actions. 
                                 If no actions are needed, do not call any functions."""
         return ConfigValueString("function_llm_prompt","Tool Calling LLM Prompt",description,function_llm_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)])
+    
+    @staticmethod
+    def get_stt_prompt_fallout4_config_value() -> ConfigValue:
+        description = """Static vocabulary to help Whisper recognize Fallout 4 terms.
+                        Dynamic vocabulary (proper nouns from conversation) is added automatically.
+                        Keep under 500 chars - dynamic vocab adds more. Total limit ~900 chars."""
+        default_prompt = """Vault-Tec, Nuka-Cola, Commonwealth, wasteland, caps, RadAway, Stimpak, Brotherhood of Steel, Institute, Railroad, Minutemen, synth, deathclaw, Diamond City, Goodneighbor, Sanctuary Hills, Preston Garvey, Nick Valentine, Piper, Codsworth, Dogmeat, Paladin Danse, Prydwen, Vertibird"""
+        return ConfigValueString("stt_prompt_fallout4", "Fallout 4 STT Vocabulary", description, default_prompt)
+    
+    @staticmethod
+    def get_stt_prompt_skyrim_config_value() -> ConfigValue:
+        description = """Static vocabulary to help Whisper recognize Skyrim terms.
+                        Dynamic vocabulary (proper nouns from conversation) is added automatically.
+                        Keep under 500 chars - dynamic vocab adds more. Total limit ~900 chars."""
+        default_prompt = """Skyrim, Tamriel, Whiterun, Solitude, Riften, Windhelm, Markarth, Dragonborn, Dovahkiin, Thu'um, Fus Ro Dah, Jarl, Thane, septim, skooma, Companions, Thieves Guild, Dark Brotherhood, Stormcloaks, Imperials, Thalmor, Greybeards, Alduin, Paarthurnax, Lydia, Serana, draugr, dragon"""
+        return ConfigValueString("stt_prompt_skyrim", "Skyrim STT Vocabulary", description, default_prompt)

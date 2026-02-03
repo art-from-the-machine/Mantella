@@ -35,6 +35,7 @@ class XTTS(TTSable):
         self.__xtts_accent = config.xtts_accent
         self._language = self._language if self._language != 'zh' else 'zh-cn'
         self.__voice_accent = self._language
+        self.__voice_language = self._language  # Per-NPC language, defaults to global
         self.__official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
         self.__xtts_synthesize_url = f'{self.__xtts_url}/tts_to_audio/'
         self.__xtts_switch_model = f'{self.__xtts_url}/switch_model'
@@ -63,8 +64,8 @@ class XTTS(TTSable):
     
 
     @utils.time_it
-    def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None, voice_gender: int | None = None, voice_race: str | None = None):
-        logger.log(self._loglevel, 'Loading voice model...')
+    def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None, voice_gender: int | None = None, voice_race: str | None = None, voice_language: str | None = None):
+        logger.log(self._loglevel, f'Loading voice model voice: {voice} - in_game_voice: {in_game_voice} - csv_in_game_voice: {csv_in_game_voice} - advanced_voice_model: {advanced_voice_model} - voice_language: {voice_language}')
 
         selected_voice: str | None = self._select_voice_type(voice, in_game_voice, csv_in_game_voice, advanced_voice_model)
 
@@ -92,6 +93,16 @@ class XTTS(TTSable):
                 thread.start()
                 self.__last_model = voice
 
+        # Handle per-NPC language
+        if voice_language:
+            # Normalize language code (e.g., zh -> zh-cn)
+            normalized_language = voice_language if voice_language != 'zh' else 'zh-cn'
+            self.__voice_language = normalized_language
+            logger.log(self._loglevel, f'Set NPC language to: {self.__voice_language}')
+        else:
+            # Reset to global language if not specified
+            self.__voice_language = self._language
+
         if (self.__xtts_accent == 1) and (voice_accent != None):
             if voice_accent == '':
                 self.__voice_accent = self._language
@@ -104,13 +115,13 @@ class XTTS(TTSable):
     def _get_available_models(self):
         # Code to request and return the list of available models
         try:
-            response = requests.get(self.__xtts_get_models_list)
+            response = requests.get(self.__xtts_get_models_list, timeout=10)
             if response.status_code == 200:
                 # Convert each element in the response to lowercase and remove spaces
                 return [model.lower().replace(' ', '') for model in response.json()]
             else:
                 return []
-        except requests.exceptions.ConnectionError as e:
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             logger.warning(e)
             return []
         
@@ -118,20 +129,24 @@ class XTTS(TTSable):
     @utils.time_it
     def _get_available_speakers(self) -> dict[str, Any]:
         # Code to request and return the list of available models
+        # Note: XTTS speaker embeddings are language-agnostic, so we can use English speakers for any language
         try:
-            response = requests.get(self.__xtts_get_speakers_list)
+            response = requests.get(self.__xtts_get_speakers_list, timeout=10)
             if response.status_code == 200:
                 all_speakers = response.json()
                 current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
                 if len(current_language_speakers) == 0: # if there are no speakers for the chosen language, fall back to English voice models
-                    logger.warning(f"No voice models found in XTTS's speakers/{self._language} folder. Attempting to load English voice models instead...")
+                    logger.warning(f"No voice models found in XTTS's speakers/{self._language} folder. Using English voice models instead (speaker embeddings work for all languages)...")
                     self._language = 'en'
                     current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
+                    if len(current_language_speakers) == 0:
+                        logger.error(f"No voice models found in XTTS's speakers/en folder either! Please add speaker WAV files to your XTTS server's speakers/en/ directory.")
                 return current_language_speakers
             else:
+                logger.error(f"Failed to get speakers list from XTTS. Status code: {response.status_code}")
                 return {}
-        except requests.exceptions.ConnectionError as e:
-            logger.warning(e)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            logger.error(f"Could not connect to XTTS speakers endpoint: {e}")
             return {}
     
     
@@ -157,7 +172,7 @@ class XTTS(TTSable):
             # data = np.clip(data, -1.0, 1.0)  # Uncomment if needed
             data_16bit = np.int16(data * 32767)
         elif not np.issubdtype(data.dtype, np.int16):
-            # If data is not floating-point or int16, consider logging or handling this case explicitly
+            # If data is not floating-point or int16, consider logger or handling this case explicitly
             # For simplicity, this example just converts to int16 without scaling
             data_16bit = data.astype(np.int16)
         else:
@@ -171,10 +186,14 @@ class XTTS(TTSable):
     @utils.time_it
     def _select_voice_type(self, voice: str, in_game_voice: str | None, csv_in_game_voice: str | None, advanced_voice_model: str | None):
         # check if model name in each CSV column exists, with advanced_voice_model taking precedence over other columns
+        logger.info(f'Selecting voice from: advanced_voice_model={advanced_voice_model}, voice={voice}, in_game_voice={in_game_voice}, csv_in_game_voice={csv_in_game_voice}')
+        logger.info(f'Available speakers: {self.__available_speakers[:10]}...' if len(self.__available_speakers) > 10 else f'Available speakers: {self.__available_speakers}')
         for voice_type in [advanced_voice_model, voice, in_game_voice, csv_in_game_voice]:
             if voice_type:
                 voice_cleaned = self._sanitize_voice_name(voice_type)
+                logger.info(f'Checking voice_type={voice_type} (cleaned: {voice_cleaned}) - found: {voice_cleaned in self.__available_speakers}')
                 if voice_cleaned in self.__available_speakers:
+                    logger.info(f'Selected voice: {voice_cleaned}')
                     return voice_cleaned
         logger.error(f'Could not find voice model {voice} in XTTS models list')
     
@@ -186,7 +205,7 @@ class XTTS(TTSable):
             data = {
                 'text': line,
                 'speaker_wav': voice_path,
-                'language': self._language,
+                'language': self.__voice_language,  # Use per-NPC language instead of global
                 'accent': self.__voice_accent,
             }
             return requests.post(self.__xtts_synthesize_url, json=data)

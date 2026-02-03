@@ -172,17 +172,20 @@ class UserMessage(Message):
         
 
     def get_formatted_content(self) -> str:
-        result = ""
-        result += self.get_ingame_events_text()
+        # Build player text (with whitespace cleanup)
+        player_text = ""
         if self.__time:
-            result += f"{self.narration_start}The time is {self.__time[0]} {self.__time[1]}.{self.narration_end}\n"
+            player_text += f"{self.narration_start}The time is {self.__time[0]} {self.__time[1]}.{self.narration_end} "
         if self.is_multi_npc_message:
-            result += f"{self.__player_character_name}: "
-        result += f"{self.text}"
-        # if self.is_multi_npc_message:
-        #     result += f"\n[Please respond with replies for as many of your characters as possible.]"
-        result = utils.remove_extra_whitespace(result)
-        return result
+            player_text += f"{self.__player_character_name}: "
+        player_text += self.text
+        player_text = utils.remove_extra_whitespace(player_text)
+        
+        # Events come AFTER player text, wrapped in <events> tags for main LLM
+        events_text = self.get_ingame_events_text()
+        if events_text:
+            return f"{player_text}\n<events>\n{events_text}</events>"
+        return player_text
     
     def get_openai_message(self) -> ChatCompletionMessageParam:
         return {"role":"user", "content": self.get_formatted_content(),}
@@ -200,9 +203,16 @@ class UserMessage(Message):
         return len(self.__ingame_events)
     
     def get_ingame_events_text(self) -> str:
+        """Returns raw events as bullet list (no XML tags).
+        
+        Used by vision_hints where XML tags are unnecessary.
+        For main LLM messages, get_formatted_content() adds the <events> wrapper.
+        """
+        if not self.__ingame_events:
+            return ""
         result = ""
         for event in self.__ingame_events:
-            result += f"{self.narration_start}{event}{self.narration_end}\n"
+            result += f"- {event}\n"
         return result
     
     def set_ingame_time(self, time: str, time_group: str):

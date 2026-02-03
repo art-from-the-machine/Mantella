@@ -1,5 +1,6 @@
+from contextlib import contextmanager
 from threading import Lock
-from typing import AsyncGenerator, Any
+from typing import AsyncGenerator, Any, Generator
 from enum import Enum
 from openai import APIConnectionError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
 from openai.types.chat import ChatCompletion
@@ -14,6 +15,7 @@ from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
 from src.telemetry.telemetry import create_span_from_thread
 from src.actions.function_manager import FunctionManager
+from src.llm import llm_debug
 
 logger = utils.get_logger()
 
@@ -53,7 +55,7 @@ class ClientBase(AIClient):
         self._image_client = None
         self._function_client = None
         self._enable_vision_next_call: bool = False
-        self._vision_mode: VisionMode = self._determine_vision_mode()
+        self._vision_mode: VisionMode = VisionMode.DISABLED 
 
         if 'https' in self._base_url: # Cloud LLM
             self._is_local: bool = False
@@ -73,19 +75,24 @@ class ClientBase(AIClient):
         self._encoding = self.__get_model_encoding(api_url, self._model_name)
 
 
-    def _determine_vision_mode(self) -> VisionMode:
+    def _determine_vision_mode(self, game=None):
         """Determine vision operating mode based on configuration and action availability
         
-        Returns:
-            VisionMode: The operating mode for vision
+        Args:
+            game: The game config/enum to check action compatibility against
         """
         if not self._image_client:
-            return VisionMode.DISABLED
+            self._vision_mode = VisionMode.DISABLED
+            return
         
-        if FunctionManager.is_vision_action_active():
-            return VisionMode.ON_DEMAND
+        # Check if vision action is enabled for this specific game
+        if game and FunctionManager.is_vision_action_enabled_for_game(game):
+            self._vision_mode = VisionMode.ON_DEMAND 
         else:
-            return VisionMode.ALWAYS_ON
+            # Vision is enabled but no game-specific vision action - always include images
+            self._vision_mode = VisionMode.ALWAYS_ON
+        
+        logger.log(23, f"Vision mode: {self._vision_mode.value}")
     
     def enable_vision_for_next_call(self):
         """Enable vision for the next streaming_call"""
@@ -131,6 +138,35 @@ class ClientBase(AIClient):
     def max_tokens_param(self) -> int:
         """Returns the max_tokens value from request params, or defaults to 250"""
         return self._request_params.get("max_tokens", 250) if self._request_params else 250
+    
+    @contextmanager
+    def override_params(self, **kwargs: Any) -> Generator[None, None, None]:
+        """Context manager to temporarily override request parameters.
+        
+        Usage:
+            with client.override_params(max_tokens=2000, temperature=0.3):
+                response = client.request_call(msg)
+        
+        Args:
+            **kwargs: Parameters to override (e.g., max_tokens, temperature, stop)
+        """
+        original_params = self._request_params.copy() if self._request_params else None
+        
+        if self._request_params is None:
+            self._request_params = {}
+        
+        for key, value in kwargs.items():
+            self._request_params[key] = value
+        
+        try:
+            yield
+        finally:
+            self._request_params = original_params
+    
+    @property
+    def function_client(self) -> AIClient | None:
+        """Returns the function/tool-calling client if configured, else None."""
+        return self._function_client
 
 
     @utils.time_it
@@ -249,6 +285,12 @@ class ClientBase(AIClient):
                         last_message = messages.get_last_message()
                         if isinstance(last_message, UserMessage):
                             vision_hints = last_message.get_ingame_events_text()
+                        
+                    # Debug logging (enable with MANTELLA_LLM_DEBUG=1)
+                    llm_debug.log_llm_request(
+                        openai_messages,
+                        vision_mode=self._vision_mode.value if self._vision_mode else None
+                    )
                     
                     # Determine if vision should be enabled for this call
                     if self._should_enable_vision():

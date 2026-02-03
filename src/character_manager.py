@@ -4,14 +4,16 @@ from src.games.equipment import Equipment
 class Character:
     """Representation of a character in the game
     """
-    def __init__(self, base_id: str, ref_id: str,  name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, equipment:Equipment, custom_character_values: dict[str, Any]):
+    def __init__(self, base_id: str, ref_id: str,  name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, voice_language: str, equipment:Equipment, custom_character_values: dict[str, Any], prompt_name: str = None, wiki: str = ""):
         self.__base_id: str = base_id
         self.__ref_id: str = ref_id
         self.__name: str = name
+        self.__prompt_name: str = prompt_name if prompt_name else name  # Name used in LLM prompt, defaults to actual name
         self.__gender: int = gender
         self.__race: str = race
         self.__is_player_character: bool = is_player_character
         self.__bio: str = bio
+        self.__wiki: str = wiki
         self.__is_in_combat: bool = is_in_combat
         self.__is_enemy: bool = is_enemy
         self.__relationship_rank: int = relationship_rank
@@ -21,6 +23,7 @@ class Character:
         self.__csv_in_game_voice_model = csv_in_game_voice_model # info['skyrim_voice_folder'] if 'skyrim' in game.lower() else info['fallout4_voice_folder']
         self.__advanced_voice_model = advanced_voice_model
         self.__voice_accent = voice_accent #info.get('voice_accent', None)
+        self.__voice_language = voice_language #info.get('voice_language', None)
         self.__equipment = equipment
         self.__custom_character_values: dict[str, Any] = custom_character_values
 
@@ -47,6 +50,15 @@ class Character:
     @name.setter
     def name(self, value: str):
         self.__name = value
+
+    @property
+    def prompt_name(self) -> str:
+        """Name used in LLM prompts (can be overridden while keeping original name for matching)"""
+        return self.__prompt_name
+    
+    @prompt_name.setter
+    def prompt_name(self, value: str):
+        self.__prompt_name = value
 
     @property
     def gender(self) -> int:
@@ -91,6 +103,10 @@ class Character:
     @bio.setter
     def bio(self, value: str):
         self.__bio = value
+    
+    @property
+    def wiki(self) -> str:
+        return self.__wiki
 
     @property
     def is_in_combat(self) -> bool:
@@ -163,6 +179,14 @@ class Character:
     @voice_accent.setter
     def voice_accent(self, value: str):
         self.__voice_accent = value
+
+    @property
+    def voice_language(self) -> str:
+        return self.__voice_language
+    
+    @voice_language.setter
+    def voice_language(self, value: str):
+        self.__voice_language = value
 
     @property
     def custom_character_values(self) -> dict[str, Any]:

@@ -26,3 +26,4 @@ data/voice_model_data_log_xtts.csv
 .vscode/
 .coverage
 moonshine/
+user_folder

@@ -77,6 +77,29 @@ class communication_constants:
     KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY: str = PREFIX + "vision_hints_names"
     KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY: str = PREFIX + "vision_hints_distance"
 
+    # Game Context System
+    KEY_QUEST_IDS_TO_CHECK: str = PREFIX + "quest_ids_to_check"
+    KEY_CONTEXT_NPC_QUESTS: str = PREFIX + "npc_quests"
+    
+    # Player state context
+    KEY_CONTEXT_PLAYER_STATE: str = PREFIX + "player_level"  # Contains full state string
+    
+    # Nearby NPCs context  
+    KEY_CONTEXT_NEARBY_NPCS: str = PREFIX + "nearby_npcs"
+    
+    # NPC role context
+    KEY_CONTEXT_NPC_ROLE: str = PREFIX + "npc_role"
+    
+    # Location context
+    KEY_CONTEXT_LOCATION_TYPE: str = PREFIX + "location_type"
+    
+    # Enhanced game context (Phase 1-9)
+    KEY_CONTEXT_DANGER: str = PREFIX + "danger_context"
+    KEY_CONTEXT_NPC_STATE: str = PREFIX + "npc_state"
+    KEY_CONTEXT_PLAYER_EFFECTS: str = PREFIX + "player_effects"
+    KEY_CONTEXT_SETTLEMENT: str = PREFIX + "settlement_context"
+    KEY_CONTEXT_ENVIRONMENT: str = PREFIX + "environment_context"
+
     # Actions
     ACTION_RELOADCONVERSATION: str = PREFIX + "reload_conversation"
     ACTION_ENDCONVERSATION: str = PREFIX + "end_conversation"

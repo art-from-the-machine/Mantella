@@ -88,7 +88,8 @@ class FunctionClient(ClientBase):
             return None
         
         try:
-            logger.log(23, f"Function LLM analyzing conversation for potential actions...")
+            tool_names = [tool.get('function', {}).get('name', 'unknown') for tool in tools]
+            logger.log(23, f"Function LLM analyzing conversation for potential actions... (Available tools: {', '.join(tool_names)})")
             
             # Replace the system prompt with the function LLM prompt
             shortened_thread = messages.clone_with_new_system_message(self.__function_prompt)

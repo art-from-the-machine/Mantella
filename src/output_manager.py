@@ -3,6 +3,7 @@ from threading import Lock
 import time
 import unicodedata
 from openai import APIConnectionError
+from src.llm import llm_debug
 from src.llm.output.sentence_accumulator import sentence_accumulator
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
 from src.llm.output.max_count_sentences_parser import max_count_sentences_parser
@@ -123,7 +124,7 @@ class ChatManager:
             except Exception as e:
                 utils.play_error_sound()
                 error_text = f"Text-to-Speech Error: {e}"
-                logger.log(29, error_text)
+                logger.warning(error_text, exc_info=True)
                 return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, True), "", 0, error_text)
             self.__is_first_sentence = False
             return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file))
@@ -266,6 +267,8 @@ class ChatManager:
                                     if vision_requested:
                                         logger.log(23, "Vision requested for next LLM call")
                                         settings.vision_requested = True
+                                        # Enable vision immediately for the next LLM streaming iteration
+                                        self.__client.enable_vision_for_next_call()
                                         # Remove vision from parsed_tools so it doesn't go to the game
                                         parsed_tools = [t for t in parsed_tools if t.get('identifier') != 'mantella_npc_vision']
                                     
@@ -312,26 +315,28 @@ class ChatManager:
                             
                             # Only process sentences if we have text content
                             if has_text_response:
+                                # Process all accumulated sentences
                                 while accumulator.has_next_sentence():
                                     current_sentence = accumulator.get_next_sentence()
                                     parsed_sentence: SentenceContent | None = None
+                                    
                                     # Apply parsers
                                     for parser in parser_chain:
                                         if not parsed_sentence:  # Try to extract a complete sentence
                                             parsed_sentence, current_sentence = parser.cut_sentence(current_sentence, settings)
                                         if parsed_sentence:  # Apply modifications if we already have a sentence
                                             parsed_sentence, pending_sentence = parser.modify_sentence_content(parsed_sentence, pending_sentence, settings)
-                                        if settings.stop_generation:
-                                            break
-                                    if settings.stop_generation:
-                                        break
+                                    
                                     accumulator.refuse(current_sentence)
+                                    
                                     # Process sentences from the parser chain
                                     if parsed_sentence:
                                         if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
                                             new_sentence = self.generate_sentence(parsed_sentence)
                                             blocking_queue.put(new_sentence)
                                             parsed_sentence = None
+                                
+                                # Stop consuming more tokens from stream if generation should stop
                                 if settings.stop_generation:
                                     break
                                 if settings.interrupting_action:
@@ -348,10 +353,6 @@ class ChatManager:
                             # LLM chose tools but no text - need to make second call
                             logger.log(23, f"Making second LLM call for text response...")
                             
-                            # If vision was requested, enable it for the next call
-                            if settings.vision_requested:
-                                self.__client.enable_vision_for_next_call()
-                            
                             # Make second call without passing tools to ensure LLM generates text
                             current_tools = None
                             collected_tool_calls = []  # Reset for next iteration
@@ -359,13 +360,21 @@ class ChatManager:
                             first_token = True  # Reset for timing the second call
                             continue  # Loop again
                         
+                        # Handle empty response
+                        if not raw_response.strip():
+                            retries += 1
+                            if retries >= max_retries:
+                                logger.warning(f"Empty LLM response for {active_character.name} after {retries} retries")
+                                break
+                            time.sleep(1)
+                            continue
+                        
                         break  # Got text response or hit an error, exit loop
                                 
                     except Exception as e:
                         retries += 1
                         utils.play_error_sound()
-                        logger.error(f"LLM API Error: {e}")
-                        
+                        logger.error(f"LLM API Error: {e}", exc_info=True)                    
                         error_response = "I can't find the right words at the moment."
                         new_sentence = self.generate_sentence(SentenceContent(active_character, error_response, SentenceTypeEnum.SPEECH, True))
                         blocking_queue.put(new_sentence)
@@ -401,7 +410,10 @@ class ChatManager:
                     if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or pending_sentence.sentence_type != SentenceTypeEnum.NARRATION:
                         new_sentence = self.generate_sentence(pending_sentence)
                         blocking_queue.put(new_sentence)
-                logger.log(23, f"Full raw response ({self.__client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")
+                token_count = self.__client.get_count_tokens(raw_response)
+                logger.log(23, f"Full raw response ({token_count} tokens): {raw_response.strip()}")
+                llm_debug.log_llm_response(raw_response, token_count)
+                
                 blocking_queue.is_more_to_come = False
                 # This sentence is required to make sure there is one in case the game is already waiting for it
                 # before the ChatManager realises there is not another message coming from the LLM

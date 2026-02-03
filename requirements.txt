@@ -4,8 +4,9 @@ tiktoken==0.4.0
 httpx==0.27.2
 openai==1.6.0
 aiohttp==3.8.4
-faster-whisper==1.0.3
+faster-whisper==1.2.0
 requests==2.31.0
+beautifulsoup4==4.12.3
 pyaudio==0.2.13
 soundfile==0.12.1
 numpy==1.25.0
@@ -13,6 +14,7 @@ scipy==1.11.1
 charset-normalizer==3.2.0
 fastapi==0.110.2
 gradio==4.28.3
+huggingface_hub==0.23.5
 sphinx==7.2.6
 myst-parser==2.0.0
 sphinx-design==0.5.0

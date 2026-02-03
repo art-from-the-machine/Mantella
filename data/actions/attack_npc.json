@@ -1,0 +1,28 @@
+{
+    "identifier": "mantella_npc_attack_other_npc",
+    "name": "AttackNPC",
+    "description": "Make an NPC attack another NPC (not the player).",
+    "key": "AttackNPC",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "string",
+            "description": "The NPC who will attack.",
+            "scope": "conversation"
+        },
+        "target": {
+            "type": "string",
+            "description": "The NPC to attack.",
+            "scope": "all_npcs"
+        }
+    },
+    "required": ["source", "target"],
+    "prompt": "If you want to attack another NPC (not the player), begin your response with '{key}:'",
+    "allowed_games": ["fallout4", "fallout4vr"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": true
+}

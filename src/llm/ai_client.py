@@ -49,6 +49,11 @@ class AIClient(ABC):
         """
         pass
 
+    @property
+    def function_client(self) -> 'AIClient | None':
+        """Returns the function/tool-calling client if configured, else None."""
+        return None
+
     @staticmethod
     @abstractmethod
     def get_model_list(service: str, secret_key_file: str, default_model: str = "mistralai/mistral-small-3.1-24b-instruct:free", is_vision: bool = False, is_tool_calling: bool = False) -> LLMModelList:
