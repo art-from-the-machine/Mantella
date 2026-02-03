@@ -141,14 +141,14 @@ class Context:
 
     @utils.time_it
     def get_custom_context_value(self, key: str) -> Any | None:
-        if self.__custom_context_values and self.__custom_context_values.__contains__(key):
+        if self.__custom_context_values and key in self.__custom_context_values:
             return self.__custom_context_values[key]
         return None
     
     def get_game_context(self) -> str:
-        """Build complete game context string from all custom context values.
+        """Build complete game context string from custom context values.
         
-        Includes: situation, player state, nearby NPCs, NPC relationship, quests.
+        Includes: situation, danger, player state, NPC state, nearby NPCs, settlement, quests.
         Returns content WITHOUT wrapper tags - the prompt template provides those.
         """
         sections = []
@@ -168,6 +168,22 @@ class Context:
             time_str = self._format_time(self.__ingame_time)
             situation_parts.append(f"Time: {time_str}")
         
+        # Danger context
+        danger_context = self.get_custom_context_value(communication_constants.KEY_CONTEXT_DANGER)
+        if danger_context:
+            danger_info = self._parse_danger_context(danger_context)
+            if danger_info:
+                situation_parts.append(f"Danger: {danger_info}")
+        else:
+            situation_parts.append("Danger: None")
+        
+        # Environment context (hazards)
+        env_context = self.get_custom_context_value(communication_constants.KEY_CONTEXT_ENVIRONMENT)
+        if env_context:
+            env_info = self._parse_environment_context(env_context)
+            if env_info:
+                situation_parts.append(f"Hazards: {env_info}")
+        
         if situation_parts:
             sections.append("=== SITUATION ===\n" + "\n".join(situation_parts))
         
@@ -176,7 +192,25 @@ class Context:
         if player_state:
             state_info = self._parse_player_state(player_state)
             if state_info:
+                # Add player effects if available
+                effects = self.get_custom_context_value(communication_constants.KEY_CONTEXT_PLAYER_EFFECTS)
+                if effects:
+                    effects_info = self._parse_player_effects(effects)
+                    if effects_info:
+                        state_info += f"\nActive effects: {effects_info}"
                 sections.append("=== PLAYER STATE ===\n" + state_info)
+        
+        # === SETTLEMENT ===
+        settlement_context = self.get_custom_context_value(communication_constants.KEY_CONTEXT_SETTLEMENT)
+        if settlement_context:
+            settlement_info = self._parse_settlement_context(settlement_context)
+            if settlement_info:
+                sections.append("=== SETTLEMENT ===\n" + settlement_info)
+        
+        # === NPC STATE ===
+        npc_state = self.get_custom_context_value(communication_constants.KEY_CONTEXT_NPC_STATE)
+        if npc_state:
+            sections.append("=== NPC STATE ===\n" + npc_state)
         
         # === NEARBY NPCS ===
         nearby_npcs = self.get_custom_context_value(communication_constants.KEY_CONTEXT_NEARBY_NPCS)
@@ -205,7 +239,7 @@ class Context:
     def _parse_player_state(self, raw: str) -> str:
         """Parse player state from Papyrus format.
         
-        Input: "level:15|weapon:10mm Pistol|power_armor|sneaking|in_combat"
+        Input: "level:15|weapon:10mm Pistol|weapon_drawn|power_armor|sneaking|in_combat|caps:1250_moderate"
         Output: Formatted player state info.
         """
         if not raw:
@@ -214,6 +248,8 @@ class Context:
         parts = raw.split("|")
         level = ""
         weapon = ""
+        weapon_state = ""
+        caps = ""
         flags = []
         
         for part in parts:
@@ -221,10 +257,24 @@ class Context:
                 level = part.split(":", 1)[1]
             elif part.startswith("weapon:"):
                 weapon = part.split(":", 1)[1]
+            elif part == "weapon_drawn":
+                weapon_state = "Drawn"
+            elif part == "weapon_holstered":
+                weapon_state = "Holstered"
+            elif part.startswith("caps:"):
+                caps_data = part.split(":", 1)[1]
+                # Parse caps amount and wealth indicator
+                if "_" in caps_data:
+                    caps_amount, wealth = caps_data.rsplit("_", 1)
+                    caps = f"{caps_amount} ({wealth})"
+                else:
+                    caps = caps_data
             elif part == "power_armor":
                 flags.append("In Power Armor")
             elif part == "sneaking":
                 flags.append("Sneaking")
+            elif part == "sneaking_detected":
+                flags.append("Sneaking (DETECTED!)")
             elif part == "in_combat":
                 flags.append("In Combat")
             elif part == "searching":
@@ -235,8 +285,8 @@ class Context:
             lines.append(f"Level: {level}")
         if weapon:
             lines.append(f"Equipped: {weapon}")
-        if flags:
-            lines.append("Status: " + ", ".join(flags))
+        if weapon_state:
+            lines.append(f"Weapon: {weapon_state}")
         
         # Add health/rad from existing values
         health = self.get_custom_context_value("mantella_player_health_percent")
@@ -246,35 +296,55 @@ class Context:
             rad_pct = int(rad * 100) if rad else 0
             lines.append(f"Health: {health_pct}% | Radiation: {rad_pct}%")
         
+        if caps:
+            lines.append(f"Caps: {caps}")
+        
+        if flags:
+            lines.append("Status: " + ", ".join(flags))
+        
         return "\n".join(lines)
     
     def _parse_nearby_npcs(self, raw: str) -> str:
-        """Parse nearby NPCs from Papyrus format.
-        
-        Input: "Name:distance:role|Name2:distance2:role2"
-        Output: Formatted list of nearby NPCs.
-        """
+        """Parse nearby NPCs. Format: name=X;distance=Y;faction=Z|name=A;distance=B"""
         if not raw:
             return ""
         
         lines = []
         for entry in raw.split("|"):
-            if not entry:
+            # Parse key=value pairs
+            npc = {}
+            for pair in entry.split(";"):
+                if "=" in pair:
+                    key, value = pair.split("=", 1)
+                    npc[key] = value
+            
+            name = npc.get("name", "")
+            distance = npc.get("distance", "")
+            if not name or not distance:
                 continue
-            parts = entry.split(":")
-            if len(parts) >= 2:
-                name = parts[0]
-                distance = parts[1] if len(parts) > 1 else ""
-                role = parts[2] if len(parts) > 2 else ""
-                
-                line = f"- {name}"
-                if distance:
-                    line += f" ({distance} units)"
-                if role:
-                    line += f" - {role}"
-                lines.append(line)
+            
+            faction = npc.get("faction", "NPC")
+            line = f"- {name} ({distance} units) - {faction}"
+            
+            status = []
+            activity = npc.get("activity", "idle").replace("_", " ")
+            status.append(activity)
+            
+            health = npc.get("health", "healthy")
+            status.append(health)
+            
+            if npc.get("weapon") == "drawn":
+                status.append("weapon drawn")
+            
+            armed = npc.get("armed", "")
+            if armed:
+                status.append(f"armed with {armed}")
+            
+            line += " - " + ", ".join(status)
+            
+            lines.append(line)
         
-        return "\n".join(lines) if lines else ""
+        return "\n".join(lines)
     
     def _parse_npc_role(self, raw: str) -> str:
         """Parse NPC role/relationship from Papyrus format.
@@ -360,6 +430,91 @@ class Context:
             return f"{hour} in the morning"
         else:
             return f"{hour - 12} in the afternoon" if hour < 18 else f"{hour - 12} in the evening"
+    
+    def _parse_danger_context(self, raw: str) -> str:
+        """Parse danger context from Papyrus format.
+        
+        Input: "hostiles:3|in_combat|dead_bodies:5"
+        Output: Human-readable danger description.
+        """
+        if not raw:
+            return ""
+        
+        parts = raw.split("|")
+        danger_parts = []
+        
+        for part in parts:
+            if part.startswith("hostiles:"):
+                count = part.split(":", 1)[1]
+                danger_parts.append(f"{count} hostiles nearby")
+            elif part == "in_combat":
+                danger_parts.append("player in combat")
+            elif part == "searching":
+                danger_parts.append("enemies searching")
+            elif part.startswith("dead_bodies:"):
+                count = part.split(":", 1)[1]
+                danger_parts.append(f"{count} dead bodies nearby")
+        
+        return ", ".join(danger_parts) if danger_parts else ""
+    
+    def _parse_environment_context(self, raw: str) -> str:
+        """Parse environment context from Papyrus format.
+        
+        Input: "radiation_high|health_low"
+        Output: Human-readable environment description.
+        """
+        if not raw:
+            return ""
+        
+        parts = raw.split("|")
+        env_parts = []
+        
+        for part in parts:
+            if part == "radiation_high":
+                env_parts.append("High radiation zone")
+            elif part == "radiation_moderate":
+                env_parts.append("Moderate radiation")
+            elif part == "health_low":
+                env_parts.append("Player health critical")
+        
+        return ", ".join(env_parts) if env_parts else ""
+    
+    def _parse_settlement_context(self, raw: str) -> str:
+        """Parse settlement context from Papyrus format.
+        
+        Input: "population:12|defense:45|happiness:78"
+        Output: Human-readable settlement info.
+        """
+        if not raw:
+            return ""
+        
+        parts = raw.split("|")
+        lines = []
+        
+        for part in parts:
+            if part.startswith("population:"):
+                count = part.split(":", 1)[1]
+                lines.append(f"Population: {count} settlers")
+            elif part.startswith("defense:"):
+                defense = part.split(":", 1)[1]
+                lines.append(f"Defense: {defense}")
+            elif part.startswith("happiness:"):
+                happiness = part.split(":", 1)[1]
+                lines.append(f"Happiness: {happiness}%")
+        
+        return "\n".join(lines) if lines else ""
+    
+    def _parse_player_effects(self, raw: str) -> str:
+        """Parse player effects from Papyrus format.
+        
+        Input: "Jet|Psycho|Well Rested"
+        Output: Comma-separated effects.
+        """
+        if not raw:
+            return ""
+        
+        effects = raw.split("|")
+        return ", ".join(effects) if effects else ""
 
     @utils.time_it
     def get_context_ingame_events(self) -> list[str]:
@@ -409,7 +564,6 @@ class Context:
         new_quest_context = custom_context_values.get(communication_constants.KEY_CONTEXT_NPC_QUESTS) if custom_context_values else None
         if new_quest_context and new_quest_context != old_quest_context:
             self.__game_context_changed = True
-            # Log full quest context without truncation so we can see FormIDs and locations
             logger.info(f"Game context updated with quest info: {new_quest_context}")
         
         self.__custom_context_values = custom_context_values

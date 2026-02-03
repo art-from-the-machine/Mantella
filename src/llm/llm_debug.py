@@ -54,7 +54,7 @@ def is_enabled() -> bool:
     return _enabled
 
 
-def log_llm_request(openai_messages: list, vision_mode: str = None, vision_hints: str = None):
+def log_llm_request(openai_messages: list, vision_mode: str = None):
     """Log full LLM request with all messages."""
     if not _enabled:
         return
@@ -62,13 +62,20 @@ def log_llm_request(openai_messages: list, vision_mode: str = None, vision_hints
     log_section(f"LLM REQUEST - {len(openai_messages)} messages")
     if vision_mode:
         log(f"Vision mode: {vision_mode}")
-    if vision_hints:
-        log(f"Vision hints: {vision_hints}")
     
     for i, msg in enumerate(openai_messages):
         role = msg.get('role', 'unknown')
         content = msg.get('content', '')
+        tool_calls = msg.get('tool_calls')
+        
         log(f"--- Message {i} ({role}) ---")
+        
+        # Handle tool calls (actions)
+        if tool_calls:
+            action_names = [tc.get('function', {}).get('name', 'unknown') for tc in tool_calls]
+            log(f"[TOOL CALLS: {', '.join(action_names)}]")
+        
+        # Handle content
         if isinstance(content, list):
             for item in content:
                 if isinstance(item, dict):
@@ -78,7 +85,7 @@ def log_llm_request(openai_messages: list, vision_mode: str = None, vision_hints
                         log("[IMAGE ATTACHED]")
                 else:
                     log(str(item))
-        else:
+        elif content:  # Skip empty or None content
             log(str(content))
     log("")
 

@@ -92,6 +92,13 @@ class communication_constants:
     
     # Location context
     KEY_CONTEXT_LOCATION_TYPE: str = PREFIX + "location_type"
+    
+    # Enhanced game context (Phase 1-9)
+    KEY_CONTEXT_DANGER: str = PREFIX + "danger_context"
+    KEY_CONTEXT_NPC_STATE: str = PREFIX + "npc_state"
+    KEY_CONTEXT_PLAYER_EFFECTS: str = PREFIX + "player_effects"
+    KEY_CONTEXT_SETTLEMENT: str = PREFIX + "settlement_context"
+    KEY_CONTEXT_ENVIRONMENT: str = PREFIX + "environment_context"
 
     # Actions
     ACTION_RELOADCONVERSATION: str = PREFIX + "reload_conversation"

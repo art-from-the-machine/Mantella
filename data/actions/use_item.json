@@ -1,0 +1,33 @@
+{
+    "identifier": "mantella_npc_use_item_on_target",
+    "name": "UseItem",
+    "description": "NPC uses an item (stimpak/radaway) on another NPC.",
+    "key": "UseItem",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "string",
+            "description": "The NPC who will use the item.",
+            "scope": "conversation"
+        },
+        "target": {
+            "type": "string",
+            "description": "The NPC to use the item on.",
+            "scope": "all_npcs_w_player"
+        },
+        "mode": {
+            "type": "string",
+            "description": "The type of item to use.",
+            "enum": ["stimpak", "radaway"]
+        }
+    },
+    "required": ["source", "target", "mode"],
+    "prompt": "If the player asks you to heal someone or use a medical item on another NPC, begin your response with '{key}:'",
+    "allowed_games": ["fallout4", "fallout4vr"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": false
+}

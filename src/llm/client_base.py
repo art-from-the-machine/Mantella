@@ -289,8 +289,7 @@ class ClientBase(AIClient):
                     # Debug logging (enable with MANTELLA_LLM_DEBUG=1)
                     llm_debug.log_llm_request(
                         openai_messages,
-                        vision_mode=self._vision_mode.value if self._vision_mode else None,
-                        vision_hints=vision_hints
+                        vision_mode=self._vision_mode.value if self._vision_mode else None
                     )
                     
                     # Determine if vision should be enabled for this call

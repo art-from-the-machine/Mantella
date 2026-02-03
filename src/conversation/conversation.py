@@ -38,6 +38,8 @@ class Conversation:
     # Whisper prompt limits (total ~224 tokens max)
     WHISPER_PROMPT_MAX_CHARS: int = 850
     DYNAMIC_VOCAB_MAX_TERMS: int = 40
+    # Special marker for "still listening" status
+    STILL_LISTENING_MARKER: str = "__STILL_LISTENING__"
     """Controls the flow of a conversation."""
     def __init__(self, context_for_conversation: Context, output_manager: ChatManager, rememberer: Remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool, game = None) -> None:
         
@@ -58,6 +60,10 @@ class Conversation:
         self.__silence_auto_response_message: str = context_for_conversation.config.silence_auto_response_message
         self.__silence_auto_response_max_count: int = context_for_conversation.config.silence_auto_response_max_count
         self.__silence_auto_response_count: int = 0  # Track consecutive silent responses
+        
+        # Listening poll settings - for notifying game that we're still waiting for input
+        self.__listening_poll_interval: float = 5.0  # Seconds between "still listening" notifications
+        self.__listening_attempt: int = 0  # Track how many times we've polled
         
         if not self.__context.npcs_in_conversation.contains_player_character(): # TODO: fix this being set to a radiant conversation because of NPCs in conversation not yet being added
             self.__conversation_type: conversation_type = radiant(context_for_conversation.config)
@@ -108,7 +114,11 @@ class Conversation:
     @property
     def waiting_for_game_context(self) -> bool:
         return self.__waiting_for_game_context
-    
+
+    @property
+    def listening_attempt(self) -> int:
+        return self.__listening_attempt
+
     @waiting_for_game_context.setter
     def waiting_for_game_context(self, value: bool):
         self.__waiting_for_game_context = value

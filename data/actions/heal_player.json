@@ -1,0 +1,23 @@
+{
+    "identifier": "mantella_heal_me",
+    "name": "HealPlayer",
+    "description": "NPC uses a stimpak to heal the player.",
+    "key": "HealPlayer",
+    "enabled": true,
+    "parameters": {
+        "source": {
+            "type": "string",
+            "description": "The NPC who will heal the player.",
+            "scope": "conversation"
+        }
+    },
+    "required": ["source"],
+    "prompt": "If the player asks you to heal them or use a stimpak on them, begin your response with '{key}:'",
+    "allowed_games": ["fallout4", "fallout4vr"],
+    "requires_response": false,
+    "is-interrupting": false,
+    "allow_repeat": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": false
+}

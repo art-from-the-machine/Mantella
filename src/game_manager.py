@@ -77,20 +77,19 @@ class GameStateManager:
         }
         
         # For Fallout 4: Look up quest FormIDs for the NPC so Papyrus can check their status
-        # If we have quest IDs, delay LLM call until game context arrives (two-way communication)
+        # If quest IDs are found, delay LLM call until game sends back quest context
         if self.__config.game.base_game == GameEnum.FALLOUT4:
             quest_ids = self._get_quest_ids_for_conversation(input_json)
             if quest_ids:
-                # Tell conversation to wait for game context before calling LLM
-                self.__talk.waiting_for_game_context = True
                 logger.info(f"Quest FormIDs for conversation: {quest_ids} - delaying LLM until context arrives")
-                # Send as int array - Papyrus reads with F4SE_HTTP.getIntArray()
                 response[comm_consts.KEY_QUEST_IDS_TO_CHECK] = quest_ids
+                # Delay LLM call until game sends back quest context
+                self.__talk.waiting_for_game_context = True
         
         self.__talk.start_conversation()
         
         return response
-        
+    
     
     @utils.time_it
     def continue_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
