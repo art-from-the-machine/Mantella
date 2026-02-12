@@ -1,7 +1,10 @@
+from typing import List, Tuple
+
+
 class external_character_info:
     """_summary_
     """
-    def __init__(self, name: str, is_generic_npc: bool, bio: str, ingame_voice_model: str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, tts_service: str = "", llm_service: str = "", llm_model: str = "") -> None:
+    def __init__(self, name: str, is_generic_npc: bool, bio: str, ingame_voice_model: str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, tts_service: str = "", llm_service: str = "", llm_model: str = "", dynamic_tag_events: List[Tuple[int, str]] | None = None) -> None:
         self.__name: str = name
         self.__is_generic_npc: bool = is_generic_npc
         self.__bio: str = bio
@@ -13,6 +16,7 @@ class external_character_info:
         self.__tts_service: str = tts_service
         self.__llm_service: str = llm_service
         self.__llm_model: str = llm_model
+        self.__dynamic_tag_events: List[Tuple[int, str]] = dynamic_tag_events if dynamic_tag_events is not None else []
     
     @property
     def name(self) -> str:
@@ -57,3 +61,11 @@ class external_character_info:
     @property
     def llm_model(self) -> str:
         return self.__llm_model
+    
+    @property
+    def dynamic_tag_events(self) -> List[Tuple[int, str]]:
+        """Dynamic event lines extracted from tag descriptions.
+
+        Each entry is a ``(timestamp, event_text)`` tuple.
+        """
+        return self.__dynamic_tag_events

@@ -1,8 +1,9 @@
 from collections import defaultdict
 import logging
 import os
+import re
 import time
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from src.config.config_loader import ConfigLoader
 from src.games.gameable import Gameable
 from src.llm.summary_client import SummaryLLMCLient
@@ -14,6 +15,175 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.remember.remembering import Remembering
 from src import utils
+
+# ---------------------------------------------------------------------------
+# Summary-block parsing helpers
+# ---------------------------------------------------------------------------
+
+# Regex for the timestamp marker that may appear as the first line of a block
+_TS_MARKER_RE = re.compile(r'^ts=(\d+)$')
+
+
+def _strip_timestamp_markers(text: str) -> str:
+    """Remove all ``ts=<epoch>`` marker lines from *text*.
+
+    This is used to sanitise summary text before sending it to the LLM
+    (both for new-summary generation and for resummarization).
+    """
+    return '\n'.join(
+        line for line in text.split('\n')
+        if not _TS_MARKER_RE.match(line.strip())
+    )
+
+
+def parse_summary_blocks(raw_text: str) -> Tuple[List[str], List[Tuple[int, str]]]:
+    """Parse a summary file into legacy blocks and timestamped blocks.
+
+    A *block* is a contiguous group of non-empty lines separated from other
+    blocks by one or more blank lines.
+
+    If a block's first line matches ``ts=<epoch>``, it is a **timestamped**
+    block and the remaining lines form the block text.  Otherwise it is a
+    **legacy** block.
+
+    Returns:
+        A tuple of (*legacy_blocks*, *timestamped_blocks*) where
+        *legacy_blocks* is a list of text strings (in file order) and
+        *timestamped_blocks* is a list of ``(timestamp, text)`` pairs.
+    """
+    legacy_blocks: List[str] = []
+    timestamped_blocks: List[Tuple[int, str]] = []
+
+    # Split into blocks by blank lines.
+    # Also split when a new `ts=...` marker appears mid-block (for backward
+    # tolerance with older files that may be missing blank-line delimiters).
+    current_lines: List[str] = []
+    for line in raw_text.split('\n'):
+        stripped = line.strip()
+        if stripped == '':
+            if current_lines:
+                _classify_block(current_lines, legacy_blocks, timestamped_blocks)
+                current_lines = []
+        else:
+            # If a timestamp marker appears after we've already collected
+            # non-empty lines, treat it as the start of a new block.
+            if _TS_MARKER_RE.match(stripped) and current_lines:
+                _classify_block(current_lines, legacy_blocks, timestamped_blocks)
+                current_lines = []
+            current_lines.append(stripped)
+    # Handle last block (no trailing blank line)
+    if current_lines:
+        _classify_block(current_lines, legacy_blocks, timestamped_blocks)
+
+    return legacy_blocks, timestamped_blocks
+
+
+def _classify_block(
+    lines: List[str],
+    legacy_blocks: List[str],
+    timestamped_blocks: List[Tuple[int, str]],
+) -> None:
+    """Classify a single block as legacy or timestamped and append to the
+    appropriate list."""
+    marker_match = _TS_MARKER_RE.match(lines[0])
+    if marker_match:
+        ts = int(marker_match.group(1))
+        text = '\n'.join(lines[1:]).strip()
+        if text:
+            timestamped_blocks.append((ts, text))
+    else:
+        text = '\n'.join(lines).strip()
+        if text:
+            legacy_blocks.append(text)
+
+
+def build_merged_timeline(
+    legacy_blocks: List[str],
+    timestamped_summary_blocks: List[Tuple[int, str]],
+    dynamic_tag_events: List[Tuple[int, str]],
+    dedupe_legacy: bool = False,
+    exclude_events: List[Tuple[int, str]] | None = None,
+) -> str:
+    """Build the final memory text for one NPC.
+
+    Order:
+      1. Legacy summary blocks — in their original file order (optionally
+         de-duplicated for single-NPC prompts).
+      2. Timestamped items (summary blocks + dynamic tag events) —
+         merge-sorted by timestamp ascending.
+
+    Timestamps are **stripped** from the output so the LLM never sees them.
+
+    Args:
+        exclude_events: Optional list of ``(ts, text)`` tuples to omit from
+            the timeline (e.g. events that will appear in a separate
+            "New developments" section).
+    """
+    # --- legacy section --------------------------------------------------
+    if dedupe_legacy:
+        seen = set()
+        deduped: List[str] = []
+        for block in legacy_blocks:
+            if block not in seen:
+                seen.add(block)
+                deduped.append(block)
+        legacy_blocks = deduped
+
+    # --- build exclusion set ---------------------------------------------
+    excluded: set[Tuple[int, str]] = set(exclude_events) if exclude_events else set()
+
+    # --- timestamped section ---------------------------------------------
+    all_timestamped: List[Tuple[int, str]] = list(timestamped_summary_blocks)
+    all_timestamped.extend(dynamic_tag_events)
+    all_timestamped.sort(key=lambda item: item[0])
+
+    # --- combine ---------------------------------------------------------
+    parts: List[str] = list(legacy_blocks)
+    for item in all_timestamped:
+        if item not in excluded:
+            parts.append(item[1])
+
+    return '\n'.join(parts)
+
+
+def get_new_events(
+    timestamped_summary_blocks: List[Tuple[int, str]],
+    dynamic_tag_events: List[Tuple[int, str]],
+) -> List[Tuple[int, str]]:
+    """Return dynamic tag events newer than the latest summary block.
+
+    An event is considered *new* if its timestamp is strictly greater than
+    the latest timestamped summary block.  If there are no timestamped
+    summary blocks the baseline is ``0``, so all dynamic events qualify.
+
+    Returns a list of ``(timestamp, text)`` pairs sorted by timestamp.
+    """
+    if not dynamic_tag_events:
+        return []
+
+    latest_summary_ts = max((ts for ts, _ in timestamped_summary_blocks), default=0)
+    return sorted(
+        [(ts, text) for ts, text in dynamic_tag_events if ts > latest_summary_ts],
+        key=lambda item: item[0],
+    )
+
+
+def _build_new_events_section(new_events: List[Tuple[int, str]]) -> str:
+    """Format a list of new events into a "New developments" text block.
+
+    Returns an empty string when *new_events* is empty.
+    """
+    if not new_events:
+        return ""
+
+    lines = ["New developments since last meeting:"]
+    for _, text in new_events:
+        # Ensure each event is rendered as a bullet
+        if text.startswith("- "):
+            lines.append(text)
+        else:
+            lines.append(f"- {text}")
+    return "\n".join(lines)
 
 
 class CharacterSummaryParameters:
@@ -38,6 +208,56 @@ class Summaries(Remembering):
         self.__memory_prompt: str = config.memory_prompt
         self.__resummarize_prompt:str = config.resummarize_prompt
 
+    def __get_character_dynamic_events(self, character: Character) -> List[Tuple[int, str]]:
+        """Retrieve dynamic tag events stored on a character, if any."""
+        events = character.get_custom_character_value('mantella_dynamic_tag_events')
+        if events and isinstance(events, list):
+            return events
+        return []
+
+    def __build_character_memory(self, character: Character, world_id: str, dedupe_legacy: bool = False) -> str:
+        """Build the merged memory text for a single character.
+
+        Reads the summary file, parses it into legacy + timestamped blocks,
+        retrieves dynamic tag events from the character, and returns the
+        merged timeline string with all timestamps stripped.
+
+        If any dynamic tag events have a timestamp **later** than the most
+        recent summary block, they are highlighted in a
+        "New developments since last meeting" section appended after the
+        chronological timeline.
+        """
+        legacy_blocks: List[str] = []
+        timestamped_summary_blocks: List[Tuple[int, str]] = []
+
+        conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id, False)
+        if os.path.exists(conversation_summary_file):
+            with open(conversation_summary_file, 'r', encoding='utf-8') as f:
+                raw_text = f.read()
+            legacy_blocks, timestamped_summary_blocks = parse_summary_blocks(raw_text)
+
+        dynamic_events = self.__get_character_dynamic_events(character)
+
+        # Determine which dynamic events are "new since last meeting"
+        new_events = get_new_events(timestamped_summary_blocks, dynamic_events)
+
+        # Build timeline, excluding new events so they aren't duplicated
+        timeline = build_merged_timeline(
+            legacy_blocks,
+            timestamped_summary_blocks,
+            dynamic_events,
+            dedupe_legacy=dedupe_legacy,
+            exclude_events=new_events,
+        )
+
+        # --- "New developments since last meeting" section ---
+        new_section = _build_new_events_section(new_events)
+        if new_section and timeline:
+            return f"{timeline}\n\n{new_section}"
+        elif new_section:
+            return new_section
+        return timeline
+
     @utils.time_it
     def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str) -> str:
         """Load the conversation summaries for all NPCs in the conversation and returns them as one string
@@ -54,37 +274,21 @@ class Summaries(Remembering):
         
         if len(non_player_characters) == 1:
             # Single NPC conversation - no delimiters needed
-            paragraphs = []
             character = non_player_characters[0]
-            conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id, False)      
-            if os.path.exists(conversation_summary_file):
-                with open(conversation_summary_file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and line not in paragraphs:
-                            paragraphs.append(line.strip())
-            if paragraphs:
-                result = "\n".join(paragraphs)
-                return f"Below is a summary of past events:\n{result}"
+            memory_text = self.__build_character_memory(character, world_id, dedupe_legacy=True)
+            if memory_text:
+                return f"Below is a summary of past events:\n{memory_text}"
             else:
                 return ""
         else:
             # Multi-NPC conversation - add delimiters around each character's memories
             character_memories = []
             for character in non_player_characters:
-                character_paragraphs = []
-                conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id, False)      
-                if os.path.exists(conversation_summary_file):
-                    with open(conversation_summary_file, 'r', encoding='utf-8') as f:
-                        for line in f:
-                            line = line.strip()
-                            if line:
-                                character_paragraphs.append(line.strip())
-                
-                if character_paragraphs:
+                memory_text = self.__build_character_memory(character, world_id, dedupe_legacy=False)
+                if memory_text:
                     # Add delimiters around this character's memories
                     memory_with_delimiters = f"[This is the beginning of {character.name}'s memory]\n" + \
-                                           "\n".join(character_paragraphs) + \
+                                           memory_text + \
                                            f"\n[This is the end of {character.name}'s memory]"
                     character_memories.append(memory_with_delimiters)
             
@@ -105,17 +309,7 @@ class Summaries(Remembering):
         Returns:
             str: the summary text for this character, or empty string if no summary exists
         """
-        conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id, False)      
-        if os.path.exists(conversation_summary_file):
-            paragraphs = []
-            with open(conversation_summary_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        paragraphs.append(line.strip())
-            if paragraphs:
-                return "\n".join(paragraphs)
-        return ""
+        return self.__build_character_memory(character, world_id, dedupe_legacy=True)
 
     @utils.time_it
     def may_add_missing_join_leave_messages(self, messages: message_thread, npcs_in_conversation: Characters | None = None) -> bool:
@@ -383,11 +577,27 @@ class Summaries(Remembering):
         if len(new_summary) > 0:
             # Add dash prefix to new summary if it doesn't already have one
             if not new_summary.strip().startswith('-'):
-                new_summary = '- ' + new_summary.strip() + '\n\n'
+                new_summary = '- ' + new_summary.strip()
             else:
-                new_summary = new_summary.strip() + '\n\n'
-                
-            conversation_summaries = previous_conversation_summaries + new_summary
+                new_summary = new_summary.strip()
+
+            # Prepend a real-world timestamp marker so this block can be
+            # chronologically ordered with dynamic tag events later.
+            ts_marker = f'ts={int(time.time())}'
+            new_summary = ts_marker + '\n' + new_summary + '\n\n'
+
+            # Ensure block-level separation even if legacy files do not end
+            # with a blank line.
+            separator = ""
+            if previous_conversation_summaries:
+                if previous_conversation_summaries.endswith('\n\n'):
+                    separator = ""
+                elif previous_conversation_summaries.endswith('\n'):
+                    separator = "\n"
+                else:
+                    separator = "\n\n"
+
+            conversation_summaries = previous_conversation_summaries + separator + new_summary
             with open(conversation_summary_file, 'w', encoding='utf-8') as f:
                 f.write(conversation_summaries)
         else:
@@ -417,7 +627,9 @@ class Summaries(Remembering):
                         game=self.__game,
                         player_name=player_name
                     )
-                    long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt)
+                    # Strip timestamp markers before sending to the LLM
+                    sanitized_summaries = _strip_timestamp_markers(conversation_summaries)
+                    long_conversation_summary = self.summarize_conversation(sanitized_summaries, prompt)
                     break
                 except:
                     logging.error('Failed to summarize conversation. Retrying...')

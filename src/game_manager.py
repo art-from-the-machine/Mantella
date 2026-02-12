@@ -903,6 +903,10 @@ class GameStateManager:
                     llm_service = already_loaded_character.llm_service
                     llm_model = already_loaded_character.llm_model
                     is_generic_npc = already_loaded_character.is_generic_npc
+                    # Carry over dynamic tag events from previous load
+                    prev_dynamic = already_loaded_character.get_custom_character_value('mantella_dynamic_tag_events')
+                    if prev_dynamic is not None:
+                        custom_values['mantella_dynamic_tag_events'] = prev_dynamic
             elif self.__talk and not is_player_character :#If this is not the player and the character has not already been loaded
                 external_info: external_character_info = self.__game.load_external_character_info(base_id, character_name, race, gender, actor_voice_model)
                 
@@ -915,6 +919,9 @@ class GameStateManager:
                 llm_service = external_info.llm_service
                 llm_model = external_info.llm_model
                 is_generic_npc = external_info.is_generic_npc
+                # Store dynamic tag events so the memory system can merge them into the timeline
+                if external_info.dynamic_tag_events:
+                    custom_values['mantella_dynamic_tag_events'] = external_info.dynamic_tag_events
                 if is_generic_npc:
                     character_name = external_info.name
                     ingame_voice_model = external_info.ingame_voice_model

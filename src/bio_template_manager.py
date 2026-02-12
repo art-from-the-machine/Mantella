@@ -1,9 +1,37 @@
 import os
 import json
 import logging
+import re
 import pandas as pd
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import src.utils as utils
+
+# Pattern to match dynamic event lines in tag descriptions: "- <timestamp>: <text>"
+_DYNAMIC_EVENT_RE = re.compile(r'^-\s+(\d+):\s+(.+)$')
+
+
+def _split_static_and_dynamic(description: str) -> Tuple[str, List[Tuple[int, str]]]:
+    """Split a tag description into static text and dynamic event lines.
+
+    Dynamic event lines match the format ``- <timestamp>: <text>``
+    where ``<timestamp>`` is one or more digits (epoch seconds).
+
+    Returns:
+        A tuple of (*static_text*, *dynamic_events*) where *dynamic_events*
+        is a list of ``(timestamp, event_text)`` pairs.
+    """
+    static_lines: List[str] = []
+    dynamic_events: List[Tuple[int, str]] = []
+    for line in description.split('\n'):
+        match = _DYNAMIC_EVENT_RE.match(line.strip())
+        if match:
+            ts = int(match.group(1))
+            text = match.group(2).strip()
+            dynamic_events.append((ts, text))
+        else:
+            static_lines.append(line)
+    static_text = '\n'.join(static_lines).strip()
+    return static_text, dynamic_events
 
 
 class BioTemplateManager:
@@ -153,45 +181,83 @@ class BioTemplateManager:
         """Get bio template for a specific tag"""
         return self.templates.get(tag)
     
-    def expand_bio_with_tags(self, base_bio: str, tags_string: str) -> str:
-        """Expand base bio with tag templates"""
+    def _get_effective_tags_list(self, tags_string: str) -> List[str]:
+        """Parse and validate tags_string, returning a list of tag names.
+
+        Returns an empty list when tag reading is disabled or the input is
+        empty / NaN.
+        """
         # Check if tag reading is disabled in config
         if self.config_loader and hasattr(self.config_loader, 'enable_character_tag_reading'):
             if not self.config_loader.enable_character_tag_reading:
-                return base_bio
-        
+                return []
+
         # Handle case where tags_string might be NaN (float) from CSV
         if tags_string is None or (isinstance(tags_string, float) and str(tags_string) == 'nan'):
-            return base_bio
-        
+            return []
+
         # Convert to string and check if empty
         tags_string = str(tags_string)
         if not tags_string or not tags_string.strip():
-            return base_bio
-        
-        # Parse tags (comma-separated)
-        tags = [tag.strip() for tag in tags_string.split(',') if tag.strip()]
-        
+            return []
+
+        return [tag.strip() for tag in tags_string.split(',') if tag.strip()]
+
+    def expand_bio_with_tags(self, base_bio: str, tags_string: str) -> str:
+        """Expand base bio with tag templates.
+
+        Dynamic event lines (``- <timestamp>: text``) inside a tag
+        description are **excluded** from the bio expansion so they can be
+        injected into the chronological memory timeline instead.
+        """
+        tags = self._get_effective_tags_list(tags_string)
         if not tags:
             return base_bio
-        
+
         # Get templates for each tag (ignore missing or empty templates)
-        tag_expansions = []
+        tag_expansions: List[str] = []
         for tag in tags:
             template = self.get_template(tag)
             if template and template.strip():
-                tag_expansions.append(template)
+                # Separate static text from dynamic events
+                static_text, _ = _split_static_and_dynamic(template)
+                if static_text:
+                    tag_expansions.append(static_text)
             elif template is None:
                 logging.warning(f"Tag '{tag}' not found in bio_templates.csv - ignoring")
             elif not template.strip():
                 logging.warning(f"Tag '{tag}' found in bio_templates.csv but has empty description - ignoring")
-        
+
         # Combine base bio with tag expansions, adding newlines between descriptions
         if tag_expansions:
             expanded_bio = base_bio + "\n\n" + "\n\n".join(tag_expansions)
             return expanded_bio.strip()
-        
+
         return base_bio
+
+    def extract_dynamic_events(self, tags_string: str) -> List[Tuple[int, str]]:
+        """Return all dynamic events from the tags assigned to a character.
+
+        Each dynamic event is a ``(timestamp, event_text)`` tuple extracted
+        from tag descriptions that contain lines matching
+        ``- <timestamp>: text``.
+
+        The returned list is sorted by timestamp (ascending).
+        """
+        tags = self._get_effective_tags_list(tags_string)
+        if not tags:
+            return []
+
+        all_events: List[Tuple[int, str]] = []
+        for tag in tags:
+            template = self.get_template(tag)
+            if template and template.strip():
+                _, dynamic_events = _split_static_and_dynamic(template)
+                all_events.extend(dynamic_events)
+
+        # Sort by timestamp ascending
+        all_events.sort(key=lambda ev: ev[0])
+        return all_events
     
     def reload_templates(self):
         """Reload templates from disk (useful for live updating)"""
