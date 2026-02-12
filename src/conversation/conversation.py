@@ -7,6 +7,7 @@ from src.llm.ai_client import AIClient
 from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 from src.characters_manager import Characters
 from src.conversation.conversation_log import conversation_log
+from src.conversation.conversation_serializer import serialize_persistent_messages, deserialize_persistent_messages
 from src.conversation.action import Action
 from src.llm.sentence_queue import SentenceQueue
 from src.llm.sentence import Sentence
@@ -549,6 +550,35 @@ class Conversation:
             )
         except Exception as e:
             logging.error(f"save_summary_only failed: {e}", exc_info=True)
+
+    @utils.time_it
+    def get_conversation_as_json(self) -> str | None:
+        """Returns the current persistent messages as a lossless JSON string for the live editor.
+        Returns None if there are no persistent messages.
+        """
+        persistent = self.__messages.get_persistent_messages()
+        if not persistent:
+            return None
+        return serialize_persistent_messages(persistent, self.__context.config)
+
+    @utils.time_it
+    def apply_conversation_from_json(self, json_str: str) -> bool:
+        """Replaces the persistent messages with the deserialized content from the given JSON string.
+        Returns True on success, False on error.
+        """
+        try:
+            def resolve(ref_id: str, _name: str, _base_id: str):
+                return self.get_character(ref_id)
+            new_messages = deserialize_persistent_messages(
+                json_str,
+                self.__context.config,
+                character_resolver=resolve,
+            )
+            self.__messages.replace_persistent_messages(new_messages)
+            return True
+        except Exception as e:
+            logging.error(f"apply_conversation_from_json failed: {e}", exc_info=True)
+            return False
 
     @utils.time_it
     def __save_conversation_log_for_characters(self, characters_to_save_for: list[Character] ):

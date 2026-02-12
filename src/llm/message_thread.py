@@ -155,6 +155,14 @@ class message_thread():
             if isinstance(message, (AssistantMessage, UserMessage, join_message, leave_message)):
                 result.append(deepcopy(message))
         return result
+
+    @utils.time_it
+    def replace_persistent_messages(self, new_persistent_messages: list[Message]):
+        """Replaces all persistent messages (user, assistant, join, leave) with the provided list.
+        Keeps system messages at the start of the thread.
+        """
+        system_messages = [m for m in self.__messages if isinstance(m, SystemMessage)]
+        self.__messages = system_messages + list(new_persistent_messages)
     
     def insert_after_system_messages(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message):
         # find the index of the first message that is not a system_message and has is_system_generated_message == false

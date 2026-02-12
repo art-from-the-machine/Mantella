@@ -767,6 +767,17 @@ class StartUI(routeable):
                     save_summary_btn = gr.Button("Save Summary", variant="primary", interactive=False)
                     refresh_summaries_btn = gr.Button("Refresh summaries", variant="secondary")
 
+            # --- Live Conversation Editor ---
+            with gr.Accordion(label="Live Conversation Editor", open=True):
+                gr.Markdown(
+                    "Edit the active conversation in real time. When the model returns gibberish, click **Reload** to fetch the current history, fix the bad text in the JSON, then click **Save** to apply. All information is preserved in the JSON format."
+                )
+                live_conversation_editor = gr.Text(value="", lines=20, label="Conversation (JSON)", placeholder="Click Reload to fetch current conversation. Edit the JSON and click Save to apply changes.")
+                with gr.Row():
+                    live_reload_btn = gr.Button("Reload", variant="secondary")
+                    live_save_btn = gr.Button("Save", variant="primary")
+                live_conversation_info = gr.Markdown(value="", visible=True)
+
             # --- LLM Request section ---
             with gr.Accordion(label="Bio Editor – LLM Request", open=True):
                 gr.Markdown("Use AI to generate or enhance character bios. Configure prompts, select an LLM service and model, then send requests to generate new bio content based on existing character information.")
@@ -1344,6 +1355,47 @@ class StartUI(routeable):
             refresh_btn.click(on_refresh, inputs=[override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown, bio_editor, save_btn])
             refresh_summaries_btn.click(on_refresh_summaries, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=[info_line, summary_editor, save_summary_btn])
             save_summary_btn.click(on_save_summary, inputs=[npc_dropdown, summary_editor, state_label_to_key, state_world_id], outputs=[info_line])
+
+            def on_live_reload():
+                try:
+                    from src.ui import settings_ui_constructor as sui
+                    gm = getattr(sui, '_game_manager_ref', None)
+                    if not gm:
+                        return "", " No game manager. Start the game first."
+                    json_str = gm.get_conversation_as_json()
+                    if json_str is None:
+                        return "", " No active conversation, or conversation has no messages yet."
+                    return json_str, " Reloaded current conversation."
+                except Exception as e:
+                    logging.error(f"Live conversation reload failed: {e}", exc_info=True)
+                    return "", f" Reload failed: {e}"
+
+            def on_live_save(json_str: str):
+                if not json_str or not json_str.strip():
+                    return " Enter or load conversation JSON first."
+                try:
+                    from src.ui import settings_ui_constructor as sui
+                    gm = getattr(sui, '_game_manager_ref', None)
+                    if not gm:
+                        return " No game manager. Start the game first."
+                    ok = gm.apply_conversation_from_json(json_str.strip())
+                    if ok:
+                        return " Conversation updated successfully."
+                    return " Apply failed. Check logs."
+                except Exception as e:
+                    logging.error(f"Live conversation save failed: {e}", exc_info=True)
+                    return f" Save failed: {e}"
+
+            live_reload_btn.click(
+                on_live_reload,
+                inputs=[],
+                outputs=[live_conversation_editor, live_conversation_info],
+            )
+            live_save_btn.click(
+                on_live_save,
+                inputs=[live_conversation_editor],
+                outputs=[live_conversation_info],
+            )
 
             # LLM section wiring
             # Prompt profile wiring

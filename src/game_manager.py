@@ -760,6 +760,18 @@ class GameStateManager:
             return False
         self.__talk.save_summary_only()
         return True
+
+    def get_conversation_as_json(self) -> str | None:
+        """Get the current conversation as lossless JSON for the live editor. Returns None if no active conversation."""
+        if not self.__talk:
+            return None
+        return self.__talk.get_conversation_as_json()
+
+    def apply_conversation_from_json(self, json_str: str) -> bool:
+        """Apply edited JSON back to the live conversation. Returns True on success."""
+        if not self.__talk:
+            return False
+        return self.__talk.apply_conversation_from_json(json_str)
     
     def process_stt_setup(self, input_json: dict[str, Any]):
         '''Process the STT setup (mic / text / push-to-talk) based on the settings passed in the input JSON'''
