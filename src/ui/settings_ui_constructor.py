@@ -541,6 +541,17 @@ class SettingsUIConstructor(ConfigValueVisitor):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Text:
             config_value = typing.cast(ConfigValueString, raw_config_value)
             
+            # Special handling for real world timestamp - make it readonly
+            if config_value.identifier == "real_world_timestamp":
+                return gr.Text(
+                    value=config_value.value,
+                    show_label=False,
+                    container=False,
+                    max_lines=1,
+                    interactive=False,
+                    placeholder="Click 'Get Timestamp' to display current date and time"
+                )
+            
             # Special handling for example profile JSON - make it readonly
             if config_value.identifier == "example_profile_json":
                 return gr.Text(
@@ -640,6 +651,17 @@ class SettingsUIConstructor(ConfigValueVisitor):
                     return f" An error occurred: {str(e)}"
 
             additional_buttons.append(("Save Summary", on_save_summary_click))
+        
+        elif config_value.identifier == "real_world_timestamp":
+            def on_get_timestamp_click() -> str:
+                """Display the current real-world timestamp as Unix timestamp (seconds since epoch)."""
+                from datetime import datetime, timezone
+                try:
+                    return str(int(datetime.now(timezone.utc).timestamp()))
+                except Exception as e:
+                    logging.error(f"Error getting timestamp: {e}")
+                    return f"Error: {str(e)}"
+            additional_buttons.append(("Get Timestamp", on_get_timestamp_click))
         
         # Add model profile management buttons
         elif config_value.identifier == "profile_parameters":

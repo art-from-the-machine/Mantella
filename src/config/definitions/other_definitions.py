@@ -210,3 +210,8 @@ class OtherDefinitions:
                         Useful if the game crashes and Mantella doesn't receive the normal end-conversation event.
                         Note: When the conversation later ends normally, another summary may be generated again."""
         return ConfigValueString("save_summary_now", "Save Summary Now", description, "")
+
+    @staticmethod
+    def get_real_world_timestamp_config_value() -> ConfigValue:
+        description = """Display the current real-world date and time. Click 'Get Timestamp' to update the display with the current Unix timestamp (seconds since epoch)."""
+        return ConfigValueString("real_world_timestamp", "Real World Timestamp", description, "")
