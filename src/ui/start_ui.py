@@ -418,11 +418,10 @@ class StartUI(routeable):
                                 content['ref_id'] = optional_values['ref_id']
                             if optional_values.get('tags_overwrite') is not None:
                                 content['tags_overwrite'] = optional_values['tags_overwrite']
-                            # `tags` should append (not overwrite) when updating existing entry
-                            if optional_values.get('tags') is not None:
-                                incoming = _clean(optional_values['tags'])
-                                if incoming:
-                                    content['tags'] = _append_csv(content.get('tags', ''), incoming)
+                            # Keep existing `tags` in the target override row unchanged.
+                            # Bio save should not mutate tag assignments.
+                            if 'tags' in content:
+                                content['tags'] = content.get('tags', '')
                             updated = True
                             break
                     
@@ -485,10 +484,10 @@ class StartUI(routeable):
                         for col_name, col_value in optional_values.items():
                             if col_value is not None and col_name in df.columns:
                                 if col_name == 'tags':
-                                    incoming = _clean(col_value)
-                                    if incoming:
-                                        existing_val = df.loc[m, col_name].iloc[0]
-                                        df.loc[m, col_name] = _append_csv(existing_val, incoming)
+                                    # Keep existing `tags` in the target override row unchanged.
+                                    # Bio save should not mutate tag assignments.
+                                    existing_val = df.loc[m, col_name].iloc[0]
+                                    df.loc[m, col_name] = existing_val
                                 else:
                                     df.loc[m, col_name] = col_value
                     else:
