@@ -355,7 +355,7 @@ class StartUI(routeable):
                 pass
             return os.path.join(folder, 'character_overrides.csv')
 
-        def _save_bio_to_user_path(label: str, bio_text: str, label_to_key: dict[str, str], user_csv_path: str | None, optional_values: dict[str, str | None]) -> str:
+        def _save_bio_to_user_path(label: str, bio_text: str, label_to_key: dict[str, str], user_csv_path: str | None, optional_values: dict[str, str | None], override_tags: str | None = None) -> str:
             key = label_to_key.get(label, '')
             if key == '':
                 return ''
@@ -418,9 +418,11 @@ class StartUI(routeable):
                                 content['ref_id'] = optional_values['ref_id']
                             if optional_values.get('tags_overwrite') is not None:
                                 content['tags_overwrite'] = optional_values['tags_overwrite']
-                            # Keep existing `tags` in the target override row unchanged.
-                            # Bio save should not mutate tag assignments.
-                            if 'tags' in content:
+                            # Write override tags from the tags editor when provided;
+                            # otherwise keep existing `tags` unchanged.
+                            if override_tags is not None:
+                                content['tags'] = override_tags
+                            elif 'tags' in content:
                                 content['tags'] = content.get('tags', '')
                             updated = True
                             break
@@ -432,7 +434,9 @@ class StartUI(routeable):
                             new_entry['ref_id'] = optional_values['ref_id']
                         if optional_values.get('tags_overwrite') is not None:
                             new_entry['tags_overwrite'] = optional_values['tags_overwrite']
-                        if optional_values.get('tags') is not None:
+                        if override_tags is not None:
+                            new_entry['tags'] = override_tags
+                        elif optional_values.get('tags') is not None:
                             new_entry['tags'] = optional_values['tags']
                         items.append(new_entry)
                     
@@ -477,26 +481,38 @@ class StartUI(routeable):
                          (df['base_id'].fillna('').astype(str) == base_id) & 
                          (df['race'].fillna('').astype(str) == race))
                     
+                    # Ensure `tags` column exists when we have override tags to write
+                    if override_tags is not None and 'tags' not in df.columns:
+                        df.insert(len(df.columns), 'tags', '')
+
                     if m.any():
                         # Update existing entry
                         df.loc[m, 'bio'] = bio_text
+                        # Write override tags from the tags editor when provided
+                        if override_tags is not None and 'tags' in df.columns:
+                            df.loc[m, 'tags'] = override_tags
                         # Update optional columns only if we have new values, otherwise preserve existing
                         for col_name, col_value in optional_values.items():
                             if col_value is not None and col_name in df.columns:
                                 if col_name == 'tags':
-                                    # Keep existing `tags` in the target override row unchanged.
-                                    # Bio save should not mutate tag assignments.
+                                    # Tags are handled explicitly above via override_tags;
+                                    # preserve existing value here.
                                     existing_val = df.loc[m, col_name].iloc[0]
-                                    df.loc[m, col_name] = existing_val
+                                    df.loc[m, col_name] = existing_val if override_tags is None else override_tags
                                 else:
                                     df.loc[m, col_name] = col_value
                     else:
                         # Add new entry at the end
                         new_row = {'name': name, 'base_id': base_id, 'race': race, 'bio': bio_text}
+                        if override_tags is not None:
+                            new_row['tags'] = override_tags
                         # Add optional columns only if we have values for them
                         for col_name, col_value in optional_values.items():
                             if col_value is not None and col_name in df.columns:
-                                new_row[col_name] = col_value
+                                if col_name == 'tags' and override_tags is not None:
+                                    pass  # already handled above
+                                else:
+                                    new_row[col_name] = col_value
                         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                     
                     # Ensure directory exists (guard empty dirname)
@@ -657,6 +673,63 @@ class StartUI(routeable):
                 logging.error(f"Bio Editor: failed to save summary: {e}")
                 return ""
 
+        def _load_override_tags_for_label(label: str, label_to_key: dict[str, str], user_csv_path: str | None) -> str:
+            """Load only the override-portion of tags for a given NPC.
+
+            This reads the personal override file (CSV or JSON) and returns the
+            ``tags`` value stored there — *not* the merged runtime tags.
+            """
+            key = _key_from_label(label, label_to_key)
+            if key == "":
+                return ""
+            name, base_id, race = _split_key(key)
+            target_path = _choose_default_personal_csv(user_csv_path)
+            try:
+                if not target_path or not os.path.exists(target_path):
+                    return ""
+                _, ext = os.path.splitext(target_path)
+                ext = ext.lower()
+                if ext == '.json':
+                    with open(target_path, 'r', encoding='utf-8') as fp:
+                        obj = json.load(fp)
+                    items = obj if isinstance(obj, list) else [obj]
+                    for content in items:
+                        if not isinstance(content, dict):
+                            continue
+                        if (str(content.get('name', '')).strip() == name and
+                                str(content.get('base_id', '')).strip() == base_id and
+                                str(content.get('race', '')).strip() == race):
+                            raw = content.get('tags', '')
+                            if raw is None:
+                                return ""
+                            return str(raw).strip()
+                    return ""
+                else:
+                    if not os.path.exists(target_path):
+                        return ""
+                    enc = utils.get_file_encoding(target_path)
+                    odf = pd.read_csv(target_path, engine='python', encoding=enc)
+                    if odf is None or odf.empty:
+                        return ""
+                    if 'tags' not in odf.columns:
+                        return ""
+                    for c in ['name', 'base_id', 'race']:
+                        if c not in odf.columns:
+                            odf[c] = ''
+                        odf[c] = odf[c].fillna('').astype(str)
+                    m = ((odf['name'] == name) &
+                         (odf['base_id'] == base_id) &
+                         (odf['race'] == race))
+                    if m.any():
+                        val = odf.loc[m, 'tags'].iloc[0]
+                        if val is None or (isinstance(val, float) and pd.isna(val)):
+                            return ""
+                        return str(val).strip()
+                    return ""
+            except Exception as e:
+                logging.debug(f"Bio Editor: failed to load override tags: {e}")
+                return ""
+
         def _load_bio_for_label(label: str, df: pd.DataFrame, label_to_key: dict[str, str]) -> str:
             key = _key_from_label(label, label_to_key)
             if key == "":
@@ -754,6 +827,7 @@ class StartUI(routeable):
                 gr.Markdown("Manually edit character bios and conversation summaries. Select an NPC from the dropdown, modify their bio or summary, and save your changes.")
                 npc_dropdown = gr.Dropdown(choices=labels, label="NPC", multiselect=False, allow_custom_value=False)
                 bio_editor = gr.Text(value="", lines=12, label="Bio")
+                tags_editor = gr.Text(value="", lines=2, label="Tags ("tags" column in override csv file only)", placeholder="Comma-separated tags from your personal override file")
                 
                 info_line = gr.Markdown(value="", visible=True)
                 # Optional: user-chosen path for base-only NPCs; persisted in hidden config key
@@ -836,13 +910,14 @@ class StartUI(routeable):
                     refresh_llm_btn = gr.Button("Refresh bios", variant="secondary")
                 llm_info_line = gr.Markdown(value="", visible=True)
 
-            def on_select(label: str, df: pd.DataFrame, l2k: dict[str, str], world_id: str):
-                # Clear info and load bio; enable save when selection exists
+            def on_select(label: str, df: pd.DataFrame, l2k: dict[str, str], world_id: str, user_csv: str):
+                # Clear info and load bio + override tags; enable save when selection exists
                 bio = _load_bio_for_label(label, df, l2k)
                 summary = _load_summary_for_label(label, l2k, world_id)
-                return bio, summary, "", gr.Button(interactive=bool(label)), gr.Button(interactive=bool(label))
+                override_tags = _load_override_tags_for_label(label, l2k, user_csv)
+                return bio, summary, override_tags, "", gr.Button(interactive=bool(label)), gr.Button(interactive=bool(label))
 
-            def on_save(label: str, bio_text: str, l2k: dict[str, str], k2l: dict[str, str], user_csv: str):
+            def on_save(label: str, bio_text: str, tags_text: str, l2k: dict[str, str], k2l: dict[str, str], user_csv: str):
                 # Try to infer optional column values from current df row, if present
                 optional_values = {}
                 try:
@@ -869,7 +944,11 @@ class StartUI(routeable):
                                     optional_values[col_name] = str(col_value)
                 except Exception:
                     pass
-                path = _save_bio_to_user_path(label, bio_text, l2k, user_csv, optional_values)
+                # The tags editor always shows the override-only portion.
+                # Pass it explicitly so _save_bio_to_user_path writes it
+                # to the override file's `tags` column.
+                override_tags = tags_text.strip() if isinstance(tags_text, str) else None
+                path = _save_bio_to_user_path(label, bio_text, l2k, user_csv, optional_values, override_tags=override_tags)
                 # Fast refresh: avoid heavy reload when game isn't running
                 new_df = state_df.value if isinstance(state_df.value, pd.DataFrame) else _get_resolved_character_df()
                 # Apply the saved bio into in-memory df for immediate UI feedback
@@ -908,12 +987,16 @@ class StartUI(routeable):
                         _update_runtime_bio_if_possible(rn, rb, rr, bio_text)
                 except Exception as e:
                     logging.debug(f"Bio Editor: runtime update after manual save failed: {e}")
-                # Update cached game DataFrame for future conversations
+                # Update cached game DataFrame (bio + tags) for future conversations
                 try:
                     key_for_cached = l2k.get(label, '')
                     cn, cb, cr = _split_key(key_for_cached)
                     if cn and cb:
                         _update_cached_game_df_if_possible(cn, cb, cr, bio_text)
+                        # Refresh runtime tags for this NPC so the next conversation
+                        # picks up the new combined tags without a full reload.
+                        if override_tags is not None:
+                            _refresh_runtime_tags_for_npc(cn, cb, cr, override_tags)
                 except Exception as e:
                     logging.debug(f"Bio Editor: cached df update after manual save failed: {e}")
                 new_labels, new_l2k, new_k2l = _build_labels_and_map(new_df)
@@ -956,7 +1039,7 @@ class StartUI(routeable):
                 except Exception:
                     pass
                 new_labels, new_l2k, new_k2l = _build_labels_and_map(new_df)
-                # Clear selection and editor, disable save
+                # Clear selection and editor (including tags), disable save
                 return (
                     "Bios refreshed.",
                     new_df,
@@ -964,6 +1047,7 @@ class StartUI(routeable):
                     new_l2k,
                     new_k2l,
                     gr.Dropdown(choices=new_labels, value=None),
+                    gr.Text(value=""),
                     gr.Text(value=""),
                     gr.Button(interactive=False)
                 )
@@ -1275,9 +1359,171 @@ class StartUI(routeable):
                 except Exception as e:
                     logging.debug(f"Bio Editor: cached game df update skipped: {e}")
 
-            def on_save_from_llm(label: str, response_text: str, l2k: dict[str, str], k2l: dict[str, str], user_csv: str):
+            def _refresh_runtime_tags_for_npc(name: str, base_id: str, race: str, new_override_tags: str):
+                """Recompute the merged runtime `tags` column for a single NPC.
+
+                After saving override tags from the Bio Editor, this function:
+                1. Reads the base CSV tags for the NPC.
+                2. Reads all override files in order (mod then personal) and
+                   appends their `tags` values, matching Gameable's append
+                   semantics.
+                3. Writes the recomputed merged tags into ``gm.game.character_df``
+                   so subsequent conversations pick up the change.
+                4. If the NPC is currently in an active conversation, re-expands
+                   their bio with the new effective tags and updates the
+                   ``Character.bio`` attribute in place.
+                """
+                try:
+                    from src.ui import settings_ui_constructor as sui
+                    gm = getattr(sui, '_game_manager_ref', None)
+                    if not gm or not hasattr(gm, 'game') or gm.game is None:
+                        return
+                    gdf = gm.game.character_df
+                    if gdf is None:
+                        return
+
+                    def _clean(v) -> str:
+                        if v is None:
+                            return ""
+                        try:
+                            if pd.isna(v):
+                                return ""
+                        except Exception:
+                            pass
+                        if not isinstance(v, str):
+                            v = str(v)
+                        return v.strip()
+
+                    def _append_csv(existing: str, incoming: str) -> str:
+                        existing = _clean(existing)
+                        incoming = _clean(incoming)
+                        if not incoming:
+                            return existing
+                        if not existing:
+                            return incoming
+                        return f"{existing},{incoming}"
+
+                    # --- Step 1: base CSV tags ---
+                    base_csv = _get_base_csv_path()
+                    base_tags = ""
+                    try:
+                        enc = utils.get_file_encoding(base_csv)
+                        bdf = pd.read_csv(base_csv, engine='python', encoding=enc)
+                        for c in ['name', 'base_id', 'race']:
+                            if c not in bdf.columns:
+                                bdf[c] = ''
+                            bdf[c] = bdf[c].fillna('').astype(str).str.strip()
+                        bm = (bdf['name'] == name) & (bdf['base_id'] == base_id) & (bdf['race'] == race)
+                        if bm.any() and 'tags' in bdf.columns:
+                            base_tags = _clean(bdf.loc[bm, 'tags'].iloc[0])
+                    except Exception:
+                        pass
+
+                    # --- Step 2: walk overrides in order (same as Gameable.__apply_character_overrides) ---
+                    merged_tags = base_tags
+                    merged_tags_overwrite = ""
+                    try:
+                        override_files = _list_override_files_in_order()
+                        for fpath in override_files:
+                            try:
+                                _, ext = os.path.splitext(fpath)
+                                ext = ext.lower()
+                                if ext == '.csv':
+                                    enc2 = utils.get_file_encoding(fpath)
+                                    odf = pd.read_csv(fpath, engine='python', encoding=enc2)
+                                    if odf is None or odf.empty:
+                                        continue
+                                    for c in ['name', 'base_id', 'race']:
+                                        if c not in odf.columns:
+                                            odf[c] = ''
+                                        odf[c] = odf[c].fillna('').astype(str).str.strip()
+                                    om = (odf['name'] == name) & (odf['base_id'] == base_id) & (odf['race'] == race)
+                                    if om.any():
+                                        if 'tags' in odf.columns:
+                                            incoming_tags = _clean(odf.loc[om, 'tags'].iloc[0])
+                                            if incoming_tags:
+                                                merged_tags = _append_csv(merged_tags, incoming_tags)
+                                        if 'tags_overwrite' in odf.columns:
+                                            incoming_tw = _clean(odf.loc[om, 'tags_overwrite'].iloc[0])
+                                            if incoming_tw:
+                                                merged_tags_overwrite = incoming_tw
+                                elif ext == '.json':
+                                    if os.path.getsize(fpath) == 0:
+                                        continue
+                                    with open(fpath, 'r', encoding='utf-8') as fp:
+                                        obj = json.load(fp)
+                                    items = obj if isinstance(obj, list) else [obj]
+                                    for content in items:
+                                        if not isinstance(content, dict):
+                                            continue
+                                        if (str(content.get('name', '')).strip() == name and
+                                                str(content.get('base_id', '')).strip() == base_id and
+                                                str(content.get('race', '')).strip() == race):
+                                            incoming_tags = _clean(content.get('tags', ''))
+                                            if incoming_tags:
+                                                merged_tags = _append_csv(merged_tags, incoming_tags)
+                                            incoming_tw = _clean(content.get('tags_overwrite', ''))
+                                            if incoming_tw:
+                                                merged_tags_overwrite = incoming_tw
+                            except Exception:
+                                continue
+                    except Exception:
+                        pass
+
+                    # --- Step 3: write merged tags into character_df ---
+                    for c in ['tags', 'tags_overwrite']:
+                        if c not in gdf.columns:
+                            gdf[c] = ''
+                    try:
+                        exact_mask = (
+                            gdf['name'].fillna('').astype(str) == str(name)
+                        ) & (
+                            gdf['base_id'].fillna('').astype(str) == str(base_id)
+                        ) & (
+                            gdf['race'].fillna('').astype(str) == str(race)
+                        )
+                    except Exception:
+                        exact_mask = None
+                    if isinstance(exact_mask, pd.Series) and exact_mask.any():
+                        gdf.loc[exact_mask, 'tags'] = merged_tags
+                        if merged_tags_overwrite:
+                            gdf.loc[exact_mask, 'tags_overwrite'] = merged_tags_overwrite
+
+                    # --- Step 4: update in-conversation Character.bio with re-expanded tags ---
+                    effective_tags = merged_tags_overwrite if merged_tags_overwrite else merged_tags
+                    try:
+                        talk = getattr(gm, '_GameStateManager__talk', None)
+                        if talk and hasattr(talk, 'context'):
+                            game_obj = gm.game
+                            bio_tmpl_mgr = getattr(game_obj, '_Skyrim__bio_template_manager', None) or \
+                                           getattr(game_obj, '_Fallout4__bio_template_manager', None)
+                            characters = talk.context.npcs_in_conversation.get_all_characters()
+                            def _normalize_id(val: str) -> str:
+                                s = str(val or "").upper()
+                                return s[-3:].rjust(6, "0") if s.startswith('FE') else s[-6:]
+                            for ch in characters:
+                                if _normalize_id(getattr(ch, 'base_id', "")) == _normalize_id(base_id):
+                                    if (not name or str(getattr(ch, 'name', "")) == str(name)):
+                                        # Re-read the base bio from character_df (before tag expansion)
+                                        if isinstance(exact_mask, pd.Series) and exact_mask.any():
+                                            raw_bio = _clean(gdf.loc[exact_mask, 'bio'].iloc[0])
+                                        else:
+                                            raw_bio = ch.bio
+                                        if bio_tmpl_mgr:
+                                            ch.bio = bio_tmpl_mgr.expand_bio_with_tags(raw_bio, effective_tags)
+                                        # Update dynamic tag events
+                                        if bio_tmpl_mgr and hasattr(bio_tmpl_mgr, 'extract_dynamic_events'):
+                                            dyn = bio_tmpl_mgr.extract_dynamic_events(effective_tags)
+                                            if dyn:
+                                                ch.set_custom_character_value('mantella_dynamic_tag_events', dyn)
+                    except Exception as e:
+                        logging.debug(f"Bio Editor: in-conversation tag refresh skipped: {e}")
+                except Exception as e:
+                    logging.debug(f"Bio Editor: runtime tags refresh skipped: {e}")
+
+            def on_save_from_llm(label: str, response_text: str, tags_text: str, l2k: dict[str, str], k2l: dict[str, str], user_csv: str):
                 # Reuse existing save logic (already updates runtime)
-                return on_save(label, response_text, l2k, k2l, user_csv)
+                return on_save(label, response_text, tags_text, l2k, k2l, user_csv)
 
             # Persist Bio LLM UI selections into config.ini so they survive restarts
             def on_service_change_persist(new_service: str):
@@ -1349,9 +1595,9 @@ class StartUI(routeable):
                     pass
 
             override_csv_path.change(on_user_csv_change, inputs=[override_csv_path], outputs=[])
-            npc_dropdown.change(on_select, inputs=[npc_dropdown, state_df, state_label_to_key, state_world_id], outputs=[bio_editor, summary_editor, info_line, save_btn, save_summary_btn])
-            save_btn.click(on_save, inputs=[npc_dropdown, bio_editor, state_label_to_key, state_key_to_label, override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown])
-            refresh_btn.click(on_refresh, inputs=[override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown, bio_editor, save_btn])
+            npc_dropdown.change(on_select, inputs=[npc_dropdown, state_df, state_label_to_key, state_world_id, override_csv_path], outputs=[bio_editor, summary_editor, tags_editor, info_line, save_btn, save_summary_btn])
+            save_btn.click(on_save, inputs=[npc_dropdown, bio_editor, tags_editor, state_label_to_key, state_key_to_label, override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown])
+            refresh_btn.click(on_refresh, inputs=[override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown, bio_editor, tags_editor, save_btn])
             refresh_summaries_btn.click(on_refresh_summaries, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=[info_line, summary_editor, save_summary_btn])
             save_summary_btn.click(on_save_summary, inputs=[npc_dropdown, summary_editor, state_label_to_key, state_world_id], outputs=[info_line])
 
@@ -1409,8 +1655,8 @@ class StartUI(routeable):
             temp_override.change(on_temp_override_persist, inputs=[temp_override], outputs=[])
             max_tokens_override.change(on_max_tokens_override_persist, inputs=[max_tokens_override], outputs=[])
             send_request_btn.click(on_send_llm_request, inputs=[npc_dropdown, state_df, state_label_to_key, state_world_id, prompt_editor, bio_editor, summary_editor, params_editor, apply_profile_checkbox, temp_override, max_tokens_override, service_dropdown, model_dropdown], outputs=[info_line, llm_response_editor, save_from_llm_btn])
-            save_from_llm_btn.click(on_save_from_llm, inputs=[npc_dropdown, llm_response_editor, state_label_to_key, state_key_to_label, override_csv_path], outputs=[llm_info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown])
-            refresh_llm_btn.click(on_refresh, inputs=[override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown, bio_editor, save_btn])
+            save_from_llm_btn.click(on_save_from_llm, inputs=[npc_dropdown, llm_response_editor, tags_editor, state_label_to_key, state_key_to_label, override_csv_path], outputs=[llm_info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown])
+            refresh_llm_btn.click(on_refresh, inputs=[override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown, bio_editor, tags_editor, save_btn])
 
     def __get_theme(self):
         return gr.themes.Soft(primary_hue="green",
