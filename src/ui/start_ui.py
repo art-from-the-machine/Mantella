@@ -827,7 +827,7 @@ class StartUI(routeable):
                 gr.Markdown("Manually edit character bios and conversation summaries. Select an NPC from the dropdown, modify their bio or summary, and save your changes.")
                 npc_dropdown = gr.Dropdown(choices=labels, label="NPC", multiselect=False, allow_custom_value=False)
                 bio_editor = gr.Text(value="", lines=12, label="Bio")
-                tags_editor = gr.Text(value="", lines=2, label="Tags ("tags" column in override csv file only)", placeholder="Comma-separated tags from your personal override file")
+                tags_editor = gr.Text(value="", lines=2, label='Tags ("tags" column in override csv file only)', placeholder="Comma-separated tags from your personal override file")
                 
                 info_line = gr.Markdown(value="", visible=True)
                 # Optional: user-chosen path for base-only NPCs; persisted in hidden config key
