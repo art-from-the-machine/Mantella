@@ -490,6 +490,8 @@ class context:
             summary = ""
             if include_memories:
                 summary = self.__rememberer.get_character_summary(character, self.__world_id)
+                if summary:
+                    summary = self._resolve_bio_player_name(summary)
             
             # Combine bio and summary for this character
             if len(non_player_characters) == 1:
@@ -601,6 +603,8 @@ class context:
         conversation_summaries = ""
         if include_memories:
             conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
+            if conversation_summaries:
+                conversation_summaries = self._resolve_bio_player_name(conversation_summaries)
         actions = self.__get_action_texts(actions_for_prompt)
 
         removal_content: list[tuple[str, str, str]] = [
