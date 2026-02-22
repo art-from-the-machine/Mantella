@@ -2,6 +2,7 @@ import sys
 import numpy as np
 from faster_whisper import WhisperModel
 from src.config.config_loader import ConfigLoader
+from src.llm.client_base import ClientBase
 import src.utils as utils
 import requests
 import json
@@ -43,7 +44,7 @@ class Transcriber:
     LOOKBACK_CHUNKS = 5  # Number of chunks to keep in buffer when not recording
     
     @utils.time_it
-    def __init__(self, config: ConfigLoader, stt_secret_key_file: str, secret_key_file: str):
+    def __init__(self, config: ConfigLoader):
         self.loglevel = 27
         self.language = config.stt_language
         self.task = "translate" if config.stt_translate == 1 else "transcribe"
@@ -80,8 +81,7 @@ class Transcriber:
             self.__mic_input_path: str = os.path.join(config.save_folder, "data", "tmp", "mic")
             os.makedirs(self.__mic_input_path, exist_ok=True)
 
-        self.__stt_secret_key_file = stt_secret_key_file
-        self.__secret_key_file = secret_key_file
+        self.__stt_service_name = config.whisper_url
         self.__api_key: str | None = self.__get_api_key()
         self.__initial_client: OpenAI | None = None
         if (self.stt_service == 'whisper') and (self.__api_key) and ('openai' in self.whisper_url) and (self.external_whisper_service):
@@ -201,29 +201,8 @@ class Transcriber:
     def __get_api_key(self) -> str:
         api_key = None
         if self.external_whisper_service:
-            try: # first check mod folder for stt secret key
-                mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
-                with open(os.path.join(mod_parent_folder, self.__stt_secret_key_file), 'r') as f:
-                    api_key: str = f.readline().strip()
-            except: # check locally (same folder as exe) for stt secret key
-                try:
-                    with open(self.__stt_secret_key_file, 'r') as f:
-                        api_key: str = f.readline().strip()
-                except:
-                    try: # first check mod folder for secret key
-                        mod_parent_folder = str(Path(utils.resolve_path()).parent.parent.parent)
-                        with open(os.path.join(mod_parent_folder, self.__secret_key_file), 'r') as f:
-                            api_key: str = f.readline().strip()
-                    except: # check locally (same folder as exe) for secret key
-                        try:
-                            with open(self.__secret_key_file, 'r') as f:
-                                api_key: str = f.readline().strip()
-                        except:
-                            pass
-
-            if not api_key and utils.is_local_url(self.whisper_url):
-                api_key = "DUMMY"
-
+            api_key = ClientBase._get_api_key(self.__stt_service_name, show_error=False)
+            
             if not api_key:
                 logger.error('''No secret key found in GPT_SECRET_KEY.txt. Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key

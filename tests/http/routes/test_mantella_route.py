@@ -134,10 +134,6 @@ def test_setup_route_combinations(default_config: ConfigLoader, english_language
     # Create route instance
     route = mantella_route(
         config=default_config, 
-        stt_secret_key_file='STT_SECRET_KEY.txt', 
-        image_secret_key_file='IMAGE_SECRET_KEY.txt',
-        function_llm_secret_key_file='FUNCTION_GPT_SECRET_KEY.txt',
-        secret_key_file='GPT_SECRET_KEY.txt', 
         language_info=english_language_info, 
         show_debug_messages=False
     )
@@ -153,10 +149,6 @@ def test_setup_route_ends_conversation(default_config: ConfigLoader, english_lan
     # Create route instance
     route = mantella_route(
         config=default_config, 
-        stt_secret_key_file='STT_SECRET_KEY.txt', 
-        image_secret_key_file='IMAGE_SECRET_KEY.txt',
-        function_llm_secret_key_file='FUNCTION_GPT_SECRET_KEY.txt',
-        secret_key_file='GPT_SECRET_KEY.txt', 
         language_info=english_language_info, 
         show_debug_messages=False
     )

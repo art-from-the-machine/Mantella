@@ -111,7 +111,7 @@ class STTDefinitions:
     @staticmethod
     def get_whisper_url_config_value() -> ConfigValue:
         description = """The external Whisper service URL Mantella will connect to (if 'External Whisper Service' is enabled). 
-                        Some services require an API secret key. This secret key either needs to be set in your `GPT_SECRET_KEY.txt` file, or by creating a new text file called `STT_SECRET_KEY.txt` in the same folder as `GPT_SECRET_KEY.txt` and adding the API key there. If you don't see the service you would like to connect to in the dropdown list, you can also manually enter a URL to connect to.
+                        Some services require an API secret key. This secret key can be set in your `GPT_SECRET_KEY.txt` file. If you don't see the service you would like to connect to in the dropdown list, you can also manually enter a URL to connect to.
                         
                         Known services:
 	                        OpenAI: Ensure 'Speech-to-Text'->'Model Size' is set to `whisper-1`. Requires an OpenAI secret key.

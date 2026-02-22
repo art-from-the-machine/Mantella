@@ -14,7 +14,7 @@ class FunctionClient(ClientBase):
     '''LLM class to handle function calling / actions
     '''
     @utils.time_it
-    def __init__(self, config: ConfigLoader, secret_key_file: str, function_llm_secret_key_file: str) -> None:
+    def __init__(self, config: ConfigLoader) -> None:
         self.__config = config
         self.__function_prompt: str = config.function_llm_prompt.format(game=config.game.display_name)
         
@@ -26,7 +26,7 @@ class FunctionClient(ClientBase):
             'custom_token_count': config.function_llm_custom_token_count
         }
         
-        super().__init__(**setup_values, secret_key_files=[function_llm_secret_key_file, secret_key_file])
+        super().__init__(**setup_values)
 
         if self._is_local:
             logger.info(f"Running local tool calling model")

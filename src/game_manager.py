@@ -31,7 +31,7 @@ class GameStateManager:
     WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
     @utils.time_it
-    def __init__(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, stt_api_file: str, api_file: str):        
+    def __init__(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient):        
         self.__game: Gameable = game
         self.__config: ConfigLoader = config
         self.__language_info: dict[Hashable, str] = language_info 
@@ -41,8 +41,6 @@ class GameStateManager:
         self.__talk: Conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk
-        self.__stt_api_file: str = stt_api_file
-        self.__api_file: str = api_file
         self.__stt: Transcriber | None = None
         self.__first_line: bool = True
         self.__automatic_greeting: bool = config.automatic_greeting
@@ -205,7 +203,7 @@ class GameStateManager:
             self.__mic_input = True
             # only init Transcriber if mic input is enabled
             if not self.__stt:
-                self.__stt = Transcriber(self.__config, self.__stt_api_file, self.__api_file)
+                self.__stt = Transcriber(self.__config)
             if input_json[comm_consts.KEY_INPUTTYPE] == comm_consts.KEY_INPUTTYPE_PTT:
                 self.__mic_ptt = True
         else:

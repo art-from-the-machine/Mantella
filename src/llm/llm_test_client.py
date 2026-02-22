@@ -55,12 +55,11 @@ class LLMTestClient(AIClient):
         return False
 
     @staticmethod
-    def get_model_list(service: str, secret_key_file: str, default_model: str = "mistralai/mistral-small-3.1-24b-instruct:free", is_vision: bool = False) -> LLMModelList:
+    def get_model_list(service: str, default_model: str = "mistralai/mistral-small-3.1-24b-instruct:free", is_vision: bool = False, is_tool_calling: bool = False) -> LLMModelList:
         """Returns a list of available LLM models
 
         Args:
             service (str): the service to query for LLM models
-            secret_key_file (str): _description_
             default_model (_type_, optional): _description_. Defaults to "mistralai/mistral-small-3.1-24b-instruct:free".
             is_vision (bool, optional): _description_. Defaults to False.
 

@@ -53,7 +53,7 @@ class VisionDefinitions:
             If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
             After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
 
-            Some services require an API secret key. This secret key either needs to be set in your `GPT_SECRET_KEY.txt` file, or by creating a new text file called `IMAGE_SECRET_KEY.txt` in the same folder as `GPT_SECRET_KEY.txt` and adding the API key there."""
+            Some services require an API secret key. This secret key can be set in your `GPT_SECRET_KEY.txt` file."""
         options = ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"]
         return ConfigValueSelection("vision_llm_api", "Custom Vision Model Service", description, "OpenRouter", options, allows_free_edit=True, tags=[ConfigValueTag.advanced])
     

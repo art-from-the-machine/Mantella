@@ -33,14 +33,14 @@ def image_client_default_llm(default_config: ConfigLoader):
     """Provides an ImageClient instance using the main LLM config for vision"""
     default_config.custom_vision_model = False
     default_config.vision_enabled = True
-    return ImageClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    return ImageClient(default_config)
 
 @pytest.fixture
 def image_client_custom_llm(default_config: ConfigLoader):
     """Provides an ImageClient instance using a separate vision LLM config"""
     default_config.custom_vision_model = True
     default_config.vision_enabled = True
-    return ImageClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    return ImageClient(default_config)
 
 @pytest.fixture
 def sample_openai_messages() -> list:

@@ -113,24 +113,24 @@ def test_setup_logging(mantella_setup: MantellaSetup, tmp_path: Path):
     log_file = tmp_path / "test_log.log"
     
     # Reset root logger to avoid interference from pytest
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.NOTSET)  # Reset to default
-    root_logger.handlers = []  # Clear any existing handlers
+    mantella_logger = logging.getLogger("Mantella")
+    mantella_logger.setLevel(logging.NOTSET)  # Reset to default
+    mantella_logger.handlers = []  # Clear any existing handlers
     
     # Test with advanced_logs=False
     mantella_setup._setup_logging(str(log_file), advanced_logs=False)
     
     # Verify logger configuration
-    assert root_logger.level == logging.INFO
-    assert len(root_logger.handlers) == 2  # Console and file handler
+    assert mantella_logger.level == logging.INFO
+    assert len(mantella_logger.handlers) == 2  # Console and file handler
     
     # Test with advanced_logs=True
-    root_logger.handlers = []  # Clear handlers
+    mantella_logger.handlers = []  # Clear handlers
     mantella_setup._setup_logging(str(log_file), advanced_logs=True)
     
     # Verify logger configuration
-    assert root_logger.level == logging.DEBUG
-    assert len(root_logger.handlers) == 2
+    assert mantella_logger.level == logging.DEBUG
+    assert len(mantella_logger.handlers) == 2
 
 
 def test_get_language_info_valid(mantella_setup: MantellaSetup, languages_csv_file: str):

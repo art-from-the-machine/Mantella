@@ -9,6 +9,7 @@ data/**/*.txt
 !data/Fallout4/placeholder/*.lip
 data/tmp/
 *SECRET_KEY.txt
+secret_keys.json
 logging.log
 player_recording.wav
 MantellaEnv*
