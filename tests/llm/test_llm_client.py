@@ -52,9 +52,9 @@ def test_apis_load_correctly(default_config: ConfigLoader):
     assert llm_client.is_local is False
 
     # Custom local URL
-    default_config.llm_api = 'http://custom-url.com'
+    default_config.llm_api = 'http://127.therestoftheurl.com'
     llm_client = LLMClient(default_config)
-    assert llm_client._base_url == 'http://custom-url.com'
+    assert llm_client._base_url == 'http://127.therestoftheurl.com'
     assert llm_client.is_local is True
     assert llm_client.api_key == 'abc123'
 

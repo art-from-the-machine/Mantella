@@ -197,11 +197,11 @@ def test_cleanup_mei_with_fake_mei(monkeypatch: MonkeyPatch, tmp_path: Path, cap
 def test_get_my_games_directory(tmp_path: Path):
     result = utils.get_my_games_directory(custom_user_folder='')
     assert os.path.exists(result)
-    assert result != str(tmp_path) + '\\'
+    assert result != str(tmp_path)
 
     result = utils.get_my_games_directory(custom_user_folder=str(tmp_path))
     assert os.path.exists(result)
-    assert result == str(tmp_path) + '\\'
+    assert result == str(tmp_path)
 
 
 @pytest.mark.parametrize(
