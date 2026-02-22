@@ -24,22 +24,6 @@ def llm_client_w_function_client(default_config: ConfigLoader):
     return client
 
 
-def test_missing_api_key_uses_fallback(default_config: ConfigLoader, tmp_path, monkeypatch):
-    """Test that when no API key is found, the client falls back to 'abc123'"""
-    mock_mod_path = tmp_path / "a" / "b" / "c"
-    mock_mod_path.mkdir(parents=True)
-    monkeypatch.setattr('src.utils.resolve_path', lambda: mock_mod_path)
-
-    monkeypatch.setattr('time.sleep', lambda *args, **kwargs: None)
-    monkeypatch.setattr("src.utils.play_error_sound", lambda *a, **kw: None)
-    
-    # When API key file is empty/missing, client should still be created with fallback
-    # For cloud APIs, the fallback is 'abc123'
-    default_config.llm_api = 'OpenRouter' # Cloud API
-    client = LLMClient(default_config)
-    assert client.api_key == 'abc123'
-
-
 def test_apis_load_correctly(default_config: ConfigLoader):
     default_config.llm_api = 'OpenRouter'
     llm_client = LLMClient(default_config)

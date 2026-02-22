@@ -57,7 +57,14 @@ def test_service_key_fallback_to_gpt_secret_txt(tmp_path, monkeypatch):
 
     (mod_root / "GPT_SECRET_KEY.txt").write_text("sk-gpt-fallback\n", encoding="utf-8")
 
-    assert ClientBase._get_api_key("OpenRouter", False) == "sk-gpt-fallback"
+    isolated_cwd = tmp_path / "isolated"
+    isolated_cwd.mkdir(parents=True)
+    previous_cwd = os.getcwd()
+    try:
+        os.chdir(isolated_cwd)
+        assert ClientBase._get_api_key("OpenRouter", False) == "sk-gpt-fallback"
+    finally:
+        os.chdir(previous_cwd)
 
 
 def test_service_key_not_found_returns_none(tmp_path, monkeypatch):
