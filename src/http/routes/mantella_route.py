@@ -29,13 +29,9 @@ class mantella_route(routeable):
     Args:
         routeable (_type_): _description_
     """
-    def __init__(self, config: ConfigLoader, stt_secret_key_file: str, image_secret_key_file: str, function_llm_secret_key_file: str, secret_key_file: str, language_info: dict[Hashable, str], show_debug_messages: bool = False) -> None:
+    def __init__(self, config: ConfigLoader, language_info: dict[Hashable, str], show_debug_messages: bool = False) -> None:
         super().__init__(config, show_debug_messages)
         self.__language_info: dict[Hashable, str] = language_info
-        self.__secret_key_file: str = secret_key_file
-        self.__function_llm_secret_key_file: str = function_llm_secret_key_file
-        self.__stt_secret_key_file: str = stt_secret_key_file
-        self.__image_secret_key_file: str = image_secret_key_file
         self.__game: GameStateManager | None = None
 
         # if not self._can_route_be_used():
@@ -62,10 +58,10 @@ class mantella_route(routeable):
         if self._config.tts_service == TTSEnum.PIPER:
             tts = Piper(self._config, game)
 
-        llm_client = LLMClient(self._config, self.__secret_key_file, self.__image_secret_key_file, self.__function_llm_secret_key_file)
+        llm_client = LLMClient(self._config)
         
         chat_manager = ChatManager(self._config, tts, llm_client)
-        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, self.__stt_secret_key_file, self.__secret_key_file)
+        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client)
 
     @utils.time_it
     def add_route_to_server(self, app: FastAPI):

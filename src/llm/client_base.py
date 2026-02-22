@@ -5,6 +5,7 @@ from openai import APIConnectionError, BadRequestError, OpenAI, AsyncOpenAI, Rat
 from openai.types.chat import ChatCompletion
 import time
 import tiktoken
+import json
 import os
 from pathlib import Path
 from src.llm.ai_client import AIClient
@@ -34,20 +35,37 @@ class ClientBase(AIClient):
     api_token_limits = {}
     tiktoken_cache_dir = "data"
     os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
+    
+    _KNOWN_SERVICES: dict[str, str] = {
+        'openai': 'https://api.openai.com/v1',
 
-    def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, secret_key_files: list[str]) -> None:
+        'openrouter': 'https://openrouter.ai/api/v1',
+        'or': 'https://openrouter.ai/api/v1',
+
+        'nanogpt': 'https://nano-gpt.com/api/v1',
+        'nano': 'https://nano-gpt.com/api/v1',
+
+        'kobold': 'http://127.0.0.1:5001/v1',
+        'koboldcpp': 'http://127.0.0.1:5001/v1',
+
+        'textgenwebui': 'http://127.0.0.1:5000/v1',
+        'text-gen-web-ui': 'http://127.0.0.1:5000/v1',
+        'textgenerationwebui': 'http://127.0.0.1:5000/v1',
+        'text-generation-web-ui': 'http://127.0.0.1:5000/v1',
+    }
+
+    def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int) -> None:
         '''
         Args:
             api_url (str): The API endpoint URL or a known service name (e.g., 'OpenAI', 'OpenRouter')
             llm (str): The name of the language model to use
             llm_params (dict[str, Any] | None): Additional parameters for the LLM requests (eg temperature, max_tokens)
             custom_token_count (int): A fallback token limit if the model's limit isn't known
-            secret_key_files (list[str]): A list of filenames to search for the API key, in order of priority
         '''
         super().__init__()
         self._generation_lock: Lock = Lock()
         self._model_name: str = llm
-        self._base_url = self.__get_endpoint(api_url)
+        self._base_url = self._get_endpoint(api_url)
         self._startup_async_client: AsyncOpenAI | None = None
         self._request_params: dict[str, Any] | None = llm_params
         self._image_client = None
@@ -57,7 +75,7 @@ class ClientBase(AIClient):
 
         if 'https' in self._base_url: # Cloud LLM
             self._is_local: bool = False
-            api_key = ClientBase._get_api_key(secret_key_files)
+            api_key = ClientBase._get_api_key(api_url)
             if api_key:
                 self._api_key = api_key
             else:
@@ -346,43 +364,19 @@ class ClientBase(AIClient):
                         await async_client.close()
 
 
+    @classmethod
     @utils.time_it
-    def __get_endpoint(self, api_url_or_name: str) -> str:
-        '''
-        Resolves a service name (eg 'openai', 'koboldcpp') if known, or else assumes the input is a direct URL
-
-        Args:
-            api_url_or_name (str): The service name or the direct API base URL
-
-        Returns:
-            endpoint (str): The resolved API endpoint URL
-        '''
-        endpoints = {
-            'openai': 'https://api.openai.com/v1', # don't set an endpoint, just use the OpenAI default
-            'openrouter': 'https://openrouter.ai/api/v1',
-            'kobold': 'http://127.0.0.1:5001/v1',
-            'textgenwebui': 'http://127.0.0.1:5000/v1',
-        }
-
-        cleaned_api_url_or_name = api_url_or_name.strip().lower().replace(' ', '')
-        if cleaned_api_url_or_name == 'openai':
-            endpoint = endpoints['openai']
-        elif cleaned_api_url_or_name == 'openrouter':
-            endpoint = endpoints['openrouter']
-        elif cleaned_api_url_or_name in ['kobold','koboldcpp']:
-            endpoint = endpoints['kobold']
-        elif cleaned_api_url_or_name in ['textgenwebui','text-gen-web-ui','textgenerationwebui','text-generation-web-ui']:
-            endpoint = endpoints['textgenwebui']
-        else: # if endpoint isn't named, assume it is a direct URL
-            endpoint = api_url_or_name
-
-        return endpoint
+    def _get_endpoint(cls, value: str) -> str:
+        '''Resolve a service name or alias to an endpoint URL.
+        Returns the normalized input as-is if not a known service (assumed to be a direct URL).'''
+        normalized = value.strip().lower().replace(' ', '')
+        return cls._KNOWN_SERVICES.get(normalized, normalized)
     
 
     def __get_llm_priority(self, llm: str, priority: str, api_url: str) -> str:
         '''https://openrouter.ai/docs/features/provider-routing'''
         # Priority is only compatible with OpenRouter
-        if api_url.strip().lower().replace(' ', '') != 'openrouter':
+        if self._get_endpoint(api_url) != 'https://openrouter.ai/api/v1':
             return ''
         
         # Free models cannot have a priority
@@ -399,46 +393,57 @@ class ClientBase(AIClient):
 
     @utils.time_it
     @staticmethod
-    def _get_api_key(key_files: str | list[str], show_error: bool = True) -> str | None:
-        '''
-        Attempts to read an API key from a list of files in order of priority.
+    def _get_api_key(service: str, show_error: bool = True) -> str | None:
+        '''Resolves an API key for the given service.
+
+        Lookup order:
+        1. secret_keys.json in the mod folder
+        2. secret_keys.json next to the executable
+        3. GPT_SECRET_KEY.txt in the mod folder
+        4. GPT_SECRET_KEY.txt next to the executable
 
         Args:
-            key_files (list[str]): A list of file names to check for the API key, in order of priority.
+            service (str): The LLM service name / URL
         '''
-        if isinstance(key_files, str):
-            key_files = [key_files]
-        
         mod_parent_folder = Path(utils.resolve_path()).parent.parent.parent
-        
+        target_service = ClientBase._get_endpoint(service)
+
         api_key = None
-        for key_file in key_files:
-            # try to check the mod folder first
+        for folder in [mod_parent_folder, Path('.')]:
+            json_path = folder / 'secret_keys.json'
             try:
-                with open(mod_parent_folder / key_file, 'r') as f:
-                    api_key = f.readline().strip()
-                    if api_key:
-                        break
-            except (FileNotFoundError, PermissionError):
+                with open(json_path, 'r') as f:
+                    keys_dict: dict = json.load(f)
+                for api_name, api_key_val in keys_dict.items():
+                    if ClientBase._get_endpoint(str(api_name)) == target_service:
+                        matching_api_key = str(api_key_val).strip()
+                        if matching_api_key:
+                            api_key = matching_api_key
+                            break
+                if api_key:
+                    break
+            except (FileNotFoundError, PermissionError, json.JSONDecodeError):
                 pass
-            
-            # try to check locally (same folder as executable)
-            try:
-                with open(key_file, 'r') as f:
-                    api_key = f.readline().strip()
-                    if api_key:
-                        break
-            except (FileNotFoundError, PermissionError):
-                pass
+
+        if not api_key:
+            for folder in [mod_parent_folder, Path('.')]:
+                try:
+                    with open(folder / 'GPT_SECRET_KEY.txt', 'r') as f:
+                        val = f.readline().strip()
+                        if val:
+                            api_key = val
+                            break
+                except (FileNotFoundError, PermissionError):
+                    pass
 
         if not api_key or api_key == '':
                 if show_error:
                     utils.play_error_sound()
-                    logger.critical(f'''No secret key found in GPT_SECRET_KEY.txt.
+                    logger.critical(f'''No secret key found for service '{service}' in GPT_SECRET_KEY.txt.
 Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
-If you are running a model locally, please ensure the service (eg Kobold / Text generation web UI) is selected and running via: http://localhost:4999/ui
+If you are running a model locally, please ensure the service (eg Kobold / Text generation web UI) is selected and running.
 For more information, see here: https://art-from-the-machine.github.io/Mantella/''')
                     time.sleep(3)
 
@@ -577,7 +582,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         return num_tokens
     
     @staticmethod
-    def get_model_list(service: str, secret_key_file: str, default_model: str = "mistralai/mistral-small-3.1-24b-instruct:free", is_vision: bool = False, is_tool_calling: bool = False) -> LLMModelList:
+    def get_model_list(service: str, default_model: str = "mistralai/mistral-small-3.1-24b-instruct:free", is_vision: bool = False, is_tool_calling: bool = False) -> LLMModelList:
         if service not in ['OpenAI', 'OpenRouter']:
             return LLMModelList([("Custom model","Custom model")], "Custom model", allows_manual_model_input=True)
         try:
@@ -588,11 +593,10 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                 allow_manual_model_input = True
             elif service == "OpenRouter":
                 default_model = default_model
-                secret_key_files = [secret_key_file, 'GPT_SECRET_KEY.txt'] if secret_key_file != 'GPT_SECRET_KEY.txt' else [secret_key_file]
                 show_error = not is_vision and not is_tool_calling # Only show error for base LLM
-                secret_key = ClientBase._get_api_key(secret_key_files, show_error=show_error)
+                secret_key = ClientBase._get_api_key("OpenRouter", show_error=show_error)
                 if not secret_key:
-                    return LLMModelList([(f"No secret key found in {secret_key_file}", "Custom model")], "Custom model", allows_manual_model_input=True)
+                    return LLMModelList([(f"No secret key found for OpenRouter", "Custom model")], "Custom model", allows_manual_model_input=True)
                 # NOTE: while a secret key is not needed for this request, this may change in the future
                 client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
                 # don't log initial 'HTTP Request: GET https://openrouter.ai/api/v1/models "HTTP/1.1 200 OK"'

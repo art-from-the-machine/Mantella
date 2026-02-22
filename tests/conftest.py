@@ -65,13 +65,13 @@ def piper(default_config: ConfigLoader, skyrim: Skyrim) -> Piper:
 
 @pytest.fixture
 def llm_client(default_config: ConfigLoader) -> LLMClient:
-    return LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    return LLMClient(default_config)
 
 @pytest.fixture
 def default_function_client(default_config: ConfigLoader) -> FunctionClient:
     """Provides a FunctionClient instance for testing"""
     FunctionManager.load_all_actions() # This is called on server startup, but not when creating the client standalone
-    return FunctionClient(default_config, "GPT_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+    return FunctionClient(default_config)
 
 @pytest.fixture
 def default_rememberer(skyrim: Skyrim, default_config: ConfigLoader, llm_client: LLMClient, english_language_info: dict) -> Summaries:
@@ -97,7 +97,7 @@ def default_conversation(default_context: Context, default_chat_manager: ChatMan
 
 @pytest.fixture
 def default_game_manager(skyrim: Skyrim, default_chat_manager: ChatManager, default_config: ConfigLoader, english_language_info: dict, llm_client: LLMClient) -> GameStateManager:
-    return GameStateManager(skyrim, default_chat_manager, default_config, english_language_info, llm_client, "STT_SECRET_KEY.txt", "GPT_SECRET_KEY.txt")
+    return GameStateManager(skyrim, default_chat_manager, default_config, english_language_info, llm_client)
 
 @pytest.fixture
 def server() -> http_server:
@@ -108,10 +108,6 @@ def server() -> http_server:
 def default_mantella_route(default_config: ConfigLoader, english_language_info: dict) -> mantella_route:
     return mantella_route(
         config=default_config, 
-        stt_secret_key_file='STT_SECRET_KEY.txt', 
-        image_secret_key_file='IMAGE_SECRET_KEY.txt',
-        function_llm_secret_key_file='FUNCTION_GPT_SECRET_KEY.txt',
-        secret_key_file='GPT_SECRET_KEY.txt', 
         language_info=english_language_info, 
         show_debug_messages=False
     )

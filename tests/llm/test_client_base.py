@@ -1,103 +1,89 @@
 from src.llm.client_base import ClientBase
-from src.llm.llm_model_list import LLMModelList
-import pytest
-from src.config.config_loader import ConfigLoader
-import logging
-from pathlib import Path
 from unittest.mock import patch
-import pytest
-
-def test_key_found_in_mod_parent(tmp_path, monkeypatch):
-    """Test finding API key in mod parent folder"""
-    # Setup mock mod_parent_folder structure
-    mock_mod_path = tmp_path / "a" / "b" / "c"
-    mock_mod_path.mkdir(parents=True)
-    monkeypatch.setattr('src.utils.resolve_path', lambda: mock_mod_path)
-    
-    key_file = "test_key.txt"
-    (tmp_path / key_file).write_text("sk-123")
-    
-    assert ClientBase._get_api_key([key_file], False) == "sk-123"
+import json
+import os
 
 
-def test_key_found_locally(tmp_path, monkeypatch):
-    """Test finding API key in local directory"""
-    # Setup empty mod_parent_folder
-    mock_mod_path = tmp_path / "empty" / "b" / "c"
-    mock_mod_path.mkdir(parents=True)
-    monkeypatch.setattr('src.utils.resolve_path', lambda: mock_mod_path)
-    
-    # Create key in current working directory
-    key_file = "local_key.txt"
-    (tmp_path / key_file).write_text("sk-456")
-    
-    assert ClientBase._get_api_key([key_file], False) == "sk-456"
+def test_service_key_found_in_mod_secret_json(tmp_path, monkeypatch):
+    """Service key should be read from mod-folder secret_keys.json first"""
+    mod_root = tmp_path / "mod"
+    runtime_path = mod_root / "a" / "b" / "c"
+    runtime_path.mkdir(parents=True)
+    monkeypatch.setattr('src.utils.resolve_path', lambda: runtime_path)
+
+    (mod_root / "secret_keys.json").write_text(json.dumps({"OpenRouter": "sk-mod"}), encoding="utf-8")
+
+    assert ClientBase._get_api_key("OpenRouter", False) == "sk-mod"
 
 
-def test_key_not_found(tmp_path, monkeypatch, caplog):
-    """Test missing key file handling"""
-    mock_mod_path = tmp_path / "a" / "b" / "c"
-    mock_mod_path.mkdir(parents=True)
-    monkeypatch.setattr('src.utils.resolve_path', lambda: mock_mod_path)
-    
-    result = ClientBase._get_api_key(["missing.txt"], False)
-    
-    assert result is None
+def test_service_key_found_in_local_secret_json(tmp_path, monkeypatch):
+    """Falls back to local secret_keys.json when mod one is missing"""
+    runtime_path = tmp_path / "x" / "y" / "z"
+    runtime_path.mkdir(parents=True)
+    monkeypatch.setattr('src.utils.resolve_path', lambda: runtime_path)
+
+    local_secret = tmp_path / "secret_keys.json"
+    local_secret.write_text(json.dumps({"OpenRouter": "sk-local"}), encoding="utf-8")
+
+    previous_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        assert ClientBase._get_api_key("OpenRouter", False) == "sk-local"
+    finally:
+        os.chdir(previous_cwd)
 
 
-def test_string_argument(tmp_path, monkeypatch):
-    """Test string instead of list argument (strings should be converted to lists in the function itself)"""
-    mock_mod_path = tmp_path / "a" / "b" / "c"
-    mock_mod_path.mkdir(parents=True)
-    monkeypatch.setattr('src.utils.resolve_path', lambda: mock_mod_path)
-    
-    key_file = "single_key.txt"
-    (tmp_path / key_file).write_text("sk-789")
-    
-    assert ClientBase._get_api_key(key_file, False) == "sk-789"
+def test_service_url_alias_resolution(tmp_path, monkeypatch):
+    """Service alias should resolve to canonical URL key in secret_keys.json"""
+    mod_root = tmp_path / "mod"
+    runtime_path = mod_root / "a" / "b" / "c"
+    runtime_path.mkdir(parents=True)
+    monkeypatch.setattr('src.utils.resolve_path', lambda: runtime_path)
+
+    (mod_root / "secret_keys.json").write_text(
+        json.dumps({"https://openrouter.ai/api/v1": "sk-url"}),
+        encoding="utf-8"
+    )
+
+    assert ClientBase._get_api_key("or", False) == "sk-url"
 
 
-def test_empty_key_file(tmp_path, monkeypatch):
-    """Test empty key file skips to next candidate"""
-    mock_mod_path = tmp_path / "a" / "b" / "c"
-    mock_mod_path.mkdir(parents=True)
-    monkeypatch.setattr('src.utils.resolve_path', lambda: mock_mod_path)
-    
-    # Create empty key file
-    empty_key = "empty.txt"
-    (tmp_path / empty_key).write_text("  \n")
-    
-    # Create valid local key
-    valid_key = "valid.txt"
-    (tmp_path / valid_key).write_text("sk-abc")
-    
-    assert ClientBase._get_api_key([empty_key, valid_key], False) == "sk-abc"
+def test_service_key_fallback_to_gpt_secret_txt(tmp_path, monkeypatch):
+    """Falls back to GPT_SECRET_KEY.txt when secret_keys.json has no matching key"""
+    mod_root = tmp_path / "mod"
+    runtime_path = mod_root / "a" / "b" / "c"
+    runtime_path.mkdir(parents=True)
+    monkeypatch.setattr('src.utils.resolve_path', lambda: runtime_path)
+
+    (mod_root / "GPT_SECRET_KEY.txt").write_text("sk-gpt-fallback\n", encoding="utf-8")
+
+    assert ClientBase._get_api_key("OpenRouter", False) == "sk-gpt-fallback"
 
 
-def test_key_priority(tmp_path, monkeypatch):
-    """Test that the first key in the list is prioritized"""
-    mock_mod_path = tmp_path / "a" / "b" / "c"
-    mock_mod_path.mkdir(parents=True)
-    monkeypatch.setattr('src.utils.resolve_path', lambda: mock_mod_path)
-    
-    first_key = "first.txt"
-    (tmp_path / first_key).write_text("sk-abc")
-    
-    second_key = "second.txt"
-    (tmp_path / second_key).write_text("sk-def")
-    
-    assert ClientBase._get_api_key([first_key, second_key], False) == "sk-abc"
+def test_service_key_not_found_returns_none(tmp_path, monkeypatch):
+    """Returns None when neither secret_keys.json nor GPT_SECRET_KEY.txt provides a key"""
+    runtime_path = tmp_path / "a" / "b" / "c"
+    runtime_path.mkdir(parents=True)
+    monkeypatch.setattr('src.utils.resolve_path', lambda: runtime_path)
+    isolated_cwd = tmp_path / "isolated"
+    isolated_cwd.mkdir(parents=True)
+    previous_cwd = os.getcwd()
+    try:
+        os.chdir(isolated_cwd)
+        assert ClientBase._get_api_key("OpenRouter", False) is None
+    finally:
+        os.chdir(previous_cwd)
 
 
 def test_unknown_service_returns_custom():
-    result = ClientBase.get_model_list("Unknown", "key.txt")
+    result = ClientBase.get_model_list("Unknown")
     assert result.available_models == [("Custom model", "Custom model")]
     assert result.allows_manual_model_input is True
 
 
 def test_openai_happy_path():
     """Test OpenAI service with successful model fetch"""
-    result = ClientBase.get_model_list("OpenAI", "key.txt")
+    result = ClientBase.get_model_list("OpenAI")
     assert any("gpt-4" in opt[1] for opt in result.available_models)
     assert result.allows_manual_model_input is True
 
@@ -106,18 +92,18 @@ def test_openai_happy_path():
 def test_openrouter_missing_key(mock_get_key):
     """Test OpenRouter with missing API key"""
     mock_get_key.return_value = None
-    result = ClientBase.get_model_list("OpenRouter", "missing.txt")
+    result = ClientBase.get_model_list("OpenRouter")
     assert "No secret key found" in result.available_models[0][0]
 
 
 def test_openrouter_success():
     """Test successful OpenRouter model list retrieval"""
-    result = ClientBase.get_model_list("OpenRouter", "key.txt")
+    result = ClientBase.get_model_list("OpenRouter")
     assert any("mistralai/mistral-small-3.1-24b-instruct:free" in opt[1] for opt in result.available_models)
     assert result.allows_manual_model_input is False
 
 
 def test_is_vision_filtering():
     """Test vision model filtering"""
-    result = ClientBase.get_model_list("OpenRouter", "key.txt", is_vision=True)
+    result = ClientBase.get_model_list("OpenRouter", is_vision=True)
     assert all("✅ Vision" in opt[0] for opt in result.available_models)

@@ -41,7 +41,7 @@ def test_function_client_initialization(default_config: ConfigLoader):
     Tests that FunctionClient initializes correctly with proper config values
     """    
     FunctionManager.load_all_actions()
-    client = FunctionClient(default_config, "GPT_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+    client = FunctionClient(default_config)
     
     assert client is not None
 
@@ -58,7 +58,7 @@ def test_function_client_uses_separate_config(default_config: ConfigLoader):
     default_config.function_llm_params = {"temperature": 0.3}
     
     FunctionManager.load_all_actions()
-    client = FunctionClient(default_config, "GPT_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+    client = FunctionClient(default_config)
     
     # Verify function client uses function-specific config
     assert client.model_name == default_config.function_llm

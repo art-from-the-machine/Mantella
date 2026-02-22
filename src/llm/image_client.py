@@ -13,7 +13,7 @@ class ImageClient(ClientBase):
     '''Image class to handle LLM vision
     '''
     @utils.time_it
-    def __init__(self, config: ConfigLoader, secret_key_file: str, image_secret_key_file: str) -> None:
+    def __init__(self, config: ConfigLoader) -> None:
         self.__config = config    
         self.__custom_vision_model: bool = config.custom_vision_model
 
@@ -22,7 +22,7 @@ class ImageClient(ClientBase):
         else: # default to base LLM config values
             setup_values = {'api_url': config.llm_api, 'llm': config.llm, 'llm_params': config.llm_params, 'custom_token_count': config.custom_token_count}
         
-        super().__init__(**setup_values, secret_key_files=[image_secret_key_file, secret_key_file])
+        super().__init__(**setup_values)
 
         if self.__custom_vision_model:
             if self._is_local:

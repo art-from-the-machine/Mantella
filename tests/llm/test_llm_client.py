@@ -20,7 +20,7 @@ def example_system_message(default_config: ConfigLoader):
 def llm_client_w_function_client(default_config: ConfigLoader):
     default_config.advanced_actions_enabled = True
     default_config.custom_function_model = True
-    client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+    client = LLMClient(default_config)
     return client
 
 
@@ -36,40 +36,40 @@ def test_missing_api_key_uses_fallback(default_config: ConfigLoader, tmp_path, m
     # When API key file is empty/missing, client should still be created with fallback
     # For cloud APIs, the fallback is 'abc123'
     default_config.llm_api = 'OpenRouter' # Cloud API
-    client = LLMClient(default_config, "", "IMAGE_SECRET_KEY.txt")
+    client = LLMClient(default_config)
     assert client.api_key == 'abc123'
 
 
 def test_apis_load_correctly(default_config: ConfigLoader):
     default_config.llm_api = 'OpenRouter'
-    llm_client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    llm_client = LLMClient(default_config)
     assert llm_client._base_url == 'https://openrouter.ai/api/v1'
     assert llm_client.is_local is False
 
     default_config.llm_api = 'OpenAI'
-    llm_client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    llm_client = LLMClient(default_config)
     assert llm_client._base_url == 'https://api.openai.com/v1'
     assert llm_client.is_local is False
 
     default_config.llm_api = 'KoboldCpp'
-    llm_client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    llm_client = LLMClient(default_config)
     assert llm_client._base_url == 'http://127.0.0.1:5001/v1'
     assert llm_client.is_local is True
 
     default_config.llm_api = 'textgenwebui'
-    llm_client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    llm_client = LLMClient(default_config)
     assert llm_client._base_url == 'http://127.0.0.1:5000/v1'
     assert llm_client.is_local is True
 
     # Custom external URL
     default_config.llm_api = 'https://custom-url.com'
-    llm_client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    llm_client = LLMClient(default_config)
     assert llm_client._base_url == 'https://custom-url.com'
     assert llm_client.is_local is False
 
     # Custom local URL
     default_config.llm_api = 'http://custom-url.com'
-    llm_client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    llm_client = LLMClient(default_config)
     assert llm_client._base_url == 'http://custom-url.com'
     assert llm_client.is_local is True
     assert llm_client.api_key == 'abc123'
@@ -82,12 +82,12 @@ def test_startup_async_client_initialized(llm_client: LLMClient):
 
 def test_default_vision_model_loads_correctly(default_config: ConfigLoader):
     default_config.vision_enabled = True
-    llm_client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    llm_client = LLMClient(default_config)
     assert llm_client._image_client is not None
 
 
 def test_vision_model_disabled(default_config: ConfigLoader):
-    llm_client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    llm_client = LLMClient(default_config)
     assert llm_client._image_client is None
 
 
@@ -226,7 +226,7 @@ def test_function_client_created_when_enabled(default_config: ConfigLoader):
     FunctionManager.load_all_actions()
     default_config.advanced_actions_enabled = True
     default_config.custom_function_model = True
-    client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+    client = LLMClient(default_config)
     
     # Check that the function client exists
     assert hasattr(client, '_function_client')
@@ -238,7 +238,7 @@ def test_no_function_client_by_default(default_config: ConfigLoader):
     """
     Tests that LLMClient does not create a FunctionClient when flags are disabled
     """
-    client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+    client = LLMClient(default_config)
 
     assert hasattr(client, '_function_client')
     assert client._function_client is None
@@ -251,7 +251,7 @@ def test_no_function_client_when_only_advanced_enabled(default_config: ConfigLoa
     default_config.advanced_actions_enabled = True
     default_config.custom_function_model = False
     
-    client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt")
+    client = LLMClient(default_config)
     
     assert client._function_client is None
 
@@ -263,7 +263,7 @@ def test_llm_client_no_function_client_when_only_custom_model_enabled(default_co
     default_config.advanced_actions_enabled = False
     default_config.custom_function_model = True
     
-    client = LLMClient(default_config, "GPT_SECRET_KEY.txt", "IMAGE_SECRET_KEY.txt", "FUNCTION_SECRET_KEY.txt")
+    client = LLMClient(default_config)
     
     assert client._function_client is None
 
