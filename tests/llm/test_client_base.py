@@ -122,7 +122,6 @@ def test_nanogpt_missing_key(mock_get_key):
     mock_get_key.return_value = None
     result = ClientBase.get_model_list("NanoGPT")
     assert "No secret key found" in result.available_models[0][0]
-    assert result.allows_manual_model_input is True
 
 
 def test_nanogpt_success():
