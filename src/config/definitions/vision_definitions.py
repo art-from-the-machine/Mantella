@@ -54,7 +54,7 @@ class VisionDefinitions:
             After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
 
             Some services require an API secret key. This secret key can be set in your `GPT_SECRET_KEY.txt` file."""
-        options = ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"]
+        options = ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"]
         return ConfigValueSelection("vision_llm_api", "Custom Vision Model Service", description, "OpenRouter", options, allows_free_edit=True, tags=[ConfigValueTag.advanced])
     
     @staticmethod

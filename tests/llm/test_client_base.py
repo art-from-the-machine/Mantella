@@ -114,3 +114,19 @@ def test_is_vision_filtering():
     """Test vision model filtering"""
     result = ClientBase.get_model_list("OpenRouter", is_vision=True)
     assert all("✅ Vision" in opt[0] for opt in result.available_models)
+
+
+@patch('src.llm.client_base.ClientBase._get_api_key')
+def test_nanogpt_missing_key(mock_get_key):
+    """Test NanoGPT with missing API key"""
+    mock_get_key.return_value = None
+    result = ClientBase.get_model_list("NanoGPT")
+    assert "No secret key found" in result.available_models[0][0]
+    assert result.allows_manual_model_input is True
+
+
+def test_nanogpt_success():
+    """Test successful NanoGPT model list retrieval"""
+    result = ClientBase.get_model_list("NanoGPT")
+    assert result.default_model == "mistral-small-31-24b-instruct"
+    assert result.allows_manual_model_input is False

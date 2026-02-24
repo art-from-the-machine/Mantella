@@ -45,6 +45,11 @@ def test_apis_load_correctly(default_config: ConfigLoader):
     assert llm_client._base_url == 'http://127.0.0.1:5000/v1'
     assert llm_client.is_local is True
 
+    default_config.llm_api = 'NanoGPT'
+    llm_client = LLMClient(default_config)
+    assert llm_client._base_url == 'https://nano-gpt.com/api/v1'
+    assert llm_client.is_local is False
+
     # Custom external URL
     default_config.llm_api = 'https://custom-url.com'
     llm_client = LLMClient(default_config)

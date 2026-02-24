@@ -7,6 +7,7 @@ import time
 import tiktoken
 import json
 import os
+import requests
 from pathlib import Path
 from src.llm.ai_client import AIClient
 from src.llm.message_thread import message_thread
@@ -602,7 +603,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
     
     @staticmethod
     def get_model_list(service: str, default_model: str = "mistralai/mistral-small-3.1-24b-instruct:free", is_vision: bool = False, is_tool_calling: bool = False) -> LLMModelList:
-        if service not in ['OpenAI', 'OpenRouter']:
+        if service not in ['OpenAI', 'OpenRouter', 'NanoGPT']:
             return LLMModelList([("Custom model","Custom model")], "Custom model", allows_manual_model_input=True)
         try:
             if service == "OpenAI":
@@ -622,38 +623,107 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                 models = client.models.list()
                 client.close()
                 allow_manual_model_input = False
+            elif service == "NanoGPT":
+                default_model = "mistral-small-31-24b-instruct"
+                show_error = not is_vision and not is_tool_calling # Only show error for base LLM
+                secret_key = ClientBase._get_api_key("NanoGPT", show_error=show_error)
+                if not secret_key:
+                    return LLMModelList([(f"No secret key found for NanoGPT", "Custom model")], "Custom model", allows_manual_model_input=True)
+                
+                # Use requests to call NanoGPT with detailed=true parameter
+                # (the OpenAI SDK's models.list() doesn't support the ?detailed=true query param
+                #  needed to get pricing, context length, and capabilities data)
+                headers = {"Authorization": f"Bearer {secret_key}"}
+                url = "https://nano-gpt.com/api/v1/models?detailed=true"
+                response = requests.get(url, headers=headers)
+                
+                if response.status_code != 200:
+                    raise Exception(f"NanoGPT API returned status {response.status_code}: {response.text}")
+                
+                models_data = response.json()
+                allow_manual_model_input = False
 
             options = []
             multiplier = 1_000_000
-            for model in models.data:
-                try:
-                    if model.model_extra:
-                        context_size: int = model.model_extra["context_length"]
-                        prompt_cost: float = float(model.model_extra["pricing"]["prompt"]) * multiplier
-                        completion_cost: float = float(model.model_extra["pricing"]["completion"]) * multiplier
-                        vision_available: str = ' | ✅ Vision' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
-                        tool_calling_available: str = ' | ✅ Advanced Actions' if 'tools' in model.model_extra['supported_parameters'] else ''
-                        reasoning_model: str = ' | ⚠️ Reasoning' if 'reasoning' in model.model_extra['supported_parameters'] else ''
-                        model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}{tool_calling_available}{reasoning_model}"
 
-                        ClientBase.api_token_limits[model.id.split('/')[-1]] = context_size
-                    else:
+            # Handle different response formats based on service
+            if service == "NanoGPT":
+                # NanoGPT returns detailed JSON response directly
+                models_list = models_data.get("data", [])
+                for model in models_list:
+                    try:
+                        model_id = model.get("id", "unknown")
+                        model_name = model.get("name", model_id)
+                        context_size = model.get("context_length", 0)
+                        pricing = model.get("pricing", {})
+                        capabilities = model.get("capabilities", {})
+                        
+                        # Always try to show detailed information, even if some parts are missing
+                        model_display_parts = [f"{model_name} ({model_id})"]
+                        
+                        # Add context size if available
+                        if context_size and context_size > 0:
+                            model_display_parts.append(f"Context: {utils.format_context_size(context_size)}")
+                            ClientBase.api_token_limits[model_id.split('/')[-1]] = context_size
+                        
+                        # Add pricing if available (NanoGPT prices are already in USD per million tokens)
+                        if pricing:
+                            prompt_cost = float(pricing.get("prompt", 0))
+                            completion_cost = float(pricing.get("completion", 0))
+                            
+                            if prompt_cost >= 0 or completion_cost >= 0:
+                                cost_parts = []
+                                cost_parts.append(f"Prompt: {utils.format_price(prompt_cost)}")
+                                cost_parts.append(f"Completion: {utils.format_price(completion_cost)}")
+                                model_display_parts.append(f"Cost per 1M tokens: {'. '.join(cost_parts)}")
+                        
+                        # Add capability markers using the capabilities field
+                        if capabilities.get("vision"):
+                            model_display_parts.append("✅ Vision")
+                        if capabilities.get("tool_calling"):
+                            model_display_parts.append("✅ Advanced Actions")
+                        if capabilities.get("reasoning"):
+                            model_display_parts.append("⚠️ Reasoning")
+                        
+                        # Join all available parts with " | "
+                        model_display_name = " | ".join(model_display_parts)
+                     
+                    except Exception as e:
+                        # Fallback to model ID if parsing fails
+                        model_display_name = model.get("id", "unknown")
+                    
+                    options.append((model_display_name, model.get("id", "unknown")))
+            else:
+                # OpenRouter and OpenAI use the existing models.data format
+                for model in models.data:
+                    try:
+                        if model.model_extra:
+                            context_size: int = model.model_extra["context_length"]
+                            prompt_cost: float = float(model.model_extra["pricing"]["prompt"]) * multiplier
+                            completion_cost: float = float(model.model_extra["pricing"]["completion"]) * multiplier
+                            vision_available: str = ' | ✅ Vision' if model.model_extra["architecture"]["modality"] == 'text+image->text' else ''
+                            tool_calling_available: str = ' | ✅ Advanced Actions' if 'tools' in model.model_extra['supported_parameters'] else ''
+                            reasoning_model: str = ' | ⚠️ Reasoning' if 'reasoning' in model.model_extra['supported_parameters'] else ''
+                            model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}{tool_calling_available}{reasoning_model}"
+
+                            ClientBase.api_token_limits[model.id.split('/')[-1]] = context_size
+                        else:
+                            model_display_name = model.id
+                    except:
                         model_display_name = model.id
-                except:
-                    model_display_name = model.id
-                options.append((model_display_name, model.id))
+                    options.append((model_display_name, model.id))
             
             # check if any models are marked as vision-capable
-            has_vision_models = any(' | ✅ Vision' in name for name, _ in options)
+            has_vision_models = any('✅ Vision' in name for name, _ in options)
             # filter model list if this is supposed to be a vision model list and there are models explicitly marked as such
             if is_vision and has_vision_models:
-                options = [(name, model_id) for name, model_id in options if ' | ✅ Vision' in name]
+                options = [(name, model_id) for name, model_id in options if '✅ Vision' in name]
 
             # check if any models are marked as tool-calling-capable
-            has_tool_calling_models = any(' | ✅ Advanced Actions' in name for name, _ in options)
-            # filter model list if this is supposed to be a vision model list and there are models explicitly marked as such
+            has_tool_calling_models = any('✅ Advanced Actions' in name for name, _ in options)
+            # filter model list if this is supposed to be a tool-calling model list and there are models explicitly marked as such
             if is_tool_calling and has_tool_calling_models:
-                options = [(name, model_id) for name, model_id in options if ' | ✅ Advanced Actions' in name]
+                options = [(name, model_id) for name, model_id in options if '✅ Advanced Actions' in name]
             
             return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
         except Exception as e:

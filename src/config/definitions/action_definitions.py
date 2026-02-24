@@ -26,7 +26,7 @@ class ActionDefinitions:
             After selecting a service, select the model using the option below. Press the *Update list* button to load a list of models available from the service.
 
             **If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using."""
-        options = ["OpenRouter", "OpenAI", "KoboldCpp", "textgenwebui"]
+        options = ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"]
         return ConfigValueSelection("function_llm_api", "Custom Tool Calling LLM service", description, "OpenRouter", options, allows_free_edit=True, tags=[ConfigValueTag.advanced])
     
     @staticmethod
