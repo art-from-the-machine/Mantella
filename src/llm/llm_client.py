@@ -13,7 +13,7 @@ class LLMClient(ClientBase):
     '''
     @utils.time_it
     def __init__(self, config: ConfigLoader) -> None:
-        super().__init__(config.llm_api, config.llm, config.llm_params, config.custom_token_count)
+        super().__init__(config.llm_api, config.llm, config.llm_params, config.custom_token_count, config.claude_prompt_caching_enabled)
 
         if self._is_local:
             logger.info(f"Running Mantella with local language model")

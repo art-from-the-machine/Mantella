@@ -150,3 +150,7 @@ class LLMDefinitions:
         options = [e.display_name for e in NarrationIndicatorsEnum]
         return ConfigValueSelection("narration_indicators", "Narration indicators to use", description, NarrationIndicatorsEnum.PARANTHESES.display_name, options, corresponding_enums=list(NarrationIndicatorsEnum), tags=[ConfigValueTag.advanced])
 
+    @staticmethod
+    def get_claude_prompt_caching_config_value() -> ConfigValue:
+        description = """Enable Claude prompt caching when using Anthropic Claude models via OpenRouter."""
+        return ConfigValueBool("claude_prompt_caching_enabled", "Claude Prompt Caching", description, False, tags=[ConfigValueTag.advanced])

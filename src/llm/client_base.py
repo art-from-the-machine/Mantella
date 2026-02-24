@@ -15,6 +15,7 @@ from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
 from src.telemetry.telemetry import create_span_from_thread
 from src.actions.function_manager import FunctionManager
+from src.llm.claude_cache_connector import ClaudeCacheConnector
 
 logger = utils.get_logger()
 
@@ -54,13 +55,14 @@ class ClientBase(AIClient):
         'text-generation-web-ui': 'http://127.0.0.1:5000/v1',
     }
 
-    def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int) -> None:
+    def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, prompt_caching_enabled: bool = False) -> None:
         '''
         Args:
             api_url (str): The API endpoint URL or a known service name (e.g., 'OpenAI', 'OpenRouter')
             llm (str): The name of the language model to use
             llm_params (dict[str, Any] | None): Additional parameters for the LLM requests (eg temperature, max_tokens)
             custom_token_count (int): A fallback token limit if the model's limit isn't known
+            prompt_caching_enabled (bool): Whether Claude prompt caching is enabled for OpenRouter
         '''
         super().__init__()
         self._generation_lock: Lock = Lock()
@@ -87,6 +89,8 @@ class ClientBase(AIClient):
         referer = "https://art-from-the-machine.github.io/Mantella/"
         xtitle = "Mantella"
         self._header: dict[str, str] = {"HTTP-Referer": referer, "X-Title": xtitle}
+        self._claude_cache = ClaudeCacheConnector()
+        self._caching_enabled: bool = prompt_caching_enabled
         self._token_limit: int = self.__get_token_limit(self._model_name, custom_token_count, self._is_local)
         self._encoding = self.__get_model_encoding(api_url, self._model_name)
 
@@ -203,6 +207,14 @@ class ClientBase(AIClient):
                 request_params = self._request_params
             else:
                 request_params: dict[str, Any] = {}
+
+            # Apply Claude cache breakpoint after all message transformations
+            if self._caching_enabled and self._claude_cache.is_applicable(self._base_url, self._model_name):
+                try:
+                    openai_messages = self._claude_cache.transform_messages(openai_messages)
+                except Exception as e:
+                    logger.debug(f"Claude caching transform failed: {e}")
+
             try:
                 chat_completion = sync_client.chat.completions.create(
                     model=self.model_name,
@@ -287,6 +299,13 @@ class ClientBase(AIClient):
                             # If custom function LLM isn't enabled, let the main LLM handle tool calling as well as text generation
                             request_params["tools"] = tools
                     
+                    # Apply Claude cache breakpoint after all message transformations
+                    if self._caching_enabled and self._claude_cache.is_applicable(self._base_url, self._model_name):
+                        try:
+                            openai_messages = self._claude_cache.transform_messages(openai_messages)
+                        except Exception as e:
+                            logger.debug(f"Claude caching transform failed: {e}")
+
                     # Create async client for main LLM streaming (after function client has run if applicable)
                     if self._startup_async_client:
                         async_client = self._startup_async_client
