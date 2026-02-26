@@ -3,6 +3,7 @@ import numpy as np
 from faster_whisper import WhisperModel
 from src.config.config_loader import ConfigLoader
 from src.llm.client_base import ClientBase
+from src.stt.ptt_controller import PTTController
 import src.utils as utils
 import requests
 import json
@@ -42,6 +43,7 @@ class Transcriber:
     CHUNK_SIZE = 512  # Required chunk size for Silero VAD
     CHUNK_DURATION = CHUNK_SIZE / SAMPLING_RATE  # Explicit calculation of chunk duration in seconds
     LOOKBACK_CHUNKS = 5  # Number of chunks to keep in buffer when not recording
+    MIN_PTT_DURATION = 0.3  # Minimum seconds of audio to accept from a PTT press
     
     @utils.time_it
     def __init__(self, config: ConfigLoader):
@@ -70,6 +72,11 @@ class Transcriber:
         self._temporary_pause_override: float | None = None  # Temporary pause threshold for Listen action
         self.audio_threshold = config.audio_threshold
         logger.log(self.loglevel, f"Audio threshold set to {self.audio_threshold}. If the mic is not picking up your voice, try lowering this `Speech-to-Text`->`Audio Threshold` value in the Mantella UI. If the mic is picking up too much background noise, try increasing this value.\n")
+
+        # PTT settings
+        self.ptt_enabled = config.ptt_enabled
+        self._ptt = PTTController(config.ptt_hotkey if self.ptt_enabled else None)
+        self._ptt_active = False
 
         self.__audio_input_error_count = 0
         self.__mic_input_process_error_count = 0
@@ -349,7 +356,6 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         
         while self._running:
             try:
-                # Get audio chunk and status from queue
                 chunk, status = self._audio_queue.get(timeout=0.1)
                 if status:
                     if self.__processing_audio_error_count % self.__warning_frequency == 0:
@@ -358,57 +364,11 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     continue
 
                 with self._lock:
-                    # Update audio buffer
-                    self._audio_buffer = np.concatenate((self._audio_buffer, chunk))
-                    if not self._speech_detected:
-                        # Keep limited lookback buffer when not recording
-                        self._audio_buffer = self._audio_buffer[-lookback_size:]
+                    if self.ptt_enabled:
+                        self._process_ptt_chunk(chunk)
+                    else:
+                        chunk_count = self._process_vad_chunk(chunk, lookback_size, chunk_count)
 
-                    # Process with VAD
-                    probability = self.vad.process(chunk)
-
-                    # Handle speech detection
-                    if probability > self.audio_threshold:
-                        self._last_update_time = time.time()
-
-                    if probability > self.audio_threshold and not self._speech_detected:
-                        logger.log(self.loglevel, 'Speech detected')
-                        self._speech_detected = True
-
-                    if probability <= self.audio_threshold and self._speech_detected and time.time() - self._last_update_time > self.pause_threshold:
-                        logger.log(self.loglevel, 'Speech ended')
-                        # If proactive mode is disabled, transcribe mic input only when speech end has been detected
-                        if not self.proactive_mic_mode:
-                            self._current_transcription = self._transcribe(self._audio_buffer)
-                        if self.__save_mic_input:
-                            self._save_audio(self._audio_buffer)
-
-                        self._transcription_ready.set()
-                        self._reset_state()
-
-                    # Update transcription periodically during speech
-                    elif self._speech_detected:
-                        chunk_count += 1
-
-                        # Check for maximum speech duration
-                        if (len(self._audio_buffer) / self.SAMPLING_RATE) > self.listen_timeout:
-                            logger.warning(f'Listen timeout of {self.listen_timeout} seconds reached. Processing mic input...')
-                            self._current_transcription = self._transcribe(self._audio_buffer)
-                            self._transcription_ready.set()
-
-                            self._reset_state()
-                        # Regular update during speech
-                        elif (self.proactive_mic_mode) and (chunk_count >= self.refresh_freq):
-                            logger.debug(f'Transcribing {self.min_refresh_secs} of mic input...')
-                            self._current_transcription = self._transcribe(self._audio_buffer)
-
-                            if self._consecutive_empty_count >= self._max_consecutive_empty:
-                                logger.warning(f'Could not transcribe input')
-                                self._transcription_ready.set()
-                                self._reset_state()
-
-                            chunk_count = 0  # Reset counter
-            
             except queue.Empty:
                 logger.debug('Queue is empty')
                 continue
@@ -418,6 +378,120 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 self.__mic_input_process_error_count += 1
                 self._reset_state()
                 time.sleep(0.1)
+
+
+    def _finalize_transcription(self, *, transcribe: bool = True, save: bool = True) -> None:
+        """Transcribe buffered audio, signal readiness, and reset state.
+
+        Must be called while holding ``self._lock``.
+
+        Args:
+            transcribe: Whether to run transcription on the current buffer.
+            save: Whether to save the audio buffer to disk (if ``save_mic_input`` also set).
+        """
+        if transcribe and len(self._audio_buffer) > 0:
+            self._current_transcription = self._transcribe(self._audio_buffer)
+        if save and self.__save_mic_input and len(self._audio_buffer) > 0:
+            self._save_audio(self._audio_buffer)
+        self._transcription_ready.set()
+        self._reset_state()
+
+
+    def _process_ptt_chunk(self, chunk: np.ndarray) -> None:
+        """Process a single audio chunk in PTT mode.
+
+        Must be called while holding ``self._lock``.
+        When PTT is enabled, VAD-based detection is completely bypassed.
+        Audio is accumulated only while the hotkey is held -
+        on release the buffer is transcribed in one shot.
+        """
+        is_pressed = self._ptt.is_pressed()
+
+        if is_pressed:
+            # Accumulate audio while key is held
+            self._audio_buffer = np.concatenate((self._audio_buffer, chunk))
+            if not self._ptt_active:
+                logger.log(self.loglevel, 'PTT pressed')
+                self._ptt_active = True
+                self._speech_detected = True
+                self._last_update_time = time.time()
+        elif self._ptt_active:
+            # Key released after being held — attempt transcription
+            logger.log(self.loglevel, 'PTT released - transcribing')
+            audio_duration = len(self._audio_buffer) / self.SAMPLING_RATE if len(self._audio_buffer) > 0 else 0
+
+            if len(self._audio_buffer) > 0 and audio_duration >= self.MIN_PTT_DURATION:
+                self._finalize_transcription()
+            else:
+                logger.debug(f'PTT released with insufficient audio (duration: {audio_duration:.3f}s, min: {self.MIN_PTT_DURATION}s)')
+                self._reset_state()
+        else:
+            # Idle: clear buffer so stale data doesn't accumulate
+            self._audio_buffer = np.array([], dtype=np.float32)
+
+        # Timeout guard: prevent unbounded buffering from a stuck key
+        if self._ptt_active and (len(self._audio_buffer) / self.SAMPLING_RATE) > self.listen_timeout:
+            logger.warning(f'PTT timeout of {self.listen_timeout} seconds reached. Processing mic input...')
+            self._finalize_transcription()
+
+
+    def _process_vad_chunk(self, chunk: np.ndarray, lookback_size: int, chunk_count: int) -> int:
+        """Process a single audio chunk using VAD-based speech detection.
+
+        Must be called while holding ``self._lock``.
+
+        Args:
+            chunk: Raw audio samples for this frame.
+            lookback_size: Maximum buffer size (in samples) to keep when not recording.
+            chunk_count: Running counter of chunks since last proactive transcription update.
+
+        Returns:
+            The (possibly reset) chunk_count for the caller to carry forward.
+        """
+        # Update audio buffer
+        self._audio_buffer = np.concatenate((self._audio_buffer, chunk))
+        if not self._speech_detected:
+            # Keep limited lookback buffer when not recording
+            self._audio_buffer = self._audio_buffer[-lookback_size:]
+
+        # Process with VAD
+        probability = self.vad.process(chunk)
+
+        if probability > self.audio_threshold:
+            self._last_update_time = time.time()
+
+        if probability > self.audio_threshold and not self._speech_detected:
+            logger.log(self.loglevel, 'Speech detected')
+            self._speech_detected = True
+
+        if probability <= self.audio_threshold and self._speech_detected and time.time() - self._last_update_time > self.pause_threshold:
+            logger.log(self.loglevel, 'Speech ended')
+            self._finalize_transcription(transcribe=not self.proactive_mic_mode)
+            return chunk_count
+
+        if not self._speech_detected:
+            return chunk_count
+        chunk_count += 1
+
+        # Check for maximum speech duration
+        if (len(self._audio_buffer) / self.SAMPLING_RATE) > self.listen_timeout:
+            logger.warning(f'Listen timeout of {self.listen_timeout} seconds reached. Processing mic input...')
+            self._finalize_transcription(save=False)
+            return chunk_count
+
+        # Periodic proactive transcription update
+        if self.proactive_mic_mode and chunk_count >= self.refresh_freq:
+            logger.debug(f'Transcribing {self.min_refresh_secs} of mic input...')
+            self._current_transcription = self._transcribe(self._audio_buffer)
+
+            if self._consecutive_empty_count >= self._max_consecutive_empty:
+                logger.warning(f'Could not transcribe input')
+                self._transcription_ready.set()
+                self._reset_state()
+
+            chunk_count = 0
+
+        return chunk_count
 
 
     def _create_input_callback(self, q: queue.Queue):
@@ -435,6 +509,11 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
     def _reset_state(self) -> None:
         """Reset internal state."""
         self._speech_detected = False
+        # Ensure PTT state is cleared on any reset
+        try:
+            self._ptt_active = False
+        except Exception:
+            pass
         self._audio_buffer = np.array([], dtype=np.float32)
         self.vad = SileroVAD(self.SAMPLING_RATE)
         self._consecutive_empty_count = 0
