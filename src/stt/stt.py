@@ -43,6 +43,7 @@ class Transcriber:
     CHUNK_SIZE = 512  # Required chunk size for Silero VAD
     CHUNK_DURATION = CHUNK_SIZE / SAMPLING_RATE  # Explicit calculation of chunk duration in seconds
     LOOKBACK_CHUNKS = 5  # Number of chunks to keep in buffer when not recording
+    MIN_PTT_DURATION = 0.3  # Minimum seconds of audio to accept from a PTT press
     
     @utils.time_it
     def __init__(self, config: ConfigLoader):
@@ -396,8 +397,6 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         self._reset_state()
 
 
-    _MIN_PTT_DURATION = 0.3  # Minimum seconds of audio to accept from a PTT press
-
     def _process_ptt_chunk(self, chunk: np.ndarray) -> None:
         """Process a single audio chunk in PTT mode.
 
@@ -421,10 +420,10 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             logger.log(self.loglevel, 'PTT released - transcribing')
             audio_duration = len(self._audio_buffer) / self.SAMPLING_RATE if len(self._audio_buffer) > 0 else 0
 
-            if len(self._audio_buffer) > 0 and audio_duration >= self._MIN_PTT_DURATION:
+            if len(self._audio_buffer) > 0 and audio_duration >= self.MIN_PTT_DURATION:
                 self._finalize_transcription()
             else:
-                logger.debug(f'PTT released with insufficient audio (duration: {audio_duration:.3f}s, min: {self._MIN_PTT_DURATION}s)')
+                logger.debug(f'PTT released with insufficient audio (duration: {audio_duration:.3f}s, min: {self.MIN_PTT_DURATION}s)')
                 self._reset_state()
         else:
             # Idle: clear buffer so stale data doesn't accumulate
