@@ -14,6 +14,7 @@ from src.ui.start_ui import StartUI
 from src.http.routes.routeable import routeable
 from fastapi.testclient import TestClient
 from pathlib import Path
+import os
 from src import utils
 from src.config.definitions.game_definitions import GameEnum
 from src.http.communication_constants import communication_constants as comm_consts
@@ -52,6 +53,15 @@ def override_default_config_values(default_config: ConfigLoader, actual_config: 
     default_config.piper_path = actual_config.piper_path # must be set to the Skyrim Piper folder
     default_config.xtts_server_path = actual_config.xtts_server_path
     default_config.xvasynth_path = actual_config.xvasynth_path
+
+    # Optionally override the LLM API endpoint for tests via an environment variable:
+    llm_api_override = os.environ.get('MANTELLA_TEST_LLM_API')
+    if llm_api_override:
+        default_config._ConfigLoader__definitions.get_config_value_definition("llm_api").value = llm_api_override
+        default_config.llm_api = llm_api_override
+        
+        default_config._ConfigLoader__definitions.get_config_value_definition("function_llm_api").value = llm_api_override
+        default_config.function_llm_api = llm_api_override
 
     return default_config
 
