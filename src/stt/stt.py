@@ -3,7 +3,7 @@ import numpy as np
 from faster_whisper import WhisperModel
 from src.config.config_loader import ConfigLoader
 from src.llm.client_base import ClientBase
-from src.ptt_controller import PTTController
+from src.stt.ptt_controller import PTTController
 import src.utils as utils
 import requests
 import json

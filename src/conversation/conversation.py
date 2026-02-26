@@ -19,7 +19,7 @@ from src.llm.message_thread import message_thread
 from src.conversation.conversation_type import conversation_type, multi_npc, pc_to_npc, radiant
 from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
-from src.stt import Transcriber
+from src.stt.stt import Transcriber
 import src.utils as utils
 from src.actions.function_manager import FunctionManager
 

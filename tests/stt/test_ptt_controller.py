@@ -1,5 +1,5 @@
 import pytest
-from src.ptt_controller import PTTController
+from src.stt.ptt_controller import PTTController
 
 
 class TestNormalizeKeyToVk:

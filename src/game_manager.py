@@ -15,7 +15,7 @@ from src.conversation.context import Context
 from src.character_manager import Character
 import src.utils as utils
 from src.http.communication_constants import communication_constants as comm_consts
-from src.stt import Transcriber
+from src.stt.stt import Transcriber
 from src.actions.function_manager import FunctionManager
 
 logger = utils.get_logger()
