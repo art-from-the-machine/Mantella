@@ -123,3 +123,10 @@ class OtherDefinitions:
         description = """Whether to save audio data to an NPC's voice folder instead of MantellaVoice00.
                         Enable this value if voicelines are not being played in-game."""
         return ConfigValueBool("save_audio_data_to_character_folder", "Save Game Audio to Character Folder", description, False, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_conversation_summary_enabled_config_value() -> ConfigValue:
+        description = """Whether to generate and save conversation summaries when conversations end.
+                        If enabled: Summaries will be generated and saved to help NPCs remember past conversations.
+                        If disabled: No summaries will be generated, conversations will end without sending summary requests to the LLM."""
+        return ConfigValueBool("conversation_summary_enabled", "Enable Conversation Summaries", description, True)

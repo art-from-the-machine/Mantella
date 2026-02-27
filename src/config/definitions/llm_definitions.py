@@ -154,3 +154,42 @@ class LLMDefinitions:
     def get_claude_prompt_caching_config_value() -> ConfigValue:
         description = """Enable Claude prompt caching when using Anthropic Claude models via OpenRouter."""
         return ConfigValueBool("claude_prompt_caching_enabled", "Claude Prompt Caching", description, False, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_summary_llm_api_config_value() -> ConfigValue:
+        description = """Selects the LLM service to use for generating conversation summaries.
+
+            If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also ignore the dropdown options and instead enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
+            After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
+
+            If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.
+
+            By default, summaries use the same LLM as conversations. Configure this to use a different model for summaries."""
+        return ConfigValueSelection("summary_llm_api","Summary LLM Service", description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_summary_model_config_value() -> ConfigValue:
+        model_description = """Select the model to use for generating conversation summaries. Press the *Update* button to load a list of models available from the service selected above.
+                            You can use a different model for summaries than for conversations.
+                            The list does not provide all details about the models. For additional information please refer to the corresponding sites:
+                            - OpenRouter: https://openrouter.ai/docs#models
+                            - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
+        return ConfigValueSelection("summary_model","Summary Model", model_description, "google/gemma-2-9b-it:free", ["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_summary_custom_token_count_config_value() -> ConfigValue:
+        description = """If the summary model chosen is not recognised by Mantella, the token count for the given model will default to this number.
+                    If this is not the correct token count for your chosen model, you can change it here.
+                    Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit."""
+        return ConfigValueInt("summary_custom_token_count","Summary Custom Token Count", description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_summary_llm_params_config_value() -> ConfigValue:
+        description = """Parameters passed as part of the request to the LLM.
+                        A list of the most common parameters can be found here: https://openrouter.ai/docs/parameters.
+                        Note that available parameters can vary per LLM provider."""
+        value = """{
+                        "max_tokens": 250,
+                        "stop": ["#"]
+                    }"""
+        return ConfigValueString("summary_llm_params","Summary LLM Parameters", description, value, tags=[ConfigValueTag.advanced])

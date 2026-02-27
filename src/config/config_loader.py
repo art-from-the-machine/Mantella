@@ -277,7 +277,19 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.speech_end_indicators = self.__definitions.get_string_list_value("speech_end_indicators")
             self.narration_indicators: NarrationIndicatorsEnum = self.__definitions.get_enum_value("narration_indicators", NarrationIndicatorsEnum)
             self.claude_prompt_caching_enabled: bool = self.__definitions.get_bool_value("claude_prompt_caching_enabled")
-            
+
+            # Summary LLM
+            self.summary_llm_api = self.__definitions.get_string_value("summary_llm_api")
+            self.summary_llm = self.__definitions.get_string_value("summary_model")
+            self.summary_llm = self.summary_llm.split(' |')[0] if ' |' in self.summary_llm else self.summary_llm
+            self.summary_custom_token_count = self.__definitions.get_int_value("summary_custom_token_count")
+            try:
+                self.summary_llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("summary_llm_params").replace('\n', ''))
+            except Exception as e:
+                logger.error(f"""Error in parsing summary LLM parameter list: {e}
+LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+                self.summary_llm_params = None
+
             #Folder settings
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
 
@@ -302,6 +314,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.advanced_logs = self.__definitions.get_bool_value("advanced_logs")
 
             self.save_audio_data_to_character_folder = self.__definitions.get_bool_value("save_audio_data_to_character_folder")
+            self.conversation_summary_enabled = self.__definitions.get_bool_value("conversation_summary_enabled")
 
             #new separate prompts for Fallout 4 have been added 
             if self.game.base_game == GameEnum.FALLOUT4:

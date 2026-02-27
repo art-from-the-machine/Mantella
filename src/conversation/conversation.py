@@ -504,6 +504,11 @@ class Conversation:
             if not npc.is_player_character:
                 conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
         
+        # Skip summary generation if disabled (but always allow reloads to save state)
+        if not is_reload and not self.__context.config.conversation_summary_enabled:
+            logger.info("Conversation summaries disabled. Skipping summary generation.")
+            return
+
         # Get and clear pending shares (only on final save, not reload)
         pending_shares = None
         if not is_reload:

@@ -1,6 +1,6 @@
 from copy import deepcopy
 from src.config.config_loader import ConfigLoader
-from src.llm.messages import Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage, ToolMessage
+from src.llm.messages import Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage, ToolMessage, join_message, leave_message
 from typing import Callable
 from openai.types.chat import ChatCompletionMessageParam
 from src import utils
@@ -55,7 +55,7 @@ class message_thread():
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
         return message_thread.transform_to_openai_messages(self.__messages)
 
-    def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | ToolMessage):
+    def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | ToolMessage | join_message | leave_message):
         self.__messages.append(new_message)
 
     @utils.time_it
@@ -109,6 +109,44 @@ class message_thread():
                     result.append(deepcopy(message))
         return result
     
+    @utils.time_it
+    def get_persistent_messages(self) -> list[Message]:
+        """Returns a deepcopy of all the messages we want to persist over multiple turns (user, assistant, join, leave)."""
+        result = []
+        for message in self.__messages:
+            if isinstance(message, (AssistantMessage, UserMessage, join_message, leave_message)):
+                result.append(deepcopy(message))
+        return result
+
+    @utils.time_it
+    def get_messages_of_type(self, types_tuple) -> list[Message]:
+        """Returns deepcopies of all messages matching the given type(s).
+
+        Args:
+            types_tuple: A type or tuple of types to match against
+
+        Returns:
+            list[Message]: Messages matching the specified type(s)
+        """
+        result = []
+        for message in self.__messages:
+            if isinstance(message, types_tuple):
+                result.append(deepcopy(message))
+        return result
+
+    def insert_after_system_messages(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message):
+        """Insert a message after the initial system messages.
+
+        Args:
+            new_message: The message to insert
+        """
+        index = 0
+        for i, message in enumerate(self.__messages):
+            if not isinstance(message, SystemMessage) and not message.is_system_generated_message:
+                index = i
+                break
+        self.__messages.insert(index, new_message)
+
     @utils.time_it
     def get_last_message(self) -> Message:
         return self.__messages[len(self.__messages) -1]
