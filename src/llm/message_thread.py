@@ -1,6 +1,6 @@
 from copy import deepcopy
 from src.config.config_loader import ConfigLoader
-from src.llm.messages import Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage, ToolMessage, join_message, leave_message
+from src.llm.messages import Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage, ToolMessage, JoinMessage, LeaveMessage
 from typing import Callable
 from openai.types.chat import ChatCompletionMessageParam
 from src import utils
@@ -55,7 +55,7 @@ class message_thread():
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
         return message_thread.transform_to_openai_messages(self.__messages)
 
-    def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | ToolMessage | join_message | leave_message):
+    def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | ToolMessage | JoinMessage | LeaveMessage):
         self.__messages.append(new_message)
 
     @utils.time_it
@@ -114,7 +114,7 @@ class message_thread():
         """Returns a deepcopy of all the messages we want to persist over multiple turns (user, assistant, join, leave)."""
         result = []
         for message in self.__messages:
-            if isinstance(message, (AssistantMessage, UserMessage, join_message, leave_message)):
+            if isinstance(message, (AssistantMessage, UserMessage, JoinMessage, LeaveMessage)):
                 result.append(deepcopy(message))
         return result
 
@@ -134,7 +134,7 @@ class message_thread():
                 result.append(deepcopy(message))
         return result
 
-    def insert_after_system_messages(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message):
+    def insert_after_system_messages(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | JoinMessage | LeaveMessage):
         """Insert a message after the initial system messages.
 
         Args:

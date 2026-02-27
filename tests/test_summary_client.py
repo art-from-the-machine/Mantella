@@ -10,7 +10,7 @@ from src.llm.summary_client import SummaryLLMClient
 from src.llm.client_base import ClientBase
 from src.llm.llm_client import LLMClient
 from src.llm.message_thread import message_thread
-from src.llm.messages import AssistantMessage, UserMessage, join_message, leave_message
+from src.llm.messages import AssistantMessage, UserMessage, JoinMessage, LeaveMessage
 from src.remember.summaries import Summaries, CharacterSummaryParameters
 from src.character_manager import Character
 from src.characters_manager import Characters
@@ -48,12 +48,12 @@ def _build_thread_with_join_leave(config, characters, messages_after_join=None):
     """Build a message_thread with join messages for characters, some user/assistant messages, and leave messages."""
     thread = message_thread(config, "system prompt")
     for char in characters:
-        thread.add_message(join_message(char, config))
+        thread.add_message(JoinMessage(char, config))
     if messages_after_join:
         for msg in messages_after_join:
             thread.add_message(msg)
     for char in characters:
-        thread.add_message(leave_message(char, config))
+        thread.add_message(LeaveMessage(char, config))
     return thread
 
 
@@ -89,8 +89,7 @@ class TestFallbackToMainClient:
     def test_summaries_uses_main_client_when_no_summary_client(self, skyrim, default_config, llm_client, english_language_info):
         """When summary_client is None, Summaries should use the main client for summarization."""
         summaries = Summaries(skyrim, default_config, llm_client, english_language_info['language'], summary_client=None)
-        # The internal __summary_client should be the main client
-        assert summaries._Summaries__summary_client is llm_client
+        assert summaries._Summaries__client is llm_client
 
     def test_summaries_uses_separate_client_when_provided(self, skyrim, default_config, llm_client, english_language_info):
         """When a summary_client is provided, Summaries should use it instead of the main client."""
@@ -101,8 +100,8 @@ class TestFallbackToMainClient:
         summary_client = SummaryLLMClient(default_config)
 
         summaries = Summaries(skyrim, default_config, llm_client, english_language_info['language'], summary_client=summary_client)
-        assert summaries._Summaries__summary_client is summary_client
-        assert summaries._Summaries__summary_client is not llm_client
+        assert summaries._Summaries__client is summary_client
+        assert summaries._Summaries__client is not llm_client
 
 
 # ──────────────────────────────────────────────
@@ -116,10 +115,10 @@ class TestPerNpcThreadExtraction:
         guard = _make_character("Guard", ref_id="G1")
 
         thread = message_thread(default_config, "system prompt")
-        thread.add_message(join_message(guard, default_config))
+        thread.add_message(JoinMessage(guard, default_config))
         thread.add_message(UserMessage(default_config, "Hello Guard", "Player"))
         thread.add_message(AssistantMessage(default_config))
-        thread.add_message(leave_message(guard, default_config))
+        thread.add_message(LeaveMessage(guard, default_config))
 
         summaries = Summaries.__new__(Summaries)
         summaries._Summaries__config = default_config
@@ -136,20 +135,20 @@ class TestPerNpcThreadExtraction:
         lydia = _make_character("Lydia", ref_id="L1")
 
         thread = message_thread(default_config, "system prompt")
-        thread.add_message(join_message(guard, default_config))
+        thread.add_message(JoinMessage(guard, default_config))
         thread.add_message(UserMessage(default_config, "Hello Guard", "Player"))
         thread.add_message(AssistantMessage(default_config))
         # Lydia joins mid-conversation
-        thread.add_message(join_message(lydia, default_config))
+        thread.add_message(JoinMessage(lydia, default_config))
         thread.add_message(UserMessage(default_config, "Hello everyone", "Player"))
         thread.add_message(AssistantMessage(default_config))
         # Guard leaves
-        thread.add_message(leave_message(guard, default_config))
+        thread.add_message(LeaveMessage(guard, default_config))
         thread.add_message(UserMessage(default_config, "Just us now, Lydia", "Player"))
         thread.add_message(AssistantMessage(default_config))
         thread.add_message(UserMessage(default_config, "One more thing", "Player"))
         thread.add_message(AssistantMessage(default_config))
-        thread.add_message(leave_message(lydia, default_config))
+        thread.add_message(LeaveMessage(lydia, default_config))
 
         summaries = Summaries.__new__(Summaries)
         summaries._Summaries__config = default_config
@@ -175,12 +174,12 @@ class TestThreadGrouping:
         lydia = _make_character("Lydia", ref_id="L1")
 
         thread = message_thread(default_config, "system prompt")
-        thread.add_message(join_message(guard, default_config))
-        thread.add_message(join_message(lydia, default_config))
+        thread.add_message(JoinMessage(guard, default_config))
+        thread.add_message(JoinMessage(lydia, default_config))
         thread.add_message(UserMessage(default_config, "Hello", "Player"))
         thread.add_message(AssistantMessage(default_config))
-        thread.add_message(leave_message(guard, default_config))
-        thread.add_message(leave_message(lydia, default_config))
+        thread.add_message(LeaveMessage(guard, default_config))
+        thread.add_message(LeaveMessage(lydia, default_config))
 
         summaries = Summaries.__new__(Summaries)
         summaries._Summaries__config = default_config
@@ -198,15 +197,15 @@ class TestThreadGrouping:
         lydia = _make_character("Lydia", ref_id="L1")
 
         thread = message_thread(default_config, "system prompt")
-        thread.add_message(join_message(guard, default_config))
+        thread.add_message(JoinMessage(guard, default_config))
         thread.add_message(UserMessage(default_config, "Hello Guard only", "Player"))
         thread.add_message(AssistantMessage(default_config))
         # Guard leaves, Lydia joins
-        thread.add_message(leave_message(guard, default_config))
-        thread.add_message(join_message(lydia, default_config))
+        thread.add_message(LeaveMessage(guard, default_config))
+        thread.add_message(JoinMessage(lydia, default_config))
         thread.add_message(UserMessage(default_config, "Hello Lydia only", "Player"))
         thread.add_message(AssistantMessage(default_config))
-        thread.add_message(leave_message(lydia, default_config))
+        thread.add_message(LeaveMessage(lydia, default_config))
 
         summaries = Summaries.__new__(Summaries)
         summaries._Summaries__config = default_config
@@ -299,9 +298,9 @@ class TestEdgeCases:
         guard = _make_character("Guard", ref_id="G1")
 
         thread = message_thread(default_config, "system prompt")
-        thread.add_message(join_message(guard, default_config))
+        thread.add_message(JoinMessage(guard, default_config))
         thread.add_message(UserMessage(default_config, "Hello", "Player"))
-        thread.add_message(leave_message(guard, default_config))
+        thread.add_message(LeaveMessage(guard, default_config))
         # Messages after guard left
         thread.add_message(UserMessage(default_config, "Guard is gone now", "Player"))
         thread.add_message(AssistantMessage(default_config))
@@ -323,10 +322,10 @@ class TestEdgeCases:
         guard = _make_character("Guard", ref_id="G1")
 
         thread = message_thread(default_config, "system prompt")
-        thread.add_message(join_message(guard, default_config))
-        thread.add_message(join_message(guard, default_config))  # duplicate
+        thread.add_message(JoinMessage(guard, default_config))
+        thread.add_message(JoinMessage(guard, default_config))  # duplicate
         thread.add_message(UserMessage(default_config, "Hello", "Player"))
-        thread.add_message(leave_message(guard, default_config))
+        thread.add_message(LeaveMessage(guard, default_config))
 
         summaries = Summaries.__new__(Summaries)
         summaries._Summaries__config = default_config
@@ -345,11 +344,16 @@ class TestEdgeCases:
 class TestConfigLoadingSummaryValues:
     def test_summary_config_values_exist(self, default_config: ConfigLoader):
         """Config should have summary-specific attributes."""
+        assert hasattr(default_config, "summary_llm_enabled")
         assert hasattr(default_config, "summary_llm_api")
         assert hasattr(default_config, "summary_llm")
         assert hasattr(default_config, "summary_custom_token_count")
         assert hasattr(default_config, "summary_llm_params")
         assert hasattr(default_config, "conversation_summary_enabled")
+
+    def test_summary_llm_enabled_default_false(self, default_config: ConfigLoader):
+        """summary_llm_enabled should default to False (use main LLM for summaries by default)."""
+        assert default_config.summary_llm_enabled is False
 
     def test_conversation_summary_enabled_default_true(self, default_config: ConfigLoader):
         """conversation_summary_enabled should default to True."""

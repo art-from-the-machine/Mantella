@@ -10,7 +10,7 @@ from src.remember.remembering import Remembering
 from src.remember.summaries import Summaries
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
-from src.llm.client_base import ClientBase
+from src.llm.summary_client import SummaryLLMClient
 from src.conversation.conversation import Conversation
 from src.conversation.context import Context
 from src.character_manager import Character
@@ -32,7 +32,7 @@ class GameStateManager:
     WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
     @utils.time_it
-    def __init__(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, summary_client: ClientBase | None = None):
+    def __init__(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, summary_client: SummaryLLMClient | None = None):
         self.__game: Gameable = game
         self.__config: ConfigLoader = config
         self.__language_info: dict[Hashable, str] = language_info

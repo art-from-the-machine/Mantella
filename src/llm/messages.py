@@ -79,7 +79,7 @@ class Message(ABC):
     def get_dict_formatted_string(self) -> str:
         pass
 
-class join_message(Message):
+class JoinMessage(Message):
     """An internal message logging that a certain actor has joined the conversation at this point (for system use only)"""
     def __init__(self, character: Character, config: ConfigLoader):
         super().__init__(f"*{character.name} has joined the conversation*", config, False)
@@ -95,7 +95,7 @@ class join_message(Message):
         dictionary = {"role":"system", "content": self.get_formatted_content(),}
         return f"{dictionary}"
 
-class leave_message(Message):
+class LeaveMessage(Message):
     """An internal message logging that a certain actor has left the conversation at this point (for system use only)"""
     def __init__(self, character: Character, config: ConfigLoader):
         super().__init__(f"*{character.name} is no longer part of the conversation*", config, False)
@@ -202,6 +202,10 @@ class UserMessage(Message):
         self.__ingame_events: list[str] = []
         self.__time: tuple[str,str] | None = None
         
+
+    @property
+    def player_character_name(self) -> str:
+        return self.__player_character_name
 
     def get_formatted_content(self) -> str:
         result = ""

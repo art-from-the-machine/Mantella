@@ -279,6 +279,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.claude_prompt_caching_enabled: bool = self.__definitions.get_bool_value("claude_prompt_caching_enabled")
 
             # Summary LLM
+            self.summary_llm_enabled: bool = self.__definitions.get_bool_value("summary_llm_enabled")
             self.summary_llm_api = self.__definitions.get_string_value("summary_llm_api")
             self.summary_llm = self.__definitions.get_string_value("summary_model")
             self.summary_llm = self.summary_llm.split(' |')[0] if ' |' in self.summary_llm else self.summary_llm
@@ -306,6 +307,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.player_character_description: str = self.__definitions.get_string_value("player_character_description")
             self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
             self.player_voice_model: str = self.__definitions.get_string_value("player_voice_model")
+            self.conversation_summary_enabled = self.__definitions.get_bool_value("conversation_summary_enabled")
 
             #HTTP
             self.port = self.__definitions.get_int_value("port")
@@ -314,7 +316,6 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.advanced_logs = self.__definitions.get_bool_value("advanced_logs")
 
             self.save_audio_data_to_character_folder = self.__definitions.get_bool_value("save_audio_data_to_character_folder")
-            self.conversation_summary_enabled = self.__definitions.get_bool_value("conversation_summary_enabled")
 
             #new separate prompts for Fallout 4 have been added 
             if self.game.base_game == GameEnum.FALLOUT4:

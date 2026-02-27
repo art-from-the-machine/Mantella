@@ -9,7 +9,6 @@ from src.games.skyrim import Skyrim
 from src.output_manager import ChatManager
 from src.llm.llm_client import LLMClient
 from src.llm.summary_client import SummaryLLMClient
-from src.llm.client_base import ClientBase
 from src.game_manager import GameStateManager
 from src.http.routes.routeable import routeable
 from src.http.communication_constants import communication_constants as comm_consts
@@ -62,12 +61,8 @@ class mantella_route(routeable):
 
         llm_client = LLMClient(self._config)
 
-        # Create a separate summary client if summary config differs from main config
-        summary_client: ClientBase | None = None
-        if (self._config.summary_llm_api != self._config.llm_api or
-                self._config.summary_llm != self._config.llm or
-                self._config.summary_llm_params != self._config.llm_params or
-                self._config.summary_custom_token_count != self._config.custom_token_count):
+        summary_client: SummaryLLMClient | None = None
+        if self._config.summary_llm_enabled:
             summary_client = SummaryLLMClient(self._config)
 
         chat_manager = ChatManager(self._config, tts, llm_client)
