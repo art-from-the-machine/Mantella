@@ -92,7 +92,7 @@ def default_rememberer(skyrim: Skyrim, default_config: ConfigLoader, llm_client:
 def default_context(default_config: ConfigLoader, llm_client: LLMClient, default_rememberer: Summaries, english_language_info: dict, example_characters_pc_to_npc: Characters) -> Context:
     """Fixture to create a Context instance"""
     context = Context('1', default_config, llm_client, default_rememberer, english_language_info)
-    context.add_or_update_characters(example_characters_pc_to_npc.get_all_characters())
+    context.add_or_update_characters(example_characters_pc_to_npc.get_all_characters(), message_count=0)
     return context
 
 @pytest.fixture
@@ -281,17 +281,17 @@ def another_example_skyrim_npc_character() -> Character:
 def example_characters_pc_to_npc(example_skyrim_player_character: Character, example_skyrim_npc_character: Character) -> Characters:
     """Provides a Characters manager with the test character"""
     chars = Characters()
-    chars.add_or_update_character(example_skyrim_player_character)
-    chars.add_or_update_character(example_skyrim_npc_character)
+    chars.add_or_update_character(example_skyrim_player_character, 0)
+    chars.add_or_update_character(example_skyrim_npc_character, 0)
     return chars
 
 @pytest.fixture
 def example_characters_multi_npc(example_skyrim_player_character: Character, example_skyrim_npc_character: Character, another_example_skyrim_npc_character: Character) -> Characters:
     """Provides a Characters manager with the test character"""
     chars = Characters()
-    chars.add_or_update_character(example_skyrim_player_character)
-    chars.add_or_update_character(example_skyrim_npc_character)
-    chars.add_or_update_character(another_example_skyrim_npc_character)
+    chars.add_or_update_character(example_skyrim_player_character, 0)
+    chars.add_or_update_character(example_skyrim_npc_character, 0)
+    chars.add_or_update_character(another_example_skyrim_npc_character, 0)
     return chars
 
 @pytest.fixture

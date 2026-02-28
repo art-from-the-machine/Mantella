@@ -10,16 +10,11 @@ from src.llm.summary_client import SummaryLLMClient
 from src.llm.client_base import ClientBase
 from src.llm.llm_client import LLMClient
 from src.llm.message_thread import message_thread
-from src.llm.messages import AssistantMessage, UserMessage, JoinMessage, LeaveMessage
+from src.llm.messages import AssistantMessage, UserMessage
 from src.remember.summaries import Summaries, CharacterSummaryParameters
 from src.character_manager import Character
 from src.characters_manager import Characters
 from src.games.equipment import Equipment
-
-
-# ──────────────────────────────────────────────
-# Helpers
-# ──────────────────────────────────────────────
 
 def _make_character(name: str, ref_id: str = "0", is_player: bool = False) -> Character:
     return Character(
@@ -44,23 +39,6 @@ def _make_character(name: str, ref_id: str = "0", is_player: bool = False) -> Ch
     )
 
 
-def _build_thread_with_join_leave(config, characters, messages_after_join=None):
-    """Build a message_thread with join messages for characters, some user/assistant messages, and leave messages."""
-    thread = message_thread(config, "system prompt")
-    for char in characters:
-        thread.add_message(JoinMessage(char, config))
-    if messages_after_join:
-        for msg in messages_after_join:
-            thread.add_message(msg)
-    for char in characters:
-        thread.add_message(LeaveMessage(char, config))
-    return thread
-
-
-# ──────────────────────────────────────────────
-# 1. SummaryLLMClient initialization
-# ──────────────────────────────────────────────
-
 class TestSummaryLLMClientInit:
     def test_init_uses_summary_config_values(self, default_config: ConfigLoader):
         """SummaryLLMClient should initialize with summary-specific config fields."""
@@ -81,10 +59,6 @@ class TestSummaryLLMClientInit:
         assert main_client is not summary_client
 
 
-# ──────────────────────────────────────────────
-# 2. Fallback to main client when summary_client is None
-# ──────────────────────────────────────────────
-
 class TestFallbackToMainClient:
     def test_summaries_uses_main_client_when_no_summary_client(self, skyrim, default_config, llm_client, english_language_info):
         """When summary_client is None, Summaries should use the main client for summarization."""
@@ -104,29 +78,26 @@ class TestFallbackToMainClient:
         assert summaries._Summaries__client is not llm_client
 
 
-# ──────────────────────────────────────────────
-# 3. Per-NPC thread extraction
-# ──────────────────────────────────────────────
-
 class TestPerNpcThreadExtraction:
     def test_single_npc_gets_all_messages(self, default_config: ConfigLoader):
         """A single NPC present for the full conversation should get all messages."""
-        player = _make_character("Player", ref_id="P1", is_player=True)
         guard = _make_character("Guard", ref_id="G1")
 
         thread = message_thread(default_config, "system prompt")
-        thread.add_message(JoinMessage(guard, default_config))
+        # Guard joins at message index 1 (after system prompt)
+        characters = Characters()
+        characters.add_or_update_character(guard, len(thread))
         thread.add_message(UserMessage(default_config, "Hello Guard", "Player"))
         thread.add_message(AssistantMessage(default_config))
-        thread.add_message(LeaveMessage(guard, default_config))
+        # Guard leaves at current message count
+        characters.remove_character(guard, len(thread))
 
         summaries = Summaries.__new__(Summaries)
         summaries._Summaries__config = default_config
-        characters = summaries.get_character_lookup_dict(thread)
         npc_threads = summaries.get_threads_for_summarization(thread, characters)
 
         assert "Guard" in npc_threads
-        # Should have the messages from join through leave
+        # Should have messages
         assert len(npc_threads["Guard"].messages) > 0
 
     def test_multi_npc_with_join_leave(self, default_config: ConfigLoader):
@@ -135,37 +106,35 @@ class TestPerNpcThreadExtraction:
         lydia = _make_character("Lydia", ref_id="L1")
 
         thread = message_thread(default_config, "system prompt")
-        thread.add_message(JoinMessage(guard, default_config))
+        characters = Characters()
+        # Guard joins at index 1
+        characters.add_or_update_character(guard, len(thread))
         thread.add_message(UserMessage(default_config, "Hello Guard", "Player"))
         thread.add_message(AssistantMessage(default_config))
-        # Lydia joins mid-conversation
-        thread.add_message(JoinMessage(lydia, default_config))
+        # Lydia joins mid-conversation at index 3
+        characters.add_or_update_character(lydia, len(thread))
         thread.add_message(UserMessage(default_config, "Hello everyone", "Player"))
         thread.add_message(AssistantMessage(default_config))
-        # Guard leaves
-        thread.add_message(LeaveMessage(guard, default_config))
-        thread.add_message(UserMessage(default_config, "Just us now, Lydia", "Player"))
+        # Guard leaves at index 5
+        characters.remove_character(guard, len(thread))
+        thread.add_message(UserMessage(default_config, "Looks like the guard left", "Player"))
         thread.add_message(AssistantMessage(default_config))
         thread.add_message(UserMessage(default_config, "One more thing", "Player"))
         thread.add_message(AssistantMessage(default_config))
-        thread.add_message(LeaveMessage(lydia, default_config))
+        # Lydia leaves at index 9
+        characters.remove_character(lydia, len(thread))
 
         summaries = Summaries.__new__(Summaries)
         summaries._Summaries__config = default_config
-        characters = summaries.get_character_lookup_dict(thread)
         npc_threads = summaries.get_threads_for_summarization(thread, characters)
 
         assert "Guard" in npc_threads
         assert "Lydia" in npc_threads
         # Guard left before extra messages, so Lydia heard more
-        guard_msgs = npc_threads["Guard"].messages.get_persistent_messages()
-        lydia_msgs = npc_threads["Lydia"].messages.get_persistent_messages()
-        assert len(guard_msgs) < len(lydia_msgs)
+        guard_talk = npc_threads["Guard"].messages.get_talk_only()
+        lydia_talk = npc_threads["Lydia"].messages.get_talk_only()
+        assert len(guard_talk) < len(lydia_talk)
 
-
-# ──────────────────────────────────────────────
-# 4. Thread grouping
-# ──────────────────────────────────────────────
 
 class TestThreadGrouping:
     def test_identical_threads_grouped(self, default_config: ConfigLoader):
@@ -174,16 +143,18 @@ class TestThreadGrouping:
         lydia = _make_character("Lydia", ref_id="L1")
 
         thread = message_thread(default_config, "system prompt")
-        thread.add_message(JoinMessage(guard, default_config))
-        thread.add_message(JoinMessage(lydia, default_config))
+        characters = Characters()
+        # Both join at the same index
+        characters.add_or_update_character(guard, len(thread))
+        characters.add_or_update_character(lydia, len(thread))
         thread.add_message(UserMessage(default_config, "Hello", "Player"))
         thread.add_message(AssistantMessage(default_config))
-        thread.add_message(LeaveMessage(guard, default_config))
-        thread.add_message(LeaveMessage(lydia, default_config))
+        # Both leave at the same index
+        characters.remove_character(guard, len(thread))
+        characters.remove_character(lydia, len(thread))
 
         summaries = Summaries.__new__(Summaries)
         summaries._Summaries__config = default_config
-        characters = summaries.get_character_lookup_dict(thread)
         npc_threads = summaries.get_threads_for_summarization(thread, characters)
         groups = summaries.group_shared_threads(npc_threads)
 
@@ -197,29 +168,26 @@ class TestThreadGrouping:
         lydia = _make_character("Lydia", ref_id="L1")
 
         thread = message_thread(default_config, "system prompt")
-        thread.add_message(JoinMessage(guard, default_config))
+        characters = Characters()
+        # Guard joins
+        characters.add_or_update_character(guard, len(thread))
         thread.add_message(UserMessage(default_config, "Hello Guard only", "Player"))
         thread.add_message(AssistantMessage(default_config))
         # Guard leaves, Lydia joins
-        thread.add_message(LeaveMessage(guard, default_config))
-        thread.add_message(JoinMessage(lydia, default_config))
+        characters.remove_character(guard, len(thread))
+        characters.add_or_update_character(lydia, len(thread))
         thread.add_message(UserMessage(default_config, "Hello Lydia only", "Player"))
         thread.add_message(AssistantMessage(default_config))
-        thread.add_message(LeaveMessage(lydia, default_config))
+        characters.remove_character(lydia, len(thread))
 
         summaries = Summaries.__new__(Summaries)
         summaries._Summaries__config = default_config
-        characters = summaries.get_character_lookup_dict(thread)
         npc_threads = summaries.get_threads_for_summarization(thread, characters)
         groups = summaries.group_shared_threads(npc_threads)
 
         # Each NPC heard different messages, so two separate groups
         assert len(groups) == 2
 
-
-# ──────────────────────────────────────────────
-# 5. conversation_summary_enabled gating
-# ──────────────────────────────────────────────
 
 class TestConversationSummaryEnabledGating:
     def _make_conversation_with_mocks(self, config):
@@ -228,10 +196,7 @@ class TestConversationSummaryEnabledGating:
         mock_rememberer = MagicMock()
         mock_context = MagicMock()
         mock_context.config = config
-        mock_context.npcs_in_conversation = MagicMock()
-        mock_context.npcs_in_conversation.get_all_characters.return_value = []
-        mock_context.npcs_in_conversation.get_pending_shares.return_value = None
-        mock_context.npcs_in_conversation.clear_pending_shares = MagicMock()
+        mock_context.npcs_in_conversation = Characters()
         mock_context.world_id = "test"
 
         mock_messages = MagicMock()
@@ -250,10 +215,9 @@ class TestConversationSummaryEnabledGating:
         default_config.conversation_summary_enabled = False
         conv, mock_rememberer = self._make_conversation_with_mocks(default_config)
 
-        # Call the private method with is_reload=False
-        conv._Conversation__save_conversations_for_characters([], is_reload=False)
+        conv._Conversation__save_conversation(is_reload=False)
 
-        # save_conversation_state should NOT have been called
+        # save_conversation_state should not have been called
         mock_rememberer.save_conversation_state.assert_not_called()
 
     def test_summary_enabled_calls_save(self, default_config: ConfigLoader):
@@ -261,7 +225,7 @@ class TestConversationSummaryEnabledGating:
         default_config.conversation_summary_enabled = True
         conv, mock_rememberer = self._make_conversation_with_mocks(default_config)
 
-        conv._Conversation__save_conversations_for_characters([], is_reload=False)
+        conv._Conversation__save_conversation(is_reload=False)
 
         # save_conversation_state SHOULD have been called
         mock_rememberer.save_conversation_state.assert_called_once()
@@ -271,24 +235,20 @@ class TestConversationSummaryEnabledGating:
         default_config.conversation_summary_enabled = False
         conv, mock_rememberer = self._make_conversation_with_mocks(default_config)
 
-        conv._Conversation__save_conversations_for_characters([], is_reload=True)
+        conv._Conversation__save_conversation(is_reload=True)
 
         # save_conversation_state SHOULD be called on reload even when summaries disabled
         mock_rememberer.save_conversation_state.assert_called_once()
 
 
-# ──────────────────────────────────────────────
-# 6. Edge cases
-# ──────────────────────────────────────────────
-
 class TestEdgeCases:
     def test_empty_conversation(self, default_config: ConfigLoader):
-        """An empty conversation (no join/leave) should produce no threads."""
+        """An empty conversation (no participation) should produce no threads."""
         thread = message_thread(default_config, "system prompt")
+        characters = Characters()
 
         summaries = Summaries.__new__(Summaries)
         summaries._Summaries__config = default_config
-        characters = summaries.get_character_lookup_dict(thread)
         npc_threads = summaries.get_threads_for_summarization(thread, characters)
 
         assert len(npc_threads) == 0
@@ -296,50 +256,53 @@ class TestEdgeCases:
     def test_npc_leaving_early(self, default_config: ConfigLoader):
         """An NPC that leaves early should only see messages up to their departure."""
         guard = _make_character("Guard", ref_id="G1")
+        merchant = _make_character("Merchant", ref_id="M1")
 
         thread = message_thread(default_config, "system prompt")
-        thread.add_message(JoinMessage(guard, default_config))
-        thread.add_message(UserMessage(default_config, "Hello", "Player"))
-        thread.add_message(LeaveMessage(guard, default_config))
+        characters = Characters()
+        characters.add_or_update_character(guard, len(thread))
+        characters.add_or_update_character(merchant, len(thread))
+        thread.add_message(UserMessage(default_config, "Hello everyone", "Player"))
+        characters.remove_character(guard, len(thread))
         # Messages after guard left
         thread.add_message(UserMessage(default_config, "Guard is gone now", "Player"))
         thread.add_message(AssistantMessage(default_config))
 
         summaries = Summaries.__new__(Summaries)
         summaries._Summaries__config = default_config
-        characters = summaries.get_character_lookup_dict(thread)
         npc_threads = summaries.get_threads_for_summarization(thread, characters)
 
         assert "Guard" in npc_threads
-        # The messages after guard left should NOT be in guard's thread
-        guard_messages = npc_threads["Guard"].messages.get_persistent_messages()
+        assert "Merchant" in npc_threads
+        # Guard's thread should not contain messages after they left
+        guard_messages = npc_threads["Guard"].messages.get_talk_only()
         for msg in guard_messages:
             if isinstance(msg, UserMessage):
                 assert "Guard is gone now" not in msg.text
+        # Merchant's thread should contain all messages
+        merchant_texts = [msg.text for msg in npc_threads["Merchant"].messages.get_talk_only() if isinstance(msg, UserMessage)]
+        assert any("Hello everyone" in t for t in merchant_texts)
+        assert any("Guard is gone now" in t for t in merchant_texts)
 
-    def test_duplicate_join_messages(self, default_config: ConfigLoader):
-        """Duplicate join messages should not cause errors or duplicate threads."""
+    def test_duplicate_join_events(self, default_config: ConfigLoader):
+        """Duplicate add_or_update_character calls should not cause errors or duplicate threads."""
         guard = _make_character("Guard", ref_id="G1")
 
         thread = message_thread(default_config, "system prompt")
-        thread.add_message(JoinMessage(guard, default_config))
-        thread.add_message(JoinMessage(guard, default_config))  # duplicate
+        characters = Characters()
+        characters.add_or_update_character(guard, len(thread))
+        characters.add_or_update_character(guard, len(thread))  # duplicate (update, not new join)
         thread.add_message(UserMessage(default_config, "Hello", "Player"))
-        thread.add_message(LeaveMessage(guard, default_config))
+        characters.remove_character(guard, len(thread))
 
         summaries = Summaries.__new__(Summaries)
         summaries._Summaries__config = default_config
-        characters = summaries.get_character_lookup_dict(thread)
         npc_threads = summaries.get_threads_for_summarization(thread, characters)
 
         # Should still only have one entry for Guard
         assert "Guard" in npc_threads
         assert len(npc_threads) == 1
 
-
-# ──────────────────────────────────────────────
-# 7. Config loading of summary-specific values
-# ──────────────────────────────────────────────
 
 class TestConfigLoadingSummaryValues:
     def test_summary_config_values_exist(self, default_config: ConfigLoader):

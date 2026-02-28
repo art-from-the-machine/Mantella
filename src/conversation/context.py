@@ -134,31 +134,31 @@ class Context:
         self.__ingame_events.clear()
 
     @utils.time_it
-    def add_or_update_characters(self, new_list_of_npcs: list[Character]) -> list[Character]:
+    def add_or_update_characters(self, new_list_of_npcs: list[Character], message_count: int) -> list[Character]:
         removed_npcs = []
         for npc in new_list_of_npcs:
             if not self.__npcs_in_conversation.contains_character(npc):
-                self.__npcs_in_conversation.add_or_update_character(npc)
+                self.__npcs_in_conversation.add_or_update_character(npc, message_count)
                 #self.__ingame_events.append(f"{npc.name} has joined the conversation")
                 self.__have_actors_changed = True
             else:
                 #check for updates in the transient stats and generate update events
                 self.__update_ingame_events_on_npc_change(npc)
-                self.__npcs_in_conversation.add_or_update_character(npc)
+                self.__npcs_in_conversation.add_or_update_character(npc, message_count)
         for npc in self.__npcs_in_conversation.get_all_characters():
             if not npc in new_list_of_npcs:
                 removed_npcs.append(npc)
-                self.__remove_character(npc)
+                self.__remove_character(npc, message_count)
         return removed_npcs
     
     @utils.time_it
-    def remove_character(self, npc: Character):
+    def remove_character(self, npc: Character, message_count: int):
         if self.__npcs_in_conversation.contains_character(npc):
-            self.__remove_character(npc)
+            self.__remove_character(npc, message_count)
     
     @utils.time_it
-    def __remove_character(self, npc: Character):
-        self.__npcs_in_conversation.remove_character(npc)
+    def __remove_character(self, npc: Character, message_count: int):
+        self.__npcs_in_conversation.remove_character(npc, message_count)
         self.__ingame_events.append(f"{npc.name} has left the conversation.")
         self.__have_actors_changed = True
 
@@ -496,5 +496,5 @@ class Context:
         new_characters = Characters()
         for actor in self.__npcs_in_conversation.get_all_characters():
             if not actor.is_player_character:
-                new_characters.add_or_update_character(actor)
+                new_characters.add_or_update_character(actor, 0)
         return new_characters

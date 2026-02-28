@@ -18,7 +18,7 @@ class Remembering(ABC):
         pass
 
     @abstractmethod
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None):
+    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None):
         """Saves the current state of the conversation.
 
         Args:
@@ -27,5 +27,6 @@ class Remembering(ABC):
             world_id (str): The world ID for folder organization
             is_reload (bool): Whether this is a reload save
             pending_shares (list[tuple[str, str, str]] | None): List of (sharer_name, recipient_name, recipient_ref_id) for sharing summaries
+            end_timestamp (float | None): Optional game timestamp to prepend to summaries
         """
         pass
