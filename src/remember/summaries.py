@@ -116,6 +116,13 @@ class Summaries(Remembering):
             end_timestamp: Optional timestamp to prepend to summaries
         """
         npc_message_threads: Dict[str, CharacterSummaryParameters] = self.get_threads_for_summarization(messages, npcs_in_conversation)
+
+        # On final save, only summarize NPCs still active in the conversation.
+        # Departed NPCs were already summarized when they left.
+        if not is_reload:
+            active_npc_names = {c.name for c in npcs_in_conversation.get_all_characters() if not c.is_player_character}
+            npc_message_threads = {name: params for name, params in npc_message_threads.items() if name in active_npc_names}
+
         npcs_with_shared_threads = self.group_shared_threads(npc_message_threads)
 
         # Track per-NPC summaries for pending_shares
@@ -351,11 +358,7 @@ class Summaries(Remembering):
             previous_conversation_summaries = ''
        
         if len(new_summary) > 0:
-            # Add dash prefix to new summary if it doesn't already have one
-            if not new_summary.strip().startswith('-'):
-                new_summary = '- ' + new_summary.strip() + '\n\n'
-            else:
-                new_summary = new_summary.strip() + '\n\n'
+            new_summary = new_summary.strip() + '\n\n'
 
             conversation_summaries = previous_conversation_summaries + new_summary
             with open(conversation_summary_file, 'w', encoding='utf-8') as f:

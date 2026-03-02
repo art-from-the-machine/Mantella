@@ -1,7 +1,12 @@
 import pytest
+import os
 import logging
+from unittest.mock import patch
 from src.config.config_loader import ConfigLoader
+from src.conversation.context import Context
 from src.conversation.conversation import Conversation
+from src.games.skyrim import Skyrim
+from src.llm.llm_client import LLMClient
 from src.llm.message_thread import message_thread
 from src.llm.messages import AssistantMessage, UserMessage
 from src.remember.summaries import Summaries
@@ -160,12 +165,12 @@ class TestEdgeCases:
     def test_npc_leaving_early(self, default_config: ConfigLoader, default_rememberer: Summaries, example_skyrim_npc_character: Character, another_example_skyrim_npc_character: Character):
         """An NPC that leaves early should only see messages up to their departure."""
         guard = example_skyrim_npc_character
-        merchant = another_example_skyrim_npc_character
+        lydia = another_example_skyrim_npc_character
 
         thread = message_thread(default_config, "system prompt")
         characters = Characters()
         characters.add_or_update_character(guard, len(thread))
-        characters.add_or_update_character(merchant, len(thread))
+        characters.add_or_update_character(lydia, len(thread))
         thread.add_message(UserMessage(default_config, "Hello everyone", "Player"))
         characters.remove_character(guard, len(thread))
         # Messages after guard left
@@ -175,16 +180,16 @@ class TestEdgeCases:
         npc_threads = default_rememberer.get_threads_for_summarization(thread, characters)
 
         assert "Guard" in npc_threads
-        assert "Merchant" in npc_threads
+        assert "Lydia" in npc_threads
         # Guard's thread should not contain messages after they left
         guard_messages = npc_threads["Guard"].messages.get_talk_only()
         for msg in guard_messages:
             if isinstance(msg, UserMessage):
                 assert "Guard is gone now" not in msg.text
-        # Merchant's thread should contain all messages
-        merchant_texts = [msg.text for msg in npc_threads["Merchant"].messages.get_talk_only() if isinstance(msg, UserMessage)]
-        assert any("Hello everyone" in t for t in merchant_texts)
-        assert any("Guard is gone now" in t for t in merchant_texts)
+        # Lydia's thread should contain all messages
+        lydia_texts = [msg.text for msg in npc_threads["Lydia"].messages.get_talk_only() if isinstance(msg, UserMessage)]
+        assert any("Hello everyone" in t for t in lydia_texts)
+        assert any("Guard is gone now" in t for t in lydia_texts)
 
     def test_duplicate_join_events(self, default_config: ConfigLoader, default_rememberer: Summaries, example_skyrim_npc_character: Character):
         """Duplicate add_or_update_character calls should not cause errors or duplicate threads."""
@@ -201,3 +206,98 @@ class TestEdgeCases:
 
         assert "Guard" in npc_threads
         assert len(npc_threads) == 1
+
+
+class TestSummarizationHappensOncePerNPC:
+    """Tests that an NPC who leaves mid-conversation is only summarized once.
+    """
+
+    def _build_enough_messages(self, thread: message_thread, config: ConfigLoader, count: int = 3):
+        """Add enough user+assistant message pairs to exceed the 5-message summarization threshold."""
+        for i in range(count):
+            thread.add_message(UserMessage(config, f"Message {i}", "Player"))
+            thread.add_message(AssistantMessage(config))
+
+    def test_departed_npc_not_re_summarized_at_conversation_end(
+        self, default_config: ConfigLoader, llm_client: LLMClient,
+        default_rememberer: Summaries, english_language_info: dict,
+        example_skyrim_player_character: Character,
+        example_skyrim_npc_character: Character, another_example_skyrim_npc_character: Character
+    ):
+        """An NPC summarized on departure (reload save) should not be summarized again at conversation end."""
+        player = example_skyrim_player_character
+        guard = example_skyrim_npc_character
+        lydia = another_example_skyrim_npc_character
+        world_id = "TestWorld"
+
+        # Set up context with all three characters (player + guard + lydia)
+        context = Context(world_id, default_config, llm_client, default_rememberer, english_language_info)
+        context.add_or_update_characters([player, guard, lydia], message_count=0)
+
+        thread = message_thread(default_config, "system prompt")
+        self._build_enough_messages(thread, default_config)
+
+        # Game sends updated actor list without the guard (guard departs)
+        context.add_or_update_characters([player, lydia], message_count=len(thread))
+        npcs = context.npcs_in_conversation
+
+        # Reload save (triggered by character departure)
+        with patch.object(default_rememberer, 'summarize_conversation', return_value="Guard departure summary.\n\n"):
+            default_rememberer.save_conversation_state(thread, npcs, world_id, is_reload=True)
+
+        # Conversation continues with just Lydia
+        self._build_enough_messages(thread, default_config)
+
+        # Final save (triggered at conversation end)
+        with patch.object(default_rememberer, 'summarize_conversation', return_value="Final summary.\n\n") as mock_summarize:
+            default_rememberer.save_conversation_state(thread, npcs, world_id, is_reload=False)
+
+            # The guard was already summarized in the reload save.
+            # The final save should only produce one summarization call (for Lydia).
+            # Before the fix, two calls were made (Guard + Lydia in separate groups).
+            assert mock_summarize.call_count == 1, (
+                f"Expected 1 summarize call (Lydia only), but got {mock_summarize.call_count}"
+            )
+
+    def test_departed_npc_summary_written_to_disk_once(
+        self, skyrim: Skyrim, default_config: ConfigLoader, llm_client: LLMClient,
+        default_rememberer: Summaries, english_language_info: dict,
+        example_skyrim_player_character: Character,
+        example_skyrim_npc_character: Character, another_example_skyrim_npc_character: Character
+    ):
+        """The departed NPC's summary file should contain exactly one entry after both saves."""
+        player = example_skyrim_player_character
+        guard = example_skyrim_npc_character
+        lydia = another_example_skyrim_npc_character
+        world_id = "TestWorld"
+
+        context = Context(world_id, default_config, llm_client, default_rememberer, english_language_info)
+        context.add_or_update_characters([player, guard, lydia], message_count=0)
+
+        thread = message_thread(default_config, "system prompt")
+        self._build_enough_messages(thread, default_config)
+
+        # Guard departs via updated actor list
+        context.add_or_update_characters([player, lydia], message_count=len(thread))
+        npcs = context.npcs_in_conversation
+
+        # Reload save (guard gets summarized here)
+        with patch.object(default_rememberer, 'summarize_conversation', return_value="Guard was at the sawmill.\n\n"):
+            default_rememberer.save_conversation_state(thread, npcs, world_id, is_reload=True)
+
+        # Conversation continues
+        self._build_enough_messages(thread, default_config)
+
+        # Final save at conversation end
+        with patch.object(default_rememberer, 'summarize_conversation', return_value="Lydia continued talking.\n\n"):
+            default_rememberer.save_conversation_state(thread, npcs, world_id, is_reload=False)
+
+        # Guard's summary file should have exactly one entry (from the reload save)
+        guard_folder = os.path.join(skyrim.conversation_folder_path, world_id, f"Guard - {guard.ref_id}")
+        guard_summary_file = os.path.join(guard_folder, "Guard_summary_1.txt")
+        assert os.path.exists(guard_summary_file)
+        with open(guard_summary_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        entries = [e.strip() for e in content.strip().split('\n\n') if e.strip()]
+        assert len(entries) == 1
