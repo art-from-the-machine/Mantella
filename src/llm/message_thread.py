@@ -149,8 +149,8 @@ class message_thread():
 
     @utils.time_it
     def get_all_messages(self) -> list[Message]:
-        """Returns all messages in order (shallow copy of internal list)."""
-        return list(self.__messages)
+        """Returns deep copies of all messages in order."""
+        return [deepcopy(m) for m in self.__messages]
 
     def get_last_message(self) -> Message:
         return self.__messages[len(self.__messages) -1]
@@ -241,9 +241,9 @@ class message_thread():
         # Create new thread with the replacement system message
         cloned_thread = message_thread(self.__config, new_system_message)
 
-        # Add all non-system messages from the original thread
+        # Add deep copies of all non-system messages from the original thread to the new thread
         for msg in self.__messages:
             if not isinstance(msg, SystemMessage):
-                cloned_thread.add_message(msg)
+                cloned_thread.add_message(deepcopy(msg))
 
         return cloned_thread

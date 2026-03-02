@@ -24,9 +24,9 @@ class Characters:
     @utils.time_it
     def contains_character(self, character_to_check: str | Character) -> bool:
         if isinstance(character_to_check, Character):
-            return self.__active_characters.__contains__(character_to_check.name)
+            return character_to_check.name in self.__active_characters
         else:
-            return self.__active_characters.__contains__(character_to_check)
+            return character_to_check in self.__active_characters
     
     @property
     def last_added_character(self) -> Character | None:
@@ -36,8 +36,8 @@ class Characters:
         return len(self.__active_characters)
     
     @utils.time_it
-    def add_or_update_character(self, new_character: Character, message_count: int):
-        if not self.__active_characters.__contains__(new_character.name):
+    def add_or_update_character(self, new_character: Character, message_count: int = 0):
+        if new_character.name not in self.__active_characters:
             self.__active_characters[new_character.name] = new_character
             if not new_character.is_player_character:
                 self.__all_characters_since_start[new_character.name] = new_character
@@ -53,8 +53,8 @@ class Characters:
             self.__active_characters[new_character.name].custom_character_values = new_character.custom_character_values
     
     @utils.time_it
-    def remove_character(self, character_to_remove: Character, message_count: int):
-        if self.__active_characters.__contains__(character_to_remove.name):
+    def remove_character(self, character_to_remove: Character, message_count: int = 0):
+        if character_to_remove.name in self.__active_characters:
             del self.__active_characters[character_to_remove.name]
             if not character_to_remove.is_player_character:
                 self.__participation_log.append(("leave", character_to_remove.name, message_count))

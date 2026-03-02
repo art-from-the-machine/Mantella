@@ -60,22 +60,19 @@ class Summaries(Remembering):
         return lines
 
     @utils.time_it
-    def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str) -> str:
+    def get_prompt_text(self, characters: list[Character], world_id: str) -> str:
         """Load the conversation summaries for all NPCs in the conversation and returns them as one string
 
         Args:
-            npcs_in_conversation (Characters): the npcs to load the summaries for
+            characters (list[Character]): the non-player NPCs to load summaries for
             world_id (str): the world identifier used to separate summary folders by player characters
 
         Returns:
             str: a concatenation of the summaries as a single string
         """
-        # Get all non-player characters
-        non_player_characters = [char for char in npcs_in_conversation.get_all_characters() if not char.is_player_character]
-
-        if len(non_player_characters) == 1:
+        if len(characters) == 1:
             # Single NPC conversation - no delimiters needed
-            character = non_player_characters[0]
+            character = characters[0]
             conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)
             paragraphs = self.__read_summary_lines(conversation_summary_file, deduplicate=True)
             if paragraphs:
@@ -86,7 +83,7 @@ class Summaries(Remembering):
         else:
             # Multi-NPC conversation - add delimiters around each character's memories
             character_memories = []
-            for character in non_player_characters:
+            for character in characters:
                 conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)
                 character_paragraphs = self.__read_summary_lines(conversation_summary_file, deduplicate=True)
 
@@ -309,18 +306,13 @@ class Summaries(Remembering):
 
         player_name = npcs_in_conversation.get_player_name() or "the player"
 
-        # Build a Characters object containing just the involved NPCs for get_prompt_text
-        characters_obj = Characters()
-        for char in npc_info.characters:
-            characters_obj.add_or_update_character(char, 0)
-
         prompt = self.__memory_prompt.format(
                     name=names,
                     names=names,
                     language=self.__language_name,
                     game=location,
                     bios=bios,
-                    conversation_summaries=self.get_prompt_text(characters_obj, world_id),
+                    conversation_summaries=self.get_prompt_text(npc_info.characters, world_id),
                     player_name=player_name
                 )
         while True:
@@ -371,7 +363,7 @@ class Summaries(Remembering):
         else:
             conversation_summaries = previous_conversation_summaries
 
-        summary_limit = round(self.__client.token_limit*self.__summary_limit_pct,0)
+        summary_limit = int(self.__client.token_limit * self.__summary_limit_pct)
 
         count_tokens_summaries = self.__client.get_count_tokens(conversation_summaries)
         # if summaries token limit is reached, summarize the summaries
@@ -421,11 +413,10 @@ class Summaries(Remembering):
     def summarize_conversation(self, text_to_summarize: str, prompt: str) -> str:
         summary = ''
         if len(text_to_summarize) > 5:
+            logger.log(23, f'Summary prompt sent to LLM: {prompt.strip()}')
             messages = message_thread(self.__config, prompt)
             messages.add_message(UserMessage(self.__config, text_to_summarize))
             summary = self.__client.request_call(messages)
-            # Log the summary prompt being sent
-            logger.log(23, f'Summary prompt sent to LLM: {prompt.strip()}')
             if not summary:
                 logger.error(f"Summarizing conversation failed.")
                 return ""

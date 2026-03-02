@@ -445,7 +445,8 @@ class Context:
             self.__prev_game_time = str(time), time_group
         else:
             self.__prev_game_time = None, time_group
-        conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
+        non_player_chars = [c for c in self.__npcs_in_conversation.get_all_characters() if not c.is_player_character]
+        conversation_summaries = self.__rememberer.get_prompt_text(non_player_chars, self.__world_id)
         
         # Only include legacy action prompts if advanced actions are disabled
         actions = self.__get_action_texts(actions_for_prompt) if not self.__config.advanced_actions_enabled else ""

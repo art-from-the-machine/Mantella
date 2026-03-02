@@ -175,13 +175,13 @@ class LLMDefinitions:
         return ConfigValueSelection("summary_llm_api","Custom Summary Model Service",description,"OpenRouter",["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"],allows_free_edit=True,tags=[ConfigValueTag.advanced])
 
     @staticmethod
-    def get_summary_model_config_value() -> ConfigValue:
+    def get_summary_llm_config_value() -> ConfigValue:
         model_description = """Select the model to use for generating conversation summaries. Press the *Update* button to load a list of models available from the service selected above.
                             You can use a different model for summaries than for conversations.
                             The list does not provide all details about the models. For additional information please refer to the corresponding sites:
                             - OpenRouter: https://openrouter.ai/docs#models
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
-        return ConfigValueSelection("summary_model","Custom Summary Model",model_description,"mistralai/mistral-small-3.1-24b-instruct:free",["Custom Model"],allows_values_not_in_options=True,tags=[ConfigValueTag.advanced])
+        return ConfigValueSelection("summary_llm","Custom Summary Model",model_description,"mistralai/mistral-small-3.1-24b-instruct:free",["Custom Model"],allows_values_not_in_options=True,tags=[ConfigValueTag.advanced])
 
     @staticmethod
     def get_summary_custom_token_count_config_value() -> ConfigValue:
@@ -196,7 +196,6 @@ class LLMDefinitions:
                         A list of the most common parameters can be found here: https://openrouter.ai/docs/parameters.
                         Note that available parameters can vary per LLM provider."""
         value = """{
-                        "max_tokens": 250,
                         "stop": ["#"]
                     }"""
         return ConfigValueString("summary_llm_params","Custom Summary Model Parameters",description,value,tags=[ConfigValueTag.advanced])

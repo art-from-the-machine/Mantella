@@ -64,7 +64,7 @@ class OtherDefinitions:
     def get_conversation_summary_enabled_config_value() -> ConfigValue:
         description = """Whether to generate and save conversation summaries when conversations end.
                         If enabled: Summaries will be generated and saved to let NPCs remember past conversations.
-                        If disabled: No summaries will be generated, conversations will end without sending summary requests to the LLM."""
+                        If disabled: No summaries will be generated when conversations end. Note: Summaries are still generated when a conversation exceeds the context window."""
         return ConfigValueBool("conversation_summary_enabled", "Conversation Summaries", description, True, tags=[ConfigValueTag.advanced])
     
     #HTTP

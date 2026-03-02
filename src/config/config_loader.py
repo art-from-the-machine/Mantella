@@ -281,7 +281,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             # Summary LLM
             self.summary_llm_enabled: bool = self.__definitions.get_bool_value("summary_llm_enabled")
             self.summary_llm_api = self.__definitions.get_string_value("summary_llm_api")
-            self.summary_llm = self.__definitions.get_string_value("summary_model")
+            self.summary_llm = self.__definitions.get_string_value("summary_llm")
             self.summary_llm = self.summary_llm.split(' |')[0] if ' |' in self.summary_llm else self.summary_llm
             self.summary_custom_token_count = self.__definitions.get_int_value("summary_custom_token_count")
             try:
