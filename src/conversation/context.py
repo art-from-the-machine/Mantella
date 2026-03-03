@@ -80,7 +80,11 @@ class Context:
     
     @ingame_time.setter
     def ingame_time(self, value: int):
-        self.__ingame_time = value       
+        self.__ingame_time = value
+
+    @property
+    def game_days(self) -> float:
+        return self.__game_days
 
     @property
     def have_actors_changed(self) -> bool:

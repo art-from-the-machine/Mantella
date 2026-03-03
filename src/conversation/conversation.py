@@ -515,6 +515,10 @@ class Conversation:
             pending_shares = npcs.get_pending_shares()
             npcs.clear_pending_shares()
 
+        # Fall back to the latest game timestamp from context updates if no explicit timestamp was provided
+        if end_timestamp is None:
+            end_timestamp = self.__context.game_days
+
         self.__rememberer.save_conversation_state(self.__messages, npcs_to_summarize, npcs, self.__context.world_id, is_reload, pending_shares, end_timestamp)
 
     @utils.time_it

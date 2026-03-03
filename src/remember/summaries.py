@@ -3,6 +3,7 @@ import os
 import time
 from typing import Dict, List
 from src.config.config_loader import ConfigLoader
+from src.config.definitions.game_definitions import GameEnum
 from src.games.gameable import Gameable
 from src.llm.client_base import ClientBase
 from src.llm.llm_client import LLMClient
@@ -167,7 +168,7 @@ class Summaries(Remembering):
     @utils.time_it
     def get_threads_for_summarization(self, all_messages: message_thread, npcs_in_conversation: Characters) -> Dict[str, CharacterSummaryParameters]:
         """Returns a dictionary mapping an NPC's name to a CharacterSummaryParameters object,
-        which encapsulates the NPC's message_thread and the list of Characters they've seen.
+        which encapsulates the NPC's message_thread and the list of Characters they interacted with.
 
         Uses the participation log from Characters to determine which messages each NPC heard,
         based on their join/leave message indices.
@@ -195,30 +196,23 @@ class Summaries(Remembering):
         # Build per-NPC threads
         result: Dict[str, CharacterSummaryParameters] = {}
         for npc_name, intervals in npc_intervals.items():
-            thread = message_thread(self.__config, None)
-            for i, (start, end) in enumerate(intervals):
-                # If this is a rejoin (not the first interval), add a time passage marker
-                if i > 0:
-                    narration_start, narration_end = self.__config.get_narration_indicators()
-                    thread.add_message(UserMessage(self.__config, narration_start + "some time later" + narration_end))
-                for idx in range(start, min(end, len(all_message_list))):
-                    msg = all_message_list[idx]
-                    if isinstance(msg, (UserMessage, AssistantMessage)):
-                        thread.add_message(msg)
+            start, end = intervals[-1]
 
-            # Find involved characters (NPCs with overlapping intervals)
+            thread = message_thread(self.__config, None)
+            for idx in range(start, min(end, len(all_message_list))):
+                msg = all_message_list[idx]
+                if isinstance(msg, (UserMessage, AssistantMessage)):
+                    thread.add_message(msg)
+
+            # Find other NPCs who were present during this NPC's latest interval
             involved: set[str] = {npc_name}
             for other_name, other_intervals in npc_intervals.items():
                 if other_name == npc_name:
                     continue
-                for s1, e1 in intervals:
-                    for s2, e2 in other_intervals:
-                        if s1 < e2 and s2 < e1:
-                            involved.add(other_name)
-                            break
-                    else:
-                        continue
-                    break
+                for other_start, other_end in other_intervals:
+                    if start < other_end and other_start < end:
+                        involved.add(other_name)
+                        break
 
             involved_chars = [c for c in all_chars_since_start if c.name in involved]
             result[npc_name] = CharacterSummaryParameters(thread, involved_chars)
@@ -289,10 +283,10 @@ class Summaries(Remembering):
         # Determine which folder path to use based on existence
         if os.path.exists(name_ref_path):
             target_folder = name_ref_path
-            logger.info(f"Loaded latest summary file from: {target_folder}")
+            logger.debug(f"Resolved summary folder: {target_folder}")
         elif os.path.exists(name_path):
             target_folder = name_path
-            logger.info(f"Loaded latest summary file from: {target_folder}")
+            logger.debug(f"Resolved summary folder (legacy): {target_folder}")
         else:
             target_folder = name_ref_path  # Use name_ref format for new folders
             logger.info(f"{name_ref_path} does not exist. A new summary file will be created.")
@@ -302,7 +296,7 @@ class Summaries(Remembering):
     
     @utils.time_it
     def __create_new_conversation_summary(self, npc_info: CharacterSummaryParameters, npcs_in_conversation: Characters, world_id: str, end_timestamp: float | None = None) -> str:
-        if self.__config.game == "Fallout4" or self.__config.game == "Fallout4VR":
+        if self.__config.game.base_game == GameEnum.FALLOUT4:
             location: str = 'the Commonwealth'
         else:
             location: str = "Skyrim"
@@ -348,6 +342,7 @@ class Summaries(Remembering):
     def __append_new_conversation_summary_by_ids(self, new_summary: str, npc_name: str, npc_ref_id: str, world_id: str):
         """Append a new conversation summary using name and ref_id directly."""
         conversation_summary_file = self.__get_latest_conversation_summary_file_path_by_ids(npc_name, npc_ref_id, world_id)
+        logger.info(f"Saving conversation summary for {npc_name} to: {conversation_summary_file}")
         if os.path.exists(conversation_summary_file):
             with open(conversation_summary_file, 'r', encoding='utf-8') as f:
                 previous_conversation_summaries = f.read()
