@@ -128,9 +128,13 @@ class Summaries(Remembering):
         # Track per-NPC summaries for pending_shares
         npc_summaries: Dict[str, str] = {}
 
+        # Set a lower threshold for reloads to capture brief interactions, 
+        # and a higher threshold for normal saves to avoid trivial summaries (eg "Guard: Hello there. Player: Goodbye.").
+        min_messages = 2 if is_reload else 5
+
         for npc_names in npcs_with_shared_threads:
             # Generate one summary per unique conversation experience
-            summary = self.__create_new_conversation_summary(npc_message_threads[npc_names[0]], npcs_in_conversation, world_id, end_timestamp)
+            summary = self.__create_new_conversation_summary(npc_message_threads[npc_names[0]], npcs_in_conversation, world_id, end_timestamp, min_messages=min_messages)
 
             # Write the same summary to all NPCs who heard the same messages
             for npc_name in npc_names:
@@ -295,7 +299,7 @@ class Summaries(Remembering):
         return f"{target_folder}/{base_name}_summary_{latest_file_number}.txt"
     
     @utils.time_it
-    def __create_new_conversation_summary(self, npc_info: CharacterSummaryParameters, npcs_in_conversation: Characters, world_id: str, end_timestamp: float | None = None) -> str:
+    def __create_new_conversation_summary(self, npc_info: CharacterSummaryParameters, npcs_in_conversation: Characters, world_id: str, end_timestamp: float | None = None, min_messages: int = 5) -> str:
         if self.__config.game.base_game == GameEnum.FALLOUT4:
             location: str = 'the Commonwealth'
         else:
@@ -317,7 +321,7 @@ class Summaries(Remembering):
                 )
         while True:
             try:
-                if len(npc_info.messages) >= 2:
+                if len(npc_info.messages) >= min_messages:
                     summary = self.summarize_conversation(npc_info.messages.transform_to_dict_representation(npc_info.messages.get_talk_only()), prompt)
                     # Prepend timestamp to summary if available
                     if summary and end_timestamp is not None and self.__config.memory_prompt_datetime_prefix:
