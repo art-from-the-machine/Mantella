@@ -101,15 +101,16 @@ class Summaries(Remembering):
 
 
     @utils.time_it
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None):
-        """Save conversation summaries for all NPCs, with per-NPC thread tracking.
+    def save_conversation_state(self, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None):
+        """Save conversation summaries for the requested NPCs, with per-NPC thread tracking.
 
         NPCs only get summaries of the messages they actually heard (based on participation log).
         NPCs with identical message histories share a single LLM summarization call.
 
         Args:
             messages: The full conversation message thread
-            npcs_in_conversation: All NPCs that were part of the conversation (with participation history)
+            npcs_to_summarize: The NPCs to generate summaries for
+            npcs_in_conversation: All NPCs with participation history (for thread building and pending shares)
             world_id: The world identifier
             is_reload: Whether this is a reload (save even if summary is empty)
             pending_shares: List of (sharer_name, recipient_name, recipient_ref_id) for memory sharing
@@ -117,11 +118,9 @@ class Summaries(Remembering):
         """
         npc_message_threads: Dict[str, CharacterSummaryParameters] = self.get_threads_for_summarization(messages, npcs_in_conversation)
 
-        # On final save, only summarize NPCs still active in the conversation.
-        # Departed NPCs were already summarized when they left.
-        if not is_reload:
-            active_npc_names = {c.name for c in npcs_in_conversation.get_all_characters() if not c.is_player_character}
-            npc_message_threads = {name: params for name, params in npc_message_threads.items() if name in active_npc_names}
+        # Filter to only the NPCs the caller wants summarized
+        names_to_summarize = {c.name for c in npcs_to_summarize}
+        npc_message_threads = {name: params for name, params in npc_message_threads.items() if name in names_to_summarize}
 
         npcs_with_shared_threads = self.group_shared_threads(npc_message_threads)
 
@@ -136,7 +135,7 @@ class Summaries(Remembering):
             for npc_name in npc_names:
                 npc_summaries[npc_name] = summary
                 if summary or is_reload:
-                    character = npcs_in_conversation.get_character_since_start_by_name(npc_name)
+                    character = next(c for c in npcs_to_summarize if c.name == npc_name)
                     self.__append_new_conversation_summary(summary, character, world_id)
 
         # Handle pending shares: write summary with prefix to recipient folders

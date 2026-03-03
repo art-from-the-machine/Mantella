@@ -156,10 +156,6 @@ class Characters:
         """Returns all NPCs who participated at any point, including those who left."""
         return list(self.__all_characters_since_start.values())
 
-    def get_character_since_start_by_name(self, name: str) -> Character:
-        """Returns a Character who participated at any point by name."""
-        return self.__all_characters_since_start[name]
-
     def get_participation_log(self) -> list[tuple[str, str, int]]:
         """Returns ordered list of ("join"/"leave", npc_name, message_index) events."""
         return self.__participation_log.copy()

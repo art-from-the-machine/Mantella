@@ -243,14 +243,14 @@ class TestSummarizationHappensOncePerNPC:
 
         # Reload save (triggered by character departure)
         with patch.object(default_rememberer, 'summarize_conversation', return_value="Guard departure summary.\n\n"):
-            default_rememberer.save_conversation_state(thread, npcs, world_id, is_reload=True)
+            default_rememberer.save_conversation_state(thread, [guard], npcs, world_id, is_reload=True)
 
         # Conversation continues with just Lydia
         self._build_enough_messages(thread, default_config)
 
         # Final save (triggered at conversation end)
         with patch.object(default_rememberer, 'summarize_conversation', return_value="Final summary.\n\n") as mock_summarize:
-            default_rememberer.save_conversation_state(thread, npcs, world_id, is_reload=False)
+            default_rememberer.save_conversation_state(thread, [lydia], npcs, world_id, is_reload=False)
 
             # The guard was already summarized in the reload save.
             # The final save should only produce one summarization call (for Lydia).
@@ -283,14 +283,14 @@ class TestSummarizationHappensOncePerNPC:
 
         # Reload save (guard gets summarized here)
         with patch.object(default_rememberer, 'summarize_conversation', return_value="Guard was at the sawmill.\n\n"):
-            default_rememberer.save_conversation_state(thread, npcs, world_id, is_reload=True)
+            default_rememberer.save_conversation_state(thread, [guard], npcs, world_id, is_reload=True)
 
         # Conversation continues
         self._build_enough_messages(thread, default_config)
 
         # Final save at conversation end
         with patch.object(default_rememberer, 'summarize_conversation', return_value="Lydia continued talking.\n\n"):
-            default_rememberer.save_conversation_state(thread, npcs, world_id, is_reload=False)
+            default_rememberer.save_conversation_state(thread, [lydia], npcs, world_id, is_reload=False)
 
         # Guard's summary file should have exactly one entry (from the reload save)
         guard_folder = os.path.join(skyrim.conversation_folder_path, world_id, f"Guard - {guard.ref_id}")
