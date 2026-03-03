@@ -16,7 +16,7 @@ from src.characters_manager import Characters
 
 
 def _build_enough_messages(thread: message_thread, config: ConfigLoader, count: int = 3):
-    """Add enough user+assistant message pairs to exceed the 5-message summarization threshold."""
+    """Add enough user+assistant message pairs to exceed the 2-message summarization threshold."""
     for i in range(count):
         thread.add_message(UserMessage(config, f"Message {i}", "Player"))
         thread.add_message(AssistantMessage(config))

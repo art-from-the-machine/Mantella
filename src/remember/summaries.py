@@ -317,7 +317,7 @@ class Summaries(Remembering):
                 )
         while True:
             try:
-                if len(npc_info.messages) >= 5:
+                if len(npc_info.messages) >= 2:
                     summary = self.summarize_conversation(npc_info.messages.transform_to_dict_representation(npc_info.messages.get_talk_only()), prompt)
                     # Prepend timestamp to summary if available
                     if summary and end_timestamp is not None and self.__config.memory_prompt_datetime_prefix:
