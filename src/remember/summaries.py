@@ -179,7 +179,6 @@ class Summaries(Remembering):
         """
         participation_log = npcs_in_conversation.get_participation_log()
         all_chars_since_start = npcs_in_conversation.get_all_characters_since_start()
-        all_message_list = all_messages.get_all_messages()
         total_messages = len(all_messages)
 
         # Build intervals for each NPC: list of (start_index, end_index)
@@ -203,8 +202,8 @@ class Summaries(Remembering):
             start, end = intervals[-1]
 
             thread = message_thread(self.__config, None)
-            for idx in range(start, min(end, len(all_message_list))):
-                msg = all_message_list[idx]
+            for idx in range(start, min(end, total_messages)):
+                msg = all_messages[idx]
                 if isinstance(msg, (UserMessage, AssistantMessage)):
                     thread.add_message(msg)
 
