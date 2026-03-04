@@ -72,6 +72,10 @@ class Characters:
     @utils.time_it
     def get_all_characters(self) -> list[Character]:
         return list(self.__active_characters.values())
+
+    @utils.time_it
+    def get_non_player_characters(self) -> list[Character]:
+        return [c for c in self.__active_characters.values() if not c.is_player_character]
     
     @utils.time_it
     def get_all_names(self) -> list[str]:

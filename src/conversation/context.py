@@ -338,7 +338,7 @@ class Context:
         #     return ""
         
         relationships = []
-        for npc in self.get_characters_excluding_player().get_all_characters():
+        for npc in self.__npcs_in_conversation.get_non_player_characters():
             trust = self.__get_trust(npc)
             relationships.append(f"{trust} to {npc.name}")
         
@@ -371,7 +371,7 @@ class Context:
             str: the bios concatenated together into a single string
         """
         bio_descriptions = []
-        for character in self.get_characters_excluding_player().get_all_characters():
+        for character in self.__npcs_in_conversation.get_non_player_characters():
             if len(self.__npcs_in_conversation) == 1:
                 bio_descriptions.append(character.bio)
             else:
@@ -386,7 +386,7 @@ class Context:
             str: the equipment descriptions concatenated together into a single string
         """
         equipment_descriptions = []
-        for character in self.get_characters_excluding_player().get_all_characters():
+        for character in self.__npcs_in_conversation.get_non_player_characters():
                 equipment_descriptions.append(character.equipment.get_equipment_description(character.name))
         return " ".join(equipment_descriptions)
     
@@ -449,7 +449,7 @@ class Context:
             self.__prev_game_time = str(time), time_group
         else:
             self.__prev_game_time = None, time_group
-        non_player_chars = [c for c in self.__npcs_in_conversation.get_all_characters() if not c.is_player_character]
+        non_player_chars = self.__npcs_in_conversation.get_non_player_characters()
         conversation_summaries = self.__rememberer.get_prompt_text(non_player_chars, self.__world_id)
         
         # Only include legacy action prompts if advanced actions are disabled
@@ -496,10 +496,3 @@ class Context:
             logger.warning(f'The summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations.')
         return result
     
-    @utils.time_it
-    def get_characters_excluding_player(self) -> Characters:
-        new_characters = Characters()
-        for actor in self.__npcs_in_conversation.get_all_characters():
-            if not actor.is_player_character:
-                new_characters.add_or_update_character(actor, 0)
-        return new_characters
