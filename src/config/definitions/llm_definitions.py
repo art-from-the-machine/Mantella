@@ -187,7 +187,7 @@ class LLMDefinitions:
     def get_summary_custom_token_count_config_value() -> ConfigValue:
         description = """If the summary model chosen is not recognised by Mantella, the token count for the given model will default to this number.
                     If this is not the correct token count for your chosen model, you can change it here.
-                    Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit."""
+                    Keep in mind that if this number is greater than the actual token count of the model, then Mantella may crash if a given conversation exceeds the model's token limit."""
         return ConfigValueInt("summary_custom_token_count","Custom Summary Model Token Count",description,4096,4096,9999999,tags=[ConfigValueTag.advanced])
 
     @staticmethod

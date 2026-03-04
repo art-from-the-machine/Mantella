@@ -192,13 +192,23 @@ class PromptDefinitions:
     def get_memory_prompt_config_value() -> ConfigValue:
         memory_prompt_description = """The prompt used to summarize a conversation and save to the NPC's memories in data/game/conversations/NPC_Name/NPC_Name_summary_X.txt.
                                          	If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
-                                               name = the NPC's name
+                                               name = the NPC name(s)
                                                language = the selected language
-                                               game = the game selected""" 
-        memory_prompt = """You are tasked with summarizing the conversation between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}. 
-                                            It is not necessary to comment on any mixups in communication such as mishearings. Text contained within brackets state in-game events. 
-                                            Please summarize the conversation into a single paragraph in {language}."""
-        return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
+                                               game = the game selected
+                                               bios = the NPC bio(s)
+                                               conversation_summaries = summaries of previous conversations
+                                               player_name = the player's name"""
+        memory_prompt = """You are tasked with summarizing the conversation between {name} and {player_name} (and any other characters present). These conversations take place in {game}.
+
+Here are the character bios for context:
+{bios}
+
+Here are the previous conversation summaries for context:
+{conversation_summaries}
+
+It is not necessary to comment on any mixups in communication such as mishearings. Text contained within brackets state in-game events.
+Please summarize the conversation into a single paragraph in {language}."""
+        return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "bios", "conversation_summaries", "player_name"])])
     
     @staticmethod
     def get_memory_prompt_datetime_prefix_config_value() -> ConfigValue:
