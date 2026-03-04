@@ -71,34 +71,21 @@ class Summaries(Remembering):
         Returns:
             str: a concatenation of the summaries as a single string
         """
-        if len(characters) == 1:
-            # Single NPC conversation - no delimiters needed
-            character = characters[0]
+        multi_npc = len(characters) > 1
+        character_memories = []
+        for character in characters:
             conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)
             paragraphs = self.__read_summary_lines(conversation_summary_file, deduplicate=True)
-            if paragraphs:
-                result = "\n".join(paragraphs)
-                return f"Below is a summary of past events:\n{result}"
-            else:
-                return ""
-        else:
-            # Multi-NPC conversation - add delimiters around each character's memories
-            character_memories = []
-            for character in characters:
-                conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)
-                character_paragraphs = self.__read_summary_lines(conversation_summary_file, deduplicate=True)
+            if not paragraphs:
+                continue
+            memory = "\n".join(paragraphs)
+            if multi_npc:
+                memory = f"[This is the beginning of {character.name}'s memory]\n{memory}\n[This is the end of {character.name}'s memory]"
+            character_memories.append(memory)
 
-                if character_paragraphs:
-                    memory_with_delimiters = f"[This is the beginning of {character.name}'s memory]\n" + \
-                                           "\n".join(character_paragraphs) + \
-                                           f"\n[This is the end of {character.name}'s memory]"
-                    character_memories.append(memory_with_delimiters)
-
-            if character_memories:
-                result = "\n\n".join(character_memories)
-                return f"Below is a summary of past events:\n{result}"
-            else:
-                return ""
+        if not character_memories:
+            return ""
+        return f"Below is a summary of past events:\n" + "\n\n".join(character_memories)
 
 
     @utils.time_it
