@@ -74,7 +74,7 @@ class Summaries(Remembering):
         multi_npc = len(characters) > 1
         character_memories = []
         for character in characters:
-            conversation_summary_file = self.__get_latest_conversation_summary_file_path(character, world_id)
+            conversation_summary_file = self.__get_latest_conversation_summary_file_path(character.name, character.ref_id, world_id)
             paragraphs = self.__read_summary_lines(conversation_summary_file, deduplicate=True)
             if not paragraphs:
                 continue
@@ -86,7 +86,6 @@ class Summaries(Remembering):
         if not character_memories:
             return ""
         return f"Below is a summary of past events:\n" + "\n\n".join(character_memories)
-
 
     @utils.time_it
     def save_conversation_state(self, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None):
@@ -128,7 +127,7 @@ class Summaries(Remembering):
                 npc_summaries[npc_name] = summary
                 if summary or is_reload:
                     character = next(c for c in npcs_to_summarize if c.name == npc_name)
-                    self.__append_new_conversation_summary(summary, character, world_id)
+                    self.__append_new_conversation_summary(summary, character.name, character.ref_id, world_id)
 
         # Handle pending shares: write summary with prefix to recipient folders
         if pending_shares:
@@ -153,7 +152,7 @@ class Summaries(Remembering):
                 prefixed_summary = f"{sharer_name} shared with {recipient_name} a conversation with {participants_text}:\n{sharer_summary}"
 
                 # Write to recipient using name and ref_id directly
-                self.__append_new_conversation_summary_by_ids(prefixed_summary, recipient_name, recipient_ref_id, world_id)
+                self.__append_new_conversation_summary(prefixed_summary, recipient_name, recipient_ref_id, world_id)
                 logger.info(f"Shared conversation summary with {recipient_name}")
 
     @utils.time_it
@@ -225,19 +224,7 @@ class Summaries(Remembering):
         return list(thread_groups.values())
 
     @utils.time_it
-    def __get_latest_conversation_summary_file_path(self, character: Character, world_id: str) -> str:
-        """Get the path to the latest conversation summary file, prioritizing name_ref folders over legacy name folders.
-
-        Args:
-            character: The Character object
-            world_id: ID of the game world
-
-        Returns:
-            str: Path to the latest conversation summary file
-        """
-        return self.__get_latest_conversation_summary_file_path_by_ids(character.name, character.ref_id, world_id)
-
-    def __get_latest_conversation_summary_file_path_by_ids(self, npc_name: str, npc_ref_id: str, world_id: str) -> str:
+    def __get_latest_conversation_summary_file_path(self, npc_name: str, npc_ref_id: str, world_id: str) -> str:
         """Get the path to the latest conversation summary file, prioritizing name_ref folders over legacy name folders.
 
         Args:
@@ -298,7 +285,6 @@ class Summaries(Remembering):
 
         prompt = self.__memory_prompt.format(
                     name=names,
-                    names=names,
                     language=self.__language_name,
                     game=location,
                     bios=bios,
@@ -324,15 +310,9 @@ class Summaries(Remembering):
         return ""
 
     @utils.time_it
-    def __append_new_conversation_summary(self, new_summary: str, character: Character, world_id: str):
-        """Append a new conversation summary for a character."""
-        self.__append_new_conversation_summary_by_ids(new_summary, character.name, character.ref_id, world_id)
-
-    @utils.time_it
-    def __append_new_conversation_summary_by_ids(self, new_summary: str, npc_name: str, npc_ref_id: str, world_id: str):
-        """Append a new conversation summary using name and ref_id directly."""
-        conversation_summary_file = self.__get_latest_conversation_summary_file_path_by_ids(npc_name, npc_ref_id, world_id)
-        logger.info(f"Saving conversation summary for {npc_name} to: {conversation_summary_file}")
+    def __append_new_conversation_summary(self, new_summary: str, npc_name: str, npc_ref_id: str, world_id: str):
+        """Append a new conversation summary."""
+        conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc_name, npc_ref_id, world_id)
         if os.path.exists(conversation_summary_file):
             with open(conversation_summary_file, 'r', encoding='utf-8') as f:
                 previous_conversation_summaries = f.read()
@@ -342,7 +322,7 @@ class Summaries(Remembering):
             previous_conversation_summaries = ''
        
         if len(new_summary) > 0:
-            new_summary = new_summary.strip() + '\n\n'
+            logger.info(f"Saving conversation summary for {npc_name} to: {conversation_summary_file}")
 
             conversation_summaries = previous_conversation_summaries + new_summary
             with open(conversation_summary_file, 'w', encoding='utf-8') as f:

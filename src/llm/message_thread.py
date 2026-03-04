@@ -202,9 +202,9 @@ class message_thread():
         # Create new thread with the replacement system message
         cloned_thread = message_thread(self.__config, new_system_message)
 
-        # Add deep copies of all non-system messages from the original thread to the new thread
+        # Add all non-system messages from the original thread
         for msg in self.__messages:
             if not isinstance(msg, SystemMessage):
-                cloned_thread.add_message(deepcopy(msg))
+                cloned_thread.add_message(msg)
 
         return cloned_thread

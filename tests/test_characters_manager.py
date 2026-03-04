@@ -54,8 +54,8 @@ class TestGetAllNamesWithNearby:
     def test_conversation_scope_excludes_player_and_nearby(self, example_skyrim_player_character: Character, example_skyrim_npc_character: Character):
         """Scope 'conversation' should return only NPCs in conversation (no player, no nearby)"""
         chars = Characters()
-        chars.add_or_update_character(example_skyrim_player_character, 0)
-        chars.add_or_update_character(example_skyrim_npc_character, 0)
+        chars.add_or_update_character(example_skyrim_player_character)
+        chars.add_or_update_character(example_skyrim_npc_character)
         chars.set_nearby_npcs([{"name": "Bandit", "distance": 10.0}])
         
         names = chars.get_all_names_w_nearby(include_player=False, include_nearby=False)
@@ -68,8 +68,8 @@ class TestGetAllNamesWithNearby:
     def test_conversation_w_player_scope(self, example_skyrim_player_character: Character, example_skyrim_npc_character: Character):
         """Scope 'conversation_w_player' should include player but not nearby"""
         chars = Characters()
-        chars.add_or_update_character(example_skyrim_player_character, 0)
-        chars.add_or_update_character(example_skyrim_npc_character, 0)
+        chars.add_or_update_character(example_skyrim_player_character)
+        chars.add_or_update_character(example_skyrim_npc_character)
         chars.set_nearby_npcs([{"name": "Bandit", "distance": 10.0}])
         
         names = chars.get_all_names_w_nearby(include_player=True, include_nearby=False)
@@ -82,8 +82,8 @@ class TestGetAllNamesWithNearby:
     def test_nearby_scope(self, example_skyrim_player_character: Character, example_skyrim_npc_character: Character):
         """Scope 'nearby' should return only nearby NPCs (no conversation, no player)"""
         chars = Characters()
-        chars.add_or_update_character(example_skyrim_player_character, 0)
-        chars.add_or_update_character(example_skyrim_npc_character, 0)
+        chars.add_or_update_character(example_skyrim_player_character)
+        chars.add_or_update_character(example_skyrim_npc_character)
         chars.set_nearby_npcs([
             {"name": "Bandit", "distance": 10.0},
             {"name": "Merchant", "distance": 8.5}
@@ -100,8 +100,8 @@ class TestGetAllNamesWithNearby:
     def test_all_npcs_scope(self, example_skyrim_player_character: Character, example_skyrim_npc_character: Character):
         """Scope 'all_npcs' should return conversation + nearby (no player)"""
         chars = Characters()
-        chars.add_or_update_character(example_skyrim_player_character, 0)
-        chars.add_or_update_character(example_skyrim_npc_character, 0)
+        chars.add_or_update_character(example_skyrim_player_character)
+        chars.add_or_update_character(example_skyrim_npc_character)
         chars.set_nearby_npcs([{"name": "Bandit", "distance": 10.0}])
         
         names = chars.get_all_names_w_nearby(include_player=False, include_nearby=True)
@@ -114,8 +114,8 @@ class TestGetAllNamesWithNearby:
     def test_all_npcs_w_player_scope(self, example_skyrim_player_character: Character, example_skyrim_npc_character: Character):
         """Scope 'all_npcs_w_player' should return everyone"""
         chars = Characters()
-        chars.add_or_update_character(example_skyrim_player_character, 0)
-        chars.add_or_update_character(example_skyrim_npc_character, 0)
+        chars.add_or_update_character(example_skyrim_player_character)
+        chars.add_or_update_character(example_skyrim_npc_character)
         chars.set_nearby_npcs([{"name": "Bandit", "distance": 10.0}])
         
         names = chars.get_all_names_w_nearby(include_player=True, include_nearby=True)
@@ -128,8 +128,8 @@ class TestGetAllNamesWithNearby:
     def test_no_nearby_npcs_set(self, example_skyrim_player_character: Character, example_skyrim_npc_character: Character):
         """Should handle case where no nearby NPCs have been set"""
         chars = Characters()
-        chars.add_or_update_character(example_skyrim_player_character, 0)
-        chars.add_or_update_character(example_skyrim_npc_character, 0)
+        chars.add_or_update_character(example_skyrim_player_character)
+        chars.add_or_update_character(example_skyrim_npc_character)
         
         names = chars.get_all_names_w_nearby(include_player=True, include_nearby=True)
         
@@ -141,8 +141,8 @@ class TestGetAllNamesWithNearby:
         """Should handle multiple conversation NPCs plus nearby NPCs"""
         chars = Characters()
         
-        chars.add_or_update_character(example_skyrim_npc_character, 0)
-        chars.add_or_update_character(another_example_skyrim_npc_character, 0)
+        chars.add_or_update_character(example_skyrim_npc_character)
+        chars.add_or_update_character(another_example_skyrim_npc_character)
         chars.set_nearby_npcs([
             {"name": "Bandit", "distance": 10.0},
             {"name": "Merchant", "distance": 12.0}

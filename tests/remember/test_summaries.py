@@ -611,7 +611,7 @@ class TestResummarization:
 
         with patch.object(client, 'get_count_tokens', return_value=99999), \
              patch.object(default_rememberer, 'summarize_conversation', return_value="Resummarized content."):
-            default_rememberer._Summaries__append_new_conversation_summary_by_ids(
+            default_rememberer._Summaries__append_new_conversation_summary(
                 new_summary, guard.name, guard.ref_id, world_id
             )
 
@@ -636,7 +636,7 @@ class TestResummarization:
 
         with patch.object(client, 'get_count_tokens', return_value=99999), \
              patch.object(default_rememberer, 'summarize_conversation', return_value="Resummarized.") as mock_summarize:
-            default_rememberer._Summaries__append_new_conversation_summary_by_ids(
+            default_rememberer._Summaries__append_new_conversation_summary(
                 "New summary.", guard.name, guard.ref_id, world_id
             )
 

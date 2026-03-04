@@ -281,17 +281,17 @@ def another_example_skyrim_npc_character() -> Character:
 def example_characters_pc_to_npc(example_skyrim_player_character: Character, example_skyrim_npc_character: Character) -> Characters:
     """Provides a Characters manager with the test character"""
     chars = Characters()
-    chars.add_or_update_character(example_skyrim_player_character, 0)
-    chars.add_or_update_character(example_skyrim_npc_character, 0)
+    chars.add_or_update_character(example_skyrim_player_character)
+    chars.add_or_update_character(example_skyrim_npc_character)
     return chars
 
 @pytest.fixture
 def example_characters_multi_npc(example_skyrim_player_character: Character, example_skyrim_npc_character: Character, another_example_skyrim_npc_character: Character) -> Characters:
     """Provides a Characters manager with the test character"""
     chars = Characters()
-    chars.add_or_update_character(example_skyrim_player_character, 0)
-    chars.add_or_update_character(example_skyrim_npc_character, 0)
-    chars.add_or_update_character(another_example_skyrim_npc_character, 0)
+    chars.add_or_update_character(example_skyrim_player_character)
+    chars.add_or_update_character(example_skyrim_npc_character)
+    chars.add_or_update_character(another_example_skyrim_npc_character)
     return chars
 
 @pytest.fixture
