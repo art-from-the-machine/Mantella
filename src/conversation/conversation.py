@@ -507,6 +507,8 @@ class Conversation:
         # Skip summary generation if disabled (but always allow reloads to save state)
         if not is_reload and not self.__context.config.conversation_summary_enabled:
             logger.info("Conversation summaries disabled. Skipping summary generation.")
+            # Even when skipping summaries, clear any pending shares to avoid leaking them
+            npcs.clear_pending_shares()
             return
 
         # Get and clear pending shares (only on final save, not reload)
