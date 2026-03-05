@@ -457,7 +457,7 @@ class Conversation:
     def __start_generating_npc_sentences(self, allow_tool_use: bool = True):
         """Starts a background Thread to generate sentences into the SentenceQueue"""    
         with self.__generation_start_lock:
-            if not self.__generation_thread:
+            if not self.__generation_thread or not self.__generation_thread.is_alive():
                 self.__sentences.is_more_to_come = True
                 # Generate tools if advanced actions are enabled
                 tools = None
@@ -499,7 +499,7 @@ class Conversation:
         if departed_npcs is not None:
             npcs_to_summarize = departed_npcs
         else:
-            npcs_to_summarize = [c for c in npcs.get_all_characters() if not c.is_player_character]
+            npcs_to_summarize = npcs.get_non_player_characters()
 
         for npc in npcs_to_summarize:
             conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
