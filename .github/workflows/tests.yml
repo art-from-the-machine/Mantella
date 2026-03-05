@@ -1,7 +1,9 @@
 name: Run Tests
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch: # Manual trigger
+  push:
+    branches: [automated_testing] # Auto-trigger on this branch temporarily
 
 jobs:
   test:
