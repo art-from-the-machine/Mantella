@@ -264,7 +264,7 @@ class ConfigLoader:
                 self.llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("llm_params").replace('\n', ''))
             except Exception as e:
                 logger.error(f"""Error in parsing LLM parameter list: {e}
-LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+LLM parameter list must be valid JSON""")
                 self.llm_params = None
 
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
@@ -288,7 +288,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 self.summary_llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("summary_llm_params").replace('\n', ''))
             except Exception as e:
                 logger.error(f"""Error in parsing summary LLM parameter list: {e}
-LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+LLM parameter list must be valid JSON""")
                 self.summary_llm_params = None
 
             #Folder settings
@@ -356,7 +356,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 self.vision_llm_params = json.loads(self.__definitions.get_string_value("vision_llm_params").replace('\n', ''))
             except Exception as e:
                 logger.error(f"""Error in parsing LLM parameter list: {e}
-LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+LLM parameter list must be valid JSON""")
                 self.vision_llm_params = None
 
             # Telemetry
@@ -375,7 +375,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 self.function_llm_params = json.loads(self.__definitions.get_string_value("function_llm_params").replace('\n', ''))
             except Exception as e:
                 logger.error(f"""Error in parsing LLM parameter list: {e}
-LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+LLM parameter list must be valid JSON""")
                 self.function_llm_params = None
 
             pass
