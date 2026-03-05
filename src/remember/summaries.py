@@ -218,7 +218,7 @@ class Summaries(Remembering):
         """
         thread_groups = defaultdict(list)
         for npc_name, summary_params in npc_threads.items():
-            messages_tuple = tuple(message.text for message in summary_params.messages.get_talk_only())
+            messages_tuple = tuple(message.get_formatted_content() for message in summary_params.messages.get_talk_only())
             thread_groups[messages_tuple].append(npc_name)
 
         return list(thread_groups.values())
