@@ -1,4 +1,8 @@
 import pytest
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "requires_audio: test requires an audio device (playsound, sounddevice, etc)")
+
 from src.game_manager import GameStateManager
 from src.conversation.conversation import Conversation
 from src.output_manager import ChatManager

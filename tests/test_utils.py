@@ -5,13 +5,9 @@ import logging
 import sys
 import os
 import platform
-import playsound
 from pathlib import Path
 from pytest import LogCaptureFixture
 from pytest import MonkeyPatch
-
-if platform.system() == "Windows":
-    import winsound
 
 @utils.time_it
 def decorated_dummy_function(delay=0.01):
@@ -98,22 +94,27 @@ def fake_play_sound(monkeypatch: MonkeyPatch):
         calls.append((filename))
 
     if platform.system() == "Windows":
+        import winsound
         monkeypatch.setattr(winsound, "PlaySound", fake_play_winsound)
+    import playsound
     monkeypatch.setattr(playsound, "playsound", fake_play_playsound)
     return calls
 
+@pytest.mark.requires_audio
 def test_play_mantella_ready_sound(fake_play_sound, monkeypatch: MonkeyPatch):
     monkeypatch.setattr(utils, "resolve_path", lambda: "/fake/path")
     utils.play_mantella_ready_sound()
     expected = os.path.join("/fake/path", "data", "mantella_ready.wav")
     assert any(expected in call[0] for call in fake_play_sound)
 
+@pytest.mark.requires_audio
 def test_play_no_mic_input_detected_sound(fake_play_sound, monkeypatch: MonkeyPatch):
     monkeypatch.setattr(utils, "resolve_path", lambda: "/fake/path")
     utils.play_no_mic_input_detected_sound()
     expected = os.path.join("/fake/path", "data", "no_mic_input_detected.wav")
     assert any(expected in call[0] for call in fake_play_sound)
 
+@pytest.mark.requires_audio
 def test_play_error_sound(fake_play_sound):
     utils.play_error_sound()
     # For error sound, the expected sound is "SystemHand"
