@@ -16,8 +16,6 @@ from src.telemetry.telemetry import get_telemetry_manager, create_span_from_thre
 if platform.system() == "Windows":
     import winsound
     import winreg
-else:
-    from playsound import playsound
 
 def get_logger():
     return logging.getLogger("Mantella")
@@ -79,6 +77,7 @@ def play_mantella_ready_sound():
         if platform.system() == "Windows":
             winsound.PlaySound(mantella_ready_wav_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
         else:
+            from playsound import playsound
             playsound(mantella_ready_wav_path, block=False)
     except:
         pass
@@ -90,6 +89,7 @@ def play_no_mic_input_detected_sound():
         if platform.system() == "Windows":
             winsound.PlaySound(no_mic_input_detected_wav_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
         else:
+            from playsound import playsound
             playsound(no_mic_input_detected_wav_path, block=False)
     except:
         pass
@@ -100,6 +100,7 @@ def play_error_sound():
         if platform.system() == "Windows":
             winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
         else:
+            from playsound import playsound
             playsound(os.path.join(resolve_path(), 'data', 'error.wav'), block=False)
     except:
         pass
