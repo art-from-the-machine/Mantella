@@ -24,7 +24,6 @@ opencv-python==4.10.0.84
 sounddevice==0.5.1
 regex
 silero-vad-lite
-playsound; platform_system == "Linux"
 opentelemetry-api==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-exporter-otlp-proto-grpc==1.27.0
