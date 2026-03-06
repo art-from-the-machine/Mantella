@@ -24,4 +24,4 @@ jobs:
           pip install -r tests/requirements-test.txt
 
       - name: Run tests
-        run: pytest --tb=short -q -m "not requires_audio"
+        run: pytest --tb=short -q -m "not requires_audio and not requires_external_exe and not requires_llm"

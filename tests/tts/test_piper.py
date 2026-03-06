@@ -1,12 +1,15 @@
+import pytest
 import os
 from src.tts.piper import Piper
 from src.tts.synthesization_options import SynthesizationOptions
 
+@pytest.mark.requires_external_exe
 def test_piper_model_retrieval(piper: Piper):
     '''Test that at least the base Skyrim models are available'''
     assert len(piper._Piper__available_models) >= 68
 
 
+@pytest.mark.requires_external_exe
 def test_select_voice_type(piper: Piper):
     basic_voice_search = piper._select_voice_type(
         voice = 'maleeventoned',
@@ -49,11 +52,14 @@ def test_select_voice_type(piper: Piper):
     assert unknown_voice_race_gender_search == 'malenord'
 
 
+@pytest.mark.requires_external_exe
 def test_voice_models(piper: Piper):
     '''Test that voice models can be loaded and voicelines synthesized'''
     count = 0
     num_models_to_check = 10 # Limit the number of models to load or we'll be here all day
     synth_options = SynthesizationOptions(0, 0)
+
+    assert len(piper._Piper__available_models) >= 1, "No available voice models found for testing."
 
     for voice_model in piper._Piper__available_models:
         piper.change_voice(voice_model)

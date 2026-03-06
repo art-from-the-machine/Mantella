@@ -8,6 +8,13 @@ from src.http.communication_constants import communication_constants as comm_con
 from src.conversation import conversation as conv_module
 import jsonschema
 from src.http import models
+from src.tts.piper import Piper
+
+@pytest.fixture(autouse=True)
+def _mock_piper_subprocess(monkeypatch):
+    """Mock Piper's subprocess launch so route tests don't need piper.exe"""
+    monkeypatch.setattr(Piper, '_check_if_piper_is_running', lambda self: None)
+    monkeypatch.setattr(Piper, 'get_available_models', lambda self, path: [])
 
 def setup_mantella_conversation(
         client: TestClient, 
@@ -38,6 +45,7 @@ def setup_mantella_conversation(
             jsonschema.validate(response.json(), models.NpcTalkResponse.model_json_schema())
 
 
+@pytest.mark.requires_llm
 def test_mantella_player_talk_endpoint(
         production_like_client: TestClient, 
         example_start_conversation_request: models.StartConversationRequest, 
@@ -53,6 +61,7 @@ def test_mantella_player_talk_endpoint(
     jsonschema.validate(response.json(), models.NpcTalkResponse.model_json_schema())
 
 
+@pytest.mark.requires_llm
 def test_mantella_end_conversation_endpoint(
         production_like_client: TestClient, 
         example_start_conversation_request: models.StartConversationRequest, 
@@ -77,6 +86,7 @@ def test_mantella_end_conversation_endpoint(
     jsonschema.validate(response.json(), models.EndConversationResponse.model_json_schema())
 
 
+@pytest.mark.requires_llm
 def test_mantella_reload_conversation(
         production_like_client: TestClient, 
         example_start_conversation_request: models.StartConversationRequest, 
