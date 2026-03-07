@@ -1,5 +1,6 @@
 from src.http.routes.mantella_route import mantella_route
 import pytest
+import wave
 from fastapi.testclient import TestClient
 from src.config.definitions.game_definitions import GameEnum
 from src.config.definitions.tts_definitions import TTSEnum
@@ -9,12 +10,27 @@ from src.conversation import conversation as conv_module
 import jsonschema
 from src.http import models
 from src.tts.piper import Piper
+from unittest.mock import MagicMock
+
+
+def _mock_tts_synthesize(self, voiceline, final_voiceline_file, synth_options):
+    """Create a minimal valid wav file so synthesize_line's file-existence check passes."""
+    with wave.open(final_voiceline_file, 'w') as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(22050)
+        wf.writeframes(b'\x00\x00' * 2205)  # ~0.1s of silence
+
 
 @pytest.fixture(autouse=True)
 def _mock_piper_subprocess(monkeypatch):
     """Mock Piper's subprocess launch so route tests don't need piper.exe"""
     monkeypatch.setattr(Piper, '_check_if_piper_is_running', lambda self: None)
     monkeypatch.setattr(Piper, 'get_available_models', lambda self, path: [])
+    monkeypatch.setattr(Piper, '_Piper__write_to_stdin', lambda self, text: None)
+    monkeypatch.setattr(Piper, '_check_voice_changed', lambda self: None)
+    monkeypatch.setattr(Piper, 'tts_synthesize', _mock_tts_synthesize)
+
 
 def setup_mantella_conversation(
         client: TestClient, 
@@ -127,10 +143,10 @@ def test_setup_route(default_mantella_route: mantella_route):
 @pytest.mark.parametrize(
     "game_enum, tts_service", 
     [
-        (GameEnum.FALLOUT4, TTSEnum.XVASYNTH),
+        pytest.param(GameEnum.FALLOUT4, TTSEnum.XVASYNTH, marks=pytest.mark.requires_external_exe),
         (GameEnum.FALLOUT4, TTSEnum.XTTS),
         (GameEnum.FALLOUT4, TTSEnum.PIPER),
-        (GameEnum.SKYRIM, TTSEnum.XVASYNTH),
+        pytest.param(GameEnum.SKYRIM, TTSEnum.XVASYNTH, marks=pytest.mark.requires_external_exe),
         (GameEnum.SKYRIM, TTSEnum.XTTS),
         (GameEnum.SKYRIM, TTSEnum.PIPER),
     ]
