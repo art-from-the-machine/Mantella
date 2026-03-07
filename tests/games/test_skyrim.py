@@ -37,7 +37,7 @@ def test_apply_character_overrides_json_add(tmp_path, skyrim_test_config: Config
         "voice_accent": "en"
     }
 
-    override_dir = tmp_path / "data" / "skyrim" / "character_overrides"
+    override_dir = tmp_path / "data" / "Skyrim" / "character_overrides"
     override_dir.mkdir(parents=True, exist_ok=True)
     override_file = override_dir / "test_json_add.json"
 
@@ -67,7 +67,7 @@ def test_apply_character_overrides_json_modify(tmp_path, skyrim_test_config: Con
         "voice_model": "OverriddenLydiaVoice"
     }
 
-    override_dir = tmp_path / "data" / "skyrim" / "character_overrides"
+    override_dir = tmp_path / "data" / "Skyrim" / "character_overrides"
     override_dir.mkdir(parents=True, exist_ok=True)
     override_file = override_dir / "test_json_modify.json"
 
@@ -93,7 +93,7 @@ def test_apply_character_overrides_csv_add(tmp_path, skyrim_test_config: ConfigL
     csv_data = "Test CSV Character,CSV001,Imperial,Added via CSV,TestCSVVoice,TestCSVFolder,,en"
     csv_content = f"{csv_header}\n{csv_data}"
 
-    override_dir = tmp_path / "SKSE" / "Plugins" / "MantellaSoftware" / "data" / "skyrim" / "character_overrides"
+    override_dir = tmp_path / "SKSE" / "Plugins" / "MantellaSoftware" / "data" / "Skyrim" / "character_overrides"
     override_dir.mkdir(parents=True, exist_ok=True)
     override_file = override_dir / "test_csv_add.csv"
 
@@ -119,7 +119,7 @@ def test_apply_character_overrides_csv_modify(tmp_path, skyrim_test_config: Conf
     csv_data = "Lydia,0A2C8E,Nord,Overridden Bio,OverriddenLydiaVoice,FemaleEvenToned,,en"
     csv_content = f"{csv_header}\n{csv_data}"
 
-    override_dir = tmp_path / "SKSE" / "Plugins" / "MantellaSoftware" / "data" / "skyrim" / "character_overrides"
+    override_dir = tmp_path / "SKSE" / "Plugins" / "MantellaSoftware" / "data" / "Skyrim" / "character_overrides"
     override_dir.mkdir(parents=True, exist_ok=True)
     override_file = override_dir / "test_csv_modify.csv"
 

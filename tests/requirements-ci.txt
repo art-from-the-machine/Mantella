@@ -1,4 +1,4 @@
-# python 3.11
+# CI-friendly subset of requirements.txt
 pandas==1.5.3
 tiktoken==0.4.0
 httpx==0.27.2
@@ -6,7 +6,6 @@ openai>=2.8.0
 aiohttp==3.8.4
 faster-whisper==1.0.3
 requests==2.31.0
-pyaudio==0.2.13
 soundfile==0.12.1
 numpy==1.25.0
 scipy==1.11.1
@@ -22,11 +21,8 @@ furo==2023.9.10
 pywin32==306; platform_system == "Windows"
 mss==9.0.1
 opencv-python==4.10.0.84
-sounddevice==0.5.1
 regex
 silero-vad-lite
-playsound; platform_system == "Linux"
-git+https://github.com/usefulsensors/moonshine.git@2f6282347950c8d711bd7319287babb87ec5a92d#subdirectory=moonshine-onnx
 opentelemetry-api==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-exporter-otlp-proto-grpc==1.27.0

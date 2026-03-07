@@ -666,6 +666,7 @@ class TestFormatTimestamp:
 class TestSummarizeConversation:
     """Tests for summarize_conversation."""
 
+    @pytest.mark.requires_llm
     def test_real_llm_call_produces_summary(self, default_rememberer: Summaries):
         """An actual LLM call should return a non-empty summary ending with double newlines."""
         text = (
