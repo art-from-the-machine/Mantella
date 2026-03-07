@@ -5,6 +5,14 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "requires_external_exe: test requires an external executable (eg piper.exe)")
     config.addinivalue_line("markers", "requires_llm: test requires a real LLM API connection")
 
+    # Suppress deprecation warnings from third party packages
+    config.addinivalue_line("filterwarnings", "ignore:pkg_resources is deprecated:DeprecationWarning")
+    config.addinivalue_line("filterwarnings", "ignore:Deprecated call to `pkg_resources.declare_namespace:DeprecationWarning")
+    config.addinivalue_line("filterwarnings", "ignore:Please use `import python_multipart`:PendingDeprecationWarning")
+    config.addinivalue_line("filterwarnings", "ignore:np.find_common_type is deprecated:DeprecationWarning")
+    config.addinivalue_line("filterwarnings", "ignore:on_event is deprecated:DeprecationWarning")
+    config.addinivalue_line("filterwarnings", r"ignore:The `name` is not the first parameter anymore:DeprecationWarning")
+
 from src.game_manager import GameStateManager
 from src.conversation.conversation import Conversation
 from src.output_manager import ChatManager

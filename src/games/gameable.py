@@ -363,7 +363,11 @@ class Gameable(ABC):
             volume (float): Volume multiplier (0.0 to 1.0)
         """
         def audio_thread():
-            import sounddevice as sd
+            try:
+                import sounddevice as sd
+            except ImportError:
+                logger.warning("sounddevice not available, skipping audio playback")
+                return
             data, samplerate = sf.read(filename)
             data = data * volume
             sd.play(data, samplerate)

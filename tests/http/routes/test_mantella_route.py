@@ -144,10 +144,10 @@ def test_setup_route(default_mantella_route: mantella_route):
     "game_enum, tts_service", 
     [
         pytest.param(GameEnum.FALLOUT4, TTSEnum.XVASYNTH, marks=pytest.mark.requires_external_exe),
-        (GameEnum.FALLOUT4, TTSEnum.XTTS),
+        pytest.param(GameEnum.FALLOUT4, TTSEnum.XTTS, marks=pytest.mark.requires_external_exe),
         (GameEnum.FALLOUT4, TTSEnum.PIPER),
         pytest.param(GameEnum.SKYRIM, TTSEnum.XVASYNTH, marks=pytest.mark.requires_external_exe),
-        (GameEnum.SKYRIM, TTSEnum.XTTS),
+        pytest.param(GameEnum.SKYRIM, TTSEnum.XTTS, marks=pytest.mark.requires_external_exe),
         (GameEnum.SKYRIM, TTSEnum.PIPER),
     ]
 )
