@@ -154,3 +154,8 @@ class LLMDefinitions:
     def get_claude_prompt_caching_config_value() -> ConfigValue:
         description = """Enable Claude prompt caching when using Anthropic Claude models via OpenRouter."""
         return ConfigValueBool("claude_prompt_caching_enabled", "Claude Prompt Caching", description, False, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_enable_character_tag_reading_config_value() -> ConfigValue:
+        description = """Enable tag-based bio expansion for characters. When enabled, comma-separated tags in the character CSV 'tags' column will be looked up in bio_templates.csv and appended to the character's bio."""
+        return ConfigValueBool("enable_character_tag_reading", "Character Bio Tags", description, False, tags=[ConfigValueTag.advanced])

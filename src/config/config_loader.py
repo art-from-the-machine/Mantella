@@ -277,6 +277,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.speech_end_indicators = self.__definitions.get_string_list_value("speech_end_indicators")
             self.narration_indicators: NarrationIndicatorsEnum = self.__definitions.get_enum_value("narration_indicators", NarrationIndicatorsEnum)
             self.claude_prompt_caching_enabled: bool = self.__definitions.get_bool_value("claude_prompt_caching_enabled")
+            self.enable_character_tag_reading: bool = self.__definitions.get_bool_value("enable_character_tag_reading")
             
             #Folder settings
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")

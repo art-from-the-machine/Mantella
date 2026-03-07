@@ -57,6 +57,7 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_speech_end_indicators())
         llm_category.add_config_value(LLMDefinitions.get_narration_indicators())
         llm_category.add_config_value(LLMDefinitions.get_claude_prompt_caching_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_enable_character_tag_reading_config_value())
         result.add_base_group(llm_category)
 
         tts_category = ConfigValueGroup("TTS", "Text-to-Speech", "Settings for the TTS methods Mantella supports.", on_value_change_callback)
