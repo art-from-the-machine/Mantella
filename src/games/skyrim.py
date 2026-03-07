@@ -36,7 +36,13 @@ class Skyrim(Gameable):
 
         # Initialize bio template manager for tag-based bio expansion
         base_templates_folder = os.path.join('data', 'Skyrim', 'bio_templates')
-        self.__bio_template_manager = BioTemplateManager(base_templates_folder, config, "Skyrim")
+        self.__bio_template_manager = BioTemplateManager(
+            base_templates_folder,
+            mod_path_base=config.mod_path_base,
+            save_folder=config.save_folder,
+            enable_tag_reading=config.enable_character_tag_reading,
+            game_name="Skyrim",
+        )
 
         try:
             weather_file = 'data/Skyrim/skyrim_weather.csv'

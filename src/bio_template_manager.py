@@ -14,9 +14,11 @@ class BioTemplateManager:
     3. Personal overrides ({save_folder}/data/Skyrim/bio_templates/) - highest priority
     """
 
-    def __init__(self, base_templates_folder: str, config_loader=None, game_name: str = "Skyrim"):
+    def __init__(self, base_templates_folder: str, mod_path_base: Optional[str] = None, save_folder: Optional[str] = None, enable_tag_reading: bool = True, game_name: str = "Skyrim"):
         self.base_templates_folder = base_templates_folder
-        self.config_loader = config_loader
+        self.mod_path_base = mod_path_base
+        self.save_folder = save_folder
+        self.enable_tag_reading = enable_tag_reading
         self.game_name = game_name
         self.templates: Dict[str, str] = {}
         self._load_templates()
@@ -26,12 +28,12 @@ class BioTemplateManager:
         # 1. Load base templates first
         self._load_templates_from_folder(self.base_templates_folder, "base")
 
-        # 2. Load mod override templates (if config is available)
-        if self.config_loader:
+        # 2. Load mod override templates
+        if self.mod_path_base:
             extender_name = "SKSE" if self.game_name == "Skyrim" else "F4SE"
 
             mod_overrides_folder = os.path.join(
-                self.config_loader.mod_path_base,
+                self.mod_path_base,
                 extender_name,
                 "Plugins",
                 "MantellaSoftware",
@@ -41,9 +43,10 @@ class BioTemplateManager:
             )
             self._load_templates_from_folder(mod_overrides_folder, "mod override")
 
-            # 3. Load personal override templates (highest priority)
+        # 3. Load personal override templates (highest priority)
+        if self.save_folder:
             personal_overrides_folder = os.path.join(
-                self.config_loader.save_folder,
+                self.save_folder,
                 "data",
                 self.game_name,
                 "bio_templates",
@@ -177,10 +180,9 @@ class BioTemplateManager:
         Returns:
             The bio with tag descriptions appended, or the original bio if no valid tags.
         """
-        # Check if tag reading is disabled in config
-        if self.config_loader and hasattr(self.config_loader, 'enable_character_tag_reading'):
-            if not self.config_loader.enable_character_tag_reading:
-                return base_bio
+        # Check if tag reading is disabled
+        if not self.enable_tag_reading:
+            return base_bio
 
         # Robust NaN/None/empty handling
         safe_tags = self._safe_str(tags_string)
