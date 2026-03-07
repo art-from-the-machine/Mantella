@@ -24,6 +24,10 @@ from silero_vad_lite import SileroVAD
 
 logger = utils.get_logger()
 
+# --- PLAYER2 START ---
+from src.llm.player2_auth import check_player2_app_running
+# --- PLAYER2 END ---
+
 try:
     from moonshine_onnx import MoonshineOnnxModel, load_tokenizer
     has_moonshine = True
@@ -38,13 +42,47 @@ ort.set_default_logger_severity(4)
 
 class Transcriber:
     """Handles real-time speech-to-text transcription using Moonshine."""
-    
+
     SAMPLING_RATE = 16000
     CHUNK_SIZE = 512  # Required chunk size for Silero VAD
     CHUNK_DURATION = CHUNK_SIZE / SAMPLING_RATE  # Explicit calculation of chunk duration in seconds
     LOOKBACK_CHUNKS = 5  # Number of chunks to keep in buffer when not recording
     MIN_PTT_DURATION = 0.3  # Minimum seconds of audio to accept from a PTT press
-    
+
+    # --- PLAYER2 START ---
+    # Mapping from Mantella's language codes to BCP-47 tags required by Player2's STT API.
+    # Player2 does not accept 'default' or bare language codes like 'en' without a region
+    # for some locales, so we map to the most common regional variant.
+    # Unmapped languages fall back to 'en-US'.
+    PLAYER2_LANGUAGE_MAP = {
+        'default': 'en-US',
+        'en': 'en-US',
+        'ar': 'ar',
+        'cs': 'cs',
+        'da': 'da',
+        'de': 'de',
+        'el': 'el',
+        'es': 'es',
+        'fi': 'fi',
+        'fr': 'fr',
+        'hi': 'hi',
+        'hu': 'hu',
+        'it': 'it',
+        'ja': 'ja',
+        'ko': 'ko',
+        'nl': 'nl',
+        'pl': 'pl',
+        'pt': 'pt',
+        'ro': 'ro',
+        'ru': 'ru',
+        'sv': 'sv',
+        'tr': 'tr',
+        'uk': 'uk',
+        'vi': 'vi',
+        'zh': 'zh',
+    }
+    # --- PLAYER2 END ---
+
     @utils.time_it
     def __init__(self, config: ConfigLoader):
         self.loglevel = 27
@@ -82,7 +120,7 @@ class Transcriber:
         self.__mic_input_process_error_count = 0
         self.__processing_audio_error_count = 0
         self.__warning_frequency = 5
-        
+
         self.__save_mic_input = config.save_mic_input
         if self.__save_mic_input:
             self.__mic_input_path: str = os.path.join(config.save_folder, "data", "tmp", "mic")
@@ -122,7 +160,7 @@ class Transcriber:
 
             if self.moonshine_model == 'moonshine/tiny':
                 logger.warning('Speech-to-text model set to Moonshine Tiny. If mic input is being transcribed incorrectly, try switching to a larger model in the `Speech-to-Text` tab of the Mantella UI')
-            
+
             if os.path.exists(f'{self.moonshine_model_path}/encoder_model.onnx'):
                 logger.log(self.loglevel, 'Loading local Moonshine model...')
                 self.transcribe_model = MoonshineOnnxModel(models_dir=self.moonshine_model_path, model_name=self.moonshine_model)
@@ -130,20 +168,20 @@ class Transcriber:
                 logger.log(self.loglevel, 'Loading Moonshine model from Hugging Face...')
                 self.transcribe_model = MoonshineOnnxModel(model_name=self.moonshine_model, model_precision=self.moonshine_precision)
             self.tokenizer = load_tokenizer()
-        
+
         # Initialize VAD
         self.vad = SileroVAD(self.SAMPLING_RATE)
-        
+
         # Audio processing state
         self._audio_buffer = np.array([], dtype=np.float32)
         self._audio_queue = queue.Queue()
         self._stream: Optional[InputStream] = None
-        
+
         # Threading and synchronization
         self._lock = threading.Lock()
         self._processing_thread: Optional[threading.Thread] = None
         self._running = False
-        
+
         # Speech detection state
         self._speech_detected = False
         self._speech_end_time = 0
@@ -163,13 +201,13 @@ class Transcriber:
         """Check if speech has been detected."""
         with self._lock:
             return self._speech_detected
-    
+
     def set_temporary_pause(self, pause_seconds: float) -> None:
         """Set a temporary pause threshold override for the next transcription
-        
+
         This is used by the Listen action to give the player more time to formulate their response.
         The temporary pause will be automatically cleared after the next successful transcription.
-        
+
         Args:
             pause_seconds: The pause threshold in seconds
         """
@@ -178,7 +216,7 @@ class Transcriber:
             # If already listening and speech hasn't been detected yet, recreate VAD iterator with new pause threshold
             if self._running and not self._speech_detected:
                 self.vad_iterator = self._create_vad_iterator()
-        
+
 
     @utils.time_it
     def __generate_sync_client(self):
@@ -189,7 +227,7 @@ class Transcriber:
             client = OpenAI(api_key=self.__api_key, base_url=self.whisper_url)
 
         return client
-    
+
 
     @utils.time_it
     def __get_endpoint(self, whisper_url):
@@ -197,19 +235,26 @@ class Transcriber:
             'OpenAI': 'https://api.openai.com/v1',
             'Groq': 'https://api.groq.com/openai/v1',
             'whisper.cpp': 'http://127.0.0.1:8080/inference',
+            # --- PLAYER2 START ---
+            # Player2 STT endpoint accepts raw PCM audio bytes (application/octet-stream)
+            # with encoding and sample_rate as query parameters.
+            # Response JSON contains a 'transcript' field (not 'text' as in OpenAI/Whisper).
+            # Full API spec: https://api.player2.game/v1/stt/audio
+            'Player2': 'https://api.player2.game/v1/stt/audio',
+            # --- PLAYER2 END ---
         }
         if whisper_url in known_endpoints:
             return known_endpoints[whisper_url]
         else: # if not found, use value as is
             return whisper_url
-        
+
 
     @utils.time_it
     def __get_api_key(self) -> str:
         api_key = None
         if self.external_whisper_service:
             api_key = ClientBase._get_api_key(self.__stt_service_name, show_error=False)
-            
+
             if not api_key:
                 logger.error('''No secret key found in GPT_SECRET_KEY.txt. Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
@@ -237,7 +282,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
 
         if self.proactive_mic_mode:
             logger.log(self.loglevel, f'Interim transcription: {transcription}')
-        
+
         # Only update the transcription if it contains a value, otherwise keep the existing transcription
         if transcription:
             return transcription
@@ -254,7 +299,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             if utils.clean_text(result_text) in self.__ignore_list: # common phrases hallucinated by Whisper
                 return ''
             return result_text
-        
+
         # Server versions of Whisper require the audio data to be a file type
         audio_file = io.BytesIO()
         wavfile.write(audio_file, self.SAMPLING_RATE, audio)
@@ -281,6 +326,77 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             if utils.clean_text(response_data.text) in self.__ignore_list: # common phrases hallucinated by Whisper
                 return ''
             return response_data.text.strip()
+
+        # --- PLAYER2 START ---
+        elif 'player2' in self.whisper_url:
+            # Player2 STT supports two endpoints depending on how the user is authenticated:
+            #
+            # Route A — Local app (127.0.0.1:4315):
+            #   Endpoint: POST /v1/stt/whisper/audio/transcriptions
+            #   Format:   multipart/form-data (identical to whisper.cpp)
+            #   Auth:     none required — the local app handles auth internally
+            #
+            # Route B — Remote API (api.player2.game):
+            #   Endpoint: POST /v1/stt/transcribe
+            #   Format:   application/octet-stream with query params
+            #   Auth:     Bearer token from secret_keys.json
+            #
+            # The route was already selected in __get_endpoint() at startup based on
+            # whether the Player2 app is running. Here we just branch on the URL.
+            #
+            # In both cases, audio is sent after Silero VAD detects speech has ended,
+            # matching Mantella's existing post-VAD transcription pattern.
+
+            # Map Mantella language codes to BCP-47 tags required by Player2.
+            # Falls back to 'en-US' for unknown or 'default' values.
+            p2_language = self.PLAYER2_LANGUAGE_MAP.get(self.language, 'en-US')
+
+            audio_int16 = (audio * 32767).astype(np.int16)
+
+            try:
+                if '127.0.0.1' in self.whisper_url:
+                    # Route A: local app — multipart/form-data, same format as whisper.cpp.
+                    # Reuse the WAV file already prepared above for the whisper.cpp path.
+                    audio_file = io.BytesIO()
+                    wavfile.write(audio_file, self.SAMPLING_RATE, audio_int16)
+                    audio_file.name = 'out.wav'
+                    files = {'file': ('audio.wav', audio_file, 'audio/wav')}
+                    data = {'language': p2_language}
+                    response = requests.post(self.whisper_url, files=files, data=data, timeout=15)
+                else:
+                    # Route B: remote API — raw PCM bytes as application/octet-stream.
+                    params = {
+                        'encoding': 'linear16',
+                        'sample_rate': str(self.SAMPLING_RATE),
+                        'language': p2_language,
+                    }
+                    headers = {
+                        'Authorization': f'Bearer {self.__api_key}',
+                        'Content-Type': 'application/octet-stream',
+                    }
+                    response = requests.post(
+                        self.whisper_url,
+                        params=params,
+                        data=audio_int16.tobytes(),
+                        headers=headers,
+                        timeout=15
+                    )
+
+                if response.status_code != 200:
+                    logger.error(f'Player2 STT error (HTTP {response.status_code}): {response.text}')
+                    return ''
+                response_data = response.json()
+                text = response_data.get('transcript', '').strip()
+                if utils.clean_text(text) in self.__ignore_list:
+                    return ''
+                return text
+
+            except Exception as e:
+                utils.play_error_sound()
+                logger.error(f'Player2 STT error: {e}')
+                return ''
+        # --- PLAYER2 END ---
+
         else: # custom server model
             data = {'model': self.whisper_model, 'prompt': prompt}
             files = {'file': ('audio.wav', audio_file, 'audio/wav')}
@@ -292,7 +408,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 if utils.clean_text(response_data['text']) in self.__ignore_list: # common phrases hallucinated by Whisper
                     return ''
                 return response_data['text'].strip()
-            
+
 
     @utils.time_it
     def moonshine_transcribe(self, audio: np.ndarray) -> str:
@@ -300,22 +416,22 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         tokens = self.transcribe_model.generate(audio[np.newaxis, :].astype(np.float32))
         text = self.tokenizer.decode_batch(tokens)[0]
         text = self.ensure_sentence_ending(text)
-        
+
         return text
-    
+
 
     def ensure_sentence_ending(self, text: str) -> str:
         '''Moonshine transcriptions tend to be missing sentence-ending characters, which can confuse LLMs'''
         if not text:  # Handle empty string
             return text
-        
+
         end_chars = {'.', '?', '!', ':', ';', '。'}
-        
+
         if text[-1] == ',':
             return text[:-1] + '.'
         elif text[-1] not in end_chars:
             return text + '.'
-        
+
         return text
 
 
@@ -324,11 +440,11 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         '''Start background listening thread'''
         if self._running:
             return
-            
+
         self._running = True
         self._reset_state()
         self.prompt = prompt
-        
+
         # Start audio stream
         self._stream = InputStream(
             samplerate=self.SAMPLING_RATE,
@@ -339,7 +455,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             latency = 'low'
         )
         self._stream.start()
-        
+
         # Start processing thread
         self._processing_thread = threading.Thread(
             target=self._process_audio,
@@ -353,7 +469,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         """Process audio data in a separate thread."""
         lookback_size = self.LOOKBACK_CHUNKS * self.CHUNK_SIZE
         chunk_count = 0
-        
+
         while self._running:
             try:
                 chunk, status = self._audio_queue.get(timeout=0.1)
@@ -535,10 +651,10 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
     @utils.time_it
     def get_latest_transcription(self, silence_timeout: float = 0) -> str | None:
         """Get the latest transcription, blocking until speech ends or silence timeout
-        
+
         Args:
             silence_timeout: How long to wait (in seconds) for speech before returning None. If 0 or negative, waits indefinitely.
-        
+
         Returns:
             The transcribed text, or None if silence_timeout elapsed without any speech being detected
         """
@@ -546,13 +662,13 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             # Use timeout only if silence_timeout > 0 and player hasn't started speaking yet
             use_timeout = silence_timeout > 0 and not self._speech_detected
             timeout_value = silence_timeout if use_timeout else None
-            
+
             received_transcription = self._transcription_ready.wait(timeout=timeout_value)
-            
+
             if not received_transcription and use_timeout and not self._speech_detected:
                 logger.log(self.loglevel, f"Silence timeout of {silence_timeout} seconds reached without speech")
                 return None
-            
+
             with self._lock:
                 transcription = self._current_transcription
                 self._current_transcription = ''
@@ -562,7 +678,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                     self._temporary_pause_override = None  # Reset temporary pause after transcription
                     logger.log(self.loglevel, f"Player said '{transcription.strip()}'")
                     return transcription
-                
+
             if self.play_cough_sound:
                 utils.play_no_mic_input_detected_sound()
             logger.warning('Could not detect speech from mic input')
@@ -578,28 +694,28 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         """Stop listening for speech."""
         if not self._running:
             return
-            
+
         self._running = False
         self._speech_detected = False
-        
+
         # Stop and clean up audio stream
         if self._stream:
             self._stream.stop()
             self._stream.close()
             self._stream = None
-        
+
         # Wait for processing thread to finish
         if self._processing_thread:
-            self._processing_thread.join()  # timeout=1.0 Add timeout to prevent hanging
+            self._processing_thread.join()
             self._processing_thread = None
-        
+
         # Clear queue
         while not self._audio_queue.empty():
             try:
                 self._audio_queue.get_nowait()
             except queue.Empty:
                 break
-                
+
         self._reset_state()
         logger.log(self.loglevel, 'Stopped listening for mic input')
 

@@ -6,6 +6,11 @@ from src.image.image_manager import ImageManager
 from src.llm.client_base import ClientBase
 from src.llm.messages import ImageMessage
 
+# --- PLAYER2 START ---
+# Import Player2 service detection helper to conditionally strip unsupported fields.
+from src.llm.player2_auth import is_player2_service
+# --- PLAYER2 END ---
+
 logger = utils.get_logger()
 
 
@@ -14,14 +19,14 @@ class ImageClient(ClientBase):
     '''
     @utils.time_it
     def __init__(self, config: ConfigLoader) -> None:
-        self.__config = config    
+        self.__config = config
         self.__custom_vision_model: bool = config.custom_vision_model
 
         if self.__custom_vision_model: # if using a custom model for vision, load these custom config values
             setup_values = {'api_url': config.vision_llm_api, 'llm': config.vision_llm, 'llm_params': config.vision_llm_params, 'custom_token_count': config.vision_custom_token_count}
         else: # default to base LLM config values
             setup_values = {'api_url': config.llm_api, 'llm': config.llm, 'llm_params': config.llm_params, 'custom_token_count': config.custom_token_count}
-        
+
         super().__init__(**setup_values)
 
         if self.__custom_vision_model:
@@ -35,16 +40,41 @@ class ImageClient(ClientBase):
 
         self.__vision_prompt: str = config.vision_prompt.format(game=config.game.display_name)
         self.__detail: str = "low" if config.low_resolution_mode else "high"
-        self.__image_manager: ImageManager | None = ImageManager(config.game, 
-                                                config.save_folder, 
-                                                config.save_screenshot, 
-                                                config.image_quality, 
-                                                config.low_resolution_mode, 
-                                                config.resize_method, 
+        self.__image_manager: ImageManager | None = ImageManager(config.game,
+                                                config.save_folder,
+                                                config.save_screenshot,
+                                                config.image_quality,
+                                                config.low_resolution_mode,
+                                                config.resize_method,
                                                 config.capture_offset,
                                                 config.use_game_screenshots,
                                                 config.game_path)
-    
+
+    def __build_image_url_block(self, image: str) -> dict:
+        """Build the image_url content block for a message.
+
+        Player2 uses the same image_url format as OpenAI (data URI base64),
+        but does not support the 'detail' field. Including it may cause
+        request validation errors on Player2's end.
+
+        Other services (OpenAI, OpenRouter, etc.) receive the 'detail' field
+        as usual and are not affected by this check.
+
+        Args:
+            image: Base64-encoded JPEG image string.
+
+        Returns:
+            A dict suitable for use as an image_url content block.
+        """
+        # --- PLAYER2 START ---
+        image_url_block: dict = {"url": f"data:image/jpeg;base64,{image}"}
+        if not is_player2_service(self._base_url):
+            # The 'detail' field controls OpenAI's image resolution mode ('low' or 'high').
+            # Player2 does not recognise this field, so it is only added for other services.
+            image_url_block["detail"] = self.__detail
+        return image_url_block
+        # --- PLAYER2 END ---
+
     @utils.time_it
     def add_image_to_messages(self, openai_messages: list[ChatCompletionMessageParam], vision_hints: str) -> list[ChatCompletionMessageParam]:
         '''Adds a captured image to the latest user message
@@ -58,27 +88,30 @@ class ImageClient(ClientBase):
         image = self.__image_manager.get_image()
         if image is None:
             return openai_messages
-        
+
         # Find the last user message by walking backwards, skipping assistant/tool messages
         last_user_message_idx = None
         for i in range(len(openai_messages) - 1, -1, -1):
             if openai_messages[i]['role'] == 'user':
                 last_user_message_idx = i
                 break
-        
+
         if not self.__custom_vision_model:
+            # Build the image_url block, omitting 'detail' for Player2 (see __build_image_url_block)
+            image_url_block = self.__build_image_url_block(image)
+
             # Add the image to the last user message or create a new message if needed
             if last_user_message_idx is not None:
                 openai_messages[last_user_message_idx]['content'] = [
                     {"type": "text", "text": openai_messages[last_user_message_idx]['content']},
-                    {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}", "detail": self.__detail}}
+                    {"type": "image_url", "image_url": image_url_block}
                 ]
             else:
                 openai_messages.append({
                     "role": "user",
                     "content": [
                         {"type": "text", "text": vision_hints},
-                        {"type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}", "detail": self.__detail}}
+                        {"type": "image_url", "image_url": image_url_block}
                     ]
                 })
         else:
