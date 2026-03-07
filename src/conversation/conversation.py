@@ -105,11 +105,9 @@ class Conversation:
         Args:
             new_character (Character): the character to add or update
         """
-        characters_removed_by_update = self.__context.add_or_update_characters(new_character)
+        characters_removed_by_update = self.__context.add_or_update_characters(new_character, len(self.__messages))
         if len(characters_removed_by_update) > 0:
-            all_characters = self.__context.npcs_in_conversation.get_all_characters()
-            all_characters.extend(characters_removed_by_update)
-            self.__save_conversations_for_characters(all_characters, is_reload=True)
+            self.__save_conversation(is_reload=True, departed_npcs=characters_removed_by_update)
 
     @utils.time_it
     def start_conversation(self) -> tuple[str, Sentence | None]:
@@ -162,7 +160,9 @@ class Conversation:
             return comm_consts.KEY_REPLYTYPE_NPCACTION, next_sentence
         elif next_sentence and len(next_sentence.text) > 0:
             if {'identifier': comm_consts.ACTION_REMOVECHARACTER} in next_sentence.actions:
-                self.__context.remove_character(next_sentence.speaker)
+                departing_npc = next_sentence.speaker
+                self.__context.remove_character(departing_npc, len(self.__messages))
+                self.__save_conversation(is_reload=True, departed_npcs=[departing_npc])
             #if there is a next sentence and it actually has content, return it as something for an NPC to say
             if self.last_sentence_audio_length > 0:
                 logger.debug(f'Waiting {round(self.last_sentence_audio_length, 1)} seconds for last voiceline to play')
@@ -457,7 +457,7 @@ class Conversation:
     def __start_generating_npc_sentences(self, allow_tool_use: bool = True):
         """Starts a background Thread to generate sentences into the SentenceQueue"""    
         with self.__generation_start_lock:
-            if not self.__generation_thread:
+            if not self.__generation_thread or not self.__generation_thread.is_alive():
                 self.__sentences.is_more_to_come = True
                 # Generate tools if advanced actions are enabled
                 tools = None
@@ -492,25 +492,36 @@ class Conversation:
                 self.__sentences.put(goodbye_sentence)        
 
     @utils.time_it
-    def __save_conversation(self, is_reload: bool, end_timestamp: float | None = None):
+    def __save_conversation(self, is_reload: bool, departed_npcs: list[Character] | None = None, end_timestamp: float | None = None):
         """Saves conversation log and state for each NPC in the conversation"""
-        self.__save_conversations_for_characters(self.__context.npcs_in_conversation.get_all_characters(), is_reload, end_timestamp)
+        npcs = self.__context.npcs_in_conversation
 
-    @utils.time_it
-    def __save_conversations_for_characters(self, characters_to_save_for: list[Character], is_reload: bool, end_timestamp: float | None = None):
-        characters_object = Characters()
-        for npc in characters_to_save_for:
-            characters_object.add_or_update_character(npc)
-            if not npc.is_player_character:
-                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
+        if departed_npcs is not None:
+            npcs_to_summarize = departed_npcs
+        else:
+            npcs_to_summarize = npcs.get_non_player_characters()
+
+        for npc in npcs_to_summarize:
+            conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
         
+        # Skip summary generation if disabled (but always allow reloads to save state)
+        if not is_reload and not self.__context.config.conversation_summary_enabled:
+            logger.info("Conversation summaries disabled. Skipping summary generation.")
+            # Even when skipping summaries, clear any pending shares to avoid leaking them
+            npcs.clear_pending_shares()
+            return
+
         # Get and clear pending shares (only on final save, not reload)
         pending_shares = None
         if not is_reload:
-            pending_shares = self.__context.npcs_in_conversation.get_pending_shares()
-            self.__context.npcs_in_conversation.clear_pending_shares()
-        
-        self.__rememberer.save_conversation_state(self.__messages, characters_object, self.__context.world_id, is_reload, pending_shares, end_timestamp)
+            pending_shares = npcs.get_pending_shares()
+            npcs.clear_pending_shares()
+
+        # Fall back to the latest game timestamp from context updates if no explicit timestamp was provided
+        if end_timestamp is None:
+            end_timestamp = self.__context.game_days
+
+        self.__rememberer.save_conversation_state(self.__messages, npcs_to_summarize, npcs, self.__context.world_id, is_reload, pending_shares, end_timestamp)
 
     @utils.time_it
     def __initiate_reload_conversation(self):

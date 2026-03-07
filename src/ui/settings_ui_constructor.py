@@ -305,6 +305,11 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 "dependent_config": "function_llm_api",
                 "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
                 "model_list_getter": ClientBase.get_model_list,
+            },
+            "summary_llm": {
+                "dependent_config": "summary_llm_api",
+                "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
+                "model_list_getter": ClientBase.get_model_list,
             }
         }
 

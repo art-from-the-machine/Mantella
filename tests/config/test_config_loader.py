@@ -83,10 +83,20 @@ def test_definitions_property(tmp_path):
     assert game_def is not None
 
 
-def test_have_all_config_values_loaded_correctly(default_config: ConfigLoader):
+def test_have_all_config_values_loaded_correctly(tmp_path):
     '''Test the have_all_config_values_loaded_correctly property'''
-    # For a newly created config with default values, this should be true
-    assert default_config.have_all_config_values_loaded_correctly == True
+    # Create the directory structure that skyrim_mod_folder validation expects
+    mod_base = tmp_path / "mod_root"
+    (mod_base / "Sound" / "Voice" / "Mantella.esp").mkdir(parents=True, exist_ok=True)
+
+    config = ConfigLoader(mygame_folder_path=str(tmp_path), game_override=GameEnum.SKYRIM)
+
+    # Point skyrim_mod_folder to the valid mock path and re-validate
+    config._ConfigLoader__definitions.get_config_value_definition("skyrim_mod_folder").value = str(mod_base)
+    config._ConfigLoader__definitions.clear_constraint_violations()
+    config.update_config_loader_with_changed_config_values()
+
+    assert config.have_all_config_values_loaded_correctly == True
 
 
 def test_actions_can_be_assigned(tmp_path):

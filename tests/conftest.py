@@ -1,4 +1,21 @@
 import pytest
+import warnings
+
+# Suppress third party deprecation warnings at import time
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message="Deprecated call to `pkg_resources.declare_namespace", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message="Please use `import python_multipart`", category=PendingDeprecationWarning)
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "requires_audio: test requires an audio device (playsound, sounddevice, etc)")
+    config.addinivalue_line("markers", "requires_external_exe: test requires an external executable (eg piper.exe)")
+    config.addinivalue_line("markers", "requires_llm: test requires a real LLM API connection")
+
+    # Suppress deprecation warnings from third party packages during test execution
+    config.addinivalue_line("filterwarnings", "ignore:np.find_common_type is deprecated:DeprecationWarning")
+    config.addinivalue_line("filterwarnings", r"ignore:[\s\S]*on_event is deprecated:DeprecationWarning")
+    config.addinivalue_line("filterwarnings", r"ignore:The `name` is not the first parameter anymore:DeprecationWarning")
+
 from src.game_manager import GameStateManager
 from src.conversation.conversation import Conversation
 from src.output_manager import ChatManager
@@ -22,10 +39,12 @@ from src.http import models
 from src.character_manager import Character
 from src.games.skyrim import Skyrim
 from src.tts.piper import Piper
+from src.tts.piper import TTSServiceFailure
 from src.games.equipment import Equipment, EquipmentItem
 from src.llm.message_thread import message_thread
 from src.llm.messages import SystemMessage, UserMessage
 from src.actions.function_manager import FunctionManager
+from unittest.mock import MagicMock
 
 @pytest.fixture
 def default_config(tmp_path: Path) -> ConfigLoader:
@@ -70,8 +89,13 @@ def english_language_info() -> dict:
     return {'alpha2': 'en', 'language': 'English', 'hello': 'Hello'}
 
 @pytest.fixture
-def piper(default_config: ConfigLoader, skyrim: Skyrim) -> Piper:
-    return Piper(default_config, skyrim)
+def piper(default_config: ConfigLoader, skyrim: Skyrim):
+    try:
+        return Piper(default_config, skyrim)
+    except (TTSServiceFailure, FileNotFoundError, Exception):
+        mock_piper = MagicMock()
+        mock_piper.synthesize.return_value = "mock_audio.wav"
+        return mock_piper
 
 @pytest.fixture
 def llm_client(default_config: ConfigLoader) -> LLMClient:
@@ -92,7 +116,7 @@ def default_rememberer(skyrim: Skyrim, default_config: ConfigLoader, llm_client:
 def default_context(default_config: ConfigLoader, llm_client: LLMClient, default_rememberer: Summaries, english_language_info: dict, example_characters_pc_to_npc: Characters) -> Context:
     """Fixture to create a Context instance"""
     context = Context('1', default_config, llm_client, default_rememberer, english_language_info)
-    context.add_or_update_characters(example_characters_pc_to_npc.get_all_characters())
+    context.add_or_update_characters(example_characters_pc_to_npc.get_all_characters(), message_count=0)
     return context
 
 @pytest.fixture

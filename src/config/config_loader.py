@@ -264,7 +264,7 @@ class ConfigLoader:
                 self.llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("llm_params").replace('\n', ''))
             except Exception as e:
                 logger.error(f"""Error in parsing LLM parameter list: {e}
-LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+LLM parameter list must be valid JSON""")
                 self.llm_params = None
 
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
@@ -279,6 +279,19 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.claude_prompt_caching_enabled: bool = self.__definitions.get_bool_value("claude_prompt_caching_enabled")
             self.enable_character_tag_reading: bool = self.__definitions.get_bool_value("enable_character_tag_reading")
             
+            # Summary LLM
+            self.summary_llm_enabled: bool = self.__definitions.get_bool_value("summary_llm_enabled")
+            self.summary_llm_api = self.__definitions.get_string_value("summary_llm_api")
+            self.summary_llm = self.__definitions.get_string_value("summary_llm")
+            self.summary_llm = self.summary_llm.split(' |')[0] if ' |' in self.summary_llm else self.summary_llm
+            self.summary_custom_token_count = self.__definitions.get_int_value("summary_custom_token_count")
+            try:
+                self.summary_llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("summary_llm_params").replace('\n', ''))
+            except Exception as e:
+                logger.error(f"""Error in parsing summary LLM parameter list: {e}
+LLM parameter list must be valid JSON""")
+                self.summary_llm_params = None
+
             #Folder settings
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
 
@@ -295,6 +308,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.player_character_description: str = self.__definitions.get_string_value("player_character_description")
             self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
             self.player_voice_model: str = self.__definitions.get_string_value("player_voice_model")
+            self.conversation_summary_enabled = self.__definitions.get_bool_value("conversation_summary_enabled")
 
             #HTTP
             self.port = self.__definitions.get_int_value("port")
@@ -343,7 +357,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 self.vision_llm_params = json.loads(self.__definitions.get_string_value("vision_llm_params").replace('\n', ''))
             except Exception as e:
                 logger.error(f"""Error in parsing LLM parameter list: {e}
-LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+LLM parameter list must be valid JSON""")
                 self.vision_llm_params = None
 
             # Telemetry
@@ -362,7 +376,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 self.function_llm_params = json.loads(self.__definitions.get_string_value("function_llm_params").replace('\n', ''))
             except Exception as e:
                 logger.error(f"""Error in parsing LLM parameter list: {e}
-LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+LLM parameter list must be valid JSON""")
                 self.function_llm_params = None
 
             pass

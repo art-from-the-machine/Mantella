@@ -5,21 +5,19 @@ import logging
 import sys
 import os
 import platform
-import playsound
 from pathlib import Path
 from pytest import LogCaptureFixture
 from pytest import MonkeyPatch
-
-if platform.system() == "Windows":
-    import winsound
 
 @utils.time_it
 def decorated_dummy_function(delay=0.01):
     time.sleep(delay)
     return "done"
 
-def test_time_it_decorator(caplog: LogCaptureFixture):
-    caplog.set_level(logging.DEBUG)
+def test_time_it_decorator(monkeypatch: MonkeyPatch, caplog: LogCaptureFixture):
+    caplog.set_level(logging.DEBUG, logger="Mantella")
+    # Ensure propagation is enabled so caplog can capture records
+    monkeypatch.setattr(logging.getLogger("Mantella"), 'propagate', True)
     result = decorated_dummy_function(0.01)
     assert result == "done"
     # Check that a debug log about timing is generated
@@ -96,22 +94,27 @@ def fake_play_sound(monkeypatch: MonkeyPatch):
         calls.append((filename))
 
     if platform.system() == "Windows":
+        import winsound
         monkeypatch.setattr(winsound, "PlaySound", fake_play_winsound)
+    import playsound
     monkeypatch.setattr(playsound, "playsound", fake_play_playsound)
     return calls
 
+@pytest.mark.requires_audio
 def test_play_mantella_ready_sound(fake_play_sound, monkeypatch: MonkeyPatch):
     monkeypatch.setattr(utils, "resolve_path", lambda: "/fake/path")
     utils.play_mantella_ready_sound()
     expected = os.path.join("/fake/path", "data", "mantella_ready.wav")
     assert any(expected in call[0] for call in fake_play_sound)
 
+@pytest.mark.requires_audio
 def test_play_no_mic_input_detected_sound(fake_play_sound, monkeypatch: MonkeyPatch):
     monkeypatch.setattr(utils, "resolve_path", lambda: "/fake/path")
     utils.play_no_mic_input_detected_sound()
     expected = os.path.join("/fake/path", "data", "no_mic_input_detected.wav")
     assert any(expected in call[0] for call in fake_play_sound)
 
+@pytest.mark.requires_audio
 def test_play_error_sound(fake_play_sound):
     utils.play_error_sound()
     # For error sound, the expected sound is "SystemHand"
@@ -166,7 +169,9 @@ def test_cleanup_mei_no_mei(caplog: LogCaptureFixture):
     assert not any("runtime folder" in record.message for record in caplog.records)
 
 def test_cleanup_mei_with_fake_mei(monkeypatch: MonkeyPatch, tmp_path: Path, caplog: LogCaptureFixture):
-    caplog.set_level(logging.DEBUG)
+    caplog.set_level(logging.DEBUG, logger="Mantella")
+    # Ensure propagation is enabled so caplog can capture records
+    monkeypatch.setattr(logging.getLogger("Mantella"), 'propagate', True)
     
     # Create the current MEI directory (where the exe files currently sit) in tmp_path
     current_mei_dir = tmp_path / "_MEI1234"

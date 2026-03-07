@@ -1,3 +1,4 @@
+import pytest
 from src.llm.client_base import ClientBase
 from unittest.mock import patch
 import json
@@ -103,6 +104,7 @@ def test_openrouter_missing_key(mock_get_key):
     assert "No secret key found" in result.available_models[0][0]
 
 
+@pytest.mark.requires_llm
 def test_openrouter_success():
     """Test successful OpenRouter model list retrieval"""
     result = ClientBase.get_model_list("OpenRouter")
@@ -110,6 +112,7 @@ def test_openrouter_success():
     assert result.allows_manual_model_input is False
 
 
+@pytest.mark.requires_llm
 def test_is_vision_filtering():
     """Test vision model filtering"""
     result = ClientBase.get_model_list("OpenRouter", is_vision=True)
@@ -124,6 +127,7 @@ def test_nanogpt_missing_key(mock_get_key):
     assert "No secret key found" in result.available_models[0][0]
 
 
+@pytest.mark.requires_llm
 def test_nanogpt_success():
     """Test successful NanoGPT model list retrieval"""
     result = ClientBase.get_model_list("NanoGPT")

@@ -10,7 +10,7 @@ import json
 import io
 from pathlib import Path
 from openai import OpenAI
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 import queue
 import threading
@@ -19,7 +19,8 @@ import os
 import wave
 import onnxruntime as ort
 from scipy.io import wavfile
-from sounddevice import InputStream
+if TYPE_CHECKING:
+    from sounddevice import InputStream
 from silero_vad_lite import SileroVAD
 
 logger = utils.get_logger()
@@ -330,6 +331,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         self.prompt = prompt
         
         # Start audio stream
+        from sounddevice import InputStream
         self._stream = InputStream(
             samplerate=self.SAMPLING_RATE,
             channels=1,
