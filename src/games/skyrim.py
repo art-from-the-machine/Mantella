@@ -88,13 +88,9 @@ class Skyrim(Gameable):
         bio = character_info["bio"]
 
         # Expand bio with tag-based templates if available
-        # tags_overwrite replaces tags when non-empty
         tags = character_info.get('tags', '')
         tags_overwrite = character_info.get('tags_overwrite', '')
-        safe_overwrite = BioTemplateManager._safe_str(tags_overwrite)
-        if safe_overwrite:
-            tags = tags_overwrite
-        bio = self.__bio_template_manager.expand_bio_with_tags(bio, tags)
+        bio = self.__bio_template_manager.expand_bio_with_tags(bio, tags, tags_overwrite=tags_overwrite)
 
         return external_character_info(name, is_generic_npc, bio, actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None))
     
