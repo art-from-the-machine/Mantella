@@ -156,11 +156,6 @@ class LLMDefinitions:
         return ConfigValueBool("claude_prompt_caching_enabled", "Claude Prompt Caching", description, False, tags=[ConfigValueTag.advanced])
     
     @staticmethod
-    def get_enable_character_tag_reading_config_value() -> ConfigValue:
-        description = """Enable tag-based bio expansion for characters. When enabled, comma-separated tags in the character CSV 'tags' column will be looked up in bio_templates.csv and appended to the character's bio."""
-        return ConfigValueBool("enable_character_tag_reading", "Character Bio Tags", description, False, tags=[ConfigValueTag.advanced])
-
-    @staticmethod
     def get_summary_llm_enabled_config_value() -> ConfigValue:
         description = """Enable a separate LLM client for generating conversation summaries.
             When enabled, the Summary LLM settings below will be used instead of the main LLM settings.
