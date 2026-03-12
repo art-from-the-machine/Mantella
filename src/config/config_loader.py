@@ -308,6 +308,7 @@ LLM parameter list must be valid JSON""")
             self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
             self.player_voice_model: str = self.__definitions.get_string_value("player_voice_model")
             self.conversation_summary_enabled = self.__definitions.get_bool_value("conversation_summary_enabled")
+            self.enable_character_tag_reading: bool = self.__definitions.get_bool_value("enable_character_tag_reading")
 
             #HTTP
             self.port = self.__definitions.get_int_value("port")

@@ -245,6 +245,26 @@ def get_time_group(in_game_time):
     return time_group
 
 
+def safe_str(value) -> str:
+    """Convert a value to string safely, returning empty string for None/NaN/NaT/NA.
+    
+    Useful when reading values from pandas DataFrames where cells may contain
+    None, NaN, NaT, pd.NA, or string representations of these.
+    """
+    import pandas as pd
+    if value is None:
+        return ''
+    try:
+        if pd.isna(value):
+            return ''
+    except (TypeError, ValueError):
+        pass
+    result = str(value).strip()
+    if result.lower() in ('nan', 'nat', '<na>'):
+        return ''
+    return result
+
+
 def parse_keywords(keyword_string: str) -> list[str]:
     """
     Given a comma-delimited string of keywords, return a list of trimmed, lowercase keywords
