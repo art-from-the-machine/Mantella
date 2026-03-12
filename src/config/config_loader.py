@@ -277,8 +277,7 @@ LLM parameter list must be valid JSON""")
             self.speech_end_indicators = self.__definitions.get_string_list_value("speech_end_indicators")
             self.narration_indicators: NarrationIndicatorsEnum = self.__definitions.get_enum_value("narration_indicators", NarrationIndicatorsEnum)
             self.claude_prompt_caching_enabled: bool = self.__definitions.get_bool_value("claude_prompt_caching_enabled")
-            self.enable_character_tag_reading: bool = self.__definitions.get_bool_value("enable_character_tag_reading")
-            
+
             # Summary LLM
             self.summary_llm_enabled: bool = self.__definitions.get_bool_value("summary_llm_enabled")
             self.summary_llm_api = self.__definitions.get_string_value("summary_llm_api")
@@ -309,6 +308,7 @@ LLM parameter list must be valid JSON""")
             self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
             self.player_voice_model: str = self.__definitions.get_string_value("player_voice_model")
             self.conversation_summary_enabled = self.__definitions.get_bool_value("conversation_summary_enabled")
+            self.enable_character_tag_reading: bool = self.__definitions.get_bool_value("enable_character_tag_reading")
 
             #HTTP
             self.port = self.__definitions.get_int_value("port")

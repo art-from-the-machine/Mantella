@@ -5,6 +5,7 @@ import logging
 import sys
 import os
 import platform
+import pandas as pd
 from pathlib import Path
 from pytest import LogCaptureFixture
 from pytest import MonkeyPatch
@@ -253,6 +254,27 @@ def test_convert_to_skyrim_hex_format(identifier, expected_hex):
 )
 def test_get_time_group(in_game_time, expected_group):
     assert utils.get_time_group(in_game_time) == expected_group
+
+
+class TestSafeStr:
+    @pytest.mark.parametrize('value,expected', [
+        (None, ''),
+        ('', ''),
+        ('  ', ''),
+        ('hello', 'hello'),
+        (float('nan'), ''),
+        (42, '42'),
+        ('nan', ''),
+        ('NaN', ''),
+    ])
+    def test_safe_str(self, value, expected):
+        assert utils.safe_str(value) == expected
+
+    def test_safe_str_with_pandas_na(self):
+        assert utils.safe_str(pd.NA) == ''
+
+    def test_safe_str_with_pandas_nat(self):
+        assert utils.safe_str(pd.NaT) == ''
 
 
 @pytest.mark.parametrize(
