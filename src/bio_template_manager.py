@@ -22,7 +22,8 @@ class BioTemplateManager:
         self.enable_tag_reading = enable_tag_reading
         self.game_name = game_name
         self.templates: Dict[str, str] = {}
-        self._load_templates()
+        if self.enable_tag_reading:
+            self._load_templates()
 
     def _load_templates(self):
         """Load bio templates from CSV files with override support."""
