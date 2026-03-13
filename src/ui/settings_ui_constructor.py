@@ -17,6 +17,7 @@ from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_group import ConfigValueGroup
 from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_visitor import ConfigValueVisitor
+from src.ui.profile_ui_handler import ProfileUIHandler
 
 class SettingUIComponents(NamedTuple):
     input_ui: Any
@@ -40,11 +41,20 @@ class SettingsUIConstructor(ConfigValueVisitor):
         self.__identifier_to_config_value: dict[str, ConfigValue] = {}
         self.__config_value_to_ui_element: dict[ConfigValue, Any] = {}
         self.__pending_shared_setting: SettingConfig | None = None
-    
+        self.__profile_handler: ProfileUIHandler | None = None
+
     @property
     def config_value_to_ui_element(self) -> dict[ConfigValue, gr.Column]:
         return self.__config_value_to_ui_element
-    
+
+    def _get_profile_handler(self) -> ProfileUIHandler:
+        if self.__profile_handler is None:
+            self.__profile_handler = ProfileUIHandler(
+                self.__identifier_to_config_value,
+                self.__config_value_to_ui_element,
+            )
+        return self.__profile_handler
+
     def __create_tooltip(self, config_value: ConfigValue, is_second_setting: bool = False) -> str:
         """Creates the tooltip HTML for a config value"""
         constraints_html = (f'<p class="constraints">' + 
@@ -280,8 +290,16 @@ class SettingsUIConstructor(ConfigValueVisitor):
                         container=False,
                         lines= count_rows,
                         elem_classes="multiline-textbox")
-        
-        self.__create_config_value_ui_element(config_value, create_input_component, False, True, True)
+
+        additional_buttons: list[tuple[str, Callable[[], Any]]] = []
+        if config_value.identifier == ProfileUIHandler.PARAMS_ID:
+            additional_buttons = self._get_profile_handler().get_additional_buttons()
+
+        self.__create_config_value_ui_element(config_value, create_input_component, False, True, True, additional_buttons)
+
+        # Wire auto-load: when the profile model dropdown changes, load existing profile params
+        if config_value.identifier == ProfileUIHandler.PARAMS_ID:
+            self._get_profile_handler().setup_auto_load(config_value)
     
     def __count_rows_in_text(self, text: str) -> int:
         count_CRLF = text.count("\r\n")
@@ -308,6 +326,11 @@ class SettingsUIConstructor(ConfigValueVisitor):
             },
             "summary_llm": {
                 "dependent_config": "summary_llm_api",
+                "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
+                "model_list_getter": ClientBase.get_model_list,
+            },
+            "profile_selected_model": {
+                "dependent_config": "profile_selected_service",
                 "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
                 "model_list_getter": ClientBase.get_model_list,
             }
