@@ -79,7 +79,7 @@ class BioTemplateManager:
                                 if tag and description:
                                     self.templates[tag] = description
                                     templates_loaded += 1
-                            logger.info(f"Loaded {templates_loaded} bio templates from {folder_type} file: {filename}")
+                            logger.debug(f"Loaded {templates_loaded} bio templates from {folder_type} file: {filename}")
                         else:
                             logger.warning(f"CSV file {filename} in {folder_type} folder missing required columns 'tag' and 'description'")
                     except Exception as e:
