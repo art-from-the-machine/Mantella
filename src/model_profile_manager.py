@@ -68,9 +68,16 @@ class ModelProfileManager:
             endpoint = self._resolve_endpoint(service)
             profile = ModelProfile(service=endpoint, model=model, parameters=parameters)
             profile_id = self.get_profile_id(service, model)
-            action = "Updated" if profile_id in self._profiles else "Created"
+            old_profile = self._profiles.get(profile_id)
+            action = "Updated" if old_profile is not None else "Created"
             self._profiles[profile_id] = profile
-            self._save_profiles()
+            if not self._save_profiles():
+                # Roll back in-memory change on persistence failure
+                if old_profile is not None:
+                    self._profiles[profile_id] = old_profile
+                else:
+                    del self._profiles[profile_id]
+                return False
             logger.info(f"{action} model profile: {profile_id}")
             return True
         except Exception as e:
@@ -95,8 +102,11 @@ class ModelProfileManager:
             if profile_id not in self._profiles:
                 logger.warning(f"Profile with ID {profile_id} not found")
                 return False
-            del self._profiles[profile_id]
-            self._save_profiles()
+            old_profile = self._profiles.pop(profile_id)
+            if not self._save_profiles():
+                # Roll back in-memory change on persistence failure
+                self._profiles[profile_id] = old_profile
+                return False
             logger.info(f"Deleted model profile: {profile_id}")
             return True
         except Exception as e:
@@ -153,8 +163,11 @@ class ModelProfileManager:
             logger.error(f"Error loading model profiles from {self.storage_path}: {e}")
             self._profiles = {}
 
-    def _save_profiles(self) -> None:
-        """Persist all profiles to the JSON file on disk."""
+    def _save_profiles(self) -> bool:
+        """Persist all profiles to the JSON file on disk.
+
+        Returns True on success, False on error.
+        """
         try:
             self.storage_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -166,8 +179,10 @@ class ModelProfileManager:
                 json.dump(data, f, indent=2, ensure_ascii=False)
 
             logger.info(f"Saved {len(self._profiles)} model profiles to {self.storage_path}")
+            return True
         except Exception as e:
             logger.error(f"Error saving model profiles: {e}")
+            return False
 
 
 _instance: Optional[ModelProfileManager] = None
