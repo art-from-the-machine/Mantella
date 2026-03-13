@@ -353,6 +353,34 @@ def get_openai_model_list():
     return SyncPage(data=models)
 
 
+_KNOWN_SERVICES: dict[str, str] = {
+    'openai': 'https://api.openai.com/v1',
+
+    'openrouter': 'https://openrouter.ai/api/v1',
+    'or': 'https://openrouter.ai/api/v1',
+
+    'nanogpt': 'https://nano-gpt.com/api/v1',
+    'nano': 'https://nano-gpt.com/api/v1',
+
+    'kobold': 'http://127.0.0.1:5001/v1',
+    'koboldcpp': 'http://127.0.0.1:5001/v1',
+
+    'textgenwebui': 'http://127.0.0.1:5000/v1',
+    'text-gen-web-ui': 'http://127.0.0.1:5000/v1',
+    'textgenerationwebui': 'http://127.0.0.1:5000/v1',
+    'text-generation-web-ui': 'http://127.0.0.1:5000/v1',
+}
+
+
+def resolve_service_endpoint(value: str) -> str:
+    """Resolve a service name or alias to an endpoint URL.
+
+    Returns the normalized input as-is if not a known service (assumed to be a direct URL).
+    """
+    normalized = value.strip().lower().replace(' ', '')
+    return _KNOWN_SERVICES.get(normalized, normalized)
+
+
 def is_local_url(url: str) -> bool:
     domain = urlparse(url).netloc
     return domain.startswith("10.") or domain.startswith("127.") or domain.startswith("192.168") or domain.startswith("172.")

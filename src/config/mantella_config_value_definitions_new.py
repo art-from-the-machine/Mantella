@@ -14,6 +14,7 @@ from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
 from src.config.definitions.vision_definitions import VisionDefinitions
 from src.config.definitions.action_definitions import ActionDefinitions
+from src.config.definitions.model_profile_definitions import ModelProfileDefinitions
 import sys
 
 
@@ -169,6 +170,13 @@ class MantellaConfigValueDefinitionsNew:
         startup_category.add_config_value(StartupDefinitions.get_play_startup_sound_config_value())
         startup_category.add_config_value(StartupDefinitions.get_remove_mei_folders_config_value())
         result.add_base_group(startup_category)
+
+        profile_category = ConfigValueGroup("Profiles", "Profiles", "Profile settings.", on_value_change_callback)
+        profile_category.add_config_value(ModelProfileDefinitions.get_apply_model_profiles_config_value())
+        profile_category.add_config_value(ModelProfileDefinitions.get_selected_service_config_value())
+        profile_category.add_config_value(ModelProfileDefinitions.get_selected_model_config_value())
+        profile_category.add_config_value(ModelProfileDefinitions.get_profile_parameters_config_value())
+        result.add_base_group(profile_category)
 
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
