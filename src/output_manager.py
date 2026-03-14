@@ -103,7 +103,8 @@ class ChatManager:
         if not self.__config.allow_per_character_llm_overrides:
             return self.__client
 
-        cache_key = f"{character.ref_id}_{character.llm_service}_{character.llm_model}"
+        resolved_endpoint = utils.resolve_service_endpoint(character.llm_service)
+        cache_key = f"{character.ref_id}_{resolved_endpoint}_{character.llm_model}"
         if cache_key in self.__per_character_clients:
             return self.__per_character_clients[cache_key]
 
@@ -126,6 +127,11 @@ class ChatManager:
                 custom_token_count=self.__config.custom_token_count,
                 prompt_caching_enabled=self.__config.claude_prompt_caching_enabled,
             )
+            # Copy sub-clients from the main client so vision and tool-calling remain available
+            if isinstance(self.__client, ClientBase):
+                per_char_client._image_client = self.__client._image_client
+                per_char_client._function_client = self.__client._function_client
+                per_char_client._vision_mode = per_char_client._determine_vision_mode()
             self.__per_character_clients[cache_key] = per_char_client
             logger.info(f'Custom LLM selected for {character.name}. Service: {character.llm_service}, model: {character.llm_model}')
             return per_char_client
