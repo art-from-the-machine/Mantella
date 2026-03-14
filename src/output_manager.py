@@ -128,10 +128,9 @@ class ChatManager:
                 prompt_caching_enabled=self.__config.claude_prompt_caching_enabled,
             )
             # Copy sub-clients from the main client so vision and tool-calling remain available
-            if isinstance(self.__client, ClientBase):
-                per_char_client._image_client = self.__client._image_client
-                per_char_client._function_client = self.__client._function_client
-                per_char_client._vision_mode = per_char_client._determine_vision_mode()
+            per_char_client._image_client = getattr(self.__client, '_image_client', None)
+            per_char_client._function_client = getattr(self.__client, '_function_client', None)
+            per_char_client._vision_mode = per_char_client._determine_vision_mode()
             self.__per_character_clients[cache_key] = per_char_client
             logger.info(f'Custom LLM selected for {character.name}. Service: {character.llm_service}, model: {character.llm_model}')
             return per_char_client
