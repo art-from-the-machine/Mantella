@@ -47,6 +47,7 @@ class GameStateManager:
         self.__automatic_greeting: bool = config.automatic_greeting
         self.__conv_has_narrator: bool = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
         self.__should_reload: bool = False
+        self.__chat_manager.clear_per_character_client_cache()
 
     ###### react to calls from the game #######
     @utils.time_it
@@ -327,6 +328,8 @@ class GameStateManager:
             csv_in_game_voice_model: str = ""
             advanced_voice_model: str = ""
             voice_accent: str = ""
+            llm_service: str = ""
+            llm_model: str = ""
             is_player_character: bool = bool(json[comm_consts.KEY_ACTOR_ISPLAYER])
             if self.__talk and self.__talk.contains_character(ref_id):
                 already_loaded_character: Character | None = self.__talk.get_character(ref_id)
@@ -336,6 +339,8 @@ class GameStateManager:
                     csv_in_game_voice_model = already_loaded_character.csv_in_game_voice_model
                     advanced_voice_model = already_loaded_character.advanced_voice_model
                     voice_accent = already_loaded_character.voice_accent
+                    llm_service = already_loaded_character.llm_service
+                    llm_model = already_loaded_character.llm_model
                     is_generic_npc = already_loaded_character.is_generic_npc
             elif self.__talk and not is_player_character :#If this is not the player and the character has not already been loaded
                 external_info: external_character_info = self.__game.load_external_character_info(base_id, character_name, race, gender, actor_voice_model)
@@ -345,6 +350,8 @@ class GameStateManager:
                 csv_in_game_voice_model = external_info.csv_in_game_voice_model
                 advanced_voice_model = external_info.advanced_voice_model
                 voice_accent = external_info.voice_accent
+                llm_service = external_info.llm_service
+                llm_model = external_info.llm_model
                 is_generic_npc = external_info.is_generic_npc
                 if is_generic_npc:
                     character_name = external_info.name
@@ -372,7 +379,9 @@ class GameStateManager:
                             advanced_voice_model,
                             voice_accent,
                             equipment,
-                            custom_values)
+                            custom_values,
+                            llm_service=llm_service,
+                            llm_model=llm_model)
         except CharacterDoesNotExist:                 
             logger.error('Character not loaded. Restarting...')
             return None 

@@ -278,6 +278,7 @@ LLM parameter list must be valid JSON""")
             self.narration_indicators: NarrationIndicatorsEnum = self.__definitions.get_enum_value("narration_indicators", NarrationIndicatorsEnum)
             self.claude_prompt_caching_enabled: bool = self.__definitions.get_bool_value("claude_prompt_caching_enabled")
             self.apply_model_profiles: bool = self.__definitions.get_bool_value("apply_model_profiles")
+            self.allow_per_character_llm_overrides: bool = self.__definitions.get_bool_value("allow_per_character_llm_overrides")
 
             # Summary LLM
             self.summary_llm_enabled: bool = self.__definitions.get_bool_value("summary_llm_enabled")
