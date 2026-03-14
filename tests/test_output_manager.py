@@ -1,4 +1,3 @@
-import asyncio
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 from src.output_manager import ChatManager
@@ -14,46 +13,8 @@ from src.llm.sentence import Sentence
 from src.conversation.action import Action
 from src.llm.function_client import FunctionClient
 from src.llm.messages import AssistantMessage
+from tests.conftest import MockAIClient
 import time
-
-class MockAIClient:
-    """Mock AIClient for testing that simulates different response patterns"""
-    def __init__(self, response_pattern=None, tool_calls=None, error_on_call=False, delay=0.01):
-        self.response_pattern = response_pattern if response_pattern is not None else ["Hello there."]
-        self.tool_calls = tool_calls
-        self.error_on_call = error_on_call
-        self.delay = delay
-        self.call_count = 0  # Track number of calls for two-call (tools, text) pattern simulation
-        
-    async def streaming_call(self, messages=None, is_multi_npc=False, tools=None):
-        """Simulates streaming call with configurable response patterns"""
-        if self.error_on_call:
-            raise Exception("Simulated API error")
-        
-        self.call_count += 1
-        
-        # First call with tools: return tool_calls if configured
-        if tools and self.tool_calls and self.call_count == 1:
-            # Yield tool calls at the end of streaming (simulating accumulation)
-            yield ("tool_calls", self.tool_calls)
-            return
-        
-        # Second call or call without tools: return content
-        for chunk in self.response_pattern:
-            yield ("content", chunk)
-            await asyncio.sleep(self.delay)  # Small delay to simulate streaming
-    
-    def get_count_tokens(self, text):
-        """Mock token counting"""
-        return len(str(text).split())
-
-    def is_too_long(self, messages, token_limit_percent):
-        return False
-
-@pytest.fixture
-def mock_ai_client():
-    """Fixture providing a default MockAIClient instance"""
-    return MockAIClient()
 
 @pytest.fixture
 def mock_queue() -> SentenceQueue:

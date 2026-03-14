@@ -16,8 +16,6 @@ from src.telemetry.telemetry import get_telemetry_manager, create_span_from_thre
 if platform.system() == "Windows":
     import winsound
     import winreg
-else:
-    from playsound import playsound
 
 def get_logger():
     return logging.getLogger("Mantella")
@@ -79,6 +77,7 @@ def play_mantella_ready_sound():
         if platform.system() == "Windows":
             winsound.PlaySound(mantella_ready_wav_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
         else:
+            from playsound import playsound
             playsound(mantella_ready_wav_path, block=False)
     except:
         pass
@@ -90,6 +89,7 @@ def play_no_mic_input_detected_sound():
         if platform.system() == "Windows":
             winsound.PlaySound(no_mic_input_detected_wav_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
         else:
+            from playsound import playsound
             playsound(no_mic_input_detected_wav_path, block=False)
     except:
         pass
@@ -100,6 +100,7 @@ def play_error_sound():
         if platform.system() == "Windows":
             winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
         else:
+            from playsound import playsound
             playsound(os.path.join(resolve_path(), 'data', 'error.wav'), block=False)
     except:
         pass
@@ -244,6 +245,26 @@ def get_time_group(in_game_time):
     return time_group
 
 
+def safe_str(value) -> str:
+    """Convert a value to string safely, returning empty string for None/NaN/NaT/NA.
+    
+    Useful when reading values from pandas DataFrames where cells may contain
+    None, NaN, NaT, pd.NA, or string representations of these.
+    """
+    import pandas as pd
+    if value is None:
+        return ''
+    try:
+        if pd.isna(value):
+            return ''
+    except (TypeError, ValueError):
+        pass
+    result = str(value).strip()
+    if result.lower() in ('nan', 'nat', '<na>'):
+        return ''
+    return result
+
+
 def parse_keywords(keyword_string: str) -> list[str]:
     """
     Given a comma-delimited string of keywords, return a list of trimmed, lowercase keywords
@@ -330,6 +351,35 @@ def get_openai_model_list():
     models = [Model(**model) for model in openai_models]
 
     return SyncPage(data=models)
+
+
+_KNOWN_SERVICES: dict[str, str] = {
+    'openai': 'https://api.openai.com/v1',
+
+    'openrouter': 'https://openrouter.ai/api/v1',
+    'or': 'https://openrouter.ai/api/v1',
+
+    'nanogpt': 'https://nano-gpt.com/api/v1',
+    'nano': 'https://nano-gpt.com/api/v1',
+
+    'kobold': 'http://127.0.0.1:5001/v1',
+    'koboldcpp': 'http://127.0.0.1:5001/v1',
+
+    'textgenwebui': 'http://127.0.0.1:5000/v1',
+    'text-gen-web-ui': 'http://127.0.0.1:5000/v1',
+    'textgenerationwebui': 'http://127.0.0.1:5000/v1',
+    'text-generation-web-ui': 'http://127.0.0.1:5000/v1',
+    'player2': 'https://api.player2.game/v1',
+}
+
+
+def resolve_service_endpoint(value: str) -> str:
+    """Resolve a service name or alias to an endpoint URL.
+
+    Returns the normalized input as-is if not a known service (assumed to be a direct URL).
+    """
+    normalized = value.strip().lower().replace(' ', '')
+    return _KNOWN_SERVICES.get(normalized, normalized)
 
 
 def is_local_url(url: str) -> bool:

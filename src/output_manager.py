@@ -23,6 +23,8 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.llm.message_thread import message_thread
 from src.llm.ai_client import AIClient
+from src.llm.client_base import ClientBase
+from src.model_profile_manager import get_profile_manager, ModelProfileManager
 from src.actions.function_manager import FunctionManager
 from src.llm.messages import AssistantMessage, ToolMessage
 from src.tts.ttsable import TTSable
@@ -49,6 +51,8 @@ class ChatManager:
         self.__end_conversation_requested: bool = False
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
+        self.__per_character_clients: dict[str, AIClient] = {}
+        self.__profile_manager: ModelProfileManager = get_profile_manager()
 
     @property
     def tts(self) -> TTSable:
@@ -89,7 +93,51 @@ class ChatManager:
     
     def clear_end_conversation_requested(self) -> None:
         self.__end_conversation_requested = False
-    
+
+    def clear_per_character_client_cache(self) -> None:
+        """Clear the per-character client cache (eg on conversation start)."""
+        self.__per_character_clients.clear()
+
+    def _get_per_character_client(self, character: Character) -> AIClient:
+        """Return a per-character LLM client if overrides are configured, else the default client."""
+        if not self.__config.allow_per_character_llm_overrides:
+            return self.__client
+
+        resolved_endpoint = utils.resolve_service_endpoint(character.llm_service)
+        cache_key = f"{character.ref_id}_{resolved_endpoint}_{character.llm_model}"
+        if cache_key in self.__per_character_clients:
+            return self.__per_character_clients[cache_key]
+
+        if not character.llm_service or not character.llm_model:
+            return self.__client
+
+        llm_params = self.__profile_manager.resolve_params(
+            service=character.llm_service,
+            model=character.llm_model,
+            fallback_params=self.__config.llm_params,
+            apply_profile=self.__config.apply_model_profiles,
+            log_context=f"per-character override ({character.name})",
+        )
+
+        try:
+            per_char_client = ClientBase(
+                api_url=character.llm_service,
+                llm=character.llm_model,
+                llm_params=llm_params,
+                custom_token_count=self.__config.custom_token_count,
+                prompt_caching_enabled=self.__config.claude_prompt_caching_enabled,
+            )
+            # Copy sub-clients from the main client so vision and tool-calling remain available
+            per_char_client._image_client = getattr(self.__client, '_image_client', None)
+            per_char_client._function_client = getattr(self.__client, '_function_client', None)
+            per_char_client._vision_mode = per_char_client._determine_vision_mode()
+            self.__per_character_clients[cache_key] = per_char_client
+            logger.info(f'Custom LLM selected for {character.name}. Service: {character.llm_service}, model: {character.llm_model}')
+            return per_char_client
+        except Exception as e:
+            logger.error(f"Failed to create per-character client for {character.name}: {e}")
+            return self.__client
+
     @utils.time_it
     def generate_sentence(self, content: SentenceContent) -> Sentence:
         """Generates the audio for a text and returns the corresponding sentence
@@ -221,11 +269,12 @@ class ChatManager:
                 current_tools = tools  # Start with tools enabled
                 collected_tool_calls = []
                 tool_calls_added_this_turn = False  # Track if tool calls have been used in this iteration
-                
+                active_client = self._get_per_character_client(active_character) if not is_multi_npc else self.__client
+
                 while not has_text_response and retries < max_retries:
                     try:
                         start_time = time.time()
-                        async for item in self.__client.streaming_call(messages=messages, is_multi_npc=is_multi_npc, tools=current_tools):
+                        async for item in active_client.streaming_call(messages=messages, is_multi_npc=is_multi_npc, tools=current_tools):
                             if self.__stop_generation.is_set():
                                 break
                             if not item:
@@ -350,7 +399,7 @@ class ChatManager:
                             
                             # If vision was requested, enable it for the next call
                             if settings.vision_requested:
-                                self.__client.enable_vision_for_next_call()
+                                active_client.enable_vision_for_next_call()
                             
                             # Make second call without passing tools to ensure LLM generates text
                             current_tools = None
@@ -401,7 +450,7 @@ class ChatManager:
                     if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or pending_sentence.sentence_type != SentenceTypeEnum.NARRATION:
                         new_sentence = self.generate_sentence(pending_sentence)
                         blocking_queue.put(new_sentence)
-                logger.log(23, f"Full raw response ({self.__client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")
+                logger.log(23, f"Full raw response ({active_client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")
                 blocking_queue.is_more_to_come = False
                 # This sentence is required to make sure there is one in case the game is already waiting for it
                 # before the ChatManager realises there is not another message coming from the LLM

@@ -11,7 +11,6 @@ from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
 import src.utils as utils
-import sounddevice as sd
 import soundfile as sf
 import threading
 import wave
@@ -364,6 +363,11 @@ class Gameable(ABC):
             volume (float): Volume multiplier (0.0 to 1.0)
         """
         def audio_thread():
+            try:
+                import sounddevice as sd
+            except ImportError:
+                logger.warning("sounddevice not available, skipping audio playback")
+                return
             data, samplerate = sf.read(filename)
             data = data * volume
             sd.play(data, samplerate)

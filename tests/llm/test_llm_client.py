@@ -64,6 +64,7 @@ def test_apis_load_correctly(default_config: ConfigLoader):
     assert llm_client.api_key == 'abc123'
 
 
+@pytest.mark.requires_llm
 def test_startup_async_client_initialized(llm_client: LLMClient):
     """Tests that the initial async client is generated"""
     assert llm_client._startup_async_client is not None
@@ -80,12 +81,14 @@ def test_vision_model_disabled(default_config: ConfigLoader):
     assert llm_client._image_client is None
 
 
+@pytest.mark.requires_llm
 def test_sync_call(llm_client: LLMClient, example_system_message: SystemMessage):
     response = llm_client.request_call(example_system_message)
     assert response is not None
     assert isinstance(response, str)
 
 
+@pytest.mark.requires_llm
 @pytest.mark.asyncio
 async def test_async_call(llm_client: LLMClient, example_system_message: SystemMessage):
     response = ''
@@ -257,6 +260,7 @@ def test_llm_client_no_function_client_when_only_custom_model_enabled(default_co
     assert client._function_client is None
 
 
+@pytest.mark.requires_llm
 @pytest.mark.asyncio
 async def test_streaming_call_with_function_client(llm_client_w_function_client: LLMClient, default_context: Context, sample_message_thread_function_request: message_thread):
     """
@@ -280,7 +284,8 @@ async def test_streaming_call_with_function_client(llm_client_w_function_client:
     assert isinstance(content_received, list)
 
 
-@pytest.mark.asyncio  
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
 async def test_streaming_call_without_function_client(llm_client: LLMClient, default_context: Context, sample_message_thread_function_request: message_thread):
     """
     Tests that streaming_call uses main LLM for tools when function client doesn't exist
@@ -309,6 +314,7 @@ async def test_streaming_call_without_function_client(llm_client: LLMClient, def
     assert isinstance(content_received, list)
 
 
+@pytest.mark.requires_llm
 @pytest.mark.asyncio
 async def test_streaming_call_without_tools(llm_client_w_function_client: LLMClient, default_config: ConfigLoader, sample_message_thread_function_request: message_thread):
     """

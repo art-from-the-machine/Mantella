@@ -8,6 +8,7 @@ from src.games.gameable import Gameable
 from src.games.skyrim import Skyrim
 from src.output_manager import ChatManager
 from src.llm.llm_client import LLMClient
+from src.llm.summary_client import SummaryLLMClient
 from src.game_manager import GameStateManager
 from src.http.routes.routeable import routeable
 from src.http.communication_constants import communication_constants as comm_consts
@@ -59,9 +60,13 @@ class mantella_route(routeable):
             tts = Piper(self._config, game)
 
         llm_client = LLMClient(self._config)
-        
+
+        summary_client: SummaryLLMClient | None = None
+        if self._config.summary_llm_enabled:
+            summary_client = SummaryLLMClient(self._config)
+
         chat_manager = ChatManager(self._config, tts, llm_client)
-        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client)
+        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, summary_client)
 
     @utils.time_it
     def add_route_to_server(self, app: FastAPI):

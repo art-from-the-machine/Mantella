@@ -21,8 +21,8 @@
 #      - Auto-update the Model dropdown to "Managed by Player2" on service switch
 #
 # NOTE FOR MAINTAINER:
-#   The Player2 GAME_CLIENT_ID in src/llm/player2_auth.py is a test ID.
-#   Replace it with the official Mantella client ID from https://developer.player2.game
+#   The Player2 GAME_CLIENT_ID in src/llm/player2_auth.py is a development ID.
+#   Replace it with the official Mantella client ID from https://player2.game/profile/developer
 # =============================================================================
 
 import typing
@@ -44,6 +44,7 @@ from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_group import ConfigValueGroup
 from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_visitor import ConfigValueVisitor
+from src.ui.profile_ui_handler import ProfileUIHandler
 
 # --- PLAYER2 START ---
 from src.llm.player2_auth import (
@@ -86,10 +87,19 @@ class SettingsUIConstructor(ConfigValueVisitor):
         self.__identifier_to_config_value: dict[str, ConfigValue] = {}
         self.__config_value_to_ui_element: dict[ConfigValue, Any] = {}
         self.__pending_shared_setting: SettingConfig | None = None
+        self.__profile_handler: ProfileUIHandler | None = None
 
     @property
     def config_value_to_ui_element(self) -> dict[ConfigValue, gr.Column]:
         return self.__config_value_to_ui_element
+
+    def _get_profile_handler(self) -> ProfileUIHandler:
+        if self.__profile_handler is None:
+            self.__profile_handler = ProfileUIHandler(
+                self.__identifier_to_config_value,
+                self.__config_value_to_ui_element,
+            )
+        return self.__profile_handler
 
     def __create_tooltip(self, config_value: ConfigValue, is_second_setting: bool = False) -> str:
         """Creates the tooltip HTML for a config value"""
@@ -326,7 +336,15 @@ class SettingsUIConstructor(ConfigValueVisitor):
                         lines= count_rows,
                         elem_classes="multiline-textbox")
 
-        self.__create_config_value_ui_element(config_value, create_input_component, False, True, True)
+        additional_buttons: list[tuple[str, Callable[[], Any]]] = []
+        if config_value.identifier == ProfileUIHandler.PARAMS_ID:
+            additional_buttons = self._get_profile_handler().get_additional_buttons()
+
+        self.__create_config_value_ui_element(config_value, create_input_component, False, True, True, additional_buttons)
+
+        # Wire auto-load: when the profile model dropdown changes, load existing profile params
+        if config_value.identifier == ProfileUIHandler.PARAMS_ID:
+            self._get_profile_handler().setup_auto_load(config_value)
 
     def __count_rows_in_text(self, text: str) -> int:
         count_CRLF = text.count("\r\n")
@@ -352,8 +370,8 @@ class SettingsUIConstructor(ConfigValueVisitor):
            is not running.
 
         NOTE FOR MAINTAINER:
-          PLAYER2_GAME_CLIENT_ID in player2_auth.py is a test ID.
-          Replace it with the official Mantella ID from https://developer.player2.game
+          PLAYER2_GAME_CLIENT_ID in player2_auth.py is a development ID.
+          Replace it with the official Mantella ID from https://player2.game/profile/developer
         """
 
         with gr.Column(visible=False) as p2_section:
@@ -614,6 +632,16 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 "dependent_config": "function_llm_api",
                 "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
                 "model_list_getter": ClientBase.get_model_list,
+            },
+            "summary_llm": {
+                "dependent_config": "summary_llm_api",
+                "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
+                "model_list_getter": ClientBase.get_model_list,
+            },
+            "profile_selected_model": {
+                "dependent_config": "profile_selected_service",
+                "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
+                "model_list_getter": ClientBase.get_model_list,
             }
         }
 
@@ -701,13 +729,15 @@ class SettingsUIConstructor(ConfigValueVisitor):
                     p2_auto_detect_fn = self.__p2_auto_detect_fn
 
                     def on_service_change(service: str):
-                        # --- PLAYER2: update the stored config value before calling update_model_list
-                        # so it reads the correct service instead of the previous one
+                        # Update the stored config value before calling update_model_list
+                        # so it reads the correct service instead of the previous one.
+                        # Without this, switching back from Player2 to OpenAI would still
+                        # show "Managed by Player2" as the model.
                         self.__identifier_to_config_value["llm_api"].value = service
                         model_update = update_model_list()
                         p2_updates = p2_auto_detect_fn(service)
                         return (model_update, *p2_updates)
-                    
+
                     service_dropdown.change(
                         fn=on_service_change,
                         inputs=[service_dropdown],
