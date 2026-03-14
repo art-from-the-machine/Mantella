@@ -58,6 +58,7 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_speech_end_indicators())
         llm_category.add_config_value(LLMDefinitions.get_narration_indicators())
         llm_category.add_config_value(LLMDefinitions.get_claude_prompt_caching_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_allow_per_character_llm_overrides_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_enabled_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_config_value())

@@ -156,6 +156,14 @@ class LLMDefinitions:
         return ConfigValueBool("claude_prompt_caching_enabled", "Claude Prompt Caching", description, False, tags=[ConfigValueTag.advanced])
     
     @staticmethod
+    def get_allow_per_character_llm_overrides_config_value() -> ConfigValue:
+        description = """Allow individual characters to use different LLM models/providers for one-on-one conversations.
+            To use this feature, add 'llm_service' and 'model' values under the appropriate columns in the characters CSV file.
+            Characters without these columns will fall back to the global LLM settings.
+            This feature only applies to one-on-one conversations, not multi-NPC."""
+        return ConfigValueBool("allow_per_character_llm_overrides", "Per-Character LLM Overrides", description, False, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
     def get_summary_llm_enabled_config_value() -> ConfigValue:
         description = """Enable a separate LLM client for generating conversation summaries.
             When enabled, the Summary LLM settings below will be used instead of the main LLM settings.

@@ -269,6 +269,25 @@ def test_load_external_character_info(skyrim: Skyrim):
     assert info.voice_accent == "en"
     assert info.bio == "You are a male Nord Unknown Character."
 
+def test_load_external_character_info_llm_columns_from_csv_override(tmp_path, skyrim_test_config: ConfigLoader):
+    """Test that per-character LLM overrides are loaded from CSV override files"""
+    csv_content = (
+        "name,base_id,race,bio,voice_model,skyrim_voice_folder,advanced_voice_model,voice_accent,llm_service,model\n"
+        "TestNPC,TEST01,Nord,A test NPC.,MaleNord,MaleEvenToned,,en,https://api.openai.com/v1,gpt-4\n"
+    )
+    override_dir = tmp_path / "data" / "Skyrim" / "character_overrides"
+    override_dir.mkdir(parents=True, exist_ok=True)
+    (override_dir / "llm_override.csv").write_text(csv_content)
+
+    skyrim = Skyrim(skyrim_test_config)
+    info = skyrim.load_external_character_info(
+        base_id='TEST01', name='TestNPC',
+        race='[Race <NordRace (00013746)>]', gender=0,
+        ingame_voice_model='[VoiceType <MaleEvenToned (00013AD2)>]'
+    )
+    assert info.llm_service == "https://api.openai.com/v1"
+    assert info.llm_model == "gpt-4"
+
 
 def test_prepare_sentence_for_game(tmp_path, skyrim: Skyrim, default_config: ConfigLoader, example_skyrim_npc_character: Character, default_context: Context):
     """Test that prepare_sentence_for_game correctly processes audio files based on configuration"""

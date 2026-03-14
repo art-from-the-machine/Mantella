@@ -45,6 +45,40 @@ from src.llm.message_thread import message_thread
 from src.llm.messages import SystemMessage, UserMessage
 from src.actions.function_manager import FunctionManager
 from unittest.mock import MagicMock
+import asyncio
+
+
+class MockAIClient:
+    """Mock AIClient for testing that simulates different response patterns."""
+    def __init__(self, response_pattern=None, tool_calls=None, error_on_call=False, delay=0.01):
+        self.response_pattern = response_pattern if response_pattern is not None else ["Hello there."]
+        self.tool_calls = tool_calls
+        self.error_on_call = error_on_call
+        self.delay = delay
+        self.call_count = 0
+
+    async def streaming_call(self, messages=None, is_multi_npc=False, tools=None):
+        if self.error_on_call:
+            raise Exception("Simulated API error")
+        self.call_count += 1
+        if tools and self.tool_calls and self.call_count == 1:
+            yield ("tool_calls", self.tool_calls)
+            return
+        for chunk in self.response_pattern:
+            yield ("content", chunk)
+            await asyncio.sleep(self.delay)
+
+    def get_count_tokens(self, text):
+        return len(str(text).split())
+
+    def is_too_long(self, messages, token_limit_percent):
+        return False
+
+
+@pytest.fixture
+def mock_ai_client():
+    """Fixture providing a default MockAIClient instance"""
+    return MockAIClient()
 
 @pytest.fixture
 def default_config(tmp_path: Path) -> ConfigLoader:
@@ -241,6 +275,8 @@ def example_skyrim_player_character() -> Character:
             'righthand': EquipmentItem('Iron Sword'),
         }),
         custom_character_values = {'mantella_pc_description': '', 'mantella_pc_voiceplayerinput': False},
+        llm_service = '',
+        llm_model = '',
     )
 
 @pytest.fixture
@@ -270,6 +306,8 @@ def example_skyrim_npc_character() -> Character:
             'righthand': EquipmentItem('Iron Sword'),
         }),
         custom_character_values = None,
+        llm_service = '',
+        llm_model = '',
     )
 
 @pytest.fixture
@@ -298,7 +336,9 @@ def another_example_skyrim_npc_character() -> Character:
             'head': EquipmentItem('Iron Helmet'),
             'righthand': EquipmentItem('Iron Sword'),
         }),
-        custom_character_values=None
+        custom_character_values=None,
+        llm_service = '',
+        llm_model = '',
     )
 
 @pytest.fixture
