@@ -97,13 +97,18 @@ class GameStateManager:
             return None
 
         logger.log(23, f"Using randomly selected LLM: {selection.service}/{selection.model}")
-        return ClientBase(
+        random_client = ClientBase(
             selection.service,
             selection.model,
             selection.parameters,
             self.__config.custom_token_count,
             self.__config.claude_prompt_caching_enabled,
         )
+        # Copy sub-clients from the main client so vision and tool-calling remain available
+        random_client._image_client = getattr(self.__client, '_image_client', None)
+        random_client._function_client = getattr(self.__client, '_function_client', None)
+        random_client._vision_mode = random_client._determine_vision_mode()
+        return random_client
         
     
     @utils.time_it
