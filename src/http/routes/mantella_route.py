@@ -13,9 +13,7 @@ from src.game_manager import GameStateManager
 from src.http.routes.routeable import routeable
 from src.http.communication_constants import communication_constants as comm_consts
 from src.tts.ttsable import TTSable
-from src.tts.xvasynth import xVASynth
-from src.tts.xtts import XTTS
-from src.tts.piper import Piper
+from src.tts.tts_factory import create_tts
 from src import utils
 from src.config.definitions.game_definitions import GameEnum
 from src.config.definitions.tts_definitions import TTSEnum
@@ -51,13 +49,7 @@ class mantella_route(routeable):
         else:
             game = Skyrim(self._config)
 
-        tts: TTSable
-        if self._config.tts_service == TTSEnum.XVASYNTH:
-            tts = xVASynth(self._config)
-        elif self._config.tts_service == TTSEnum.XTTS:
-            tts = XTTS(self._config, game)
-        if self._config.tts_service == TTSEnum.PIPER:
-            tts = Piper(self._config, game)
+        tts: TTSable = create_tts(self._config.tts_service, self._config, game)
 
         llm_client = LLMClient(self._config)
 
@@ -65,7 +57,7 @@ class mantella_route(routeable):
         if self._config.summary_llm_enabled:
             summary_client = SummaryLLMClient(self._config)
 
-        chat_manager = ChatManager(self._config, tts, llm_client)
+        chat_manager = ChatManager(self._config, tts, llm_client, game)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, summary_client)
 
     @utils.time_it

@@ -29,6 +29,8 @@ from src.actions.function_manager import FunctionManager
 from src.llm.messages import AssistantMessage, ToolMessage
 from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
+from src.tts.tts_factory import parse_tts_service, create_tts
+from src.config.definitions.tts_definitions import TTSEnum
 from src.telemetry.telemetry import create_span_from_thread
 from src.games.gameable import Gameable
 from typing import Callable
@@ -37,11 +39,12 @@ logger = utils.get_logger()
 
 
 class ChatManager:
-    def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient):
+    def __init__(self, config: ConfigLoader, tts: TTSable, client: AIClient, game: Gameable | None = None):
         self.loglevel = 28
         self.__config: ConfigLoader = config
         self.__tts: TTSable = tts
         self.__client: AIClient = client
+        self.__game: Gameable | None = game
         self.__is_generating: bool = False
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
@@ -52,6 +55,7 @@ class ChatManager:
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
         self.__per_character_clients: dict[str, AIClient] = {}
+        self.__per_service_tts: dict[TTSEnum, TTSable] = {}
         self.__profile_manager: ModelProfileManager = get_profile_manager()
 
     @property
@@ -97,6 +101,21 @@ class ChatManager:
     def clear_per_character_client_cache(self) -> None:
         """Clear the per-character client cache (eg on conversation start)."""
         self.__per_character_clients.clear()
+
+    def _get_or_create_tts(self, service: TTSEnum) -> TTSable:
+        """Get or create a TTS instance for the given service, with caching."""
+        if service == self.__config.tts_service:
+            return self.__tts
+        if service in self.__per_service_tts:
+            return self.__per_service_tts[service]
+        try:
+            logger.info(f"Starting TTS service '{service}' due to CSV character override")
+            instance = create_tts(service, self.__config, self.__game)
+            self.__per_service_tts[service] = instance
+            return instance
+        except Exception as e:
+            logger.warning(f"Failed to create TTS service '{service}': {e}. Falling back to default TTS.")
+            return self.__tts
 
     def _get_per_character_client(self, character: Character) -> AIClient:
         """Return a per-character LLM client if overrides are configured, else the default client."""
@@ -167,7 +186,16 @@ class ChatManager:
                     audio_file = self.__tts.synthesize(self.__config.narrator_voice, text, self.__config.narrator_voice, self.__config.narrator_voice, "en", synth_options, self.__config.narrator_voice)
                 else:
                     synth_options = SynthesizationOptions(character_to_talk.is_in_combat, self.__is_first_sentence)
-                    audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
+                    selected_tts_service = parse_tts_service(character_to_talk.tts_service) if self.__config.allow_per_character_tts_overrides else None
+                    if selected_tts_service is not None:
+                        try:
+                            tts_instance = self._get_or_create_tts(selected_tts_service)
+                            audio_file = tts_instance.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
+                        except Exception as e:
+                            logger.warning(f"Per-character TTS '{character_to_talk.tts_service}' failed for {character_to_talk.name}: {e}. Falling back to default TTS.")
+                            audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
+                    else:
+                        audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
             except Exception as e:
                 utils.play_error_sound()
                 error_text = f"Text-to-Speech Error: {e}"

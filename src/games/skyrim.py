@@ -94,8 +94,9 @@ class Skyrim(Gameable):
 
         llm_service_value = utils.safe_str(character_info.get('llm_service', ''))
         llm_model_value = utils.safe_str(character_info.get('model', ''))
+        tts_service_value = utils.safe_str(character_info.get('tts_service', ''))
 
-        return external_character_info(name, is_generic_npc, bio, actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None), llm_service=llm_service_value, llm_model=llm_model_value)
+        return external_character_info(name, is_generic_npc, bio, actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None), llm_service=llm_service_value, llm_model=llm_model_value, tts_service=tts_service_value)
     
     @utils.time_it
     def find_best_voice_model(self, actor_race: str | None, actor_sex: int | None, ingame_voice_model: str, library_search:bool = True) -> str:
