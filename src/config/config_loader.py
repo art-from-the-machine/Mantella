@@ -201,6 +201,7 @@ class ConfigLoader:
             self.lip_generation = self.__definitions.get_string_value("lip_generation").strip().lower()
             self.fast_response_mode = self.__definitions.get_bool_value("fast_response_mode")
             self.fast_response_mode_volume = self.__definitions.get_int_value("fast_response_mode_volume")
+            self.allow_per_character_tts_overrides: bool = self.__definitions.get_bool_value("allow_per_character_tts_overrides")
 
             #Added from xTTS implementation
             self.xtts_default_model = self.__definitions.get_string_value("xtts_default_model")

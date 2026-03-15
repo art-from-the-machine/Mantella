@@ -77,6 +77,7 @@ class MantellaConfigValueDefinitionsNew:
         tts_category.add_config_value(TTSDefinitions.get_lip_generation_config_value())
         tts_category.add_config_value(TTSDefinitions.get_fast_response_mode_config_value())
         tts_category.add_config_value(TTSDefinitions.get_fast_response_mode_volume_config_value())
+        tts_category.add_config_value(TTSDefinitions.get_allow_per_character_tts_overrides_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_url_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_default_model_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_device_config_value())

@@ -277,6 +277,7 @@ def example_skyrim_player_character() -> Character:
         custom_character_values = {'mantella_pc_description': '', 'mantella_pc_voiceplayerinput': False},
         llm_service = '',
         llm_model = '',
+        tts_service = '',
     )
 
 @pytest.fixture
@@ -308,6 +309,7 @@ def example_skyrim_npc_character() -> Character:
         custom_character_values = None,
         llm_service = '',
         llm_model = '',
+        tts_service = '',
     )
 
 @pytest.fixture
@@ -339,6 +341,7 @@ def another_example_skyrim_npc_character() -> Character:
         custom_character_values=None,
         llm_service = '',
         llm_model = '',
+        tts_service = '',
     )
 
 @pytest.fixture
