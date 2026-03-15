@@ -1,5 +1,6 @@
 import random
 from dataclasses import dataclass
+from typing import Any
 from src.model_profile_manager import ModelProfileManager, get_profile_manager
 from src import utils
 
@@ -11,7 +12,7 @@ class LLMSelection:
     """Represents a selected LLM configuration"""
     service: str
     model: str
-    parameters: dict[str, str]
+    parameters: dict[str, Any]
 
 
 class RandomLLMSelector:
@@ -20,7 +21,7 @@ class RandomLLMSelector:
     def __init__(self, profile_manager: ModelProfileManager | None = None):
         self._profile_manager = profile_manager or get_profile_manager()
 
-    def select(self, random_llm_enabled: bool, random_llm_pool: list[dict[str, str]], fallback: LLMSelection) -> LLMSelection | None:
+    def select(self, random_llm_enabled: bool, random_llm_pool: list[dict[str, str]] | None, fallback: LLMSelection) -> LLMSelection | None:
         """Pick a random LLM from the configured pool.
 
         Returns an LLMSelection if a random model was chosen, or None when
@@ -39,7 +40,7 @@ class RandomLLMSelector:
             logger.error(f"Error in random LLM selection: {e}")
             return None
 
-    def _select_from_pool(self, pool: list[dict[str, str]], fallback: LLMSelection) -> LLMSelection | None:
+    def _select_from_pool(self, pool: list[dict[str, Any]], fallback: LLMSelection) -> LLMSelection | None:
         """Select an LLM from a pool, applying model profile if available."""
         if not isinstance(pool, list) or not pool:
             logger.warning("Invalid or empty random LLM pool")
