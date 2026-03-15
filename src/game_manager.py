@@ -92,7 +92,7 @@ class GameStateManager:
             model=self.__config.llm,
             parameters=self.__config.llm_params or {},
         )
-        selection = self.__random_selector.select(self.__config.random_llm_enabled, self.__config.random_llm_pool, fallback)
+        selection = self.__random_selector.select(self.__config.random_llm_enabled, self.__config.random_llm_pool, fallback, self.__config.apply_model_profiles)
         if selection is None:
             return None
 

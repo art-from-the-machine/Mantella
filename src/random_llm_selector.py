@@ -21,7 +21,7 @@ class RandomLLMSelector:
     def __init__(self, profile_manager: ModelProfileManager | None = None):
         self._profile_manager = profile_manager or get_profile_manager()
 
-    def select(self, random_llm_enabled: bool, random_llm_pool: list[dict[str, str]] | None, fallback: LLMSelection) -> LLMSelection | None:
+    def select(self, random_llm_enabled: bool, random_llm_pool: list[dict[str, str]] | None, fallback: LLMSelection, apply_profile: bool = True) -> LLMSelection | None:
         """Pick a random LLM from the configured pool.
 
         Returns an LLMSelection if a random model was chosen, or None when
@@ -35,12 +35,12 @@ class RandomLLMSelector:
             return None
 
         try:
-            return self._select_from_pool(pool, fallback)
+            return self._select_from_pool(pool, fallback, apply_profile)
         except Exception as e:
             logger.error(f"Error in random LLM selection: {e}")
             return None
 
-    def _select_from_pool(self, pool: list[dict[str, Any]], fallback: LLMSelection) -> LLMSelection | None:
+    def _select_from_pool(self, pool: list[dict[str, Any]], fallback: LLMSelection, apply_profile: bool) -> LLMSelection | None:
         """Select an LLM from a pool, applying model profile if available."""
         if not isinstance(pool, list) or not pool:
             logger.warning("Invalid or empty random LLM pool")
@@ -59,7 +59,7 @@ class RandomLLMSelector:
             service=service,
             model=model,
             fallback_params=fallback.parameters,
-            apply_profile=True,
+            apply_profile=apply_profile,
             log_context="random LLM selection",
         )
 

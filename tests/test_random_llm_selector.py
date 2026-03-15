@@ -95,6 +95,19 @@ class TestProfileResolution:
         result = selector.select(random_llm_enabled=True, random_llm_pool=pool, fallback=_default_fallback())
         assert result.parameters == {"max_tokens": 42}
 
+    def test_apply_profile_false_ignores_profile(self, tmp_path: Path):
+        """When apply_profile=False, stored profiles should be ignored and fallback params used."""
+        mgr = ModelProfileManager(storage_path=tmp_path / "model_profiles.json")
+        mgr.create_or_update_profile("openrouter", "mistral-small", {"temperature": 0.2, "max_tokens": 100})
+        selector = RandomLLMSelector(profile_manager=mgr)
+
+        fallback = LLMSelection(service="OpenAI", model="default", parameters={"temperature": 0.9, "max_tokens": 500})
+        pool = [{"service": "OpenRouter", "model": "mistral-small"}]
+
+        result = selector.select(random_llm_enabled=True, random_llm_pool=pool, fallback=fallback, apply_profile=False)
+        assert result is not None
+        assert result.parameters == {"temperature": 0.9, "max_tokens": 500}
+
 
 class TestInvalidPoolEntries:
     def test_entry_missing_service_returns_none(self, tmp_path: Path):
