@@ -1,6 +1,6 @@
 import random
 from dataclasses import dataclass
-from src.model_profile_manager import ModelProfileManager
+from src.model_profile_manager import ModelProfileManager, get_profile_manager
 from src import utils
 
 logger = utils.get_logger()
@@ -18,7 +18,7 @@ class RandomLLMSelector:
     """Selects a random LLM from a configured pool."""
 
     def __init__(self, profile_manager: ModelProfileManager | None = None):
-        self._profile_manager = profile_manager or ModelProfileManager()
+        self._profile_manager = profile_manager or get_profile_manager()
 
     def select(self, random_llm_enabled: bool, random_llm_pool: list[dict[str, str]], fallback: LLMSelection) -> LLMSelection | None:
         """Pick a random LLM from the configured pool.
