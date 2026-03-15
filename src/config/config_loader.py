@@ -281,6 +281,15 @@ LLM parameter list must be valid JSON""")
             self.apply_model_profiles: bool = self.__definitions.get_bool_value("apply_model_profiles")
             self.allow_per_character_llm_overrides: bool = self.__definitions.get_bool_value("allow_per_character_llm_overrides")
 
+            # Random LLM Selection
+            self.random_llm_enabled: bool = self.__definitions.get_bool_value("random_llm_enabled")
+            try:
+                self.random_llm_pool: list = json.loads(self.__definitions.get_string_value("random_llm_pool"))
+            except Exception as e:
+                logger.error(f"""Error in parsing random LLM pool: {e}
+LLM pool must be valid JSON""")
+                self.random_llm_pool = []
+
             # Summary LLM
             self.summary_llm_enabled: bool = self.__definitions.get_bool_value("summary_llm_enabled")
             self.summary_llm_api = self.__definitions.get_string_value("summary_llm_api")
