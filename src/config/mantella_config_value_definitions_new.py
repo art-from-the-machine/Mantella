@@ -64,6 +64,8 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_custom_token_count_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_params_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_enabled_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_pool_config_value())
         result.add_base_group(llm_category)
 
         tts_category = ConfigValueGroup("TTS", "Text-to-Speech", "Settings for the TTS methods Mantella supports.", on_value_change_callback)
