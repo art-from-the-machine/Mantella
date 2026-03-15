@@ -284,7 +284,7 @@ LLM parameter list must be valid JSON""")
             # Random LLM Selection
             self.random_llm_enabled: bool = self.__definitions.get_bool_value("random_llm_enabled")
             try:
-                self.random_llm_pool: list = json.loads(self.__definitions.get_string_value("random_llm_pool"))
+                self.random_llm_pool: list = json.loads(self.__definitions.get_string_value("random_llm_pool").replace('\n', ''))
             except Exception as e:
                 logger.error(f"""Error in parsing random LLM pool: {e}
 LLM pool must be valid JSON""")
