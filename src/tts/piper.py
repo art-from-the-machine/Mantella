@@ -19,7 +19,7 @@ logger = utils.get_logger()
 
 
 def enqueue_output(out, queue, stop_flag):
-    for line in iter(out.readline, b''):
+    for line in iter(out.readline, ''):
         queue.put(line)
         if stop_flag():
             break
@@ -71,7 +71,9 @@ class Piper(TTSable):
     @utils.time_it
     def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         if self.__waiting_for_voice_load:
-            self._check_voice_changed()
+            voice_ready = self._check_voice_changed()
+            if voice_ready is False:
+                logger.warning("Voice model did not load successfully before synthesis attempt")
 
         # Piper tends to overexaggerate sentences with exclamation marks, which works well for combat but not for casual conversation
         if not synth_options.aggro:
@@ -79,13 +81,16 @@ class Piper(TTSable):
         else:
             voiceline = voiceline.replace('.','!')
         voiceline = voiceline.replace('*','') # Drop *. Piper reads them aloud. "*She waves.*" -> "Asterisk She waves. Asterisk"
+        voiceline = voiceline.replace('\n', ' ').replace('\r', ' ')
 
         attempts = 0
-        while attempts < 3:
+        max_attempts = 5
+        while attempts < max_attempts:
             self.__write_to_stdin(f"synthesize {voiceline}\n")
             max_wait_time = 5
             start_time = time.time()
 
+            crashed = False
             while time.time() - start_time < max_wait_time:
                 exit_code = self.process.poll()
                 if exit_code is not None and exit_code != 0:
@@ -93,13 +98,15 @@ class Piper(TTSable):
                     self._run_piper()
                     if self.__selected_voice:
                         self.change_voice(self.__selected_voice)
+                        self._check_voice_changed()
+                    crashed = True
                     break
                 elif os.path.exists(final_voiceline_file):
                     try: # don't just check if .wav exists, check if it has contents
                         with wave.open(final_voiceline_file, 'rb') as wav_file:
                             frames = wav_file.getnframes()
                             rate = wav_file.getframerate()
-                            duration = frames / float(rate)
+                            duration = frames / float(rate) if rate else 0.0
                             logger.debug(f'"{voiceline}" is {duration} seconds long')
                             if duration > 0:
                                 return
@@ -107,24 +114,37 @@ class Piper(TTSable):
                         pass
                 time.sleep(0.01)
 
+            if crashed:
+                attempts += 1
+                continue
+
             logger.warning(f'Synthesis timed out for voiceline "{voiceline.strip()}". Restarting Piper...')
             self._restart_piper()
             if self.__selected_voice:
                 self.change_voice(self.__selected_voice)
+                self._check_voice_changed()
             attempts += 1
+
+        logger.error(
+            f"Piper failed after {attempts} attempts. Voice: {self.__selected_voice}, "
+            f"Process alive: {hasattr(self, 'process') and self.process and self.process.poll() is None}, "
+            f"Text: '{voiceline[:50]}...', Length: {len(voiceline)} chars"
+        )
+        raise TTSServiceFailure(f"Piper failed after {attempts} attempts (timeout/crash)")
     
     @utils.time_it
-    def _check_voice_changed(self):
-        while True:
+    def _check_voice_changed(self, max_retries: int = 5):
+        for attempt in range(max_retries + 1):
             max_wait_time = 5
             start_time = time.time()
 
+            crashed = False
             while time.time() - start_time < max_wait_time:
                 exit_code = self.process.poll()
                 if exit_code is not None and exit_code != 0:
                     logger.error(f"Piper process has crashed with exit code: {exit_code}")
                     self.__waiting_for_voice_load = False
-                    self._run_piper()
+                    crashed = True
                     break
                 
                 try:  
@@ -133,15 +153,29 @@ class Piper(TTSable):
                         logger.log(self._loglevel, f'Model {self.__selected_voice} loaded')
                         self.__waiting_for_voice_load = False
                         self._last_voice = self.__selected_voice
-                        return
+                        return True
                 except Empty:
                     pass
                 time.sleep(0.01)
 
-            logger.warning(f'Voice model loading timed out for "{self.__selected_voice}". Restarting Piper...')
-            self.__waiting_for_voice_load = False
-            self._restart_piper()
-            self.change_voice(self.__selected_voice)
+            if attempt >= max_retries:
+                break
+
+            if crashed:
+                logger.warning(f'Piper crashed while waiting for voice model "{self.__selected_voice}". Restarting Piper...')
+                self._run_piper()
+            else:
+                logger.warning(f'Voice model loading timed out for "{self.__selected_voice}". Restarting Piper...')
+                self._restart_piper()
+
+            if self.__selected_voice:
+                model_path = self.__models_path / f'{self.__selected_voice}.onnx'
+                self.__write_to_stdin(f"load_model {model_path}\n")
+                self.__waiting_for_voice_load = True
+
+        logger.error(f"Voice model failed to load after {max_retries+1} attempts for {self.__selected_voice}")
+        self.__waiting_for_voice_load = False
+        return False
 
     @utils.time_it
     def _select_voice_type(self, voice: str, in_game_voice: str | None, csv_in_game_voice: str | None, advanced_voice_model: str | None, voice_gender: int | None, voice_race: str | None):
