@@ -134,17 +134,17 @@ class Piper(TTSable):
     
     @utils.time_it
     def _check_voice_changed(self, max_retries: int = 5):
-        retries = 0
-        while retries <= max_retries:
+        for attempt in range(max_retries + 1):
             max_wait_time = 5
             start_time = time.time()
 
+            crashed = False
             while time.time() - start_time < max_wait_time:
                 exit_code = self.process.poll()
                 if exit_code is not None and exit_code != 0:
                     logger.error(f"Piper process has crashed with exit code: {exit_code}")
                     self.__waiting_for_voice_load = False
-                    self._run_piper()
+                    crashed = True
                     break
                 
                 try:  
@@ -158,14 +158,20 @@ class Piper(TTSable):
                     pass
                 time.sleep(0.01)
 
-            logger.warning(f'Voice model loading timed out for "{self.__selected_voice}". Restarting Piper...')
-            self.__waiting_for_voice_load = False
-            self._restart_piper()
+            if attempt >= max_retries:
+                break
+
+            if crashed:
+                logger.warning(f'Piper crashed while waiting for voice model "{self.__selected_voice}". Restarting Piper...')
+                self._run_piper()
+            else:
+                logger.warning(f'Voice model loading timed out for "{self.__selected_voice}". Restarting Piper...')
+                self._restart_piper()
+
             if self.__selected_voice:
                 model_path = self.__models_path / f'{self.__selected_voice}.onnx'
                 self.__write_to_stdin(f"load_model {model_path}\n")
                 self.__waiting_for_voice_load = True
-            retries += 1
 
         logger.error(f"Voice model failed to load after {max_retries+1} attempts for {self.__selected_voice}")
         self.__waiting_for_voice_load = False
