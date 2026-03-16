@@ -207,23 +207,30 @@ class XTTS(TTSable):
     
     @utils.time_it
     def _check_if_xtts_is_running(self):
+        is_local = self.__xtts_url.startswith('http://127.0.0.1') or self.__xtts_url.startswith('http://localhost')
         try:
-            # contact local XTTS server; ~2 second timeout
+            # contact XTTS server; ~2 second timeout
             response = requests.get(self.__xtts_url, timeout=2)
             if response.status_code >= 500:
-                logger.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
-                self._run_xtts_server()
+                if is_local:
+                    logger.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
+                    self._attempt_run_local_xtts_server()
+                else:
+                    logger.error(f'Could not connect to remote XTTS server at {self.__xtts_url}')
         except requests.exceptions.RequestException as err:
             if ('Connection aborted' in err.__str__()):
                 # so it is alive
                 return
 
-            logger.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
-            self._run_xtts_server()
+            if is_local:
+                logger.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
+                self._attempt_run_local_xtts_server()
+            else:
+                logger.error(f'Could not connect to remote XTTS server at {self.__xtts_url}')
         
 
     @utils.time_it
-    def _run_xtts_server(self):
+    def _attempt_run_local_xtts_server(self):
         try:
             # Start the server
             command = f'{self.__xtts_server_path}\\xtts-api-server-mantella.exe'
