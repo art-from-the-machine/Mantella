@@ -6,6 +6,14 @@ from src.tts.piper import Piper, TTSServiceFailure
 from src.tts.synthesization_options import SynthesizationOptions
 
 
+def _fast_time():
+    """Yield ever-increasing timestamps so time-based polling loops exit immediately."""
+    t = 0.0
+    while True:
+        yield t
+        t += 100.0
+
+
 def _make_mock_piper():
     """Create a minimal mock Piper instance without calling __init__"""
     piper = object.__new__(Piper)
@@ -39,7 +47,9 @@ def test_check_voice_changed_returns_false_after_retries():
     piper = _make_mock_piper()
     piper._Piper__waiting_for_voice_load = True
 
-    with patch.object(piper, '_restart_piper'):
+    with patch.object(piper, '_restart_piper'), \
+         patch('src.tts.piper.time.sleep'), \
+         patch('src.tts.piper.time.time', side_effect=_fast_time()):
         result = piper._check_voice_changed(max_retries=0)
 
     assert result is False
@@ -54,7 +64,9 @@ def test_synthesize_raises_after_all_attempts(tmp_path):
 
     with patch.object(piper, '_restart_piper'), \
          patch.object(piper, 'change_voice'), \
-         patch.object(piper, '_check_voice_changed', return_value=True):
+         patch.object(piper, '_check_voice_changed', return_value=True), \
+         patch('src.tts.piper.time.sleep'), \
+         patch('src.tts.piper.time.time', side_effect=_fast_time()):
         with pytest.raises(TTSServiceFailure, match="failed after"):
             piper.tts_synthesize('Hello.', output_file, synth_options)
 
@@ -70,7 +82,9 @@ def test_synthesize_strips_newlines(tmp_path):
 
     with patch.object(piper, '_restart_piper'), \
          patch.object(piper, 'change_voice'), \
-         patch.object(piper, '_check_voice_changed', return_value=True):
+         patch.object(piper, '_check_voice_changed', return_value=True), \
+         patch('src.tts.piper.time.sleep'), \
+         patch('src.tts.piper.time.time', side_effect=_fast_time()):
         with pytest.raises(TTSServiceFailure):
             piper.tts_synthesize("Hello\nworld\r!", output_file, synth_options)
 
