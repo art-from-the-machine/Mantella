@@ -216,7 +216,9 @@ class XTTS(TTSable):
                     logger.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
                     self._attempt_run_local_xtts_server()
                 else:
+                    utils.play_error_sound()
                     logger.error(f'Could not connect to remote XTTS server at {self.__xtts_url}')
+                    raise TTSServiceFailure(f'Could not connect to remote XTTS server at {self.__xtts_url}')
         except requests.exceptions.RequestException as err:
             if ('Connection aborted' in err.__str__()):
                 # so it is alive
@@ -226,7 +228,9 @@ class XTTS(TTSable):
                 logger.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')
                 self._attempt_run_local_xtts_server()
             else:
+                utils.play_error_sound()
                 logger.error(f'Could not connect to remote XTTS server at {self.__xtts_url}')
+                raise TTSServiceFailure(f'Could not connect to remote XTTS server at {self.__xtts_url}')
         
 
     @utils.time_it
