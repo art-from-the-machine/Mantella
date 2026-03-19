@@ -7,6 +7,7 @@ import numpy as np
 import io
 import json
 from subprocess import Popen
+import platform
 import time
 from src.tts.synthesization_options import SynthesizationOptions
 from src import utils
@@ -207,7 +208,7 @@ class XTTS(TTSable):
     
     @utils.time_it
     def _check_if_xtts_is_running(self):
-        is_local = self.__xtts_url.startswith('http://127.0.0.1') or self.__xtts_url.startswith('http://localhost')
+        is_local = utils.is_local_url(self.__xtts_url)
         try:
             # contact XTTS server; ~2 second timeout
             response = requests.get(self.__xtts_url, timeout=2)
@@ -235,6 +236,9 @@ class XTTS(TTSable):
 
     @utils.time_it
     def _attempt_run_local_xtts_server(self):
+        if platform.system() != "Windows":
+            logger.error('Automatically starting a local XTTS server is only supported on Windows.')
+            raise TTSServiceFailure('Local XTTS server launch is only supported on Windows. Please start the server manually.')
         try:
             # Start the server
             command = f'{self.__xtts_server_path}\\xtts-api-server-mantella.exe'
