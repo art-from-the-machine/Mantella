@@ -376,7 +376,7 @@ class Context:
                 bio_descriptions.append(character.bio)
             else:
                 bio_descriptions.append(f"{character.name}: {character.bio}")
-        return "\n".join(bio_descriptions)
+        return "\n\n".join(bio_descriptions)
     
     @utils.time_it
     def __get_npc_equipment_text(self) -> str:
