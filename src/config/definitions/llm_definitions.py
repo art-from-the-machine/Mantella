@@ -152,7 +152,8 @@ class LLMDefinitions:
 
     @staticmethod
     def get_claude_prompt_caching_config_value() -> ConfigValue:
-        description = """Enable Claude prompt caching when using Anthropic Claude models via OpenRouter."""
+        description = """WARNING: This is an experimental feature and may increase rather than decrease billing.
+                        Enable Claude prompt caching when using Anthropic Claude models via OpenRouter."""
         return ConfigValueBool("claude_prompt_caching_enabled", "Claude Prompt Caching", description, False, tags=[ConfigValueTag.advanced])
     
     @staticmethod
