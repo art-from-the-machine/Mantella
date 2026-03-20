@@ -159,9 +159,8 @@ def test_setup_route_combinations(default_config: ConfigLoader, english_language
 
     # Create route instance
     route = mantella_route(
-        config=default_config, 
-        language_info=english_language_info, 
-        show_debug_messages=False
+        config=default_config,
+        language_info=english_language_info,
     )
     
     # Call setup_route
@@ -174,9 +173,8 @@ def test_setup_route_ends_conversation(default_config: ConfigLoader, english_lan
     """Test that calling setup_route creates a new game instance when called multiple times"""
     # Create route instance
     route = mantella_route(
-        config=default_config, 
-        language_info=english_language_info, 
-        show_debug_messages=False
+        config=default_config,
+        language_info=english_language_info,
     )
     
     # First setup to create a game

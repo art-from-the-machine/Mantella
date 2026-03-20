@@ -175,9 +175,8 @@ def server() -> http_server:
 @pytest.fixture
 def default_mantella_route(default_config: ConfigLoader, english_language_info: dict) -> mantella_route:
     return mantella_route(
-        config=default_config, 
-        language_info=english_language_info, 
-        show_debug_messages=False
+        config=default_config,
+        language_info=english_language_info,
     )
 
 @pytest.fixture

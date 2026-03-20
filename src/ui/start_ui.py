@@ -13,7 +13,7 @@ logger = utils.get_logger()
 class StartUI(routeable):
     BANNER = "docs/_static/img/mantella_banner.png"
     def __init__(self, config: ConfigLoader) -> None:
-        super().__init__(config, False)
+        super().__init__(config)
         self.__constructor = SettingsUIConstructor()
 
     def create_main_block(self) -> gr.Blocks:

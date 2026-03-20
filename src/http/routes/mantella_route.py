@@ -28,8 +28,8 @@ class mantella_route(routeable):
     Args:
         routeable (_type_): _description_
     """
-    def __init__(self, config: ConfigLoader, language_info: dict[Hashable, str], show_debug_messages: bool = False) -> None:
-        super().__init__(config, show_debug_messages)
+    def __init__(self, config: ConfigLoader, language_info: dict[Hashable, str]) -> None:
+        super().__init__(config)
         self.__language_info: dict[Hashable, str] = language_info
         self.__game: GameStateManager | None = None
 
@@ -76,7 +76,7 @@ class mantella_route(routeable):
             received_json: dict[str, Any] | None = await request.json()
             if received_json:
                 logger.debug('Processing request...')
-                if self._show_debug_messages:
+                if self._config.show_http_debug_messages:
                     logger.log(self._log_level_http_in, json.dumps(received_json, indent=4))
                 request_type: str = received_json[comm_consts.KEY_REQUESTTYPE]
                 match request_type:
@@ -97,6 +97,6 @@ class mantella_route(routeable):
             else:
                 reply = self.error_message(f"Request did not contain properly formatted json!")
 
-            if self._show_debug_messages:
+            if self._config.show_http_debug_messages:
                 logger.log(self._log_level_http_out, json.dumps(reply, indent=4))
             return reply
