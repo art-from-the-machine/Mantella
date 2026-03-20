@@ -305,6 +305,7 @@ class FunctionManager:
             
             tool['function']['parameters'] = {}
             tool['function']['parameters']['type'] = 'object'
+            tool['function']['parameters']['properties'] = {}
             # Only populate parameters if they exist
             if 'parameters' in action:
                 tool['function']['parameters']['properties'] = deepcopy(action['parameters'])
