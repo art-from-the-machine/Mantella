@@ -223,10 +223,11 @@ Please summarize the conversation into a single paragraph in {language}."""
                                             If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
                                                 name = the NPC's name
                                                 language = the selected language
-                                                game = the game selected""" 
-        resummarize_prompt = """You are tasked with summarizing the conversation history between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}.
+                                                game = the game selected
+                                                player_name = the player's name"""
+        resummarize_prompt = """You are tasked with summarizing the conversation history between {name} and {player_name} (the player) / other characters. These conversations take place in {game}.
                                             Each paragraph represents a conversation at a new point in time. Timestamps in square brackets (eg [Day 42, 5 in the early evening]) indicate when each conversation occurred. Please summarize these conversations into a single paragraph in {language}."""
-        return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
+        return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "player_name"])])
     
     @staticmethod
     def get_vision_prompt_config_value() -> ConfigValue:
