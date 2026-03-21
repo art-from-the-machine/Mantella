@@ -83,7 +83,8 @@ class Skyrim(Gameable):
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
-        actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
+        parts = ingame_voice_model.split('<')
+        actor_voice_model_name = parts[1].split(' ')[0] if len(parts) > 1 else ingame_voice_model
 
         bio = character_info["bio"]
 
