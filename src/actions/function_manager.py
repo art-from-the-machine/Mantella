@@ -151,8 +151,12 @@ class FunctionManager:
 
 
     @staticmethod
-    def load_all_actions() -> None:
-        """Load all actions from the data/actions/ folder at server startup"""
+    def load_all_actions(include_disabled: bool = False) -> None:
+        """Load all actions from the data/actions/ folder at server startup
+
+        Args:
+            include_disabled: If True, load actions even if they have enabled=false.
+        """
         # Get the project root directory (two levels up from this file)
         actions_dir = Path(utils.resolve_path()) / "data" / "actions"
         
@@ -167,7 +171,7 @@ class FunctionManager:
         # Load top-level action files
         for file_path in actions_dir.glob("*.json"):
             try:
-                FunctionManager._load_action_file(file_path)
+                FunctionManager._load_action_file(file_path, include_disabled)
             except Exception as e:
                 logger.warning(f"Failed to load action file {file_path}: {e}")
 
@@ -241,7 +245,7 @@ class FunctionManager:
 
 
     @staticmethod
-    def _load_action_file(file_path: Path) -> None:
+    def _load_action_file(file_path: Path, include_disabled: bool = False) -> None:
         """Load a single action file"""
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -251,7 +255,7 @@ class FunctionManager:
 
         for action_data in actions_data:
             # Skip disabled actions (default to enabled if not specified)
-            if not action_data.get('enabled', True):
+            if not include_disabled and not action_data.get('enabled', True):
                 FunctionManager._disabled_action_names.append(action_data.get('name', 'Unknown'))
                 continue
             
