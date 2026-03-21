@@ -1,9 +1,9 @@
 {
     "identifier": "mantella_npc_travelto",
     "name": "TravelTo",
-    "description": "Make NPC(s) travel to a specific location.",
+    "description": "EXPERIMENTAL: Can cause NPC AI packages to break. NPCs can sometimes choose incompatible locations to travel to. Make NPC(s) travel to a specific location.",
     "key": "TravelTo",
-    "enabled": true,
+    "enabled": false,
     "parameters": {
         "source": {
             "type": "array",
