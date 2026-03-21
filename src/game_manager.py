@@ -346,7 +346,8 @@ class GameStateManager:
             gender: int = int(json[comm_consts.KEY_ACTOR_GENDER])
             race: str = str(json[comm_consts.KEY_ACTOR_RACE])
             actor_voice_model: str = str(json[comm_consts.KEY_ACTOR_VOICETYPE])
-            ingame_voice_model: str = actor_voice_model.split('<')[1].split(' ')[0]
+            parts = actor_voice_model.split('<')
+            ingame_voice_model: str = parts[1].split(' ')[0] if len(parts) > 1 else actor_voice_model
             is_in_combat: bool = bool(json[comm_consts.KEY_ACTOR_ISINCOMBAT])
             is_enemy: bool = bool(json[comm_consts.KEY_ACTOR_ISENEMY])
             relationship_rank: int = int(json[comm_consts.KEY_ACTOR_RELATIONSHIPRANK])
