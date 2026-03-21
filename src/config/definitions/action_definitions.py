@@ -8,8 +8,9 @@ class ActionDefinitions:
     @staticmethod
     def get_advanced_actions_enabled_config_value() -> ConfigValue:
         description = """If enabled, LLMs with tool calling capabilities can trigger advanced in-game actions.
-                        If disabled, only basic actions can be triggered by the LLM using an '[action_name]: [NPC response]' format (eg 'Follow: Lead the way')."""
-        return ConfigValueBool("advanced_actions_enabled", "Advanced Actions", description, True)
+                        If disabled, only basic actions can be triggered by the LLM using an '[action_name]: [NPC response]' format (eg 'Follow: Lead the way').
+                        Actions without a 'prompt' field defined in the action's JSON file (see data/actions/) can only be triggered when this setting is enabled."""
+        return ConfigValueBool("advanced_actions_enabled", "Advanced Actions", description, False)
 
     @staticmethod
     def get_custom_function_model_config_value() -> ConfigValue:
