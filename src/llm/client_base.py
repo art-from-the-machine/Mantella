@@ -56,7 +56,7 @@ class ClientBase(AIClient):
         self._image_client = None
         self._function_client = None
         self._enable_vision_next_call: bool = False
-        self._vision_mode: VisionMode = self._determine_vision_mode()
+        self._vision_mode: VisionMode = VisionMode.DISABLED
 
         if not utils.is_local_url(self._base_url): # Cloud LLM
             self._is_local: bool = False
