@@ -278,7 +278,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
     def visit_ConfigValueString(self, config_value: ConfigValueString):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Text:
             config_value = typing.cast(ConfigValueString, raw_config_value)
-            count_rows = self.__count_rows_in_text(config_value.value)
+            count_rows = max(self.__count_rows_in_text(config_value.value), self.__count_rows_in_text(config_value.default_value))
             if count_rows == 1:
                 return gr.Text(value=config_value.value,
                         show_label=False, 
