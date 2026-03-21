@@ -3,7 +3,7 @@
     "name": "AbsolveCrime",
     "description": "Absolve a non-violent crime the player has been accused of.",
     "key": "AbsolveCrime",
-    "enabled": true,
+    "enabled": false,
     "parameters": {
         "crime_gold": {
             "type": "integer",

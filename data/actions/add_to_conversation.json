@@ -3,7 +3,7 @@
     "name": "AddToConversation",
     "description": "Add nearby NPC(s) to the conversation.",
     "key": "AddToConversation",
-    "enabled": true,
+    "enabled": false,
     "parameters": {
         "source": {
             "type": "array",

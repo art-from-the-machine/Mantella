@@ -3,7 +3,7 @@
     "name": "ReportCrime",
     "description": "Report a crime the player has committed.",
     "key": "ReportCrime",
-    "enabled": true,
+    "enabled": false,
     "parameters": {
         "crime_gold": {
             "type": "integer",
