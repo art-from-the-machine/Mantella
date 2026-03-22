@@ -21,6 +21,9 @@ class message_thread():
     def __len__(self) -> int:
         return self.__messages.__len__()
 
+    def __getitem__(self, index):
+        return self.__messages[index]
+
     @staticmethod
     @utils.time_it
     def transform_to_openai_messages(messages: list[Message]) -> list[ChatCompletionMessageParam]:

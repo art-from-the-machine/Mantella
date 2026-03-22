@@ -67,7 +67,7 @@ class PromptDefinitions:
                                 player_description = a description of the player character (needs to be added in game or using the config value)
                                 player_equipment = a basic description of the equipment the player character carries
                                 equipment = a basic description of the equipment the NPCs carry
-                                actions = instructions for the LLM how to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools)"""
+                                actions = instructions for the LLM how to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools via the 'description' field)"""
     
     BASE_RADIANT_DESCRIPTION = """The starting prompt sent to the LLM when a radiant conversation is started.
                                 The following are dynamic variables that need to be contained in curly brackets {}:
@@ -82,7 +82,7 @@ class PromptDefinitions:
                                 language = the selected language
                                 conversation_summary = reads the latest conversation summaries for the NPCs stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt
                                 equipment = a basic description of the equipment the NPCs carry
-                                actions = instructions for the LLM to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools)"""
+                                actions = instructions for the LLM to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools via the 'description' field)"""
 
         
     class PromptChecker(ConfigValueConstraint[str]):
@@ -192,13 +192,23 @@ class PromptDefinitions:
     def get_memory_prompt_config_value() -> ConfigValue:
         memory_prompt_description = """The prompt used to summarize a conversation and save to the NPC's memories in data/game/conversations/NPC_Name/NPC_Name_summary_X.txt.
                                          	If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
-                                               name = the NPC's name
+                                               name = the NPC name(s)
                                                language = the selected language
-                                               game = the game selected""" 
-        memory_prompt = """You are tasked with summarizing the conversation between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}. 
-                                            It is not necessary to comment on any mixups in communication such as mishearings. Text contained within brackets state in-game events. 
-                                            Please summarize the conversation into a single paragraph in {language}."""
-        return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
+                                               game = the game selected
+                                               bios = the NPC bio(s)
+                                               conversation_summaries = summaries of previous conversations
+                                               player_name = the player's name"""
+        memory_prompt = """You are tasked with summarizing the conversation between {name} and {player_name} (and any other characters present). These conversations take place in {game}.
+
+Here are the character bios for context:
+{bios}
+
+Here are the previous conversation summaries for context:
+{conversation_summaries}
+
+It is not necessary to comment on any mixups in communication such as mishearings. Text contained within brackets state in-game events.
+Please summarize the conversation into a single paragraph in {language}."""
+        return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "bios", "conversation_summaries", "player_name"])])
     
     @staticmethod
     def get_memory_prompt_datetime_prefix_config_value() -> ConfigValue:
@@ -213,10 +223,11 @@ class PromptDefinitions:
                                             If you would like to edit this, please ensure that the below dynamic variables are contained in curly brackets {}:
                                                 name = the NPC's name
                                                 language = the selected language
-                                                game = the game selected""" 
-        resummarize_prompt = """You are tasked with summarizing the conversation history between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}.
+                                                game = the game selected
+                                                player_name = the player's name"""
+        resummarize_prompt = """You are tasked with summarizing the conversation history between {name} and {player_name} (the player) / other characters. These conversations take place in {game}.
                                             Each paragraph represents a conversation at a new point in time. Timestamps in square brackets (eg [Day 42, 5 in the early evening]) indicate when each conversation occurred. Please summarize these conversations into a single paragraph in {language}."""
-        return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game"])])
+        return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "player_name"])])
     
     @staticmethod
     def get_vision_prompt_config_value() -> ConfigValue:

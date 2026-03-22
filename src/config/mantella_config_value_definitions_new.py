@@ -14,6 +14,7 @@ from src.config.definitions.stt_definitions import STTDefinitions
 from src.config.definitions.tts_definitions import TTSDefinitions
 from src.config.definitions.vision_definitions import VisionDefinitions
 from src.config.definitions.action_definitions import ActionDefinitions
+from src.config.definitions.model_profile_definitions import ModelProfileDefinitions
 import sys
 
 
@@ -57,6 +58,14 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_speech_end_indicators())
         llm_category.add_config_value(LLMDefinitions.get_narration_indicators())
         llm_category.add_config_value(LLMDefinitions.get_claude_prompt_caching_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_allow_per_character_llm_overrides_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_llm_enabled_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_llm_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_custom_token_count_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_summary_llm_params_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_enabled_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_pool_config_value())
         result.add_base_group(llm_category)
 
         tts_category = ConfigValueGroup("TTS", "Text-to-Speech", "Settings for the TTS methods Mantella supports.", on_value_change_callback)
@@ -70,6 +79,7 @@ class MantellaConfigValueDefinitionsNew:
         tts_category.add_config_value(TTSDefinitions.get_lip_generation_config_value())
         tts_category.add_config_value(TTSDefinitions.get_fast_response_mode_config_value())
         tts_category.add_config_value(TTSDefinitions.get_fast_response_mode_volume_config_value())
+        tts_category.add_config_value(TTSDefinitions.get_allow_per_character_tts_overrides_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_url_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_default_model_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_device_config_value())
@@ -90,6 +100,8 @@ class MantellaConfigValueDefinitionsNew:
         stt_category.add_config_value(STTDefinitions.get_save_mic_input_config_value())
         stt_category.add_config_value(STTDefinitions.get_stt_service_config_value())
         stt_category.add_config_value(STTDefinitions.get_pause_threshold_config_value())
+        stt_category.add_config_value(STTDefinitions.get_ptt_enabled_config_value())
+        stt_category.add_config_value(STTDefinitions.get_ptt_hotkey_config_value())
         stt_category.add_config_value(STTDefinitions.get_play_cough_sound_config_value())
         stt_category.add_config_value(STTDefinitions.get_listen_timeout_config_value())
         stt_category.add_config_value(STTDefinitions.get_moonshine_model_size_config_value())
@@ -163,6 +175,13 @@ class MantellaConfigValueDefinitionsNew:
         startup_category.add_config_value(StartupDefinitions.get_remove_mei_folders_config_value())
         result.add_base_group(startup_category)
 
+        profile_category = ConfigValueGroup("Profiles", "Profiles", "Profile settings.", on_value_change_callback)
+        profile_category.add_config_value(ModelProfileDefinitions.get_apply_model_profiles_config_value())
+        profile_category.add_config_value(ModelProfileDefinitions.get_selected_service_config_value())
+        profile_category.add_config_value(ModelProfileDefinitions.get_selected_model_config_value())
+        profile_category.add_config_value(ModelProfileDefinitions.get_profile_parameters_config_value())
+        result.add_base_group(profile_category)
+
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
@@ -171,6 +190,8 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_player_character_description())
         other_category.add_config_value(OtherDefinitions.get_voice_player_input())
         other_category.add_config_value(OtherDefinitions.get_player_voice_model())
+        other_category.add_config_value(OtherDefinitions.get_conversation_summary_enabled_config_value())
+        other_category.add_config_value(OtherDefinitions.get_enable_character_tag_reading_config_value())
         other_category.add_config_value(OtherDefinitions.get_save_audio_data_to_character_folder_config_value())
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())

@@ -91,6 +91,13 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
         description = """Adjust the volume of the first delivered voiceline (from 1-100) if Fast Response Mode is enabled."""
         return ConfigValueInt("fast_response_mode_volume","Fast Response Mode Volume", description, 40, 1, 100, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
+    @staticmethod
+    def get_allow_per_character_tts_overrides_config_value() -> ConfigValue:
+        description = """Allow individual characters to use a different TTS service in conversations.
+            To use this feature, add a 'tts_service' value under the appropriate column in the characters CSV file.
+            Characters without this column will fall back to the global TTS settings."""
+        return ConfigValueBool("allow_per_character_tts_overrides", "Per-Character TTS Overrides", description, False, tags=[ConfigValueTag.advanced])
+    
     # XTTS Section
 
     @staticmethod

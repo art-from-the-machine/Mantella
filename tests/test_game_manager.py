@@ -27,6 +27,7 @@ def advance_to_player_turn(game_manager: GameStateManager, continue_request: dic
             jsonschema.validate(response, models.NpcTalkResponse.model_json_schema())
 
 
+@pytest.mark.requires_llm
 def test_reload_conversation(
         default_game_manager: GameStateManager, 
         example_start_conversation_request: models.StartConversationRequest, 
@@ -64,6 +65,7 @@ def test_reload_conversation(
     assert new_system_message != orig_system_message
 
 
+@pytest.mark.requires_llm
 def test_player_action_command(
         default_game_manager: GameStateManager, 
         example_start_conversation_request: models.StartConversationRequest, 

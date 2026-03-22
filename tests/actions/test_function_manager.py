@@ -12,7 +12,7 @@ def test_load_all_actions():
     FunctionManager._actions.clear()
     
     # Load actions
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     # Verify actions were loaded
     assert len(FunctionManager._actions) > 0
@@ -24,7 +24,7 @@ def test_load_all_actions():
 
 def test_load_all_actions_structure():
     """Test that loaded actions have required fields"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     for _, action in FunctionManager._actions.items():
         assert 'identifier' in action
@@ -104,12 +104,12 @@ def test_load_all_actions_respects_enabled_flag(tmp_path):
     assert len(FunctionManager._actions) == 2
     
     # Cleanup: Restore original actions
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
 
 
 def test_get_legacy_actions():
     """Test that get_legacy_actions returns Action objects"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     legacy_actions = FunctionManager.get_legacy_actions()
     
@@ -143,7 +143,7 @@ def test_parse_function_calls_none():
 def test_parse_function_calls_valid():
     """Test parsing valid function calls"""
     # Load actions first to have action mappings
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     # Create a mock tool call
     tool_calls = [
@@ -166,7 +166,7 @@ def test_parse_function_calls_valid():
 def test_parse_function_calls_malformed_json():
     """Test parsing function calls with malformed JSON arguments"""
     # Load actions first to have action mappings
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
 
     tool_calls = [
         {
@@ -186,7 +186,7 @@ def test_parse_function_calls_malformed_json():
 
 def test_parse_function_calls_unknown_function():
     """Test parsing function calls with unknown function name"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     tool_calls = [
         {
@@ -205,7 +205,7 @@ def test_parse_function_calls_unknown_function():
 
 def test_parse_function_calls_multiple_calls():
     """Test parsing multiple function calls"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     tool_calls = [
         {
@@ -231,7 +231,7 @@ def test_parse_function_calls_multiple_calls():
 
 def test_generate_context_aware_tools(default_context: Context):
     """Test generating context-aware tools from loaded actions"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     tools = FunctionManager.generate_context_aware_tools(default_context)
     
@@ -249,7 +249,7 @@ def test_generate_context_aware_tools(default_context: Context):
 
 def test_generate_context_aware_tools_adds_npc_context(default_context: Context):
     """Test that NPC context is added to tool parameters"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     tools = FunctionManager.generate_context_aware_tools(default_context)
     
@@ -272,7 +272,7 @@ def test_generate_context_aware_tools_adds_npc_context(default_context: Context)
 
 def test_parse_function_calls_exception_handling():
     """Test that exceptions during parsing are handled gracefully"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
 
     # Create a tool call that might cause issues
     tool_calls = [
@@ -297,7 +297,7 @@ def test_parse_function_calls_exception_handling():
 
 def test_generate_context_aware_tools_with_parameters(default_context: Context):
     """Test that tools with parameters are properly formatted"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     tools = FunctionManager.generate_context_aware_tools(default_context)
     
@@ -436,7 +436,7 @@ def test_validate_npc_names_duplicate_names(example_characters_pc_to_npc: Charac
 
 def test_parse_function_calls_with_validation_valid_source(example_characters_pc_to_npc: Characters):
     """Test parsing with valid source parameter"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     tool_calls = [
         {
@@ -455,7 +455,7 @@ def test_parse_function_calls_with_validation_valid_source(example_characters_pc
 
 def test_parse_function_calls_with_validation_invalid_source(example_characters_pc_to_npc: Characters):
     """Test parsing with invalid source parameter - action should be skipped"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     tool_calls = [
         {
@@ -474,7 +474,7 @@ def test_parse_function_calls_with_validation_invalid_source(example_characters_
 
 def test_parse_function_calls_with_validation_mixed_valid_invalid_source(example_characters_pc_to_npc: Characters):
     """Test parsing with mix of valid and invalid source names"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     tool_calls = [
         {
@@ -494,7 +494,7 @@ def test_parse_function_calls_with_validation_mixed_valid_invalid_source(example
 
 def test_parse_function_calls_with_validation_valid_target(example_characters_pc_to_npc: Characters):
     """Test parsing with valid target parameter"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     # Manually add a test action with source and target parameters
     FunctionManager._actions['test_action'] = {
@@ -524,7 +524,7 @@ def test_parse_function_calls_with_validation_valid_target(example_characters_pc
 
 def test_parse_function_calls_with_validation_target_includes_player(example_characters_pc_to_npc: Characters):
     """Test that target can include player (exclude_player=False for target)"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     # Manually add a test action with source and target parameters
     FunctionManager._actions['test_action'] = {
@@ -553,7 +553,7 @@ def test_parse_function_calls_with_validation_target_includes_player(example_cha
 
 def test_parse_function_calls_with_validation_source_excludes_player(example_characters_pc_to_npc: Characters):
     """Test that source excludes player (exclude_player=True for source)"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     tool_calls = [
         {
@@ -574,7 +574,7 @@ def test_parse_function_calls_with_validation_source_excludes_player(example_cha
 
 def test_parse_function_calls_with_validation_other_params_unchanged(example_characters_pc_to_npc: Characters):
     """Test that non-NPC parameters are passed through unchanged"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     # Add a test action with multiple parameter types
     FunctionManager._actions['test_action'] = {
@@ -613,7 +613,7 @@ def test_parse_function_calls_with_validation_other_params_unchanged(example_cha
 
 def test_parse_function_calls_case_insensitive_validation(example_characters_pc_to_npc: Characters):
     """Test that NPC validation is case-insensitive and preserves LLM casing"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     tool_calls = [
         {
@@ -634,7 +634,7 @@ def test_parse_function_calls_case_insensitive_validation(example_characters_pc_
 
 def test_parse_function_calls_skip_action_when_all_sources_invalid(example_characters_pc_to_npc: Characters):
     """Test that action is skipped when all source NPCs are invalid"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     tool_calls = [
         {
@@ -660,7 +660,7 @@ def test_parse_function_calls_skip_action_when_all_sources_invalid(example_chara
 
 def test_validate_arguments_against_schema_valid_args():
     """Test that valid arguments pass through unchanged"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     # Follow action has 'source' parameter
     defined_params = {'source': {'type': 'array'}}
@@ -675,7 +675,7 @@ def test_validate_arguments_against_schema_valid_args():
 
 def test_validate_arguments_against_schema_hallucinated_args():
     """Test that hallucinated / unknown arguments are filtered out"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     # Follow action has 'source' parameter
     defined_params = {'source': {'type': 'array'}}
@@ -699,7 +699,7 @@ def test_validate_arguments_against_schema_hallucinated_args():
 
 def test_validate_arguments_against_schema_all_invalid():
     """Test when all arguments are invalid/hallucinated"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     defined_params = {'source': {'type': 'array'}}
     
@@ -719,7 +719,7 @@ def test_validate_arguments_against_schema_all_invalid():
 
 def test_validate_arguments_against_schema_mixed_valid_invalid():
     """Test with mix of valid and invalid parameters"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     # Action with multiple parameters
     defined_params = {
@@ -752,7 +752,7 @@ def test_validate_arguments_against_schema_mixed_valid_invalid():
 
 def test_validate_arguments_against_schema_empty_params():
     """Test validation when action has no parameters defined"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     defined_params = {}
     llm_arguments = {'some_arg': 'value'}
@@ -767,7 +767,7 @@ def test_validate_arguments_against_schema_empty_params():
 
 def test_parse_function_calls_with_hallucinated_args(example_characters_pc_to_npc: Characters):
     """Test that hallucinated arguments are filtered during parsing"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     tool_calls = [
         {
@@ -793,7 +793,7 @@ def test_parse_function_calls_with_hallucinated_args(example_characters_pc_to_np
 
 def test_parse_function_calls_validation_order():
     """Test that schema validation happens before NPC name validation"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     # No characters manager provided, so only schema validation should occur
     tool_calls = [
@@ -819,7 +819,7 @@ def test_parse_function_calls_validation_order():
 
 def test_parse_function_calls_empty_arguments_not_included():
     """Test that when all arguments are filtered out, 'arguments' key is not present"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     # Offended action has no parameters defined in JSON
     tool_calls = [
@@ -841,7 +841,7 @@ def test_parse_function_calls_empty_arguments_not_included():
 
 def test_parse_function_calls_hallucinated_args_removed_completely():
     """Test that when all LLM arguments are hallucinated and filtered, 'arguments' key is not present"""
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     
     # Offended action has no parameters, LLM hallucinates some
     tool_calls = [
@@ -986,7 +986,7 @@ class TestParseWithNearbyNPCs:
 
     def test_parse_with_nearby_target_validation(self, example_characters_with_nearby: Characters):
         """Should validate target parameter against nearby NPCs"""
-        FunctionManager.load_all_actions()
+        FunctionManager.load_all_actions(include_disabled=True)
         
         # Attack action: source=conversation, target=all_npcs_w_player
         tool_calls = [
@@ -1010,7 +1010,7 @@ class TestParseWithNearbyNPCs:
 
     def test_parse_with_invalid_nearby_target(self, example_characters_with_nearby: Characters):
         """Should skip action when required parameter is invalid"""
-        FunctionManager.load_all_actions()
+        FunctionManager.load_all_actions(include_disabled=True)
         
         tool_calls = [
             {
@@ -1031,7 +1031,7 @@ class TestParseWithNearbyNPCs:
 
     def test_parse_follow_with_multiple_conversation_npcs(self, example_characters_multi_npc: Characters):
         """Should validate multiple source NPCs from conversation"""
-        FunctionManager.load_all_actions()
+        FunctionManager.load_all_actions(include_disabled=True)
         
         tool_calls = [
             {
@@ -1052,7 +1052,7 @@ class TestParseWithNearbyNPCs:
 
     def test_parse_mixed_valid_invalid_sources(self, example_characters_pc_to_npc):
         """Should filter out invalid NPCs but keep valid ones"""
-        FunctionManager.load_all_actions()
+        FunctionManager.load_all_actions(include_disabled=True)
         
         tool_calls = [
             {
@@ -1077,7 +1077,7 @@ class TestToolGenerationWithNearby:
 
     def test_adds_nearby_npcs_to_target_parameter(self, example_context_with_nearby: Context):
         """Should add nearby NPCs to target parameter description"""
-        FunctionManager.load_all_actions()
+        FunctionManager.load_all_actions(include_disabled=True)
         
         tools = FunctionManager.generate_context_aware_tools(example_context_with_nearby)
         
@@ -1097,7 +1097,7 @@ class TestToolGenerationWithNearby:
 
     def test_conversation_scope_excludes_nearby(self, example_context_with_nearby: Context):
         """Should not include nearby NPCs in conversation-scoped parameters"""
-        FunctionManager.load_all_actions()
+        FunctionManager.load_all_actions(include_disabled=True)
         
         tools = FunctionManager.generate_context_aware_tools(example_context_with_nearby)
         
@@ -1117,7 +1117,7 @@ class TestToolGenerationWithNearby:
 
     def test_no_nearby_npcs_graceful_handling(self, default_context):
         """Should work normally when no nearby NPCs are set"""
-        FunctionManager.load_all_actions()
+        FunctionManager.load_all_actions(include_disabled=True)
         
         # Don't set nearby NPCs (default empty)
         tools = FunctionManager.generate_context_aware_tools(default_context)

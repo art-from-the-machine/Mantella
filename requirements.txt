@@ -13,6 +13,7 @@ numpy==1.25.0
 scipy==1.11.1
 charset-normalizer==3.2.0
 fastapi==0.110.2
+huggingface_hub<0.25
 gradio==4.28.3
 sphinx==7.2.6
 myst-parser==2.0.0
@@ -23,6 +24,7 @@ pywin32==306; platform_system == "Windows"
 mss==9.0.1
 opencv-python==4.10.0.84
 sounddevice==0.5.1
+regex
 silero-vad-lite
 playsound; platform_system == "Linux"
 git+https://github.com/usefulsensors/moonshine.git@2f6282347950c8d711bd7319287babb87ec5a92d#subdirectory=moonshine-onnx

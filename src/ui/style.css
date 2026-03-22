@@ -70,12 +70,12 @@
 /* Align buttons at the end of the row */
 .button-container {
     display: flex !important;
-    justify-content: flex-end !important;
+    flex-direction: column !important;
+    justify-content: center !important;
     align-items: stretch !important;
     gap: 5px !important;
     max-width: 80px !important;
     min-width: 80px !important;
-    height: 32px !important;
 }
 
 .button-container button {

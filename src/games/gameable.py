@@ -11,7 +11,6 @@ from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
 import src.utils as utils
-import sounddevice as sd
 import soundfile as sf
 import threading
 import wave
@@ -261,7 +260,8 @@ class Gameable(ABC):
 
     @utils.time_it
     def find_character_info(self, base_id: str, character_name: str, race: str, gender: int, ingame_voice_model: str):
-        character_race = race.split('<')[1].split('Race ')[0] # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
+        parts = race.split('<')
+        character_race = parts[1].split('Race ')[0] if len(parts) > 1 else race # TODO: check if this covers "character_currentrace.split('<')[1].split('Race ')[0]" from FO4
         matcher = self._get_matching_df_rows_matcher(base_id, character_name, character_race)
         if isinstance(matcher, type(None)):
             logger.info(f"Could not find {character_name} in {self.game_name_in_filepath}_characters.csv. Loading as a generic NPC.")
@@ -364,6 +364,11 @@ class Gameable(ABC):
             volume (float): Volume multiplier (0.0 to 1.0)
         """
         def audio_thread():
+            try:
+                import sounddevice as sd
+            except ImportError:
+                logger.warning("sounddevice not available, skipping audio playback")
+                return
             data, samplerate = sf.read(filename)
             data = data * volume
             sd.play(data, samplerate)

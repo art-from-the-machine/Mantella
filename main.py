@@ -21,16 +21,14 @@ def main():
 
         mantella_http_server = http_server()
 
-        should_debug_http = config.show_http_debug_messages
         conversation = mantella_route(
-            config=config, 
-            language_info=language_info, 
-            show_debug_messages=should_debug_http
+            config=config,
+            language_info=language_info,
         )
         ui = StartUI(config)
         routes: list[routeable] = [conversation, ui]
         
-        mantella_http_server.start(int(config.port), routes, config.play_startup_sound, should_debug_http)
+        mantella_http_server.start(int(config.port), routes, config.play_startup_sound, config.show_http_debug_messages)
 
     except Exception as e:
         logger.error("".join(traceback.format_exception(e)))

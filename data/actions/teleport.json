@@ -3,7 +3,7 @@
     "name": "Teleport",
     "description": "Make NPC(s) teleport to a specific NPC. Use this action when an NPC is stuck or needs to quickly change location.",
     "key": "Teleport",
-    "enabled": true,
+    "enabled": false,
     "parameters": {
         "source": {
             "type": "array",

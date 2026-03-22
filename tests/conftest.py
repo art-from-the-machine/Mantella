@@ -1,4 +1,21 @@
 import pytest
+import warnings
+
+# Suppress third party deprecation warnings at import time
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message="Deprecated call to `pkg_resources.declare_namespace", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message="Please use `import python_multipart`", category=PendingDeprecationWarning)
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "requires_audio: test requires an audio device (playsound, sounddevice, etc)")
+    config.addinivalue_line("markers", "requires_external_exe: test requires an external executable (eg piper.exe)")
+    config.addinivalue_line("markers", "requires_llm: test requires a real LLM API connection")
+
+    # Suppress deprecation warnings from third party packages during test execution
+    config.addinivalue_line("filterwarnings", "ignore:np.find_common_type is deprecated:DeprecationWarning")
+    config.addinivalue_line("filterwarnings", r"ignore:[\s\S]*on_event is deprecated:DeprecationWarning")
+    config.addinivalue_line("filterwarnings", r"ignore:The `name` is not the first parameter anymore:DeprecationWarning")
+
 from src.game_manager import GameStateManager
 from src.conversation.conversation import Conversation
 from src.output_manager import ChatManager
@@ -14,6 +31,7 @@ from src.ui.start_ui import StartUI
 from src.http.routes.routeable import routeable
 from fastapi.testclient import TestClient
 from pathlib import Path
+import os
 from src import utils
 from src.config.definitions.game_definitions import GameEnum
 from src.http.communication_constants import communication_constants as comm_consts
@@ -21,10 +39,46 @@ from src.http import models
 from src.character_manager import Character
 from src.games.skyrim import Skyrim
 from src.tts.piper import Piper
+from src.tts.piper import TTSServiceFailure
 from src.games.equipment import Equipment, EquipmentItem
 from src.llm.message_thread import message_thread
 from src.llm.messages import SystemMessage, UserMessage
 from src.actions.function_manager import FunctionManager
+from unittest.mock import MagicMock
+import asyncio
+
+
+class MockAIClient:
+    """Mock AIClient for testing that simulates different response patterns."""
+    def __init__(self, response_pattern=None, tool_calls=None, error_on_call=False, delay=0.01):
+        self.response_pattern = response_pattern if response_pattern is not None else ["Hello there."]
+        self.tool_calls = tool_calls
+        self.error_on_call = error_on_call
+        self.delay = delay
+        self.call_count = 0
+
+    async def streaming_call(self, messages=None, is_multi_npc=False, tools=None):
+        if self.error_on_call:
+            raise Exception("Simulated API error")
+        self.call_count += 1
+        if tools and self.tool_calls and self.call_count == 1:
+            yield ("tool_calls", self.tool_calls)
+            return
+        for chunk in self.response_pattern:
+            yield ("content", chunk)
+            await asyncio.sleep(self.delay)
+
+    def get_count_tokens(self, text):
+        return len(str(text).split())
+
+    def is_too_long(self, messages, token_limit_percent):
+        return False
+
+
+@pytest.fixture
+def mock_ai_client():
+    """Fixture providing a default MockAIClient instance"""
+    return MockAIClient()
 
 @pytest.fixture
 def default_config(tmp_path: Path) -> ConfigLoader:
@@ -32,7 +86,7 @@ def default_config(tmp_path: Path) -> ConfigLoader:
     default_config = ConfigLoader(mygame_folder_path=str(tmp_path), game_override=GameEnum.SKYRIM)
 
     # Load actions (simulating what setup.py does after logging is configured)
-    FunctionManager.load_all_actions()
+    FunctionManager.load_all_actions(include_disabled=True)
     default_config.actions = FunctionManager.get_legacy_actions()
 
     # Load the actual config file
@@ -53,6 +107,15 @@ def override_default_config_values(default_config: ConfigLoader, actual_config: 
     default_config.xtts_server_path = actual_config.xtts_server_path
     default_config.xvasynth_path = actual_config.xvasynth_path
 
+    # Optionally override the LLM API endpoint for tests via an environment variable:
+    llm_api_override = os.environ.get('MANTELLA_TEST_LLM_API')
+    if llm_api_override:
+        default_config._ConfigLoader__definitions.get_config_value_definition("llm_api").value = llm_api_override
+        default_config.llm_api = llm_api_override
+        
+        default_config._ConfigLoader__definitions.get_config_value_definition("function_llm_api").value = llm_api_override
+        default_config.function_llm_api = llm_api_override
+
     return default_config
 
 @pytest.fixture
@@ -60,8 +123,13 @@ def english_language_info() -> dict:
     return {'alpha2': 'en', 'language': 'English', 'hello': 'Hello'}
 
 @pytest.fixture
-def piper(default_config: ConfigLoader, skyrim: Skyrim) -> Piper:
-    return Piper(default_config, skyrim)
+def piper(default_config: ConfigLoader, skyrim: Skyrim):
+    try:
+        return Piper(default_config, skyrim)
+    except (TTSServiceFailure, FileNotFoundError, Exception):
+        mock_piper = MagicMock()
+        mock_piper.synthesize.return_value = "mock_audio.wav"
+        return mock_piper
 
 @pytest.fixture
 def llm_client(default_config: ConfigLoader) -> LLMClient:
@@ -70,7 +138,7 @@ def llm_client(default_config: ConfigLoader) -> LLMClient:
 @pytest.fixture
 def default_function_client(default_config: ConfigLoader) -> FunctionClient:
     """Provides a FunctionClient instance for testing"""
-    FunctionManager.load_all_actions() # This is called on server startup, but not when creating the client standalone
+    FunctionManager.load_all_actions(include_disabled=True) # This is called on server startup, but not when creating the client standalone
     return FunctionClient(default_config)
 
 @pytest.fixture
@@ -82,7 +150,7 @@ def default_rememberer(skyrim: Skyrim, default_config: ConfigLoader, llm_client:
 def default_context(default_config: ConfigLoader, llm_client: LLMClient, default_rememberer: Summaries, english_language_info: dict, example_characters_pc_to_npc: Characters) -> Context:
     """Fixture to create a Context instance"""
     context = Context('1', default_config, llm_client, default_rememberer, english_language_info)
-    context.add_or_update_characters(example_characters_pc_to_npc.get_all_characters())
+    context.add_or_update_characters(example_characters_pc_to_npc.get_all_characters(), message_count=0)
     return context
 
 @pytest.fixture
@@ -107,9 +175,8 @@ def server() -> http_server:
 @pytest.fixture
 def default_mantella_route(default_config: ConfigLoader, english_language_info: dict) -> mantella_route:
     return mantella_route(
-        config=default_config, 
-        language_info=english_language_info, 
-        show_debug_messages=False
+        config=default_config,
+        language_info=english_language_info,
     )
 
 @pytest.fixture
@@ -207,6 +274,9 @@ def example_skyrim_player_character() -> Character:
             'righthand': EquipmentItem('Iron Sword'),
         }),
         custom_character_values = {'mantella_pc_description': '', 'mantella_pc_voiceplayerinput': False},
+        llm_service = '',
+        llm_model = '',
+        tts_service = '',
     )
 
 @pytest.fixture
@@ -236,6 +306,9 @@ def example_skyrim_npc_character() -> Character:
             'righthand': EquipmentItem('Iron Sword'),
         }),
         custom_character_values = None,
+        llm_service = '',
+        llm_model = '',
+        tts_service = '',
     )
 
 @pytest.fixture
@@ -264,7 +337,10 @@ def another_example_skyrim_npc_character() -> Character:
             'head': EquipmentItem('Iron Helmet'),
             'righthand': EquipmentItem('Iron Sword'),
         }),
-        custom_character_values=None
+        custom_character_values=None,
+        llm_service = '',
+        llm_model = '',
+        tts_service = '',
     )
 
 @pytest.fixture

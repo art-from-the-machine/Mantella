@@ -6,6 +6,7 @@ from src.llm.client_base import ClientBase
 from src.llm.message_thread import message_thread
 from src.llm.messages import Message
 from src.llm.messages import SystemMessage
+from src.model_profile_manager import get_profile_manager
 
 logger = utils.get_logger()
 
@@ -19,10 +20,18 @@ class FunctionClient(ClientBase):
         self.__function_prompt: str = config.function_llm_prompt.format(game=config.game.display_name)
         
         # Use custom function model config values
+        profile_manager = get_profile_manager()
+        function_llm_params = profile_manager.resolve_params(
+            service=config.function_llm_api,
+            model=config.function_llm,
+            fallback_params=config.function_llm_params,
+            apply_profile=config.apply_model_profiles,
+            log_context="FunctionClient",
+        )
         setup_values = {
             'api_url': config.function_llm_api, 
             'llm': config.function_llm, 
-            'llm_params': config.function_llm_params, 
+            'llm_params': function_llm_params, 
             'custom_token_count': config.function_llm_custom_token_count
         }
         

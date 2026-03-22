@@ -10,13 +10,16 @@ from src.remember.remembering import Remembering
 from src.remember.summaries import Summaries
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
+from src.llm.summary_client import SummaryLLMClient
 from src.conversation.conversation import Conversation
 from src.conversation.context import Context
 from src.character_manager import Character
 import src.utils as utils
 from src.http.communication_constants import communication_constants as comm_consts
-from src.stt import Transcriber
+from src.stt.stt import Transcriber
 from src.actions.function_manager import FunctionManager
+from src.random_llm_selector import RandomLLMSelector, LLMSelection
+from src.llm.client_base import ClientBase
 
 logger = utils.get_logger()
 
@@ -31,13 +34,13 @@ class GameStateManager:
     WORLD_ID_CLEANSE_REGEX: regex.Pattern = regex.compile('[^A-Za-z0-9]+')
 
     @utils.time_it
-    def __init__(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient):        
+    def __init__(self, game: Gameable, chat_manager: ChatManager, config: ConfigLoader, language_info: dict[Hashable, str], client: LLMClient, summary_client: SummaryLLMClient | None = None):
         self.__game: Gameable = game
         self.__config: ConfigLoader = config
-        self.__language_info: dict[Hashable, str] = language_info 
+        self.__language_info: dict[Hashable, str] = language_info
         self.__client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
-        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'])
+        self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'], summary_client)
         self.__talk: Conversation | None = None
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk
@@ -46,8 +49,10 @@ class GameStateManager:
         self.__automatic_greeting: bool = config.automatic_greeting
         self.__conv_has_narrator: bool = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
         self.__should_reload: bool = False
+        self.__chat_manager.clear_per_character_client_cache()
+        self.__random_selector = RandomLLMSelector()
 
-    ###### react to calls from the game #######
+
     @utils.time_it
     def start_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if self.__talk: #This should only happen if game and server are out of sync due to some previous error -> close conversation and start a new one
@@ -62,8 +67,9 @@ class GameStateManager:
         if input_json.__contains__(comm_consts.KEY_INPUTTYPE):
             self.process_stt_setup(input_json)
         
-        context_for_conversation = Context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
-        self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, self.__client, self.__stt, self.__mic_input, self.__mic_ptt, self.__game)
+        conversation_client = self._build_random_conversation_client() or self.__client
+        context_for_conversation = Context(world_id, self.__config, conversation_client, self.__rememberer, self.__language_info)
+        self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, conversation_client, self.__stt, self.__mic_input, self.__mic_ptt, self.__game)
         self.__update_context(input_json)
         self.__try_preload_voice_model()
         self.__talk.start_conversation()
@@ -71,6 +77,38 @@ class GameStateManager:
         return {
             comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED,
             comm_consts.KEY_STARTCONVERSATION_USENARRATOR: self.__conv_has_narrator}
+    
+
+    def _build_random_conversation_client(self) -> ClientBase | None:
+        """Build a random LLM client for the conversation if random selection is enabled.
+
+        Returns a new ClientBase if a random LLM was selected, or None to use the default.
+        """
+        if not self.__config.random_llm_enabled:
+            return None
+
+        fallback = LLMSelection(
+            service=self.__config.llm_api,
+            model=self.__config.llm,
+            parameters=self.__config.llm_params or {},
+        )
+        selection = self.__random_selector.select(self.__config.random_llm_enabled, self.__config.random_llm_pool, fallback, self.__config.apply_model_profiles)
+        if selection is None:
+            return None
+
+        logger.log(23, f"Using randomly selected LLM: {selection.service}/{selection.model}")
+        random_client = ClientBase(
+            selection.service,
+            selection.model,
+            selection.parameters,
+            self.__config.custom_token_count,
+            self.__config.claude_prompt_caching_enabled,
+        )
+        # Copy sub-clients from the main client so vision and tool-calling remain available
+        random_client._image_client = getattr(self.__client, '_image_client', None)
+        random_client._function_client = getattr(self.__client, '_function_client', None)
+        random_client._vision_mode = random_client._determine_vision_mode()
+        return random_client
         
     
     @utils.time_it
@@ -286,7 +324,7 @@ class GameStateManager:
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
                     custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
 
-                self.__talk.update_context(location, time, ingame_events, weather, npcs_nearby, custom_context_values, config_settings, game_days)
+            self.__talk.update_context(location, time, ingame_events, weather, npcs_nearby, custom_context_values, config_settings, game_days)
     
     @utils.time_it
     def load_character(self, json: dict[str, Any]) -> Character | None:
@@ -308,7 +346,8 @@ class GameStateManager:
             gender: int = int(json[comm_consts.KEY_ACTOR_GENDER])
             race: str = str(json[comm_consts.KEY_ACTOR_RACE])
             actor_voice_model: str = str(json[comm_consts.KEY_ACTOR_VOICETYPE])
-            ingame_voice_model: str = actor_voice_model.split('<')[1].split(' ')[0]
+            parts = actor_voice_model.split('<')
+            ingame_voice_model: str = parts[1].split(' ')[0] if len(parts) > 1 else actor_voice_model
             is_in_combat: bool = bool(json[comm_consts.KEY_ACTOR_ISINCOMBAT])
             is_enemy: bool = bool(json[comm_consts.KEY_ACTOR_ISENEMY])
             relationship_rank: int = int(json[comm_consts.KEY_ACTOR_RELATIONSHIPRANK])
@@ -326,6 +365,9 @@ class GameStateManager:
             csv_in_game_voice_model: str = ""
             advanced_voice_model: str = ""
             voice_accent: str = ""
+            llm_service: str = ""
+            llm_model: str = ""
+            tts_service: str = ""
             is_player_character: bool = bool(json[comm_consts.KEY_ACTOR_ISPLAYER])
             if self.__talk and self.__talk.contains_character(ref_id):
                 already_loaded_character: Character | None = self.__talk.get_character(ref_id)
@@ -335,6 +377,9 @@ class GameStateManager:
                     csv_in_game_voice_model = already_loaded_character.csv_in_game_voice_model
                     advanced_voice_model = already_loaded_character.advanced_voice_model
                     voice_accent = already_loaded_character.voice_accent
+                    llm_service = already_loaded_character.llm_service
+                    llm_model = already_loaded_character.llm_model
+                    tts_service = already_loaded_character.tts_service
                     is_generic_npc = already_loaded_character.is_generic_npc
             elif self.__talk and not is_player_character :#If this is not the player and the character has not already been loaded
                 external_info: external_character_info = self.__game.load_external_character_info(base_id, character_name, race, gender, actor_voice_model)
@@ -344,6 +389,9 @@ class GameStateManager:
                 csv_in_game_voice_model = external_info.csv_in_game_voice_model
                 advanced_voice_model = external_info.advanced_voice_model
                 voice_accent = external_info.voice_accent
+                llm_service = external_info.llm_service
+                llm_model = external_info.llm_model
+                tts_service = external_info.tts_service
                 is_generic_npc = external_info.is_generic_npc
                 if is_generic_npc:
                     character_name = external_info.name
@@ -371,7 +419,10 @@ class GameStateManager:
                             advanced_voice_model,
                             voice_accent,
                             equipment,
-                            custom_values)
+                            custom_values,
+                            llm_service=llm_service,
+                            llm_model=llm_model,
+                            tts_service=tts_service)
         except CharacterDoesNotExist:                 
             logger.error('Character not loaded. Restarting...')
             return None 

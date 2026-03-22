@@ -44,7 +44,7 @@ def test_apply_character_overrides_json_add(tmp_path, fallout4_test_config: Conf
         "fallout4_voice_folder": "TestVoiceFolder", "advanced_voice_model": ""
     }
 
-    override_dir = tmp_path / "data" / "fallout4" / "character_overrides"
+    override_dir = tmp_path / "data" / "Fallout4" / "character_overrides"
     override_dir.mkdir(parents=True, exist_ok=True)
     override_file = override_dir / "test_json_add.json"
 
@@ -73,7 +73,7 @@ def test_apply_character_overrides_json_modify(tmp_path, fallout4_test_config: C
         "voice_model": "VoiceOverride"
     }
 
-    override_dir = tmp_path / "data" / "fallout4" / "character_overrides"
+    override_dir = tmp_path / "data" / "Fallout4" / "character_overrides"
     override_dir.mkdir(parents=True, exist_ok=True)
     override_file = override_dir / "test_json_modify.json"
 
@@ -99,7 +99,7 @@ def test_apply_character_overrides_csv_add(tmp_path, fallout4_test_config: Confi
     csv_data = "Test CSV Character,CSV001,MaleBoston,Added via CSV,TestCSVVoice,TestCSVFolder,"
     csv_content = f"{csv_header}\n{csv_data}"
 
-    override_dir = tmp_path / "F4SE" / "Plugins" / "MantellaSoftware" / "data" / "fallout4" / "character_overrides"
+    override_dir = tmp_path / "F4SE" / "Plugins" / "MantellaSoftware" / "data" / "Fallout4" / "character_overrides"
     override_dir.mkdir(parents=True, exist_ok=True)
     override_file = override_dir / "test_csv_add.csv"
 
@@ -125,7 +125,7 @@ def test_apply_character_overrides_csv_modify(tmp_path, fallout4_test_config: Co
     csv_data = "Blake Abernathy,06B4D3,Human,Overridden Bio,VoiceOverride,MaleBoston,,en"
     csv_content = f"{csv_header}\n{csv_data}"
 
-    override_dir = tmp_path / "F4SE" / "Plugins" / "MantellaSoftware" / "data" / "fallout4" / "character_overrides"
+    override_dir = tmp_path / "F4SE" / "Plugins" / "MantellaSoftware" / "data" / "Fallout4" / "character_overrides"
     override_dir.mkdir(parents=True, exist_ok=True)
     override_file = override_dir / "test_csv_modify.csv"
 

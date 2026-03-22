@@ -1,8 +1,8 @@
 {
     "identifier": "mantella_npc_givedirections",
-    "name": "GiveDirections",
+    "name": "CheckDirections",
     "description": "Returns directions on how to reach a specified location.",
-    "key": "GiveDirections",
+    "key": "CheckDirections",
     "enabled": true,
     "parameters": {
         "location": {

@@ -1,3 +1,4 @@
+import pytest
 from src.llm.function_client import FunctionClient
 from src.llm.message_thread import message_thread
 from src.conversation.context import Context
@@ -6,6 +7,7 @@ from src.actions.function_manager import FunctionManager
 from src.llm.messages import UserMessage
 from src.llm.message_thread import message_thread
 
+@pytest.mark.requires_llm
 def test_check_for_actions_with_tools(default_function_client: FunctionClient, sample_message_thread_function_request: message_thread, default_context: Context):
     """
     Tests that check_for_actions returns tool calls
@@ -25,6 +27,7 @@ def test_check_for_actions_with_tools(default_function_client: FunctionClient, s
     assert "arguments" in result[0]["function"]
 
 
+@pytest.mark.requires_llm
 def test_check_for_actions_no_function_needed(default_function_client: FunctionClient, sample_message_thread_no_function_needed: message_thread, default_context: Context):
     """
     Tests that check_for_actions returns None when no function should be called
@@ -74,6 +77,7 @@ def test_check_for_actions_with_empty_tools(default_function_client: FunctionCli
     assert result is None
 
 
+@pytest.mark.requires_llm
 def test_check_for_actions_multiple_tools(default_function_client: FunctionClient, sample_message_thread_multiple_functions_needed: message_thread, default_context: Context):
     """
     Tests that check_for_actions can handle multiple tool calls in one response
