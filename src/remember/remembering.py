@@ -1,16 +1,17 @@
 from abc import ABC, abstractmethod
+from src.character_manager import Character
 from src.characters_manager import Characters
 from src.llm.message_thread import message_thread
 
 
 class Remembering(ABC):
     @abstractmethod
-    def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str) -> str:
-        """ Generates a text that explains the previous interactions of the npcs with the player. 
+    def get_prompt_text(self, characters: list[Character], world_id: str) -> str:
+        """ Generates a text that explains the previous interactions of the npcs with the player.
             Text is passed as part of the prompt to the LLM
 
         Args:
-            npcs_in_conversation (Characters): the NPCs in question
+            characters (list[Character]): the non-player NPCs to load summaries for
 
         Returns:
             str: a single text
@@ -18,14 +19,16 @@ class Remembering(ABC):
         pass
 
     @abstractmethod
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None):
+    def save_conversation_state(self, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None):
         """Saves the current state of the conversation.
 
         Args:
             messages (message_thread): The messages in the conversation
-            npcs_in_conversation (Characters): the NPCs to save for
+            npcs_to_summarize (list[Character]): The NPCs to generate summaries for
+            npcs_in_conversation (Characters): All NPCs with participation history (for thread building and pending shares)
             world_id (str): The world ID for folder organization
             is_reload (bool): Whether this is a reload save
             pending_shares (list[tuple[str, str, str]] | None): List of (sharer_name, recipient_name, recipient_ref_id) for sharing summaries
+            end_timestamp (float | None): Optional game timestamp to prepend to summaries
         """
         pass

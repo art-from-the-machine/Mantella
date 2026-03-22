@@ -10,6 +10,7 @@ from src.config.config_values import ConfigValues
 from src.config.mantella_config_value_definitions_new import MantellaConfigValueDefinitionsNew
 from src.config.config_json_writer import ConfigJsonWriter
 from src.config.config_file_writer import ConfigFileWriter
+from src.config.types.config_value_string import ConfigValueString
 import src.utils as utils
 from pathlib import Path
 import json
@@ -47,7 +48,19 @@ class ConfigLoader:
             for (each_key, each_value) in config.items(section_name):
                 try:
                     config_value = self.__definitions.get_config_value_definition(each_key)
-                    config_value.parse(each_value)
+                    # Unescape hash symbols that were escaped for INI file storage
+                    unescaped_value = ConfigFileWriter.unescape_hash_symbols(each_value)
+                    # Attempt to JSON-decode string values first if they were encoded to preserve whitespace
+                    if isinstance(config_value, ConfigValueString):
+                        try:
+                            decoded = json.loads(unescaped_value)
+                            # Only accept if decoding produced a string
+                            if isinstance(decoded, str):
+                                config_value.parse(decoded)
+                                continue
+                        except Exception:
+                            pass
+                    config_value.parse(unescaped_value)
                 except:
                     create_back_up_configini = True
                     # TODO: filter out warnings for ['game', 'skyrim_mod_folder', 'skyrimvr_mod_folder', 'fallout4_mod_folder', 'fallout4vr_mod_folder', fallout4vr_folder]
@@ -201,6 +214,7 @@ class ConfigLoader:
             self.lip_generation = self.__definitions.get_string_value("lip_generation").strip().lower()
             self.fast_response_mode = self.__definitions.get_bool_value("fast_response_mode")
             self.fast_response_mode_volume = self.__definitions.get_int_value("fast_response_mode_volume")
+            self.allow_per_character_tts_overrides: bool = self.__definitions.get_bool_value("allow_per_character_tts_overrides")
 
             #Added from xTTS implementation
             self.xtts_default_model = self.__definitions.get_string_value("xtts_default_model")
@@ -237,6 +251,8 @@ class ConfigLoader:
             self.min_refresh_secs = self.__definitions.get_float_value("min_refresh_secs")
             self.play_cough_sound = self.__definitions.get_bool_value("play_cough_sound")
             self.allow_interruption = self.__definitions.get_bool_value("allow_interruption")
+            self.ptt_enabled = self.__definitions.get_bool_value("ptt_enabled")
+            self.ptt_hotkey = self.__definitions.get_string_value("ptt_hotkey")
             self.save_mic_input = self.__definitions.get_bool_value("save_mic_input")
             self.pause_threshold = self.__definitions.get_float_value("pause_threshold")
             self.listen_timeout = self.__definitions.get_int_value("listen_timeout")
@@ -262,7 +278,7 @@ class ConfigLoader:
                 self.llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("llm_params").replace('\n', ''))
             except Exception as e:
                 logger.error(f"""Error in parsing LLM parameter list: {e}
-LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+LLM parameter list must be valid JSON""")
                 self.llm_params = None
 
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
@@ -275,7 +291,31 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.speech_end_indicators = self.__definitions.get_string_list_value("speech_end_indicators")
             self.narration_indicators: NarrationIndicatorsEnum = self.__definitions.get_enum_value("narration_indicators", NarrationIndicatorsEnum)
             self.claude_prompt_caching_enabled: bool = self.__definitions.get_bool_value("claude_prompt_caching_enabled")
-            
+            self.apply_model_profiles: bool = self.__definitions.get_bool_value("apply_model_profiles")
+            self.allow_per_character_llm_overrides: bool = self.__definitions.get_bool_value("allow_per_character_llm_overrides")
+
+            # Random LLM Selection
+            self.random_llm_enabled: bool = self.__definitions.get_bool_value("random_llm_enabled")
+            try:
+                self.random_llm_pool: list = json.loads(self.__definitions.get_string_value("random_llm_pool").replace('\n', ''))
+            except Exception as e:
+                logger.error(f"""Error in parsing random LLM pool: {e}
+LLM pool must be valid JSON""")
+                self.random_llm_pool = []
+
+            # Summary LLM
+            self.summary_llm_enabled: bool = self.__definitions.get_bool_value("summary_llm_enabled")
+            self.summary_llm_api = self.__definitions.get_string_value("summary_llm_api")
+            self.summary_llm = self.__definitions.get_string_value("summary_llm")
+            self.summary_llm = self.summary_llm.split(' |')[0] if ' |' in self.summary_llm else self.summary_llm
+            self.summary_custom_token_count = self.__definitions.get_int_value("summary_custom_token_count")
+            try:
+                self.summary_llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("summary_llm_params").replace('\n', ''))
+            except Exception as e:
+                logger.error(f"""Error in parsing summary LLM parameter list: {e}
+LLM parameter list must be valid JSON""")
+                self.summary_llm_params = None
+
             #Folder settings
             self.remove_mei_folders = self.__definitions.get_bool_value("remove_mei_folders")
 
@@ -292,6 +332,8 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.player_character_description: str = self.__definitions.get_string_value("player_character_description")
             self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")
             self.player_voice_model: str = self.__definitions.get_string_value("player_voice_model")
+            self.conversation_summary_enabled = self.__definitions.get_bool_value("conversation_summary_enabled")
+            self.enable_character_tag_reading: bool = self.__definitions.get_bool_value("enable_character_tag_reading")
 
             #HTTP
             self.port = self.__definitions.get_int_value("port")
@@ -340,7 +382,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 self.vision_llm_params = json.loads(self.__definitions.get_string_value("vision_llm_params").replace('\n', ''))
             except Exception as e:
                 logger.error(f"""Error in parsing LLM parameter list: {e}
-LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+LLM parameter list must be valid JSON""")
                 self.vision_llm_params = None
 
             # Telemetry
@@ -359,7 +401,7 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
                 self.function_llm_params = json.loads(self.__definitions.get_string_value("function_llm_params").replace('\n', ''))
             except Exception as e:
                 logger.error(f"""Error in parsing LLM parameter list: {e}
-LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+LLM parameter list must be valid JSON""")
                 self.function_llm_params = None
 
             pass

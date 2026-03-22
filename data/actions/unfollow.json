@@ -3,7 +3,7 @@
     "name": "Unfollow",
     "description": "Make NPC(s) stop following the player.",
     "key": "Unfollow",
-    "enabled": true,
+    "enabled": false,
     "parameters": {
         "source": {
             "type": "array",

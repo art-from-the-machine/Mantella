@@ -47,6 +47,16 @@ class STTDefinitions:
                     If you feel like there is too much of a delay between you finishing your response and the text conversion, decrease this value.
                     Set this value to 0 for faster response times."""
         return ConfigValueFloat("pause_threshold","Pause Threshold", description, 0.25, 0, 999, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_ptt_enabled_config_value() -> ConfigValue:
+        description = """When enabled, speech is only captured while the PTT hotkey is held."""
+        return ConfigValueBool("ptt_enabled", "Push-to-Talk", description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_ptt_hotkey_config_value() -> ConfigValue:
+        description = """Examples: V, SPACE, ENTER, F1..F12."""
+        return ConfigValueString("ptt_hotkey", "Push-to-Talk Hotkey", description, "V", tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
     def get_play_cough_sound_config_value() -> ConfigValue:

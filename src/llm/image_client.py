@@ -5,6 +5,7 @@ from src.config.config_loader import ConfigLoader
 from src.image.image_manager import ImageManager
 from src.llm.client_base import ClientBase
 from src.llm.messages import ImageMessage
+from src.model_profile_manager import get_profile_manager
 
 logger = utils.get_logger()
 
@@ -17,10 +18,25 @@ class ImageClient(ClientBase):
         self.__config = config    
         self.__custom_vision_model: bool = config.custom_vision_model
 
+        profile_manager = get_profile_manager()
         if self.__custom_vision_model: # if using a custom model for vision, load these custom config values
-            setup_values = {'api_url': config.vision_llm_api, 'llm': config.vision_llm, 'llm_params': config.vision_llm_params, 'custom_token_count': config.vision_custom_token_count}
+            resolved_params = profile_manager.resolve_params(
+                service=config.vision_llm_api,
+                model=config.vision_llm,
+                fallback_params=config.vision_llm_params,
+                apply_profile=config.apply_model_profiles,
+                log_context="ImageClient(custom)",
+            )
+            setup_values = {'api_url': config.vision_llm_api, 'llm': config.vision_llm, 'llm_params': resolved_params, 'custom_token_count': config.vision_custom_token_count}
         else: # default to base LLM config values
-            setup_values = {'api_url': config.llm_api, 'llm': config.llm, 'llm_params': config.llm_params, 'custom_token_count': config.custom_token_count}
+            resolved_params = profile_manager.resolve_params(
+                service=config.llm_api,
+                model=config.llm,
+                fallback_params=config.llm_params,
+                apply_profile=config.apply_model_profiles,
+                log_context="ImageClient(base)",
+            )
+            setup_values = {'api_url': config.llm_api, 'llm': config.llm, 'llm_params': resolved_params, 'custom_token_count': config.custom_token_count}
         
         super().__init__(**setup_values)
 

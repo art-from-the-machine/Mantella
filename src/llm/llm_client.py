@@ -4,6 +4,7 @@ from src.config.config_loader import ConfigLoader
 from src.llm.image_client import ImageClient
 from src.llm.function_client import FunctionClient
 from src.llm.client_base import ClientBase
+from src.model_profile_manager import get_profile_manager
 
 logger = utils.get_logger()
 
@@ -13,7 +14,15 @@ class LLMClient(ClientBase):
     '''
     @utils.time_it
     def __init__(self, config: ConfigLoader) -> None:
-        super().__init__(config.llm_api, config.llm, config.llm_params, config.custom_token_count, config.claude_prompt_caching_enabled)
+        profile_manager = get_profile_manager()
+        llm_params = profile_manager.resolve_params(
+            service=config.llm_api,
+            model=config.llm,
+            fallback_params=config.llm_params,
+            apply_profile=config.apply_model_profiles,
+            log_context="LLMClient",
+        )
+        super().__init__(config.llm_api, config.llm, llm_params, config.custom_token_count, config.claude_prompt_caching_enabled)
 
         if self._is_local:
             logger.info(f"Running Mantella with local language model")
@@ -25,6 +34,7 @@ class LLMClient(ClientBase):
         if config.vision_enabled:
             logger.info(f"Setting up vision language model...")
             self._image_client: ImageClient | None = ImageClient(config)
+        self._vision_mode = self._determine_vision_mode()
 
         if config.advanced_actions_enabled and config.custom_function_model:
             try:

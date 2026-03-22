@@ -80,7 +80,11 @@ class Context:
     
     @ingame_time.setter
     def ingame_time(self, value: int):
-        self.__ingame_time = value       
+        self.__ingame_time = value
+
+    @property
+    def game_days(self) -> float:
+        return self.__game_days
 
     @property
     def have_actors_changed(self) -> bool:
@@ -134,31 +138,31 @@ class Context:
         self.__ingame_events.clear()
 
     @utils.time_it
-    def add_or_update_characters(self, new_list_of_npcs: list[Character]) -> list[Character]:
+    def add_or_update_characters(self, new_list_of_npcs: list[Character], message_count: int) -> list[Character]:
         removed_npcs = []
         for npc in new_list_of_npcs:
             if not self.__npcs_in_conversation.contains_character(npc):
-                self.__npcs_in_conversation.add_or_update_character(npc)
+                self.__npcs_in_conversation.add_or_update_character(npc, message_count)
                 #self.__ingame_events.append(f"{npc.name} has joined the conversation")
                 self.__have_actors_changed = True
             else:
                 #check for updates in the transient stats and generate update events
                 self.__update_ingame_events_on_npc_change(npc)
-                self.__npcs_in_conversation.add_or_update_character(npc)
+                self.__npcs_in_conversation.add_or_update_character(npc, message_count)
         for npc in self.__npcs_in_conversation.get_all_characters():
             if not npc in new_list_of_npcs:
                 removed_npcs.append(npc)
-                self.__remove_character(npc)
+                self.__remove_character(npc, message_count)
         return removed_npcs
     
     @utils.time_it
-    def remove_character(self, npc: Character):
+    def remove_character(self, npc: Character, message_count: int):
         if self.__npcs_in_conversation.contains_character(npc):
-            self.__remove_character(npc)
+            self.__remove_character(npc, message_count)
     
     @utils.time_it
-    def __remove_character(self, npc: Character):
-        self.__npcs_in_conversation.remove_character(npc)
+    def __remove_character(self, npc: Character, message_count: int):
+        self.__npcs_in_conversation.remove_character(npc, message_count)
         self.__ingame_events.append(f"{npc.name} has left the conversation.")
         self.__have_actors_changed = True
 
@@ -182,11 +186,14 @@ class Context:
                     self.__location: str = 'the Commonwealth'
                 else:
                     self.__location: str = "Skyrim"
-            if (self.__location != self.__prev_location) and (self.__prev_location != None):
+            if self.__prev_location is None:
+                self.__prev_location = self.__location
+                self.__ingame_events.append(f"The location is now {self.__location}.")
+            elif self.__location != self.__prev_location:
                 self.__prev_location = self.__location
                 self.__ingame_events.append(f"The location is now {location}.")
         
-        if in_game_time:
+        if in_game_time is not None:
             self.__ingame_time = in_game_time
             in_game_time_twelve_hour = in_game_time - 12 if in_game_time > 12 else in_game_time
             if self.__hourly_time:
@@ -334,7 +341,7 @@ class Context:
         #     return ""
         
         relationships = []
-        for npc in self.get_characters_excluding_player().get_all_characters():
+        for npc in self.__npcs_in_conversation.get_non_player_characters():
             trust = self.__get_trust(npc)
             relationships.append(f"{trust} to {npc.name}")
         
@@ -367,12 +374,12 @@ class Context:
             str: the bios concatenated together into a single string
         """
         bio_descriptions = []
-        for character in self.get_characters_excluding_player().get_all_characters():
+        for character in self.__npcs_in_conversation.get_non_player_characters():
             if len(self.__npcs_in_conversation) == 1:
                 bio_descriptions.append(character.bio)
             else:
                 bio_descriptions.append(f"{character.name}: {character.bio}")
-        return "\n".join(bio_descriptions)
+        return "\n\n".join(bio_descriptions)
     
     @utils.time_it
     def __get_npc_equipment_text(self) -> str:
@@ -382,7 +389,7 @@ class Context:
             str: the equipment descriptions concatenated together into a single string
         """
         equipment_descriptions = []
-        for character in self.get_characters_excluding_player().get_all_characters():
+        for character in self.__npcs_in_conversation.get_non_player_characters():
                 equipment_descriptions.append(character.equipment.get_equipment_description(character.name))
         return " ".join(equipment_descriptions)
     
@@ -445,7 +452,8 @@ class Context:
             self.__prev_game_time = str(time), time_group
         else:
             self.__prev_game_time = None, time_group
-        conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
+        non_player_chars = self.__npcs_in_conversation.get_non_player_characters()
+        conversation_summaries = self.__rememberer.get_prompt_text(non_player_chars, self.__world_id)
         
         # Only include legacy action prompts if advanced actions are disabled
         actions = self.__get_action_texts(actions_for_prompt) if not self.__config.advanced_actions_enabled else ""
@@ -491,10 +499,3 @@ class Context:
             logger.warning(f'The summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations.')
         return result
     
-    @utils.time_it
-    def get_characters_excluding_player(self) -> Characters:
-        new_characters = Characters()
-        for actor in self.__npcs_in_conversation.get_all_characters():
-            if not actor.is_player_character:
-                new_characters.add_or_update_character(actor)
-        return new_characters

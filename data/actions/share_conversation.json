@@ -3,7 +3,7 @@
     "name": "ShareConversation",
     "description": "Share this conversation with an NPC who is not present once the conversation ends. They will remember what was discussed.",
     "key": "ShareConversation",
-    "enabled": true,
+    "enabled": false,
     "parameters": {
         "source": {
             "type": "string",

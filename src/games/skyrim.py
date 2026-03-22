@@ -10,6 +10,7 @@ from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
 from src.games.gameable import Gameable
+from src.bio_template_manager import BioTemplateManager
 import src.utils as utils
 from src.config.definitions.tts_definitions import TTSEnum
 
@@ -32,6 +33,16 @@ class Skyrim(Gameable):
         super().__init__(config, 'data/Skyrim/skyrim_characters.csv', "Skyrim")
         self.__tts_service: TTSEnum = config.tts_service
         self.__image_analysis_filepath = ""
+
+        # Initialize bio template manager for tag-based bio expansion
+        base_templates_folder = os.path.join('data', 'Skyrim', 'bio_templates')
+        self.__bio_template_manager = BioTemplateManager(
+            base_templates_folder,
+            mod_path_base=config.mod_path_base,
+            save_folder=config.save_folder,
+            enable_tag_reading=config.enable_character_tag_reading,
+            game_name="Skyrim",
+        )
 
         try:
             weather_file = 'data/Skyrim/skyrim_weather.csv'
@@ -72,9 +83,21 @@ class Skyrim(Gameable):
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
-        actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
+        parts = ingame_voice_model.split('<')
+        actor_voice_model_name = parts[1].split(' ')[0] if len(parts) > 1 else ingame_voice_model
 
-        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None))
+        bio = character_info["bio"]
+
+        # Expand bio with tag-based templates if available
+        tags = character_info.get('tags', '')
+        tags_overwrite = character_info.get('tags_overwrite', '')
+        bio = self.__bio_template_manager.expand_bio_with_tags(bio, tags, tags_overwrite=tags_overwrite)
+
+        llm_service_value = utils.safe_str(character_info.get('llm_service', ''))
+        llm_model_value = utils.safe_str(character_info.get('model', ''))
+        tts_service_value = utils.safe_str(character_info.get('tts_service', ''))
+
+        return external_character_info(name, is_generic_npc, bio, actor_voice_model_name, character_info['voice_model'], character_info['skyrim_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None), llm_service=llm_service_value, llm_model=llm_model_value, tts_service=tts_service_value)
     
     @utils.time_it
     def find_best_voice_model(self, actor_race: str | None, actor_sex: int | None, ingame_voice_model: str, library_search:bool = True) -> str:
