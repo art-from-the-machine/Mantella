@@ -19,7 +19,7 @@
     },
     "required": ["source", "target"],
     "prompt": "If the player asks you to move to them, begin your response with '{key}:'",
-    "allowed_games": ["skyrim"],
+    "allowed_games": ["skyrim", "fallout4"],
     "requires_response": false,
     "is-interrupting": false,
     "allow_repeat": true,

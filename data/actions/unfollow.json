@@ -14,7 +14,7 @@
     },
     "required": ["source"],
     "prompt": "If the player asks you to stop following them, begin your response with '{key}:'",
-    "allowed_games": ["skyrim"],
+    "allowed_games": ["skyrim","Fallout4"],
     "requires_response": false,
     "is-interrupting": false,
     "allow_repeat": false,

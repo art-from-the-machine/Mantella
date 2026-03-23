@@ -1,4 +1,5 @@
 # python 3.11
+setuptools<82
 pandas==1.5.3
 tiktoken==0.4.0
 httpx==0.27.2

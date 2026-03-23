@@ -54,13 +54,13 @@ class Fallout4(Gameable):
         
     def modify_sentence_text_for_game(self, text:str) -> str:
         """Modifies the text of a sentence before it is sent to the game.
-            148 bytes is max for Fallout 4."""
+            448 bytes is max for Fallout 4."""
         byte_string: bytes = text.encode('utf-8')
         count_bytes_in_string = len(byte_string)			# Count bytes and not chars
-        if count_bytes_in_string < 148:
+        if count_bytes_in_string < 448:
             return text
         
-        cut_length:int = 144
+        cut_length:int = 444
         cut_bytes:bytes = byte_string[0:cut_length]
         if cut_bytes[-1] & 0b10000000:
             last_11xxxxxx_index = 0

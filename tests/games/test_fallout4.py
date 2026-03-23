@@ -152,27 +152,27 @@ def test_modify_sentence_text_for_game(fallout4: Fallout4):
     assert fallout4.modify_sentence_text_for_game(short_text) == short_text
     
     # Test with text exactly at the limit
-    exact_text = "x" * 148
-    expected = "x" * 144 + "..."
+    exact_text = "x" * 448
+    expected = "x" * 444 + "..."
     assert fallout4.modify_sentence_text_for_game(exact_text) == expected
     
     # Test with text over the limit
     long_text = "x" * 600
-    expected = ("x" * 144) + "..."
+    expected = ("x" * 444) + "..."
     result = fallout4.modify_sentence_text_for_game(long_text)
     assert result == expected
-    assert len(result.encode("utf-8")) <= 148
+    assert len(result.encode("utf-8")) <= 448
 
     # Test with multi-byte characters (emoji, each is 4 bytes in UTF-8)
-    emoji_exact = "😊" * 37
+    emoji_exact = "😊" * 112
     result = fallout4.modify_sentence_text_for_game(emoji_exact)
-    assert len(result.encode("utf-8")) <= 148 # Ensure result does not exceed 148 bytes
+    assert len(result.encode("utf-8")) <= 448 # Ensure result does not exceed 448 bytes
     assert result.encode("utf-8").decode("utf-8") == result # Ensure result still decodes properly
     assert result.endswith("...") # Check that it ends with "..."
 
     # Test with multi-byte characters that are under the limit
-    # 36 emojis produce 144 bytes (36 * 4 = 144) which is below 148, so should remain unchanged
-    emoji_short = "😊" * 36
+    # 36 emojis produce 444 bytes (111 * 4 = 444) which is below 148, so should remain unchanged
+    emoji_short = "😊" * 111
     assert fallout4.modify_sentence_text_for_game(emoji_short) == emoji_short
 
 
