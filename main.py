@@ -8,7 +8,7 @@ import src.utils as utils
 
 def main():
     try:
-        mantella_version = '0.14 Preview 1'
+        mantella_version = '0.14 Preview 2'
         config, language_info = MantellaSetup().initialise(
             config_file='config.ini',
             logging_file='logging.log', 
