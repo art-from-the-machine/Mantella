@@ -552,3 +552,54 @@ async def test_process_response_param(
 
     assert actual == expected_texts
     assert actual_types == expected_types
+
+
+@pytest.mark.asyncio
+async def test_process_response_stores_discarded_character_name(output_manager: ChatManager, example_skyrim_npc_character: Character, example_characters_multi_npc: Characters, mock_queue: SentenceQueue, mock_messages: message_thread, mock_actions: list[Action]):
+    """When the LLM addresses an unrecognized character, process_response should store
+    the discarded name on the output manager so conversation can add corrective feedback."""
+    async def wrong_character_call(messages=None, is_multi_npc=False, tools=None):
+        for chunk in ["Hulda: Here's your mead!"]:
+            yield ("content", chunk)
+
+    output_manager._ChatManager__client.streaming_call = wrong_character_call
+
+    assert output_manager.discarded_character_name is None
+
+    await output_manager.process_response(
+        example_skyrim_npc_character,
+        mock_queue,
+        mock_messages,
+        example_characters_multi_npc,
+        mock_actions,
+        tools=None,
+    )
+
+    assert output_manager.discarded_character_name == "Hulda"
+
+
+@pytest.mark.asyncio
+async def test_process_response_stores_discarded_character_on_partial_response(output_manager: ChatManager, example_skyrim_npc_character: Character, example_characters_multi_npc: Characters, mock_queue: SentenceQueue, mock_messages: message_thread, mock_actions: list[Action]):
+    """When the LLM produces valid sentences but then addresses an unrecognized character,
+    the discarded name should still be stored for corrective feedback on the next turn."""
+    async def partial_then_wrong_call(messages=None, is_multi_npc=False, tools=None):
+        for chunk in ["Guard: Thank you for your service. ", "Hulda: Here's your mead!"]:
+            yield ("content", chunk)
+
+    output_manager._ChatManager__client.streaming_call = partial_then_wrong_call
+
+    await output_manager.process_response(
+        example_skyrim_npc_character,
+        mock_queue,
+        mock_messages,
+        example_characters_multi_npc,
+        mock_actions,
+        tools=None,
+    )
+
+    output_sentences = get_sentence_list_from_queue(mock_queue)
+    real_sentences = [s for s in output_sentences if s.content.text.strip()]
+
+    assert len(real_sentences) == 1
+    assert "Thank you for your service" in real_sentences[0].content.text
+    assert output_manager.discarded_character_name == "Hulda"
