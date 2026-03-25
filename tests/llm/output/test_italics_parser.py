@@ -91,6 +91,22 @@ class TestItalicStripperParser:
         
         assert result_sentence is None
         assert remaining == "That's well-known around here"
+
+    def test_italics_at_sentence_start(self, parser, settings):
+        """Test that italics at the start of a sentence are dropped."""
+        text = "*Laughs* That is funny."
+        result_sentence, remaining = parser.cut_sentence(text, settings)
+        
+        assert result_sentence is None
+        assert remaining == "That is funny."
+
+    def test_italics_at_sentence_end(self, parser, settings):
+        """Test that italics at the end of a sentence are dropped."""
+        text = "That is funny *laughs*."
+        result_sentence, remaining = parser.cut_sentence(text, settings)
+        
+        assert result_sentence is None
+        assert remaining == "That is funny."
     
     def test_no_italics(self, parser, settings):
         """Test that text without italics is unchanged."""
@@ -113,14 +129,6 @@ class TestItalicStripperParser:
         """Test that this parser doesn't use cut indicators."""
         indicators = parser.get_cut_indicators()
         assert indicators == []
-    
-    def test_edge_case_asterisk_at_boundary(self, parser, settings):
-        """Test asterisks at word boundaries."""
-        text = "*Really* though, I mean it *seriously*"
-        result_sentence, remaining = parser.cut_sentence(text, settings)
-        
-        assert result_sentence is None
-        assert remaining == "Really though, I mean it seriously"
     
     def test_preserve_narration_with_question_mark(self, parser, settings):
         """Test that narrations with question marks are preserved."""

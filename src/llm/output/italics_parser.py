@@ -16,6 +16,9 @@ class italics_parser(output_parser):
         # - Should NOT contain sentence-ending punctuation (.!?;) or spaces inside
         # Only strips obvious single-word emphasis
         self.__inline_italic_pattern = re.compile(r'\*([a-zA-Z\'\-]+)\*')
+        # Patterns to fully remove single-word italics at sentence boundaries
+        self.__boundary_start_pattern = re.compile(r'^\*[a-zA-Z\'\-]+\*\s*')
+        self.__boundary_end_pattern = re.compile(r'\s*\*[a-zA-Z\'\-]+\*([.!?;]?)$')
         
     def get_cut_indicators(self) -> list[str]:
         return []
@@ -48,7 +51,9 @@ class italics_parser(output_parser):
         Returns:
             Text with single-word italic asterisks removed
         """
-        # Replace single-word italic patterns with just the word (no asterisks)
-        # Only matches *word* where word has no spaces inside
-        modified_text = self.__inline_italic_pattern.sub(r'\1', text)
+        # First, fully remove single-word italics at sentence boundaries (likely actions/emotes)
+        modified_text = self.__boundary_start_pattern.sub('', text)
+        modified_text = self.__boundary_end_pattern.sub(r'\1', modified_text)
+        # Then strip asterisks from remaining mid-sentence single-word italics (emphasis)
+        modified_text = self.__inline_italic_pattern.sub(r'\1', modified_text)
         return modified_text
