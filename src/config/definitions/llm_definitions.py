@@ -39,12 +39,18 @@ class LLMDefinitions:
     @staticmethod
     def get_llm_api_config_value() -> ConfigValue:
         description = """Selects the LLM service to connect to (either local or via an API).
-        
+
             If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also ignore the dropdown options and instead enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
             After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
 
-            If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using."""
-        return ConfigValueSelection("llm_api","LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True)
+            If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using.
+
+            Player2: If you have the Player2 App installed and running, Mantella will detect your key automatically - no setup needed!
+            If you do not have the app, you can get an API key at https://developer.player2.game and paste it in secret_keys.json as:
+            {"https://api.player2.game/v1": "YOUR_KEY_HERE"}"""
+
+        # --- PLAYER2: added "Player2" to the service options list
+        return ConfigValueSelection("llm_api","LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui", "Player2"], allows_free_edit=True)
 
     @staticmethod
     def get_model_config_value() -> ConfigValue:
@@ -53,7 +59,7 @@ class LLMDefinitions:
                             - OpenRouter: https://openrouter.ai/docs#models
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
         return ConfigValueSelection("model","Model",model_description,"mistralai/mistral-small-3.1-24b-instruct:free",["Custom Model"], allows_values_not_in_options=True)
-    
+
     @staticmethod
     def get_llm_priority_config_value() -> ConfigValue:
         description = """(OpenRouter only) Select the priority of choosing an LLM service provider:
@@ -67,26 +73,26 @@ class LLMDefinitions:
     def get_max_response_sentences_single_config_value() -> ConfigValue:
         description = "The maximum number of sentences returned by the LLM on each response in a player<->NPC conversation. Lower this value to reduce waffling.\nNote: The setting 'Number Words TTS' in the Text-to-Speech tab takes precedence over this setting."
         return ConfigValueInt("max_response_sentences_single","Max Sentences per Response (Single NPC)", description, 4, 1, 999, tags=[ConfigValueTag.share_row])
-    
+
     @staticmethod
     def get_max_response_sentences_multi_config_value() -> ConfigValue:
         description = "The maximum number of sentences returned by the LLM on each response in a player<->multi-NPC conversation. Lower this value to reduce waffling.\nNote: The setting 'Number Words TTS' in the Text-to-Speech tab takes precedence over this setting."
         return ConfigValueInt("max_response_sentences_multi","Max Sentences per Response (Multi NPC)", description, 12, 1, 999, tags=[ConfigValueTag.share_row])
-    
+
     @staticmethod
     def get_custom_token_count_config_value() -> ConfigValue:
         description = """If the model chosen is not recognised by Mantella, the token count for the given model will default to this number.
                     If this is not the correct token count for your chosen model, you can change it here.
                     Keep in mind that if this number is greater than the actual token count of the model, then Mantella will crash if a given conversation exceeds the model's token limit."""
         return ConfigValueInt("custom_token_count","Custom Token Count",description, 4096, 4096, 9999999)
-    
+
     @staticmethod
     def get_wait_time_buffer_config_value() -> ConfigValue:
         description = """Time to wait (in seconds) before generating the next voiceline.
                         Mantella waits for the duration of a given voiceline's .wav file + an extra buffer to account for processing overhead.
                         If you are noticing that some voicelines are not being said in-game, try increasing this buffer."""
         return ConfigValueFloat("wait_time_buffer","Wait Time Buffer",description, 0, -999, 999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
-    
+
     @staticmethod
     def get_llm_params_config_value() -> ConfigValue:
         value = """{
@@ -98,8 +104,6 @@ class LLMDefinitions:
                         Note that available parameters can vary per LLM provider."""
         return ConfigValueString("llm_params", "Parameters", description, value, tags=[ConfigValueTag.advanced])
 
-    #LLM output parsing options
-
     @staticmethod
     def get_narration_handling() -> ConfigValue:
         description = """How to handle narrations in the output of the LLM.
@@ -107,17 +111,17 @@ class LLMDefinitions:
                                             - Respective character speaks its narrations: The currently active character will speak it's actions out aloud.
                                             - Use narrator: Narrations will be spoken by a special narrator. The voice model can be set by the config value 'Narrator voice' below.
                                             - Deactivate handling of narrations: Any narration or speech indicators will be ignored during parsing.
-                                            
+
                                             Note: The seperation of narration and speech is experimental and may not work if the LLM output is not formatted well."""
         options = [e.display_name for e in NarrationHandlingEnum]
         return ConfigValueSelection("narration_handling", "Narration Handling", description, NarrationHandlingEnum.CUT_NARRATIONS.display_name, options, corresponding_enums=list(NarrationHandlingEnum), tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
-    
+
     @staticmethod
     def get_narrator_voice() -> ConfigValue:
         description = """Which voice model to use if 'Narration Handling' is set to 'Use narrator'.
                         Must be a valid voice model from the current TTS. Same rules apply as for choosing a voice for the player."""
         return ConfigValueString("narrator_voice","Narrator voice",description,"", tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
-    
+
     @staticmethod
     def get_narration_start_indicators() -> ConfigValue:
         description = """List of characters used to identify the start of narrations in the LLM output."""
@@ -141,7 +145,7 @@ class LLMDefinitions:
         description = """List of characters used to identify the start of speech in the LLM output."""
         possible_characters = ["\""]
         return ConfigValueMultiSelection("speech_end_indicators","Speech end indicators",description,possible_characters, possible_characters, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
-    
+
     @staticmethod
     def get_narration_indicators() -> ConfigValue:
         description = """Which narration indicators to use for sentences identified as narrations.
