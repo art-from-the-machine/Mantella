@@ -20,6 +20,7 @@ class sentence_generation_settings:
         self.__stop_generation: bool = False
         self.__interrupting_action: bool = False
         self.__vision_requested: bool = False
+        self.__discarded_character_name: str | None = None
     
     @property
     def sentence_type(self) -> SentenceTypeEnum:
@@ -76,6 +77,14 @@ class sentence_generation_settings:
     @vision_requested.setter
     def vision_requested(self, vision_requested: bool):
         self.__vision_requested = vision_requested
+
+    @property
+    def discarded_character_name(self) -> str | None:
+        return self.__discarded_character_name
+
+    @discarded_character_name.setter
+    def discarded_character_name(self, name: str | None):
+        self.__discarded_character_name = name
 
 class output_parser(ABC):
     def __init__(self) -> None:

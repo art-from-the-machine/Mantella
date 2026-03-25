@@ -191,6 +191,7 @@ class Conversation:
                 #If not ended, ask the conversation type for an automatic user message. If there is None, signal the game that the player must provide it 
                 new_user_message = self.__conversation_type.get_user_message(self.__context, self.__messages)
                 if new_user_message:
+                    new_user_message = self.update_game_events(new_user_message)
                     self.__messages.add_message(new_user_message)
                     self.__start_generating_npc_sentences()
                     return comm_consts.KEY_REPLYTYPE_NPCTALK, None
@@ -345,6 +346,11 @@ class Conversation:
         """Add in-game events to player's response"""
 
         all_ingame_events = self.__context.get_context_ingame_events()
+        if self.__output_manager.discarded_character_name:
+            discarded = self.__output_manager.discarded_character_name
+            npc_names = [c.name for c in self.__context.npcs_in_conversation.get_non_player_characters()]
+            all_ingame_events.append(f"{discarded} is not in this conversation. Only {', '.join(npc_names)} can speak.")
+            self.__output_manager.clear_discarded_character_name()
         if self.__is_player_interrupting:
             all_ingame_events.append('Interrupting...')
             self.__is_player_interrupting = False

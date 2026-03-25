@@ -52,6 +52,7 @@ class ChatManager:
         self.__listen_requested: bool = False
         self.__on_listen_requested: Callable[[float], None] | None = None  # Callback for Listen action
         self.__end_conversation_requested: bool = False
+        self.__discarded_character_name: str | None = None
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
         self.__per_character_clients: dict[str, AIClient] = {}
@@ -97,6 +98,13 @@ class ChatManager:
     
     def clear_end_conversation_requested(self) -> None:
         self.__end_conversation_requested = False
+
+    @property
+    def discarded_character_name(self) -> str | None:
+        return self.__discarded_character_name
+
+    def clear_discarded_character_name(self) -> None:
+        self.__discarded_character_name = None
 
     def clear_per_character_client_cache(self) -> None:
         """Clear the per-character client cache (eg on conversation start)."""
@@ -267,7 +275,7 @@ class ChatManager:
             retries = 0
 
             parser_chain: list[output_parser] = [
-                change_character_parser(characters),
+                change_character_parser(characters, actions),
                 italics_parser()]
             if self.__config.narration_handling != NarrationHandlingEnum.DEACTIVATE_HANDLING_OF_NARRATIONS:
                 parser_chain.append(narration_parser(self.__config.narration_start_indicators, self.__config.narration_end_indicators, 
@@ -436,6 +444,11 @@ class ChatManager:
                             first_token = True  # Reset for timing the second call
                             continue  # Loop again
                         
+                        # Store discarded character name so conversation can add corrective feedback as an in-game event
+                        if settings.discarded_character_name:
+                            self.__discarded_character_name = settings.discarded_character_name
+                            logger.log(self.loglevel, f"LLM addressed unrecognized character '{settings.discarded_character_name}'")
+
                         break  # Got text response or hit an error, exit loop
                                 
                     except Exception as e:
