@@ -13,6 +13,7 @@ secret_keys.json
 logging.log
 player_recording.wav
 MantellaEnv*
+.venv
 build/
 dist/
 main.exe

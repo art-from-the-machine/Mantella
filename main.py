@@ -1,3 +1,4 @@
+import onnxruntime # Ensure onnxruntime is imported before anything else to avoid pyinstaller DLL load issues
 from src.http.http_server import http_server
 import traceback
 from src.http.routes.routeable import routeable
