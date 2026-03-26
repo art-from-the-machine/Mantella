@@ -1,3 +1,4 @@
+import onnxruntime as ort
 import sys
 import numpy as np
 from faster_whisper import WhisperModel
@@ -17,8 +18,6 @@ import threading
 import time
 import os
 import wave
-import onnxruntime as ort
-from scipy.io import wavfile
 if TYPE_CHECKING:
     from sounddevice import InputStream
 from silero_vad_lite import SileroVAD
@@ -33,7 +32,6 @@ except ModuleNotFoundError:
     logger.warning("moonshine_onnx is not available, Moonshine stt will not work")
 
 
-import onnxruntime as ort
 ort.set_default_logger_severity(4)
 
 
@@ -258,7 +256,13 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
         
         # Server versions of Whisper require the audio data to be a file type
         audio_file = io.BytesIO()
-        wavfile.write(audio_file, self.SAMPLING_RATE, audio)
+        audio_int16 = (audio * 32767).astype(np.int16)
+        with wave.open(audio_file, 'wb') as wf:
+            wf.setnchannels(1)  # Mono audio
+            wf.setsampwidth(2)  # 16-bit audio
+            wf.setframerate(self.SAMPLING_RATE)
+            wf.writeframes(audio_int16.tobytes())
+        audio_file.seek(0)
         # Audio file needs a name or else Whisper gets angry
         audio_file.name = 'out.wav'
 
