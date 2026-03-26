@@ -88,7 +88,7 @@ class Summaries(Remembering):
         return f"Below is a summary of past events:\n" + "\n\n".join(character_memories)
 
     @utils.time_it
-    def save_conversation_state(self, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None):
+    def save_conversation_state(self, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None, is_radiant: bool = False):
         """Save conversation summaries for the requested NPCs, with per-NPC thread tracking.
 
         NPCs only get summaries of the messages they actually heard (based on participation log).
@@ -102,6 +102,7 @@ class Summaries(Remembering):
             is_reload: Whether this is a reload (save even if summary is empty)
             pending_shares: List of (sharer_name, recipient_name, recipient_ref_id) for memory sharing
             end_timestamp: Optional timestamp to prepend to summaries
+            is_radiant: Whether this is a Radiant conversation (bypass min message threshold)
         """
         npc_message_threads: Dict[str, CharacterSummaryParameters] = self.get_threads_for_summarization(messages, npcs_in_conversation)
 
@@ -116,7 +117,8 @@ class Summaries(Remembering):
 
         # Set a lower threshold for reloads to capture brief interactions, 
         # and a higher threshold for normal saves to avoid trivial summaries (eg "Guard: Hello there. Player: Goodbye.").
-        min_messages = 2 if is_reload else 5
+        # Radiant conversations are always valid for summarization regardless of length.
+        min_messages = 0 if is_radiant else 2 if is_reload else 5
         player_name = npcs_in_conversation.get_player_name() or "the player"
 
         for npc_names in npcs_with_shared_threads:

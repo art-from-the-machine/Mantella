@@ -527,7 +527,8 @@ class Conversation:
         if end_timestamp is None:
             end_timestamp = self.__context.game_days
 
-        self.__rememberer.save_conversation_state(self.__messages, npcs_to_summarize, npcs, self.__context.world_id, is_reload, pending_shares, end_timestamp)
+        is_radiant = isinstance(self.__conversation_type, radiant)
+        self.__rememberer.save_conversation_state(self.__messages, npcs_to_summarize, npcs, self.__context.world_id, is_reload, pending_shares, end_timestamp, is_radiant)
 
     @utils.time_it
     def __initiate_reload_conversation(self):
