@@ -134,30 +134,23 @@ class radiant(conversation_type):
     
     @utils.time_it
     def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:
-        # Calculate message thresholds from radiant_max_turns config
         # Message structure: [system] [start_prompt] [llm_1] [continue] [llm_2] ... [end_prompt] [llm_final]
-        # End prompt should be injected at: (max_turns * 2) + 1
+        # LLM responses so far = len(messages) // 2
         max_turns = self._config.radiant_max_turns
-        end_prompt_threshold = (max_turns * 2) + 1
-        
-        text = ""
-        if len(messages) == 1:
-            # Only system message exists = inject start prompt
-            text = self.__user_start_prompt
-        elif len(messages) == end_prompt_threshold:
-            # Inject end prompt
-            text = self.__user_end_prompt
-        elif len(messages) < end_prompt_threshold and len(messages) % 2 == 1:
-            # Intermediate turns = prompt to continue conversation
-            text = self.__user_continue_prompt
-        else:
+        llm_responses = len(messages) // 2
+
+        if llm_responses >= max_turns:
             return None
+        elif llm_responses == 0:
+            text = self.__user_start_prompt
+        elif llm_responses == max_turns - 1:
+            text = self.__user_end_prompt
+        else:
+            text = self.__user_continue_prompt
+        
         reply = UserMessage(context_for_conversation.config, text, "", True)
         reply.is_multi_npc_message = False # Don't flag these as multi-npc messages. Don't want a 'Player:' in front of the instruction messages
         return reply
     
     def should_end(self, context_for_conversation: Context, messages: message_thread) -> bool:
-        # End conversation after: (max_turns * 2) + 2 messages
-        max_turns = self._config.radiant_max_turns
-        end_threshold = (max_turns * 2) + 2
-        return len(messages) > end_threshold
+        return len(messages) // 2 >= self._config.radiant_max_turns
