@@ -1,4 +1,3 @@
-import onnxruntime as ort
 import sys
 import numpy as np
 from faster_whisper import WhisperModel
@@ -30,9 +29,6 @@ try:
 except ModuleNotFoundError:
     has_moonshine = False
     logger.warning("moonshine_onnx is not available, Moonshine stt will not work")
-
-
-ort.set_default_logger_severity(4)
 
 
 class Transcriber:
