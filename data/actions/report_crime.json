@@ -2,6 +2,7 @@
     "identifier": "mantella_npc_reportcrime",
     "name": "ReportCrime",
     "description": "Report a crime the player has committed.",
+    "note": "This action will fail if a guard is not in the conversation, and the NPC will be informed as such (otherwise it would be chaos). If the AddToConversation action is enabled, these actions can synergise to allow NPCs to call over a nearby guard to report to.",
     "key": "ReportCrime",
     "enabled": false,
     "parameters": {
