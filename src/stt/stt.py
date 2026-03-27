@@ -466,7 +466,8 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             logger.log(self.loglevel, 'Speech detected')
             self._speech_detected = True
 
-        if probability <= self.audio_threshold and self._speech_detected and time.time() - self._last_update_time > self.pause_threshold:
+        effective_pause = self._temporary_pause_override if self._temporary_pause_override is not None else self.pause_threshold
+        if probability <= self.audio_threshold and self._speech_detected and time.time() - self._last_update_time > effective_pause:
             logger.log(self.loglevel, 'Speech ended')
             self._finalize_transcription(transcribe=not self.proactive_mic_mode)
             return chunk_count
