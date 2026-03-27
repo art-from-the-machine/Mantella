@@ -213,8 +213,9 @@ class Context:
                 self.__ingame_events.append(weather)
             self.__weather = weather
 
-        # Update nearby NPCs in the Characters manager
-        self.__npcs_in_conversation.set_nearby_npcs(npcs_nearby)
+        # Update nearby NPCs in the Characters manager (only when game sends new data)
+        if npcs_nearby is not None:
+            self.__npcs_in_conversation.set_nearby_npcs(npcs_nearby)
         
         # Add vision hints to in-game events
         self.__vision_hints = ''
