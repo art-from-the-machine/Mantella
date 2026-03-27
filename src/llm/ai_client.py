@@ -51,7 +51,7 @@ class AIClient(ABC):
 
     @staticmethod
     @abstractmethod
-    def get_model_list(service: str, default_model: str = "mistralai/mistral-small-3.1-24b-instruct:free", is_vision: bool = False, is_tool_calling: bool = False) -> LLMModelList:
+    def get_model_list(service: str, default_model: str = "mistralai/mistral-small-3.1-24b-instruct:free", is_vision: bool = False, is_tool_calling: bool = False, show_key_error: bool = False) -> LLMModelList:
         """Returns a list of available LLM models
 
         Args:
@@ -59,6 +59,7 @@ class AIClient(ABC):
             default_model (_type_, optional): _description_. Defaults to "mistralai/mistral-small-3.1-24b-instruct:free".
             is_vision (bool, optional): _description_. Defaults to False.
             is_tool_calling (bool, optional): _description_. Defaults to False.
+            show_key_error (bool, optional): Whether to show an error if the API key is missing. Defaults to False.
 
         Returns:
             LLMModelList: _description_
