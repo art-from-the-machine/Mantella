@@ -19,7 +19,7 @@ class Remembering(ABC):
         pass
 
     @abstractmethod
-    def save_conversation_state(self, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None):
+    def save_conversation_state(self, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None, is_radiant: bool = False):
         """Saves the current state of the conversation.
 
         Args:
@@ -30,5 +30,6 @@ class Remembering(ABC):
             is_reload (bool): Whether this is a reload save
             pending_shares (list[tuple[str, str, str]] | None): List of (sharer_name, recipient_name, recipient_ref_id) for sharing summaries
             end_timestamp (float | None): Optional game timestamp to prepend to summaries
+            is_radiant (bool): Whether this is a Radiant conversation (bypass min message threshold)
         """
         pass
