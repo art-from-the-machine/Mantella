@@ -3,7 +3,6 @@
     "name": "CastSpell",
     "description": "Make NPC cast a spell on another NPC / themselves. Only one spell can be cast per turn.",
     "key": "CastSpell",
-    "enabled": false,
     "parameters": {
         "source": {
             "type": "string",

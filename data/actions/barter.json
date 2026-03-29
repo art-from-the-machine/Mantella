@@ -3,7 +3,6 @@
     "name": "Barter",
     "description": "Show what an NPC has for sale.",
     "key": "Barter",
-    "enabled": true,
     "parameters": {
         "source": {
             "type": "string",

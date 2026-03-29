@@ -86,7 +86,7 @@ def default_config(tmp_path: Path) -> ConfigLoader:
     default_config = ConfigLoader(mygame_folder_path=str(tmp_path), game_override=GameEnum.SKYRIM)
 
     # Load actions (simulating what setup.py does after logging is configured)
-    FunctionManager.load_all_actions(include_disabled=True)
+    FunctionManager.load_all_actions()
     default_config.actions = FunctionManager.get_legacy_actions()
 
     # Load the actual config file
@@ -138,7 +138,7 @@ def llm_client(default_config: ConfigLoader) -> LLMClient:
 @pytest.fixture
 def default_function_client(default_config: ConfigLoader) -> FunctionClient:
     """Provides a FunctionClient instance for testing"""
-    FunctionManager.load_all_actions(include_disabled=True) # This is called on server startup, but not when creating the client standalone
+    FunctionManager.load_all_actions() # This is called on server startup, but not when creating the client standalone
     return FunctionClient(default_config)
 
 @pytest.fixture

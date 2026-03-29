@@ -4,7 +4,6 @@
     "description": "Absolve a non-violent crime the player has been accused of.",
     "note": "This action will fail if a guard is not in the conversation, and the NPC will be informed as such. If the AddToConversation action is enabled, these actions can synergise to allow NPCs to call over a nearby guard to absolve the crime.",
     "key": "AbsolveCrime",
-    "enabled": false,
     "parameters": {
         "crime_gold": {
             "type": "integer",

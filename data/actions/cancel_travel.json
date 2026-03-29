@@ -4,7 +4,6 @@
     "description": "Cancels NPC travel plans set by the TravelTo action.",
     "note": "EXPERIMENTAL: Can cause NPC AI packages to break.",
     "key": "CancelTravel",
-    "enabled": false,
     "allowed_games": ["skyrim"],
     "requires_response": false,
     "is-interrupting": false,
