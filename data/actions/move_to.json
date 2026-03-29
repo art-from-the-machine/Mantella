@@ -3,7 +3,6 @@
     "name": "MoveTo",
     "description": "Make NPC(s) move to a specific NPC.",
     "key": "MoveTo",
-    "enabled": true,
     "parameters": {
         "source": {
             "type": "array",

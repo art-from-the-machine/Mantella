@@ -151,11 +151,11 @@ class FunctionManager:
 
 
     @staticmethod
-    def load_all_actions(include_disabled: bool = False) -> None:
+    def load_all_actions(disabled_actions: list[str] | None = None) -> None:
         """Load all actions from the data/actions/ folder at server startup
 
         Args:
-            include_disabled: If True, load actions even if they have enabled=false.
+            disabled_actions: List of action names to disable. If None, all actions are loaded.
         """
         # Get the project root directory (two levels up from this file)
         actions_dir = Path(utils.resolve_path()) / "data" / "actions"
@@ -168,10 +168,12 @@ class FunctionManager:
         FunctionManager._last_tool_calls = []
         FunctionManager._disabled_action_names = []
 
+        disabled_set = set(n.lower() for n in disabled_actions) if disabled_actions is not None else set()
+
         # Load top-level action files
         for file_path in actions_dir.glob("*.json"):
             try:
-                FunctionManager._load_action_file(file_path, include_disabled)
+                FunctionManager._load_action_file(file_path, disabled_set)
             except Exception as e:
                 logger.warning(f"Failed to load action file {file_path}: {e}")
 
@@ -245,8 +247,12 @@ class FunctionManager:
 
 
     @staticmethod
-    def _load_action_file(file_path: Path, include_disabled: bool = False) -> None:
-        """Load a single action file"""
+    def _load_action_file(file_path: Path, disabled_set: set[str] | None = None) -> None:
+        """Load a single action file
+
+        Args:
+            disabled_set: Set of lowercased action names to skip to check current action against.
+        """
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
@@ -254,9 +260,14 @@ class FunctionManager:
         actions_data = data if isinstance(data, list) else [data]
 
         for action_data in actions_data:
-            # Skip disabled actions (default to enabled if not specified)
-            if not include_disabled and not action_data.get('enabled', True):
-                FunctionManager._disabled_action_names.append(action_data.get('name', 'Unknown'))
+            name = action_data.get('name')
+            if not name:
+                logger.warning(f"Action in '{file_path.name}' is missing a 'name' field, skipping")
+                continue
+
+            # Skip actions whose name is in the disabled set
+            if disabled_set is not None and name.lower() in disabled_set:
+                FunctionManager._disabled_action_names.append(name)
                 continue
             
             # Ensure identifier starts with 'mantella_'

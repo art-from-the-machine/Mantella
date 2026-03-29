@@ -392,6 +392,7 @@ LLM parameter list must be valid JSON""")
             
             # Actions
             self.advanced_actions_enabled = self.__definitions.get_bool_value("advanced_actions_enabled")
+            self.disabled_actions: list[str] = self.__definitions.get_string_list_value("disabled_actions")
             self.custom_function_model = self.__definitions.get_bool_value("custom_function_model")
             self.function_llm_api = self.__definitions.get_string_value("function_llm_api")
             self.function_llm = self.__definitions.get_string_value("function_llm")
