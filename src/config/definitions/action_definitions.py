@@ -1,8 +1,35 @@
+import json
+from pathlib import Path
 from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_bool import ConfigValueBool
 from src.config.types.config_value_int import ConfigValueInt
+from src.config.types.config_value_multi_selection import ConfigValueMultiSelection
 from src.config.types.config_value_selection import ConfigValueSelection
 from src.config.types.config_value_string import ConfigValueString
+from src import utils
+
+
+def _scan_action_names() -> list[str]:
+    """Scan action JSON files and return a lightweight sorted list of action names.
+    """
+    actions_dir = Path(utils.resolve_path()) / "data" / "actions"
+    if not actions_dir.exists():
+        return []
+
+    names = []
+    for file_path in actions_dir.glob("*.json"):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            actions_data = data if isinstance(data, list) else [data]
+            for action_data in actions_data:
+                name = action_data.get('name')
+                if name:
+                    names.append(name)
+        except Exception:
+            continue
+    return sorted(names)
+
 
 class ActionDefinitions:
     @staticmethod
@@ -11,6 +38,37 @@ class ActionDefinitions:
                         If disabled, only basic actions can be triggered by the LLM using an '[action_name]: [NPC response]' format (eg 'Follow: Lead the way').
                         Actions without a 'prompt' field defined in the action's JSON file (see data/actions/) can only be triggered when this setting is enabled."""
         return ConfigValueBool("advanced_actions_enabled", "Advanced Actions", description, False)
+    
+    @staticmethod
+    def get_disabled_actions_config_value() -> ConfigValue:
+        action_names = _scan_action_names()
+        description = """Actions not selected here will be available in conversations.
+                        Some actions can only be triggered when `Advanced Actions` is enabled above.
+                        To learn more about an action, see the associated JSON file in the data/actions/ folder."""
+        default_disabled = [
+            "AbsolveCrime",
+            "AddToConversation",
+            "Brawl",
+            "CancelTravel",
+            "CastSpell",
+            "CheckDirections",
+            "CollectIngredients",
+            "Emote",
+            "Follow",
+            "LeadTo",
+            "Look",
+            "Loot",
+            "ReportCrime",
+            "ShareConversation",
+            "Teleport",
+            "TravelTo",
+            "Unfollow",
+            "Wait",
+        ]
+        # Only include defaults that actually exist in the scanned action names
+        valid_defaults = [name for name in default_disabled if name in action_names]
+        return ConfigValueMultiSelection("disabled_actions", "Disabled Actions", description, valid_defaults, action_names)
+
 
     @staticmethod
     def get_custom_function_model_config_value() -> ConfigValue:

@@ -4,7 +4,6 @@
     "description": "Look at what the player sees.",
     "note": "Vision must also be enabled in the Mantella UI for this action to work. If enabled, NPCs can choose whether to use vision each turn. If disabled, vision will trigger every turn.",
     "key": "Look",
-    "enabled": false,
     "prompt": "To see what the player sees, begin your response with '{key}:'.",
     "allowed_games": ["skyrim"],
     "requires_response": false,

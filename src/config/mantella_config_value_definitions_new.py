@@ -137,6 +137,7 @@ class MantellaConfigValueDefinitionsNew:
 
         actions_category = ConfigValueGroup("Actions", "Actions", "Settings for in-game actions.", on_value_change_callback)
         actions_category.add_config_value(ActionDefinitions.get_advanced_actions_enabled_config_value())
+        actions_category.add_config_value(ActionDefinitions.get_disabled_actions_config_value())
         actions_category.add_config_value(ActionDefinitions.get_custom_function_model_config_value())
         actions_category.add_config_value(ActionDefinitions.get_function_llm_api_config_value())
         actions_category.add_config_value(ActionDefinitions.get_function_llm_model_config_value())
