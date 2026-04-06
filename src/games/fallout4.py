@@ -54,13 +54,13 @@ class Fallout4(Gameable):
         
     def modify_sentence_text_for_game(self, text:str) -> str:
         """Modifies the text of a sentence before it is sent to the game.
-            148 bytes is max for Fallout 4."""
+            448 bytes is max for Fallout 4."""
         byte_string: bytes = text.encode('utf-8')
         count_bytes_in_string = len(byte_string)			# Count bytes and not chars
-        if count_bytes_in_string < 148:
+        if count_bytes_in_string < 448:
             return text
         
-        cut_length:int = 144
+        cut_length:int = 444
         cut_bytes:bytes = byte_string[0:cut_length]
         if cut_bytes[-1] & 0b10000000:
             last_11xxxxxx_index = 0
@@ -76,9 +76,14 @@ class Fallout4(Gameable):
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
-        actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
+        parts = ingame_voice_model.split('<')
+        actor_voice_model_name = parts[1].split(' ')[0] if len(parts) > 1 else ingame_voice_model
 
-        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None)) 
+        llm_service_value = utils.safe_str(character_info.get('llm_service', ''))
+        llm_model_value = utils.safe_str(character_info.get('model', ''))
+        tts_service_value = utils.safe_str(character_info.get('tts_service', ''))
+
+        return external_character_info(name, is_generic_npc, character_info["bio"], actor_voice_model_name, character_info['voice_model'], character_info['fallout4_voice_folder'], character_info['advanced_voice_model'], character_info.get('voice_accent', None), llm_service=llm_service_value, llm_model=llm_model_value, tts_service=tts_service_value)
     
     @utils.time_it
     def find_best_voice_model(self, actor_race: str, actor_sex: int, ingame_voice_model: str, library_search:bool = True) -> str:

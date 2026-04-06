@@ -88,7 +88,7 @@ class Summaries(Remembering):
         return f"Below is a summary of past events:\n" + "\n\n".join(character_memories)
 
     @utils.time_it
-    def save_conversation_state(self, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None):
+    def save_conversation_state(self, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None, is_radiant: bool = False):
         """Save conversation summaries for the requested NPCs, with per-NPC thread tracking.
 
         NPCs only get summaries of the messages they actually heard (based on participation log).
@@ -102,6 +102,7 @@ class Summaries(Remembering):
             is_reload: Whether this is a reload (save even if summary is empty)
             pending_shares: List of (sharer_name, recipient_name, recipient_ref_id) for memory sharing
             end_timestamp: Optional timestamp to prepend to summaries
+            is_radiant: Whether this is a Radiant conversation (bypass min message threshold)
         """
         npc_message_threads: Dict[str, CharacterSummaryParameters] = self.get_threads_for_summarization(messages, npcs_in_conversation)
 
@@ -116,18 +117,20 @@ class Summaries(Remembering):
 
         # Set a lower threshold for reloads to capture brief interactions, 
         # and a higher threshold for normal saves to avoid trivial summaries (eg "Guard: Hello there. Player: Goodbye.").
-        min_messages = 2 if is_reload else 5
+        # Radiant conversations are always valid for summarization regardless of length.
+        min_messages = 0 if is_radiant else 2 if is_reload else 5
+        player_name = npcs_in_conversation.get_player_name() or "the player"
 
         for npc_names in npcs_with_shared_threads:
             # Generate one summary per unique conversation experience
-            summary = self.__create_new_conversation_summary(npc_message_threads[npc_names[0]], npcs_in_conversation, world_id, end_timestamp, min_messages=min_messages)
+            summary = self.__create_new_conversation_summary(npc_message_threads[npc_names[0]], world_id, end_timestamp, min_messages=min_messages, player_name=player_name)
 
             # Write the same summary to all NPCs who heard the same messages
             for npc_name in npc_names:
                 npc_summaries[npc_name] = summary
                 if summary or is_reload:
                     character = next(c for c in npcs_to_summarize if c.name == npc_name)
-                    self.__append_new_conversation_summary(summary, character.name, character.ref_id, world_id)
+                    self.__append_new_conversation_summary(summary, character.name, character.ref_id, world_id, player_name)
 
         # Handle pending shares: write summary with prefix to recipient folders
         if pending_shares:
@@ -143,16 +146,16 @@ class Summaries(Remembering):
                         continue  # Exclude sharer from participant list
                     participant_names.append(npc.name)
                 # Add the player
-                player_name = npcs_in_conversation.get_player_name()
-                if player_name:
-                    participant_names.append(f"{player_name} (the player)")
+                actual_player_name = npcs_in_conversation.get_player_name()
+                if actual_player_name:
+                    participant_names.append(f"{actual_player_name} (the player)")
 
                 # Create prefixed summary
                 participants_text = ", ".join(participant_names) if participant_names else "others"
                 prefixed_summary = f"{sharer_name} shared with {recipient_name} a conversation with {participants_text}:\n{sharer_summary}"
 
                 # Write to recipient using name and ref_id directly
-                self.__append_new_conversation_summary(prefixed_summary, recipient_name, recipient_ref_id, world_id)
+                self.__append_new_conversation_summary(prefixed_summary, recipient_name, recipient_ref_id, world_id, player_name)
                 logger.info(f"Shared conversation summary with {recipient_name}")
 
     @utils.time_it
@@ -272,7 +275,7 @@ class Summaries(Remembering):
         return f"{target_folder}/{base_name}_summary_{latest_file_number}.txt"
     
     @utils.time_it
-    def __create_new_conversation_summary(self, npc_info: CharacterSummaryParameters, npcs_in_conversation: Characters, world_id: str, end_timestamp: float | None = None, min_messages: int = 5) -> str:
+    def __create_new_conversation_summary(self, npc_info: CharacterSummaryParameters, world_id: str, end_timestamp: float | None = None, min_messages: int = 5, player_name: str = "the player") -> str:
         if self.__config.game.base_game == GameEnum.FALLOUT4:
             location: str = 'the Commonwealth'
         else:
@@ -280,8 +283,6 @@ class Summaries(Remembering):
 
         bios = '\n\n'.join([f"{c.name}: {c.bio}" for c in npc_info.characters])
         names = ', '.join([c.name for c in npc_info.characters])
-
-        player_name = npcs_in_conversation.get_player_name() or "the player"
 
         prompt = self.__memory_prompt.format(
                     name=names,
@@ -310,7 +311,7 @@ class Summaries(Remembering):
         return ""
 
     @utils.time_it
-    def __append_new_conversation_summary(self, new_summary: str, npc_name: str, npc_ref_id: str, world_id: str):
+    def __append_new_conversation_summary(self, new_summary: str, npc_name: str, npc_ref_id: str, world_id: str, player_name: str = "the player"):
         """Append a new conversation summary."""
         conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc_name, npc_ref_id, world_id)
         if os.path.exists(conversation_summary_file):
@@ -341,7 +342,8 @@ class Summaries(Remembering):
                     prompt = self.__resummarize_prompt.format(
                         name=npc_name,
                         language=self.__language_name,
-                        game=self.__game.game_name_in_filepath
+                        game=self.__game.game_name_in_filepath,
+                        player_name=player_name
                     )
                     long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt)
                     break

@@ -1,0 +1,21 @@
+{
+    "identifier": "mantella_npc_givedirections",
+    "name": "CheckDirections",
+    "description": "Returns directions on how to reach a specified location.",
+    "note": "NPCs can sometimes choose incompatible locations to check directions to. Known locations are an exhaustive list of game locations that have a map marker.",
+    "key": "CheckDirections",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "description": "The location to give directions to."
+        }
+    },
+    "required": ["location"],
+    "allowed_games": ["skyrim"],
+    "requires_response": true,
+    "is-interrupting": false,
+    "allow_repeat": false,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": false
+}

@@ -13,9 +13,7 @@ from src.game_manager import GameStateManager
 from src.http.routes.routeable import routeable
 from src.http.communication_constants import communication_constants as comm_consts
 from src.tts.ttsable import TTSable
-from src.tts.xvasynth import xVASynth
-from src.tts.xtts import XTTS
-from src.tts.piper import Piper
+from src.tts.tts_factory import create_tts
 from src import utils
 from src.config.definitions.game_definitions import GameEnum
 from src.config.definitions.tts_definitions import TTSEnum
@@ -30,8 +28,8 @@ class mantella_route(routeable):
     Args:
         routeable (_type_): _description_
     """
-    def __init__(self, config: ConfigLoader, language_info: dict[Hashable, str], show_debug_messages: bool = False) -> None:
-        super().__init__(config, show_debug_messages)
+    def __init__(self, config: ConfigLoader, language_info: dict[Hashable, str]) -> None:
+        super().__init__(config)
         self.__language_info: dict[Hashable, str] = language_info
         self.__game: GameStateManager | None = None
 
@@ -51,13 +49,7 @@ class mantella_route(routeable):
         else:
             game = Skyrim(self._config)
 
-        tts: TTSable
-        if self._config.tts_service == TTSEnum.XVASYNTH:
-            tts = xVASynth(self._config)
-        elif self._config.tts_service == TTSEnum.XTTS:
-            tts = XTTS(self._config, game)
-        if self._config.tts_service == TTSEnum.PIPER:
-            tts = Piper(self._config, game)
+        tts: TTSable = create_tts(self._config.tts_service, self._config, game)
 
         llm_client = LLMClient(self._config)
 
@@ -65,7 +57,7 @@ class mantella_route(routeable):
         if self._config.summary_llm_enabled:
             summary_client = SummaryLLMClient(self._config)
 
-        chat_manager = ChatManager(self._config, tts, llm_client)
+        chat_manager = ChatManager(self._config, tts, llm_client, game)
         self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, summary_client)
 
     @utils.time_it
@@ -84,7 +76,7 @@ class mantella_route(routeable):
             received_json: dict[str, Any] | None = await request.json()
             if received_json:
                 logger.debug('Processing request...')
-                if self._show_debug_messages:
+                if self._config.show_http_debug_messages:
                     logger.log(self._log_level_http_in, json.dumps(received_json, indent=4))
                 request_type: str = received_json[comm_consts.KEY_REQUESTTYPE]
                 match request_type:
@@ -105,6 +97,6 @@ class mantella_route(routeable):
             else:
                 reply = self.error_message(f"Request did not contain properly formatted json!")
 
-            if self._show_debug_messages:
+            if self._config.show_http_debug_messages:
                 logger.log(self._log_level_http_out, json.dumps(reply, indent=4))
             return reply

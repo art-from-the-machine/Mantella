@@ -11,7 +11,7 @@ import shutil
 from src.config.definitions.game_definitions import GameEnum
 import platform
 
-if platform.system == "Windows":
+if platform.system() == "Windows":
     from subprocess import STARTUPINFO, STARTF_USESHOWWINDOW
 
 logger = utils.get_logger()

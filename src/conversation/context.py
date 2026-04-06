@@ -186,11 +186,14 @@ class Context:
                     self.__location: str = 'the Commonwealth'
                 else:
                     self.__location: str = "Skyrim"
-            if (self.__location != self.__prev_location) and (self.__prev_location != None):
+            if self.__prev_location is None:
+                self.__prev_location = self.__location
+                self.__ingame_events.append(f"The location is now {self.__location}.")
+            elif self.__location != self.__prev_location:
                 self.__prev_location = self.__location
                 self.__ingame_events.append(f"The location is now {location}.")
         
-        if in_game_time:
+        if in_game_time is not None:
             self.__ingame_time = in_game_time
             in_game_time_twelve_hour = in_game_time - 12 if in_game_time > 12 else in_game_time
             if self.__hourly_time:
@@ -210,8 +213,9 @@ class Context:
                 self.__ingame_events.append(weather)
             self.__weather = weather
 
-        # Update nearby NPCs in the Characters manager
-        self.__npcs_in_conversation.set_nearby_npcs(npcs_nearby)
+        # Update nearby NPCs in the Characters manager (only when game sends new data)
+        if npcs_nearby is not None:
+            self.__npcs_in_conversation.set_nearby_npcs(npcs_nearby)
         
         # Add vision hints to in-game events
         self.__vision_hints = ''
@@ -376,7 +380,7 @@ class Context:
                 bio_descriptions.append(character.bio)
             else:
                 bio_descriptions.append(f"{character.name}: {character.bio}")
-        return "\n".join(bio_descriptions)
+        return "\n\n".join(bio_descriptions)
     
     @utils.time_it
     def __get_npc_equipment_text(self) -> str:

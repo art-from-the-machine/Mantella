@@ -34,6 +34,7 @@ class LLMClient(ClientBase):
         if config.vision_enabled:
             logger.info(f"Setting up vision language model...")
             self._image_client: ImageClient | None = ImageClient(config)
+        self._vision_mode = self._determine_vision_mode()
 
         if config.advanced_actions_enabled and config.custom_function_model:
             try:

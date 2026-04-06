@@ -2,8 +2,8 @@
     "identifier": "mantella_npc_brawl",
     "name": "Brawl",
     "description": "Make NPC(s) non-lethally brawl the player.",
+    "note": "EXPERIMENTAL: Can cause NPC AI packages to break.",
     "key": "Brawl",
-    "enabled": true,
     "parameters": {
         "source": {
             "type": "array",

@@ -88,7 +88,7 @@ class ClientBase(AIClient):
         self._image_client = None
         self._function_client = None
         self._enable_vision_next_call: bool = False
-        self._vision_mode: VisionMode = self._determine_vision_mode()
+        self._vision_mode: VisionMode = VisionMode.DISABLED
 
         if not utils.is_local_url(self._base_url): # Cloud LLM
             self._is_local: bool = False
@@ -593,6 +593,8 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         # 'Player2' added to the list of services with special model handling
         if service not in ['OpenAI', 'OpenRouter', 'NanoGPT', 'Player2']:
         # --- PLAYER2 END ---
+    def get_model_list(service: str, default_model: str = "mistralai/mistral-small-3.1-24b-instruct:free", is_vision: bool = False, is_tool_calling: bool = False, show_key_error: bool = False) -> LLMModelList:
+        if service not in ['OpenAI', 'OpenRouter', 'NanoGPT']:
             return LLMModelList([("Custom model","Custom model")], "Custom model", allows_manual_model_input=True)
         try:
             if service == "OpenAI":
@@ -602,8 +604,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
 
             elif service == "OpenRouter":
                 default_model = default_model
-                show_error = not is_vision and not is_tool_calling
-                secret_key = ClientBase._get_api_key("OpenRouter", show_error=show_error)
+                secret_key = ClientBase._get_api_key("OpenRouter", show_error=show_key_error)
                 if not secret_key:
                     return LLMModelList([(f"No secret key found for OpenRouter", "Custom model")], "Custom model", allows_manual_model_input=True)
                 client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
@@ -613,8 +614,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
 
             elif service == "NanoGPT":
                 default_model = "mistral-small-31-24b-instruct"
-                show_error = not is_vision and not is_tool_calling
-                secret_key = ClientBase._get_api_key("NanoGPT", show_error=show_error)
+                secret_key = ClientBase._get_api_key("NanoGPT", show_error=show_key_error)
                 if not secret_key:
                     return LLMModelList([(f"No secret key found for NanoGPT", "Custom model")], "Custom model", allows_manual_model_input=True)
                 headers = {"Authorization": f"Bearer {secret_key}"}

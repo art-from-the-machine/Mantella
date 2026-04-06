@@ -9,8 +9,10 @@ class sentence_end_parser(output_parser):
     def __init__(self, end_of_sentence_chars: list[str] = ['.', '?', '!', ';', '。', '？', '！', '；']) -> None:
         super().__init__()
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in end_of_sentence_chars]
-        base_regex_def = "^.*?[{sentence_end_chars}]+"
-        self.__sentence_end_reg = re.compile(base_regex_def.format(sentence_end_chars = "\\" + "\\".join(self.__end_of_sentence_chars)))
+        # Match a standalone period (not part of an ellipsis like .. or ...) or any other end-of-sentence char
+        other_chars = [c for c in self.__end_of_sentence_chars if c != '.']
+        other_chars_escaped = ''.join([re.escape(c) for c in other_chars])
+        self.__sentence_end_reg = re.compile(rf"^.*?(?:(?<!\.)\.(?!\.)|[{other_chars_escaped}])+")
 
     def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[SentenceContent | None, str]:
         match = self.__sentence_end_reg.match(output)

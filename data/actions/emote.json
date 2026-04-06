@@ -2,8 +2,8 @@
     "identifier": "mantella_npc_emote",
     "name": "Emote",
     "description": "Make NPC(s) perform an emote animation.",
+    "note": "Individual emotes can be enabled/disabled in data/Skyrim/skyrim_idles.csv.",
     "key": "Emote",
-    "enabled": true,
     "parameters": {
         "source": {
             "type": "array",

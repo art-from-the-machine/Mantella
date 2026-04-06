@@ -645,6 +645,29 @@ class TestResummarization:
             assert "Guard" in prompt_arg
             assert "English" in prompt_arg
 
+    def test_resummarize_prompt_includes_player_name(self, skyrim: Skyrim, default_rememberer: Summaries, example_skyrim_npc_character: Character):
+        """When a non-default player_name is provided, the resummarize prompt should include it instead of 'the player'."""
+        guard = example_skyrim_npc_character
+        world_id = "TestWorld"
+
+        folder = os.path.join(skyrim.conversation_folder_path, world_id, f"Guard - {guard.ref_id}")
+        os.makedirs(folder, exist_ok=True)
+        initial_file = os.path.join(folder, "Guard_summary_1.txt")
+        with open(initial_file, 'w', encoding='utf-8') as f:
+            f.write("Existing summary content.\n\n")
+
+        client = default_rememberer._Summaries__client
+
+        with patch.object(client, 'get_count_tokens', return_value=99999), \
+             patch.object(default_rememberer, 'summarize_conversation', return_value="Resummarized.") as mock_summarize:
+            default_rememberer._Summaries__append_new_conversation_summary(
+                "New summary.", guard.name, guard.ref_id, world_id, player_name="Dragonborn"
+            )
+
+            assert mock_summarize.call_count == 1
+            prompt_arg = mock_summarize.call_args[0][1]
+            assert "Dragonborn" in prompt_arg
+
 
 class TestFormatTimestamp:
     """Tests for __format_timestamp."""

@@ -3,7 +3,6 @@
     "name": "CollectIngredients",
     "description": "Make NPC(s) collect ingredients in the area.",
     "key": "CollectIngredients",
-    "enabled": true,
     "parameters": {
         "source": {
             "type": "array",

@@ -1,9 +1,8 @@
 {
     "identifier": "mantella_npc_wait",
     "name": "Wait",
-    "description": "Make an NPC(s) wait.",
+    "description": "Make NPC(s) wait / rest in the area.",
     "key": "Wait",
-    "enabled": true,
     "parameters": {
         "source": {
             "type": "array",

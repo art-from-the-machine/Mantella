@@ -3,7 +3,6 @@
     "name": "Loot",
     "description": "Make NPC(s) loot items in the area.",
     "key": "Loot",
-    "enabled": true,
     "parameters": {
         "source": {
             "type": "array",

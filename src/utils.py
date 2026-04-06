@@ -169,10 +169,12 @@ def cleanup_tmp(tmp_folder: str):
 def cleanup_mei(remove_mei_folders: bool):
     """
     Rudimentary workaround for https://github.com/pyinstaller/pyinstaller/issues/2379
+    Only relevant for onefile mode where _MEIPASS is a temp _MEI* directory.
+    In onedir mode _MEIPASS points to the app folder itself.
     """
     mei_bundle = getattr(sys, "_MEIPASS", False)
 
-    if mei_bundle:
+    if mei_bundle and "_MEI" in mei_bundle:
         dir_mei, current_mei = mei_bundle.split("_MEI")
         mei_files = []
         for file in os.listdir(dir_mei):

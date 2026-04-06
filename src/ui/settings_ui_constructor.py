@@ -323,7 +323,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
     def visit_ConfigValueString(self, config_value: ConfigValueString):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Text:
             config_value = typing.cast(ConfigValueString, raw_config_value)
-            count_rows = self.__count_rows_in_text(config_value.value)
+            count_rows = max(self.__count_rows_in_text(config_value.value), self.__count_rows_in_text(config_value.default_value))
             if count_rows == 1:
                 return gr.Text(value=config_value.value,
                         show_label=False,
@@ -656,9 +656,11 @@ class SettingsUIConstructor(ConfigValueVisitor):
             if handler:
                 service: str = self.__identifier_to_config_value[handler["dependent_config"]].value
                 default_model = handler.get("default_model", 'mistralai/mistral-small-3.1-24b-instruct:free')
-                is_vision = True if config_value.identifier == 'vision_model' else False
-                is_tool_calling = True if config_value.identifier == 'function_llm' else False
-                model_list = handler["model_list_getter"](service, default_model, is_vision, is_tool_calling)
+                is_vision = config_value.identifier == 'vision_model'
+                is_tool_calling = config_value.identifier == 'function_llm'
+                # Only show API key error for main model to reduce noise
+                show_key_error = config_value.identifier == 'model'
+                model_list = handler["model_list_getter"](service, default_model, is_vision, is_tool_calling, show_key_error)
                 selected_model = config_value.value
 
                 if not model_list.is_model_in_list(selected_model):

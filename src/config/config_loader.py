@@ -10,6 +10,7 @@ from src.config.config_values import ConfigValues
 from src.config.mantella_config_value_definitions_new import MantellaConfigValueDefinitionsNew
 from src.config.config_json_writer import ConfigJsonWriter
 from src.config.config_file_writer import ConfigFileWriter
+from src.config.types.config_value_string import ConfigValueString
 import src.utils as utils
 from pathlib import Path
 import json
@@ -47,7 +48,19 @@ class ConfigLoader:
             for (each_key, each_value) in config.items(section_name):
                 try:
                     config_value = self.__definitions.get_config_value_definition(each_key)
-                    config_value.parse(each_value)
+                    # Unescape hash symbols that were escaped for INI file storage
+                    unescaped_value = ConfigFileWriter.unescape_hash_symbols(each_value)
+                    # Attempt to JSON-decode string values first if they were encoded to preserve whitespace
+                    if isinstance(config_value, ConfigValueString):
+                        try:
+                            decoded = json.loads(unescaped_value)
+                            # Only accept if decoding produced a string
+                            if isinstance(decoded, str):
+                                config_value.parse(decoded)
+                                continue
+                        except Exception:
+                            pass
+                    config_value.parse(unescaped_value)
                 except:
                     create_back_up_configini = True
                     # TODO: filter out warnings for ['game', 'skyrim_mod_folder', 'skyrimvr_mod_folder', 'fallout4_mod_folder', 'fallout4vr_mod_folder', fallout4vr_folder]
@@ -201,6 +214,7 @@ class ConfigLoader:
             self.lip_generation = self.__definitions.get_string_value("lip_generation").strip().lower()
             self.fast_response_mode = self.__definitions.get_bool_value("fast_response_mode")
             self.fast_response_mode_volume = self.__definitions.get_int_value("fast_response_mode_volume")
+            self.allow_per_character_tts_overrides: bool = self.__definitions.get_bool_value("allow_per_character_tts_overrides")
 
             #Added from xTTS implementation
             self.xtts_default_model = self.__definitions.get_string_value("xtts_default_model")
@@ -279,6 +293,15 @@ LLM parameter list must be valid JSON""")
             self.claude_prompt_caching_enabled: bool = self.__definitions.get_bool_value("claude_prompt_caching_enabled")
             self.apply_model_profiles: bool = self.__definitions.get_bool_value("apply_model_profiles")
             self.allow_per_character_llm_overrides: bool = self.__definitions.get_bool_value("allow_per_character_llm_overrides")
+
+            # Random LLM Selection
+            self.random_llm_enabled: bool = self.__definitions.get_bool_value("random_llm_enabled")
+            try:
+                self.random_llm_pool: list = json.loads(self.__definitions.get_string_value("random_llm_pool").replace('\n', ''))
+            except Exception as e:
+                logger.error(f"""Error in parsing random LLM pool: {e}
+LLM pool must be valid JSON""")
+                self.random_llm_pool = []
 
             # Summary LLM
             self.summary_llm_enabled: bool = self.__definitions.get_bool_value("summary_llm_enabled")
@@ -369,6 +392,7 @@ LLM parameter list must be valid JSON""")
             
             # Actions
             self.advanced_actions_enabled = self.__definitions.get_bool_value("advanced_actions_enabled")
+            self.disabled_actions: list[str] = self.__definitions.get_string_list_value("disabled_actions")
             self.custom_function_model = self.__definitions.get_bool_value("custom_function_model")
             self.function_llm_api = self.__definitions.get_string_value("function_llm_api")
             self.function_llm = self.__definitions.get_string_value("function_llm")

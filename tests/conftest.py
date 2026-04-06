@@ -175,9 +175,8 @@ def server() -> http_server:
 @pytest.fixture
 def default_mantella_route(default_config: ConfigLoader, english_language_info: dict) -> mantella_route:
     return mantella_route(
-        config=default_config, 
-        language_info=english_language_info, 
-        show_debug_messages=False
+        config=default_config,
+        language_info=english_language_info,
     )
 
 @pytest.fixture
@@ -277,6 +276,7 @@ def example_skyrim_player_character() -> Character:
         custom_character_values = {'mantella_pc_description': '', 'mantella_pc_voiceplayerinput': False},
         llm_service = '',
         llm_model = '',
+        tts_service = '',
     )
 
 @pytest.fixture
@@ -308,6 +308,7 @@ def example_skyrim_npc_character() -> Character:
         custom_character_values = None,
         llm_service = '',
         llm_model = '',
+        tts_service = '',
     )
 
 @pytest.fixture
@@ -339,6 +340,7 @@ def another_example_skyrim_npc_character() -> Character:
         custom_character_values=None,
         llm_service = '',
         llm_model = '',
+        tts_service = '',
     )
 
 @pytest.fixture

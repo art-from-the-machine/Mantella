@@ -38,46 +38,19 @@ def test_load_all_actions_structure():
         assert 'radiant' in action
 
 
-def test_load_all_actions_respects_enabled_flag(tmp_path):
-    """Test that actions with enabled: false are not loaded"""
+def test_load_all_actions_respects_disabled_list(tmp_path):
+    """Test that actions in the disabled list are not loaded"""
     FunctionManager._actions.clear()
-    
+    FunctionManager._disabled_action_names = []
+
     actions_dir = tmp_path / "actions"
     actions_dir.mkdir()
     
-    enabled_action = {
-        "identifier": "test_enabled",
-        "name": "EnabledAction",
+    action_a = {
+        "identifier": "test_a",
+        "name": "ActionA",
         "description": "Test",
-        "key": "Enabled",
-        "prompt": "Test",
-        "enabled": True,
-        "requires_response": False,
-        "is-interrupting": False,
-        "one-on-one": True,
-        "multi-npc": False,
-        "radiant": False
-    }
-    
-    disabled_action = {
-        "identifier": "test_disabled",
-        "name": "DisabledAction",
-        "description": "Test",
-        "key": "Disabled",
-        "prompt": "Test",
-        "enabled": False,
-        "requires_response": False,
-        "is-interrupting": False,
-        "one-on-one": True,
-        "multi-npc": False,
-        "radiant": False
-    }
-    
-    default_action = {
-        "identifier": "test_default",
-        "name": "DefaultAction",
-        "description": "Test",
-        "key": "Default",
+        "key": "A",
         "prompt": "Test",
         "requires_response": False,
         "is-interrupting": False,
@@ -85,26 +58,51 @@ def test_load_all_actions_respects_enabled_flag(tmp_path):
         "multi-npc": False,
         "radiant": False
     }
-    
-    with open(actions_dir / "enabled.json", 'w') as f:
-        json.dump(enabled_action, f)
-    with open(actions_dir / "disabled.json", 'w') as f:
-        json.dump(disabled_action, f)
-    with open(actions_dir / "default.json", 'w') as f:
-        json.dump(default_action, f)
-    
-    # Load test actions
+
+    action_b = {
+        "identifier": "test_b",
+        "name": "ActionB",
+        "description": "Test",
+        "key": "B",
+        "prompt": "Test",
+        "requires_response": False,
+        "is-interrupting": False,
+        "one-on-one": True,
+        "multi-npc": False,
+        "radiant": False
+    }
+
+    action_c = {
+        "identifier": "test_c",
+        "name": "ActionC",
+        "description": "Test",
+        "key": "C",
+        "prompt": "Test",
+        "requires_response": False,
+        "is-interrupting": False,
+        "one-on-one": True,
+        "multi-npc": False,
+        "radiant": False
+    }
+
+    with open(actions_dir / "a.json", 'w') as f:
+        json.dump(action_a, f)
+    with open(actions_dir / "b.json", 'w') as f:
+        json.dump(action_b, f)
+    with open(actions_dir / "c.json", 'w') as f:
+        json.dump(action_c, f)
+
+    # Load with ActionB disabled
+    disabled_set = {"actionb"}
     for file_path in actions_dir.glob("*.json"):
-        FunctionManager._load_action_file(file_path)
-    
-    # Only enabled and default actions should be loaded
-    assert 'mantella_test_enabled' in FunctionManager._actions
-    assert 'mantella_test_default' in FunctionManager._actions
-    assert 'mantella_test_disabled' not in FunctionManager._actions
+        FunctionManager._load_action_file(file_path, disabled_set)
+
+    # ActionA and ActionC should be loaded, ActionB should not
+    assert 'mantella_test_a' in FunctionManager._actions
+    assert 'mantella_test_c' in FunctionManager._actions
+    assert 'mantella_test_b' not in FunctionManager._actions
     assert len(FunctionManager._actions) == 2
-    
-    # Cleanup: Restore original actions
-    FunctionManager.load_all_actions()
+    assert 'ActionB' in FunctionManager._disabled_action_names
 
 
 def test_get_legacy_actions():

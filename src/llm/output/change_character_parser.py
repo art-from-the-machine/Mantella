@@ -1,6 +1,7 @@
 from typing import Callable, OrderedDict
 from src.character_manager import Character
 from src.characters_manager import Characters
+from src.conversation.action import Action
 from src.llm.output.output_parser import MarkedTextStateEnum, output_parser, sentence_generation_settings
 from src.llm.sentence_content import SentenceContent
 import src.utils as utils
@@ -10,9 +11,10 @@ logger = utils.get_logger()
 
 class change_character_parser(output_parser):
     """Class to check if character change is in the current output of the LLM."""
-    def __init__(self, characters_in_conversation: Characters) -> None:
+    def __init__(self, characters_in_conversation: Characters, actions: list[Action] | None = None) -> None:
         super().__init__()
         self.__dict_name_permutations: OrderedDict[str, Character] = OrderedDict() #Dictionary to hold permutations of the name for easy checks. e.g. "Svana Far-Shield" -> ["Svana Far-Shield", "Svana", "Far-Shield"]
+        self.__action_keywords: set[str] = set(a.keyword.lower() for a in (actions or []))
         for actor in characters_in_conversation.get_all_characters():
             if actor.is_player_character:
                 self.__dict_name_permutations["player"] = actor
@@ -51,6 +53,14 @@ class change_character_parser(output_parser):
                     current_settings.sentence_type = current_settings.unmarked_text #Reset to the last unmarked text type
                     current_settings.current_text_state = MarkedTextStateEnum.UNMARKED
                     return None, parts[1]
+
+        # Discard character changes for characters not in the conversation
+        prefix = parts[0].strip()
+        if prefix and prefix.lower() not in self.__action_keywords:
+            logger.warning(f"Discarding text for character not in conversation: {prefix}")
+            current_settings.discarded_character_name = prefix
+            current_settings.stop_generation = True
+            return None, ""
 
         return None, output #There is a ':' in the text, but it doesn't seem to be part of a character change
 

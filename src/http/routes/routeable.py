@@ -9,11 +9,10 @@ from src import utils
 class routeable(ABC):
     """Base class for different http server routes
     """
-    def __init__(self, config: ConfigLoader, show_debug_messages: bool = False) -> None:
+    def __init__(self, config: ConfigLoader) -> None:
         super().__init__()
         self._config: ConfigLoader = config
         self._has_route_been_initialized: bool = False
-        self._show_debug_messages: bool = show_debug_messages
         self._log_level_http_in = 41
         self._log_level_http_out = 42
 

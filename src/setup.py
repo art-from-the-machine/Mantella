@@ -23,7 +23,7 @@ class MantellaSetup:
         self.config = ConfigLoader(self.save_folder, config_file)    
         self._setup_logging(os.path.join(self.save_folder, logging_file), self.config.advanced_logs)
         
-        FunctionManager.load_all_actions()
+        FunctionManager.load_all_actions(disabled_actions=self.config.disabled_actions)
         FunctionManager.log_actions_enabled(self.config.advanced_actions_enabled)
         self.config.actions = FunctionManager.get_legacy_actions()
 

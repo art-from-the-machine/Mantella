@@ -64,6 +64,8 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_custom_token_count_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_params_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_enabled_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_random_llm_pool_config_value())
         result.add_base_group(llm_category)
 
         tts_category = ConfigValueGroup("TTS", "Text-to-Speech", "Settings for the TTS methods Mantella supports.", on_value_change_callback)
@@ -77,6 +79,7 @@ class MantellaConfigValueDefinitionsNew:
         tts_category.add_config_value(TTSDefinitions.get_lip_generation_config_value())
         tts_category.add_config_value(TTSDefinitions.get_fast_response_mode_config_value())
         tts_category.add_config_value(TTSDefinitions.get_fast_response_mode_volume_config_value())
+        tts_category.add_config_value(TTSDefinitions.get_allow_per_character_tts_overrides_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_url_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_default_model_config_value())
         tts_category.add_config_value(TTSDefinitions.get_xtts_device_config_value())
@@ -134,6 +137,7 @@ class MantellaConfigValueDefinitionsNew:
 
         actions_category = ConfigValueGroup("Actions", "Actions", "Settings for in-game actions.", on_value_change_callback)
         actions_category.add_config_value(ActionDefinitions.get_advanced_actions_enabled_config_value())
+        actions_category.add_config_value(ActionDefinitions.get_disabled_actions_config_value())
         actions_category.add_config_value(ActionDefinitions.get_custom_function_model_config_value())
         actions_category.add_config_value(ActionDefinitions.get_function_llm_api_config_value())
         actions_category.add_config_value(ActionDefinitions.get_function_llm_model_config_value())

@@ -2,8 +2,8 @@
     "identifier": "mantella_npc_leadto",
     "name": "LeadTo",
     "description": "Make NPC lead another NPC (or the player) to a specific location.",
+    "note": "EXPERIMENTAL: Can cause NPC AI packages to break. NPCs can sometimes choose incompatible locations to lead to. Known locations are an exhaustive list of game locations that have a map marker.",
     "key": "LeadTo",
-    "enabled": true,
     "parameters": {
         "source": {
             "type": "string",
