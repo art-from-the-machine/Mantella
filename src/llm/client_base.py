@@ -583,7 +583,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         return num_tokens
     
     @staticmethod
-    def get_model_list(service: str, default_model: str = "mistralai/mistral-small-3.1-24b-instruct:free", is_vision: bool = False, is_tool_calling: bool = False, show_key_error: bool = False) -> LLMModelList:
+    def get_model_list(service: str, default_model: str = "google/gemma-4-26b-a4b-it:free", is_vision: bool = False, is_tool_calling: bool = False, show_key_error: bool = False) -> LLMModelList:
         if service not in ['OpenAI', 'OpenRouter', 'NanoGPT']:
             return LLMModelList([("Custom model","Custom model")], "Custom model", allows_manual_model_input=True)
         try:

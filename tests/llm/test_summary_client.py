@@ -11,7 +11,7 @@ class TestSummaryLLMClientInit:
     def test_init_uses_summary_config_values(self, default_config: ConfigLoader):
         """SummaryLLMClient should initialize with summary-specific config fields."""
         default_config.summary_llm_api = "OpenRouter"
-        default_config.summary_llm = "mistralai/mistral-small-3.1-24b-instruct:free"
+        default_config.summary_llm = "google/gemma-4-26b-a4b-it:free"
         default_config.summary_custom_token_count = 8192
 
         client = SummaryLLMClient(default_config)
@@ -34,7 +34,7 @@ class TestFallbackToMainClient:
     def test_summaries_uses_separate_client_when_provided(self, skyrim: Skyrim, default_config: ConfigLoader, llm_client: LLMClient, english_language_info):
         """When a summary_client is provided, Summaries should use it instead of the main client."""
         default_config.summary_llm_api = "OpenRouter"
-        default_config.summary_llm = "mistralai/mistral-small-3.1-24b-instruct:free"
+        default_config.summary_llm = "google/gemma-4-26b-a4b-it:free"
         default_config.summary_custom_token_count = 8192
         summary_client = SummaryLLMClient(default_config)
 

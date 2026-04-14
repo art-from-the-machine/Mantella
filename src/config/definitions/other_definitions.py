@@ -82,7 +82,7 @@ class OtherDefinitions:
     @staticmethod
     def get_random_llm_pool_config_value() -> ConfigValue:
         description = """JSON array of LLMs for random selection.
-                        Format: [{"service": "OpenRouter", "model": "mistralai/mistral-small-3.1-24b-instruct:free"}, ...]"""
+                        Format: [{"service": "OpenRouter", "model": "google/gemma-4-26b-a4b-it:free"}, ...]"""
         return ConfigValueString("random_llm_pool", "Random LLM Pool", description, "[]", tags=[ConfigValueTag.advanced])
 
     #HTTP
