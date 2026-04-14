@@ -408,6 +408,8 @@ class Context:
         for a in actions:
             if a.prompt_text:
                 result += a.prompt_text.format(key=a.keyword) + "\n"
+        if result and len(self.__npcs_in_conversation.get_non_player_characters()) > 1:
+            result += "Both the action prefix and NPC name need colons to be valid, e.g. 'CharacterName: Action: Lead the way.'\n"
         return result
     
     @utils.time_it
