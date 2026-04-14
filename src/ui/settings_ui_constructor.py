@@ -311,7 +311,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
         special_handlers: Dict[str, ModelConfig] = {
             "model": {
                 "dependent_config": "llm_api",
-                "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
+                "default_model": 'google/gemma-4-26b-a4b-it:free',
                 "model_list_getter": ClientBase.get_model_list,
             },
             "vision_model": {
@@ -321,17 +321,17 @@ class SettingsUIConstructor(ConfigValueVisitor):
             },
             "function_llm": {
                 "dependent_config": "function_llm_api",
-                "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
+                "default_model": 'google/gemma-4-26b-a4b-it:free',
                 "model_list_getter": ClientBase.get_model_list,
             },
             "summary_llm": {
                 "dependent_config": "summary_llm_api",
-                "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
+                "default_model": 'google/gemma-4-26b-a4b-it:free',
                 "model_list_getter": ClientBase.get_model_list,
             },
             "profile_selected_model": {
                 "dependent_config": "profile_selected_service",
-                "default_model": 'mistralai/mistral-small-3.1-24b-instruct:free',
+                "default_model": 'google/gemma-4-26b-a4b-it:free',
                 "model_list_getter": ClientBase.get_model_list,
             }
         }
@@ -347,7 +347,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
             handler = special_handlers.get(config_value.identifier)
             if handler:
                 service: str = self.__identifier_to_config_value[handler["dependent_config"]].value
-                default_model = handler.get("default_model", 'mistralai/mistral-small-3.1-24b-instruct:free')
+                default_model = handler.get("default_model", 'google/gemma-4-26b-a4b-it:free')
                 is_vision = config_value.identifier == 'vision_model'
                 is_tool_calling = config_value.identifier == 'function_llm'
                 # Only show API key error for main model to reduce noise

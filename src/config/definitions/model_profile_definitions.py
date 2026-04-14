@@ -22,7 +22,7 @@ class ModelProfileDefinitions:
     def get_selected_model_config_value() -> ConfigValue:
         description = """Select or type the model name for the profile.
                         Press the *Update* button to load a list of available models from the service selected above."""
-        return ConfigValueSelection("profile_selected_model", "Model", description, "mistralai/mistral-small-3.1-24b-instruct:free", ["Custom Model"], allows_values_not_in_options=True)
+        return ConfigValueSelection("profile_selected_model", "Model", description, "google/gemma-4-26b-a4b-it:free", ["Custom Model"], allows_values_not_in_options=True)
 
     @staticmethod
     def get_profile_parameters_config_value() -> ConfigValue:
