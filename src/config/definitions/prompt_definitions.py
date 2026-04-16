@@ -169,7 +169,7 @@ The location is now {location}. The time is {time} {time_group} on Day {current_
 {actions}
 Use tools to perform actions where appropriate.
 You are tasked with providing the responses for the NPCs. Begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'.
-Use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable).
+Multiple NPCs should speak each turn.
 Output ONLY spoken dialogue. No narration, no descriptions, no thoughts.
 Do not use quotation marks.
 Stay in character.
@@ -245,7 +245,7 @@ The location is now {location}. The time is {time} {time_group}.
 {actions}
 Use tools to perform actions where appropriate.
 You are tasked with providing the responses for the NPCs. Begin your response with an indication of who you are speaking as, for example: '{name}: Good evening.'.
-Use your own discretion to decide who should speak in a given situation (sometimes responding with all NPCs is suitable).
+Multiple NPCs should speak each turn.
 Output ONLY spoken dialogue. No narration, no descriptions, no thoughts.
 Do not use quotation marks.
 Stay in character.
