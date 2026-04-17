@@ -26,6 +26,11 @@ An Alpaca-style dataset of 8,800+ player <-> NPC interactions has been generated
 ### Fine-Tunes
 
 #### Llama 3 8B Instruct
+```{admonition} Warning
+:class: attention
+
+This model is now very outdated and performs worse than newer, non fine-tuned models. It is therefore no longer recommended for use with Mantella. 
+```
 Link to Model: [https://huggingface.co/art-from-the-machine/Mantella-Skyrim-Llama-3-8B-GGUF](https://huggingface.co/art-from-the-machine/Mantella-Skyrim-Llama-3-8B-GGUF)
 
 <details>
@@ -75,5 +80,3 @@ Link to Model: [https://huggingface.co/art-from-the-machine/Mantella-Skyrim-Llam
 
 ## Contribute
 Many improvements can be made to the Skyrim dataset. A Fallout 4 dataset could also potentially be generated using the same methodology used to create the Skyrim dataset. A full list of potential future improvements can be found [here](https://github.com/art-from-the-machine/Mantella-LLM-Fine-Tuning#future-work).
-
-If you would like to fine-tune your own Skyrim or Fallout models, [Unsloth](https://unsloth.ai/) is a great way to get started with template Colab notebooks. If you are eager to fine-tune your own models, but are not sure about how to start, feel free to reach out on [Discord](https://discord.gg/Q4BJAdtGUE)!

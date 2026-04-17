@@ -17,9 +17,9 @@
 	Eg `C:\Games\Steam\steamapps\common\Skyrim Special Edition\Data\Mantella`.
 	</details>
 
-3. Create a free account with <a href="https://openrouter.ai/sign-up" target="_blank" rel="noopener noreferrer">OpenRouter</a>. Go to the "Keys" tab in the top right corner and generate a new key. Save the key value to the `GPT_SECRET_KEY.txt` file in your Mantella folder found in step 2.
+3. Create a free account with <a href="https://openrouter.ai/workspaces/default/keys" target="_blank" rel="noopener noreferrer">OpenRouter</a>. Go to `Settings -> API Keys` and generate a new key. Save the key value to the `GPT_SECRET_KEY.txt` file in your Mantella folder found in step 2.
 
-4. Launch Skyrim. Mantella will open a window automatically when Skyrim is launched and will say "Waiting for player to select an NPC..." when it is ready (this might take a few minutes when launched for the first time). When you start the game, the Mantella spell will be added to your inventory. Cast this spell on an NPC to start a conversation.
+4. Launch Skyrim. Mantella will open a window automatically when Skyrim is launched and will say `"Waiting for player to select an NPC..."` when it is ready. When you start the game, the Mantella spell will be added to your inventory. Cast this spell on an NPC to start a conversation.
 
 ```{admonition} Note
 :class: seealso
@@ -54,7 +54,7 @@ ____________________________________
 As Mantella accesses and writes to files within your Skyrim folder, it is unlikely to work correctly **if you have Skyrim stored in Program Files / (x86)**. Please ensure that you have Skyrim stored outside of this folder (eg `C:\Games\Steam`).
 ```
 
-Steam does not allow to create a new Steam Game Library on the same disk. You can either move the whole Steam client outside [as described on this Steam Support page](https://help.steampowered.com/en/faqs/view/4BD4-4528-6B2E-8327) or use [LostDragonist/steam-library-setup-tool](https://github.com/LostDragonist/steam-library-setup-tool/wiki/Usage-Guide) to allow multiple Steam Game Libraries on one disk.
+Steam does not allow you to create a new Steam Game Library on the same disk. You can either move the whole Steam client outside [as described on this Steam Support page](https://help.steampowered.com/en/faqs/view/4BD4-4528-6B2E-8327) or use [LostDragonist/steam-library-setup-tool](https://github.com/LostDragonist/steam-library-setup-tool/wiki/Usage-Guide) to allow multiple Steam Game Libraries on one disk.
 
 ### Required Skyrim Mods
 <div style="display: flex; align-items: flex-start;">
@@ -121,16 +121,29 @@ You can end a conversation by casting the Mantella End Conversation spell, or by
 Once a conversation has started, you can add more NPCs to the conversation between each of your responses to start a group conversation:  
 `Cast Mantella on NPC1 -> Say hi to NPC1 -> Cast Mantella on NPC2 -> Say hi to NPC1 & NPC2 etc`
 
-Radiant conversations can also be enabled in the MCM menu. These are conversations that are randomly started between idle NPCs. You can join the conversation by casting Mantella on either NPC.
+Alternatively, cast the Mantella spell without any NPC in your crosshair to start a group conversation with up to 5 NPCs nearby.
+
+Radiant conversations can also be enabled in the MCM menu. These are conversations that are randomly started between idle NPCs. You can join the conversation by casting Mantella on either NPC. "NPCs can Approach Player"  allows a random nearby NPC to apprach you to start a conversation.
 
 ### Text Input
 Text input can be enabled by disabling mic input in Mantella's MCM menu.
 
 ### Restarting the Mantella window
-If for whatever reason the Mantella window crashes or gets stuck, you can restart it by going to your `Mantella MCM -> Advanced -> Restart Mantella.exe`.
+If for whatever reason the Mantella window crashes or gets stuck, you can restart it by going to `Mantella MCM -> Advanced -> Restart Mantella.exe`.
 
 ### Actions
-By default, actions are disabled in the Mantella MCM. You can enabled these in the MCM's `General` tab. If you struggling to get an NPC to perform an action on their own, you can force these actions to occur by simply saying / typing the action you want to occur (eg "follow", "inventory", etc).
+#### Advanced Actions
+Advanced actions can be enabled in the `Actions` tab of the Mantella UI. Unlike basic actions, these actions allow LLMs to have greater control over how an action is triggered.  
+
+For example, when advanced actions are enabled, the `MoveTo` action allows the LLM to select which NPCs to move and where they should move. In contrast, the basic version of `MoveTo` only allows a single NPC to move to the player.  
+
+#### Disabled Actions
+Not all actions are enabled by default - see the `Actions` tab of the Mantella UI to see which actions are disabled. The more actions that are enabled, the more LLMs will struggle to manage the number of actions, so ideally only the actions you are interested in should be enabled.  
+
+Some actions are experimental, and may cause bugs over long playthroughs. For full details on each action, see the `<mod_folder>\Mantella\SKSE\Plugins\MantellaSoftware\data\actions\` folder.  
+
+#### Commands
+If you struggling to get an NPC to perform an action on their own, you can force these actions to occur by simply saying / typing the action you want to occur (eg "follow", "inventory", etc).  
 
 ### Saved Data
 When a conversation ends, a summary of the conversation is saved to a local text file for each NPC in the conversation. These summaries are then loaded the next time an NPC is spoken with. You can view / edit these summaries in your `My Games/Mantella/data/Skyrim/conversations/YourPlayerName1/` folder.
@@ -148,7 +161,7 @@ LLMs power the creation of responses by NPCs. There are a number of different LL
 Some smaller models may struggle to handle long term conversations and memory summarising.
 ```
 
-If you have already followed the [quick start guide](#quick-start) you will have an OpenRouter account set up with Gemma 2 9B, a free and easy to use LLM. You can select from a variety of other LLMs hosted on OpenRouter (both free and paid) via the `Model` option in the `Large Language Model` tab of the [Mantella UI](#mantella-ui). 
+If you have already followed the [quick start guide](#quick-start) you will have an OpenRouter account set up with Gemma 4 26B A4B (free). You can select from a variety of other LLMs hosted on OpenRouter (both free and paid) via the `Model` option in the `Large Language Model` tab of the [Mantella UI](#mantella-ui). 
 
 If you would prefer to use a different service, or host your own LLM locally, see the options below:
 
@@ -169,17 +182,10 @@ Once completed, in the `LLM Service` dropdown of the `Large Language Model` tab 
 1. Install koboldcpp's latest release from [here](https://github.com/LostRuins/koboldcpp/releases). If you want to run koboldcpp on your CPU or otherwise do not have an NVIDIA GPU, download `koboldcpp_nocuda.exe` under "Assets". If you have an NVIDIA GPU with CUDA support, download `koboldcpp.exe` under "Assets".   
 <img src="../_static/img/kobold_download.png" alt="Kobold Download Files" width="200" height="auto" style="padding: 10px;"/>  
 
-2. Download a local model, such as `toppy-m-7b.Q4_K_S.gguf` from [here](https://huggingface.co/TheBloke/Toppy-M-7B-GGUF/tree/main?not-for-all-audiences=true).  
-<img src="../_static/img/toppy_download.png" alt="Toppy Download Location" width="500" height="auto" style="padding: 10px;"/>  
+2. Download a local model, such as `Gemma 4 E4B` from [here](https://huggingface.co/bartowski/google_gemma-4-E4B-it-GGUF?show_file_info=google_gemma-4-E4B-it-Q4_K_M.gguf).  
 
-3. Run koboldcpp.exe. When presented with the launch window, drag the "Context Size" slider to 4096. Click the "Browse" button next to the "Model" field and select the model you downloaded. Click "Launch" in the bottom right corner.  
+3. Run koboldcpp.exe. Click the "Browse" button next to the "Model" field and select the model you downloaded. Click "Launch" in the bottom right corner.  
 <img src="../_static/img/kobold_launch.png" alt="Kobold Launch Window" width="400" height="auto" style="padding: 10px;"/>  
-
-```{admonition} Optional
-:class: hint
-
-Under the "Presets" drop down at the top, choose either Use CLBlast, or Use CuBlas (if using Cuda). You will then see a field for GPU Layers. If you want to use CPU only leave it at 0. If you want to use your GPU, you can experiment with how many "layers" to offload to your GPU based on your system.
-```
 
 4. In the `LLM Service` dropdown of the `Large Language Model` tab of the [Mantella UI](#mantella-ui) select "KoboldCpp".
 
@@ -256,7 +262,7 @@ Make sure Ollama is running when Mantella is running!
 <br>
 
 #### Other LLM Services
-Mantella has the ability to support other language model services, although these services do need to support outputs in the OpenAI format (like text-generation-webui does via the "--extensions openai" option above). You can connect to any OpenAI-API-compatible service by following these steps:
+Mantella supports all language model services with an OpenAI-compatible API. You can connect to any OpenAI-API-compatible service by following these steps:
 
 1. Paste the OpenAI-API-compatible URL of the service into the `LLM Service` textbox of the `Large Language Model` tab in the [Mantella UI](#mantella-ui). These URLs typically end with `/v1`.
 
@@ -277,7 +283,7 @@ ____________________________________
 ### Vision
 LLM vision can be enabled in the `Vision` tab of the [Mantella UI](#mantella-ui). If the selected model in the `Large Language Model` tab has vision capabilities (or if a separate vision model has been selected in the `Vision` tab), a screenshot of your game window will be passed to the model every time you respond to an NPC. Please see the documentation of your selected LLM provider to find out which models support vision. For OpenRouter models, the full list can be found [here](https://openrouter.ai/models?fmt=cards&input_modalities=image).
 
-Vision capabilities can also be run locally via koboldcpp. To get started, download the required [mmproj file](https://huggingface.co/koboldcpp/mmproj/tree/main) for your local LLM (as an example, [Toppy](https://huggingface.co/TheBloke/Toppy-M-7B-GGUF/tree/main?not-for-all-audiences=true) requires `mistral-7b-mmproj-v1.5-Q4_1.gguf`). In the koboldcpp launch window, under the `Model Files` tab, set the path to your mmproj file via the `LLaVa mmproj` setting. When koboldcpp is launched, and vision is enabled in the [Mantella UI](#mantella-ui), your local LLM will support vision.
+Vision capabilities can also be run locally via koboldcpp. To get started, download the required [mmproj file](https://huggingface.co/koboldcpp/mmproj/tree/main) for your local LLM. In the koboldcpp launch window, under the `Loaaded Files` tab, set the path to your mmproj file via the `Mmproj File` setting. When koboldcpp is launched, and vision is enabled in the [Mantella UI](#mantella-ui), your local LLM will support vision.
 
 ____________________________________
 
@@ -361,6 +367,12 @@ By default, Mantella comes packaged with a fast and local TTS service called Pip
 	<details>
 		<summary><b>Local</b></summary> 
 
+```{admonition} Warning
+:class: attention
+
+The Mantella XTTS exe is currently incompatible with NVIDIA 5000 series GPUs. The server instead needs to be started by following the instructions [here](https://github.com/Haurrus/xtts-api-server-mantella).
+```
+
 1. Download MrHaurrus's XTTS API server from [here](https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files) and unzip it.
 
 2. Download the [voice models (latents) folder](https://www.nexusmods.com/skyrimspecialedition/mods/113445?tab=files) for your desired language. Extract this folder into the same folder as `xtts-api-server-mantella.exe` above. In other words, you should have a folder called `latent_speaker_folder` in your XTTS folder.
@@ -380,12 +392,6 @@ By default, Mantella comes packaged with a fast and local TTS service called Pip
 
 2. Follow [this link](https://runpod.io/console/gpu-cloud?template=x9ddee271u&ref=szjabwfp) to open the Mantella XTTS Pod. Choose a GPU to run the Pod with (if in doubt, choose the cheapest). Note that cheaper GPUs are available if you change the "Secure Cloud" setting to "Community Cloud".  
 <img src="../_static/img/xtts_runpod_cloud_type.png" alt="XTTS RunPod Cloud Type" width="400" height="auto" style="padding: 10px;"/>
-
-```{admonition} Warning
-:class: attention
-
-As of writing, the Mantella XTTS RunPod is currently incompatible with NVIDIA 5000 series GPUs.
-```
 
 3. On the following two pages just click "Continue" and "Deploy" (you don't need to change any settings here).
 

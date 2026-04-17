@@ -8,6 +8,9 @@ GPT_SECRET_KEY.txt
 logging.log
 player_recording.wav
 MantellaEnv*
+.venv/
+.vscode/
+moonshine/
 build/
 dist/
 main.exe
