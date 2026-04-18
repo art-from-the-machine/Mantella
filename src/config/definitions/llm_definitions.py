@@ -58,8 +58,8 @@ class LLMDefinitions:
                             The list does not provide all details about the models. For additional information please refer to the corresponding sites:
                             - OpenRouter: https://openrouter.ai/docs#models
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
-        return ConfigValueSelection("model","Model",model_description,"mistralai/mistral-small-3.1-24b-instruct:free",["Custom Model"], allows_values_not_in_options=True)
-
+        return ConfigValueSelection("model","Model",model_description,"google/gemma-4-26b-a4b-it:free",["Custom Model"], allows_values_not_in_options=True)
+    
     @staticmethod
     def get_llm_priority_config_value() -> ConfigValue:
         description = """(OpenRouter only) Select the priority of choosing an LLM service provider:
@@ -96,9 +96,9 @@ class LLMDefinitions:
     @staticmethod
     def get_llm_params_config_value() -> ConfigValue:
         value = """{
-                        "max_tokens": 250,
-                        "stop": ["#"]
-                    }"""
+    "max_tokens": 250,
+    "stop": ["#"]
+}"""
         description = """Parameters passed as part of the request to the LLM.
                         A list of the most common parameters can be found here: https://openrouter.ai/docs/parameters.
                         Note that available parameters can vary per LLM provider."""
@@ -194,7 +194,7 @@ class LLMDefinitions:
                             The list does not provide all details about the models. For additional information please refer to the corresponding sites:
                             - OpenRouter: https://openrouter.ai/docs#models
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
-        return ConfigValueSelection("summary_llm","Custom Summary Model",model_description,"mistralai/mistral-small-3.1-24b-instruct:free",["Custom Model"],allows_values_not_in_options=True,tags=[ConfigValueTag.advanced])
+        return ConfigValueSelection("summary_llm","Custom Summary Model",model_description,"google/gemma-4-26b-a4b-it:free",["Custom Model"],allows_values_not_in_options=True,tags=[ConfigValueTag.advanced])
 
     @staticmethod
     def get_summary_custom_token_count_config_value() -> ConfigValue:
@@ -209,6 +209,6 @@ class LLMDefinitions:
                         A list of the most common parameters can be found here: https://openrouter.ai/docs/parameters.
                         Note that available parameters can vary per LLM provider."""
         value = """{
-                        "stop": ["#"]
-                    }"""
+    "stop": ["#"]
+}"""
         return ConfigValueString("summary_llm_params","Custom Summary Model Parameters",description,value,tags=[ConfigValueTag.advanced])
