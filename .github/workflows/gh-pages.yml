@@ -26,5 +26,5 @@ jobs:
       with:
         documentation_path: ./docs
         requirements_path: ./docs/gh_pages_requirements.txt
-        cache: true
+        cache: false
         python_version: 3.11
