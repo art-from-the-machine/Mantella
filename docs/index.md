@@ -61,12 +61,15 @@ pages/attributions
 <div style="font-size: 2em; font-weight: bold;">Highlights</div>
 
 <div style="font-size: 1.4em; font-weight: bold; padding-top: 1em; padding-bottom: 0.2em">Plug and Play</div>
+
 Install it, launch the game, start talking to NPCs. No faff. Mantella quietly launches in the background when you start the game and gets out of your way. Works out of the box with Wabbajack modlists.
 
 <div style="font-size: 1.4em; font-weight: bold; padding-top: 1em; padding-bottom: 0.2em">Real-Time Performance</div>
+
 Long response times kill immersion. Mantella is thoroughly tested to stay lightweight and enable real-time conversations.
 
 <div style="font-size: 1.4em; font-weight: bold; padding-top: 1em; padding-bottom: 0.2em">Local Friendly</div>
+
 Mantella is free and [open source](https://github.com/art-from-the-machine/Mantella). Run everything locally on your own hardware, or plug in OpenAI, OpenRouter, or any OpenAI-compatible API. No data leaves your PC unless you choose.
 
 <hr style="border: 1px solid #505050; margin-top: 5px; margin-bottom: 15px;">
