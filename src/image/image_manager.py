@@ -65,7 +65,7 @@ class ImageManager:
                     os.remove(self.__game_image_file_path)
 
         if self.__save_screenshot:
-            self.__image_path: str = save_folder+'data\\tmp\\images'
+            self.__image_path: str = str(Path(save_folder) / 'data' / 'tmp' / 'images')
             os.makedirs(self.__image_path, exist_ok=True)
 
         self.__capture_params = None
