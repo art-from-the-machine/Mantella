@@ -506,6 +506,15 @@ async def test_process_response_stores_multiple_full_action_dicts(output_manager
             ],
             [SentenceTypeEnum.SPEECH, SentenceTypeEnum.SPEECH, SentenceTypeEnum.SPEECH, SentenceTypeEnum.SPEECH, SentenceTypeEnum.SPEECH],
         ),
+        # Cut narrations should not count toward max_sentences budget
+        (
+            ["(this is a narration) (even more narration) (it does not end) (some extra narration) Fine, I apologize."],
+            NarrationHandlingEnum.CUT_NARRATIONS,
+            4,
+            3,
+            ["Fine, I apologize.", ""],
+            [SentenceTypeEnum.SPEECH, SentenceTypeEnum.SPEECH],
+        ),
     ],
 )
 async def test_process_response_param(

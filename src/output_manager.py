@@ -284,7 +284,7 @@ class ChatManager:
                 sentence_end_parser(),
                 actions_parser(actions),
                 sentence_length_parser(self.__config.number_words_tts),
-                max_count_sentences_parser(max_response_sentences, not characters.contains_player_character())
+                max_count_sentences_parser(max_response_sentences, not characters.contains_player_character(), self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS)
             ])
 
             cut_indicators: set[str] = set()
