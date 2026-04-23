@@ -1,3 +1,32 @@
+# =============================================================================
+# client_base.py
+# =============================================================================
+# Original file by art-from-the-machine (Mantella project)
+# https://github.com/art-from-the-machine/Mantella
+#
+# PLAYER2 INTEGRATION — Added by community contributor
+# Changes are clearly marked with:
+#   # --- PLAYER2 START ---
+#   # --- PLAYER2 END ---
+#
+# Summary of changes:
+#   1. New import for Player2 auth helpers (src/llm/player2_auth.py)
+#   2. Added 'player2' to _KNOWN_SERVICES pointing to https://api.player2.game/v1
+#   3. Modified _get_api_key() to auto-detect Player2 App on localhost:4315
+#      before falling back to manual key lookup
+#   4. Added 'Player2' branch to get_model_list() — Player2 manages model
+#      selection internally, so no model list is fetched
+#   5. Modified streaming_call() to strip non-standard JSON Schema fields
+#      ('scope', 'default', 'minimum', 'maximum') from tool parameters before
+#      sending to Player2, which strictly validates against the OpenAI spec
+#
+# NOTE FOR MAINTAINER:
+#   The Player2 GAME_CLIENT_ID used for auto-detection is a development/test ID.
+#   To use this integration officially, register Mantella at:
+#   https://developer.player2.game and update PLAYER2_GAME_CLIENT_ID
+#   in src/llm/player2_auth.py
+# =============================================================================
+
 from threading import Lock
 from typing import AsyncGenerator, Any
 from enum import Enum
@@ -7,6 +36,7 @@ import time
 import tiktoken
 import json
 import os
+import copy
 import requests
 from pathlib import Path
 from src.llm.ai_client import AIClient
@@ -17,6 +47,16 @@ import src.utils as utils
 from src.telemetry.telemetry import create_span_from_thread
 from src.actions.function_manager import FunctionManager
 from src.llm.claude_cache_connector import ClaudeCacheConnector
+
+# --- PLAYER2 START ---
+# Import Player2 auth helpers. See src/llm/player2_auth.py for details.
+from src.llm.player2_auth import (
+    get_key_from_local_app,
+    is_player2_service,
+    PLAYER2_API_BASE_URL,
+    PLAYER2_DASHBOARD_URL
+)
+# --- PLAYER2 END ---
 
 logger = utils.get_logger()
 
@@ -39,14 +79,6 @@ class ClientBase(AIClient):
     os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
 
     def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, prompt_caching_enabled: bool = False) -> None:
-        '''
-        Args:
-            api_url (str): The API endpoint URL or a known service name (e.g., 'OpenAI', 'OpenRouter')
-            llm (str): The name of the language model to use
-            llm_params (dict[str, Any] | None): Additional parameters for the LLM requests (eg temperature, max_tokens)
-            custom_token_count (int): A fallback token limit if the model's limit isn't known
-            prompt_caching_enabled (bool): Whether Claude prompt caching is enabled for OpenRouter
-        '''
         super().__init__()
         self._generation_lock: Lock = Lock()
         self._model_name: str = llm
@@ -79,105 +111,58 @@ class ClientBase(AIClient):
 
 
     def _determine_vision_mode(self) -> VisionMode:
-        """Determine vision operating mode based on configuration and action availability
-        
-        Returns:
-            VisionMode: The operating mode for vision
-        """
         if not self._image_client:
             return VisionMode.DISABLED
-        
         if FunctionManager.is_vision_action_active():
             return VisionMode.ON_DEMAND
         else:
             return VisionMode.ALWAYS_ON
-    
+
     def enable_vision_for_next_call(self):
-        """Enable vision for the next streaming_call"""
         self._enable_vision_next_call = True
 
     def _should_enable_vision(self) -> bool:
-        """Determine if vision should be enabled for this LLM call"""
-        # Vision in always-on mode (Vision enabled and vision action is inactive)
         if self._vision_mode == VisionMode.ALWAYS_ON:
             return True
-        # Vision explicitly requested via tool call
         elif self._enable_vision_next_call:
             return True
         else:
             return False
 
-
     @property
     def token_limit(self) -> int:
-        """The token limit of the model
-        """
         return self._token_limit
 
     @property
     def model_name(self) -> str:
-        """The name of the model
-        """
         return self._model_name
-    
+
     @property
     def is_local(self) -> bool:
-        """Is the model run locally?
-        """
         return self._is_local
-    
+
     @property
     def api_key(self) -> str:
-        """The secret key
-        """
         return self._api_key
 
     @property
     def max_tokens_param(self) -> int:
-        """Returns the max_tokens value from request params, or defaults to 250"""
         return self._request_params.get("max_tokens", 250) if self._request_params else 250
 
 
     @utils.time_it
     def generate_async_client(self) -> AsyncOpenAI:
-        """Generates a new AsyncOpenAI client already setup to be used right away.
-        Close the client after usage using 'await client.close()'
-
-        The client needs to be closed after every call (and a new one created for the next call) to avoid connection issues
-
-        Use :func:`streaming_call` for a normal streaming call to the LLM
-
-        Returns:
-            AsyncOpenAI: The new async client object
-        """
         return AsyncOpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=self._header)
-
 
     @utils.time_it
     def generate_sync_client(self) -> OpenAI:
-        """Generates a new OpenAI client already setup to be used right away.
-        Close the client after usage using 'client.close()'
-
-        Use :func:`request_call` for a normal call to the LLM
-
-        Returns:
-            OpenAI: The new sync client object
-        """
         return OpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=self._header)
 
 
     @utils.time_it
     def _request_call_full(self, messages: Message | message_thread) -> ChatCompletion | None:
-        """Returns the full chat completion object
-        
-        Args:
-            messages: The messages to send to the LLM
-            
-        Returns:
-            The full chat completion object or None if the request failed
-        """
         with self._generation_lock:
-            sync_client = self.generate_sync_client()        
+            sync_client = self.generate_sync_client()
             chat_completion: ChatCompletion = None
             logger.log(28, 'Getting LLM response...')
 
@@ -185,13 +170,12 @@ class ClientBase(AIClient):
                 openai_messages = [messages.get_openai_message()]
             else:
                 openai_messages = messages.get_openai_messages()
-            
+
             if self._request_params:
                 request_params = self._request_params
             else:
                 request_params: dict[str, Any] = {}
 
-            # Apply Claude cache breakpoint after all message transformations
             if self._caching_enabled and self._claude_cache.is_applicable(self._base_url, self._model_name):
                 try:
                     openai_messages = self._claude_cache.transform_messages(openai_messages)
@@ -215,29 +199,21 @@ class ClientBase(AIClient):
 
     @utils.time_it
     def request_call(self, messages: Message | message_thread) -> str | None:
-        """Makes a request to the LLM and returns just the message content
-        
-        Args:
-            messages: The messages to send to the LLM
-            
-        Returns:
-            The LLM response message content or None if the request failed
-        """
         chat_completion: ChatCompletion = self._request_call_full(messages)
-        
+
         if (
-            not chat_completion or 
-            not chat_completion.choices or 
-            chat_completion.choices.__len__() < 1 or 
+            not chat_completion or
+            not chat_completion.choices or
+            chat_completion.choices.__len__() < 1 or
             not chat_completion.choices[0].message.content
         ):
             logger.info(f"LLM Response failed")
             return None
-        
+
         reply = chat_completion.choices[0].message.content
         return reply
-        
-    
+
+
     @utils.time_it
     async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool, tools: list[dict] = None) -> AsyncGenerator[tuple[str, str | list] | None, None]:
         with create_span_from_thread("llm_streaming_call") as span:
@@ -280,14 +256,63 @@ class ClientBase(AIClient):
                                 yield ("tool_calls", pre_fetched_tool_calls)
                         else:
                             # If custom function LLM isn't enabled, let the main LLM handle tool calling as well as text generation
-                            request_params["tools"] = tools
-                    
+
+                            # --- PLAYER2 START ---
+                            # Player2 strictly validates tool definitions against the OpenAI spec.
+                            # Unlike OpenAI, Player2 requires the 'properties' field to always be
+                            # present in tool 'parameters', even for functions that take no arguments.
+                            #
+                            # For example, Mantella's CancelTravel action sends:
+                            #   "parameters": { "type": "object" }
+                            #
+                            # But Player2 requires:
+                            #   "parameters": { "type": "object", "properties": {} }
+                            #
+                            # This block ensures all tool definitions are valid before sending to Player2.
+                            # Other LLM services (OpenAI, OpenRouter, etc.) are not affected.
+                            if is_player2_service(self._base_url):
+                                import copy
+                                cleaned_tools = []
+                                for tool in tools:
+                                    clean_tool = copy.deepcopy(tool)
+                                    params = clean_tool.get("function", {}).get("parameters", {})
+                                    if "properties" not in params:
+                                        params["properties"] = {}
+                                    cleaned_tools.append(clean_tool)
+                                request_params["tools"] = cleaned_tools
+                            else:
+                                request_params["tools"] = tools
+                            # --- PLAYER2 END ---
+
                     # Apply Claude cache breakpoint after all message transformations
                     if self._caching_enabled and self._claude_cache.is_applicable(self._base_url, self._model_name):
                         try:
                             openai_messages = self._claude_cache.transform_messages(openai_messages)
                         except Exception as e:
                             logger.debug(f"Claude caching transform failed: {e}")
+
+                    # --- PLAYER2 START ---
+                    # Player2 does not support messages with role 'tool' (tool call results),
+                    # nor assistant messages with null content (which occur after a tool call).
+                    # Sending these causes a deserialization error on Player2's end:
+                    #   "data did not match any variant of untagged enum MessageContent"
+                    #
+                    # These messages are used by OpenAI-compatible APIs to maintain awareness
+                    # of which actions were executed. Without them, the NPC may not reference
+                    # recent actions in its next response, but all gameplay actions still execute
+                    # correctly in-game. This is a known limitation of Player2's current API.
+                    #
+                    # Other LLM services (OpenAI, OpenRouter, etc.) are not affected.
+                    if is_player2_service(self._base_url):
+                        cleaned_messages = []
+                        for msg in openai_messages:
+                            if msg.get("role") == "tool":
+                                continue
+                            if msg.get("role") == "assistant" and msg.get("content") is None:
+                                continue
+                            cleaned_messages.append(msg)
+                        openai_messages = cleaned_messages
+                    # --- PLAYER2 END ---
 
                     # Create async client for main LLM streaming (after function client has run if applicable)
                     if self._startup_async_client:
@@ -298,7 +323,6 @@ class ClientBase(AIClient):
                     
                     # Dict to track partial tool calls by index
                     accumulated_tool_calls = {}
-                    
                     async for chunk in await async_client.chat.completions.create(
                         model=self.model_name, 
                         messages=openai_messages, 
@@ -311,6 +335,22 @@ class ClientBase(AIClient):
                                 
                                 # Handle regular content
                                 if delta.content:
+                                    # --- PLAYER2 START ---
+                                    # Player2 returns tool calls as a JSON array in delta.content
+                                    # instead of using the standard delta.tool_calls field.
+                                    # This block detects that pattern and converts it to the
+                                    # tool_calls format that Mantella expects, so actions are
+                                    # executed correctly in-game rather than being spoken aloud.
+                                    if is_player2_service(self._base_url) and delta.content.strip().startswith('[{'):
+                                        try:
+                                            import json
+                                            parsed = json.loads(delta.content.strip())
+                                            if isinstance(parsed, list) and parsed and 'function' in parsed[0]:
+                                                yield ("tool_calls", parsed)
+                                                continue
+                                        except (json.JSONDecodeError, KeyError):
+                                            pass
+                                    # --- PLAYER2 END ---
                                     yield ("content", delta.content)
                                 
                                 # Accumulate tool calls by index
@@ -364,8 +404,6 @@ class ClientBase(AIClient):
                 finally:
                     if async_client:
                         await async_client.close()
-
-
     @classmethod
     @utils.time_it
     def _get_endpoint(cls, value: str) -> str:
@@ -375,39 +413,34 @@ class ClientBase(AIClient):
     
 
     def __get_llm_priority(self, llm: str, priority: str, api_url: str) -> str:
-        '''https://openrouter.ai/docs/features/provider-routing'''
-        # Priority is only compatible with OpenRouter
         if self._get_endpoint(api_url) != 'https://openrouter.ai/api/v1':
             return ''
-        
-        # Free models cannot have a priority
         if llm.endswith(':free'):
             return ''
-        
         priorities = {
             'Balanced': '',
-            'Price': ':price', 
+            'Price': ':price',
             'Speed': ':nitro'
         }
         return priorities.get(priority, '')
-    
+
 
     @utils.time_it
     @staticmethod
     def _get_api_key(service: str, show_error: bool = True) -> str | None:
-        '''Resolves an API key for the given service.
-
-        Lookup order:
-        1. secret_keys.json in the mod folder
-        2. secret_keys.json next to the executable
-        3. GPT_SECRET_KEY.txt in the mod folder
-        4. GPT_SECRET_KEY.txt next to the executable
-
-        Args:
-            service (str): The LLM service name / URL
-        '''
         mod_parent_folder = Path(utils.resolve_path()).parent.parent.parent
         target_service = ClientBase._get_endpoint(service)
+
+        # --- PLAYER2 START ---
+        # For Player2, first try to get the API key automatically from the
+        # locally running Player2 App (POST localhost:4315/v1/login/web/{client_id}).
+        # If the app is not running, fall through to the standard key lookup below.
+        if is_player2_service(service) or is_player2_service(target_service):
+            local_key = get_key_from_local_app()
+            if local_key:
+                return local_key
+            logger.info("Player2: Local app not available. Looking for manual API key in secret_keys.json...")
+        # --- PLAYER2 END ---
 
         api_key = None
         for folder in [mod_parent_folder, Path('.')]:
@@ -438,31 +471,33 @@ class ClientBase(AIClient):
                     pass
 
         if not api_key or api_key == '':
-                if show_error:
-                    utils.play_error_sound()
+            if show_error:
+                utils.play_error_sound()
+                # --- PLAYER2 START ---
+                # Show a Player2-specific error message with clear instructions
+                # for both authentication methods (app and manual key).
+                if is_player2_service(service) or is_player2_service(target_service):
+                    logger.critical(f'''No Player2 API key found and Player2 App was not detected.
+Options:
+  1. Install the Player2 App and make sure it is running: https://player2.game
+  2. Or generate an API key via the Mantella UI (Player2 section) and save it to secret_keys.json.
+  3. Or manually create an API key at {PLAYER2_DASHBOARD_URL} and paste it in secret_keys.json:
+       {{"https://api.player2.game/v1": "YOUR_P2_KEY"}}''')
+                else:
+                # --- PLAYER2 END ---
                     logger.critical(f'''No secret key found for service '{service}' in GPT_SECRET_KEY.txt.
 Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If you are using OpenRouter (default), you can create a secret key in Account -> Keys once you have created an account: https://openrouter.ai/
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
 If you are running a model locally, please ensure the service (eg Kobold / Text generation web UI) is selected and running.
 For more information, see here: https://art-from-the-machine.github.io/Mantella/''')
-                    time.sleep(3)
+                time.sleep(3)
 
         return api_key
-    
+
 
     @utils.time_it
     def __get_token_limit(self, llm, custom_token_count: int, is_local):
-        '''Determines the token limit for the given LLM, using known values, manual overrides, or a default
-
-        Args:
-            llm (str): The name of the language model
-            custom_token_count (int): A user-defined fallback token count from the config
-            is_local (bool): Whether the model is running locally
-
-        Returns:
-            token_limit (int): The determined token limit for the model
-        '''
         manual_limits = utils.get_model_token_limits()
         token_limit_dict = {**self.api_token_limits, **manual_limits}
 
@@ -477,47 +512,35 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                 token_limit = custom_token_count
             except ValueError:
                 logger.error(f"Invalid custom_token_count value: {custom_token_count}. It should be a valid integer. Please update your configuration.")
-                token_limit = 4096  # Default to 4096 in case of an error.
+                token_limit = 4096
         if token_limit <= 4096:
             if is_local:
                 llm = 'Local language model'
             logger.warning(f"{llm} has a low token count of {token_limit}. For better NPC memories, try changing to a model with a higher token count")
-        
+
         return token_limit
-    
+
 
     @utils.time_it
     def __get_model_encoding(self, api_url: str, llm: str) -> tiktoken.Encoding:
-        '''Gets the appropriate tiktoken encoding for the specified model or a sensible default
-
-        Args:
-            api_url (str): The API service/URL being used
-            llm (str): The name of the language model
-
-        Returns:
-            tiktoken.Encoding: The encoding object for token counting
-        '''
         chosenmodel = llm
-        # if using an alternative API to OpenAI, use encoding for GPT-3.5 by default
-        # NOTE: this encoding may not be the same for all models, leading to incorrect token counts
-        #       this can lead to the token limit of the given model being overrun
         try:
             if api_url == 'OpenAI':
-                encoding = tiktoken.encoding_for_model(chosenmodel) # get encoding for specific model
+                encoding = tiktoken.encoding_for_model(chosenmodel)
             else:
-                encoding = tiktoken.get_encoding('cl100k_base') # get generic encoding
+                encoding = tiktoken.get_encoding('cl100k_base')
         except:
             try:
-                encoding = tiktoken.get_encoding('cl100k_base') # try loading a generic encoding
+                encoding = tiktoken.get_encoding('cl100k_base')
             except:
                 logger.error('Error loading model. If you are using an alternative to OpenAI, please find the setting `Large Language Model`->`LLM Service` in the Mantella UI and follow the instructions to change this setting')
                 raise
-        
+
         return encoding
-    
+
     @utils.time_it
     def get_count_tokens(self, messages: message_thread | list[Message] | Message | str) -> int:
-        if isinstance(messages, message_thread | list) :
+        if isinstance(messages, message_thread | list):
             return self.__num_tokens_from_messages(messages)
         elif isinstance(messages, Message):
             return self.__num_tokens_from_message(messages)
@@ -531,14 +554,6 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
 
     @utils.time_it
     def __num_tokens_from_messages(self, messages: message_thread | list[Message]) -> int:
-        '''Calculates token count for a list of messages formatted for OpenAI API calls
-
-        Args:
-            messages (message_thread | list[Message]): The messages to count tokens for
-
-        Returns:
-            num_tokens (int): The estimated total token count
-        '''
         messages_to_check = []
         if isinstance(messages, message_thread):
             messages_to_check = messages.get_openai_messages()
@@ -546,88 +561,83 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             for m in messages:
                 messages_to_check.append(m.get_openai_message())
 
-        # note: this calculation is based on GPT-3.5, future models may deviate from this
         num_tokens = 0
         for message in messages_to_check:
-            num_tokens += 4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
+            num_tokens += 4
             for key, value in message.items():
                 if isinstance(value, str):
                     num_tokens += len(self._encoding.encode(value))
-                    if key == "name":  # if there's a name, the role is omitted
-                        num_tokens += -1  # role is always required and always 1 token
-        num_tokens += 2  # every reply is primed with <im_start>assistant
+                    if key == "name":
+                        num_tokens += -1
+        num_tokens += 2
         return num_tokens
-    
+
     @utils.time_it
     def __num_tokens_from_message(self, message_to_measure: Message | str) -> int:
-        '''Calculates the approximate token count for a single Message object or string,
-        considering the overhead of the message structure
-
-        Args:
-            message_to_measure (Message | str): The message or string content
-
-        Returns:
-            num_tokens (int): Estimated token count
-        '''
         text: str = ""
         if isinstance(message_to_measure, Message):
             text = message_to_measure.get_formatted_content()
         else:
             text = message_to_measure
 
-        num_tokens = 4 # every message follows <im_start>{role/name}\n{content}<im_end>\n
+        num_tokens = 4
         num_tokens += len(text)
-        if isinstance(message_to_measure, Message) and message_to_measure.get_openai_message().__contains__("name"):# if there's a name, the role is omitted
-            num_tokens += -1# role is always required and always 1 token
-        
+        if isinstance(message_to_measure, Message) and message_to_measure.get_openai_message().__contains__("name"):
+            num_tokens += -1
+
         return num_tokens
-    
+
     @staticmethod
     def get_model_list(service: str, default_model: str = "google/gemma-4-26b-a4b-it:free", is_vision: bool = False, is_tool_calling: bool = False, show_key_error: bool = False) -> LLMModelList:
-        if service not in ['OpenAI', 'OpenRouter', 'NanoGPT']:
+        if service not in ['OpenAI', 'OpenRouter', 'NanoGPT', 'Player2']:
             return LLMModelList([("Custom model","Custom model")], "Custom model", allows_manual_model_input=True)
         try:
             if service == "OpenAI":
                 default_model = "gpt-4o-mini"
                 models = utils.get_openai_model_list()
-                # OpenAI models are not a "live" list, so manual input needs to be allowed for when new models not listed are released
                 allow_manual_model_input = True
+
             elif service == "OpenRouter":
                 default_model = default_model
                 secret_key = ClientBase._get_api_key("OpenRouter", show_error=show_key_error)
                 if not secret_key:
                     return LLMModelList([(f"No secret key found for OpenRouter", "Custom model")], "Custom model", allows_manual_model_input=True)
-                # NOTE: while a secret key is not needed for this request, this may change in the future
                 client = OpenAI(api_key=secret_key, base_url='https://openrouter.ai/api/v1')
-                # don't log initial 'HTTP Request: GET https://openrouter.ai/api/v1/models "HTTP/1.1 200 OK"'
                 models = client.models.list()
                 client.close()
                 allow_manual_model_input = False
+
             elif service == "NanoGPT":
                 default_model = "mistral-small-31-24b-instruct"
                 secret_key = ClientBase._get_api_key("NanoGPT", show_error=show_key_error)
                 if not secret_key:
                     return LLMModelList([(f"No secret key found for NanoGPT", "Custom model")], "Custom model", allows_manual_model_input=True)
-                
-                # Use requests to call NanoGPT with detailed=true parameter
-                # (the OpenAI SDK's models.list() doesn't support the ?detailed=true query param
-                #  needed to get pricing, context length, and capabilities data)
                 headers = {"Authorization": f"Bearer {secret_key}"}
                 url = "https://nano-gpt.com/api/v1/models?detailed=true"
                 response = requests.get(url, headers=headers)
-                
                 if response.status_code != 200:
                     raise Exception(f"NanoGPT API returned status {response.status_code}: {response.text}")
-                
                 models_data = response.json()
                 allow_manual_model_input = False
+
+            # --- PLAYER2 START ---
+            elif service == "Player2":
+                # Player2 does not expose a /models endpoint.
+                # Model selection is handled internally by the Player2 app —
+                # the user changes it directly in the app without any API call.
+                # We use "gpt-3.5-turbo" as a placeholder model name since
+                # Player2 follows the OpenAI API spec but ignores the model field internally.
+                return LLMModelList(
+                    [("Managed by Player2", "gpt-3.5-turbo")],
+                    "gpt-3.5-turbo",
+                    allows_manual_model_input=False
+                )
+            # --- PLAYER2 END ---
 
             options = []
             multiplier = 1_000_000
 
-            # Handle different response formats based on service
             if service == "NanoGPT":
-                # NanoGPT returns detailed JSON response directly
                 models_list = models_data.get("data", [])
                 for model in models_list:
                     try:
@@ -636,44 +646,37 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                         context_size = model.get("context_length", 0)
                         pricing = model.get("pricing", {})
                         capabilities = model.get("capabilities", {})
-                        
-                        # Always try to show detailed information, even if some parts are missing
+
                         model_display_parts = [f"{model_name} ({model_id})"]
-                        
-                        # Add context size if available
+
                         if context_size and context_size > 0:
                             model_display_parts.append(f"Context: {utils.format_context_size(context_size)}")
                             ClientBase.api_token_limits[model_id.split('/')[-1]] = context_size
-                        
-                        # Add pricing if available (NanoGPT prices are already in USD per million tokens)
+
                         if pricing:
                             prompt_cost = float(pricing.get("prompt", 0))
                             completion_cost = float(pricing.get("completion", 0))
-                            
                             if prompt_cost >= 0 or completion_cost >= 0:
                                 cost_parts = []
                                 cost_parts.append(f"Prompt: {utils.format_price(prompt_cost)}")
                                 cost_parts.append(f"Completion: {utils.format_price(completion_cost)}")
                                 model_display_parts.append(f"Cost per 1M tokens: {'. '.join(cost_parts)}")
-                        
-                        # Add capability markers using the capabilities field
+
                         if capabilities.get("vision"):
                             model_display_parts.append("✅ Vision")
                         if capabilities.get("tool_calling"):
                             model_display_parts.append("✅ Advanced Actions")
                         if capabilities.get("reasoning"):
                             model_display_parts.append("⚠️ Reasoning")
-                        
-                        # Join all available parts with " | "
+
                         model_display_name = " | ".join(model_display_parts)
-                     
+
                     except Exception as e:
-                        # Fallback to model ID if parsing fails
                         model_display_name = model.get("id", "unknown")
-                    
+
                     options.append((model_display_name, model.get("id", "unknown")))
+
             else:
-                # OpenRouter and OpenAI use the existing models.data format
                 for model in models.data:
                     try:
                         if model.model_extra:
@@ -684,27 +687,23 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
                             tool_calling_available: str = ' | ✅ Advanced Actions' if 'tools' in model.model_extra['supported_parameters'] else ''
                             reasoning_model: str = ' | ⚠️ Reasoning' if 'reasoning' in model.model_extra['supported_parameters'] else ''
                             model_display_name = f"{model.id} | Context: {utils.format_context_size(context_size)} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}. Completion: {utils.format_price(completion_cost)}{vision_available}{tool_calling_available}{reasoning_model}"
-
                             ClientBase.api_token_limits[model.id.split('/')[-1]] = context_size
                         else:
                             model_display_name = model.id
                     except:
                         model_display_name = model.id
                     options.append((model_display_name, model.id))
-            
-            # check if any models are marked as vision-capable
+
             has_vision_models = any('✅ Vision' in name for name, _ in options)
-            # filter model list if this is supposed to be a vision model list and there are models explicitly marked as such
             if is_vision and has_vision_models:
                 options = [(name, model_id) for name, model_id in options if '✅ Vision' in name]
 
-            # check if any models are marked as tool-calling-capable
             has_tool_calling_models = any('✅ Advanced Actions' in name for name, _ in options)
-            # filter model list if this is supposed to be a tool-calling model list and there are models explicitly marked as such
             if is_tool_calling and has_tool_calling_models:
                 options = [(name, model_id) for name, model_id in options if '✅ Advanced Actions' in name]
-            
+
             return LLMModelList(options, default_model, allows_manual_model_input=allow_manual_model_input)
+
         except Exception as e:
             utils.play_error_sound()
             error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required. The file is in your mod folder of Mantella. Error: {e}"

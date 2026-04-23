@@ -371,6 +371,7 @@ _KNOWN_SERVICES: dict[str, str] = {
     'text-gen-web-ui': 'http://127.0.0.1:5000/v1',
     'textgenerationwebui': 'http://127.0.0.1:5000/v1',
     'text-generation-web-ui': 'http://127.0.0.1:5000/v1',
+    'player2': 'https://api.player2.game/v1',
 }
 
 
