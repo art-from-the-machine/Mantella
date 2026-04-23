@@ -81,9 +81,24 @@ class OtherDefinitions:
 
     @staticmethod
     def get_random_llm_pool_config_value() -> ConfigValue:
+        value = """[
+    {
+        "service": "OpenRouter",
+        "model": "google/gemma-4-26b-a4b-it:free"
+    },
+    {
+        "service": "OpenRouter",
+        "model": "google/gemma-4-31b-it:free"
+    }
+]"""
         description = """JSON array of LLMs for random selection.
-                        Format: [{"service": "OpenRouter", "model": "google/gemma-4-26b-a4b-it:free"}, ...]"""
-        return ConfigValueString("random_llm_pool", "Random LLM Pool", description, "[]", tags=[ConfigValueTag.advanced])
+                        Each entry should have a 'service' and 'model' key.
+                        Example:
+                        [
+                            {"service": "OpenRouter", "model": "google/gemma-4-26b-a4b-it:free"},
+                            {"service": "OpenRouter", "model": "google/gemma-4-31b-it:free"}
+                        ]"""
+        return ConfigValueString("random_llm_pool", "Random LLM Pool", description, value, tags=[ConfigValueTag.advanced])
 
     #HTTP
     @staticmethod
