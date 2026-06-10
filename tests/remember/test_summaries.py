@@ -505,7 +505,7 @@ class TestGenderAndRacePromptVariables:
              patch.object(rememberer, 'summarize_conversation', return_value="Resummarized.") as mock_summarize:
             rememberer._Summaries__append_new_conversation_summary(
                 "New summary.", guard.name, guard.ref_id, world_id,
-                npc_gender=guard.gender_string, npc_race=guard.display_race
+                npc_gender=guard.gender, npc_race=guard.race
             )
 
             assert mock_summarize.call_count == 1

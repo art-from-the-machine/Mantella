@@ -432,15 +432,15 @@ class Context:
         if player:
             player_name = player.name
             player_equipment = player.equipment.get_equipment_description('')
-            player_gender = player.gender_string
-            player_race = player.display_race
+            player_gender = player.gender
+            player_race = player.race
             game_sent_description = player.get_custom_character_value(communication_constants.KEY_ACTOR_PC_DESCRIPTION)
             if game_sent_description and game_sent_description != "":
                 player_description = game_sent_description
         if self.npcs_in_conversation.last_added_character:
             name: str = self.npcs_in_conversation.last_added_character.name
-            gender: str = self.npcs_in_conversation.last_added_character.gender_string
-            race: str = self.npcs_in_conversation.last_added_character.display_race
+            gender: str = self.npcs_in_conversation.last_added_character.gender
+            race: str = self.npcs_in_conversation.last_added_character.race
         else:
             name = self.get_character_names_as_text(False)
             gender = ""

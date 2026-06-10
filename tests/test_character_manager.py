@@ -1,21 +1,23 @@
 from src.character_manager import Character, get_genders_text, get_races_text, get_genders_and_races_text
 
 
-class TestGenderString:
+class TestGender:
     def test_male(self, example_skyrim_npc_character: Character):
-        assert example_skyrim_npc_character.gender_string == "male"
+        assert example_skyrim_npc_character.gender_raw == 0
+        assert example_skyrim_npc_character.gender == "male"
 
     def test_female(self, another_example_skyrim_npc_character: Character):
-        assert another_example_skyrim_npc_character.gender_string == "female"
+        assert another_example_skyrim_npc_character.gender_raw == 1
+        assert another_example_skyrim_npc_character.gender == "female"
 
 
-class TestDisplayRace:
+class TestRace:
     def test_parses_raw_game_race_string(self, example_skyrim_npc_character: Character):
-        assert example_skyrim_npc_character.race == '[Race <ImperialRace (00013744)>]'
-        assert example_skyrim_npc_character.display_race == 'Imperial'
+        assert example_skyrim_npc_character.race_raw == '[Race <ImperialRace (00013744)>]'
+        assert example_skyrim_npc_character.race == 'Imperial'
 
     def test_returns_plain_race_unchanged(self, another_example_skyrim_npc_character: Character):
-        assert another_example_skyrim_npc_character.display_race == 'Nord'
+        assert another_example_skyrim_npc_character.race == 'Nord'
 
 
 class TestCharacterListDescriptions:

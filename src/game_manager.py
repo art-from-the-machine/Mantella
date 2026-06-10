@@ -472,8 +472,8 @@ class GameStateManager:
                     character_to_talk.csv_in_game_voice_model, 
                     character_to_talk.advanced_voice_model, 
                     character_to_talk.voice_accent, 
-                    voice_gender=character_to_talk.gender, 
-                    voice_race=character_to_talk.race
+                    voice_gender=character_to_talk.gender_raw,
+                    voice_race=character_to_talk.race_raw
                 )
             else:
                 return self.error_message("Could not load initial character to talk to. Please try again.")

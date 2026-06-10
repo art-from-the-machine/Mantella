@@ -5,12 +5,35 @@ from src import utils
 class Character:
     """Representation of a character in the game
     """
-    def __init__(self, base_id: str, ref_id: str,  name: str, gender: int, race: str, is_player_character: bool, bio: str, is_in_combat: bool, is_enemy: bool, relationship_rank: int, is_generic_npc: bool, ingame_voice_model:str, tts_voice_model: str, csv_in_game_voice_model: str, advanced_voice_model: str, voice_accent: str, equipment:Equipment, custom_character_values: dict[str, Any], llm_service: str = "", llm_model: str = "", tts_service: str = ""):
+    def __init__(
+            self, 
+            base_id: str, 
+            ref_id: str,  
+            name: str, 
+            gender_raw: int, 
+            race_raw: str, 
+            is_player_character: bool, 
+            bio: str, 
+            is_in_combat: bool, 
+            is_enemy: bool, 
+            relationship_rank: int, 
+            is_generic_npc: bool, 
+            ingame_voice_model:str, 
+            tts_voice_model: str, 
+            csv_in_game_voice_model: str, 
+            advanced_voice_model: str, 
+            voice_accent: str, 
+            equipment:Equipment, 
+            custom_character_values: dict[str, Any], 
+            llm_service: str = "", 
+            llm_model: str = "", 
+            tts_service: str = ""
+        ):
         self.__base_id: str = base_id
         self.__ref_id: str = ref_id
         self.__name: str = name
-        self.__gender: int = gender
-        self.__race: str = race
+        self.__gender_raw: int = gender_raw
+        self.__race_raw: str = race_raw
         self.__is_player_character: bool = is_player_character
         self.__bio: str = bio
         self.__is_in_combat: bool = is_in_combat
@@ -53,41 +76,44 @@ class Character:
         self.__name = value
 
     @property
-    def gender(self) -> int:
-        return self.__gender
+    def gender_raw(self) -> int:
+        """The gender as sent by the game (0 = male, 1 = female)"""
+        return self.__gender_raw
 
-    @gender.setter
-    def gender(self, value: int):
-        self.__gender = value
+    @gender_raw.setter
+    def gender_raw(self, value: int):
+        self.__gender_raw = value
 
     @property
-    def gender_string(self) -> str:
-        return ["male", "female"][self.__gender]
+    def gender(self) -> str:
+        """The gender as readable text"""
+        return ["male", "female"][self.__gender_raw]
 
     @property
     def personal_pronoun_subject(self) -> str:
-        return ["he", "she"][self.__gender]
-    
+        return ["he", "she"][self.__gender_raw]
+
     @property
     def personal_pronoun_object(self) -> str:
-        return ["him", "her"][self.__gender]
-    
+        return ["him", "her"][self.__gender_raw]
+
     @property
     def possesive_pronoun(self) -> str:
-        return ["his", "hers"][self.__gender]
+        return ["his", "hers"][self.__gender_raw]
+
+    @property
+    def race_raw(self) -> str:
+        """The race as sent by the game (eg "[Race <NordRace (00013746)>]")"""
+        return self.__race_raw
+
+    @race_raw.setter
+    def race_raw(self, value: str):
+        self.__race_raw = value
 
     @property
     def race(self) -> str:
-        return self.__race
-
-    @race.setter
-    def race(self, value: str):
-        self.__race = value
-
-    @property
-    def display_race(self) -> str:
-        """The race as readable text (eg "Nord"), parsed from the raw game value (eg "[Race <NordRace (00013746)>]")"""
-        return utils.parse_race_name(self.__race) or ""
+        """The race as readable text (eg "Nord"), parsed from the raw game value"""
+        return utils.parse_race_name(self.__race_raw) or ""
 
     @property
     def is_player_character(self) -> bool:
@@ -223,7 +249,7 @@ class Character:
 
     def __eq__(self, other):
         if isinstance(self, type(other)):
-            return self.name == other.name and self.base_id == other.base_id and self.ref_id == other.ref_id and self.race == other.race
+            return self.name == other.name and self.base_id == other.base_id and self.ref_id == other.ref_id and self.race_raw == other.race_raw
         return NotImplemented
     
     def __hash__(self):
@@ -239,14 +265,14 @@ def _describe_characters(characters: list[Character], describe: Callable[[Charac
 
 def get_genders_text(characters: list[Character]) -> str:
     """The genders of the given characters in natural language (eg "Lydia is a female. Arngeir is a male.")"""
-    return _describe_characters(characters, lambda c: c.gender_string)
+    return _describe_characters(characters, lambda c: c.gender)
 
 
 def get_races_text(characters: list[Character]) -> str:
     """The races of the given characters in natural language (eg "Lydia is a Nord. Arngeir is a Greybeard.")"""
-    return _describe_characters(characters, lambda c: c.display_race)
+    return _describe_characters(characters, lambda c: c.race)
 
 
 def get_genders_and_races_text(characters: list[Character]) -> str:
     """The combined genders and races of the given characters in natural language (eg "Lydia is a female Nord. Arngeir is a male Greybeard.")"""
-    return _describe_characters(characters, lambda c: f"{c.gender_string} {c.display_race}")
+    return _describe_characters(characters, lambda c: f"{c.gender} {c.race}")

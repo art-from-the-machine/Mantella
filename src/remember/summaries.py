@@ -130,7 +130,7 @@ class Summaries(Remembering):
                 npc_summaries[npc_name] = summary
                 if summary or is_reload:
                     character = next(c for c in npcs_to_summarize if c.name == npc_name)
-                    self.__append_new_conversation_summary(summary, character.name, character.ref_id, world_id, player_name, npc_gender=character.gender_string, npc_race=character.display_race)
+                    self.__append_new_conversation_summary(summary, character.name, character.ref_id, world_id, player_name, npc_gender=character.gender, npc_race=character.race)
 
         # Handle pending shares: write summary with prefix to recipient folders
         if pending_shares:
