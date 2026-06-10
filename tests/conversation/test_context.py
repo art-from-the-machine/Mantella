@@ -1,5 +1,6 @@
 from src.conversation.context import Context
 from src.config.config_loader import ConfigLoader
+from src.character_manager import Character
 
 def test_context_generates_prompt_without_actions_when_advanced_enabled(default_config: ConfigLoader, default_context: Context):
     """
@@ -43,6 +44,49 @@ def test_context_generates_prompt_with_actions_when_advanced_disabled(default_co
             break
     
     assert action_text_found
+
+
+class TestContextGenderAndRacePromptVariables:
+    """Tests that Context.generate_system_message fills the gender and race prompt variables"""
+
+    def test_player_gender_and_race(self, default_context: Context):
+        """The player's gender and race should be filled with readable values (not the raw game race string)"""
+        result = default_context.generate_system_message("{player_gender} {player_race}", [])
+        assert result == "male Nord"
+
+    def test_single_npc_gender_and_race(self, default_context: Context):
+        """The singular variables should return bare descriptions for inline use, the plural variables full sentences"""
+        result = default_context.generate_system_message("{gender}|{race}|{genders}|{races}|{genders_and_races}", [])
+        assert result == "male|Imperial|Guard is a male.|Guard is a Imperial.|Guard is a male Imperial."
+
+    def test_multi_npc_genders_and_races(self, default_context: Context, another_example_skyrim_npc_character: Character):
+        """With multiple NPCs, the plural variables should return one sentence per NPC"""
+        all_characters = default_context.npcs_in_conversation.get_all_characters() + [another_example_skyrim_npc_character]
+        default_context.add_or_update_characters(all_characters, message_count=0)
+
+        result = default_context.generate_system_message("{genders_and_races}", [])
+
+        assert result == "Guard is a male Imperial. Lydia is a female Nord."
+
+    def test_raw_race_string_does_not_leak_into_prompt(self, default_context: Context):
+        result = default_context.generate_system_message("{player_race} {race} {races} {genders_and_races}", [])
+        assert "[Race <" not in result
+
+    def test_default_prompt_includes_gender_and_race(self, default_config: ConfigLoader, default_context: Context):
+        """The default one-on-one prompt should introduce the NPC and the player with their gender and race"""
+        result = default_context.generate_system_message(default_config.prompt, [])
+        assert "You are Guard, a male Imperial, in Skyrim." in result
+        assert "You are talking with Dragonborn (the player), a male Nord." in result
+
+    def test_default_multi_npc_prompt_includes_genders_and_races(self, default_config: ConfigLoader, default_context: Context, another_example_skyrim_npc_character: Character):
+        """The default multi-NPC prompt should describe the gender and race of each NPC and the player"""
+        all_characters = default_context.npcs_in_conversation.get_all_characters() + [another_example_skyrim_npc_character]
+        default_context.add_or_update_characters(all_characters, message_count=0)
+
+        result = default_context.generate_system_message(default_config.multi_npc_prompt, [])
+
+        assert "Guard is a male Imperial. Lydia is a female Nord." in result
+        assert "Dragonborn (the player) is a male Nord." in result
 
 
 class TestContextNearbyNPCs:

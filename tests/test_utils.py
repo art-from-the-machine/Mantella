@@ -59,6 +59,21 @@ def test_remove_trailing_number(raw_text, cleaned_text):
     assert utils.remove_trailing_number(raw_text) == cleaned_text
 
 
+@pytest.mark.parametrize(
+    "raw_race, expected",
+    [
+        ("[Race <NordRace (00013746)>]", "Nord"),
+        ("[Race <ImperialRace (00013744)>]", "Imperial"),
+        ("[Race <HumanRace (00013746)>]", "Human"),
+        ("Nord", "Nord"),
+        ("", ""),
+        (None, None),
+    ]
+)
+def test_parse_race_name(raw_race, expected):
+    assert utils.parse_race_name(raw_race) == expected
+
+
 def test_resolve_path_not_frozen():
     resolved = utils.resolve_path()
 

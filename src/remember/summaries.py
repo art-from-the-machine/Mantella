@@ -11,7 +11,7 @@ from src.llm.summary_client import SummaryLLMClient
 from src.llm.message_thread import message_thread
 from src.llm.messages import UserMessage, AssistantMessage
 from src.characters_manager import Characters
-from src.character_manager import Character
+from src.character_manager import Character, get_genders_text, get_races_text, get_genders_and_races_text
 from src.remember.remembering import Remembering
 from src import utils
 
@@ -130,7 +130,7 @@ class Summaries(Remembering):
                 npc_summaries[npc_name] = summary
                 if summary or is_reload:
                     character = next(c for c in npcs_to_summarize if c.name == npc_name)
-                    self.__append_new_conversation_summary(summary, character.name, character.ref_id, world_id, player_name)
+                    self.__append_new_conversation_summary(summary, character.name, character.ref_id, world_id, player_name, npc_gender=character.gender_string, npc_race=character.display_race)
 
         # Handle pending shares: write summary with prefix to recipient folders
         if pending_shares:
@@ -283,6 +283,9 @@ class Summaries(Remembering):
 
         bios = '\n\n'.join([f"{c.name}: {c.bio}" for c in npc_info.characters])
         names = ', '.join([c.name for c in npc_info.characters])
+        genders = get_genders_text(npc_info.characters)
+        races = get_races_text(npc_info.characters)
+        genders_and_races = get_genders_and_races_text(npc_info.characters)
 
         prompt = self.__memory_prompt.format(
                     name=names,
@@ -290,7 +293,10 @@ class Summaries(Remembering):
                     game=location,
                     bios=bios,
                     conversation_summaries=self.get_prompt_text(npc_info.characters, world_id),
-                    player_name=player_name
+                    player_name=player_name,
+                    genders=genders,
+                    races=races,
+                    genders_and_races=genders_and_races
                 )
         while True:
             try:
@@ -311,7 +317,7 @@ class Summaries(Remembering):
         return ""
 
     @utils.time_it
-    def __append_new_conversation_summary(self, new_summary: str, npc_name: str, npc_ref_id: str, world_id: str, player_name: str = "the player"):
+    def __append_new_conversation_summary(self, new_summary: str, npc_name: str, npc_ref_id: str, world_id: str, player_name: str = "the player", npc_gender: str = "", npc_race: str = ""):
         """Append a new conversation summary."""
         conversation_summary_file = self.__get_latest_conversation_summary_file_path(npc_name, npc_ref_id, world_id)
         if os.path.exists(conversation_summary_file):
@@ -343,7 +349,9 @@ class Summaries(Remembering):
                         name=npc_name,
                         language=self.__language_name,
                         game=self.__game.game_name_in_filepath,
-                        player_name=player_name
+                        player_name=player_name,
+                        gender=npc_gender,
+                        race=npc_race
                     )
                     long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt)
                     break

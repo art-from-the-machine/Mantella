@@ -98,14 +98,7 @@ class Fallout4(Gameable):
             actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
         else:
             actor_voice_model_name = actor_voice_model  
-        #Filtering out endsdiwth Race because depending on the source of the method call it may be present.
-        if 'Race <' in actor_race:
-            actor_race = actor_race.split('Race <', 1)[1].split(' ')[0]
-
-            if actor_race.endswith('Race'):
-                actor_race = actor_race[:actor_race.rfind('Race')].strip()
-        else:
-            actor_race = actor_race
+        actor_race = utils.parse_race_name(actor_race)
 
         #make the substitutions below to bypass non-functional XVASynth voice models: RobotCompanionMaleDefault, RobotCompanionMaleProcessed,Gen1Synth02 & Gen1Synth03 
         if self.__tts_service == TTSEnum.XVASYNTH: #only necessary for XVASynth

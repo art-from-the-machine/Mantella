@@ -6,7 +6,7 @@ from src.characters_manager import Characters
 from src.remember.remembering import Remembering
 from src import utils
 from src.utils import get_time_group
-from src.character_manager import Character
+from src.character_manager import Character, get_genders_text, get_races_text, get_genders_and_races_text
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 from src.config.definitions.game_definitions import GameEnum
@@ -427,21 +427,33 @@ class Context:
         player_name = ""
         player_description = self.__config.player_character_description
         player_equipment = ""
+        player_gender = ""
+        player_race = ""
         if player:
             player_name = player.name
             player_equipment = player.equipment.get_equipment_description('')
+            player_gender = player.gender_string
+            player_race = player.display_race
             game_sent_description = player.get_custom_character_value(communication_constants.KEY_ACTOR_PC_DESCRIPTION)
             if game_sent_description and game_sent_description != "":
                 player_description = game_sent_description
         if self.npcs_in_conversation.last_added_character:
             name: str = self.npcs_in_conversation.last_added_character.name
+            gender: str = self.npcs_in_conversation.last_added_character.gender_string
+            race: str = self.npcs_in_conversation.last_added_character.display_race
         else:
             name = self.get_character_names_as_text(False)
+            gender = ""
+            race = ""
         names = self.get_character_names_as_text(False)
         names_w_player = self.get_character_names_as_text(True)
         bios = self.__get_bios_text()
         trusts = self.__get_trusts()
         equipment = self.__get_npc_equipment_text()
+        non_player_chars = self.__npcs_in_conversation.get_non_player_characters()
+        genders = get_genders_text(non_player_chars)
+        races = get_races_text(non_player_chars)
+        genders_and_races = get_genders_and_races_text(non_player_chars)
         location = self.__location
         self.__prev_location = location
         weather = self.__weather
@@ -455,7 +467,6 @@ class Context:
             self.__prev_game_time = str(time), time_group
         else:
             self.__prev_game_time = None, time_group
-        non_player_chars = self.__npcs_in_conversation.get_non_player_characters()
         conversation_summaries = self.__rememberer.get_prompt_text(non_player_chars, self.__world_id)
         
         # Only include legacy action prompts if advanced actions are disabled
@@ -470,12 +481,19 @@ class Context:
                 player_name = player_name,
                 player_description = player_description,
                 player_equipment = player_equipment,
+                player_gender = player_gender,
+                player_race = player_race,
                 name=name,
                 names=names,
                 names_w_player = names_w_player,
                 bio=content[0],
                 bios=content[0], 
                 trust=trusts,
+                gender=gender,
+                race=race,
+                genders=genders,
+                races=races,
+                genders_and_races=genders_and_races,
                 equipment = equipment,
                 location=location,
                 weather = weather,

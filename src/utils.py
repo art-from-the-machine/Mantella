@@ -62,6 +62,16 @@ def remove_trailing_number(s):
         return s
 
 
+def parse_race_name(raw_race: str | None) -> str | None:
+    """Extracts the readable race name from a raw game race string (eg "[Race <NordRace (00013746)>]" -> "Nord").
+    Race strings without the raw game format are returned unchanged."""
+    if raw_race and 'Race <' in raw_race:
+        raw_race = raw_race.split('Race <', 1)[1].split(' ')[0]
+        if raw_race.endswith('Race'):
+            raw_race = raw_race[:raw_race.rfind('Race')].strip()
+    return raw_race
+
+
 def resolve_path():
     if getattr(sys, 'frozen', False):
         resolved_path = os.path.dirname(sys.executable)

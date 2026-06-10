@@ -403,6 +403,116 @@ class TestSummaryLocationByGame:
             assert "Skyrim" in prompt_arg
 
 
+class TestGenderAndRacePromptVariables:
+    """Tests that the gender and race prompt variables are filled in the memory and resummarize prompts."""
+
+    def test_memory_prompt_single_npc(
+        self, skyrim: Skyrim, default_config: ConfigLoader, llm_client: LLMClient,
+        english_language_info: dict, example_skyrim_player_character: Character,
+        example_skyrim_npc_character: Character
+    ):
+        """With a single NPC, the gender/race variables should contain readable descriptions."""
+        default_config.memory_prompt = "Summarize for {name}: {genders}|{races}|{genders_and_races}"
+        rememberer = Summaries(skyrim, default_config, llm_client, english_language_info['language'])
+        world_id = "TestWorld"
+
+        context = Context(world_id, default_config, llm_client, rememberer, english_language_info)
+        context.add_or_update_characters([example_skyrim_player_character, example_skyrim_npc_character], message_count=0)
+
+        thread = message_thread(default_config, "system prompt")
+        _build_enough_messages(thread, default_config)
+        npcs = context.npcs_in_conversation
+
+        with patch.object(rememberer, 'summarize_conversation', return_value="Summary.\n\n") as mock_summarize:
+            rememberer.save_conversation_state(thread, [example_skyrim_npc_character], npcs, world_id)
+
+            assert mock_summarize.call_count == 1
+            prompt_arg = mock_summarize.call_args[0][1]
+
+        assert "Guard is a male.|Guard is a Imperial.|Guard is a male Imperial." in prompt_arg
+        assert "[Race <" not in prompt_arg
+
+    def test_memory_prompt_multi_npc(
+        self, skyrim: Skyrim, default_config: ConfigLoader, llm_client: LLMClient,
+        english_language_info: dict, example_skyrim_player_character: Character,
+        example_skyrim_npc_character: Character, another_example_skyrim_npc_character: Character
+    ):
+        """With multiple NPCs, the gender/race variables should contain one sentence per NPC."""
+        default_config.memory_prompt = "Summarize for {name}: {genders_and_races}"
+        rememberer = Summaries(skyrim, default_config, llm_client, english_language_info['language'])
+        world_id = "TestWorld"
+
+        context = Context(world_id, default_config, llm_client, rememberer, english_language_info)
+        context.add_or_update_characters(
+            [example_skyrim_player_character, example_skyrim_npc_character, another_example_skyrim_npc_character],
+            message_count=0
+        )
+
+        thread = message_thread(default_config, "system prompt")
+        _build_enough_messages(thread, default_config)
+        npcs = context.npcs_in_conversation
+
+        with patch.object(rememberer, 'summarize_conversation', return_value="Summary.\n\n") as mock_summarize:
+            rememberer.save_conversation_state(
+                thread, [example_skyrim_npc_character, another_example_skyrim_npc_character], npcs, world_id
+            )
+
+            prompt_arg = mock_summarize.call_args[0][1]
+
+        assert "Guard is a male Imperial. Lydia is a female Nord." in prompt_arg
+
+    def test_default_memory_prompt_includes_genders_and_races(
+        self, default_config: ConfigLoader, llm_client: LLMClient,
+        default_rememberer: Summaries, english_language_info: dict,
+        example_skyrim_player_character: Character, example_skyrim_npc_character: Character
+    ):
+        """The default memory prompt should describe the gender and race of the NPCs being summarized."""
+        world_id = "TestWorld"
+
+        context = Context(world_id, default_config, llm_client, default_rememberer, english_language_info)
+        context.add_or_update_characters([example_skyrim_player_character, example_skyrim_npc_character], message_count=0)
+
+        thread = message_thread(default_config, "system prompt")
+        _build_enough_messages(thread, default_config)
+        npcs = context.npcs_in_conversation
+
+        with patch.object(default_rememberer, 'summarize_conversation', return_value="Summary.\n\n") as mock_summarize:
+            default_rememberer.save_conversation_state(thread, [example_skyrim_npc_character], npcs, world_id)
+
+            prompt_arg = mock_summarize.call_args[0][1]
+
+        assert "Guard is a male Imperial." in prompt_arg
+
+    def test_resummarize_prompt_includes_gender_and_race(
+        self, skyrim: Skyrim, default_config: ConfigLoader, llm_client: LLMClient,
+        english_language_info: dict, example_skyrim_npc_character: Character
+    ):
+        """The resummarize prompt should be filled with the NPC's gender and race when provided."""
+        default_config.resummarize_prompt = "Summarize the history of {name}, a {gender} {race}, in {game} in {language}."
+        rememberer = Summaries(skyrim, default_config, llm_client, english_language_info['language'])
+        guard = example_skyrim_npc_character
+        world_id = "TestWorld"
+
+        folder = os.path.join(skyrim.conversation_folder_path, world_id, f"Guard - {guard.ref_id}")
+        os.makedirs(folder, exist_ok=True)
+        initial_file = os.path.join(folder, "Guard_summary_1.txt")
+        with open(initial_file, 'w', encoding='utf-8') as f:
+            f.write("Existing summary content.\n\n")
+
+        client = rememberer._Summaries__client
+
+        with patch.object(client, 'get_count_tokens', return_value=99999), \
+             patch.object(rememberer, 'summarize_conversation', return_value="Resummarized.") as mock_summarize:
+            rememberer._Summaries__append_new_conversation_summary(
+                "New summary.", guard.name, guard.ref_id, world_id,
+                npc_gender=guard.gender_string, npc_race=guard.display_race
+            )
+
+            assert mock_summarize.call_count == 1
+            prompt_arg = mock_summarize.call_args[0][1]
+            assert "Guard, a male Imperial," in prompt_arg
+
+
 class TestPendingShares:
     """Tests for the pending_shares code path in save_conversation_state."""
 

@@ -1,5 +1,6 @@
-from typing import Any
+﻿from typing import Any, Callable
 from src.games.equipment import Equipment
+from src import utils
 
 class Character:
     """Representation of a character in the game
@@ -54,11 +55,15 @@ class Character:
     @property
     def gender(self) -> int:
         return self.__gender
-    
+
     @gender.setter
     def gender(self, value: int):
         self.__gender = value
-    
+
+    @property
+    def gender_string(self) -> str:
+        return ["male", "female"][self.__gender]
+
     @property
     def personal_pronoun_subject(self) -> str:
         return ["he", "she"][self.__gender]
@@ -74,10 +79,15 @@ class Character:
     @property
     def race(self) -> str:
         return self.__race
-    
+
     @race.setter
     def race(self, value: str):
         self.__race = value
+
+    @property
+    def display_race(self) -> str:
+        """The race as readable text (eg "Nord"), parsed from the raw game value (eg "[Race <NordRace (00013746)>]")"""
+        return utils.parse_race_name(self.__race) or ""
 
     @property
     def is_player_character(self) -> bool:
@@ -218,5 +228,25 @@ class Character:
     
     def __hash__(self):
         return hash(tuple(sorted(self.__dict__.items())))
-    
-    
+
+
+def _describe_characters(characters: list[Character], describe: Callable[[Character], str]) -> str:
+    """Formats a per-character description as natural language, with one sentence per character
+    (eg "Lydia is a female. Arngeir is a male.")
+    """
+    return " ".join(f"{character.name} is a {describe(character)}." for character in characters)
+
+
+def get_genders_text(characters: list[Character]) -> str:
+    """The genders of the given characters in natural language (eg "Lydia is a female. Arngeir is a male.")"""
+    return _describe_characters(characters, lambda c: c.gender_string)
+
+
+def get_races_text(characters: list[Character]) -> str:
+    """The races of the given characters in natural language (eg "Lydia is a Nord. Arngeir is a Greybeard.")"""
+    return _describe_characters(characters, lambda c: c.display_race)
+
+
+def get_genders_and_races_text(characters: list[Character]) -> str:
+    """The combined genders and races of the given characters in natural language (eg "Lydia is a female Nord. Arngeir is a male Greybeard.")"""
+    return _describe_characters(characters, lambda c: f"{c.gender_string} {c.display_race}")

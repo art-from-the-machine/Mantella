@@ -11,6 +11,8 @@ class PromptDefinitions:
     ALLOWED_PROMPT_VARIABLES = ["player_name",
                                 "player_description",
                                 "player_equipment",
+                                "player_gender",
+                                "player_race",
                                 "game",
                                 "name",
                                 "names",
@@ -18,6 +20,11 @@ class PromptDefinitions:
                                 "bio",
                                 "bios", 
                                 "trust",
+                                "gender",
+                                "race",
+                                "genders",
+                                "races",
+                                "genders_and_races",
                                 "equipment",
                                 "location",
                                 "weather",
@@ -32,16 +39,21 @@ class PromptDefinitions:
     ALLOWED_PROMPT_VARIABLES_RADIANT = [
                                 "game",
                                 "name",
-                                "names",                                
+                                "names",
                                 "bio",
                                 "bios",
+                                "gender",
+                                "race",
+                                "genders",
+                                "races",
+                                "genders_and_races",
                                 "equipment",
                                 "location",
                                 "weather",
                                 "time",
                                 "current_day",
-                                "time_group", 
-                                "language", 
+                                "time_group",
+                                "language",
                                 "conversation_summary",
                                 "conversation_summaries",
                                 "actions"]
@@ -57,6 +69,11 @@ class PromptDefinitions:
                                 game = the selected game
                                 bio = the NPC's background description
                                 trust = how well the NPC knows the player (eg "a stranger", "a friend")
+                                gender = the NPC's gender
+                                race = the NPC's race
+                                genders = the genders of all NPCs in natural language (eg "Lydia is a female. Arngeir is a male.")
+                                races = the races of all NPCs in natural language (eg "Lydia is a Nord. Arngeir is a Greybeard.")
+                                genders_and_races = combined gender and race of all NPCs in natural language (eg "Lydia is a female Nord. Arngeir is a male Greybeard.")
                                 location = the current location
                                 weather = the current weather
                                 time = the time of day as a number (eg 1, 22)
@@ -66,6 +83,8 @@ class PromptDefinitions:
                                 player_name = the name of the player character
                                 player_description = a description of the player character (needs to be added in game or using the config value)
                                 player_equipment = a basic description of the equipment the player character carries
+                                player_gender = the player character's gender
+                                player_race = the player character's race
                                 equipment = a basic description of the equipment the NPCs carry
                                 actions = instructions for the LLM how to trigger actions (if advanced actions are disabled, otherwise action instructions are already passed to the LLM as tools via the 'description' field)"""
     
@@ -75,6 +94,11 @@ class PromptDefinitions:
                                 names = the names of all NPCs in the conversation
                                 game = the selected game
                                 bio = the backgrounds of the NPCs
+                                gender = the NPC's gender
+                                race = the NPC's race
+                                genders = the genders of all NPCs in natural language (eg "Lydia is a female. Arngeir is a male.")
+                                races = the races of all NPCs in natural language (eg "Lydia is a Nord. Arngeir is a Greybeard.")
+                                genders_and_races = combined gender and race of all NPCs in natural language (eg "Lydia is a female Nord. Arngeir is a male Greybeard.")
                                 location = the current location
                                 weather = the current weather
                                 time = the time of day as a number (eg 1, 22)
@@ -104,7 +128,7 @@ class PromptDefinitions:
     @staticmethod
     def get_skyrim_prompt_config_value() -> ConfigValue:
         skyrim_prompt_value = """# Overview
-You are {name} in Skyrim. You are talking with {player_name} (the player). The player {player_equipment} {equipment}
+You are {name}, a {gender} {race}, in Skyrim. You are talking with {player_name} (the player), a {player_gender} {player_race}. The player {player_equipment} {equipment}
 
 # Background
 {bio}
@@ -128,7 +152,7 @@ Respond as {name} now in {language}."""
     @staticmethod
     def get_skyrim_multi_npc_prompt_config_value() -> ConfigValue:
         skyrim_multi_npc_prompt = """# Overview
-The following is a conversation in Skyrim between {names_w_player} (the player). The player {player_equipment} {equipment}
+The following is a conversation in Skyrim between {names_w_player}. {genders_and_races} {player_name} (the player) is a {player_gender} {player_race}. The player {player_equipment} {equipment}
 
 # Background
 {bios}
@@ -154,7 +178,7 @@ Remember, you can only respond as {names}. Ensure to use their full name when re
     @staticmethod
     def get_skyrim_radiant_prompt_config_value() -> ConfigValue:
         skyrim_radiant_prompt = """# Overview
-The following is a conversation in Skyrim between {names}. {equipment}
+The following is a conversation in Skyrim between {names}. {genders_and_races} {equipment}
 
 # Background
 {bios}
@@ -180,7 +204,7 @@ Remember, you can only respond as {names}. Ensure to use their full name when re
     @staticmethod
     def get_fallout4_prompt_config_value() -> ConfigValue:
         fallout4_prompt = """# Overview
-You are {name} in the post-apocalyptic Commonwealth of Fallout. You are talking with the player.
+You are {name}, a {gender} {race}, in the post-apocalyptic Commonwealth of Fallout. You are talking with the player, a {player_gender} {player_race}.
 
 # Background
 {bio}
@@ -204,7 +228,7 @@ Respond as {name} now in {language}."""
     @staticmethod
     def get_fallout4_multi_npc_prompt_config_value() -> ConfigValue:
         fallout4_multi_npc_prompt = """# Overview
-The following is a conversation in the post-apocalyptic Commonwealth of Fallout between {names_w_player}.
+The following is a conversation in the post-apocalyptic Commonwealth of Fallout between {names_w_player}. {genders_and_races} {player_name} (the player) is a {player_gender} {player_race}.
 
 # Background
 {bios}
@@ -230,7 +254,7 @@ Remember, you can only respond as {names}. Ensure to use their full name when re
     @staticmethod
     def get_fallout4_radiant_prompt_config_value() -> ConfigValue:
         fallout4_radiant_prompt = """# Overview
-The following is a conversation in the post-apocalyptic Commonwealth of Fallout between {names}.
+The following is a conversation in the post-apocalyptic Commonwealth of Fallout between {names}. {genders_and_races}
 
 # Background
 {bios}
@@ -261,11 +285,16 @@ Remember, you can only respond as {names}. Ensure to use their full name when re
                                                language = the selected language
                                                game = the game selected
                                                bios = the NPC bio(s)
+                                               genders = the genders of all NPCs in natural language (eg "Lydia is a female. Arngeir is a male.")
+                                               races = the races of all NPCs in natural language (eg "Lydia is a Nord. Arngeir is a Greybeard.")
+                                               genders_and_races = combined gender and race of all NPCs in natural language (eg "Lydia is a female Nord. Arngeir is a male Greybeard.")
                                                conversation_summaries = summaries of previous conversations
                                                player_name = the player's name"""
         memory_prompt = """You are tasked with summarizing the conversation between {name} and {player_name} (and any other characters present). These conversations take place in {game}.
 
-Here are the character bios for context:
+Here is some information about the characters for context:
+{genders_and_races}
+
 {bios}
 
 Here are the previous conversation summaries for context:
@@ -273,7 +302,7 @@ Here are the previous conversation summaries for context:
 
 It is not necessary to comment on any mixups in communication such as mishearings. Text contained within brackets state in-game events.
 Please summarize the conversation into a single paragraph in {language}."""
-        return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "bios", "conversation_summaries", "player_name"])])
+        return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "bios", "conversation_summaries", "player_name", "genders", "races", "genders_and_races"])])
     
     @staticmethod
     def get_memory_prompt_datetime_prefix_config_value() -> ConfigValue:
@@ -289,16 +318,18 @@ Please summarize the conversation into a single paragraph in {language}."""
                                                 name = the NPC's name
                                                 language = the selected language
                                                 game = the game selected
+                                                gender = the NPC's gender
+                                                race = the NPC's race
                                                 player_name = the player's name"""
         resummarize_prompt = """You are tasked with summarizing the conversation history between {name} and {player_name} (the player) / other characters. These conversations take place in {game}.
-                                            Each paragraph represents a conversation at a new point in time. Timestamps in square brackets (eg [Day 42, 5 in the early evening]) indicate when each conversation occurred. Please summarize these conversations into a single paragraph in {language}."""
-        return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "player_name"])])
+Each paragraph represents a conversation at a new point in time. Timestamps in square brackets (eg [Day 42, 5 in the early evening]) indicate when each conversation occurred. Please summarize these conversations into a single paragraph in {language}."""
+        return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "player_name", "gender", "race"])])
     
     @staticmethod
     def get_vision_prompt_config_value() -> ConfigValue:
         vision_prompt_description = """The prompt passed to the vision-capable LLM when `Custom Vision Model` is enabled."""
         vision_prompt = """This image is to give context and is from the player's point of view in the game of {game}. 
-                            Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
+Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
         return ConfigValueString("vision_prompt","Vision Prompt",vision_prompt_description,vision_prompt)
     
     @staticmethod
@@ -306,7 +337,7 @@ Please summarize the conversation into a single paragraph in {language}."""
         radiant_start_prompt_description = """Once a radiant conversation has started and the radiant prompt has been passed to the LLM, the below text is passed in replace of the player response.
                                         This prompt is used to steer the radiant conversation.""" 
         radiant_start_prompt = """Please begin / continue a conversation topic (greetings are not needed). Ensure to change the topic if the current one is losing steam. 
-                            The conversation should steer towards topics which reveal information about the characters and who they are, or instead drive forward previous conversations in their memory."""
+The conversation should steer towards topics which reveal information about the characters and who they are, or instead drive forward previous conversations in their memory."""
         return ConfigValueString("radiant_start_prompt","Radiant Start Prompt",radiant_start_prompt_description,radiant_start_prompt,[PromptDefinitions.PromptChecker([])])
 
     @staticmethod
@@ -338,6 +369,6 @@ Please summarize the conversation into a single paragraph in {language}."""
                             The following are dynamic variables that need to be contained in curly brackets {}:
                             game = the selected game"""
         function_llm_prompt = """You are analyzing a conversation in {game} to determine if any in-game actions should be triggered. 
-                                Based on the recent dialogue, call the appropriate functions to execute actions. 
-                                If no actions are needed, do not call any functions."""
+Based on the recent dialogue, call the appropriate functions to execute actions. 
+If no actions are needed, do not call any functions."""
         return ConfigValueString("function_llm_prompt","Tool Calling LLM Prompt",description,function_llm_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_FUNCTION_LLM)])
