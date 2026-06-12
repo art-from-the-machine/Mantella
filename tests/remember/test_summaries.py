@@ -429,7 +429,7 @@ class TestGenderAndRacePromptVariables:
             assert mock_summarize.call_count == 1
             prompt_arg = mock_summarize.call_args[0][1]
 
-        assert "Guard is a male.|Guard is a Imperial.|Guard is a male Imperial." in prompt_arg
+        assert "Guard is a male.|Guard is an Imperial.|Guard is a male Imperial." in prompt_arg
         assert "[Race <" not in prompt_arg
 
     def test_memory_prompt_multi_npc(

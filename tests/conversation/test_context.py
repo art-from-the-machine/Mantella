@@ -57,7 +57,7 @@ class TestContextGenderAndRacePromptVariables:
     def test_single_npc_gender_and_race(self, default_context: Context):
         """The singular variables should return bare descriptions for inline use, the plural variables full sentences"""
         result = default_context.generate_system_message("{gender}|{race}|{genders}|{races}|{genders_and_races}", [])
-        assert result == "male|Imperial|Guard is a male.|Guard is a Imperial.|Guard is a male Imperial."
+        assert result == "male|Imperial|Guard is a male.|Guard is an Imperial.|Guard is a male Imperial."
 
     def test_multi_npc_genders_and_races(self, default_context: Context, another_example_skyrim_npc_character: Character):
         """With multiple NPCs, the plural variables should return one sentence per NPC"""
