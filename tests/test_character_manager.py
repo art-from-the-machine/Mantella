@@ -31,11 +31,17 @@ class TestCharacterListDescriptions:
     def test_single_character_returns_one_sentence(self, example_skyrim_npc_character: Character):
         characters = [example_skyrim_npc_character]
         assert get_genders_text(characters) == "Guard is a male."
-        assert get_races_text(characters) == "Guard is a Imperial."
+        assert get_races_text(characters) == "Guard is an Imperial."
         assert get_genders_and_races_text(characters) == "Guard is a male Imperial."
 
     def test_multiple_characters_return_one_sentence_each(self, example_skyrim_npc_character: Character, another_example_skyrim_npc_character: Character):
         characters = [example_skyrim_npc_character, another_example_skyrim_npc_character]
         assert get_genders_text(characters) == "Guard is a male. Lydia is a female."
-        assert get_races_text(characters) == "Guard is a Imperial. Lydia is a Nord."
+        assert get_races_text(characters) == "Guard is an Imperial. Lydia is a Nord."
         assert get_genders_and_races_text(characters) == "Guard is a male Imperial. Lydia is a female Nord."
+
+    def test_article_agrees_with_description(self, example_skyrim_npc_character: Character, another_example_skyrim_npc_character: Character):
+        """"an" is used for vowel-starting descriptions (eg "an Imperial"), "a" otherwise (eg "a Nord")."""
+        # Guard is an Imperial (vowel), Lydia is a Nord (consonant)
+        assert get_races_text([example_skyrim_npc_character]) == "Guard is an Imperial."
+        assert get_races_text([another_example_skyrim_npc_character]) == "Lydia is a Nord."

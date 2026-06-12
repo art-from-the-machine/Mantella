@@ -260,7 +260,11 @@ def _describe_characters(characters: list[Character], describe: Callable[[Charac
     """Formats a per-character description as natural language, with one sentence per character
     (eg "Lydia is a female. Arngeir is a male.")
     """
-    return " ".join(f"{character.name} is a {describe(character)}." for character in characters)
+    def sentence(character: Character) -> str:
+        description = describe(character)
+        article = "an" if description[:1].lower() in "aeiou" else "a"
+        return f"{character.name} is {article} {description}."
+    return " ".join(sentence(character) for character in characters)
 
 
 def get_genders_text(characters: list[Character]) -> str:
