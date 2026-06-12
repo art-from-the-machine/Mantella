@@ -113,13 +113,7 @@ class Skyrim(Gameable):
             actor_voice_model_name = actor_voice_model.split('<')[1].split(' ')[0]
         else:
             actor_voice_model_name = actor_voice_model 
-        #Filtering out endsdiwth Race because depending on the source of the method call it may be present.
-        if actor_race and 'Race <' in actor_race:
-            actor_race = actor_race.split('Race <', 1)[1].split(' ')[0]
-            if actor_race.endswith('Race'):
-                actor_race = actor_race[:actor_race.rfind('Race')].strip()
-        else:
-            actor_race = actor_race
+        actor_race = utils.parse_race_name(actor_race)
 
         if self.__tts_service == TTSEnum.XVASYNTH: 
             male_voice_model_dictionary=Skyrim.MALE_VOICE_MODELS_XVASYNTH

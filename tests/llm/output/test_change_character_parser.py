@@ -57,7 +57,7 @@ class TestKnownCharacterSwitch:
     def test_split_name_match(self, example_skyrim_player_character: Character):
         """Characters with multi-word names should be matchable by individual parts."""
         chars = Characters()
-        npc = Character(base_id='0', ref_id='0', name='Svana Far-Shield', gender=1, race='Nord',
+        npc = Character(base_id='0', ref_id='0', name='Svana Far-Shield', gender_raw=1, race_raw='Nord',
                         is_player_character=False, bio='', is_in_combat=False, is_enemy=False,
                         relationship_rank=0, is_generic_npc=False, ingame_voice_model='FemaleEvenToned',
                         tts_voice_model='FemaleEvenToned', csv_in_game_voice_model='FemaleEvenToned',
