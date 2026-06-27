@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any, Hashable, List
 import re
 from src.conversation.action import Action
@@ -12,6 +13,7 @@ from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 from src.config.definitions.game_definitions import GameEnum
+from src.lorebook_manager import LorebookManager
 
 class add_or_update_result:
     def __init__(self, added_npcs: List[Character], removed_npcs: List[Character]):
@@ -40,6 +42,9 @@ class context:
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
         self.__game: GameEnum = config.game
+        game_folder_name = "Fallout4" if self.__game.base_game == GameEnum.FALLOUT4 else "Skyrim"
+        lorebook_base_path = os.path.join(utils.resolve_path(), "data", game_folder_name, "lorebook")
+        self.__lorebook_manager = LorebookManager(lorebook_base_path, config, game_folder_name)
 
         self.__prev_location: str | None = None
         if self.__game.base_game == GameEnum.FALLOUT4:
@@ -80,6 +85,9 @@ class context:
             # Update config-derived values
             self.__hourly_time = config.hourly_time
             self.__game = config.game
+            game_folder_name = "Fallout4" if self.__game.base_game == GameEnum.FALLOUT4 else "Skyrim"
+            lorebook_base_path = os.path.join(utils.resolve_path(), "data", game_folder_name, "lorebook")
+            self.__lorebook_manager = LorebookManager(lorebook_base_path, config, game_folder_name)
             
             # Update game-specific location if game changed
             if self.__game.base_game == GameEnum.FALLOUT4:
@@ -558,9 +566,58 @@ class context:
         for a in actions:
             result += a.prompt_text.format(key=a.keyword) + " "
         return result
+
+    def __build_lorebook_text(
+        self,
+        prompt_template: str,
+        variable_values: dict[str, str],
+        messages_for_lorebook = None,
+    ) -> str:
+        """Build lorebook block from prompt variables + conversation history."""
+        mentioned_variables = {
+            match.group(1).strip()
+            for match in re.finditer(r"\{([^{}]+)\}", prompt_template)
+        }
+        excluded_variables = {
+            "bio",
+            "bios",
+            "conversation_summary",
+            "conversation_summaries",
+            "bios_and_summaries",
+            "lorebook",
+        }
+
+        search_texts: list[str] = []
+        for variable in mentioned_variables:
+            if variable in excluded_variables:
+                continue
+            value = variable_values.get(variable, "")
+            if value:
+                search_texts.append(value)
+
+        if messages_for_lorebook:
+            try:
+                history_messages = messages_for_lorebook.get_talk_only(include_system_generated_messages=True)
+                history_text = messages_for_lorebook.transform_to_text(history_messages)
+                if history_text.strip():
+                    search_texts.append(history_text)
+            except Exception as e:
+                logging.debug(f"Could not gather conversation history for lorebook scan: {e}")
+        
+        # Include latest context-level in-game/custom events directly so they
+        # can trigger lore entries even before they are persisted into history.
+        try:
+            if self.__ingame_events:
+                events_text = "\n".join(str(ev) for ev in self.__ingame_events if str(ev).strip())
+                if events_text:
+                    search_texts.append(events_text)
+        except Exception as e:
+            logging.debug(f"Could not gather context events for lorebook scan: {e}")
+
+        return self.__lorebook_manager.render_lorebook_entries(search_texts)
     
     @utils.time_it
-    def generate_system_message(self, prompt: str, actions_for_prompt: list[Action], should_log: bool = False) -> str:
+    def generate_system_message(self, prompt: str, actions_for_prompt: list[Action], should_log: bool = False, messages_for_lorebook = None) -> str:
         """Fills the variables in the prompt with the values calculated from the context
 
         Args:
@@ -606,6 +663,28 @@ class context:
             if conversation_summaries:
                 conversation_summaries = self._resolve_bio_player_name(conversation_summaries)
         actions = self.__get_action_texts(actions_for_prompt)
+        variable_values = {
+            "player_name": player_name,
+            "player_description": player_description,
+            "player_equipment": player_equipment,
+            "name": name,
+            "names": names,
+            "names_w_player": names_w_player,
+            "bio": bios,
+            "bios": bios,
+            "trust": trusts,
+            "equipment": equipment,
+            "location": location,
+            "weather": weather,
+            "time": str(time),
+            "time_group": time_group,
+            "language": self.__language["language"],
+            "conversation_summary": conversation_summaries,
+            "conversation_summaries": conversation_summaries,
+            "bios_and_summaries": bios_and_summaries,
+            "actions": actions,
+        }
+        lorebook_text = self.__build_lorebook_text(prompt, variable_values, messages_for_lorebook)
 
         removal_content: list[tuple[str, str, str]] = [
             (bios, conversation_summaries, bios_and_summaries),
@@ -635,7 +714,8 @@ class context:
                 conversation_summary=content[1],
                 conversation_summaries=content[1],
                 bios_and_summaries=content[2],
-                actions = actions
+                actions = actions,
+                lorebook=lorebook_text,
                 )
             if self.__client.is_too_long(result, self.TOKEN_LIMIT_PERCENT):
                 if content[0] != "":

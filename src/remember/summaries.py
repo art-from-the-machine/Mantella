@@ -14,6 +14,7 @@ from src.llm.messages import AssistantMessage, join_message, leave_message, User
 from src.characters_manager import Characters
 from src.character_manager import Character
 from src.remember.remembering import Remembering
+from src.lorebook_manager import LorebookManager
 from src import utils
 
 # ---------------------------------------------------------------------------
@@ -207,6 +208,36 @@ class Summaries(Remembering):
         self.__language_name: str = language_name
         self.__memory_prompt: str = config.memory_prompt
         self.__resummarize_prompt:str = config.resummarize_prompt
+        game_folder_name = "Fallout4" if game.game_name_in_filepath.lower() == "fallout4" else "Skyrim"
+        lorebook_base_path = os.path.join(utils.resolve_path(), "data", game_folder_name, "lorebook")
+        self.__lorebook_manager = LorebookManager(lorebook_base_path, config, game_folder_name)
+
+    def __build_lorebook_text_for_prompt(
+        self,
+        prompt_template: str,
+        format_values: Dict[str, str],
+        excluded_variables: set[str],
+        extra_scan_texts: List[str] | None = None,
+    ) -> str:
+        mentioned_variables = {
+            match.group(1).strip()
+            for match in re.finditer(r"\{([^{}]+)\}", prompt_template)
+        }
+        excluded = set(excluded_variables)
+        excluded.add("lorebook")
+
+        search_texts: List[str] = []
+        for variable in mentioned_variables:
+            if variable in excluded:
+                continue
+            value = format_values.get(variable, "")
+            if value:
+                search_texts.append(value)
+
+        if extra_scan_texts:
+            search_texts.extend([text for text in extra_scan_texts if text])
+
+        return self.__lorebook_manager.render_lorebook_entries(search_texts)
 
     def __get_character_dynamic_events(self, character: Character) -> List[Tuple[int, str]]:
         """Retrieve dynamic tag events stored on a character, if any."""
@@ -539,14 +570,34 @@ class Summaries(Remembering):
         for char in npcInfo.characters:
             characters_obj.add_or_update_character(char)
 
+        memory_conversation_summaries = self.get_prompt_text(characters_obj, world_id)
+        prompt_values: Dict[str, str] = {
+            "name": names,
+            "names": names,
+            "language": self.__language_name,
+            "game": location,
+            "bios": bios,
+            "conversation_summaries": memory_conversation_summaries,
+            "player_name": player_name,
+        }
+        talk_history_text = npcInfo.messages.transform_to_text(
+            npcInfo.messages.get_talk_only(include_system_generated_messages=True)
+        )
+        lorebook_text = self.__build_lorebook_text_for_prompt(
+            self.__memory_prompt,
+            prompt_values,
+            excluded_variables={"bios", "conversation_summaries"},
+            extra_scan_texts=[talk_history_text],
+        )
         prompt = self.__memory_prompt.format(
                     name=names,
                     names=names,
                     language=self.__language_name,
                     game=location, 
                     bios=bios,
-                    conversation_summaries=self.get_prompt_text(characters_obj, world_id),
-                    player_name=player_name
+                    conversation_summaries=memory_conversation_summaries,
+                    player_name=player_name,
+                    lorebook=lorebook_text,
                 )
         while True:
             try:
@@ -621,14 +672,27 @@ class Summaries(Remembering):
                     except Exception:
                         pass
 
+                    # Strip timestamp markers before sending to the LLM
+                    sanitized_summaries = _strip_timestamp_markers(conversation_summaries)
+                    resummarize_values: Dict[str, str] = {
+                        "name": npc.name,
+                        "language": self.__language_name,
+                        "game": str(self.__game),
+                        "player_name": player_name,
+                    }
+                    lorebook_text = self.__build_lorebook_text_for_prompt(
+                        self.__resummarize_prompt,
+                        resummarize_values,
+                        excluded_variables={"bios", "conversation_summaries"},
+                        extra_scan_texts=None,
+                    )
                     prompt = self.__resummarize_prompt.format(
                         name=npc.name,
                         language=self.__language_name,
                         game=self.__game,
-                        player_name=player_name
+                        player_name=player_name,
+                        lorebook=lorebook_text,
                     )
-                    # Strip timestamp markers before sending to the LLM
-                    sanitized_summaries = _strip_timestamp_markers(conversation_summaries)
                     long_conversation_summary = self.summarize_conversation(sanitized_summaries, prompt)
                     break
                 except:

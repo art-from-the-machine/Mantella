@@ -25,7 +25,8 @@ class PromptDefinitions:
                                 "conversation_summary",
                                 "conversation_summaries",
                                 "bios_and_summaries",
-                                "actions"]
+                                "actions",
+                                "lorebook"]
     
     ALLOWED_PROMPT_VARIABLES_RADIANT = [
                                 "game",
@@ -42,7 +43,8 @@ class PromptDefinitions:
                                 "conversation_summary",
                                 "conversation_summaries",
                                 "bios_and_summaries",
-                                "actions"]
+                                "actions",
+                                "lorebook"]
     
     ALLOWED_PROMPT_VARIABLES_MEMORY = [
         "bios",
@@ -51,7 +53,8 @@ class PromptDefinitions:
         "name",
         "language",
         "game",
-        "player_name"
+        "player_name",
+        "lorebook"
         ]
     
     BASE_PROMPT_DESCRIPTION = """The starting prompt sent to the LLM when an NPC is selected.
@@ -72,7 +75,8 @@ class PromptDefinitions:
                                 player_description = a description of the player character (needs to be added in game or using the config value)
                                 player_equipment = a basic description of the equipment the player character carries
                                 equipment = a basic description of the equipment the NPCs carry
-                                actions = instructions for the LLM how to trigger actions"""
+                                actions = instructions for the LLM how to trigger actions
+                                lorebook = lorebook entries matched from non-bio/non-summary prompt context and conversation history"""
     
  
     
@@ -313,10 +317,11 @@ Content Guidelines:
                                                 name = the NPC's name
                                                 language = the selected language
                                                 game = the game selected
-                                                player_name = the name of the player character""" 
+                                                player_name = the name of the player character
+                                                lorebook = lorebook entries matched from non-bio/non-summary prompt context and conversation history""" 
         resummarize_prompt = """You are tasked with summarizing the conversation history between {name} (the assistant) and the player (the user) / other characters. These conversations take place in {game}.
                                             Each paragraph represents a conversation at a new point in time. Please summarize these conversations into a single paragraph in {language}."""
-        return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "player_name"])])
+        return ConfigValueString("resummarize_prompt","Resummarize Prompt",resummarize_prompt_description,resummarize_prompt,[PromptDefinitions.PromptChecker(["name", "language", "game", "player_name", "lorebook"])])
     
     @staticmethod
     def get_vision_prompt_config_value() -> ConfigValue:

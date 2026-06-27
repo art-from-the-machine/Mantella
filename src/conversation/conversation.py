@@ -500,6 +500,21 @@ class Conversation:
         """Starts a background Thread to generate sentences into the SentenceQueue"""    
         with self.__generation_start_lock:
             if not self.__generation_thread:
+                # Refresh the system prompt each request so `{lorebook}` can react
+                # to the latest conversation history and context variables.
+                try:
+                    new_prompt = self.__conversation_type.generate_prompt(
+                        self.__context,
+                        messages_for_lorebook=self.__messages
+                    )
+                    is_multi = self.__context.npcs_in_conversation.contains_multiple_npcs()
+                    self.__messages.modify_messages(
+                        new_prompt,
+                        multi_npc_conversation=is_multi,
+                        remove_system_flagged_messages=False
+                    )
+                except Exception as e:
+                    logging.debug(f"Could not refresh system prompt before generation: {e}")
                 self.__sentences.is_more_to_come = True
                 self.__generation_thread = Thread(None, self.__output_manager.generate_response, None, [self.__messages, self.__context.npcs_in_conversation, self.__sentences, self.context.config.actions]).start()   
 
