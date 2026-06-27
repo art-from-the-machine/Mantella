@@ -230,7 +230,7 @@ class BioTemplateManager:
 
         # Combine base bio with tag expansions, adding newlines between descriptions
         if tag_expansions:
-            expanded_bio = base_bio + "\n\n" + "\n\n".join(tag_expansions)
+            expanded_bio = base_bio + "\n\n## Additional info\n" + "\n\n".join(tag_expansions)
             return expanded_bio.strip()
 
         return base_bio
