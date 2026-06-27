@@ -297,6 +297,15 @@ Multi-NPC LLM parameter list must follow the Python dictionary format: https://w
 
             # Multi-NPC prompt content toggles
             self.multi_npc_bios_only = self.__definitions.get_bool_value("multi_npc_bios_only")
+            self.enable_bio_section_filter = self.__definitions.get_bool_value("enable_bio_section_filter")
+            self.bio_sections_to_exclude = self.__definitions.get_string_value("bio_sections_to_exclude")
+            self.bio_sections_to_exclude_list = []
+            for section in self.bio_sections_to_exclude.split(","):
+                if not section:
+                    continue
+                normalized_section = section.strip().strip("\"'").strip().lower()
+                if normalized_section:
+                    self.bio_sections_to_exclude_list.append(normalized_section)
 
             # Summary LLM Configuration
             self.summary_llm_api = self.__definitions.get_string_value("summary_llm_api")

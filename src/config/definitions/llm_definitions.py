@@ -307,6 +307,32 @@ class LLMDefinitions:
         return ConfigValueBool("multi_npc_bios_only", "Send Only Bios (Multi-NPC)", description, False, tags=[ConfigValueTag.share_row, ConfigValueTag.advanced])
 
     @staticmethod
+    def get_enable_bio_section_filter_config_value() -> ConfigValue:
+        description = """Enable prompt-time filtering of selected top-level bio sections for single and multi-NPC conversations.
+                        This does not modify character files and only affects what gets sent to the LLM.
+                        Section names are matched case-insensitively against markdown headers in the form '## Section Name'."""
+        return ConfigValueBool(
+            "enable_bio_section_filter",
+            "Enable Bio Section Filter (Single + Multi)",
+            description,
+            False,
+            tags=[ConfigValueTag.share_row],
+        )
+
+    @staticmethod
+    def get_bio_sections_to_exclude_config_value() -> ConfigValue:
+        description = """Comma-separated list of top-level bio section names to exclude at prompt time.
+                        Example: Personal History, Race
+                        Only sections with markdown headers formatted as '## Section Name' are removed."""
+        return ConfigValueString(
+            "bio_sections_to_exclude",
+            "Bio Sections to Exclude (comma-separated)",
+            description,
+            "",
+            tags=[],
+        )
+
+    @staticmethod
     def get_multi_conversation_director_mode_config_value() -> ConfigValue:
         description = """Enable Multi Conversation Director Mode for Skyrim multi-NPC conversations.
                         When enabled, multi-NPC conversations will use a specialized director-style prompt instead of the standard multi-NPC prompt.
