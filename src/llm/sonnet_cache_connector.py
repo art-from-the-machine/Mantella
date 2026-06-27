@@ -10,13 +10,12 @@ class SonnetCacheConnector:
 
     - Only active when enabled and when using OpenRouter with a Claude model.
     - Injects the required header and converts messages into Claude-compatible content blocks.
-    - Applies a single cache breakpoint to the previous user message (before the latest user turn)
-      so the entire conversation history (including assistant responses) can be cached while keeping 
-      only the newest user input uncached.
+    - Applies cache breakpoints to the stable system prompt and recent previous user messages
+      so each request can reuse an existing prefix while extending the cache for the next turn.
     
     Caching strategy:
     - Turn 1: system [cached] + user_new
-    - Turn 2+: system + ... + user_previous [cached] + assistant + user_new
+    - Turn 2+: system [cached] + ... + recent previous users [cached] + assistant + user_new
     
     This maximizes cache reuse as the conversation grows.
     """
@@ -51,10 +50,12 @@ class SonnetCacheConnector:
         # Shallow-copy messages without altering their content format
         transformed: List[Dict[str, Any]] = [dict(message) for message in messages]
 
-        cache_index = self._get_cache_target_index(transformed)
-        if cache_index is not None:
+        for message in transformed:
+            message["content"] = self._normalize_content(message.get("content"))
+
+        cache_indices = self._get_cache_target_indices(transformed)
+        for cache_index in cache_indices:
             target_message = transformed[cache_index]
-            target_message["content"] = self._normalize_content(target_message.get("content"))
             self._apply_cache_control(target_message)
             logging.debug(
                 f"Claude cache: breakpoint at message {cache_index+1}/{len(transformed)} (role={target_message.get('role')}), "
@@ -81,32 +82,41 @@ class SonnetCacheConnector:
 
         return [{"type": "text", "text": json.dumps(content, ensure_ascii=False)}]
 
-    def _get_cache_target_index(self, messages: List[Dict[str, Any]]) -> int | None:
-        """Find the index of the message to apply cache_control to.
+    def _get_cache_target_indices(self, messages: List[Dict[str, Any]]) -> List[int]:
+        """Find message indices to apply cache_control to.
         
-        We want to cache everything UP TO the latest user message (before the current/new one).
-        This means we put cache_control on the second-to-last user message or the system message.
+        We cache reusable prefixes before the newest user input. Keeping the system breakpoint
+        and recent previous user breakpoints allows request N+1 to hit a breakpoint created
+        by request N, while also creating a newer breakpoint for the following request.
         """
         if not messages:
-            return None
+            return []
 
         last_idx = len(messages) - 1
-        
-        # If the last message is user (the new input), search backwards for the previous user message
-        if messages[last_idx].get("role") == "user":
-            # Search backwards from second-to-last message
-            for idx in range(last_idx - 1, -1, -1):
-                role = messages[idx].get("role")
-                # Put breakpoint on the last user message before the current one
-                # (this caches all history including that user's message and the assistant's response)
-                if role == "user":
-                    return idx
-                # Fallback: if we only have system + new user, cache the system message
-                if idx == 0 and role == "system":
-                    return idx
-        
+
+        if messages[last_idx].get("role") != "user":
+            logging.debug("Claude cache: no suitable message found to cache (latest message is not user)")
+            return []
+
+        cache_indices: List[int] = []
+        max_breakpoints = 4
+
+        if messages[0].get("role") == "system":
+            cache_indices.append(0)
+
+        previous_user_indices = [
+            idx
+            for idx in range(last_idx)
+            if messages[idx].get("role") == "user"
+        ]
+        remaining_breakpoints = max_breakpoints - len(cache_indices)
+        cache_indices.extend(previous_user_indices[-remaining_breakpoints:])
+
+        if cache_indices:
+            return cache_indices
+
         logging.debug("Claude cache: no suitable message found to cache (need at least system or previous user)")
-        return None
+        return []
 
     def _apply_cache_control(self, message: Dict[str, Any]) -> None:
         contents = message.get("content", [])
