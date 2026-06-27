@@ -28,14 +28,14 @@ class SonnetCacheConnector:
         return base_url.strip().lower().startswith("https://openrouter.ai/")
 
     @staticmethod
-    def _is_sonnet_model(model_name: str) -> bool:
+    def _is_cacheable_model(model_name: str) -> bool:
         name = (model_name or "").strip().lower()
-        return "claude" in name  # applies to all Anthropic Claude variants
+        return ("claude" in name) or ("gemini" in name)
 
     def is_applicable(self, base_url: str, model_name: str) -> bool:
         if not self._enabled:
             return False
-        return self._is_openrouter(base_url) and self._is_sonnet_model(model_name)
+        return self._is_openrouter(base_url) and self._is_cacheable_model(model_name)
 
     def augment_headers(self, headers: Dict[str, str]) -> Dict[str, str]:
         augmented = dict(headers or {})
@@ -43,7 +43,7 @@ class SonnetCacheConnector:
         augmented["anthropic-beta"] = "prompt-caching-2024-07-31"
         return augmented
 
-    def transform_messages(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def transform_messages(self, messages: List[Dict[str, Any]], model_name: str = "") -> List[Dict[str, Any]]:
         if not messages:
             return messages
 
@@ -53,7 +53,7 @@ class SonnetCacheConnector:
         for message in transformed:
             message["content"] = self._normalize_content(message.get("content"))
 
-        cache_indices = self._get_cache_target_indices(transformed)
+        cache_indices = self._get_cache_target_indices(transformed, model_name=model_name)
         for cache_index in cache_indices:
             target_message = transformed[cache_index]
             self._apply_cache_control(target_message)
@@ -82,7 +82,7 @@ class SonnetCacheConnector:
 
         return [{"type": "text", "text": json.dumps(content, ensure_ascii=False)}]
 
-    def _get_cache_target_indices(self, messages: List[Dict[str, Any]]) -> List[int]:
+    def _get_cache_target_indices(self, messages: List[Dict[str, Any]], model_name: str = "") -> List[int]:
         """Find message indices to apply cache_control to.
         
         We cache reusable prefixes before the newest user input. Keeping the system breakpoint
@@ -98,10 +98,14 @@ class SonnetCacheConnector:
             logging.debug("Claude cache: no suitable message found to cache (latest message is not user)")
             return []
 
+        normalized_model_name = (model_name or "").strip().lower()
+        is_gemini_model = "gemini" in normalized_model_name
+
         cache_indices: List[int] = []
         max_breakpoints = 4
 
-        if messages[0].get("role") == "system":
+        has_system_message = messages[0].get("role") == "system"
+        if has_system_message and not is_gemini_model:
             cache_indices.append(0)
 
         previous_user_indices = [
@@ -111,6 +115,14 @@ class SonnetCacheConnector:
         ]
         remaining_breakpoints = max_breakpoints - len(cache_indices)
         cache_indices.extend(previous_user_indices[-remaining_breakpoints:])
+
+        # Gemini on OpenRouter uses only the final breakpoint for normal message content.
+        # Keep the system breakpoint as the final marker so cache target is stable.
+        if is_gemini_model and has_system_message:
+            cache_indices = [idx for idx in cache_indices if idx != 0]
+            remaining_breakpoints = max_breakpoints - 1
+            cache_indices = cache_indices[-remaining_breakpoints:]
+            cache_indices.append(0)
 
         if cache_indices:
             return cache_indices

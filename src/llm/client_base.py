@@ -145,7 +145,7 @@ class ClientBase(AIClient):
             # Apply Sonnet cache breakpoint AFTER all message transformations
             if self._sonnet_cache_connector and self._sonnet_cache_connector.is_applicable(self._base_url, self._model_name):
                 try:
-                    openai_messages = self._sonnet_cache_connector.transform_messages(openai_messages)
+                    openai_messages = self._sonnet_cache_connector.transform_messages(openai_messages, model_name=self._model_name)
                 except Exception as e:
                     logging.debug(f"Sonnet caching transform (sync) failed: {e}")
             
@@ -216,7 +216,7 @@ class ClientBase(AIClient):
                 # Apply Sonnet cache breakpoint AFTER all message transformations (including vision)
                 if self._sonnet_cache_connector and self._sonnet_cache_connector.is_applicable(self._base_url, self._model_name):
                     try:
-                        openai_messages = self._sonnet_cache_connector.transform_messages(openai_messages)
+                        openai_messages = self._sonnet_cache_connector.transform_messages(openai_messages, model_name=self._model_name)
                     except Exception as e:
                         logging.debug(f"Sonnet caching transform (stream) failed: {e}")
                 
