@@ -395,7 +395,7 @@ def resolve_service_endpoint(value: str) -> str:
 
 def is_local_url(url: str) -> bool:
     domain = urlparse(url).netloc
-    return domain.startswith("10.") or domain.startswith("127.") or domain.startswith("192.168") or domain.startswith("172.")
+    return domain.startswith("10.") or domain.startswith("127.") or domain.startswith("192.168") or domain.startswith("172.") or domain.startswith("localhost")
 
 
 def get_model_token_limits():
