@@ -37,7 +37,7 @@ def parse_tts_service(value: str | None) -> TTSEnum | None:
         return None
     result = _PARSE_MAPPING.get(normalized)
     if result is None:
-        logger.warning(f"Unrecognized tts_service '{value}'. Valid options: piper, xtts, xvasynth, openai. Using default TTS.")
+        logger.warning(f"Unrecognized tts_service '{value}'. Valid options: Piper, XTTS, xVASynth, OpenAI-Compatible. Using default TTS.")
     return result
 
 
