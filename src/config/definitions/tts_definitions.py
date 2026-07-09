@@ -13,6 +13,7 @@ class TTSEnum(Enum):
     PIPER = auto()
     XTTS = auto()
     XVASYNTH = auto()
+    OPENAI_COMPATIBLE = auto()
 
     @property
     def display_name(self) -> str:
@@ -20,6 +21,7 @@ class TTSEnum(Enum):
             self.PIPER: 'Piper',
             self.XTTS: 'XTTS',
             self.XVASYNTH: 'xVASynth',
+            self.OPENAI_COMPATIBLE: 'OpenAI-Compatible',
         }[self]
 
 class TTSDefinitions:
@@ -144,7 +146,29 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
         Changes the 'accent' of NPCs by sending the language value from data/Skyrim/skyrim_characters.csv's lang_override column to XTTS.\nThis helps give NPC's unique-sounding voices, even when they use the same base voice model."""
         return ConfigValueBool("xtts_accent", "XTTS Accent", description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
+    # OpenAI-Compatible section
+
+    @staticmethod
+    def get_openai_tts_url_config_value() -> ConfigValue:
+        description = """The URL of your OpenAI-compatible TTS server. Mantella sends requests to {URL}/v1/audio/speech.
+                        If a remote server requires an API key, add an entry to secret_keys.json with the server URL as the key name."""
+        return ConfigValueString("openai_tts_url","OpenAI-Compatible TTS URL",description,"http://127.0.0.1:8000",tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_openai_tts_model_config_value() -> ConfigValue:
+        description = """The model name sent with each request. 
+                        Many self-hosted TTS servers ignore this field."""
+        return ConfigValueString("openai_tts_model","OpenAI-Compatible TTS Model",description,"default",tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_openai_tts_speed_config_value() -> ConfigValue:
+        description = """The speed of the generated audio. 
+                        0.25 = 4x slower; 4.0 = 4x faster.
+                        Not all TTS servers support this setting."""
+        return ConfigValueFloat("openai_tts_speed","OpenAI-Compatible TTS Speed",description, 1.0, 0.25, 4.0,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+
     # xVASynth section
+    
     @staticmethod
     def get_tts_process_device_config_value() -> ConfigValue:
         description = "Whether to run xVASynth server (unless already running) on your CPU or a NVIDIA GPU (with CUDA installed).\nThis setting has a minimal effect on response times."

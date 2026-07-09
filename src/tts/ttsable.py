@@ -8,6 +8,8 @@ import subprocess
 from src.tts.synthesization_options import SynthesizationOptions
 import requests
 import shutil
+import soundfile as sf
+import numpy as np
 from src.config.definitions.game_definitions import GameEnum
 import platform
 
@@ -146,6 +148,26 @@ class TTSable(ABC):
     @utils.time_it
     def _send_request(url, data):
         requests.post(url, json=data)
+
+
+    @utils.time_it
+    def _convert_to_16bit(self, input_file, output_file=None):
+        if output_file is None:
+            output_file = input_file
+        # Read the audio file
+        data, samplerate = sf.read(input_file)
+
+        # Directly convert to 16-bit if data is in float format and assumed to be in the -1.0 to 1.0 range
+        if np.issubdtype(data.dtype, np.floating):
+            data_16bit = np.int16(data * 32767)
+        elif not np.issubdtype(data.dtype, np.int16):
+            data_16bit = data.astype(np.int16)
+        else:
+            # data is already int16
+            data_16bit = data
+
+        # Write the 16-bit audio data back to a file
+        sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
 
 
     @utils.time_it

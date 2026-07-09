@@ -2,8 +2,6 @@ from src.config.config_loader import ConfigLoader
 from src.tts.ttsable import TTSable
 import requests
 from typing import Any
-import soundfile as sf
-import numpy as np
 import io
 import json
 from subprocess import Popen
@@ -145,30 +143,6 @@ class XTTS(TTSable):
         return None
 
     
-    @utils.time_it
-    def _convert_to_16bit(self, input_file, output_file=None):
-        if output_file is None:
-            output_file = input_file
-        # Read the audio file
-        data, samplerate = sf.read(input_file)
-
-        # Directly convert to 16-bit if data is in float format and assumed to be in the -1.0 to 1.0 range
-        if np.issubdtype(data.dtype, np.floating):
-            # Ensure no value exceeds the -1.0 to 1.0 range before conversion (optional, based on your data's characteristics)
-            # data = np.clip(data, -1.0, 1.0)  # Uncomment if needed
-            data_16bit = np.int16(data * 32767)
-        elif not np.issubdtype(data.dtype, np.int16):
-            # If data is not floating-point or int16, consider logging or handling this case explicitly
-            # For simplicity, this example just converts to int16 without scaling
-            data_16bit = data.astype(np.int16)
-        else:
-            # If data is already int16, no conversion is necessary
-            data_16bit = data
-
-        # Write the 16-bit audio data back to a file
-        sf.write(output_file, data_16bit, samplerate, subtype='PCM_16')
-
-
     @utils.time_it
     def _select_voice_type(self, voice: str, in_game_voice: str | None, csv_in_game_voice: str | None, advanced_voice_model: str | None):
         # check if model name in each CSV column exists, with advanced_voice_model taking precedence over other columns

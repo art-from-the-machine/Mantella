@@ -4,15 +4,24 @@ from src.tts.ttsable import TTSable
 from src.tts.piper import Piper
 from src.tts.xtts import XTTS
 from src.tts.xvasynth import xVASynth
+from src.tts.openai_compatible import OpenAICompatibleTTS
 from src.games.gameable import Gameable
 from src import utils
 
 logger = utils.get_logger()
 
+_SERVICE_CLASSES: dict[TTSEnum, type[TTSable]] = {
+    TTSEnum.PIPER: Piper,
+    TTSEnum.XTTS: XTTS,
+    TTSEnum.XVASYNTH: xVASynth,
+    TTSEnum.OPENAI_COMPATIBLE: OpenAICompatibleTTS,
+}
+
 _PARSE_MAPPING: dict[str, TTSEnum] = {
     'piper': TTSEnum.PIPER,
     'xtts': TTSEnum.XTTS,
     'xvasynth': TTSEnum.XVASYNTH,
+    'openaicompatible': TTSEnum.OPENAI_COMPATIBLE,
 }
 
 
@@ -28,7 +37,7 @@ def parse_tts_service(value: str | None) -> TTSEnum | None:
         return None
     result = _PARSE_MAPPING.get(normalized)
     if result is None:
-        logger.warning(f"Unrecognized tts_service '{value}'. Valid options: piper, xtts, xvasynth. Using default TTS.")
+        logger.warning(f"Unrecognized tts_service '{value}'. Valid options: piper, xtts, xvasynth, openai. Using default TTS.")
     return result
 
 
@@ -40,4 +49,6 @@ def create_tts(service: TTSEnum, config: ConfigLoader, game: Gameable | None = N
         return XTTS(config, game)
     elif service == TTSEnum.XVASYNTH:
         return xVASynth(config)
+    elif service == TTSEnum.OPENAI_COMPATIBLE:
+        return OpenAICompatibleTTS(config)
     raise ValueError(f"Unknown TTS service: {service}")

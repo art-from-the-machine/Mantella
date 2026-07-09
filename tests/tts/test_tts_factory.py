@@ -13,6 +13,8 @@ class TestParseTtsService:
         ("XTTS", TTSEnum.XTTS),
         ("xvasynth", TTSEnum.XVASYNTH),
         ("xVASynth", TTSEnum.XVASYNTH),
+        ("OpenAI-Compatible", TTSEnum.OPENAI_COMPATIBLE),
+        ("openai_compatible", TTSEnum.OPENAI_COMPATIBLE),
     ])
     def test_valid_service_strings(self, value, expected):
         assert parse_tts_service(value) == expected

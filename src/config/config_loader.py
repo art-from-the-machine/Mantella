@@ -187,6 +187,9 @@ class ConfigLoader:
             #TTS
             self.tts_service: TTSEnum = self.__definitions.get_enum_value("tts_service", TTSEnum)
             self.xtts_url = self.__definitions.get_string_value("xtts_url").rstrip('/')
+            self.openai_tts_url = self.__definitions.get_string_value("openai_tts_url").rstrip('/')
+            self.openai_tts_model = self.__definitions.get_string_value("openai_tts_model")
+            self.openai_tts_speed = self.__definitions.get_float_value("openai_tts_speed")
 
             # Do not check if a given path exists unless the TTS service is actually selected
             validate_xtts_path = validate_xvasynth_path = validate_piper_path = False
