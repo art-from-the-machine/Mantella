@@ -59,7 +59,7 @@ def mock_actions() -> list[Action]:
 def output_manager(default_config: ConfigLoader, piper: Piper, mock_ai_client: MockAIClient, default_function_client: FunctionClient, monkeypatch) -> ChatManager:
     """Creates a ChatManager instance with mocked TTS and AI client"""
     # Mock the TTS synthesize method to avoid actual audio generation and file system interaction
-    piper.synthesize = MagicMock(return_value="mock_audio_file.wav")
+    piper.synthesize = MagicMock(return_value=("mock_audio_file.wav", False))
     # Mock get_audio_duration as well
     monkeypatch.setattr('src.utils.get_audio_duration', lambda *args, **kwargs: 1.0)
     

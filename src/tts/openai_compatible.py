@@ -5,7 +5,6 @@ from src.llm.client_base import ClientBase
 from src import utils
 import requests
 import io
-import os
 
 logger = utils.get_logger()
 
@@ -34,11 +33,6 @@ class OpenAICompatibleTTS(TTSable):
 
 
     @utils.time_it
-    def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
-        self._request_voiceline(voiceline, final_voiceline_file)
-
-
-    @utils.time_it
     def change_voice(self, voice: str, in_game_voice: str | None = None, csv_in_game_voice: str | None = None, advanced_voice_model: str | None = None, voice_accent: str | None = None, voice_gender: int | None = None, voice_race: str | None = None):
         for voice_type in [advanced_voice_model, voice, in_game_voice, csv_in_game_voice]:
             if isinstance(voice_type, str) and voice_type.strip():
@@ -60,8 +54,13 @@ class OpenAICompatibleTTS(TTSable):
         return data, headers
 
 
+    def _build_stream_request(self, voiceline: str) -> tuple[str, dict, dict | None]:
+        data, headers = self._build_request(voiceline)
+        return self.__synthesize_url, data, headers
+
+
     @utils.time_it
-    def _request_voiceline(self, voiceline: str, final_voiceline_file: str):
+    def _synthesize_voiceline(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         data, headers = self._build_request(voiceline)
         try:
             response = requests.post(self.__synthesize_url, json=data, headers=headers, timeout=(5, 60))

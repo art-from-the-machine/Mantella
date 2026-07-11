@@ -205,12 +205,15 @@ class Skyrim(Gameable):
         if topicID == 2:
             filename = self.DIALOGUELINE2_FILENAME
         
-        # Play audio immediately if fast response mode is enabled, this is the first line of the response, and the conversation isn't radiant
-        if config.fast_response_mode and isFirstLine and context_of_conversation.npcs_in_conversation.contains_player_character():
-            self.play_audio_async(audio_file, volume=config.fast_response_mode_volume/100)
+        if queue_output.played_externally:
+            # The TTS service already played this line externally while synthesizing it (streamed fast response)
+            self.send_muted_voiceline_to_game_folder(audio_file, filename, voice_folder_path)
+        elif config.fast_response_mode and isFirstLine and context_of_conversation.npcs_in_conversation.contains_player_character():
+            # Non-streamed fast response: Play the first line immediately and mute the in-game copy
+            utils.play_audio_async(audio_file, volume=config.fast_response_mode_volume/100)
             self.send_muted_voiceline_to_game_folder(audio_file, filename, voice_folder_path)
         else:
-            shutil.copyfile(audio_file, os.path.join(voice_folder_path, f"{filename}.wav"))    
+            shutil.copyfile(audio_file, os.path.join(voice_folder_path, f"{filename}.wav"))
         
         try:
             shutil.copyfile(audio_file.replace(".wav", ".lip"), os.path.join(voice_folder_path, f"{filename}.lip"))

@@ -12,7 +12,7 @@ from tests.conftest import MockAIClient
 
 @pytest.fixture
 def output_manager(default_config: ConfigLoader, piper: Piper, mock_ai_client: MockAIClient, skyrim: Skyrim, monkeypatch) -> ChatManager:
-    piper.synthesize = MagicMock(return_value="mock_audio_file.wav")
+    piper.synthesize = MagicMock(return_value=("mock_audio_file.wav", False))
     monkeypatch.setattr('src.utils.get_audio_duration', lambda *args, **kwargs: 1.0)
     return ChatManager(default_config, piper, mock_ai_client, skyrim)
 
@@ -91,7 +91,7 @@ class TestPerCharacterTTSInGenerateSentence:
         """Characters with a valid tts_service use a per-character TTS instance."""
         output_manager._ChatManager__config.allow_per_character_tts_overrides = True
         mock_xvasynth = MagicMock()
-        mock_xvasynth.synthesize.return_value = "xvasynth_audio.wav"
+        mock_xvasynth.synthesize.return_value = ("xvasynth_audio.wav", False)
         monkeypatch.setattr("src.tts.tts_factory.xVASynth", lambda config: mock_xvasynth)
         output_manager._ChatManager__config.tts_service = TTSEnum.PIPER
 

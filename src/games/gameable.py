@@ -11,8 +11,6 @@ from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
 import src.utils as utils
-import soundfile as sf
-import threading
 import wave
 import shutil
 
@@ -352,29 +350,6 @@ class Gameable(ABC):
         if pd.isna(entry): entry = ""
         elif not isinstance(entry, str): entry = str(entry)
         return entry        
-
-    @staticmethod
-    @utils.time_it
-    def play_audio_async(filename: str, volume: float = 0.5):
-        """
-        Play audio file asynchronously with volume control
-        
-        Args:
-            filename (str): Path to audio file
-            volume (float): Volume multiplier (0.0 to 1.0)
-        """
-        def audio_thread():
-            try:
-                import sounddevice as sd
-            except ImportError:
-                logger.warning("sounddevice not available, skipping audio playback")
-                return
-            data, samplerate = sf.read(filename)
-            data = data * volume
-            sd.play(data, samplerate)
-            
-        thread = threading.Thread(target=audio_thread)
-        thread.start()
 
     @staticmethod
     @utils.time_it

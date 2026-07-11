@@ -4,6 +4,7 @@ import re
 import string
 import sys
 import os
+import threading
 from shutil import rmtree
 import wave
 from charset_normalizer import detect
@@ -114,6 +115,24 @@ def play_error_sound():
             playsound(os.path.join(resolve_path(), 'data', 'error.wav'), block=False)
     except:
         pass
+
+
+def play_audio_async(filename: str, volume: float = 0.5):
+    """Plays an audio file asynchronously with volume control
+
+    Args:
+        filename (str): Path to the audio file
+        volume (float): Volume multiplier (0.0 to 1.0)
+    """
+    def playback():
+        try:
+            import sounddevice
+            import soundfile as sf
+            data, samplerate = sf.read(filename)
+            sounddevice.play(data * volume, samplerate)
+        except Exception as e:
+            logger.warning(f'Could not play audio file {filename}: {e}')
+    threading.Thread(target=playback, daemon=True).start()
 
 
 @time_it

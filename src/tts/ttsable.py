@@ -10,6 +10,9 @@ import requests
 import shutil
 import soundfile as sf
 import numpy as np
+import time
+from queue import Queue
+from threading import Thread, Event
 from src.config.definitions.game_definitions import GameEnum
 import platform
 
@@ -22,6 +25,8 @@ logger = utils.get_logger()
 class TTSable(ABC):
     """Base class for different TTS services
     """
+    supports_streaming: bool = False # whether the service can stream first-line audio for Streamed Fast Response
+
     @utils.time_it
     def __init__(self, config: ConfigLoader) -> None:
         super().__init__()
@@ -45,9 +50,26 @@ class TTSable(ABC):
 
         self._game = config.game
 
+        # set to interrupt streamed/fallback external playback when the player talks over a line
+        self._external_playback_stop = Event()
+        self.__streaming_unsupported_warned = False
+
     @utils.time_it
-    def synthesize(self, voice: str, voiceline: str, in_game_voice: str, csv_in_game_voice: str, voice_accent: str, synth_options: SynthesizationOptions, advanced_voice_model: str | None = None):
+    def stop_external_playback(self):
+        """Stops any externally-played voiceline audio (streamed or fallback) currently playing"""
+        self._external_playback_stop.set()
+        try:
+            import sounddevice
+            sounddevice.stop()
+        except Exception:
+            pass
+
+    @utils.time_it
+    def synthesize(self, voice: str, voiceline: str, in_game_voice: str, csv_in_game_voice: str, voice_accent: str, synth_options: SynthesizationOptions, advanced_voice_model: str | None = None) -> tuple[str, bool]:
         """Synthesizes a given voiceline
+
+        Returns:
+            tuple[str, bool]: the path to the synthesized voiceline file, and whether the voiceline was already played externally during synthesis (streamed fast response)
         """
         logger.debug(f'last_voice: {self._last_voice}, voice: {voice}, in_game_voice: {in_game_voice}, csv_in_game_voice: {csv_in_game_voice}, advanced_voice_model: {advanced_voice_model}, voice_accent: {voice_accent}')
         if self._last_voice == '' or (isinstance(self._last_voice, str) and self._last_voice.lower() not in {isinstance(v, str) and v.lower() for v in {voice, in_game_voice, csv_in_game_voice, advanced_voice_model, f'fo4_{voice}'}}):
@@ -66,7 +88,7 @@ class TTSable(ABC):
         except:
             logger.warning("Failed to remove spoken voicelines")
 
-        self.tts_synthesize(voiceline, final_voiceline_file, synth_options)
+        played_externally = self.tts_synthesize(voiceline, final_voiceline_file, synth_options)
         if not os.path.exists(final_voiceline_file):
             logger.error(f'TTS failed to generate voiceline at: {Path(final_voiceline_file)}')
             raise FileNotFoundError()
@@ -117,7 +139,7 @@ class TTSable(ABC):
         # if Debug Mode is on, play the audio file
         # if (self.debug_mode == '1') & (self.play_audio_from_script == '1'):
         #     winsound.PlaySound(final_voiceline_file, winsound.SND_FILENAME)
-        return final_voiceline_file
+        return final_voiceline_file, played_externally
 
 
     @abstractmethod
@@ -128,12 +150,43 @@ class TTSable(ABC):
         pass
 
 
+    @utils.time_it
+    def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions) -> bool:
+        """Synthesizes the voiceline, streaming it from the TTS server and playing it externally as it arrives when requested and supported
+
+        Returns:
+            bool: whether the voiceline was already played externally during synthesis
+        """
+        if synth_options.stream_first_line and self.supports_streaming:
+            url, data, headers = self._build_stream_request(voiceline)
+            if self._stream_play_and_save(url, data, headers, final_voiceline_file):
+                return True
+            # streaming failed before any audio arrived, so fall back to a standard request
+            # the game side skips external playback for lines marked as played externally, so play the fallback from here
+            self._synthesize_voiceline(voiceline, final_voiceline_file, synth_options)
+            if os.path.exists(final_voiceline_file):
+                self._play_wav_async(final_voiceline_file)
+                return True
+            return False
+        if synth_options.stream_first_line and not self.__streaming_unsupported_warned:
+            logger.warning(f'{type(self).__name__} does not support audio streaming. The Streamed Fast Response setting will be ignored')
+            self.__streaming_unsupported_warned = True
+        self._synthesize_voiceline(voiceline, final_voiceline_file, synth_options)
+        return False
+
+
     @abstractmethod
     @utils.time_it
-    def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
+    def _synthesize_voiceline(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         """Synthesize the voiceline with the TTS service
         """
         pass
+
+
+    def _build_stream_request(self, voiceline: str) -> tuple[str, dict, dict | None]:
+        """The streaming endpoint, JSON payload, and optional headers for a streamed synthesis request (required for services where supports_streaming is True)
+        """
+        raise NotImplementedError(f'{type(self).__name__} sets supports_streaming but does not implement _build_stream_request')
 
 
     def _sanitize_voice_name(self, voice_name):
@@ -148,6 +201,173 @@ class TTSable(ABC):
     @utils.time_it
     def _send_request(url, data):
         requests.post(url, json=data)
+
+
+    @utils.time_it
+    def _stream_play_and_save(self, url: str, request_data: dict, headers: dict | None, final_voiceline_file: str) -> bool:
+        """Streams a voiceline from the TTS server, playing the audio externally as it arrives and saving the complete wav afterwards
+
+        Args:
+            url (str): the streaming endpoint to POST to
+            request_data (dict): the JSON payload for the streaming request
+            headers (dict | None): optional HTTP headers for the request
+            final_voiceline_file (str): the path to save the complete wav to
+
+        Returns:
+            bool: whether audio was received and saved. If False, the caller should fall back to a standard request
+        """
+        try:
+            import sounddevice
+        except Exception:
+            logger.warning('sounddevice not available, falling back to non-streamed synthesis')
+            return False
+
+        self._external_playback_stop.clear()
+        volume = self._config.fast_response_mode_volume / 100
+        pcm = bytearray()
+        header = bytearray()
+        header_parsed = False
+        played_up_to = 0
+        sample_rate = 24000
+        channels = 1
+        bytes_per_frame = 2
+        playback_queue: Queue = Queue()
+        playback_failed = Event()
+        playback_thread: Thread | None = None
+        start_time = time.perf_counter()
+
+        def elapsed_s() -> float:
+            return round((time.perf_counter() - start_time), 5)
+
+        logger.debug(f'Streaming voiceline from {url}')
+
+        def playback_worker():
+            try:
+                with sounddevice.OutputStream(samplerate=sample_rate, channels=channels, dtype='float32') as stream:
+                    logger.log(self._loglevel, f"TTS took {elapsed_s()} seconds to start streaming")
+                    while True:
+                        samples = playback_queue.get()
+                        if samples is None:
+                            return
+                        if self._external_playback_stop.is_set():
+                            # Player interrupted: stop playing and empty the queue
+                            while playback_queue.get() is not None:
+                                pass
+                            return
+                        stream.write(samples)
+            except Exception as e:
+                playback_failed.set()
+                logger.warning(f'Streamed voiceline playback failed: {e}')
+                while playback_queue.get() is not None:
+                    pass
+
+        def enqueue_new_samples():
+            nonlocal played_up_to
+            aligned = len(pcm) - (len(pcm) % bytes_per_frame)
+            if aligned > played_up_to:
+                if played_up_to == 0:
+                    logger.debug(f'First audio received {elapsed_s()} seconds after request start')
+                samples = np.frombuffer(bytes(pcm[played_up_to:aligned]), dtype='<i2')
+                samples = (samples.astype(np.float32) / 32768.0) * volume
+                playback_queue.put(samples.reshape(-1, channels))
+                played_up_to = aligned
+
+        try:
+            with requests.post(url, json=request_data, headers=headers, stream=True, timeout=(5, 60)) as response:
+                if response.status_code != 200:
+                    logger.error(f'TTS streaming request failed. HTTP {response.status_code}: {response.text[:300]}')
+                    return False
+
+                for chunk in response.iter_content(chunk_size=4096):
+                    if not header_parsed:
+                        header += chunk
+                        try:
+                            parsed = self._parse_wav_header(bytes(header))
+                        except ValueError as e:
+                            logger.warning(f'{e}, falling back to non-streamed synthesis')
+                            return False
+                        if parsed is None:
+                            if len(header) > 65536:
+                                logger.warning('Could not find PCM data in streamed TTS response, falling back to non-streamed synthesis')
+                                return False
+                            continue
+                        data_offset, sample_rate, channels, bits_per_sample = parsed
+                        if bits_per_sample != 16:
+                            logger.warning(f'Streamed TTS audio is {bits_per_sample}-bit, only 16-bit is supported. Falling back to non-streamed synthesis')
+                            return False
+                        logger.debug(f'Stream header received {elapsed_s()} seconds after request start ({sample_rate}Hz, {channels}ch)')
+                        bytes_per_frame = 2 * channels
+                        pcm += header[data_offset:]
+                        header_parsed = True
+                        playback_thread = Thread(target=playback_worker, daemon=True)
+                        playback_thread.start()
+                        enqueue_new_samples()
+                    else:
+                        pcm += chunk
+                        enqueue_new_samples()
+        except requests.exceptions.RequestException as e:
+            logger.warning(f'Streamed synthesis was interrupted: {e}')
+        finally:
+            if playback_thread is not None:
+                playback_queue.put(None)
+
+        if not pcm:
+            return False
+
+        aligned = len(pcm) - (len(pcm) % bytes_per_frame)
+        samples = np.frombuffer(bytes(pcm[:aligned]), dtype='<i2')
+        if channels > 1:
+            samples = samples.reshape(-1, channels)
+        sf.write(final_voiceline_file, samples, sample_rate, subtype='PCM_16')
+        audio_duration = aligned / bytes_per_frame / sample_rate
+        logger.debug(f'Stream complete {elapsed_s()} seconds after request start: saved {audio_duration:.2f}s of audio ({aligned} bytes), playback continues in the background')
+
+        if playback_failed.is_set():
+            self._play_wav_async(final_voiceline_file)
+        return True
+
+
+    @staticmethod
+    def _parse_wav_header(buffer: bytes) -> tuple[int, int, int, int] | None:
+        """Parses a (possibly streaming) WAV header, tolerating invalid chunk sizes on the data chunk
+
+        Returns:
+            tuple: (data offset, sample rate, channels, bits per sample), or None if the header is incomplete
+
+        Raises:
+            ValueError: if the buffer is not a valid WAV stream
+        """
+        if len(buffer) < 12:
+            return None
+        if buffer[0:4] != b'RIFF' or buffer[8:12] != b'WAVE':
+            raise ValueError('TTS response is not a WAV stream')
+        pos = 12
+        sample_rate = None
+        channels = None
+        bits_per_sample = None
+        while pos + 8 <= len(buffer):
+            chunk_id = buffer[pos:pos + 4]
+            chunk_size = int.from_bytes(buffer[pos + 4:pos + 8], 'little')
+            if chunk_id == b'data':
+                if sample_rate is None:
+                    raise ValueError('WAV stream is missing its fmt chunk')
+                return pos + 8, sample_rate, channels, bits_per_sample
+            if pos + 8 + chunk_size > len(buffer):
+                return None
+            if chunk_id == b'fmt ':
+                if chunk_size < 16:
+                    raise ValueError('WAV stream has an invalid fmt chunk')
+                channels = int.from_bytes(buffer[pos + 10:pos + 12], 'little')
+                sample_rate = int.from_bytes(buffer[pos + 12:pos + 16], 'little')
+                bits_per_sample = int.from_bytes(buffer[pos + 22:pos + 24], 'little')
+            pos += 8 + chunk_size + (chunk_size % 2)
+        return None
+
+
+    @utils.time_it
+    def _play_wav_async(self, filename: str):
+        """Plays a wav file asynchronously at the fast response mode volume"""
+        utils.play_audio_async(filename, self._config.fast_response_mode_volume / 100)
 
 
     @utils.time_it

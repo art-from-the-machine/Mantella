@@ -19,6 +19,7 @@ class communication_constants:
     KEY_REPLYTYPE_NPCACTION: str  = PREFIX + "npc_action"
     KEY_REPLYTYPE_PLAYERTALK: str  = PREFIX + "player_talk"
     KEY_REPLYTYPE_ENDCONVERSATION: str  = PREFIX + "end_conversation"
+    KEY_REPLYTYPE_INTERRUPTED: str  = PREFIX + "interrupted"
 
     KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"
     KEY_STARTCONVERSATION_USENARRATOR: str = PREFIX + "use_narrator"

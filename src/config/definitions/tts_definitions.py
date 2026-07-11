@@ -92,6 +92,13 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
     def get_fast_response_mode_volume_config_value() -> ConfigValue:
         description = """Adjust the volume of the first delivered voiceline (from 1-100) if Fast Response Mode is enabled."""
         return ConfigValueInt("fast_response_mode_volume","Fast Response Mode Volume", description, 40, 1, 100, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_streamed_fast_response_config_value() -> ConfigValue:
+        description = """Whether to stream the first voiceline of every response from the TTS server.
+                        Requires Fast Response Mode to be enabled.
+                        Only available for TTS services that can stream audio."""
+        return ConfigValueBool("streamed_fast_response", "Streamed Fast Response", description, False, tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
     def get_allow_per_character_tts_overrides_config_value() -> ConfigValue:
@@ -137,7 +144,7 @@ If you have trouble installing the xVASynth version from Nexus, try installing i
                     "top_p": 0.85,
                     "speed": 1,
                     "enable_text_splitting": true,
-                    "stream_chunk_size": 100}"""
+                    "stream_chunk_size": 20}"""
         return ConfigValueString("xtts_data","XTTS Data","Default settings passed to the XTTS API server.", value,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
