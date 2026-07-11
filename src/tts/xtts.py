@@ -74,7 +74,7 @@ class XTTS(TTSable):
 
     @utils.time_it
     def _synthesize_voiceline(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
-        response = requests.post(self.__xtts_synthesize_url, json=self._build_synthesis_payload(voiceline))
+        response = self._session.post(self.__xtts_synthesize_url, json=self._build_synthesis_payload(voiceline))
         if response and response.status_code == 200:
             self._convert_to_16bit(io.BytesIO(response.content), final_voiceline_file)
         elif response:
@@ -123,7 +123,7 @@ class XTTS(TTSable):
     def _get_available_models(self):
         # Code to request and return the list of available models
         try:
-            response = requests.get(self.__xtts_get_models_list)
+            response = self._session.get(self.__xtts_get_models_list)
             if response.status_code == 200:
                 # Convert each element in the response to lowercase and remove spaces
                 return [model.lower().replace(' ', '') for model in response.json()]
@@ -138,7 +138,7 @@ class XTTS(TTSable):
     def _get_available_speakers(self) -> dict[str, Any]:
         # Code to request and return the list of available models
         try:
-            response = requests.get(self.__xtts_get_speakers_list)
+            response = self._session.get(self.__xtts_get_speakers_list)
             if response.status_code == 200:
                 all_speakers = response.json()
                 current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
@@ -186,7 +186,7 @@ class XTTS(TTSable):
         is_local = utils.is_local_url(self.__xtts_url)
         try:
             # contact XTTS server; ~2 second timeout
-            response = requests.get(self.__xtts_url, timeout=2)
+            response = self._session.get(self.__xtts_url, timeout=2)
             if response.status_code >= 500:
                 if is_local:
                     logger.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')

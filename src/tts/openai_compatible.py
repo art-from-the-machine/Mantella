@@ -63,7 +63,7 @@ class OpenAICompatibleTTS(TTSable):
     def _synthesize_voiceline(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         data, headers = self._build_request(voiceline)
         try:
-            response = requests.post(self.__synthesize_url, json=data, headers=headers, timeout=(5, 60))
+            response = self._session.post(self.__synthesize_url, json=data, headers=headers, timeout=(5, 60))
         except requests.exceptions.RequestException as e:
             logger.error(f'Could not reach OpenAI-compatible TTS server at {self.__base_url}: {e}')
             return
@@ -96,6 +96,6 @@ class OpenAICompatibleTTS(TTSable):
     def _check_if_service_is_running(self):
         try:
             # any HTTP response (even a 404 on the bare base URL) means the server is reachable
-            requests.get(self.__base_url, timeout=2)
+            self._session.get(self.__base_url, timeout=2)
         except requests.exceptions.RequestException:
             logger.warning(f'Could not connect to OpenAI-compatible TTS server at {self.__base_url}. Voicelines will fail to generate until the server is available. Please check that the server is running and that the URL is correct in the TTS settings')

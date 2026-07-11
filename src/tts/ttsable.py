@@ -7,6 +7,8 @@ from subprocess import DEVNULL
 import subprocess
 from src.tts.synthesization_options import SynthesizationOptions
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import shutil
 import soundfile as sf
 import numpy as np
@@ -53,6 +55,14 @@ class TTSable(ABC):
         # set to interrupt streamed/fallback external playback when the player talks over a line
         self._external_playback_stop = Event()
         self.__streaming_unsupported_warned = False
+
+        # reuse pooled connections across requests to skip the TCP handshake on remote TTS servers
+        # servers drop idle connections which surfaces as a read error on the next
+        # request, so retries must cover read errors and non-idempotent methods (POST)
+        self._session = requests.Session()
+        retry_adapter = HTTPAdapter(max_retries=Retry(total=2, connect=2, read=1, backoff_factor=0.1, allowed_methods=None))
+        self._session.mount('http://', retry_adapter)
+        self._session.mount('https://', retry_adapter)
 
     @utils.time_it
     def stop_external_playback(self):
@@ -197,10 +207,12 @@ class TTSable(ABC):
             return ''
 
 
-    @staticmethod
     @utils.time_it
-    def _send_request(url, data):
-        requests.post(url, json=data)
+    def _send_request(self, url, data):
+        try:
+            self._session.post(url, json=data)
+        except requests.exceptions.RequestException as e:
+            logger.warning(f'TTS request to {url} failed: {e}')
 
 
     @utils.time_it
@@ -273,7 +285,7 @@ class TTSable(ABC):
                 played_up_to = aligned
 
         try:
-            with requests.post(url, json=request_data, headers=headers, stream=True, timeout=(5, 60)) as response:
+            with self._session.post(url, json=request_data, headers=headers, stream=True, timeout=(5, 60)) as response:
                 if response.status_code != 200:
                     logger.error(f'TTS streaming request failed. HTTP {response.status_code}: {response.text[:300]}')
                     return False
