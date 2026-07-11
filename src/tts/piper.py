@@ -69,7 +69,7 @@ class Piper(TTSable):
             self.process.stdin.flush()
 
     @utils.time_it
-    def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
+    def _synthesize_voiceline(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         if self.__waiting_for_voice_load:
             voice_ready = self._check_voice_changed()
             if voice_ready is False:

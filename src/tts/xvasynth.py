@@ -48,7 +48,7 @@ class xVASynth(TTSable):
 
 
     @utils.time_it
-    def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
+    def _synthesize_voiceline(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
         phrases = self._split_voiceline(voiceline)
         voiceline_files = []
         for phrase in phrases:

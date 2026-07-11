@@ -141,6 +141,8 @@ class Transcriber:
         
         # Speech detection state
         self._speech_detected = False
+        # Stays True from a finalized non-empty transcription until it is consumed by get_latest_transcription
+        self._has_unconsumed_transcription = False
         self._speech_end_time = 0
         self._last_update_time = 0
         self._current_transcription = ""
@@ -155,9 +157,9 @@ class Transcriber:
 
     @property
     def has_player_spoken(self) -> bool:
-        """Check if speech has been detected."""
+        """Check if speech has been detected, or a finalized transcription is still waiting to be consumed."""
         with self._lock:
-            return self._speech_detected
+            return self._speech_detected or self._has_unconsumed_transcription
     
     def set_temporary_pause(self, pause_seconds: float) -> None:
         """Set a temporary pause threshold override for the next transcription
@@ -200,18 +202,22 @@ class Transcriber:
         
 
     @utils.time_it
-    def __get_api_key(self) -> str:
-        api_key = None
-        if self.external_whisper_service:
-            api_key = ClientBase._get_api_key(self.__stt_service_name, show_error=False)
-            
-            if not api_key:
-                logger.error('''No secret key found in GPT_SECRET_KEY.txt. Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
+    def __get_api_key(self) -> str | None:
+        if not self.external_whisper_service:
+            return None
+
+        api_key = ClientBase._get_api_key(self.__stt_service_name, show_error=False)
+        if api_key:
+            return api_key
+
+        if utils.is_local_url(self.whisper_url):
+            return 'abc123'
+
+        logger.error('''No secret key found in GPT_SECRET_KEY.txt. Please create a secret key and paste it in your Mantella mod folder's GPT_SECRET_KEY.txt file.
 If using OpenAI, see here on how to create a secret key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
 If you would prefer to run speech-to-text locally, please ensure the `Speech-to-Text`->`External Whisper Service` setting in the Mantella UI is disabled.''')
-                input("Press Enter to continue.")
-                sys.exit(0)
-            return api_key
+        input("Press Enter to continue.")
+        sys.exit(0)
 
 
     @utils.time_it
@@ -392,11 +398,16 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             save: Whether to save the audio buffer to disk (if ``save_mic_input`` also set).
         """
         if transcribe and len(self._audio_buffer) > 0:
+            transcription_start_time = time.time()
             self._current_transcription = self._transcribe(self._audio_buffer)
+            logger.log(self.loglevel, f'STT took {round(time.time() - transcription_start_time, 5)} seconds to transcribe')
         if save and self.__save_mic_input and len(self._audio_buffer) > 0:
             self._save_audio(self._audio_buffer)
         self._transcription_ready.set()
+        # capture whether a transcription is pending, since _reset_state clears the speech flags
+        has_transcription = bool(self._current_transcription and self._current_transcription.strip())
         self._reset_state()
+        self._has_unconsumed_transcription = has_transcription
 
 
     def _process_ptt_chunk(self, chunk: np.ndarray) -> None:
@@ -512,6 +523,7 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
     def _reset_state(self) -> None:
         """Reset internal state."""
         self._speech_detected = False
+        self._has_unconsumed_transcription = False
         # Ensure PTT state is cleared on any reset
         try:
             self._ptt_active = False
@@ -562,16 +574,18 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 if transcription:
                     self._transcription_ready.clear()
                     self._speech_detected = False
+                    self._has_unconsumed_transcription = False
                     self._temporary_pause_override = None  # Reset temporary pause after transcription
                     logger.log(self.loglevel, f"Player said '{transcription.strip()}'")
                     return transcription
-                
+
             if self.play_cough_sound:
                 utils.play_no_mic_input_detected_sound()
             logger.warning('Could not detect speech from mic input')
 
             self._transcription_ready.clear()
             self._speech_detected = False
+            self._has_unconsumed_transcription = False
             self._current_transcription = ''
 
             time.sleep(0.1)
@@ -602,6 +616,14 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
                 self._audio_queue.get_nowait()
             except queue.Empty:
                 break
+
+        # Drop any transcription that was finalized but never consumed, so it cannot trigger a "phantom"
+        # interruption or be picked up as stale input at the start of the next conversation
+        with self._lock:
+            self._speech_detected = False
+            self._has_unconsumed_transcription = False
+            self._current_transcription = ''
+            self._transcription_ready.clear()
                 
         self._reset_state()
         logger.log(self.loglevel, 'Stopped listening for mic input')

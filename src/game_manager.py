@@ -135,10 +135,10 @@ class GameStateManager:
         while True:
             replyType, sentence_to_play = self.__talk.continue_conversation()
             if replyType == comm_consts.KEY_REQUESTTYPE_TTS:
-                # if player input is detected mid-response, immediately process the player input
-                reply = self.player_input({"mantella_context": {}, "mantella_player_input": "", "mantella_request_type": "mantella_player_input"})
-                self.__first_line = False # since the NPC is already speaking in-game, setting this to True would just cause two voicelines to play at once
-                continue # continue conversation with new player input (ie call self.__talk.continue_conversation() again)
+                # Player input was detected mid-response: tell the game to cut the current voiceline
+                # the game follows up with a player input request, which goes through player_input() normally
+                # (setting __first_line = True) so the streamed first line is correctly muted in-game
+                return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_INTERRUPTED}
             elif replyType == comm_consts.KEY_REPLYTYPE_NPCACTION:
                 # Action-only response (no voiceline)
                 if sentence_to_play and len(sentence_to_play.actions) > 0:

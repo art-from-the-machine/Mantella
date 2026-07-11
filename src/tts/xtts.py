@@ -21,6 +21,8 @@ class TTSServiceFailure(Exception):
 class XTTS(TTSable):
     """XTTS TTS handler
     """
+    supports_streaming = True
+
     @utils.time_it
     def __init__(self, config: ConfigLoader, game) -> None:
         super().__init__(config)
@@ -36,6 +38,7 @@ class XTTS(TTSable):
         self.__voice_accent = self._language
         self.__official_model_list = ["main","v2.0.3","v2.0.2","v2.0.1","v2.0.0"]
         self.__xtts_synthesize_url = f'{self.__xtts_url}/tts_to_audio/'
+        self.__xtts_stream_url = f'{self.__xtts_url}/tts_stream'
         self.__xtts_switch_model = f'{self.__xtts_url}/switch_model'
         self.__xtts_set_tts_settings = f'{self.__xtts_url}/set_tts_settings'
         self.__xtts_get_models_list = f'{self.__xtts_url}/get_models_list'
@@ -56,9 +59,26 @@ class XTTS(TTSable):
         self._set_xtts_settings()
 
 
+    def _build_synthesis_payload(self, voiceline: str) -> dict:
+        return {
+            'text': voiceline,
+            'speaker_wav': self._sanitize_voice_name(self._last_voice.lower()),
+            'language': self._language,
+            'accent': self.__voice_accent,
+        }
+
+
+    def _build_stream_request(self, voiceline: str) -> tuple[str, dict, dict | None]:
+        return self.__xtts_stream_url, self._build_synthesis_payload(voiceline), None
+
+
     @utils.time_it
-    def tts_synthesize(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
-        self._synthesize_line_xtts(voiceline, final_voiceline_file)
+    def _synthesize_voiceline(self, voiceline: str, final_voiceline_file: str, synth_options: SynthesizationOptions):
+        response = self._session.post(self.__xtts_synthesize_url, json=self._build_synthesis_payload(voiceline))
+        if response and response.status_code == 200:
+            self._convert_to_16bit(io.BytesIO(response.content), final_voiceline_file)
+        elif response:
+            logger.error(f"Failed with '{self._last_voice}'. HTTP Error: {response.status_code}")
     
 
     @utils.time_it
@@ -103,7 +123,7 @@ class XTTS(TTSable):
     def _get_available_models(self):
         # Code to request and return the list of available models
         try:
-            response = requests.get(self.__xtts_get_models_list)
+            response = self._session.get(self.__xtts_get_models_list)
             if response.status_code == 200:
                 # Convert each element in the response to lowercase and remove spaces
                 return [model.lower().replace(' ', '') for model in response.json()]
@@ -118,7 +138,7 @@ class XTTS(TTSable):
     def _get_available_speakers(self) -> dict[str, Any]:
         # Code to request and return the list of available models
         try:
-            response = requests.get(self.__xtts_get_speakers_list)
+            response = self._session.get(self.__xtts_get_speakers_list)
             if response.status_code == 200:
                 all_speakers = response.json()
                 current_language_speakers = all_speakers.get(self._language, {}).get('speakers', [])
@@ -152,26 +172,7 @@ class XTTS(TTSable):
                 if voice_cleaned in self.__available_speakers:
                     return voice_cleaned
         logger.error(f'Could not find voice model {voice} in XTTS models list')
-    
-
-    @utils.time_it
-    def _synthesize_line_xtts(self, line, save_path):
-        def get_voiceline(voice_name):
-            voice_path = f"{self._sanitize_voice_name(voice_name)}"
-            data = {
-                'text': line,
-                'speaker_wav': voice_path,
-                'language': self._language,
-                'accent': self.__voice_accent,
-            }
-            return requests.post(self.__xtts_synthesize_url, json=data)
-
-        response = get_voiceline(self._last_voice.lower())
-        if response and response.status_code == 200:
-            self._convert_to_16bit(io.BytesIO(response.content), save_path)
-        elif response:
-            logger.error(f"Failed with '{self._last_voice}'. HTTP Error: {response.status_code}")
-
+  
 
     @utils.time_it
     def _set_xtts_settings(self):
@@ -185,7 +186,7 @@ class XTTS(TTSable):
         is_local = utils.is_local_url(self.__xtts_url)
         try:
             # contact XTTS server; ~2 second timeout
-            response = requests.get(self.__xtts_url, timeout=2)
+            response = self._session.get(self.__xtts_url, timeout=2)
             if response.status_code >= 500:
                 if is_local:
                     logger.log(self._loglevel, 'Could not connect to XTTS. Attempting to run headless server...')

@@ -3,11 +3,12 @@ from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 
 class Sentence:
     """Collection of all the things that make up a sentence said by a character"""
-    def __init__(self, content: SentenceContent, voice_file: str, voice_line_duration: float, error_message: str | None = None) -> None:
+    def __init__(self, content: SentenceContent, voice_file: str, voice_line_duration: float, error_message: str | None = None, played_externally: bool = False) -> None:
         self.__content: SentenceContent = content
         self.__voice_file: str = voice_file
         self.__voice_line_duration: float = voice_line_duration
         self.__error_message: str | None = error_message
+        self.__played_externally: bool = played_externally
 
     @property
     def content(self) -> SentenceContent:
@@ -44,3 +45,8 @@ class Sentence:
     @property
     def error_message(self) -> str | None:
         return self.__error_message
+
+    @property
+    def played_externally(self) -> bool:
+        """Whether the TTS already played this voiceline externally during synthesis (streamed fast response)"""
+        return self.__played_externally

@@ -10,13 +10,6 @@ from src import utils
 
 logger = utils.get_logger()
 
-_SERVICE_CLASSES: dict[TTSEnum, type[TTSable]] = {
-    TTSEnum.PIPER: Piper,
-    TTSEnum.XTTS: XTTS,
-    TTSEnum.XVASYNTH: xVASynth,
-    TTSEnum.OPENAI_COMPATIBLE: OpenAICompatibleTTS,
-}
-
 _PARSE_MAPPING: dict[str, TTSEnum] = {
     'piper': TTSEnum.PIPER,
     'xtts': TTSEnum.XTTS,

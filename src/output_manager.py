@@ -31,6 +31,7 @@ from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
 from src.tts.tts_factory import parse_tts_service, create_tts
 from src.config.definitions.tts_definitions import TTSEnum
+from src.config.definitions.game_definitions import GameEnum
 from src.telemetry.telemetry import create_span_from_thread
 from src.games.gameable import Gameable
 from typing import Callable
@@ -49,6 +50,7 @@ class ChatManager:
         self.__stop_generation = asyncio.Event()
         self.__tts_access_lock = Lock()
         self.__is_first_sentence: bool = False
+        self.__contains_player_character: bool = False
         self.__listen_requested: bool = False
         self.__on_listen_requested: Callable[[float], None] | None = None  # Callback for Listen action
         self.__end_conversation_requested: bool = False
@@ -189,28 +191,37 @@ class ChatManager:
 
         with self.__tts_access_lock:
             try:
+                stream_first_line = self.__should_stream_first_line()
                 if self.__config.narration_handling == NarrationHandlingEnum.USE_NARRATOR and content.sentence_type == SentenceTypeEnum.NARRATION:
-                    synth_options = SynthesizationOptions(False, self.__is_first_sentence)
-                    audio_file = self.__tts.synthesize(self.__config.narrator_voice, text, self.__config.narrator_voice, self.__config.narrator_voice, "en", synth_options, self.__config.narrator_voice)
+                    synth_options = SynthesizationOptions(False, self.__is_first_sentence, stream_first_line)
+                    audio_file, played_externally = self.__tts.synthesize(self.__config.narrator_voice, text, self.__config.narrator_voice, self.__config.narrator_voice, "en", synth_options, self.__config.narrator_voice)
                 else:
-                    synth_options = SynthesizationOptions(character_to_talk.is_in_combat, self.__is_first_sentence)
+                    synth_options = SynthesizationOptions(character_to_talk.is_in_combat, self.__is_first_sentence, stream_first_line)
                     selected_tts_service = parse_tts_service(character_to_talk.tts_service) if self.__config.allow_per_character_tts_overrides else None
                     if selected_tts_service is not None:
                         try:
                             tts_instance = self._get_or_create_tts(selected_tts_service)
-                            audio_file = tts_instance.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
+                            audio_file, played_externally = tts_instance.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
                         except Exception as e:
                             logger.warning(f"Per-character TTS '{character_to_talk.tts_service}' failed for {character_to_talk.name}: {e}. Falling back to default TTS.")
-                            audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
+                            audio_file, played_externally = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
                     else:
-                        audio_file = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
+                        audio_file, played_externally = self.__tts.synthesize(character_to_talk.tts_voice_model, text, character_to_talk.in_game_voice_model, character_to_talk.csv_in_game_voice_model, character_to_talk.voice_accent, synth_options, character_to_talk.advanced_voice_model)
             except Exception as e:
                 utils.play_error_sound()
                 error_text = f"Text-to-Speech Error: {e}"
                 logger.log(29, error_text)
                 return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, True), "", 0, error_text)
             self.__is_first_sentence = False
-            return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file))
+            return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file), played_externally=played_externally)
+
+    def __should_stream_first_line(self) -> bool:
+        """Whether the next synthesized voiceline should be streamed from the TTS server and played externally as it arrives (Streamed Fast Response)"""
+        return (self.__config.fast_response_mode
+                and self.__config.streamed_fast_response
+                and self.__is_first_sentence
+                and self.__contains_player_character
+                and self.__config.game.base_game == GameEnum.SKYRIM)
 
     @utils.time_it
     def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action], tools: list[dict] | None, game: Gameable | None = None):
@@ -238,6 +249,12 @@ class ChatManager:
             time.sleep(0.01)
         self.__stop_generation.clear()
         return
+
+    def stop_external_playback(self):
+        """Stops any externally-played voiceline audio across the default TTS and any cached per-service TTS instances"""
+        self.__tts.stop_external_playback()
+        for tts_instance in self.__per_service_tts.values():
+            tts_instance.stop_external_playback()
     
     @utils.time_it
     def _add_tool_calls_to_history(self, messages: message_thread, tool_calls: list[dict]):
@@ -266,9 +283,11 @@ class ChatManager:
 
             raw_response: str = ''  # Track the raw response
             first_token = True
+            first_sentence = True
             parsed_sentence: SentenceContent | None = None
             pending_sentence: SentenceContent | None = None
             self.__is_first_sentence = True
+            self.__contains_player_character = characters.contains_player_character()
             is_multi_npc = characters.contains_multiple_npcs()
             max_response_sentences = self.__config.max_response_sentences_single if not is_multi_npc else self.__config.max_response_sentences_multi
             max_retries = 5
@@ -414,6 +433,9 @@ class ChatManager:
                                     # Process sentences from the parser chain
                                     if parsed_sentence:
                                         if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                                            if first_sentence:
+                                                logger.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to return the first sentence")
+                                                first_sentence = False
                                             new_sentence = self.generate_sentence(parsed_sentence)
                                             blocking_queue.put(new_sentence)
                                             parsed_sentence = None

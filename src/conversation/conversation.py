@@ -140,13 +140,10 @@ class Conversation:
 
         # interrupt response if player has spoken
         if self.__stt and self.__stt.has_player_spoken:
-            self.__stop_generation()
-            self.__sentences.clear()
-            self.__is_player_interrupting = True
-            return comm_consts.KEY_REQUESTTYPE_TTS, None
+            return self.__interrupt_response()
         
         # restart mic listening as soon as NPC's first sentence is processed
-        if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and not self.__stt.is_listening and self.__allow_mic_input and not isinstance(self.__conversation_type, radiant):
+        if self.__interruption_enabled() and not self.__stt.is_listening:
             mic_prompt = self.__get_mic_prompt()
             self.__stt.start_listening(mic_prompt)
         
@@ -169,10 +166,7 @@ class Conversation:
             # before immediately sending the next voiceline, give the player the chance to interrupt
             while time.time() - self.last_sentence_start_time < self.last_sentence_audio_length:
                 if self.__stt and self.__stt.has_player_spoken:
-                    self.__stop_generation()
-                    self.__sentences.clear()
-                    self.__is_player_interrupting = True
-                    return comm_consts.KEY_REQUESTTYPE_TTS, None
+                    return self.__interrupt_response()
                 time.sleep(0.01)
             self.last_sentence_audio_length = next_sentence.voice_line_duration + self.__context.config.wait_time_buffer
             self.last_sentence_start_time = time.time()
@@ -188,7 +182,7 @@ class Conversation:
                 self.initiate_end_sequence()
                 return comm_consts.KEY_REPLYTYPE_NPCTALK, None
             else:
-                #If not ended, ask the conversation type for an automatic user message. If there is None, signal the game that the player must provide it 
+                # If not ended, ask the conversation type for an automatic user message. If there is None, signal the game that the player must provide it
                 new_user_message = self.__conversation_type.get_user_message(self.__context, self.__messages)
                 if new_user_message:
                     new_user_message = self.update_game_events(new_user_message)
@@ -196,7 +190,38 @@ class Conversation:
                     self.__start_generating_npc_sentences()
                     return comm_consts.KEY_REPLYTYPE_NPCTALK, None
                 else:
+                    # The game enters the player input state as soon as player_talk is sent, after which no request
+                    # is pending that could signal a voiceline cut. Hold the reply until the final voiceline finishes
+                    # so a mic interruption during it can still cut the line in-game
+                    if self.__interruption_enabled():
+                        while time.time() - self.last_sentence_start_time < self.last_sentence_audio_length:
+                            if self.__stt.has_player_spoken:
+                                return self.__interrupt_response()
+                            time.sleep(0.01)
                     return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
+
+    def __interruption_enabled(self) -> bool:
+        """Whether the player can interrupt NPC voicelines by speaking over them (mic input with interruptions enabled)"""
+        return (self.__stt is not None
+                and self.__mic_input
+                and self.__allow_interruption
+                and not self.__mic_ptt
+                and self.__allow_mic_input
+                and not isinstance(self.__conversation_type, radiant))
+
+    def __interrupt_response(self) -> tuple[str, None]:
+        """Stops the current response so the game can request the player's input
+
+        The playing voiceline keeps playing while the player speaks over it
+        and is only cut once the new response starts (game-side via _playerInputPending, Python-side in
+        process_player_input), keeping the silence gap between the old and new voiceline short
+        """
+        self.__stop_generation()
+        self.__sentences.clear()
+        self.__is_player_interrupting = True
+        # the interrupted line's estimated duration no longer applies
+        self.last_sentence_audio_length = 0
+        return comm_consts.KEY_REQUESTTYPE_TTS, None
 
     @utils.time_it
     def process_player_input(self, player_text: str) -> tuple[str, bool, Sentence|None]:
@@ -264,7 +289,11 @@ class Conversation:
                 # This also needs to apply when interruptions are allowed, 
                 # otherwise the player could constantly speak over the NPC and never hear a response
                 self.__stt.stop_listening()
-            
+
+            # The player's input is now confirmed and the new response is about to start, 
+            # so stop any Python-side streamed playback still playing.
+            self.__output_manager.stop_external_playback()
+
             new_message: UserMessage = UserMessage(self.__context.config, player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
             new_message = self.update_game_events(new_message)

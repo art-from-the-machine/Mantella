@@ -128,7 +128,7 @@ def piper(default_config: ConfigLoader, skyrim: Skyrim):
         return Piper(default_config, skyrim)
     except (TTSServiceFailure, FileNotFoundError, Exception):
         mock_piper = MagicMock()
-        mock_piper.synthesize.return_value = "mock_audio.wav"
+        mock_piper.synthesize.return_value = ("mock_audio.wav", False)
         return mock_piper
 
 @pytest.fixture

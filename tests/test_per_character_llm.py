@@ -9,7 +9,7 @@ from tests.conftest import MockAIClient
 
 @pytest.fixture
 def output_manager(default_config: ConfigLoader, piper: Piper, mock_ai_client: MockAIClient, monkeypatch) -> ChatManager:
-    piper.synthesize = MagicMock(return_value="mock_audio_file.wav")
+    piper.synthesize = MagicMock(return_value=("mock_audio_file.wav", False))
     monkeypatch.setattr('src.utils.get_audio_duration', lambda *args, **kwargs: 1.0)
     return ChatManager(default_config, piper, mock_ai_client)
 
