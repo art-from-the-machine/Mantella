@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 from typing import Any, TYPE_CHECKING
 
 import pandas as pd
@@ -210,6 +211,8 @@ class Skyrim(Gameable):
             self.send_muted_voiceline_to_game_folder(audio_file, filename, voice_folder_path)
         elif config.fast_response_mode and isFirstLine and context_of_conversation.npcs_in_conversation.contains_player_character():
             # Non-streamed fast response: Play the first line immediately and mute the in-game copy
+            if queue_output.synthesis_start_time is not None:
+                logger.log(29, f"TTS took {round(time.perf_counter() - queue_output.synthesis_start_time, 5)} seconds to start playing")
             utils.play_audio_async(audio_file, volume=config.fast_response_mode_volume/100)
             self.send_muted_voiceline_to_game_folder(audio_file, filename, voice_folder_path)
         else:
