@@ -191,6 +191,7 @@ class ChatManager:
 
         with self.__tts_access_lock:
             try:
+                synthesis_start_time = time.perf_counter()
                 stream_first_line = self.__should_stream_first_line()
                 if self.__config.narration_handling == NarrationHandlingEnum.USE_NARRATOR and content.sentence_type == SentenceTypeEnum.NARRATION:
                     synth_options = SynthesizationOptions(False, self.__is_first_sentence, stream_first_line)
@@ -213,7 +214,7 @@ class ChatManager:
                 logger.log(29, error_text)
                 return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, True), "", 0, error_text)
             self.__is_first_sentence = False
-            return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file), played_externally=played_externally)
+            return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, utils.get_audio_duration(audio_file), played_externally=played_externally, synthesis_start_time=synthesis_start_time)
 
     def __should_stream_first_line(self) -> bool:
         """Whether the next synthesized voiceline should be streamed from the TTS server and played externally as it arrives (Streamed Fast Response)"""
