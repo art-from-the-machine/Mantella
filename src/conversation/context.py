@@ -20,7 +20,7 @@ class Context:
     TOKEN_LIMIT_PERCENT: float = 0.45
 
     @utils.time_it
-    def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: Remembering, language: dict[Hashable, str]) -> None:
+    def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: Remembering, language: dict[Hashable, str], previous_location: str | None = None, previous_game_days: float | None = None) -> None:
         self.__world_id = world_id
         self.__hourly_time = config.hourly_time
         self.__prev_game_time: tuple[str | None, str] | None = None
@@ -41,6 +41,9 @@ class Context:
         self.__prev_nearby_npc_names: list[str] = []  # Cache for nearby NPC names
 
         self.__prev_location: str | None = None
+        self.__location_changed: bool = False
+        self.__previous_location_for_transition = previous_location
+        self.__previous_game_days_for_transition = previous_game_days
         if self.__game.base_game == GameEnum.FALLOUT4:
             self.__location: str = 'the Commonwealth'
         else:
@@ -89,6 +92,21 @@ class Context:
     @property
     def have_actors_changed(self) -> bool:
         return self.__have_actors_changed
+
+    @property
+    def location_changed(self) -> bool:
+        return self.__location_changed
+
+    def clear_location_changed(self):
+        self.__location_changed = False
+
+    def get_authoritative_current_state_event(self) -> str:
+        """Return the current present-state location for the next LLM turn."""
+        return (
+            "AUTHORITATIVE CURRENT SKYRIM STATE: The group is currently in "
+            f"{self.__location}. This current location overrides older location "
+            "claims in dialogue, memories, and prior scene context."
+        )
     
     @have_actors_changed.setter
     def have_actors_changed(self, value: bool):
@@ -174,12 +192,16 @@ class Context:
     def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any], config_settings: dict[str, Any] | None, game_days: float | None = None):
         self.__custom_context_values = custom_context_values
 
+        previous_game_days = self.__game_days
         # Store game_days if provided
         if game_days is not None:
             self.__game_days = game_days
 
         if location:
+            previous_location = self.__location
             if location != '':
+                if location != self.__location:
+                    self.__location_changed = True
                 self.__location = location
             else:
                 if self.__game.base_game == GameEnum.FALLOUT4:
@@ -188,10 +210,16 @@ class Context:
                     self.__location: str = "Skyrim"
             if self.__prev_location is None:
                 self.__prev_location = self.__location
-                self.__ingame_events.append(f"The location is now {self.__location}.")
+                if self.__locations_are_meaningfully_different(self.__previous_location_for_transition, self.__location):
+                    self.__append_travel_event(self.__previous_location_for_transition, self.__location, self.__previous_game_days_for_transition, game_days)
+                else:
+                    self.__ingame_events.append(f"The location is now {self.__location}.")
             elif self.__location != self.__prev_location:
+                if self.__locations_are_meaningfully_different(previous_location, self.__location):
+                    self.__append_travel_event(previous_location, self.__location, previous_game_days, game_days)
+                else:
+                    self.__ingame_events.append(f"The location is now {location}.")
                 self.__prev_location = self.__location
-                self.__ingame_events.append(f"The location is now {location}.")
         
         if in_game_time is not None:
             self.__ingame_time = in_game_time
@@ -239,6 +267,33 @@ class Context:
 
         if config_settings:
             self.__config_settings = config_settings
+
+    @staticmethod
+    def __location_key(location: str | None) -> str | None:
+        if not location:
+            return None
+        key = " ".join(location.casefold().split())
+        for suffix in (" interior", " exterior", " interior cell", " exterior cell"):
+            if key.endswith(suffix):
+                key = key[:-len(suffix)].rstrip(" -:")
+        return key
+
+    @classmethod
+    def __locations_are_meaningfully_different(cls, previous: str | None, current: str | None) -> bool:
+        previous_key = cls.__location_key(previous)
+        current_key = cls.__location_key(current)
+        return bool(previous_key and current_key and previous_key != current_key)
+
+    def __append_travel_event(self, previous: str | None, current: str, previous_game_days: float | None, game_days: float | None):
+        travel_event = (
+            f"Since the previous relevant interaction, the player and accompanying characters "
+            f"traveled from {previous} to {current}."
+        )
+        if previous_game_days is not None and game_days is not None:
+            elapsed_days = game_days - previous_game_days
+            if elapsed_days > 0:
+                travel_event += f" Approximately {elapsed_days:.1f} in-game days passed during the journey."
+        self.__ingame_events.append(travel_event)
     
     @utils.time_it
     def __update_ingame_events_on_npc_change(self, npc: Character):

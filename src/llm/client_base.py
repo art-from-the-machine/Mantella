@@ -6,6 +6,7 @@ from openai.types.chat import ChatCompletion
 import time
 import tiktoken
 import json
+import hashlib
 import os
 import requests
 from pathlib import Path
@@ -57,6 +58,7 @@ class ClientBase(AIClient):
         self._function_client = None
         self._enable_vision_next_call: bool = False
         self._vision_mode: VisionMode = VisionMode.DISABLED
+        self._last_prompt_prefix_hash: str | None = None
 
         if not utils.is_local_url(self._base_url): # Cloud LLM
             self._is_local: bool = False
@@ -165,6 +167,44 @@ class ClientBase(AIClient):
         """
         return OpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=self._header)
 
+    def _log_request_diagnostics(self, openai_messages: list[dict[str, Any]]) -> None:
+        """Log compact request/prefix diagnostics without dumping prompt text."""
+        roles = [message.get("role") for message in openai_messages]
+        system_content = ""
+        if openai_messages and openai_messages[0].get("role") == "system":
+            system_content = str(openai_messages[0].get("content") or "")
+        prefix_hash = hashlib.sha256(system_content.encode("utf-8")).hexdigest()[:12]
+        prefix_changed = self._last_prompt_prefix_hash is not None and prefix_hash != self._last_prompt_prefix_hash
+        self._last_prompt_prefix_hash = prefix_hash
+
+        authoritative_locations: list[str] = []
+        conflicting_locations: list[str] = []
+        for message in openai_messages:
+            content = message.get("content")
+            if not isinstance(content, str):
+                continue
+            marker = "AUTHORITATIVE CURRENT SKYRIM STATE: The group is currently in "
+            if marker in content:
+                authoritative_locations.append(content.split(marker, 1)[1].split(".", 1)[0])
+            if "You are now in " in content:
+                conflicting_locations.extend(
+                    fragment.split(".", 1)[0]
+                    for fragment in content.split("You are now in ")[1:]
+                )
+
+        token_count = sum(
+            len(self._encoding.encode(message.get("content") or ""))
+            for message in openai_messages
+            if isinstance(message.get("content"), str)
+        )
+        logger.info(
+            "LLM request diagnostics: "
+            f"roles={roles} message_count={len(openai_messages)} token_count={token_count} "
+            f"static_prefix_hash={prefix_hash} static_prefix_changed={prefix_changed} "
+            f"authoritative_locations={authoritative_locations} "
+            f"location_assertions={conflicting_locations}"
+        )
+
 
     @utils.time_it
     def _request_call_full(self, messages: Message | message_thread) -> ChatCompletion | None:
@@ -197,6 +237,8 @@ class ClientBase(AIClient):
                     openai_messages = self._claude_cache.transform_messages(openai_messages)
                 except Exception as e:
                     logger.debug(f"Claude caching transform failed: {e}")
+
+            self._log_request_diagnostics(openai_messages)
 
             try:
                 chat_completion = sync_client.chat.completions.create(
@@ -288,6 +330,8 @@ class ClientBase(AIClient):
                             openai_messages = self._claude_cache.transform_messages(openai_messages)
                         except Exception as e:
                             logger.debug(f"Claude caching transform failed: {e}")
+
+                    self._log_request_diagnostics(openai_messages)
 
                     # Create async client for main LLM streaming (after function client has run if applicable)
                     if self._startup_async_client:

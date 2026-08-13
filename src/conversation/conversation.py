@@ -343,9 +343,16 @@ class Conversation:
             game_days (float): the full game timestamp (days.fraction)
         """
         self.__context.update_context(location, time, custom_ingame_events, weather, npcs_nearby, custom_context_values, config_settings, game_days)
+        logger.info(f"Conversation authoritative location after context update: {self.__context.location}")
         if self.__context.have_actors_changed:
             self.__update_conversation_type()
             self.__context.have_actors_changed = False
+            self.__context.clear_location_changed()
+        elif self.__context.location_changed:
+            # Keep the large system prompt stable for prefix/KV reuse. The
+            # authoritative present location is injected into the next user
+            # message by update_game_events().
+            self.__context.clear_location_changed()
 
     @utils.time_it
     def __update_conversation_type(self):
@@ -385,6 +392,10 @@ class Conversation:
             self.__is_player_interrupting = False
         max_events = min(len(all_ingame_events) ,self.__context.config.max_count_events)
         message.add_event(all_ingame_events[-max_events:])
+        # This state is authoritative and deliberately sits at the end of the
+        # dynamic suffix, immediately before the player text. It therefore
+        # remains available even when the generic event buffer is truncated.
+        message.add_event([self.__context.get_authoritative_current_state_event()])
         self.__context.clear_context_ingame_events()        
 
         if message.count_ingame_events() > 0:            
@@ -498,6 +509,12 @@ class Conversation:
                 tools = None
                 if self.context.config.advanced_actions_enabled and allow_tool_use:
                     tools = FunctionManager.generate_context_aware_tools(self.__context, self.__game)
+                system_prompt = self.__messages[0].text if len(self.__messages) > 0 else ""
+                expected_scene = f"You are now in {self.__context.location}"
+                logger.info(
+                    f"LLM dispatch location={self.__context.location} "
+                    f"static_system_prompt_contains_current_location={expected_scene in system_prompt}"
+                )
                 # Capture current OpenTelemetry context for the new thread
                 opentelemetry_context = OpenTelemetryContext.get_current()
                 def thread_target():
