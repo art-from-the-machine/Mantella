@@ -38,7 +38,7 @@ class GameStateManager:
         self.__game: Gameable = game
         self.__config: ConfigLoader = config
         self.__language_info: dict[Hashable, str] = language_info
-        self.__client: LLMClient = client
+        self.__dialogue_client: LLMClient = client
         self.__chat_manager: ChatManager = chat_manager
         self.__rememberer: Remembering = Summaries(game, config, client, language_info['language'], summary_client)
         self.__talk: Conversation | None = None
@@ -67,7 +67,7 @@ class GameStateManager:
         if input_json.__contains__(comm_consts.KEY_INPUTTYPE):
             self.process_stt_setup(input_json)
         
-        conversation_client = self._build_random_conversation_client() or self.__client
+        conversation_client = self._build_random_conversation_client() or self.__dialogue_client
         context_for_conversation = Context(world_id, self.__config, conversation_client, self.__rememberer, self.__language_info)
         self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, conversation_client, self.__stt, self.__mic_input, self.__mic_ptt, self.__game)
         self.__update_context(input_json)
@@ -105,8 +105,8 @@ class GameStateManager:
             self.__config.claude_prompt_caching_enabled,
         )
         # Copy sub-clients from the main client so vision and tool-calling remain available
-        random_client._image_client = getattr(self.__client, '_image_client', None)
-        random_client._function_client = getattr(self.__client, '_function_client', None)
+        random_client._image_client = getattr(self.__dialogue_client, '_image_client', None)
+        random_client._function_client = getattr(self.__dialogue_client, '_function_client', None)
         random_client._vision_mode = random_client._determine_vision_mode()
         return random_client
         
@@ -201,7 +201,7 @@ class GameStateManager:
                 
                 if action.identifier == 'mantella_npc_vision':
                     # Enable vision for the next LLM call
-                    self.__client.enable_vision_for_next_call()
+                    self.__dialogue_client.enable_vision_for_next_call()
                     logger.log(23, "Vision action triggered via keyword: Vision enabled for next LLM call")
                     break # Don't send to game
                 

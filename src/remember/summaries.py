@@ -17,6 +17,14 @@ from src import utils
 
 logger = utils.get_logger()
 
+TRANSIENT_STATE_SUMMARY_RULE = (
+    "Do not record inventory contents, currently worn/equipped items, or whether an equip attempt "
+    "succeeded in long-term memory. Those facts are transient and are supplied authoritatively by "
+    "the game at runtime; dialogue claims about them are not evidence. Preserve relevant emotional "
+    "or narrative consequences, but treat historical equipment claims as past narrative only, "
+    "never as the NPC's current equipment."
+)
+
 
 class CharacterSummaryParameters:
     """Encapsulates the messages and involved characters for a single NPC's summary."""
@@ -29,16 +37,25 @@ class Summaries(Remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
+    SUMMARY_MAX_ATTEMPTS = 3
+    SUMMARY_RETRY_DELAY_SECONDS = 1.0
+
     def __init__(self, game: Gameable, config: ConfigLoader, client: LLMClient, language_name: str, summary_client: SummaryLLMClient | None = None, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
         self.__config = config
         self.__game: Gameable = game
         self.__summary_limit_pct: float = summary_limit_pct
+        self.__dialogue_client: ClientBase = client
+        self.__summary_client: SummaryLLMClient | None = summary_client
         self.__client: ClientBase = summary_client if summary_client else client
         self.__language_name: str = language_name
         self.__memory_prompt: str = config.memory_prompt
         self.__resummarize_prompt: str = config.resummarize_prompt
+        if summary_client:
+            logger.info("Conversation summaries use the dedicated summary LLM")
+        else:
+            logger.info("Conversation summaries use the dialogue LLM (compatibility fallback)")
 
     def __read_summary_lines(self, file_path: str, deduplicate: bool = False) -> list[str]:
         """Read a summary file and return non-empty stripped lines.
@@ -298,22 +315,15 @@ class Summaries(Remembering):
                     races=races,
                     genders_and_races=genders_and_races
                 )
-        while True:
-            try:
-                if len(npc_info.messages) >= min_messages:
-                    summary = self.summarize_conversation(npc_info.messages.transform_to_dict_representation(npc_info.messages.get_talk_only()), prompt)
-                    # Prepend timestamp to summary if available
-                    if summary and end_timestamp is not None and self.__config.memory_prompt_datetime_prefix:
-                        timestamp_prefix = self.__format_timestamp(end_timestamp)
-                        summary = f"{timestamp_prefix}\n{summary}"
-                    return summary
-                else:
-                    logger.info(f"Conversation summary not saved. Not enough dialogue spoken.")
-                break
-            except Exception:
-                logger.error('Failed to summarize conversation. Retrying...')
-                time.sleep(5)
-                continue
+        prompt = f"{prompt.rstrip()}\n\n{TRANSIENT_STATE_SUMMARY_RULE}"
+        if len(npc_info.messages) >= min_messages:
+            summary = self.summarize_conversation(npc_info.messages.transform_to_dict_representation(npc_info.messages.get_talk_only()), prompt)
+            # Prepend timestamp to summary if available
+            if summary and end_timestamp is not None and self.__config.memory_prompt_datetime_prefix:
+                timestamp_prefix = self.__format_timestamp(end_timestamp)
+                summary = f"{timestamp_prefix}\n{summary}"
+            return summary
+        logger.info("Conversation summary not saved. Not enough dialogue spoken.")
         return ""
 
     @utils.time_it
@@ -343,22 +353,19 @@ class Summaries(Remembering):
         # if summaries token limit is reached, summarize the summaries
         if count_tokens_summaries > summary_limit:
             logger.info(f'Token limit of conversation summaries reached ({count_tokens_summaries} / {summary_limit} tokens). Creating new summary file...')
-            while True:
-                try:
-                    prompt = self.__resummarize_prompt.format(
-                        name=npc_name,
-                        language=self.__language_name,
-                        game=self.__game.game_name_in_filepath,
-                        player_name=player_name,
-                        gender=npc_gender,
-                        race=npc_race
-                    )
-                    long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt)
-                    break
-                except Exception:
-                    logger.error('Failed to summarize conversation. Retrying...')
-                    time.sleep(5)
-                    continue
+            prompt = self.__resummarize_prompt.format(
+                name=npc_name,
+                language=self.__language_name,
+                game=self.__game.game_name_in_filepath,
+                player_name=player_name,
+                gender=npc_gender,
+                race=npc_race
+            )
+            prompt = f"{prompt.rstrip()}\n\n{TRANSIENT_STATE_SUMMARY_RULE}"
+            long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt)
+            if not long_conversation_summary:
+                logger.error("Summary compaction failed; retaining the existing summary file")
+                return
 
             # Split the file path and increment the number by 1
             base_directory, filename = os.path.split(conversation_summary_file)
@@ -393,9 +400,24 @@ class Summaries(Remembering):
             logger.log(23, f'Summary prompt sent to LLM: {prompt.strip()}')
             messages = message_thread(self.__config, prompt)
             messages.add_message(UserMessage(self.__config, text_to_summarize))
-            summary = self.__client.request_call(messages)
+            logger.info(
+                "Generating conversation summary using %s LLM at %s",
+                "dedicated summary" if self.__summary_client else "dialogue compatibility",
+                self.__client.base_url,
+            )
+            summary = ""
+            for attempt in range(1, self.SUMMARY_MAX_ATTEMPTS + 1):
+                try:
+                    summary = self.__client.request_call(messages) or ""
+                except Exception as exc:
+                    logger.warning("Summary attempt %d/%d failed: %s", attempt, self.SUMMARY_MAX_ATTEMPTS, exc)
+                if summary:
+                    break
+                if attempt < self.SUMMARY_MAX_ATTEMPTS:
+                    logger.warning("Summary attempt %d/%d returned no result; retrying", attempt, self.SUMMARY_MAX_ATTEMPTS)
+                    time.sleep(self.SUMMARY_RETRY_DELAY_SECONDS)
             if not summary:
-                logger.error(f"Summarizing conversation failed.")
+                logger.error("Conversation summary failed after %d attempts; continuing without saving it", self.SUMMARY_MAX_ATTEMPTS)
                 return ""
 
             summary = summary.replace('The assistant', 'Someone')

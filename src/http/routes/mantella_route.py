@@ -51,14 +51,14 @@ class mantella_route(routeable):
 
         tts: TTSable = create_tts(self._config.tts_service, self._config, game)
 
-        llm_client = LLMClient(self._config)
+        dialogue_client = LLMClient(self._config)
 
         summary_client: SummaryLLMClient | None = None
         if self._config.summary_llm_enabled:
             summary_client = SummaryLLMClient(self._config)
 
-        chat_manager = ChatManager(self._config, tts, llm_client, game)
-        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, llm_client, summary_client)
+        chat_manager = ChatManager(self._config, tts, dialogue_client, game)
+        self.__game = GameStateManager(game, chat_manager, self._config, self.__language_info, dialogue_client, summary_client)
 
     @utils.time_it
     def add_route_to_server(self, app: FastAPI):

@@ -119,6 +119,11 @@ class ClientBase(AIClient):
         """The name of the model
         """
         return self._model_name
+
+    @property
+    def base_url(self) -> str:
+        """Resolved OpenAI-compatible endpoint used by this client."""
+        return self._base_url
     
     @property
     def is_local(self) -> bool:

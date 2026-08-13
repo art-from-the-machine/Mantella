@@ -24,6 +24,8 @@ class LLMClient(ClientBase):
         )
         super().__init__(config.llm_api, config.llm, llm_params, config.custom_token_count, config.claude_prompt_caching_enabled)
 
+        logger.info(f"Dialogue LLM endpoint: {self.base_url}")
+
         if self._is_local:
             logger.info(f"Running Mantella with local language model")
         else:
