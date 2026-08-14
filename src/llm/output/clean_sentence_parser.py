@@ -4,6 +4,12 @@ from src.llm.sentence_content import SentenceContent
 
 logger = utils.get_logger()
 
+# These markers are internal accumulator metadata. They are removed before
+# sentence content reaches the other output parsers and are never sent to an
+# NPC or included in conversation history.
+RESPONSE_BOUNDARY_MARKER = "\x1d"
+LINE_BOUNDARY_MARKER = "\x1e"
+
 
 class clean_sentence_parser(output_parser):
     """Class to track narrations in the current output of the LLM."""
@@ -26,8 +32,8 @@ class clean_sentence_parser(output_parser):
             sentence = sentence.replace('Well, well, well', 'Well well well')
 
         sentence = remove_as_a(sentence)
-        sentence = sentence.replace('\r\n', ' ')
-        sentence = sentence.replace('\n', ' ')
+        sentence = sentence.replace('\r\n', LINE_BOUNDARY_MARKER + ' ')
+        sentence = sentence.replace('\n', LINE_BOUNDARY_MARKER + ' ')
         sentence = sentence.replace('[', '(')
         sentence = sentence.replace(']', ')')
         sentence = sentence.replace('{', '(')

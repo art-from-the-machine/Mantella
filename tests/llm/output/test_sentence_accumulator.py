@@ -201,6 +201,40 @@ class TestCleaning:
         assert accumulator.has_next_sentence() is True
         assert accumulator.get_next_sentence() == "Hello there."
 
+    def test_response_boundary_metadata_is_preserved_without_text_marker(self, accumulator: sentence_accumulator):
+        accumulator.accumulate("Lydia: We should leave.")
+        sentence = accumulator.get_next_sentence()
+        assert sentence == "Lydia: We should leave."
+        assert sentence.starts_at_response is True
+        assert sentence.starts_at_line is False
+
+    def test_line_boundary_metadata_is_preserved_without_text_marker(self, accumulator: sentence_accumulator):
+        accumulator.accumulate("Guard: Thank you.\nHulda: Another round!")
+        first = accumulator.get_next_sentence()
+        assert first == "Guard: Thank you."
+        assert accumulator.has_next_sentence() is True
+        second = accumulator.get_next_sentence()
+        assert second == "Hulda: Another round!"
+        assert second.starts_at_line is True
+
+    def test_streamed_line_boundary_and_colon_keep_structural_metadata(self, accumulator: sentence_accumulator):
+        for token in ["Guard", ":", " Thank you.", "\n", "Lydia", ":", " We should leave."]:
+            accumulator.accumulate(token)
+        first = accumulator.get_next_sentence()
+        assert first == "Guard: Thank you."
+        assert first.starts_at_response is True
+        assert accumulator.has_next_sentence() is True
+        second = accumulator.get_next_sentence()
+        assert second == "Lydia: We should leave."
+        assert second.starts_at_line is True
+
+    def test_streamed_grammatical_colon_has_no_line_boundary(self, accumulator: sentence_accumulator):
+        for token in ["But I ask you", ":", " why should we leave?"]:
+            accumulator.accumulate(token)
+        sentence = accumulator.get_next_sentence()
+        assert sentence == "But I ask you:"
+        assert sentence.starts_at_line is False
+
     def test_crlf_cleaned(self, accumulator: sentence_accumulator):
         """Test that CRLF in accumulated text is replaced with a space."""
         accumulator.accumulate("Hello\r\nthere.")

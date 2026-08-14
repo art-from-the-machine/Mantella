@@ -592,7 +592,7 @@ async def test_process_response_stores_discarded_character_on_partial_response(o
     """When the LLM produces valid sentences but then addresses an unrecognized character,
     the discarded name should still be stored for corrective feedback on the next turn."""
     async def partial_then_wrong_call(messages=None, is_multi_npc=False, tools=None):
-        for chunk in ["Guard: Thank you for your service. ", "Hulda: Here's your mead!"]:
+        for chunk in ["Guard: Thank you for your service. ", "\nHulda: Here's your mead!"]:
             yield ("content", chunk)
 
     output_manager._ChatManager__client.streaming_call = partial_then_wrong_call

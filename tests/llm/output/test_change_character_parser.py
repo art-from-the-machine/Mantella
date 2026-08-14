@@ -2,6 +2,7 @@ import pytest
 from src.conversation.action import Action
 from src.llm.output.change_character_parser import change_character_parser
 from src.llm.output.output_parser import sentence_generation_settings
+from src.llm.output.sentence_accumulator import accumulated_sentence
 from src.character_manager import Character
 from src.characters_manager import Characters
 
@@ -15,6 +16,8 @@ def parser(example_characters_multi_npc: Characters) -> change_character_parser:
 def parser_with_actions(example_characters_multi_npc: Characters) -> change_character_parser:
     actions = [
         Action(identifier="wave", name="Wave", keyword="Wave", description="", prompt_text="", requires_response=False, is_interrupting=False, one_on_one=True, multi_npc=True, radiant=True),
+        Action(identifier="follow", name="Follow", keyword="Follow", description="", prompt_text="", requires_response=False, is_interrupting=False, one_on_one=True, multi_npc=True, radiant=True),
+        Action(identifier="equip", name="Equip", keyword="Equip", description="", prompt_text="", requires_response=False, is_interrupting=False, one_on_one=True, multi_npc=True, radiant=True),
         Action(identifier="inventory", name="Inventory", keyword="Inventory", description="", prompt_text="", requires_response=False, is_interrupting=False, one_on_one=True, multi_npc=True, radiant=True),
         Action(identifier="attack", name="Attack", keyword="Attack", description="", prompt_text="", requires_response=False, is_interrupting=False, one_on_one=True, multi_npc=True, radiant=True),
     ]
@@ -78,34 +81,34 @@ class TestUnrecognizedCharacterDiscard:
     """Tests for discarding text when the LLM uses a character name not in the conversation."""
 
     def test_discard_unknown_single_name(self, parser: change_character_parser, settings: sentence_generation_settings):
-        result, rest = parser.cut_sentence("Hulda: Another round!", settings)
+        result, rest = parser.cut_sentence(accumulated_sentence("Hulda: Another round!", starts_at_response=True), settings)
         assert result is None
         assert rest == ""
         assert settings.stop_generation is True
 
     def test_discard_unknown_multi_word_name(self, parser: change_character_parser, settings: sentence_generation_settings):
-        result, rest = parser.cut_sentence("Svana Far-Shield: Coming right up!", settings)
+        result, rest = parser.cut_sentence(accumulated_sentence("Svana Far-Shield: Coming right up!", starts_at_response=True), settings)
         assert result is None
         assert rest == ""
         assert settings.stop_generation is True
 
     def test_discard_unknown_lowercase_orc_name(self, parser: change_character_parser, settings: sentence_generation_settings):
         """Orc-style names with lowercase words (eg gro-Shub) should also be discarded."""
-        result, rest = parser.cut_sentence("Urag gro-Shub: I have the book you need.", settings)
+        result, rest = parser.cut_sentence(accumulated_sentence("Urag gro-Shub: I have the book you need.", starts_at_response=True), settings)
         assert result is None
         assert rest == ""
         assert settings.stop_generation is True
 
     def test_discard_stops_generation(self, parser: change_character_parser, settings: sentence_generation_settings):
         """Discarding an unrecognized name should stop generation so subsequent text is also dropped."""
-        result, rest = parser.cut_sentence("Barkeeper: Here you go!", settings)
+        result, rest = parser.cut_sentence(accumulated_sentence("Barkeeper: Here you go!", starts_at_response=True), settings)
         assert settings.stop_generation is True
         assert rest == ""
 
     def test_discard_unknown_with_sentence_before(self, parser: change_character_parser, settings: sentence_generation_settings):
         """When there is dialogue text before the unknown name, the prefix is still discarded
         because the known-character endswith check doesn't match, so the whole thing is unrecognized."""
-        result, rest = parser.cut_sentence("Another round please Hulda: Here you go!", settings)
+        result, rest = parser.cut_sentence(accumulated_sentence("Another round please Hulda: Here you go!", starts_at_response=True), settings)
         assert result is None
         assert rest == ""
         assert settings.stop_generation is True
@@ -126,6 +129,15 @@ class TestActionKeywordPassthrough:
         assert rest == "wave: Hello there!"
         assert settings.stop_generation is False
 
+    @pytest.mark.parametrize("keyword", ["Follow", "Equip", "Inventory"])
+    def test_action_keywords_pass_through_at_response_boundary(self, parser_with_actions: change_character_parser, settings: sentence_generation_settings, keyword: str):
+        result, rest = parser_with_actions.cut_sentence(
+            accumulated_sentence(f"{keyword}: target", starts_at_response=True), settings
+        )
+        assert result is None
+        assert rest == f"{keyword}: target"
+        assert settings.stop_generation is False
+
 
 class TestEdgeCases:
     """Edge cases and boundary conditions."""
@@ -142,3 +154,40 @@ class TestEdgeCases:
         assert result is None
         assert rest == ":"
         assert settings.stop_generation is False
+
+
+class TestColonBoundaries:
+    def test_ordinary_colon_inside_dialogue_is_preserved(self, parser: change_character_parser, settings: sentence_generation_settings):
+        result, rest = parser.cut_sentence("But I ask you: why should we leave?", settings)
+        assert result is not None
+        assert result.text == "But I ask you: why should we leave?"
+        assert rest == ""
+        assert settings.stop_generation is False
+
+    def test_confirmed_stormcloak_colon_is_preserved(self, parser: change_character_parser, settings: sentence_generation_settings):
+        _, rest = parser.cut_sentence("Stormcloak Soldier: I fare well, though the night is cold.", settings)
+        assert settings.current_speaker.name == "Stormcloak Soldier"
+        assert rest == " I fare well, though the night is cold."
+        result, rest = parser.cut_sentence(" You ask how I am, but I ask you:", settings)
+        assert result is not None
+        assert result.text == " You ask how I am, but I ask you:"
+        assert rest == ""
+        assert settings.stop_generation is False
+        assert settings.discarded_character_name is None
+
+    def test_unknown_speaker_after_explicit_new_line_is_rejected(self, parser: change_character_parser, settings: sentence_generation_settings):
+        result, rest = parser.cut_sentence(accumulated_sentence("Hulda: Another round!", starts_at_line=True), settings)
+        assert result is None
+        assert rest == ""
+        assert settings.stop_generation is True
+
+    def test_valid_speaker_after_explicit_new_line_switches(self, parser: change_character_parser, settings: sentence_generation_settings):
+        result, rest = parser.cut_sentence(accumulated_sentence("Lydia: We should leave.", starts_at_line=True), settings)
+        assert result is None
+        assert rest == " We should leave."
+        assert settings.current_speaker.name == "Lydia"
+
+    def test_multiple_valid_speaker_lines_remain_switchable(self, parser: change_character_parser, settings: sentence_generation_settings):
+        parser.cut_sentence(accumulated_sentence("Lydia: We should leave.", starts_at_response=True), settings)
+        parser.cut_sentence(accumulated_sentence("Guard: The road is unsafe.", starts_at_line=True), settings)
+        assert settings.current_speaker.name == "Guard"
