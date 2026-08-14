@@ -6,17 +6,23 @@ class Characters:
     """Manages a list of NPCs - both full Characters in conversation and (lightweight) nearby NPCs
     """
     def __init__(self):
+        # Ref/Form IDs are stable actor identity; display names are not unique.
         self.__active_characters: dict[str, Character] = {}
         # All NPCs who have participated since conversation start, including those who left
         self.__all_characters_since_start: dict[str, Character] = {}
         # Ordered log of (event, npc_name, message_index). event is "join" or "leave"
         self.__participation_log: list[tuple[str, str, int]] = []
+        self.__participation_log_ids: list[tuple[str, str, int]] = []
         # Lightweight nearby NPC data
         self.__nearby_npcs: list[dict[str, Any]] = []
         # List of non-participant NPCs that will receive a summary of the conversation once the conversation ends
         self.__pending_shares: list[tuple[str, str, str]] = []
         self.__last_added_character: Character | None = None
         self.__player_character: Character | None = None
+
+    @staticmethod
+    def _identity(character: Character) -> str:
+        return character.ref_id or f"base:{character.base_id}:{character.name}"
     
     def __len__(self) -> int:
         return len(self.__active_characters)
@@ -24,9 +30,10 @@ class Characters:
     @utils.time_it
     def contains_character(self, character_to_check: str | Character) -> bool:
         if isinstance(character_to_check, Character):
-            return character_to_check.name in self.__active_characters
+            return self._identity(character_to_check) in self.__active_characters
         else:
-            return character_to_check in self.__active_characters
+            return (character_to_check in self.__active_characters
+                    or any(c.name == character_to_check for c in self.__active_characters.values()))
     
     @property
     def last_added_character(self) -> Character | None:
@@ -37,27 +44,31 @@ class Characters:
     
     @utils.time_it
     def add_or_update_character(self, new_character: Character, message_count: int = 0):
-        if new_character.name not in self.__active_characters:
-            self.__active_characters[new_character.name] = new_character
+        identity = self._identity(new_character)
+        if identity not in self.__active_characters:
+            self.__active_characters[identity] = new_character
             if not new_character.is_player_character:
-                self.__all_characters_since_start[new_character.name] = new_character
+                self.__all_characters_since_start[identity] = new_character
                 self.__participation_log.append(("join", new_character.name, message_count))
+                self.__participation_log_ids.append(("join", identity, message_count))
             if new_character.is_player_character:
                 self.__player_character = new_character
             else:
                 self.__last_added_character = new_character
         else: #Is update: update transient stats + custom values
-            self.__active_characters[new_character.name].is_enemy = new_character.is_enemy
-            self.__active_characters[new_character.name].is_in_combat = new_character.is_in_combat
-            self.__active_characters[new_character.name].relationship_rank = new_character.relationship_rank
-            self.__active_characters[new_character.name].custom_character_values = new_character.custom_character_values
+            self.__active_characters[identity].is_enemy = new_character.is_enemy
+            self.__active_characters[identity].is_in_combat = new_character.is_in_combat
+            self.__active_characters[identity].relationship_rank = new_character.relationship_rank
+            self.__active_characters[identity].custom_character_values = new_character.custom_character_values
     
     @utils.time_it
     def remove_character(self, character_to_remove: Character, message_count: int = 0):
-        if character_to_remove.name in self.__active_characters:
-            del self.__active_characters[character_to_remove.name]
+        identity = self._identity(character_to_remove)
+        if identity in self.__active_characters:
+            del self.__active_characters[identity]
             if not character_to_remove.is_player_character:
                 self.__participation_log.append(("leave", character_to_remove.name, message_count))
+                self.__participation_log_ids.append(("leave", identity, message_count))
             if character_to_remove.is_player_character:
                 self.__player_character = None
             if character_to_remove == self.__last_added_character:
@@ -67,7 +78,14 @@ class Characters:
     
     @utils.time_it
     def get_character_by_name(self, name: str) -> Character:
-        return self.__active_characters[name]
+        for character in self.__active_characters.values():
+            if character.name == name:
+                return character
+        raise KeyError(name)
+
+    @utils.time_it
+    def get_character_by_ref_id(self, ref_id: str) -> Character:
+        return self.__active_characters[ref_id]
         
     @utils.time_it
     def get_all_characters(self) -> list[Character]:
@@ -79,7 +97,7 @@ class Characters:
     
     @utils.time_it
     def get_all_names(self) -> list[str]:
-        return list(self.__active_characters.keys())
+        return [character.name for character in self.__active_characters.values()]
     
     @utils.time_it
     def contains_player_character(self) -> bool:
@@ -123,7 +141,7 @@ class Characters:
             if include_player:
                 names = self.get_all_names()
             else:
-                names = [name for name, char in self.__active_characters.items() if not char.is_player_character]
+                names = [char.name for char in self.__active_characters.values() if not char.is_player_character]
             
             # Optionally add nearby NPCs
             if include_nearby:
@@ -163,3 +181,7 @@ class Characters:
     def get_participation_log(self) -> list[tuple[str, str, int]]:
         """Returns ordered list of ("join"/"leave", npc_name, message_index) events."""
         return self.__participation_log.copy()
+
+    def get_participation_log_with_ids(self) -> list[tuple[str, str, int]]:
+        """Returns ordered participation events keyed by stable actor identity."""
+        return self.__participation_log_ids.copy()

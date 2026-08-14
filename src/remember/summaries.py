@@ -1,6 +1,9 @@
 from collections import defaultdict
 import os
 import time
+import copy
+from concurrent.futures import Future, ThreadPoolExecutor
+from itertools import count
 from typing import Dict, List
 from src.config.config_loader import ConfigLoader
 from src.config.definitions.game_definitions import GameEnum
@@ -39,6 +42,8 @@ class Summaries(Remembering):
         self.__language_name: str = language_name
         self.__memory_prompt: str = config.memory_prompt
         self.__resummarize_prompt: str = config.resummarize_prompt
+        self.__summary_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="MantellaSummary")
+        self.__summary_job_ids = count(1)
 
     def __read_summary_lines(self, file_path: str, deduplicate: bool = False) -> list[str]:
         """Read a summary file and return non-empty stripped lines.
@@ -107,8 +112,8 @@ class Summaries(Remembering):
         npc_message_threads: Dict[str, CharacterSummaryParameters] = self.get_threads_for_summarization(messages, npcs_in_conversation)
 
         # Filter to only the NPCs the caller wants summarized
-        names_to_summarize = {c.name for c in npcs_to_summarize}
-        npc_message_threads = {name: params for name, params in npc_message_threads.items() if name in names_to_summarize}
+        target_keys = {self.__summary_key(c, npcs_in_conversation.get_all_characters_since_start()) for c in npcs_to_summarize}
+        npc_message_threads = {key: params for key, params in npc_message_threads.items() if key in target_keys}
 
         npcs_with_shared_threads = self.group_shared_threads(npc_message_threads)
 
@@ -129,7 +134,7 @@ class Summaries(Remembering):
             for npc_name in npc_names:
                 npc_summaries[npc_name] = summary
                 if summary or is_reload:
-                    character = next(c for c in npcs_to_summarize if c.name == npc_name)
+                    character = next(c for c in npcs_to_summarize if self.__summary_key(c, npcs_in_conversation.get_all_characters_since_start()) == npc_name)
                     self.__append_new_conversation_summary(summary, character.name, character.ref_id, world_id, player_name, npc_gender=character.gender, npc_race=character.race)
 
         # Handle pending shares: write summary with prefix to recipient folders
@@ -158,6 +163,48 @@ class Summaries(Remembering):
                 self.__append_new_conversation_summary(prefixed_summary, recipient_name, recipient_ref_id, world_id, player_name)
                 logger.info(f"Shared conversation summary with {recipient_name}")
 
+    def schedule_conversation_state(self, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None, is_radiant: bool = False) -> Future:
+        """Queue an isolated summary snapshot so dialogue does not wait on summary inference."""
+        job_id = next(self.__summary_job_ids)
+        message_snapshot = messages.snapshot()
+        npc_snapshot = copy.deepcopy(npcs_in_conversation)
+        targets_snapshot = copy.deepcopy(npcs_to_summarize)
+        shares_snapshot = list(pending_shares) if pending_shares else None
+        logger.info(f"Summary job {job_id} scheduled reload={is_reload} targets={[npc.name for npc in targets_snapshot]}")
+        future = self.__summary_executor.submit(
+            self.__run_scheduled_summary,
+            job_id,
+            message_snapshot,
+            targets_snapshot,
+            npc_snapshot,
+            world_id,
+            is_reload,
+            shares_snapshot,
+            end_timestamp,
+            is_radiant,
+        )
+        future.add_done_callback(lambda completed: self.__summary_done(job_id, completed))
+        return future
+
+    def __run_scheduled_summary(self, job_id: int, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload: bool, pending_shares: list[tuple[str, str, str]] | None, end_timestamp: float | None, is_radiant: bool) -> None:
+        logger.debug(f"Summary job {job_id} worker started")
+        self.save_conversation_state(messages, npcs_to_summarize, npcs_in_conversation, world_id, is_reload, pending_shares, end_timestamp, is_radiant)
+
+    def __summary_done(self, job_id: int, future: Future) -> None:
+        if future.cancelled():
+            logger.warning(f"Summary job {job_id} cancelled before completion")
+            return
+        error = future.exception()
+        if error is not None:
+            logger.error(f"Summary job {job_id} failed: {error}")
+        else:
+            logger.debug(f"Summary job {job_id} completed and persisted")
+
+    def shutdown(self, wait: bool = False) -> None:
+        """Stop accepting summary jobs without blocking the active dialogue path."""
+        logger.info(f"Summary executor shutdown requested wait={wait}")
+        self.__summary_executor.shutdown(wait=wait, cancel_futures=False)
+
     @utils.time_it
     def get_threads_for_summarization(self, all_messages: message_thread, npcs_in_conversation: Characters) -> Dict[str, CharacterSummaryParameters]:
         """Returns a dictionary mapping an NPC's name to a CharacterSummaryParameters object,
@@ -166,28 +213,32 @@ class Summaries(Remembering):
         Uses the participation log from Characters to determine which messages each NPC heard,
         based on their join/leave message indices.
         """
-        participation_log = npcs_in_conversation.get_participation_log()
+        participation_log = npcs_in_conversation.get_participation_log_with_ids()
         all_chars_since_start = npcs_in_conversation.get_all_characters_since_start()
         total_messages = len(all_messages)
+        chars_by_id = {
+            c.ref_id or f"base:{c.base_id}:{c.name}": c
+            for c in all_chars_since_start
+        }
 
         # Build intervals for each NPC: list of (start_index, end_index)
         npc_intervals: Dict[str, list[tuple[int, int]]] = {}
         open_joins: Dict[str, int] = {}
 
-        for event, name, msg_index in participation_log:
+        for event, identity, msg_index in participation_log:
             if event == "join":
-                open_joins[name] = msg_index
-            elif event == "leave" and name in open_joins:
-                start = open_joins.pop(name)
-                npc_intervals.setdefault(name, []).append((start, msg_index))
+                open_joins[identity] = msg_index
+            elif event == "leave" and identity in open_joins:
+                start = open_joins.pop(identity)
+                npc_intervals.setdefault(identity, []).append((start, msg_index))
 
         # Close any open joins (NPCs still in conversation at save time)
-        for name, start in open_joins.items():
-            npc_intervals.setdefault(name, []).append((start, total_messages))
+        for identity, start in open_joins.items():
+            npc_intervals.setdefault(identity, []).append((start, total_messages))
 
         # Build per-NPC threads
         result: Dict[str, CharacterSummaryParameters] = {}
-        for npc_name, intervals in npc_intervals.items():
+        for identity, intervals in npc_intervals.items():
             start, end = intervals[-1]
 
             thread = message_thread(self.__config, None)
@@ -197,19 +248,25 @@ class Summaries(Remembering):
                     thread.add_message(msg)
 
             # Find other NPCs who were present during this NPC's latest interval
-            involved: set[str] = {npc_name}
-            for other_name, other_intervals in npc_intervals.items():
-                if other_name == npc_name:
+            involved: set[str] = {identity}
+            for other_identity, other_intervals in npc_intervals.items():
+                if other_identity == identity:
                     continue
                 for other_start, other_end in other_intervals:
                     if start < other_end and other_start < end:
-                        involved.add(other_name)
+                        involved.add(other_identity)
                         break
 
-            involved_chars = [c for c in all_chars_since_start if c.name in involved]
-            result[npc_name] = CharacterSummaryParameters(thread, involved_chars)
+            involved_chars = [chars_by_id[ref] for ref in involved if ref in chars_by_id]
+            character = chars_by_id[identity]
+            result[self.__summary_key(character, all_chars_since_start)] = CharacterSummaryParameters(thread, involved_chars)
 
         return result
+
+    @staticmethod
+    def __summary_key(character: Character, all_characters: list[Character]) -> str:
+        same_name = sum(c.name == character.name for c in all_characters)
+        return character.name if same_name == 1 else f"{character.name} [{character.ref_id}]"
 
     def group_shared_threads(self, npc_threads: Dict[str, CharacterSummaryParameters]) -> list[list[str]]:
         """Groups NPC message threads if they have exactly the same messages.

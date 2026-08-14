@@ -242,7 +242,7 @@ class Context:
     
     @utils.time_it
     def __update_ingame_events_on_npc_change(self, npc: Character):
-        current_stats: Character = self.__npcs_in_conversation.get_character_by_name(npc.name)
+        current_stats: Character = self.__npcs_in_conversation.get_character_by_ref_id(npc.ref_id)
         #Is in Combat
         if current_stats.is_in_combat != npc.is_in_combat:
             name = 'The player' if npc.is_player_character else npc.name

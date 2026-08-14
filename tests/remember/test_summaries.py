@@ -1,6 +1,7 @@
 import pytest
 import os
 import logging
+import threading
 from unittest.mock import patch
 from src.config.config_loader import ConfigLoader
 from src.config.definitions.game_definitions import GameEnum
@@ -23,6 +24,23 @@ def _build_enough_messages(thread: message_thread, config: ConfigLoader, count: 
 
 
 class TestPerNpcThreadExtraction:
+    def test_same_name_actors_get_independent_summary_threads(self, default_config: ConfigLoader, default_rememberer: Summaries, example_skyrim_npc_character: Character, another_example_skyrim_npc_character: Character):
+        first = example_skyrim_npc_character
+        second = another_example_skyrim_npc_character
+        second.name = first.name
+        thread = message_thread(default_config, "system prompt")
+        characters = Characters()
+        characters.add_or_update_character(first, len(thread))
+        thread.add_message(UserMessage(default_config, "Hello first", "Player"))
+        thread.add_message(AssistantMessage(default_config))
+        characters.remove_character(first, len(thread))
+        characters.add_or_update_character(second, len(thread))
+        thread.add_message(UserMessage(default_config, "Hello second", "Player"))
+        thread.add_message(AssistantMessage(default_config))
+        characters.remove_character(second, len(thread))
+        npc_threads = default_rememberer.get_threads_for_summarization(thread, characters)
+        assert set(npc_threads) == {f"{first.name} [{first.ref_id}]", f"{second.name} [{second.ref_id}]"}
+
     def test_single_npc_gets_all_messages(self, default_config: ConfigLoader, default_rememberer: Summaries, example_skyrim_npc_character: Character):
         """A single NPC present for the full conversation should get all messages."""
         thread = message_thread(default_config, "system prompt")
@@ -175,26 +193,80 @@ class TestConversationSummaryEnabledGating:
         assert any(self.SUMMARY_DISABLED_LOG in m for m in caplog.messages)
         assert not any(self.SUMMARY_ATTEMPTED_LOG in m for m in caplog.messages)
 
-    def test_summary_enabled_calls_save(self, default_conversation: Conversation, default_config: ConfigLoader, caplog):
-        """When conversation_summary_enabled is True, save_conversation_state should be called."""
+    def test_summary_enabled_schedules_save(self, default_conversation: Conversation, default_config: ConfigLoader, monkeypatch):
+        """When conversation_summary_enabled is True, summary persistence is scheduled."""
         default_config.conversation_summary_enabled = True
+        scheduled = []
+        monkeypatch.setattr(default_conversation._Conversation__rememberer, "schedule_conversation_state", lambda *args, **kwargs: scheduled.append((args, kwargs)))
+        default_conversation._Conversation__save_conversation(is_reload=False)
+        assert scheduled
 
-        with caplog.at_level(logging.INFO, logger="Mantella"):
-            default_conversation._Conversation__save_conversation(is_reload=False)
-
-        assert not any(self.SUMMARY_DISABLED_LOG in m for m in caplog.messages)
-        assert any(self.SUMMARY_ATTEMPTED_LOG in m for m in caplog.messages)
-
-    def test_reload_ignores_summary_disabled(self, default_conversation: Conversation, default_config: ConfigLoader, caplog):
-        """Even when conversation_summary_enabled is False, reload saves should still proceed."""
+    def test_reload_ignores_summary_disabled(self, default_conversation: Conversation, default_config: ConfigLoader, monkeypatch):
+        """Even when summaries are disabled, reload saves should still be scheduled."""
         default_config.conversation_summary_enabled = False
+        scheduled = []
+        monkeypatch.setattr(default_conversation._Conversation__rememberer, "schedule_conversation_state", lambda *args, **kwargs: scheduled.append((args, kwargs)))
+        default_conversation._Conversation__save_conversation(is_reload=True)
+        assert scheduled
 
-        with caplog.at_level(logging.INFO, logger="Mantella"):
-            default_conversation._Conversation__save_conversation(is_reload=True)
 
-        assert not any(self.SUMMARY_DISABLED_LOG in m for m in caplog.messages)
-        assert any(self.SUMMARY_ATTEMPTED_LOG in m for m in caplog.messages)
+class TestAsyncSummaryScheduling:
+    def test_slow_summary_does_not_block_following_work(self, default_config: ConfigLoader, default_rememberer: Summaries, example_skyrim_npc_character: Character):
+        """A transition can continue while its summary worker is still waiting on the LLM."""
+        thread = message_thread(default_config, "system prompt")
+        characters = Characters()
+        characters.add_or_update_character(example_skyrim_npc_character, len(thread))
+        started = threading.Event()
+        release = threading.Event()
+        persisted = threading.Event()
 
+        def slow_save(*args, **kwargs):
+            started.set()
+            assert release.wait(2)
+            persisted.set()
+
+        default_rememberer.save_conversation_state = slow_save
+        future = default_rememberer.schedule_conversation_state(
+            thread, [example_skyrim_npc_character], characters, "world", is_reload=True
+        )
+
+        assert started.wait(1)
+        dialogue_started = threading.Event()
+        dialogue_started.set()
+        assert dialogue_started.is_set()
+        assert not persisted.is_set()
+
+        release.set()
+        future.result(timeout=2)
+        assert persisted.is_set()
+        default_rememberer.shutdown(wait=True)
+
+    def test_summary_job_uses_an_isolated_snapshot(self, default_config: ConfigLoader, default_rememberer: Summaries, example_skyrim_npc_character: Character):
+        """Later active-turn mutations cannot change an already scheduled summary input."""
+        thread = message_thread(default_config, "system prompt")
+        thread.add_message(UserMessage(default_config, "before scheduling", "Player"))
+        characters = Characters()
+        characters.add_or_update_character(example_skyrim_npc_character, len(thread))
+        started = threading.Event()
+        release = threading.Event()
+        captured = []
+
+        def capture_save(messages, *args, **kwargs):
+            started.set()
+            assert release.wait(2)
+            captured.append([message.text for message in messages.get_talk_only() if isinstance(message, UserMessage)])
+
+        default_rememberer.save_conversation_state = capture_save
+        future = default_rememberer.schedule_conversation_state(
+            thread, [example_skyrim_npc_character], characters, "world", is_reload=True
+        )
+        assert started.wait(1)
+        thread.add_message(UserMessage(default_config, "after scheduling", "Player"))
+        release.set()
+        future.result(timeout=2)
+
+        assert captured == [["before scheduling"]]
+        default_rememberer.shutdown(wait=True)
 
 class TestEdgeCases:
     def test_empty_conversation(self, default_config: ConfigLoader, default_rememberer: Summaries):

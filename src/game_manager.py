@@ -20,8 +20,10 @@ from src.stt.stt import Transcriber
 from src.actions.function_manager import FunctionManager
 from src.random_llm_selector import RandomLLMSelector, LLMSelection
 from src.llm.client_base import ClientBase
+from itertools import count
 
 logger = utils.get_logger()
+_MANAGER_GENERATIONS = count(1)
 
 
 class CharacterDoesNotExist(Exception):
@@ -51,13 +53,44 @@ class GameStateManager:
         self.__should_reload: bool = False
         self.__chat_manager.clear_per_character_client_cache()
         self.__random_selector = RandomLLMSelector()
+        self.__diagnostic_generation = next(_MANAGER_GENERATIONS)
+        self.__session_id: int | str | None = None
+        self.__last_session_id: int | str | None = None
+        logger.info(f"Protocol manager created: generation={self.__diagnostic_generation} object={id(self)}")
+
+    @property
+    def diagnostic_state(self) -> str:
+        conversation = self.__talk
+        if conversation is None:
+            return f"manager={self.__diagnostic_generation}/{id(self)} conversation=None active=False ended=None"
+        return (f"manager={self.__diagnostic_generation}/{id(self)} conversation={id(conversation)} "
+                f"active={not conversation.has_already_ended} ended={conversation.has_already_ended}")
+
+    @property
+    def protocol_session_id(self):
+        return self.__session_id if self.__session_id is not None else self.__last_session_id
+
+    def request_session_matches(self, input_json: dict[str, Any]) -> bool:
+        incoming = input_json.get(comm_consts.KEY_CONVERSATION_SESSION)
+        return incoming is None or self.__session_id is None or str(incoming) == str(self.__session_id)
+
+    def stale_request_reply(self, request_type: str, incoming_session: Any) -> dict[str, Any]:
+        logger.warning(f"Protocol stale request ignored: type={request_type} incoming_session={incoming_session} active_session={self.protocol_session_id}")
+        return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_STALE_REQUEST,
+                comm_consts.KEY_CONVERSATION_SESSION: self.protocol_session_id}
 
 
     @utils.time_it
     def start_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
+        previous = id(self.__talk) if self.__talk else None
+        logger.info(f"Protocol start_conversation: {self.diagnostic_state} previous_conversation={previous}")
         if self.__talk: #This should only happen if game and server are out of sync due to some previous error -> close conversation and start a new one
             self.__talk.end()
             self.__talk = None
+
+        incoming_session = input_json.get(comm_consts.KEY_CONVERSATION_SESSION)
+        self.__session_id = incoming_session if incoming_session is not None else f"manager-{self.__diagnostic_generation}-{time.time_ns()}"
+        self.__last_session_id = self.__session_id
 
         world_id = "default"
         if input_json.__contains__(comm_consts.KEY_STARTCONVERSATION_WORLDID):
@@ -70,13 +103,20 @@ class GameStateManager:
         conversation_client = self._build_random_conversation_client() or self.__client
         context_for_conversation = Context(world_id, self.__config, conversation_client, self.__rememberer, self.__language_info)
         self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, conversation_client, self.__stt, self.__mic_input, self.__mic_ptt, self.__game)
+        logger.info(f"Protocol conversation created: {self.diagnostic_state}")
         self.__update_context(input_json)
         self.__try_preload_voice_model()
         self.__talk.start_conversation()
             
         return {
             comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED,
-            comm_consts.KEY_STARTCONVERSATION_USENARRATOR: self.__conv_has_narrator}
+            comm_consts.KEY_STARTCONVERSATION_USENARRATOR: self.__conv_has_narrator,
+            comm_consts.KEY_CONVERSATION_SESSION: self.__session_id}
+
+    @property
+    def has_active_conversation(self) -> bool:
+        """Whether this manager currently owns a live gameplay conversation."""
+        return self.__talk is not None and not self.__talk.has_already_ended
     
 
     def _build_random_conversation_client(self) -> ClientBase | None:
@@ -113,7 +153,9 @@ class GameStateManager:
     
     @utils.time_it
     def continue_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
+        logger.info(f"Protocol continue_conversation entry: {self.diagnostic_state}")
         if(not self.__talk ):
+            logger.warning("Protocol continue_conversation rejected: no active conversation")
             return self.error_message("No running conversation.")
         
         # comm_consts.KEY_INPUTTYPE is passed when the mic settings have been changed in the MCM since beginning the conversation
@@ -138,6 +180,7 @@ class GameStateManager:
                 # Player input was detected mid-response: tell the game to cut the current voiceline
                 # the game follows up with a player input request, which goes through player_input() normally
                 # (setting __first_line = True) so the streamed first line is correctly muted in-game
+                logger.info(f"Protocol interrupted reply: {self.diagnostic_state}")
                 return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_INTERRUPTED}
             elif replyType == comm_consts.KEY_REPLYTYPE_NPCACTION:
                 # Action-only response (no voiceline)
@@ -175,12 +218,14 @@ class GameStateManager:
 
     @utils.time_it
     def player_input(self, input_json: dict[str, Any]) -> dict[str, Any]:
+        player_text = input_json.get(comm_consts.KEY_REQUESTTYPE_PLAYERINPUT, '') or ''
+        logger.info(f"Protocol player_input entry: {self.diagnostic_state} text_length={len(player_text)} text_prefix={player_text[:80]!r}")
         if(not self.__talk ):
+            logger.warning("Protocol player_input rejected: no active conversation")
             return self.error_message("No running conversation.")
         
         self.__first_line = True
         
-        player_text: str = input_json.get(comm_consts.KEY_REQUESTTYPE_PLAYERINPUT, '')
         self.__update_context(input_json)
         updated_player_text, update_events, player_spoken_sentence = self.__talk.process_player_input(player_text)
         if update_events:
@@ -215,6 +260,7 @@ class GameStateManager:
 
         # if the player response is not an action command, return a regular player reply type
         if player_spoken_sentence:
+            logger.info(f"Protocol player_input dispatched: {self.diagnostic_state} text_prefix={player_spoken_sentence.text[:80]!r}")
             topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
             self.__game.prepare_sentence_for_game(player_spoken_sentence, self.__talk.context, self.__config, topicInfoID, self.__first_line)
             self.__first_line = False
@@ -224,16 +270,20 @@ class GameStateManager:
 
     @utils.time_it
     def end_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
+        ending_conversation = id(self.__talk) if self.__talk else None
+        logger.info(f"Protocol end_conversation: {self.diagnostic_state} ending_conversation={ending_conversation} timestamp={input_json.get(comm_consts.KEY_ENDCONVERSATION_TIMESTAMP)}")
         if(self.__talk):
             # Extract end timestamp from game client
             end_timestamp = input_json.get(comm_consts.KEY_ENDCONVERSATION_TIMESTAMP, None)
             self.__talk.end(end_timestamp)
             self.__talk = None
+            logger.info(f"Protocol conversation cleared: {self.diagnostic_state} ended_conversation={ending_conversation}")
 
         logger.log(24, '\nConversations not starting when you select an NPC? See here:')
         logger.log(25, 'https://art-from-the-machine.github.io/Mantella/pages/issues_qna')
         logger.log(24, '\nWaiting for player to select an NPC...')
-        return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_ENDCONVERSATION}
+        return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_ENDCONVERSATION,
+                comm_consts.KEY_CONVERSATION_SESSION: self.__last_session_id}
     
     def process_stt_setup(self, input_json: dict[str, Any]):
         '''Process the STT setup (mic / text / push-to-talk) based on the settings passed in the input JSON'''
@@ -261,6 +311,10 @@ class GameStateManager:
     
     @utils.time_it
     def sentence_to_json(self, sentence_to_prepare: Sentence, topicID: int) -> dict[str, Any]:
+        try:
+            speaker_ref_id = int(sentence_to_prepare.speaker.ref_id, 16)
+        except (TypeError, ValueError):
+            speaker_ref_id = None
         json_dict = {
             comm_consts.KEY_ACTOR_SPEAKER: sentence_to_prepare.speaker.name,
             comm_consts.KEY_ACTOR_LINETOSPEAK: self.__abbreviate_text(sentence_to_prepare.text.strip()),
@@ -270,6 +324,12 @@ class GameStateManager:
             comm_consts.KEY_ACTOR_ACTIONS: sentence_to_prepare.actions,
             comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE: topicID
         }
+        if speaker_ref_id is not None:
+            json_dict[comm_consts.KEY_ACTOR_REFID] = speaker_ref_id
+        logger.debug(
+            f"NPC talk payload speaker={sentence_to_prepare.speaker.name} "
+            f"ref_id={sentence_to_prepare.speaker.ref_id} serialized_ref_id={speaker_ref_id}"
+        )
 
         return json_dict
     
