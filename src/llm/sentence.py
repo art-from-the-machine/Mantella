@@ -3,13 +3,14 @@ from src.llm.sentence_content import SentenceTypeEnum, SentenceContent
 
 class Sentence:
     """Collection of all the things that make up a sentence said by a character"""
-    def __init__(self, content: SentenceContent, voice_file: str, voice_line_duration: float, error_message: str | None = None, played_externally: bool = False, synthesis_start_time: float | None = None) -> None:
+    def __init__(self, content: SentenceContent, voice_file: str, voice_line_duration: float, error_message: str | None = None, played_externally: bool = False, synthesis_start_time: float | None = None, diagnostic_id: int | None = None) -> None:
         self.__content: SentenceContent = content
         self.__voice_file: str = voice_file
         self.__voice_line_duration: float = voice_line_duration
         self.__error_message: str | None = error_message
         self.__played_externally: bool = played_externally
         self.__synthesis_start_time: float | None = synthesis_start_time
+        self.__diagnostic_id: int | None = diagnostic_id
 
     @property
     def content(self) -> SentenceContent:
@@ -56,3 +57,7 @@ class Sentence:
     def synthesis_start_time(self) -> float | None:
         """The time.perf_counter() timestamp taken just before TTS synthesis of this voiceline began"""
         return self.__synthesis_start_time
+
+    @property
+    def diagnostic_id(self) -> int | None:
+        return self.__diagnostic_id

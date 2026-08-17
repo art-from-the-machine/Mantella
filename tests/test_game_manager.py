@@ -168,3 +168,27 @@ def test_sentence_to_json_with_empty_actions(default_game_manager: GameStateMana
     
     assert comm_consts.KEY_ACTOR_ACTIONS in result
     assert result[comm_consts.KEY_ACTOR_ACTIONS] == []
+
+
+def test_sentence_to_json_includes_stable_speaker_ref_id(default_game_manager: GameStateManager, example_skyrim_npc_character: Character):
+    content = SentenceContent(
+        speaker=example_skyrim_npc_character,
+        text="Hello there.",
+        sentence_type=SentenceTypeEnum.SPEECH,
+    )
+    result = default_game_manager.sentence_to_json(Sentence(content, "test.wav", 1.0), topicID=1)
+
+    assert result[comm_consts.KEY_ACTOR_SPEAKER] == example_skyrim_npc_character.name
+    assert result[comm_consts.KEY_ACTOR_REFID] == int(example_skyrim_npc_character.ref_id, 16)
+
+
+def test_generic_npc_speaker_payload_preserves_ref_id(default_game_manager: GameStateManager, example_skyrim_npc_character: Character):
+    example_skyrim_npc_character.name = "Wood Elf"
+    example_skyrim_npc_character.ref_id = "000EFD"
+    example_skyrim_npc_character.is_generic_npc = True
+    content = SentenceContent(example_skyrim_npc_character, "Greetings.", SentenceTypeEnum.SPEECH)
+
+    result = default_game_manager.sentence_to_json(Sentence(content, "test.wav", 1.0), topicID=1)
+
+    assert result[comm_consts.KEY_ACTOR_SPEAKER] == "Wood Elf"
+    assert result[comm_consts.KEY_ACTOR_REFID] == int("000EFD", 16)

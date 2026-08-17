@@ -1,0 +1,42 @@
+{
+    "identifier": "mantella_npc_equip",
+    "name": "Equip",
+    "description": "Make an NPC equip armor, clothing, ammunition, or a weapon they actually own.",
+    "key": "Equip",
+    "legacy_argument": "item_name",
+    "legacy_action_group": "npc_items",
+    "legacy_action_hints": [
+        "equip",
+        "wear",
+        "wearing",
+        "put on",
+        "wield",
+        "draw",
+        "ready"
+    ],
+    "parameters": {
+        "source": {
+            "type": "string",
+            "description": "The NPC who should equip the item.",
+            "scope": "conversation"
+        },
+        "item_name": {
+            "type": "string",
+            "description": "The item to equip. Use 'best armor' for generic armor or clothing and 'best weapon' for a generic weapon.",
+            "default": "best armor"
+        }
+    },
+    "required": [
+        "source"
+    ],
+    "prompt": "Only invoke Equip when the player's CURRENT request explicitly asks to equip, wear, draw, or ready something. A correction that an item is not actually equipped or that a prior attempt failed is a new explicit request: if agreeing, invoke Equip again in the CURRENT response. For one NPC use '{key}: <item_name> | <dialogue>'; in a multi-NPC conversation use '<full NPC name>: {key}: <item_name> | <dialogue>'. Put the exact requested inventory name before '|'; use 'best armor' for generic armor/clothing and 'best weapon' for a generic weapon. Never claim an equip request succeeded without invoking Equip in the CURRENT response and waiting for Skyrim's result. Past dialogue, history, and passive equipment events do not authorize Equip. Equip uses real inventory; use Inventory for transfers. The action result and refreshed equipment override stale context.",
+    "allowed_games": [
+        "skyrim"
+    ],
+    "requires_response": true,
+    "is-interrupting": false,
+    "allow_repeat": true,
+    "one-on-one": true,
+    "multi-npc": true,
+    "radiant": false
+}

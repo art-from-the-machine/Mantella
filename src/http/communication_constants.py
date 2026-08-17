@@ -20,6 +20,8 @@ class communication_constants:
     KEY_REPLYTYPE_PLAYERTALK: str  = PREFIX + "player_talk"
     KEY_REPLYTYPE_ENDCONVERSATION: str  = PREFIX + "end_conversation"
     KEY_REPLYTYPE_INTERRUPTED: str  = PREFIX + "interrupted"
+    KEY_REPLYTYPE_STALE_REQUEST: str = PREFIX + "stale_request"
+    KEY_CONVERSATION_SESSION: str = PREFIX + "conversation_session"
 
     KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"
     KEY_STARTCONVERSATION_USENARRATOR: str = PREFIX + "use_narrator"

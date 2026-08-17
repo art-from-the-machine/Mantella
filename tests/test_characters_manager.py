@@ -1,6 +1,23 @@
 import pytest
+from copy import copy
 from src.characters_manager import Characters
 from src.character_manager import Character
+from src.games.equipment import Equipment, EquipmentItem
+
+
+def test_character_update_replaces_stale_equipment(example_skyrim_npc_character: Character):
+    chars = Characters()
+    chars.add_or_update_character(example_skyrim_npc_character)
+
+    refreshed_character = copy(example_skyrim_npc_character)
+    refreshed_character.equipment = Equipment({
+        Equipment.BODY: EquipmentItem("Belted Tunic"),
+    })
+    chars.add_or_update_character(refreshed_character)
+
+    current_character = chars.get_character_by_name(example_skyrim_npc_character.name)
+    assert current_character.equipment.get_equipment_description(current_character.name) == \
+        f"{current_character.name} wears Belted Tunic."
 
 
 class TestNearbyNPCs:
@@ -46,6 +63,31 @@ class TestNearbyNPCs:
         chars = Characters()
         
         assert chars.get_nearby_npc_names() == []
+
+    def test_same_display_name_actors_remain_distinct(self, example_skyrim_npc_character: Character):
+        first = example_skyrim_npc_character
+        second = Character(
+            base_id=first.base_id, ref_id="0799F8", name=first.name,
+            gender_raw=first.gender_raw, race_raw=first.race_raw,
+            is_player_character=False, bio=first.bio,
+            is_in_combat=False, is_enemy=False, relationship_rank=0,
+            is_generic_npc=True, ingame_voice_model=first.in_game_voice_model,
+            tts_voice_model=first.tts_voice_model,
+            csv_in_game_voice_model=first.csv_in_game_voice_model,
+            advanced_voice_model=first.advanced_voice_model,
+            voice_accent=first.voice_accent, equipment=first.equipment,
+            custom_character_values={},
+        )
+        first.ref_id = "0799F9"
+        chars = Characters()
+        chars.add_or_update_character(first)
+        chars.add_or_update_character(second)
+        assert chars.active_character_count() == 2
+        assert chars.get_character_by_ref_id("0799F9") is first
+        assert chars.get_character_by_ref_id("0799F8") is second
+        chars.remove_character(first)
+        assert chars.active_character_count() == 1
+        assert chars.get_character_by_ref_id("0799F8") is second
 
 
 class TestGetAllNamesWithNearby:

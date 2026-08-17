@@ -26,6 +26,27 @@ class Equipment:
     def get_item(self, slot: str) -> EquipmentItem | None:
         if self.__slots_to_items.__contains__(slot):
             return self.__slots_to_items[slot]
+
+    def item_names(self) -> tuple[str, ...]:
+        """Return the concrete currently equipped item names reported by the game."""
+        names: list[str] = []
+        for item in self.__slots_to_items.values():
+            if not isinstance(item, EquipmentItem) or not isinstance(item.name, str):
+                continue
+            name = item.name.strip()
+            if name and name not in names:
+                names.append(name)
+        return tuple(names)
+
+    def remove_item(self, item_name: str) -> bool:
+        """Invalidate slots containing an item authoritative events say was removed."""
+        target = item_name.strip().casefold()
+        removed = False
+        for slot, item in tuple(self.__slots_to_items.items()):
+            if isinstance(item, EquipmentItem) and isinstance(item.name, str) and item.name.strip().casefold() == target:
+                del self.__slots_to_items[slot]
+                removed = True
+        return removed
         
     @utils.time_it
     def get_equipment_description(self, character_name: str) -> str:        
@@ -89,4 +110,3 @@ class Equipment:
             return listing[0]
         else:
             return ', '.join(listing[:-1]) + ' and ' + listing[-1]          
-

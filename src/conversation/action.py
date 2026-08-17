@@ -1,6 +1,8 @@
 class Action:
     def __init__(self, identifier: str, name: str, keyword: str, description: str, prompt_text: str, 
-                 requires_response: bool, is_interrupting: bool, one_on_one: bool, multi_npc: bool, radiant: bool) -> None:
+                 requires_response: bool, is_interrupting: bool, one_on_one: bool, multi_npc: bool, radiant: bool,
+                 legacy_argument: str = "", legacy_action_group: str = "",
+                 legacy_action_hints: list[str] | None = None) -> None:
         self.__identifier = identifier
         self.__name = name
         self.__keyword = keyword
@@ -11,6 +13,9 @@ class Action:
         self.__one_on_one = one_on_one
         self.__multi_npc = multi_npc
         self.__radiant = radiant
+        self.__legacy_argument = legacy_argument
+        self.__legacy_action_group = legacy_action_group
+        self.__legacy_action_hints = legacy_action_hints or []
 
     @property
     def identifier(self) -> str:
@@ -35,6 +40,18 @@ class Action:
     @property
     def prompt_text(self) -> str:
         return self.__prompt_text
+
+    @property
+    def legacy_argument(self) -> str:
+        return self.__legacy_argument
+
+    @property
+    def legacy_action_group(self) -> str:
+        return self.__legacy_action_group
+
+    @property
+    def legacy_action_hints(self) -> list[str]:
+        return self.__legacy_action_hints
     
     @property
     def requires_response(self) -> bool:

@@ -1,4 +1,5 @@
 from typing import Any, Hashable
+import re
 from src.conversation.action import Action
 from src.http.communication_constants import communication_constants
 from src.conversation.conversation_log import conversation_log
@@ -20,7 +21,7 @@ class Context:
     TOKEN_LIMIT_PERCENT: float = 0.45
 
     @utils.time_it
-    def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: Remembering, language: dict[Hashable, str]) -> None:
+    def __init__(self, world_id: str, config: ConfigLoader, client: LLMClient, rememberer: Remembering, language: dict[Hashable, str], previous_location: str | None = None, previous_game_days: float | None = None) -> None:
         self.__world_id = world_id
         self.__hourly_time = config.hourly_time
         self.__prev_game_time: tuple[str | None, str] | None = None
@@ -35,12 +36,18 @@ class Context:
         self.__ingame_time: int = 12
         self.__game_days: float = 1.0  # Full game timestamp (days.fraction)
         self.__ingame_events: list[str] = []
+        self.__recent_equip_items_by_actor: dict[str, list[str]] = {}
+        self.__authoritative_inventory_items_by_actor: dict[str, list[str]] = {}
+        self.__authoritative_inventory_actor_refs: set[str] = set()
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
         self.__game: GameEnum = config.game
         self.__prev_nearby_npc_names: list[str] = []  # Cache for nearby NPC names
 
         self.__prev_location: str | None = None
+        self.__location_changed: bool = False
+        self.__previous_location_for_transition = previous_location
+        self.__previous_game_days_for_transition = previous_game_days
         if self.__game.base_game == GameEnum.FALLOUT4:
             self.__location: str = 'the Commonwealth'
         else:
@@ -89,6 +96,29 @@ class Context:
     @property
     def have_actors_changed(self) -> bool:
         return self.__have_actors_changed
+
+    @property
+    def location_changed(self) -> bool:
+        return self.__location_changed
+
+    def clear_location_changed(self):
+        self.__location_changed = False
+
+    def get_authoritative_current_state_event(self) -> str:
+        """Return present-state location and equipment for the next LLM turn."""
+        state = (
+            "AUTHORITATIVE CURRENT SKYRIM STATE: The group is currently in "
+            f"{self.__location}. This current location overrides older location "
+            "claims in dialogue, memories, and prior scene context."
+        )
+        equipment = self.__get_npc_equipment_text()
+        if equipment:
+            state += (
+                " AUTHORITATIVE CURRENT SKYRIM EQUIPMENT: "
+                f"{equipment} This overrides older equipment descriptions, "
+                "conversation claims, memories, and cached/static context."
+            )
+        return state
     
     @have_actors_changed.setter
     def have_actors_changed(self, value: bool):
@@ -137,6 +167,102 @@ class Context:
     def clear_context_ingame_events(self):
         self.__ingame_events.clear()
 
+    def get_recent_equip_items(self, actor_ref_id: str) -> tuple[str, ...]:
+        """Return immediate authoritative transfer referents for one stable actor."""
+        return tuple(self.__recent_equip_items_by_actor.get(str(actor_ref_id), []))
+
+    def get_known_owned_equip_items(self, actor_ref_id: str) -> tuple[str, ...]:
+        """Snapshot currently owned/equipped items known for one stable actor."""
+        ref_id = str(actor_ref_id)
+        items = list(self.__authoritative_inventory_items_by_actor.get(ref_id, ()))
+        actor = self.__npcs_in_conversation.get_character_by_ref_id(ref_id)
+        if actor:
+            items.extend(actor.equipment.item_names())
+        items.extend(self.__recent_equip_items_by_actor.get(ref_id, ()))
+        return tuple(dict.fromkeys(item for item in items if item))
+
+    def has_authoritative_inventory(self, actor_ref_id: str) -> bool:
+        return str(actor_ref_id) in self.__authoritative_inventory_actor_refs
+
+    def clear_recent_equip_items(self, actor_ref_id: str | None = None) -> None:
+        if actor_ref_id is None:
+            self.__recent_equip_items_by_actor.clear()
+        else:
+            self.__recent_equip_items_by_actor.pop(str(actor_ref_id), None)
+
+    @staticmethod
+    def __parse_inventory_items(raw_items: str) -> list[str]:
+        value = raw_items.strip().rstrip(".")
+        value = re.sub(r",?\s+and\s+", ", ", value, flags=re.IGNORECASE)
+        result: list[str] = []
+        for raw_item in value.split(","):
+            item = re.sub(r"\s+x\d+\s*$", "", raw_item.strip(), flags=re.IGNORECASE)
+            if item and item.casefold() not in {"nothing", "empty"}:
+                result.append(item)
+        return list(dict.fromkeys(result))
+
+    def __unique_npc(self, display_name: str) -> Character | None:
+        matches = [
+            actor for actor in self.__npcs_in_conversation.get_non_player_characters()
+            if actor.name.casefold() == display_name.strip().casefold()
+        ]
+        return matches[0] if len(matches) == 1 else None
+
+    def remember_authoritative_item_state(self, events: list[str] | tuple[str, ...] | None) -> None:
+        """Persist inventory evidence and invalidate equipment removed by newer events."""
+        if not events:
+            return
+        for event in events:
+            inventory = re.match(
+                r"\s*Authoritative Skyrim inventory for (.+?) at action time:\s*(.*?)\s*$",
+                event,
+                re.IGNORECASE,
+            )
+            if inventory:
+                actor = self.__unique_npc(inventory.group(1))
+                if actor:
+                    actor_ref_id = str(actor.ref_id)
+                    self.__authoritative_inventory_items_by_actor[actor_ref_id] = self.__parse_inventory_items(inventory.group(2))
+                    self.__authoritative_inventory_actor_refs.add(actor_ref_id)
+                continue
+
+            transfer = re.match(
+                r"\s*(.+?)\s+(?:picked up\s*/\s*took|picked up|took)\s+(.+?)\s+from\s+(.+?)\.?\s*$",
+                event,
+                re.IGNORECASE,
+            )
+            if not transfer:
+                continue
+            recipient_name, item_name, source_name = (part.strip() for part in transfer.groups())
+            recipient = self.__unique_npc(recipient_name)
+            source = self.__unique_npc(source_name)
+            if recipient:
+                actor_ref_id = str(recipient.ref_id)
+                recent = self.__recent_equip_items_by_actor.setdefault(actor_ref_id, [])
+                if item_name not in recent:
+                    recent.append(item_name)
+                    logger.info("Equip transfer remembered: actor=%s item=%s", actor_ref_id, item_name)
+                inventory_items = self.__authoritative_inventory_items_by_actor.setdefault(actor_ref_id, [])
+                if item_name not in inventory_items:
+                    inventory_items.append(item_name)
+            if source:
+                actor_ref_id = str(source.ref_id)
+                target = item_name.casefold()
+                self.__authoritative_inventory_items_by_actor[actor_ref_id] = [
+                    item for item in self.__authoritative_inventory_items_by_actor.get(actor_ref_id, [])
+                    if item.casefold() != target
+                ]
+                self.__recent_equip_items_by_actor[actor_ref_id] = [
+                    item for item in self.__recent_equip_items_by_actor.get(actor_ref_id, [])
+                    if item.casefold() != target
+                ]
+                if source.equipment.remove_item(item_name):
+                    logger.info("Authoritative equipment invalidated: actor=%s item=%s", actor_ref_id, item_name)
+
+    def remember_recent_equip_transfers(self, events: list[str] | tuple[str, ...] | None) -> None:
+        """Compatibility entry point for authoritative inventory/transfer persistence."""
+        self.remember_authoritative_item_state(events)
+
     @utils.time_it
     def add_or_update_characters(self, new_list_of_npcs: list[Character], message_count: int) -> list[Character]:
         removed_npcs = []
@@ -174,12 +300,16 @@ class Context:
     def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any], config_settings: dict[str, Any] | None, game_days: float | None = None):
         self.__custom_context_values = custom_context_values
 
+        previous_game_days = self.__game_days
         # Store game_days if provided
         if game_days is not None:
             self.__game_days = game_days
 
         if location:
+            previous_location = self.__location
             if location != '':
+                if location != self.__location:
+                    self.__location_changed = True
                 self.__location = location
             else:
                 if self.__game.base_game == GameEnum.FALLOUT4:
@@ -188,10 +318,16 @@ class Context:
                     self.__location: str = "Skyrim"
             if self.__prev_location is None:
                 self.__prev_location = self.__location
-                self.__ingame_events.append(f"The location is now {self.__location}.")
+                if self.__locations_are_meaningfully_different(self.__previous_location_for_transition, self.__location):
+                    self.__append_travel_event(self.__previous_location_for_transition, self.__location, self.__previous_game_days_for_transition, game_days)
+                else:
+                    self.__ingame_events.append(f"The location is now {self.__location}.")
             elif self.__location != self.__prev_location:
+                if self.__locations_are_meaningfully_different(previous_location, self.__location):
+                    self.__append_travel_event(previous_location, self.__location, previous_game_days, game_days)
+                else:
+                    self.__ingame_events.append(f"The location is now {location}.")
                 self.__prev_location = self.__location
-                self.__ingame_events.append(f"The location is now {location}.")
         
         if in_game_time is not None:
             self.__ingame_time = in_game_time
@@ -236,13 +372,41 @@ class Context:
 
         if custom_ingame_events:
             self.__ingame_events.extend(custom_ingame_events)
+            self.remember_recent_equip_transfers(custom_ingame_events)
 
         if config_settings:
             self.__config_settings = config_settings
+
+    @staticmethod
+    def __location_key(location: str | None) -> str | None:
+        if not location:
+            return None
+        key = " ".join(location.casefold().split())
+        for suffix in (" interior", " exterior", " interior cell", " exterior cell"):
+            if key.endswith(suffix):
+                key = key[:-len(suffix)].rstrip(" -:")
+        return key
+
+    @classmethod
+    def __locations_are_meaningfully_different(cls, previous: str | None, current: str | None) -> bool:
+        previous_key = cls.__location_key(previous)
+        current_key = cls.__location_key(current)
+        return bool(previous_key and current_key and previous_key != current_key)
+
+    def __append_travel_event(self, previous: str | None, current: str, previous_game_days: float | None, game_days: float | None):
+        travel_event = (
+            f"Since the previous relevant interaction, the player and accompanying characters "
+            f"traveled from {previous} to {current}."
+        )
+        if previous_game_days is not None and game_days is not None:
+            elapsed_days = game_days - previous_game_days
+            if elapsed_days > 0:
+                travel_event += f" Approximately {elapsed_days:.1f} in-game days passed during the journey."
+        self.__ingame_events.append(travel_event)
     
     @utils.time_it
     def __update_ingame_events_on_npc_change(self, npc: Character):
-        current_stats: Character = self.__npcs_in_conversation.get_character_by_name(npc.name)
+        current_stats: Character = self.__npcs_in_conversation.get_character_by_ref_id(npc.ref_id)
         #Is in Combat
         if current_stats.is_in_combat != npc.is_in_combat:
             name = 'The player' if npc.is_player_character else npc.name
@@ -384,15 +548,23 @@ class Context:
     
     @utils.time_it
     def __get_npc_equipment_text(self) -> str:
-        """Gets the equipment description of all npcs in the conversation
+        """Gets authoritative live equipment for all NPCs in the conversation.
 
         Returns:
             str: the equipment descriptions concatenated together into a single string
         """
         equipment_descriptions = []
         for character in self.__npcs_in_conversation.get_non_player_characters():
-                equipment_descriptions.append(character.equipment.get_equipment_description(character.name))
-        return " ".join(equipment_descriptions)
+            description = character.equipment.get_equipment_description(character.name)
+            if description:
+                equipment_descriptions.append(description)
+            else:
+                equipment_descriptions.append(f"{character.name} has no equipped armor or weapons reported by Skyrim.")
+        if not equipment_descriptions:
+            return ""
+        return ("Authoritative shared current Skyrim equipment for every active NPC "
+                "(use this for questions about any participant; it overrides contradictory "
+                "dialogue, events, and memories): " + " ".join(equipment_descriptions))
     
     @utils.time_it
     def __get_action_texts(self, actions: list[Action]) -> str:
@@ -468,6 +640,16 @@ class Context:
         else:
             self.__prev_game_time = None, time_group
         conversation_summaries = self.__rememberer.get_prompt_text(non_player_chars, self.__world_id)
+        if conversation_summaries:
+            # Summaries preserve narrative continuity, but they can contain
+            # obsolete dialogue about transient equipment. Make that temporal
+            # boundary explicit wherever a configured prompt inserts history.
+            conversation_summaries = (
+                "[Historical memory only: any inventory or equipment claims below are past "
+                "narrative, not evidence of what anyone is currently wearing or using. "
+                "Use the authoritative current Skyrim equipment above for every present-state "
+                "question.]\n" + conversation_summaries
+            )
         
         # Only include legacy action prompts if advanced actions are disabled
         actions = self.__get_action_texts(actions_for_prompt) if not self.__config.advanced_actions_enabled else ""

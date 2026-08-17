@@ -1,5 +1,18 @@
 import pytest
 import warnings
+import sys
+from types import SimpleNamespace
+
+# Configuration imports tkinter even for tests that never open the settings UI.
+# Keep the real production imports usable in headless CI; UI tests should opt
+# into a desktop environment explicitly.
+try:
+    import tkinter  # type: ignore  # noqa: F401
+except ModuleNotFoundError:
+    tkinter = type(sys)("tkinter")
+    tkinter.Tk = object
+    tkinter.filedialog = SimpleNamespace()
+    sys.modules["tkinter"] = tkinter
 
 # Suppress third party deprecation warnings at import time
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated", category=DeprecationWarning)
@@ -91,7 +104,12 @@ def default_config(tmp_path: Path) -> ConfigLoader:
 
     # Load the actual config file
     # NOTE: This does not work with user-defined save folder paths
-    my_games_folder = utils.get_my_games_directory(custom_user_folder='')
+    try:
+        my_games_folder = utils.get_my_games_directory(custom_user_folder='')
+    except (FileNotFoundError, OSError):
+        # Headless CI Windows images may not have the user's Shell Folders
+        # registry key; keep the test configuration isolated in tmp_path.
+        my_games_folder = str(tmp_path)
     actual_config = ConfigLoader(mygame_folder_path=my_games_folder)
 
     # Not all default values workout of the box

@@ -6,6 +6,7 @@ from src.characters_manager import Characters
 from src.conversation.action import Action
 from src.games.gameable import Gameable
 from src import utils
+from src.actions.action_authorization import ActionAuthorizationContext, ActionTurnLifecycle
 
 logger = utils.get_logger()
 
@@ -16,7 +17,7 @@ class FunctionManager:
     _disabled_action_names: list[str] = []  # Track disabled actions for logger
 
     @staticmethod
-    def parse_function_calls(tools_called: list[ChatCompletionMessageToolCall], characters: Characters = None, game: Gameable | None = None) -> list[dict]:
+    def parse_function_calls(tools_called: list[ChatCompletionMessageToolCall], characters: Characters = None, game: Gameable | None = None, authorization_context: ActionAuthorizationContext | None = None, actor_ref_id: str | None = None, action_lifecycle: ActionTurnLifecycle | None = None) -> list[dict]:
         """Parse function calls from the LLM response and validate arguments
         
         Args:
@@ -130,12 +131,38 @@ class FunctionManager:
                         # tools without actions will be treated as basic actions
                         if validated_args:
                             parsed_tool['arguments'] = validated_args
+
+                        authorization_actor_ref = actor_ref_id
+                        source = parsed_tool.get('arguments', {}).get('source')
+                        if isinstance(source, str) and authorization_context is not None:
+                            authorization_actor_ref = authorization_context.resolve_actor_ref(source) or actor_ref_id
+                        if action_lifecycle is not None:
+                            action_lifecycle.record_generated(identifier, authorization_actor_ref)
                         
                         # Check for duplicate tool call from previous turn
                         if FunctionManager._is_duplicate_call(parsed_tool, action_def):
+                            if action_lifecycle is not None:
+                                action_lifecycle.record_rejected(identifier, authorization_actor_ref, "duplicate_tool_call")
                             logger.log(23, f"Filtered duplicate tool call: {identifier} with args {parsed_tool.get('arguments', {})}")
                             continue
                         
+                        if authorization_context is not None:
+                            allowed, reason = authorization_context.authorize(
+                                identifier,
+                                authorization_actor_ref,
+                                validated_args,
+                            )
+                            if not allowed:
+                                if action_lifecycle is not None:
+                                    action_lifecycle.record_rejected(identifier, authorization_actor_ref, reason)
+                                logger.warning(
+                                    f"Action rejected: {identifier} reason={reason} "
+                                    f"turn={authorization_context.turn_id} actor={authorization_actor_ref or 'unknown'}"
+                                )
+                                continue
+                            if action_lifecycle is not None:
+                                action_lifecycle.record_authorized(identifier, authorization_actor_ref)
+
                         # Handle action-specific side effects
                         FunctionManager._handle_action_side_effects(parsed_tool, identifier, characters)
                         
@@ -240,8 +267,11 @@ class FunctionManager:
             one_on_one = bool(action_data.get('one-on-one', action_data.get('one_on_one', False)))
             multi_npc = bool(action_data.get('multi-npc', action_data.get('multi_npc', False)))
             radiant = bool(action_data.get('radiant', False))
+            legacy_argument = action_data.get('legacy_argument', '')
+            legacy_action_group = action_data.get('legacy_action_group', '')
+            legacy_action_hints = action_data.get('legacy_action_hints', [])
             
-            result.append(Action(identifier, name, key, description, prompt, requires_response, is_interrupting, one_on_one, multi_npc, radiant))
+            result.append(Action(identifier, name, key, description, prompt, requires_response, is_interrupting, one_on_one, multi_npc, radiant, legacy_argument, legacy_action_group, legacy_action_hints))
         
         return result
 

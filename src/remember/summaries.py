@@ -1,6 +1,9 @@
 from collections import defaultdict
 import os
 import time
+import copy
+from concurrent.futures import Future, ThreadPoolExecutor
+from itertools import count
 from typing import Dict, List
 from src.config.config_loader import ConfigLoader
 from src.config.definitions.game_definitions import GameEnum
@@ -17,6 +20,14 @@ from src import utils
 
 logger = utils.get_logger()
 
+TRANSIENT_STATE_SUMMARY_RULE = (
+    "Do not record inventory contents, currently worn/equipped items, or whether an equip attempt "
+    "succeeded in long-term memory. Those facts are transient and are supplied authoritatively by "
+    "the game at runtime; dialogue claims about them are not evidence. Preserve relevant emotional "
+    "or narrative consequences, but treat historical equipment claims as past narrative only, "
+    "never as the NPC's current equipment."
+)
+
 
 class CharacterSummaryParameters:
     """Encapsulates the messages and involved characters for a single NPC's summary."""
@@ -29,16 +40,27 @@ class Summaries(Remembering):
     """ Stores a conversation as a summary in a text file.
         Loads the latest summary from disk for a prompt text.
     """
+    SUMMARY_MAX_ATTEMPTS = 3
+    SUMMARY_RETRY_DELAY_SECONDS = 1.0
+
     def __init__(self, game: Gameable, config: ConfigLoader, client: LLMClient, language_name: str, summary_client: SummaryLLMClient | None = None, summary_limit_pct: float = 0.3) -> None:
         super().__init__()
         self.loglevel = 28
         self.__config = config
         self.__game: Gameable = game
         self.__summary_limit_pct: float = summary_limit_pct
+        self.__dialogue_client: ClientBase = client
+        self.__summary_client: SummaryLLMClient | None = summary_client
         self.__client: ClientBase = summary_client if summary_client else client
         self.__language_name: str = language_name
         self.__memory_prompt: str = config.memory_prompt
         self.__resummarize_prompt: str = config.resummarize_prompt
+        if summary_client:
+            logger.info("Conversation summaries use the dedicated summary LLM")
+        else:
+            logger.info("Conversation summaries use the dialogue LLM (compatibility fallback)")
+        self.__summary_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="MantellaSummary")
+        self.__summary_job_ids = count(1)
 
     def __read_summary_lines(self, file_path: str, deduplicate: bool = False) -> list[str]:
         """Read a summary file and return non-empty stripped lines.
@@ -107,8 +129,8 @@ class Summaries(Remembering):
         npc_message_threads: Dict[str, CharacterSummaryParameters] = self.get_threads_for_summarization(messages, npcs_in_conversation)
 
         # Filter to only the NPCs the caller wants summarized
-        names_to_summarize = {c.name for c in npcs_to_summarize}
-        npc_message_threads = {name: params for name, params in npc_message_threads.items() if name in names_to_summarize}
+        target_keys = {self.__summary_key(c, npcs_in_conversation.get_all_characters_since_start()) for c in npcs_to_summarize}
+        npc_message_threads = {key: params for key, params in npc_message_threads.items() if key in target_keys}
 
         npcs_with_shared_threads = self.group_shared_threads(npc_message_threads)
 
@@ -129,7 +151,7 @@ class Summaries(Remembering):
             for npc_name in npc_names:
                 npc_summaries[npc_name] = summary
                 if summary or is_reload:
-                    character = next(c for c in npcs_to_summarize if c.name == npc_name)
+                    character = next(c for c in npcs_to_summarize if self.__summary_key(c, npcs_in_conversation.get_all_characters_since_start()) == npc_name)
                     self.__append_new_conversation_summary(summary, character.name, character.ref_id, world_id, player_name, npc_gender=character.gender, npc_race=character.race)
 
         # Handle pending shares: write summary with prefix to recipient folders
@@ -158,6 +180,48 @@ class Summaries(Remembering):
                 self.__append_new_conversation_summary(prefixed_summary, recipient_name, recipient_ref_id, world_id, player_name)
                 logger.info(f"Shared conversation summary with {recipient_name}")
 
+    def schedule_conversation_state(self, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload=False, pending_shares: list[tuple[str, str, str]] | None = None, end_timestamp: float | None = None, is_radiant: bool = False) -> Future:
+        """Queue an isolated summary snapshot so dialogue does not wait on summary inference."""
+        job_id = next(self.__summary_job_ids)
+        message_snapshot = messages.snapshot()
+        npc_snapshot = copy.deepcopy(npcs_in_conversation)
+        targets_snapshot = copy.deepcopy(npcs_to_summarize)
+        shares_snapshot = list(pending_shares) if pending_shares else None
+        logger.info(f"Summary job {job_id} scheduled reload={is_reload} targets={[npc.name for npc in targets_snapshot]}")
+        future = self.__summary_executor.submit(
+            self.__run_scheduled_summary,
+            job_id,
+            message_snapshot,
+            targets_snapshot,
+            npc_snapshot,
+            world_id,
+            is_reload,
+            shares_snapshot,
+            end_timestamp,
+            is_radiant,
+        )
+        future.add_done_callback(lambda completed: self.__summary_done(job_id, completed))
+        return future
+
+    def __run_scheduled_summary(self, job_id: int, messages: message_thread, npcs_to_summarize: list[Character], npcs_in_conversation: Characters, world_id: str, is_reload: bool, pending_shares: list[tuple[str, str, str]] | None, end_timestamp: float | None, is_radiant: bool) -> None:
+        logger.debug(f"Summary job {job_id} worker started")
+        self.save_conversation_state(messages, npcs_to_summarize, npcs_in_conversation, world_id, is_reload, pending_shares, end_timestamp, is_radiant)
+
+    def __summary_done(self, job_id: int, future: Future) -> None:
+        if future.cancelled():
+            logger.warning(f"Summary job {job_id} cancelled before completion")
+            return
+        error = future.exception()
+        if error is not None:
+            logger.error(f"Summary job {job_id} failed: {error}")
+        else:
+            logger.debug(f"Summary job {job_id} completed and persisted")
+
+    def shutdown(self, wait: bool = False) -> None:
+        """Stop accepting summary jobs without blocking the active dialogue path."""
+        logger.info(f"Summary executor shutdown requested wait={wait}")
+        self.__summary_executor.shutdown(wait=wait, cancel_futures=False)
+
     @utils.time_it
     def get_threads_for_summarization(self, all_messages: message_thread, npcs_in_conversation: Characters) -> Dict[str, CharacterSummaryParameters]:
         """Returns a dictionary mapping an NPC's name to a CharacterSummaryParameters object,
@@ -166,28 +230,32 @@ class Summaries(Remembering):
         Uses the participation log from Characters to determine which messages each NPC heard,
         based on their join/leave message indices.
         """
-        participation_log = npcs_in_conversation.get_participation_log()
+        participation_log = npcs_in_conversation.get_participation_log_with_ids()
         all_chars_since_start = npcs_in_conversation.get_all_characters_since_start()
         total_messages = len(all_messages)
+        chars_by_id = {
+            c.ref_id or f"base:{c.base_id}:{c.name}": c
+            for c in all_chars_since_start
+        }
 
         # Build intervals for each NPC: list of (start_index, end_index)
         npc_intervals: Dict[str, list[tuple[int, int]]] = {}
         open_joins: Dict[str, int] = {}
 
-        for event, name, msg_index in participation_log:
+        for event, identity, msg_index in participation_log:
             if event == "join":
-                open_joins[name] = msg_index
-            elif event == "leave" and name in open_joins:
-                start = open_joins.pop(name)
-                npc_intervals.setdefault(name, []).append((start, msg_index))
+                open_joins[identity] = msg_index
+            elif event == "leave" and identity in open_joins:
+                start = open_joins.pop(identity)
+                npc_intervals.setdefault(identity, []).append((start, msg_index))
 
         # Close any open joins (NPCs still in conversation at save time)
-        for name, start in open_joins.items():
-            npc_intervals.setdefault(name, []).append((start, total_messages))
+        for identity, start in open_joins.items():
+            npc_intervals.setdefault(identity, []).append((start, total_messages))
 
         # Build per-NPC threads
         result: Dict[str, CharacterSummaryParameters] = {}
-        for npc_name, intervals in npc_intervals.items():
+        for identity, intervals in npc_intervals.items():
             start, end = intervals[-1]
 
             thread = message_thread(self.__config, None)
@@ -197,19 +265,31 @@ class Summaries(Remembering):
                     thread.add_message(msg)
 
             # Find other NPCs who were present during this NPC's latest interval
-            involved: set[str] = {npc_name}
-            for other_name, other_intervals in npc_intervals.items():
-                if other_name == npc_name:
+            involved: set[str] = {identity}
+            for other_identity, other_intervals in npc_intervals.items():
+                if other_identity == identity:
                     continue
                 for other_start, other_end in other_intervals:
                     if start < other_end and other_start < end:
-                        involved.add(other_name)
+                        involved.add(other_identity)
                         break
 
-            involved_chars = [c for c in all_chars_since_start if c.name in involved]
-            result[npc_name] = CharacterSummaryParameters(thread, involved_chars)
+            # Preserve stable participant/join order. Iterating the set made
+            # summary prompt identity order process-dependent and could swap
+            # same-turn participants between otherwise identical runs.
+            involved_chars = [
+                character for character in all_chars_since_start
+                if (character.ref_id or f"base:{character.base_id}:{character.name}") in involved
+            ]
+            character = chars_by_id[identity]
+            result[self.__summary_key(character, all_chars_since_start)] = CharacterSummaryParameters(thread, involved_chars)
 
         return result
+
+    @staticmethod
+    def __summary_key(character: Character, all_characters: list[Character]) -> str:
+        same_name = sum(c.name == character.name for c in all_characters)
+        return character.name if same_name == 1 else f"{character.name} [{character.ref_id}]"
 
     def group_shared_threads(self, npc_threads: Dict[str, CharacterSummaryParameters]) -> list[list[str]]:
         """Groups NPC message threads if they have exactly the same messages.
@@ -298,22 +378,15 @@ class Summaries(Remembering):
                     races=races,
                     genders_and_races=genders_and_races
                 )
-        while True:
-            try:
-                if len(npc_info.messages) >= min_messages:
-                    summary = self.summarize_conversation(npc_info.messages.transform_to_dict_representation(npc_info.messages.get_talk_only()), prompt)
-                    # Prepend timestamp to summary if available
-                    if summary and end_timestamp is not None and self.__config.memory_prompt_datetime_prefix:
-                        timestamp_prefix = self.__format_timestamp(end_timestamp)
-                        summary = f"{timestamp_prefix}\n{summary}"
-                    return summary
-                else:
-                    logger.info(f"Conversation summary not saved. Not enough dialogue spoken.")
-                break
-            except Exception:
-                logger.error('Failed to summarize conversation. Retrying...')
-                time.sleep(5)
-                continue
+        prompt = f"{prompt.rstrip()}\n\n{TRANSIENT_STATE_SUMMARY_RULE}"
+        if len(npc_info.messages) >= min_messages:
+            summary = self.summarize_conversation(npc_info.messages.transform_to_dict_representation(npc_info.messages.get_talk_only()), prompt)
+            # Prepend timestamp to summary if available
+            if summary and end_timestamp is not None and self.__config.memory_prompt_datetime_prefix:
+                timestamp_prefix = self.__format_timestamp(end_timestamp)
+                summary = f"{timestamp_prefix}\n{summary}"
+            return summary
+        logger.info("Conversation summary not saved. Not enough dialogue spoken.")
         return ""
 
     @utils.time_it
@@ -343,22 +416,19 @@ class Summaries(Remembering):
         # if summaries token limit is reached, summarize the summaries
         if count_tokens_summaries > summary_limit:
             logger.info(f'Token limit of conversation summaries reached ({count_tokens_summaries} / {summary_limit} tokens). Creating new summary file...')
-            while True:
-                try:
-                    prompt = self.__resummarize_prompt.format(
-                        name=npc_name,
-                        language=self.__language_name,
-                        game=self.__game.game_name_in_filepath,
-                        player_name=player_name,
-                        gender=npc_gender,
-                        race=npc_race
-                    )
-                    long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt)
-                    break
-                except Exception:
-                    logger.error('Failed to summarize conversation. Retrying...')
-                    time.sleep(5)
-                    continue
+            prompt = self.__resummarize_prompt.format(
+                name=npc_name,
+                language=self.__language_name,
+                game=self.__game.game_name_in_filepath,
+                player_name=player_name,
+                gender=npc_gender,
+                race=npc_race
+            )
+            prompt = f"{prompt.rstrip()}\n\n{TRANSIENT_STATE_SUMMARY_RULE}"
+            long_conversation_summary = self.summarize_conversation(conversation_summaries, prompt)
+            if not long_conversation_summary:
+                logger.error("Summary compaction failed; retaining the existing summary file")
+                return
 
             # Split the file path and increment the number by 1
             base_directory, filename = os.path.split(conversation_summary_file)
@@ -393,9 +463,24 @@ class Summaries(Remembering):
             logger.log(23, f'Summary prompt sent to LLM: {prompt.strip()}')
             messages = message_thread(self.__config, prompt)
             messages.add_message(UserMessage(self.__config, text_to_summarize))
-            summary = self.__client.request_call(messages)
+            logger.info(
+                "Generating conversation summary using %s LLM at %s",
+                "dedicated summary" if self.__summary_client else "dialogue compatibility",
+                self.__client.base_url,
+            )
+            summary = ""
+            for attempt in range(1, self.SUMMARY_MAX_ATTEMPTS + 1):
+                try:
+                    summary = self.__client.request_call(messages) or ""
+                except Exception as exc:
+                    logger.warning("Summary attempt %d/%d failed: %s", attempt, self.SUMMARY_MAX_ATTEMPTS, exc)
+                if summary:
+                    break
+                if attempt < self.SUMMARY_MAX_ATTEMPTS:
+                    logger.warning("Summary attempt %d/%d returned no result; retrying", attempt, self.SUMMARY_MAX_ATTEMPTS)
+                    time.sleep(self.SUMMARY_RETRY_DELAY_SECONDS)
             if not summary:
-                logger.error(f"Summarizing conversation failed.")
+                logger.error("Conversation summary failed after %d attempts; continuing without saving it", self.SUMMARY_MAX_ATTEMPTS)
                 return ""
 
             summary = summary.replace('The assistant', 'Someone')

@@ -54,13 +54,24 @@ class change_character_parser(output_parser):
                     current_settings.current_text_state = MarkedTextStateEnum.UNMARKED
                     return None, parts[1]
 
-        # Discard character changes for characters not in the conversation
+        # Only reject an unknown prefix when the accumulator proved that this
+        # segment starts a response or a new line. A colon inside an existing
+        # dialogue line has no speaker-boundary evidence and must remain text.
         prefix = parts[0].strip()
         if prefix and prefix.lower() not in self.__action_keywords:
-            logger.warning(f"Discarding text for character not in conversation: {prefix}")
-            current_settings.discarded_character_name = prefix
-            current_settings.stop_generation = True
-            return None, ""
+            starts_at_boundary = bool(
+                getattr(output, "starts_at_response", False)
+                or getattr(output, "starts_at_line", False)
+            )
+            if starts_at_boundary:
+                logger.warning(f"Discarding text for character not in conversation: {prefix}")
+                current_settings.discarded_character_name = prefix
+                current_settings.stop_generation = True
+                return None, ""
+            # Preserve an ambiguous colon-terminated prose fragment as
+            # dialogue immediately. This also prevents a response ending in a
+            # grammatical colon from being stranded in the accumulator.
+            return SentenceContent(current_settings.current_speaker, output, current_settings.sentence_type, False), ""
 
         return None, output #There is a ':' in the text, but it doesn't seem to be part of a character change
 

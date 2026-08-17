@@ -3,6 +3,15 @@
     "name": "Inventory",
     "description": "Open inventory to give / take items with the player.",
     "key": "Inventory",
+    "legacy_action_group": "npc_items",
+    "legacy_action_hints": [
+        "check your inventory",
+        "show your inventory",
+        "open your inventory",
+        "give me",
+        "give you",
+        "take from"
+    ],
     "parameters": {
         "source": {
             "type": "string",
@@ -11,7 +20,7 @@
         }
     },
     "required": ["source"],
-    "prompt": "To show the player what you have in your inventory or to give / take an item, begin your response with '{key}:'.",
+    "prompt": "To open the real game inventory for checking or transferring items, begin your response with '{key}:'. Do not invent or list inventory contents in dialogue; the game's Inventory result is authoritative.",
     "allowed_games": ["skyrim","Fallout4"],
     "requires_response": true,
     "is-interrupting": false,

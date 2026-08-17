@@ -58,6 +58,13 @@ class message_thread():
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
         return message_thread.transform_to_openai_messages(self.__messages)
 
+    @utils.time_it
+    def snapshot(self) -> "message_thread":
+        """Create an isolated copy suitable for work that outlives the active turn."""
+        snapshot = message_thread(self.__config, None)
+        snapshot.__messages = deepcopy(self.__messages)
+        return snapshot
+
     def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | ToolMessage):
         self.__messages.append(new_message)
 

@@ -241,8 +241,27 @@ class SettingsUIConstructor(ConfigValueVisitor):
             
             if has_advanced_values:
                 with gr.Accordion(label="Advanced", open=False):
-                    for cf in advanced_settings:
+                    summary_settings = [
+                        cf for cf in advanced_settings
+                        if cf.identifier in {
+                            "summary_llm_enabled",
+                            "summary_llm_api",
+                            "summary_llm",
+                            "summary_custom_token_count",
+                            "summary_llm_params",
+                        }
+                    ]
+                    other_advanced_settings = [cf for cf in advanced_settings if cf not in summary_settings]
+                    for cf in other_advanced_settings:
                         cf.accept_visitor(self)
+                    if summary_settings:
+                        with gr.Accordion(label="Summary LLM", open=False):
+                            gr.Markdown(
+                                "Enable this to generate conversation summaries with a dedicated endpoint/model. "
+                                "When disabled, summaries use the dialogue LLM."
+                            )
+                            for cf in summary_settings:
+                                cf.accept_visitor(self)
 
     def visit_ConfigValueInt(self, config_value: ConfigValueInt):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Number:
@@ -412,4 +431,3 @@ class SettingsUIConstructor(ConfigValueVisitor):
             return gr.Text(value=config_value.value, show_label=False, container=False, max_lines=1)
         
         self.__create_config_value_ui_element(config_value, create_input_component, True, True, True, [("Browse...", on_pick_click)])
-

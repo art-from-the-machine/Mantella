@@ -120,10 +120,17 @@ def test_get_legacy_actions():
         assert hasattr(action, 'keyword')
         assert hasattr(action, 'description')
         assert hasattr(action, 'prompt_text')
+        assert hasattr(action, 'legacy_argument')
+        assert hasattr(action, 'legacy_action_group')
+        assert hasattr(action, 'legacy_action_hints')
         assert hasattr(action, 'is_interrupting')
         assert hasattr(action, 'use_in_on_on_one')
         assert hasattr(action, 'use_in_multi_npc')
         assert hasattr(action, 'use_in_radiant')
+
+    equip = next(action for action in legacy_actions if action.identifier == 'mantella_npc_equip')
+    assert equip.legacy_action_group == 'npc_items'
+    assert 'equip' in equip.legacy_action_hints
 
 
 def test_parse_function_calls_empty_list():

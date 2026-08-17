@@ -26,7 +26,8 @@ from src.llm.ai_client import AIClient
 from src.llm.client_base import ClientBase
 from src.model_profile_manager import get_profile_manager, ModelProfileManager
 from src.actions.function_manager import FunctionManager
-from src.llm.messages import AssistantMessage, ToolMessage
+from src.actions.action_authorization import ActionAuthorizationContext, ActionTurnLifecycle, ActionPolicy, action_policy
+from src.llm.messages import AssistantMessage, ToolMessage, UserMessage
 from src.tts.ttsable import TTSable
 from src.tts.synthesization_options import SynthesizationOptions
 from src.tts.tts_factory import parse_tts_service, create_tts
@@ -60,6 +61,10 @@ class ChatManager:
         self.__per_character_clients: dict[str, AIClient] = {}
         self.__per_service_tts: dict[TTSEnum, TTSable] = {}
         self.__profile_manager: ModelProfileManager = get_profile_manager()
+        self.__reported_action_contexts: set[int] = set()
+        self.__active_action_context: ActionAuthorizationContext | None = None
+        self.__last_missing_requested_actions: frozenset[str] = frozenset()
+        self.__active_action_lifecycle: ActionTurnLifecycle | None = None
 
     @property
     def tts(self) -> TTSable:
@@ -111,6 +116,127 @@ class ChatManager:
     def clear_per_character_client_cache(self) -> None:
         """Clear the per-character client cache (eg on conversation start)."""
         self.__per_character_clients.clear()
+
+    def set_action_authorization_context(self, action_context: ActionAuthorizationContext) -> None:
+        self.__active_action_context = action_context
+        self.__active_action_lifecycle = ActionTurnLifecycle(action_context)
+
+    @property
+    def active_action_lifecycle(self) -> ActionTurnLifecycle | None:
+        return self.__active_action_lifecycle
+
+    def mark_actions_protocol_dispatched(self, actions: list[dict], actor_ref_id: str | None) -> None:
+        lifecycle = self.__active_action_lifecycle
+        if lifecycle:
+            for action in actions:
+                lifecycle.record_protocol_dispatched(action.get("identifier", ""), actor_ref_id)
+
+    def mark_action_result_received(self) -> None:
+        if self.__active_action_lifecycle:
+            self.__active_action_lifecycle.record_game_result()
+
+    def dispatched_actor_refs_for(self, identifier: str) -> frozenset[str]:
+        lifecycle = self.__active_action_lifecycle
+        if not lifecycle:
+            return frozenset()
+        return frozenset(actor_ref_id for action_id, actor_ref_id in lifecycle.protocol_dispatched if action_id == identifier and actor_ref_id)
+
+    def consume_missing_requested_actions(self) -> frozenset[str]:
+        """Return and clear actions the last generation failed to emit."""
+        missing = self.__last_missing_requested_actions
+        self.__last_missing_requested_actions = frozenset()
+        return missing
+
+    @staticmethod
+    def _queue_sentence(blocking_queue: SentenceQueue, sentence: Sentence) -> None:
+        blocking_queue.put(sentence)
+
+    def _apply_action_gate(self, content: SentenceContent, lifecycle: ActionTurnLifecycle, blocking_queue: SentenceQueue, settings: sentence_generation_settings, verification_action_ids: frozenset[str]) -> SentenceContent | None:
+        if not content.actions:
+            return content
+        authorized: list[dict] = []
+        rejected_action = False
+        for action in content.actions:
+            identifier = action.get("identifier", "")
+            actor_ref_id = content.speaker.ref_id
+            lifecycle.record_generated(identifier, actor_ref_id)
+            allowed, reason = lifecycle.context.authorize(identifier, actor_ref_id, action.get("arguments"))
+            if allowed:
+                lifecycle.record_authorized(identifier, actor_ref_id)
+                authorized.append(action)
+            else:
+                lifecycle.record_rejected(identifier, actor_ref_id, reason)
+                logger.warning(f"Action rejected: {identifier} reason={reason} turn={lifecycle.context.turn_id} actor={actor_ref_id}")
+                rejected_action = True
+        content.actions = authorized
+        if rejected_action:
+            # An action-prefixed segment and its attached streamed prose form
+            # one state-sensitive response. Once its action is rejected, none
+            # of that segment may be downgraded into authoritative dialogue.
+            settings.stop_generation = True
+            return None
+        if any(action.get("identifier") in verification_action_ids for action in authorized) or FunctionManager.any_action_requires_response(authorized):
+            action_only = SentenceContent(content.speaker, "", content.sentence_type, content.is_system_generated_sentence, authorized)
+            self._queue_sentence(blocking_queue, self.generate_sentence(action_only))
+            for action in authorized:
+                lifecycle.record_queued(action.get("identifier", ""), action_only.speaker.ref_id)
+            settings.interrupting_action = True
+            settings.stop_generation = True
+            return None
+        return content
+
+    async def _attempt_action_correction(self, active_client: AIClient, active_character: Character, characters: Characters, messages: message_thread, actions: list[Action], lifecycle: ActionTurnLifecycle, blocking_queue: SentenceQueue, is_multi_npc: bool) -> None:
+        missing = lifecycle.missing_generated(active_character.ref_id)
+        if not missing or lifecycle.correction_attempted:
+            return
+        if lifecycle.context is not self.__active_action_context or lifecycle.context.stale or self.__stop_generation.is_set():
+            return
+        lifecycle.correction_attempted = True
+        target_refs = {actor_ref_id for _, actor_ref_id in missing if actor_ref_id}
+        correction_actor = active_character
+        if len(target_refs) == 1:
+            target_ref = next(iter(target_refs))
+            resolver = getattr(characters, "get_character_by_ref_id", None)
+            if resolver is not None:
+                correction_actor = resolver(target_ref) or active_character
+            else:
+                correction_actor = next(
+                    (character for character in characters.get_all_characters() if str(character.ref_id) == target_ref),
+                    active_character,
+                )
+        correction_messages = messages.snapshot()
+        correction = UserMessage(self.__config, lifecycle.context.corrective_prompt(missing), "", True)
+        correction.is_multi_npc_message = False
+        correction_messages.add_message(correction)
+        raw_correction = ""
+        logger.warning(f"Retrying missing requested action once: turn={lifecycle.context.turn_id} actor={correction_actor.ref_id} actions={sorted(identifier for identifier, _ in missing)}")
+        async for item in active_client.streaming_call(messages=correction_messages, is_multi_npc=is_multi_npc, tools=None):
+            if self.__stop_generation.is_set() or lifecycle.context is not self.__active_action_context:
+                logger.info(f"Action correction cancelled: reason=stale_turn turn={lifecycle.context.turn_id} actor={correction_actor.ref_id}")
+                return
+            if isinstance(item, tuple) and len(item) == 2 and item[0] == "content":
+                raw_correction += item[1]
+            elif isinstance(item, str):
+                raw_correction += item
+        invocations = actions_parser(actions).parse_corrective_response(raw_correction, sentence_generation_settings(correction_actor))
+        for invocation in invocations:
+            identifier = invocation.get("identifier", "")
+            lifecycle.record_generated(identifier, correction_actor.ref_id)
+            allowed, reason = lifecycle.context.authorize(
+                identifier, correction_actor.ref_id, invocation.get("arguments")
+            )
+            if not allowed:
+                lifecycle.record_rejected(identifier, correction_actor.ref_id, reason)
+                continue
+            allowed, reason = lifecycle.context.authorize(identifier, correction_actor.ref_id, invocation.get("arguments"))
+            if not allowed:
+                lifecycle.record_rejected(identifier, correction_actor.ref_id, reason)
+                logger.warning(f"Action rejected: {identifier} reason={reason} turn={lifecycle.context.turn_id} actor={correction_actor.ref_id} correction=true")
+                continue
+            lifecycle.record_authorized(identifier, correction_actor.ref_id)
+            self._queue_sentence(blocking_queue, self.generate_sentence(SentenceContent(correction_actor, "", SentenceTypeEnum.SPEECH, True, [invocation])))
+            lifecycle.record_queued(identifier, correction_actor.ref_id)
+        logger.log(23, f"Corrective action raw response: {raw_correction.strip()}")
 
     def _get_or_create_tts(self, service: TTSEnum) -> TTSable:
         """Get or create a TTS instance for the given service, with caching."""
@@ -187,7 +313,20 @@ class ChatManager:
         if len(content.text.strip()) < 3:
             logger.warning(f"Skipping TTS for voiceline that is too-short: '{content.text.strip()}'")
             # Return a sentence object without audio - skipping TTS entirely
-            return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, True), "", 0)
+            # Preserve parsed actions even when there is no speech to synthesize.
+            # Action-only responses (for example ``Inventory:``) still need to
+            # reach the game-action protocol path.
+            return Sentence(
+                SentenceContent(
+                    character_to_talk,
+                    text,
+                    content.sentence_type,
+                    content.is_system_generated_sentence,
+                    content.actions,
+                ),
+                "",
+                0,
+            )
 
         with self.__tts_access_lock:
             try:
@@ -225,7 +364,7 @@ class ChatManager:
                 and self.__config.game.base_game == GameEnum.SKYRIM)
 
     @utils.time_it
-    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action], tools: list[dict] | None, game: Gameable | None = None):
+    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action], tools: list[dict] | None, game: Gameable | None = None, action_context: ActionAuthorizationContext | None = None):
         """Starts generating responses by the LLM for the current state of the input messages
 
         Args:
@@ -239,7 +378,7 @@ class ChatManager:
             return
         self.__is_generating = True
         
-        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions, tools, game))
+        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions, tools, game, action_context))
     
     @utils.time_it
     def stop_generation(self):
@@ -277,7 +416,7 @@ class ChatManager:
             messages.add_message(tool_result_message)
     
     @utils.time_it
-    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], tools: list[dict] | None, game: Gameable | None = None):
+    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], tools: list[dict] | None, game: Gameable | None = None, action_context: ActionAuthorizationContext | None = None):
         """Stream response from LLM one sentence at a time"""
         with create_span_from_thread("process_response") as span:
             span.set_attribute("active_character.name", active_character.name)
@@ -289,11 +428,40 @@ class ChatManager:
             pending_sentence: SentenceContent | None = None
             self.__is_first_sentence = True
             self.__contains_player_character = characters.contains_player_character()
+            action_context = action_context or ActionAuthorizationContext.permissive()
+            if action_context.enforce and action_context is not self.__active_action_context:
+                action_context = action_context.as_stale()
+            lifecycle = self.__active_action_lifecycle
+            if not lifecycle or lifecycle.context is not action_context:
+                lifecycle = ActionTurnLifecycle(action_context)
+            verification_action_ids = frozenset(action.identifier for action in actions if action.requires_response)
+            requested_identifiers = set(action_context.requested_actions)
+            for _, actor_actions in action_context.requested_actions_by_actor:
+                requested_identifiers.update(actor_actions)
+            hold_verification_dialogue = any(identifier in verification_action_ids or FunctionManager.any_action_requires_response([{"identifier": identifier}]) for identifier in requested_identifiers)
+            # Explicit state-changing requests must not be satisfied by prose
+            # alone. Hold dialogue until the current-turn action is accepted,
+            # otherwise text such as "Lead on" can sound like Follow
+            # succeeded even when no Follow invocation was emitted.
+            hold_action_obligation_dialogue = any(
+                action_policy(identifier) == ActionPolicy.EXPLICIT_CURRENT_REQUEST
+                for identifier in requested_identifiers
+            )
+            held_verification_dialogue: list[SentenceContent] = []
+            def queue_dialogue(content: SentenceContent) -> None:
+                if (hold_verification_dialogue or hold_action_obligation_dialogue) and not content.actions:
+                    held_verification_dialogue.append(content)
+                    return
+                sentence = self.generate_sentence(content)
+                self._queue_sentence(blocking_queue, sentence)
+                for action in sentence.actions:
+                    lifecycle.record_queued(action.get("identifier", ""), sentence.speaker.ref_id)
             is_multi_npc = characters.contains_multiple_npcs()
             max_response_sentences = self.__config.max_response_sentences_single if not is_multi_npc else self.__config.max_response_sentences_multi
             max_retries = 5
             retries = 0
 
+            legacy_actions_parser = actions_parser(actions)
             parser_chain: list[output_parser] = [
                 change_character_parser(characters, actions),
                 italics_parser()]
@@ -302,7 +470,7 @@ class ChatManager:
                                                     self.__config.speech_start_indicators, self.__config.speech_end_indicators))
             parser_chain.extend([
                 sentence_end_parser(),
-                actions_parser(actions),
+                legacy_actions_parser,
                 sentence_length_parser(self.__config.number_words_tts),
                 max_count_sentences_parser(max_response_sentences, not characters.contains_player_character(), self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS)
             ])
@@ -330,7 +498,12 @@ class ChatManager:
                 while not has_text_response and retries < max_retries:
                     try:
                         start_time = time.time()
-                        async for item in active_client.streaming_call(messages=messages, is_multi_npc=is_multi_npc, tools=current_tools):
+                        response_stream = active_client.streaming_call(
+                            messages=messages,
+                            is_multi_npc=is_multi_npc,
+                            tools=current_tools,
+                        )
+                        async for item in response_stream:
                             if self.__stop_generation.is_set():
                                 break
                             if not item:
@@ -361,7 +534,12 @@ class ChatManager:
                                         tool_calls_added_this_turn = True
                                     
                                     # Parse tool calls
-                                    parsed_tools = FunctionManager.parse_function_calls(collected_tool_calls, characters, game)
+                                    parsed_tools = FunctionManager.parse_function_calls(
+                                        collected_tool_calls, characters, game,
+                                        authorization_context=action_context,
+                                        actor_ref_id=active_character.ref_id,
+                                        action_lifecycle=lifecycle,
+                                    )
                                     
                                     # Check if vision was requested - filter it out from game actions
                                     vision_requested = any(
@@ -408,6 +586,8 @@ class ChatManager:
                                         logger.log(23, f"Parsed actions: {parsed_tools}")
                                         action_only_sentence = SentenceContent(active_character, "", SentenceTypeEnum.SPEECH, True, parsed_tools)
                                         blocking_queue.put(Sentence(action_only_sentence, "", 0))
+                                        for tool in parsed_tools:
+                                            lifecycle.record_queued(tool.get('identifier', ''), active_character.ref_id)
                             else:
                                 # Fallback for backward compatibility (if item is just a string)
                                 has_text_response = True
@@ -433,12 +613,15 @@ class ChatManager:
                                     accumulator.refuse(current_sentence)
                                     # Process sentences from the parser chain
                                     if parsed_sentence:
-                                        if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
+                                        parsed_sentence = self._apply_action_gate(parsed_sentence, lifecycle, blocking_queue, settings, verification_action_ids)
+                                        if parsed_sentence and (
+                                            not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS
+                                            or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION
+                                        ):
                                             if first_sentence:
                                                 logger.log(self.loglevel, f"LLM took {round(time.time() - start_time, 5)} seconds to return the first sentence")
                                                 first_sentence = False
-                                            new_sentence = self.generate_sentence(parsed_sentence)
-                                            blocking_queue.put(new_sentence)
+                                            queue_dialogue(parsed_sentence)
                                             parsed_sentence = None
                                 if settings.stop_generation:
                                     break
@@ -446,6 +629,12 @@ class ChatManager:
                                     # If there is an interrupting action, stop the generation after the next sentence
                                     settings.stop_generation = True
                         
+                        # A local generation fence can leave an async stream
+                        # early. Explicitly close it before a bounded
+                        # corrective call reuses the same client/lock.
+                        if settings.stop_generation:
+                            await response_stream.aclose()
+
                         # Check if a second call is needed for a text response
                         if collected_tool_calls and not has_text_response:
                             # Skip second call if interrupting action detected - wait for game context instead
@@ -506,15 +695,35 @@ class ChatManager:
             finally:
                 # Handle any remaining content
                 if parsed_sentence:
+                    parsed_sentence = self._apply_action_gate(parsed_sentence, lifecycle, blocking_queue, settings, verification_action_ids)
+                if parsed_sentence:
                     if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
-                        new_sentence = self.generate_sentence(parsed_sentence)
-                        blocking_queue.put(new_sentence)
+                        queue_dialogue(parsed_sentence)
                 
                 if pending_sentence:
+                    pending_sentence = self._apply_action_gate(pending_sentence, lifecycle, blocking_queue, settings, verification_action_ids)
+                if pending_sentence:
                     if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or pending_sentence.sentence_type != SentenceTypeEnum.NARRATION:
-                        new_sentence = self.generate_sentence(pending_sentence)
-                        blocking_queue.put(new_sentence)
+                        queue_dialogue(pending_sentence)
                 logger.log(23, f"Full raw response ({active_client.get_count_tokens(raw_response)} tokens): {raw_response.strip()}")
+                await self._attempt_action_correction(active_client, active_character, characters, messages, actions, lifecycle, blocking_queue, is_multi_npc)
+                if held_verification_dialogue:
+                    logger.info(f"Discarding {len(held_verification_dialogue)} pre-result dialogue sentence(s) for verification-dependent action turn={action_context.turn_id}")
+                action_context_id = id(action_context)
+                context_is_current = action_context is self.__active_action_context and not action_context.stale and not self.__stop_generation.is_set()
+                if context_is_current and action_context_id not in self.__reported_action_contexts:
+                    missing = lifecycle.missing_generated(active_character.ref_id)
+                    self.__last_missing_requested_actions = frozenset(identifier for identifier, _ in missing)
+                    action_context.log_missing_requested_actions(lifecycle.generated, active_character.ref_id)
+                    for identifier, actor_ref_id in sorted(
+                        lifecycle.authorized_not_queued(),
+                        key=lambda item: (item[0], item[1] or ""),
+                    ):
+                        logger.warning(
+                            f"Action authorized but not dispatched: {identifier} "
+                            f"turn={action_context.turn_id} actor={actor_ref_id or 'unknown'}"
+                        )
+                    self.__reported_action_contexts.add(action_context_id)
                 blocking_queue.is_more_to_come = False
                 # This sentence is required to make sure there is one in case the game is already waiting for it
                 # before the ChatManager realises there is not another message coming from the LLM
