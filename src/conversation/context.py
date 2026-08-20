@@ -53,7 +53,7 @@ class Context:
     @property
     def npcs_in_conversation(self) -> Characters:
         return self.__npcs_in_conversation
-    
+
     @property
     def config(self) -> ConfigLoader:
         return self.__config
@@ -61,15 +61,15 @@ class Context:
     @property
     def prompt_multinpc(self) -> str:
         return self.__config.multi_npc_prompt
-    
+
     @property
     def location(self) -> str:
         return self.__location
-    
+
     @property
     def language(self) -> dict[Hashable, str]:
         return self.__language
-    
+
     @location.setter
     def location(self, value: str):
         self.__location = value
@@ -77,7 +77,7 @@ class Context:
     @property
     def ingame_time(self) -> int:
         return self.__ingame_time
-    
+
     @ingame_time.setter
     def ingame_time(self, value: int):
         self.__ingame_time = value
@@ -89,7 +89,7 @@ class Context:
     @property
     def have_actors_changed(self) -> bool:
         return self.__have_actors_changed
-    
+
     @have_actors_changed.setter
     def have_actors_changed(self, value: bool):
         self.__have_actors_changed = value
@@ -101,7 +101,7 @@ class Context:
     @property
     def vision_hints(self) -> dict[Hashable, str]:
         return self.__vision_hints
-    
+
     @utils.time_it
     def set_vision_hints(self, names: str, distances: str):
         def get_category(distance):
@@ -115,7 +115,7 @@ class Context:
                 return "far"
             else:
                 return "very far"
-        
+
         names = [x.strip('[]') for x in names.split(',')]
         distances = [float(x.strip('[]')) for x in distances.split(',')]
 
@@ -132,7 +132,7 @@ class Context:
     @utils.time_it
     def get_context_ingame_events(self) -> list[str]:
         return self.__ingame_events
-    
+
     @utils.time_it
     def clear_context_ingame_events(self):
         self.__ingame_events.clear()
@@ -154,12 +154,12 @@ class Context:
                 removed_npcs.append(npc)
                 self.__remove_character(npc, message_count)
         return removed_npcs
-    
+
     @utils.time_it
     def remove_character(self, npc: Character, message_count: int):
         if self.__npcs_in_conversation.contains_character(npc):
             self.__remove_character(npc, message_count)
-    
+
     @utils.time_it
     def __remove_character(self, npc: Character, message_count: int):
         self.__npcs_in_conversation.remove_character(npc, message_count)
@@ -169,7 +169,7 @@ class Context:
     @utils.time_it
     def get_time_group(self) -> str:
         return get_time_group(self.__ingame_time)
-    
+
     @utils.time_it
     def update_context(self, location: str | None, in_game_time: int | None, custom_ingame_events: list[str] | None, weather: str | None, npcs_nearby: list[dict[str, Any]] | None, custom_context_values: dict[str, Any], config_settings: dict[str, Any] | None, game_days: float | None = None):
         self.__custom_context_values = custom_context_values
@@ -192,7 +192,7 @@ class Context:
             elif self.__location != self.__prev_location:
                 self.__prev_location = self.__location
                 self.__ingame_events.append(f"The location is now {location}.")
-        
+
         if in_game_time is not None:
             self.__ingame_time = in_game_time
             in_game_time_twelve_hour = in_game_time - 12 if in_game_time > 12 else in_game_time
@@ -216,12 +216,12 @@ class Context:
         # Update nearby NPCs in the Characters manager (only when game sends new data)
         if npcs_nearby is not None:
             self.__npcs_in_conversation.set_nearby_npcs(npcs_nearby)
-        
+
         # Add vision hints to in-game events
         self.__vision_hints = ''
         if self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY) and self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY):
             self.set_vision_hints(
-                str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY)), 
+                str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY)),
                 str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY)))
             self.__ingame_events.append(self.__vision_hints)
         elif npcs_nearby:
@@ -239,7 +239,7 @@ class Context:
 
         if config_settings:
             self.__config_settings = config_settings
-    
+
     @utils.time_it
     def __update_ingame_events_on_npc_change(self, npc: Character):
         current_stats: Character = self.__npcs_in_conversation.get_character_by_name(npc.name)
@@ -270,7 +270,7 @@ class Context:
                 player_name = player.name
             #Is attacking player
             if current_stats.is_enemy != npc.is_enemy:
-                if npc.is_enemy: 
+                if npc.is_enemy:
                     # TODO: review if pronouns can be replaced with "they"
                     self.__ingame_events.append(f"{npc.name} is attacking {player_name}. This is either because {npc.personal_pronoun_subject} is an enemy or {player_name} has attacked {npc.personal_pronoun_object} first.")
                 else:
@@ -279,7 +279,7 @@ class Context:
             if current_stats.relationship_rank != npc.relationship_rank:
                 trust = self.__get_trust(npc)
                 self.__ingame_events.append(f"{player_name} is now {trust} to {npc.name}.")
-    
+
     @staticmethod
     def format_listing(listing: list[str]) -> str:
         """Returns a list of string concatenated by ',' and 'and' to be used in a text
@@ -296,7 +296,7 @@ class Context:
             return listing[0]
         else:
             return ', '.join(listing[:-1]) + ' and ' + listing[-1]
-       
+
     @utils.time_it
     def __get_trust(self, npc: Character) -> str:
         """Calculates the trust of a NPC towards the player
@@ -307,7 +307,7 @@ class Context:
         Returns:
             str: a natural text representing the trust
         """
-        # BUG: this measure includes radiant conversations, 
+        # BUG: this measure includes radiant conversations,
         # so "trust" is accidentally increased even when an NPC hasn't spoken with the player
         trust_level = conversation_log.get_conversation_log_length(npc, self.__world_id)
         trust = 'a stranger'
@@ -327,7 +327,7 @@ class Context:
         elif npc.relationship_rank < 0:
             trust = 'an enemy'
         return trust
-    
+
     @utils.time_it
     def __get_trusts(self) -> str:
         """Calculates the trust towards the player for all NPCs in the conversation
@@ -336,18 +336,18 @@ class Context:
             player_name (str, optional): _description_. Defaults to "". The name of the player, if empty string treated as if the player is not in the conversation
 
         Returns:
-            str: A combined natural text describing their relationship towards the player, empty if there is no player 
+            str: A combined natural text describing their relationship towards the player, empty if there is no player
         """
         # if player_name == "" or len(self.__npcs_in_conversation) < 1:
         #     return ""
-        
+
         relationships = []
         for npc in self.__npcs_in_conversation.get_non_player_characters():
             trust = self.__get_trust(npc)
             relationships.append(f"{trust} to {npc.name}")
-        
+
         return Context.format_listing(relationships)
-       
+
     @utils.time_it
     def get_character_names_as_text(self, include_player: bool, include_nearby: bool = False, nearby_only: bool = False) -> str:
         """Gets the names of the NPCs in the conversation as a natural language list
@@ -366,7 +366,7 @@ class Context:
             nearby_only=nearby_only
         )
         return Context.format_listing(names)
-    
+
     @utils.time_it
     def __get_bios_text(self) -> str:
         """Gets the bios of all characters in the conversation
@@ -381,7 +381,7 @@ class Context:
             else:
                 bio_descriptions.append(f"{character.name}: {character.bio}")
         return "\n\n".join(bio_descriptions)
-    
+
     @utils.time_it
     def __get_npc_equipment_text(self) -> str:
         """Gets the equipment description of all npcs in the conversation
@@ -393,7 +393,7 @@ class Context:
         for character in self.__npcs_in_conversation.get_non_player_characters():
                 equipment_descriptions.append(character.equipment.get_equipment_description(character.name))
         return " ".join(equipment_descriptions)
-    
+
     @utils.time_it
     def __get_action_texts(self, actions: list[Action]) -> str:
         """Generates the prompt text for the available actions
@@ -411,7 +411,7 @@ class Context:
         if result and len(self.__npcs_in_conversation.get_non_player_characters()) > 1:
             result += "Both the action prefix and NPC name need colons to be valid, e.g. 'CharacterName: Action: Lead the way.'\n"
         return result
-    
+
     @utils.time_it
     def generate_system_message(self, prompt: str, actions_for_prompt: list[Action]) -> str:
         """Fills the variables in the prompt with the values calculated from the context
@@ -434,7 +434,8 @@ class Context:
             player_equipment = player.equipment.get_equipment_description('')
             player_gender = player.gender
             player_race = player.race
-            game_sent_description = player.get_custom_character_value(communication_constants.KEY_ACTOR_PC_DESCRIPTION)
+            game_sent_description = player.get_custom_character_value(
+                communication_constants.KEY_ACTOR_PC_DESCRIPTION)
             if game_sent_description and game_sent_description != "":
                 player_description = game_sent_description
         if self.npcs_in_conversation.last_added_character:
@@ -459,64 +460,113 @@ class Context:
         weather = self.__weather
         time = self.__ingame_time - 12 if self.__ingame_time > 12 else self.__ingame_time
         time_group = get_time_group(self.__ingame_time)
-        
+
         # Calculate current day number from game_days
         current_day = int(self.__game_days) if self.__game_days > 1 else 1
-        
+
         if self.__hourly_time:
             self.__prev_game_time = str(time), time_group
         else:
             self.__prev_game_time = None, time_group
-        conversation_summaries = self.__rememberer.get_prompt_text(non_player_chars, self.__world_id)
-        
-        # Only include legacy action prompts if advanced actions are disabled
-        actions = self.__get_action_texts(actions_for_prompt) if not self.__config.advanced_actions_enabled else ""
+        conversation_summaries = self.__rememberer.get_prompt_text(non_player_chars,
+                                                                    self.__world_id)
 
-        removal_content: list[tuple[str, str]] = [(bios, conversation_summaries),(bios,""),("","")]
-        have_bios_been_dropped = False
-        have_summaries_been_dropped = False
-        logger.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')
-        for content in removal_content:
-            result = prompt.format(
+        # Only include legacy action prompts if advanced actions are disabled
+        actions = (self.__get_action_texts(actions_for_prompt)
+                   if not self.__config.advanced_actions_enabled else "")
+
+        max_tokens = int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))
+        logger.log(23, f'Maximum size of prompt is {self.__client.token_limit} x'
+                   f' {self.TOKEN_LIMIT_PERCENT} = {max_tokens} tokens.')
+
+        def _format(bios_text: str, summaries_text: str) -> str:
+            return prompt.format(
                 player_name = player_name,
-                player_description = player_description,
-                player_equipment = player_equipment,
-                player_gender = player_gender,
-                player_race = player_race,
+                player_description=player_description,
+                player_equipment=player_equipment,
+                player_gender=player_gender,
+                player_race=player_race,
                 name=name,
                 names=names,
-                names_w_player = names_w_player,
-                bio=content[0],
-                bios=content[0], 
+                names_w_player=names_w_player,
+                bio=bios_text,
+                bios=bios_text,
                 trust=trusts,
                 gender=gender,
                 race=race,
                 genders=genders,
                 races=races,
                 genders_and_races=genders_and_races,
-                equipment = equipment,
+                equipment=equipment,
                 location=location,
-                weather = weather,
+                weather=weather,
                 time=time,
                 current_day=current_day,
-                time_group=time_group, 
-                language=self.__language['language'], 
-                conversation_summary=content[1],
-                conversation_summaries=content[1],
-                actions = actions
-                )
-            if self.__client.is_too_long(result, self.TOKEN_LIMIT_PERCENT):
-                if content[0] != "":
-                    have_summaries_been_dropped = True
+                time_group=time_group,
+                language=self.__language['language'],
+                conversation_summary=summaries_text,
+                conversation_summaries=summaries_text,
+                actions=actions
+            )
+
+        # 1. Try full content
+        result = _format(bios, conversation_summaries)
+        have_bios_been_dropped = False
+        have_summaries_been_dropped = False
+
+        if self.__client.is_too_long(result, self.TOKEN_LIMIT_PERCENT):
+            # 2. Measure space left after bios + empty summaries
+            empty_sum_result = _format(bios, "")
+            tokens_without_summaries = self.__client.get_count_tokens(empty_sum_result)
+            available = max_tokens - tokens_without_summaries
+
+            if available > 50 and conversation_summaries:  # leave a little headroom
+                # Binary search the longest prefix of conversation_summaries that fits
+                lo, hi = 0, len(conversation_summaries)
+                best = ""
+                while lo <= hi:
+                    mid = (lo + hi) // 2
+                    # Take the last `mid` characters (most recent material)
+                    candidate = conversation_summaries[-mid:] if mid > 0 else ""
+                    # Prefer cutting at a newline so we don't start mid-sentence
+                    if mid < len(conversation_summaries) and candidate:
+                        cut = candidate.find('\n')
+                        if cut > mid * 0.3:  # only if we don't lose too much
+                            candidate = candidate[cut + 1:]
+                    trial = _format(bios, candidate)
+                    if self.__client.get_count_tokens(trial) <= max_tokens:
+                        best = candidate
+                        lo = mid + 1
+                    else:
+                        hi = mid - 1
+                if best:
+                    result = _format(bios, best)
+                    have_summaries_been_dropped = True  # partially dropped
+                    logger.log(23, f'Truncated conversation_summaries to {len(best)} chars to '
+                               'fit token budget.')
                 else:
-                    have_bios_been_dropped = True
+                    result = empty_sum_result
+                    have_summaries_been_dropped = True
             else:
-                break
-        
-        logger.log(23, f'Prompt sent to LLM ({self.__client.get_count_tokens(result)} tokens): {result.strip()}')
+                # No room for any summaries → drop them
+                result = empty_sum_result
+                have_summaries_been_dropped = True
+
+            # 3. Still too long? Drop bios as well
+            if self.__client.is_too_long(result, self.TOKEN_LIMIT_PERCENT):
+                result = _format("", "")
+                have_bios_been_dropped = True
+                have_summaries_been_dropped = True
+
+        logger.log(23, f'Prompt sent to LLM ({self.__client.get_count_tokens(result)} tokens): '
+                   f'{result.strip()}')
         if have_summaries_been_dropped and have_bios_been_dropped:
-            logger.warning(f'Both the bios and summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations and will have limited knowledge of who they are.')
+            logger.warning('Both the bios and summaries of the NPCs selected could not fit into '
+                           f'the maximum prompt size of {max_tokens} tokens. NPCs will not '
+                           'remember previous conversations and will have limited knowledge '
+                           'of who they are.')
         elif have_summaries_been_dropped:
-            logger.warning(f'The summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations.')
+            logger.warning('The summaries of the NPCs selected could not fit (or were truncated) '
+                           f'into the maximum prompt size of {max_tokens} tokens. NPCs will have '
+                           'reduced memory of previous conversations.')
         return result
-    
