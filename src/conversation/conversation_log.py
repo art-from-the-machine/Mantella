@@ -32,7 +32,7 @@ class conversation_log:
                 conversation_history = [messages] # wrap the first conversation in a list
             
             with open(conversation_history_file, 'w', encoding='utf-8') as f:
-                json.dump(conversation_history, f, indent=4) # save everything except the initial system prompt
+                json.dump(conversation_history, f, indent=4, ensure_ascii=False) # save everything except the initial system prompt
 
     @staticmethod   
     @utils.time_it 
