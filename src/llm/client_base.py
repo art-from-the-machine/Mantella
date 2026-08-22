@@ -244,6 +244,8 @@ class ClientBase(AIClient):
             with self._generation_lock:
                 logger.log(28, 'Getting LLM response...')
 
+                async_client: AsyncOpenAI | None = None # initialize a vatiable before using in the try/finally block
+
                 if self._request_params:
                     request_params = self._request_params.copy() # copy of self._request_params to allow temporary override
                 else:
@@ -353,7 +355,7 @@ class ClientBase(AIClient):
                                 service_connection_attempt = 'OpenAI' # check if player means to connect to OpenAI
                             logger.error(f"Invalid API key. If you are trying to connect to {service_connection_attempt}, please choose an {service_connection_attempt} model via the 'model' setting in MantellaSoftware/config.ini. If you are instead trying to connect to a local model, please ensure the service is running.")
                         else:
-                            logger.error(f"LLM API Error: {e}")
+                            logger.error(f"LLM API Error: {e}; \ncause: {e.__cause__}", exc_info=True)
                     elif isinstance(e, BadRequestError):
                         if (e.type == 'invalid_request_error') and (self._image_client): # invalid request
                             logger.error(f"Invalid request. Try disabling Vision in Mantella's settings and try again.")

@@ -1,5 +1,8 @@
 from src.llm.llm_client import LLMClient
+import logging
+import httpx
 import pytest
+from openai import APIConnectionError
 from src.config.config_loader import ConfigLoader
 import src.llm.client_base
 from src.llm.messages import SystemMessage
@@ -118,6 +121,41 @@ async def test_async_call(llm_client: LLMClient, example_system_message: SystemM
                 response += item
     assert response is not None
     assert isinstance(response, str)
+
+
+@pytest.mark.asyncio
+async def test_streaming_call_logs_connection_cause_when_client_creation_fails(
+    llm_client: LLMClient,
+    example_system_message: SystemMessage,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    """A client creation error must not be masked by an unbound local error."""
+    await llm_client._startup_async_client.close()
+    llm_client._startup_async_client = None
+
+    request = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+
+    def raise_connection_error():
+        try:
+            raise httpx.ConnectError("simulated connection failure", request=request)
+        except httpx.ConnectError as cause:
+            raise APIConnectionError(request=request) from cause
+
+    monkeypatch.setattr(llm_client, "generate_async_client", raise_connection_error)
+    monkeypatch.setattr("src.utils.play_error_sound", lambda: None)
+
+    with caplog.at_level(logging.ERROR, logger="Mantella"):
+        result = [
+            item
+            async for item in llm_client.streaming_call(
+                messages=example_system_message,
+                is_multi_npc=False,
+            )
+        ]
+
+    assert result == []
+    assert "simulated connection failure" in caplog.text
 
 
 def test_assistant_message_tool_calls_serialization(default_config: ConfigLoader):
