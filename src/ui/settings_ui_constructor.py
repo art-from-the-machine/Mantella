@@ -278,11 +278,11 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 button = gr.Button(btn_label, variant="primary", size='sm')
                 # Ensure the button click event is properly connected
                 if hasattr(button, "_id"):
-                    button.click(btn_action, outputs=input_ui, show_progress="hidden")
+                    button.click(btn_action, outputs=input_ui)
                 else:
                     # Fallback: try connecting without checking _id
                     try:
-                        button.click(btn_action, outputs=input_ui, show_progress="hidden")
+                        button.click(btn_action, outputs=input_ui)
                     except Exception as e:
                         logging.error(f"Failed to connect button '{btn_label}' click event: {e}")
             if not additional_buttons:
@@ -290,8 +290,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 if hasattr(reset_button, "_id"):
                     reset_button.click(
                         lambda: self.__on_reset_click(config_value, create_input_component),
-                        outputs = [input_ui, error_message],
-                        show_progress="hidden"
+                        outputs = [input_ui, error_message]
                     )
 
     def __on_reset_click(self, config_value: ConfigValue, create_input_component: Callable[[ConfigValue], Any]):
@@ -678,8 +677,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
         save_ui.click(
             save_profiles,
             inputs=[service_ui, model_ui] + slot_inputs,
-            outputs=status_ui,
-            show_progress="hidden"
+            outputs=status_ui
         )
 
     def render_prompt_profile_editor(self, config_value: ConfigValueGroup) -> None:
@@ -878,20 +876,17 @@ class SettingsUIConstructor(ConfigValueVisitor):
         save_btn.click(
             on_save,
             inputs=[type_ui, edit_ui, name_ui, text_ui],
-            outputs=[status_ui, error_ui, edit_ui, name_ui, active_ui],
-            show_progress="hidden"
+            outputs=[status_ui, error_ui, edit_ui, name_ui, active_ui]
         )
         rename_btn.click(
             on_rename,
             inputs=[type_ui, edit_ui, name_ui],
-            outputs=[status_ui, error_ui, edit_ui, name_ui, active_ui],
-            show_progress="hidden"
+            outputs=[status_ui, error_ui, edit_ui, name_ui, active_ui]
         )
         delete_btn.click(
             on_delete,
             inputs=[type_ui, edit_ui],
-            outputs=[status_ui, error_ui, edit_ui, name_ui, text_ui, active_ui],
-            show_progress="hidden"
+            outputs=[status_ui, error_ui, edit_ui, name_ui, text_ui, active_ui]
         )
         active_ui.change(
             on_active_change,

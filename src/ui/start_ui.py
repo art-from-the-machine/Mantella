@@ -1931,32 +1931,32 @@ class StartUI(routeable):
 
             override_csv_path.change(on_user_csv_change, inputs=[override_csv_path], outputs=[], show_progress="hidden")
             npc_dropdown.change(on_select, inputs=[npc_dropdown, state_df, state_label_to_key, state_world_id, override_csv_path], outputs=[bio_editor, summary_editor, thoughts_editor, reflections_editor, tags_editor, runtime_tags_display, info_line, save_btn, save_summary_btn, save_thoughts_btn, save_reflections_btn, generate_reflection_btn], show_progress="hidden")
-            save_btn.click(on_save, inputs=[npc_dropdown, bio_editor, tags_editor, state_label_to_key, state_key_to_label, override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown], show_progress="hidden")
-            refresh_btn.click(on_refresh, inputs=[override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown, bio_editor, tags_editor, runtime_tags_display, save_btn], show_progress="hidden")
-            refresh_summaries_btn.click(on_refresh_summaries, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=[info_line, summary_editor, save_summary_btn], show_progress="hidden")
-            save_summary_btn.click(on_save_summary, inputs=[npc_dropdown, summary_editor, state_label_to_key, state_world_id], outputs=[info_line], show_progress="hidden")
-            refresh_thoughts_btn.click(on_refresh_thoughts, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=[info_line, thoughts_editor, save_thoughts_btn], show_progress="hidden")
-            save_thoughts_btn.click(on_save_thoughts, inputs=[npc_dropdown, thoughts_editor, state_label_to_key, state_world_id], outputs=[info_line], show_progress="hidden")
-            refresh_reflections_btn.click(on_refresh_reflections, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=[info_line, reflections_editor, save_reflections_btn, generate_reflection_btn], show_progress="hidden")
-            save_reflections_btn.click(on_save_reflections, inputs=[npc_dropdown, reflections_editor, state_label_to_key, state_world_id], outputs=[info_line], show_progress="hidden")
+            save_btn.click(on_save, inputs=[npc_dropdown, bio_editor, tags_editor, state_label_to_key, state_key_to_label, override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown])
+            refresh_btn.click(on_refresh, inputs=[override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown, bio_editor, tags_editor, runtime_tags_display, save_btn])
+            refresh_summaries_btn.click(on_refresh_summaries, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=[info_line, summary_editor, save_summary_btn])
+            save_summary_btn.click(on_save_summary, inputs=[npc_dropdown, summary_editor, state_label_to_key, state_world_id], outputs=[info_line])
+            refresh_thoughts_btn.click(on_refresh_thoughts, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=[info_line, thoughts_editor, save_thoughts_btn])
+            save_thoughts_btn.click(on_save_thoughts, inputs=[npc_dropdown, thoughts_editor, state_label_to_key, state_world_id], outputs=[info_line])
+            refresh_reflections_btn.click(on_refresh_reflections, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=[info_line, reflections_editor, save_reflections_btn, generate_reflection_btn])
+            save_reflections_btn.click(on_save_reflections, inputs=[npc_dropdown, reflections_editor, state_label_to_key, state_world_id], outputs=[info_line])
             generate_reflection_btn.click(on_generate_reflection, inputs=[npc_dropdown, bio_editor, summary_editor, state_label_to_key, state_world_id], outputs=[info_line, reflections_editor, save_reflections_btn, generate_reflection_btn])
 
             # LLM section wiring
             # Prompt profile wiring
             prompt_selector.change(apply_selected_prompt, inputs=[prompt_selector], outputs=[prompt_editor, save_prompt_btn], show_progress="hidden")
-            save_prompt_btn.click(save_prompt_profile, inputs=[prompt_editor, new_prompt_name, prompt_selector], outputs=[info_line, prompt_selector, new_prompt_name], show_progress="hidden")
-            delete_prompt_btn.click(delete_prompt_profile, inputs=[prompt_selector], outputs=[info_line, prompt_selector, prompt_editor, new_prompt_name], show_progress="hidden")
+            save_prompt_btn.click(save_prompt_profile, inputs=[prompt_editor, new_prompt_name, prompt_selector], outputs=[info_line, prompt_selector, new_prompt_name])
+            delete_prompt_btn.click(delete_prompt_profile, inputs=[prompt_selector], outputs=[info_line, prompt_selector, prompt_editor, new_prompt_name])
 
             service_dropdown.change(on_service_change_persist, inputs=[service_dropdown], outputs=[model_dropdown], show_progress="hidden")
-            update_models_btn.click(on_service_change_persist, inputs=[service_dropdown], outputs=[model_dropdown], show_progress="hidden")
+            update_models_btn.click(on_service_change_persist, inputs=[service_dropdown], outputs=[model_dropdown])
             model_dropdown.change(on_model_change_persist, inputs=[model_dropdown], outputs=[model_dropdown], show_progress="hidden")
             apply_profile_checkbox.change(on_apply_profile_change_persist, inputs=[apply_profile_checkbox], outputs=[], show_progress="hidden")
             omit_stop_checkbox.change(on_omit_stop_change_persist, inputs=[omit_stop_checkbox], outputs=[], show_progress="hidden")
             temp_override.change(on_temp_override_persist, inputs=[temp_override], outputs=[], show_progress="hidden")
             max_tokens_override.change(on_max_tokens_override_persist, inputs=[max_tokens_override], outputs=[], show_progress="hidden")
             send_request_btn.click(on_send_llm_request, inputs=[npc_dropdown, state_df, state_label_to_key, state_world_id, prompt_editor, bio_editor, summary_editor, params_editor, apply_profile_checkbox, omit_stop_checkbox, temp_override, max_tokens_override, service_dropdown, model_dropdown], outputs=[info_line, llm_response_editor, save_from_llm_btn])
-            save_from_llm_btn.click(on_save_from_llm, inputs=[npc_dropdown, llm_response_editor, tags_editor, state_label_to_key, state_key_to_label, override_csv_path], outputs=[llm_info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown], show_progress="hidden")
-            refresh_llm_btn.click(on_refresh, inputs=[override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown, bio_editor, tags_editor, runtime_tags_display, save_btn], show_progress="hidden")
+            save_from_llm_btn.click(on_save_from_llm, inputs=[npc_dropdown, llm_response_editor, tags_editor, state_label_to_key, state_key_to_label, override_csv_path], outputs=[llm_info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown])
+            refresh_llm_btn.click(on_refresh, inputs=[override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown, bio_editor, tags_editor, runtime_tags_display, save_btn])
 
     def __get_theme(self):
         return gr.themes.Soft(primary_hue="green",
