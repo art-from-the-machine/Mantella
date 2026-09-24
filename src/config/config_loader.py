@@ -152,6 +152,15 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
         """
         self.__apply_bio_section_filter_settings_from_definitions()
 
+    def sync_save_summary_now_toggles_from_definitions(self) -> None:
+        """Refresh Save Summary Now extra toggles from UI definitions without clearing the config-changed flag.
+
+        The checkboxes update definitions immediately. The live attributes stay stale until the next
+        game request, so Save Summary Now must copy them here or it keeps the previous values.
+        """
+        self.save_summary_now_also_save_inner_thoughts = self.__definitions.get_bool_value("save_summary_now_also_save_inner_thoughts")
+        self.save_summary_now_also_save_personal_reflection = self.__definitions.get_bool_value("save_summary_now_also_save_personal_reflection")
+
     def __apply_bio_section_filter_settings_from_definitions(self) -> None:
         self.enable_bio_section_filter = self.__definitions.get_bool_value("enable_bio_section_filter")
         self.enable_bio_section_filter_for_memory = self.__definitions.get_bool_value("enable_bio_section_filter_for_memory")
