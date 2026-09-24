@@ -219,8 +219,10 @@ class Conversation:
             mic_prompt = self.__get_mic_prompt()
             self.__stt.start_listening(mic_prompt)
         
-        #Grab the next sentence from the queue
+        #Grab the next sentence from the queue. Private thoughts stay in history and are not spoken.
         next_sentence: Sentence | None = self.retrieve_sentence_from_queue()
+        while next_sentence is not None and next_sentence.content.sentence_type == SentenceTypeEnum.THOUGHT:
+            next_sentence = self.retrieve_sentence_from_queue()
         
         if next_sentence and len(next_sentence.text) > 0:
             if comm_consts.ACTION_REMOVECHARACTER in next_sentence.actions:

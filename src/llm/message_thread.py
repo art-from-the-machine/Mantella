@@ -24,10 +24,20 @@ class message_thread():
 
     @staticmethod
     @utils.time_it
-    def transform_to_openai_messages(messages: list[Message]) -> list[ChatCompletionMessageParam]:
+    def transform_to_openai_messages(messages: list[Message], last_turn_thoughts_only: bool = False) -> list[ChatCompletionMessageParam]:
+        last_assistant: AssistantMessage | None = None
+        if last_turn_thoughts_only:
+            for message in reversed(messages):
+                if isinstance(message, AssistantMessage):
+                    last_assistant = message
+                    break
         result = []
         for m in messages:
-            result.append(m.get_openai_message())
+            if isinstance(m, AssistantMessage):
+                include_thoughts = (not last_turn_thoughts_only) or m is last_assistant
+                result.append(m.get_openai_message(include_thoughts=include_thoughts))
+            else:
+                result.append(m.get_openai_message())
         return result
     
     @staticmethod
@@ -54,7 +64,8 @@ class message_thread():
 
     @utils.time_it
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
-        return message_thread.transform_to_openai_messages(self.__messages)
+        """Chat requests keep private thoughts only on the latest assistant turn."""
+        return message_thread.transform_to_openai_messages(self.__messages, last_turn_thoughts_only=True)
 
     def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message):
         self.__messages.append(new_message)

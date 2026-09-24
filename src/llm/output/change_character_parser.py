@@ -3,7 +3,7 @@ from typing import Callable, OrderedDict
 from src.character_manager import Character
 from src.characters_manager import Characters
 from src.llm.output.output_parser import MarkedTextStateEnum, output_parser, sentence_generation_settings
-from src.llm.sentence_content import SentenceContent
+from src.llm.sentence_content import SentenceContent, SentenceTypeEnum
 
 
 class change_character_parser(output_parser):
@@ -29,6 +29,8 @@ class change_character_parser(output_parser):
         
 
     def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[SentenceContent | None, str]:
+        if current_settings.sentence_type == SentenceTypeEnum.THOUGHT:
+            return None, output
         if not ':' in output:
             return None, output
         

@@ -331,6 +331,7 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
             #LLM
             self.max_response_sentences_single = self.__definitions.get_int_value("max_response_sentences_single")
             self.max_response_sentences_multi = self.__definitions.get_int_value("max_response_sentences_multi")
+            self.read_thoughts_after_sentence_cap = self.__definitions.get_bool_value("read_thoughts_after_sentence_cap")
             self.drop_last_sentences_single = self.__definitions.get_int_value("drop_last_sentences_single")
             self.llm = self.__definitions.get_string_value("model")
             self.llm = self.llm.split(' |')[0] if ' |' in self.llm else self.llm

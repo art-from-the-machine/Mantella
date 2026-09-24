@@ -164,7 +164,7 @@ class AssistantMessage(Message):
     def add_sentence(self, new_sentence: Sentence):
         self.__sentences.append(new_sentence.content)
 
-    def get_formatted_content(self) -> str:
+    def get_formatted_content(self, include_thoughts: bool = True) -> str:
         if len(self.__sentences) < 1:
             return ""
         
@@ -172,6 +172,8 @@ class AssistantMessage(Message):
         lastActor: Character | None = None
         was_last_sentence_narration: bool = False
         for sentence in self.__sentences:
+            if sentence.sentence_type == SentenceTypeEnum.THOUGHT:
+                continue
             if self.is_multi_npc_message and lastActor != sentence.speaker:
                 lastActor = sentence.speaker
                 was_last_sentence_narration = False
@@ -184,11 +186,42 @@ class AssistantMessage(Message):
                 result += " "
             was_last_sentence_narration = sentence.sentence_type == SentenceTypeEnum.NARRATION
             result += sentence.text.strip()
+        if include_thoughts:
+            for speaker_name, thought_text in self.__kept_thoughts():
+                result += f"\n<<thought {speaker_name}>> {thought_text}"
         result = utils.remove_extra_whitespace(result)
         return result
 
-    def get_openai_message(self) -> ChatCompletionMessageParam:
-        return {"role":"assistant", "content": self.get_formatted_content(),}
+    def __kept_thoughts(self) -> list[tuple[str, str]]:
+        """One thought per NPC who actually spoke in this reply. Later duplicates are ignored."""
+        spoken_ref_ids = {
+            sentence.speaker.ref_id
+            for sentence in self.__sentences
+            if sentence.sentence_type != SentenceTypeEnum.THOUGHT and sentence.text.strip()
+        }
+        merged: dict[str, str] = {}
+        order: list[str] = []
+        names: dict[str, str] = {}
+        for sentence in self.__sentences:
+            if sentence.sentence_type != SentenceTypeEnum.THOUGHT:
+                continue
+            ref_id = sentence.speaker.ref_id
+            if ref_id not in spoken_ref_ids or not sentence.text.strip():
+                continue
+            if ref_id not in merged:
+                merged[ref_id] = sentence.text.strip()
+                order.append(ref_id)
+                names[ref_id] = sentence.speaker.name
+            # A second thought block is a separate sentence only when the parser
+            # suppressed it. Continuation sentences of the first block are appended
+            # when they were still queued. Queued continuations share the speaker
+            # and are joined here.
+            elif sentence.text.strip() not in merged[ref_id]:
+                merged[ref_id] = f"{merged[ref_id]} {sentence.text.strip()}"
+        return [(names[ref_id], merged[ref_id]) for ref_id in order]
+
+    def get_openai_message(self, include_thoughts: bool = True) -> ChatCompletionMessageParam:
+        return {"role":"assistant", "content": self.get_formatted_content(include_thoughts),}
     
     def get_dict_formatted_string(self) -> str:
         dictionary = {"role":"assistant", "content": self.get_formatted_content(),}

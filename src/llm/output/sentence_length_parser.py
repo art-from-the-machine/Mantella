@@ -1,5 +1,5 @@
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
-from src.llm.sentence_content import SentenceContent
+from src.llm.sentence_content import SentenceContent, SentenceTypeEnum
 
 class sentence_length_parser(output_parser):
     def __init__(self, min_words_tts: int) -> None:
@@ -25,6 +25,9 @@ class sentence_length_parser(output_parser):
                 - parsed_sentence is a sentence ready for output
                 - pending_sentence is a sentence being held for potential merging
         """
+        if next_content.sentence_type == SentenceTypeEnum.THOUGHT and settings.suppress_thought:
+            return None, last_content
+
         # First sentence case
         if not last_content:
             # Hold short sentences for potential merging

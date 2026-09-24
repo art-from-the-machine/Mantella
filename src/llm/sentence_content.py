@@ -4,6 +4,7 @@ from src.character_manager import Character
 class SentenceTypeEnum(Enum):
     SPEECH = 1
     NARRATION = 2
+    THOUGHT = 3
 
 class SentenceContent:
     """The LLM relevant part of a sentence"""

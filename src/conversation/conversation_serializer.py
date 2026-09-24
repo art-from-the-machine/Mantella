@@ -173,8 +173,8 @@ def deserialize_persistent_messages(
                     {"ref_id": ref_id, "name": name, "base_id": base_id},
                     character_resolver,
                 )
-                stype_str = sdata.get("sentence_type", "SPEECH").upper()
-                stype = SentenceTypeEnum.SPEECH if stype_str != "NARRATION" else SentenceTypeEnum.NARRATION
+                stype_str = str(sdata.get("sentence_type", "SPEECH")).upper()
+                stype = SentenceTypeEnum[stype_str] if stype_str in SentenceTypeEnum.__members__ else SentenceTypeEnum.SPEECH
                 actions = list(sdata.get("actions", [])) if sdata.get("actions") else []
                 content = SentenceContent(
                     speaker=speaker,

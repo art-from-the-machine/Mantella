@@ -18,6 +18,9 @@ class sentence_generation_settings:
         self.__current_text_state: MarkedTextStateEnum = MarkedTextStateEnum.UNMARKED
         self.__current_speaker: Character = current_speaker
         self.__stop_generation: bool = False
+        self.speech_cap_reached: bool = False
+        self.suppress_thought: bool = False
+        self.thought_speakers: set[str] = set()
     
     @property
     def sentence_type(self) -> SentenceTypeEnum:

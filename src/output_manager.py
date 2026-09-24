@@ -16,6 +16,7 @@ from src.llm.output.drop_last_sentences import drop_last_sentences_buffer
 from src.llm.output.sentence_length_parser import sentence_length_parser
 from src.llm.output.actions_parser import actions_parser
 from src.llm.output.change_character_parser import change_character_parser
+from src.llm.output.thought_parser import thought_parser
 from src.llm.output.narration_parser import narration_parser
 from src.llm.output.output_parser import output_parser, sentence_generation_settings
 from src.llm.output.sentence_end_parser import sentence_end_parser
@@ -471,6 +472,46 @@ class ChatManager:
             return Sentence(SentenceContent(character_to_talk, text, content.sentence_type, content.is_system_generated_sentence, content.actions), audio_file, duration)
 
     @utils.time_it
+    def _queue_parsed_sentence(self, parsed_sentence: SentenceContent, drop_buffer: drop_last_sentences_buffer, blocking_queue: SentenceQueue) -> None:
+        """Speech and narration go through TTS. Private thoughts are stored for the next request and never voiced."""
+        if parsed_sentence.sentence_type == SentenceTypeEnum.THOUGHT:
+            if parsed_sentence.text.strip():
+                blocking_queue.put(Sentence(parsed_sentence, "", 0))
+            return
+        if self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS and parsed_sentence.sentence_type == SentenceTypeEnum.NARRATION:
+            return
+        ready_sentence = drop_buffer.push(parsed_sentence)
+        if ready_sentence:
+            blocking_queue.put(self.generate_sentence(ready_sentence))
+
+    def _parse_parser_chain(self, current_sentence: str, parser_chain: list[output_parser], settings: sentence_generation_settings, pending_sentence: SentenceContent | None, accumulator: sentence_accumulator, drop_buffer: drop_last_sentences_buffer, blocking_queue: SentenceQueue) -> tuple[SentenceContent | None, SentenceContent | None, bool]:
+        """Parse one accumulator chunk. A remainder after a cut is parsed immediately so a thought marker is not left unspoken."""
+        parsed_sentence: SentenceContent | None = None
+        while current_sentence and current_sentence.strip():
+            parsed_sentence = None
+            started_len = len(current_sentence)
+            for parser in parser_chain:
+                if not parsed_sentence:
+                    parsed_sentence, current_sentence = parser.cut_sentence(current_sentence, settings)
+                # Drop a duplicate thought before the short-sentence merger can glue it onto the first thought.
+                if parsed_sentence and parsed_sentence.sentence_type == SentenceTypeEnum.THOUGHT and settings.suppress_thought:
+                    parsed_sentence = None
+                    break
+                if parsed_sentence:
+                    parsed_sentence, pending_sentence = parser.modify_sentence_content(parsed_sentence, pending_sentence, settings)
+                if settings.stop_generation:
+                    break
+            if parsed_sentence:
+                self._queue_parsed_sentence(parsed_sentence, drop_buffer, blocking_queue)
+                parsed_sentence = None
+            if settings.stop_generation:
+                return pending_sentence, None, True
+            if not current_sentence or not str(current_sentence).strip() or len(current_sentence) >= started_len:
+                if current_sentence and str(current_sentence).strip():
+                    accumulator.refuse(current_sentence)
+                break
+        return pending_sentence, parsed_sentence, False
+
     def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action]):
         """Starts generating responses by the LLM for the current state of the input messages
 
@@ -513,6 +554,7 @@ class ChatManager:
         retries = 0
 
         parser_chain: list[output_parser] = [
+            thought_parser(characters.get_all_characters()),
             change_character_parser(characters)]
         if self.__config.narration_handling != NarrationHandlingEnum.DEACTIVATE_HANDLING_OF_NARRATIONS:
             parser_chain.append(narration_parser(self.__config.narration_start_indicators, self.__config.narration_end_indicators, 
@@ -521,7 +563,11 @@ class ChatManager:
             sentence_end_parser(),
             actions_parser(actions),
             sentence_length_parser(self.__config.number_words_tts),
-            max_count_sentences_parser(max_response_sentences, not characters.contains_player_character())
+            max_count_sentences_parser(
+                max_response_sentences,
+                not characters.contains_player_character(),
+                getattr(self.__config, "read_thoughts_after_sentence_cap", False),
+            )
         ])
 
         cut_indicators: set[str] = set()
@@ -670,26 +716,11 @@ class ChatManager:
                         accumulator.accumulate(content)
                         while accumulator.has_next_sentence():
                             current_sentence = accumulator.get_next_sentence()
-                            # current_sentence += content
-                            parsed_sentence: SentenceContent | None = None
-                            # Apply parsers
-                            for parser in parser_chain:
-                                if not parsed_sentence:  # Try to extract a complete sentence
-                                    parsed_sentence, current_sentence = parser.cut_sentence(current_sentence, settings)
-                                if parsed_sentence:  # Apply modifications if we already have a sentence
-                                    parsed_sentence, pending_sentence = parser.modify_sentence_content(parsed_sentence, pending_sentence, settings)
-                                if settings.stop_generation:
-                                    break
-                            if settings.stop_generation:
+                            pending_sentence, parsed_sentence, stopped = self._parse_parser_chain(
+                                current_sentence, parser_chain, settings, pending_sentence, accumulator, drop_buffer, blocking_queue
+                            )
+                            if stopped:
                                 break
-                            accumulator.refuse(current_sentence)
-                            # Process sentences from the parser chain
-                            if parsed_sentence:
-                                if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
-                                    ready_sentence = drop_buffer.push(parsed_sentence)
-                                    if ready_sentence:
-                                        blocking_queue.put(self.generate_sentence(ready_sentence))
-                                    parsed_sentence = None
                         if settings.stop_generation:
                                 break
                     break #if the streaming_call() completed without exception, break the while loop
@@ -736,29 +767,26 @@ class ChatManager:
         finally:
             # Handle any remaining content
             if parsed_sentence:
-                if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or parsed_sentence.sentence_type != SentenceTypeEnum.NARRATION:
-                    ready_sentence = drop_buffer.push(parsed_sentence)
-                    if ready_sentence:
-                        blocking_queue.put(self.generate_sentence(ready_sentence))
+                self._queue_parsed_sentence(parsed_sentence, drop_buffer, blocking_queue)
 
-            # Flush any trailing text in the accumulator that never reached a
-            # sentence-ending character, so the final partial sentence is not
-            # silently dropped. The leftover is, by definition, plain text in
-            # the current sentence_type (any cut indicator would already have
-            # been extracted during streaming), so it does not need to go
-            # through the full parser chain again.
+            # Flush any trailing text that never reached a sentence-ending character.
+            # Run it through the parser chain when it still contains a thought marker
+            # so the marker is not spoken.
             if not settings.stop_generation:
                 leftover = accumulator.flush_remaining()
                 if leftover and leftover.strip():
-                    if pending_sentence and pending_sentence.speaker == settings.current_speaker:
+                    if "<<thought" in leftover.lower():
+                        if pending_sentence:
+                            self._queue_parsed_sentence(pending_sentence, drop_buffer, blocking_queue)
+                            pending_sentence = None
+                        pending_sentence, _, _ = self._parse_parser_chain(
+                            leftover, parser_chain, settings, pending_sentence, accumulator, drop_buffer, blocking_queue
+                        )
+                    elif pending_sentence and pending_sentence.speaker == settings.current_speaker and pending_sentence.sentence_type == settings.sentence_type:
                         pending_sentence.append_other_sentence_content(leftover, [])
                     else:
-                        # pending_sentence is older than leftover, so emit it first
-                        # when they cannot be merged (different speakers).
                         if pending_sentence:
-                            ready_sentence = drop_buffer.push(pending_sentence)
-                            if ready_sentence:
-                                blocking_queue.put(self.generate_sentence(ready_sentence))
+                            self._queue_parsed_sentence(pending_sentence, drop_buffer, blocking_queue)
                             pending_sentence = None
                         final_sentence = SentenceContent(
                             settings.current_speaker,
@@ -766,15 +794,10 @@ class ChatManager:
                             settings.sentence_type,
                             False,
                         )
-                        ready_sentence = drop_buffer.push(final_sentence)
-                        if ready_sentence:
-                            blocking_queue.put(self.generate_sentence(ready_sentence))
+                        self._queue_parsed_sentence(final_sentence, drop_buffer, blocking_queue)
 
             if pending_sentence:
-                if not self.__config.narration_handling == NarrationHandlingEnum.CUT_NARRATIONS or pending_sentence.sentence_type != SentenceTypeEnum.NARRATION:
-                    ready_sentence = drop_buffer.push(pending_sentence)
-                    if ready_sentence:
-                        blocking_queue.put(self.generate_sentence(ready_sentence))
+                self._queue_parsed_sentence(pending_sentence, drop_buffer, blocking_queue)
             for remaining_sentence in drop_buffer.flush():
                 blocking_queue.put(self.generate_sentence(remaining_sentence))
             try:

@@ -78,6 +78,13 @@ class LLMDefinitions:
         return ConfigValueInt("max_response_sentences_multi","Max Sentences per Response (Multi NPC)", description, 12, 1, 999, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
 
     @staticmethod
+    def get_read_thoughts_after_sentence_cap_config_value() -> ConfigValue:
+        description = """When enabled, private-thought lines do not count toward Max Sentences per Response.
+                    After the spoken cap is reached, later spoken lines are dropped, but generation continues so a trailing thought block can still be saved.
+                    When disabled, every sentence counts, including thoughts. The sentence that reaches the cap is kept, and the rest of the reply is discarded and the stream stops."""
+        return ConfigValueBool("read_thoughts_after_sentence_cap", "Read Private Thoughts After Sentence Cap", description, False, tags=[ConfigValueTag.basic])
+
+    @staticmethod
     def get_drop_last_sentences_single_config_value() -> ConfigValue:
         description = """Number of sentences to drop from the end of each NPC response in a player<->NPC conversation.
                     Dropped sentences are not spoken and are not added to conversation history.

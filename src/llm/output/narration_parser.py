@@ -33,6 +33,8 @@ class narration_parser(output_parser):
         return self.__narration_start_chars + self.__narration_end_chars + self.__speech_start_chars + self.__speech_end_chars
 
     def cut_sentence(self, output: str, current_settings: sentence_generation_settings) -> tuple[SentenceContent | None, str]:
+        if current_settings.sentence_type == SentenceTypeEnum.THOUGHT:
+            return None, output
         output = output.lstrip()
         while True: #loop will only be run a maximum of two times
             if current_settings.current_text_state == MarkedTextStateEnum.UNMARKED: #If we are currently in unmarked text, which is the default
