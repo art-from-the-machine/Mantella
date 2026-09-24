@@ -529,10 +529,24 @@ class Summaries(Remembering):
 
         if self.__personal_reflection and should_save_reflections:
             try:
+                reflection_characters = characters
+                reflection_summaries = full_summaries
+                # Conversation end uses the same 5-message cutoff as summaries.
+                # Save Summary Now passes save_reflections explicitly and still reflects from summaries already on file.
+                if save_reflections is None:
+                    reflection_characters = {}
+                    reflection_summaries = {}
+                    for npc_name, npc in characters.items():
+                        params = npc_message_threads.get(npc_name)
+                        if params is None or len(params.messages) < 5:
+                            logging.info(f"Personal reflection not saved for {npc_name}. Not enough dialogue spoken.")
+                            continue
+                        reflection_characters[npc_name] = npc
+                        reflection_summaries[npc_name] = full_summaries.get(npc_name, "")
                 self.__personal_reflection.save_reflections(
                     npc_message_threads,
-                    characters,
-                    full_summaries,
+                    reflection_characters,
+                    reflection_summaries,
                     world_id,
                     ts,
                 )

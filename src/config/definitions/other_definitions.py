@@ -164,6 +164,7 @@ class OtherDefinitions:
         description = """Whether to generate and save a personal reflection when a conversation ends and a summary is saved.
                         Personal reflections are long-term (bio + past summaries), unlike private thoughts which focus on the latest conversation.
                         If enabled: after a summary is written, the NPC also records a first-person personal reflection, as long as that NPC already has summaries.
+                        A conversation that is too short to summarize does not write a new reflection.
                         If disabled: summaries still save (when enabled), but no new personal reflections are written.
                         Whether saved reflections appear in the next conversation prompt is controlled separately by Send Personal Reflection to LLM.
                         Manual Save Personal Reflection Now and Bio Editor Generate still work when this is off.
