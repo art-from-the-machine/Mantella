@@ -6,6 +6,7 @@ from src.config.config_loader import ConfigLoader
 from src.image.image_manager import ImageManager
 from src.llm.client_base import ClientBase
 from src.llm.sonnet_cache_connector import SonnetCacheConnector
+from src.prompt_profile_manager import PromptSectionError
 from src.llm.messages import ImageMessage
 
 class ImageClient(ClientBase):
@@ -37,7 +38,7 @@ class ImageClient(ClientBase):
         self.__end_of_sentence_chars = ['.', '?', '!', ';', '。', '？', '！', '；', '：']
         self.__end_of_sentence_chars = [unicodedata.normalize('NFKC', char) for char in self.__end_of_sentence_chars]
 
-        self.__vision_prompt: str = config.vision_prompt.format(game=config.game.display_name)
+        self.__vision_prompt: str = self.__format_vision_prompt(config)
         self.__detail: str = "low" if config.low_resolution_mode else "high"
         self.__image_manager: ImageManager | None = ImageManager(config.game, 
                                                 config.save_folder, 
@@ -49,6 +50,14 @@ class ImageClient(ClientBase):
                                                 config.use_game_screenshots,
                                                 config.game_path)
     
+    def __format_vision_prompt(self, config: ConfigLoader) -> str:
+        try:
+            expanded = config.prompt_profile_manager.resolve_prompt("vision_prompt", config.vision_prompt)
+            return expanded.format(game=config.game.display_name)
+        except PromptSectionError as e:
+            logging.error(str(e))
+            return ""
+
     @utils.time_it
     def add_image_to_messages(self, openai_messages: list[ChatCompletionMessageParam], vision_hints: str) -> list[ChatCompletionMessageParam]:
         '''Adds a captured image to the latest user message
@@ -79,6 +88,8 @@ class ImageClient(ClientBase):
                     ]
                 })
         else:
+            if not self.__vision_prompt:
+                return openai_messages
             if len(vision_hints) > 0:
                 vision_prompt = f"{self.__vision_prompt}\n{vision_hints}"
             else:
@@ -156,7 +167,7 @@ class ImageClient(ClientBase):
                 logging.debug(f"Failed to update Sonnet cache connector during hot-swap: {e}")
             
             # Update vision-specific settings
-            self.__vision_prompt = config.vision_prompt.format(game=config.game.display_name)
+            self.__vision_prompt = self.__format_vision_prompt(config)
             self.__detail = "low" if config.low_resolution_mode else "high"
             
             # Update image manager with new settings

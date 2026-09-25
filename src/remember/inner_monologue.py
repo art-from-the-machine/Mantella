@@ -12,6 +12,7 @@ from src.llm.client_base import ClientBase
 from src.llm.llm_client import LLMClient
 from src.llm.message_thread import message_thread
 from src.llm.messages import UserMessage
+from src.prompt_profile_manager import PromptSectionError
 from src.remember.summaries import (
     CharacterSummaryParameters,
     format_character_bios_for_memory,
@@ -199,7 +200,14 @@ class InnerMonologue:
         )
 
         previous_thoughts = self.get_previous_thoughts_text(npc, world_id) or "(none)"
-        prompt = self.__config.inner_monologue_prompt.format(
+        try:
+            monologue_template = self.__config.prompt_profile_manager.resolve_prompt(
+                "inner_monologue_prompt", self.__config.inner_monologue_prompt
+            )
+        except PromptSectionError as e:
+            logging.error(str(e))
+            return ""
+        prompt = monologue_template.format(
             name=npc.name,
             names=names,
             language=self.__language_name,

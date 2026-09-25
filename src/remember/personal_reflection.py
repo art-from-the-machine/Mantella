@@ -15,6 +15,7 @@ from src.llm.llm_client import LLMClient
 from src.llm.message_thread import message_thread
 from src.llm.messages import UserMessage
 from src.bio_section_filter import apply_bio_section_filter, should_filter_memory_bios
+from src.prompt_profile_manager import PromptSectionError
 from src.remember.summaries import (
     CharacterSummaryParameters,
     format_character_bios_for_memory,
@@ -335,6 +336,8 @@ class PersonalReflection:
             conversation_summary=conversation_summary.strip(),
             previous_reflection=previous_reflection,
         )
+        if not prompt:
+            return ""
         return self.__request_reflection(prompt)
 
     def __format_prompt(
@@ -350,7 +353,14 @@ class PersonalReflection:
             location = "the Commonwealth"
         else:
             location = "Skyrim"
-        return self.__config.personal_reflection_prompt.format(
+        try:
+            reflection_template = self.__config.prompt_profile_manager.resolve_prompt(
+                "personal_reflection_prompt", self.__config.personal_reflection_prompt
+            )
+        except PromptSectionError as e:
+            logging.error(str(e))
+            return ""
+        return reflection_template.format(
             name=name,
             names=names,
             language=self.__language_name,

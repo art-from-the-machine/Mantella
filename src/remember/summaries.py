@@ -15,6 +15,7 @@ from src.characters_manager import Characters
 from src.character_manager import Character
 from src.remember.remembering import Remembering
 from src.lorebook_manager import LorebookManager
+from src.prompt_profile_manager import PromptSectionError
 from src.bio_section_filter import apply_bio_section_filter, should_filter_memory_bios
 from src import utils
 
@@ -781,13 +782,19 @@ class Summaries(Remembering):
         talk_history_text = npcInfo.messages.transform_to_text(
             npcInfo.messages.get_talk_only(include_system_generated_messages=True)
         )
+        memory_template = self.__config.memory_prompt
         lorebook_text = self.__build_lorebook_text_for_prompt(
-            self.__memory_prompt,
+            memory_template,
             prompt_values,
             excluded_variables={"bios", "conversation_summaries"},
             extra_scan_texts=[talk_history_text],
         )
-        prompt = self.__memory_prompt.format(
+        try:
+            memory_template = self.__config.prompt_profile_manager.resolve_prompt("memory_prompt", memory_template)
+        except PromptSectionError as e:
+            logging.error(str(e))
+            return ""
+        prompt = memory_template.format(
                     name=names,
                     names=names,
                     language=self.__language_name,
@@ -878,13 +885,21 @@ class Summaries(Remembering):
                         "game": str(self.__game),
                         "player_name": player_name,
                     }
+                    resummarize_template = self.__config.resummarize_prompt
                     lorebook_text = self.__build_lorebook_text_for_prompt(
-                        self.__resummarize_prompt,
+                        resummarize_template,
                         resummarize_values,
                         excluded_variables={"bios", "conversation_summaries"},
                         extra_scan_texts=None,
                     )
-                    prompt = self.__resummarize_prompt.format(
+                    try:
+                        resummarize_template = self.__config.prompt_profile_manager.resolve_prompt(
+                            "resummarize_prompt", resummarize_template
+                        )
+                    except PromptSectionError as e:
+                        logging.error(str(e))
+                        return ""
+                    prompt = resummarize_template.format(
                         name=npc.name,
                         language=self.__language_name,
                         game=self.__game,

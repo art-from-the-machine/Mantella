@@ -62,7 +62,6 @@ class message_thread():
             # m.is_multi_npc_message = original_is_multi
         return result
 
-    @utils.time_it
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
         """Chat requests keep private thoughts only on the latest assistant turn."""
         return message_thread.transform_to_openai_messages(self.__messages, last_turn_thoughts_only=True)

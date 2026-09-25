@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
+import logging
 from src.config.config_loader import ConfigLoader
+from src.config.definitions.game_definitions import GameEnum
+from src.prompt_profile_manager import PromptSectionError
 from src.character_manager import Character
 from src.llm.message_thread import message_thread
 from src.conversation.context import context as Context
@@ -70,7 +73,8 @@ class pc_to_npc(conversation_type):
     @utils.time_it
     def generate_prompt(self, context_for_conversation: Context, should_log: bool = False, messages_for_lorebook: message_thread | None = None) -> str:
         actions = [a for a in self._config.actions if a.use_in_on_on_one]
-        return context_for_conversation.generate_system_message(self._config.prompt, actions, should_log, messages_for_lorebook)
+        prompt_type = None if self._config.game.base_game == GameEnum.FALLOUT4 else "skyrim_prompt"
+        return context_for_conversation.generate_system_message(self._config.prompt, actions, should_log, messages_for_lorebook, prompt_type)
     
     @utils.time_it
     def adjust_existing_message_thread(self, prompt: str, message_thread_to_adjust: message_thread):
@@ -102,8 +106,10 @@ class multi_npc(conversation_type):
         if (hasattr(self._config, 'multi_conversation_director_mode') and 
             self._config.multi_conversation_director_mode and 
             hasattr(self._config, 'multi_npc_director_prompt')):
-            return context_for_conversation.generate_system_message(self._config.multi_npc_director_prompt, actions, should_log, messages_for_lorebook)
-        return context_for_conversation.generate_system_message(self._config.multi_npc_prompt, actions, should_log, messages_for_lorebook)
+            prompt_type = None if self._config.game.base_game == GameEnum.FALLOUT4 else "skyrim_multi_npc_director_prompt"
+            return context_for_conversation.generate_system_message(self._config.multi_npc_director_prompt, actions, should_log, messages_for_lorebook, prompt_type)
+        prompt_type = None if self._config.game.base_game == GameEnum.FALLOUT4 else "skyrim_multi_npc_prompt"
+        return context_for_conversation.generate_system_message(self._config.multi_npc_prompt, actions, should_log, messages_for_lorebook, prompt_type)
     
     @utils.time_it
     def adjust_existing_message_thread(self, prompt: str, message_thread_to_adjust: message_thread):
@@ -127,11 +133,20 @@ class radiant(conversation_type):
         super().__init__(config)
         self.__user_start_prompt = config.radiant_start_prompt
         self.__user_end_prompt = config.radiant_end_prompt
+        self.__prompt_unusable = False
+
+    @property
+    def prompt_unusable(self) -> bool:
+        return self.__prompt_unusable
+
+    def mark_prompt_unusable(self) -> None:
+        self.__prompt_unusable = True
 
     @utils.time_it
     def generate_prompt(self, context_for_conversation: Context, should_log: bool = False, messages_for_lorebook: message_thread | None = None) -> str:
         actions = [a for a in self._config.actions if a.use_in_radiant]
-        return context_for_conversation.generate_system_message(self._config.radiant_prompt, actions, should_log, messages_for_lorebook)
+        prompt_type = None if self._config.game.base_game == GameEnum.FALLOUT4 else "skyrim_radiant_prompt"
+        return context_for_conversation.generate_system_message(self._config.radiant_prompt, actions, should_log, messages_for_lorebook, prompt_type)
     
     @utils.time_it
     def adjust_existing_message_thread(self, prompt: str, message_thread_to_adjust: message_thread):
@@ -140,15 +155,26 @@ class radiant(conversation_type):
     @utils.time_it
     def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:        
         text = ""
+        prompt_type = ""
         if len(messages) == 1:
             text = self.__user_start_prompt
+            prompt_type = "radiant_start_prompt"
         elif len(messages) == 3:
             text = self.__user_end_prompt
+            prompt_type = "radiant_end_prompt"
         else:
+            return None
+        try:
+            text = self._config.prompt_profile_manager.resolve_prompt(prompt_type, text)
+        except PromptSectionError as e:
+            logging.error(str(e))
+            self.mark_prompt_unusable()
             return None
         reply = UserMessage(context_for_conversation.config, text, "", True)
         reply.is_multi_npc_message = False # Don't flag these as multi-npc messages. Don't want a 'Player:' in front of the instruction messages
         return reply
     
     def should_end(self, context_for_conversation: Context, messages: message_thread) -> bool:
+        if self.__prompt_unusable:
+            return True
         return len(messages) > 4

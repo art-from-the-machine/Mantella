@@ -14,6 +14,7 @@ from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 from src.config.definitions.game_definitions import GameEnum
 from src.lorebook_manager import LorebookManager
+from src.prompt_profile_manager import PromptSectionError
 from src.bio_section_filter import apply_bio_section_filter, should_filter_conversation_bios
 
 
@@ -648,9 +649,19 @@ class context:
             logging.debug(f"Could not gather context events for lorebook scan: {e}")
 
         return self.__lorebook_manager.render_lorebook_entries(search_texts)
-    
+
+    @staticmethod
+    def __fill_prompt(prompt: str, **values) -> str:
+        try:
+            return prompt.format(**values)
+        except KeyError as error:
+            missing = error.args[0] if error.args else "unknown"
+            raise PromptSectionError(str(missing)) from error
+        except ValueError:
+            raise PromptSectionError("unmatched brace")
+
     @utils.time_it
-    def generate_system_message(self, prompt: str, actions_for_prompt: list[Action], should_log: bool = False, messages_for_lorebook = None) -> str:
+    def generate_system_message(self, prompt: str, actions_for_prompt: list[Action], should_log: bool = False, messages_for_lorebook = None, prompt_type: str | None = None) -> str:
         """Fills the variables in the prompt with the values calculated from the context
 
         Args:
@@ -672,8 +683,9 @@ class context:
             game_sent_description = player.get_custom_character_value(communication_constants.KEY_ACTOR_PC_DESCRIPTION)
             if game_sent_description and game_sent_description != "":
                 player_description = game_sent_description
+        name = ""
         if self.npcs_in_conversation.last_added_character:
-            name: str = self.npcs_in_conversation.last_added_character.name
+            name = self.npcs_in_conversation.last_added_character.name
         names = self.get_character_names_as_text(False)
         names_w_player = self.get_character_names_as_text(True)
         bios = self.__get_bios_text()
@@ -724,9 +736,13 @@ class context:
             "private_thoughts": private_thoughts,
             "private_thought": private_thoughts,
             "actions": actions,
+            "game": self.__game.display_name,
         }
         lorebook_text = self.__build_lorebook_text(prompt, variable_values, messages_for_lorebook)
+        if prompt_type:
+            prompt = self.__config.prompt_profile_manager.resolve_prompt(prompt_type, prompt)
 
+        game_name = variable_values["game"]
         removal_content: list[tuple[str, str, str, str]] = [
             (bios, conversation_summaries, bios_and_summaries, private_thoughts),
             (bios, conversation_summaries, bios_and_summaries, ""),
@@ -737,10 +753,12 @@ class context:
         have_summaries_been_dropped = False
         logging.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')
         for content in removal_content:
-            result = prompt.format(
+            result = self.__fill_prompt(
+                prompt,
                 player_name = player_name,
                 player_description = player_description,
                 player_equipment = player_equipment,
+                game=game_name,
                 name=name,
                 names=names,
                 names_w_player = names_w_player,

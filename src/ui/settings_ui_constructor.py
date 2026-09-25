@@ -725,13 +725,28 @@ class SettingsUIConstructor(ConfigValueVisitor):
         if config_value.description:
             gr.Markdown(config_value.description)
 
+        initial_section_names = manager.get_section_names()
+        initial_section = initial_section_names[0] if initial_section_names else None
+        initial_section_text = manager.get_section_text(initial_section) if initial_section else ""
+
+        def section_dropdown(selected: str | None) -> Any:
+            names = manager.get_section_names()
+            value = selected if selected in names else (names[0] if names else None)
+            return gr.update(choices=names, value=value)
+
+        def section_validation_panel(text: str) -> Any:
+            result = manager.validate_section_text(text or "")
+            if result.is_success:
+                return error_panel("", False)
+            return error_panel(result.error_message, True)
+
         type_ui = gr.Dropdown(
             choices=type_choices,
             value=initial_type_display,
             label="Prompt type",
             allow_custom_value=False
         )
-        variables_ui = gr.Markdown(manager.supported_variables_markdown(initial_type))
+        variables_ui = gr.Markdown(manager.variables_markdown(initial_type))
         with gr.Row():
             edit_ui = gr.Dropdown(
                 choices=initial_names,
@@ -760,12 +775,47 @@ class SettingsUIConstructor(ConfigValueVisitor):
         )
         status_ui = gr.Markdown("")
 
+        gr.Markdown(
+            "**Shared sections**\n\n"
+            "Write a block of prompt text once, then reuse it in any profile. "
+            "In the prompt above, insert the section by name, for example `{roleplay_section}`. "
+            "Saving the section updates every active profile that uses it. The next request sends the new text.\n\n"
+            "- The name can use letters, digits, and underscores, such as `roleplay_section`.\n"
+            "- Inside the section, built-in variables such as `{name}` and `{player_name}` are filled in when the prompt is sent.\n"
+            "- A section cannot contain another shared section.\n"
+            "- If the expanded section uses a variable this prompt type does not allow, saving that profile is rejected."
+        )
+        with gr.Row():
+            section_edit_ui = gr.Dropdown(
+                choices=initial_section_names,
+                value=initial_section,
+                label="Edit shared section",
+                allow_custom_value=False
+            )
+            section_save_btn = gr.Button("Save", variant="primary", size="sm")
+            section_rename_btn = gr.Button("Rename", size="sm")
+            section_delete_btn = gr.Button("Delete", variant="secondary", size="sm")
+        section_name_ui = gr.Text(value=initial_section or "", label="Section name", max_lines=1)
+        section_text_ui = gr.Textbox(
+            value=initial_section_text or "",
+            label="Section text",
+            lines=8,
+            max_lines=8,
+            elem_classes="multiline-textbox"
+        )
+        initial_section_error = manager.validate_section_text(initial_section_text or "")
+        section_error_ui = self.__construct_error_message_panel(
+            "" if initial_section_error.is_success else initial_section_error.error_message,
+            is_visible=not initial_section_error.is_success
+        )
+        section_status_ui = gr.Markdown("")
+
         def on_type_change(type_display: str):
             prompt_type = type_id(type_display)
             selected = manager.get_default_edit_name(prompt_type)
             text = manager.get_profile_text(prompt_type, selected) if selected else ""
             return (
-                manager.supported_variables_markdown(prompt_type),
+                manager.variables_markdown(prompt_type),
                 edit_dropdown(prompt_type, selected),
                 selected or "",
                 text or "",
@@ -838,6 +888,66 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 active_dropdown(prompt_type)
             )
 
+        def on_section_edit(selected: str):
+            if not selected:
+                return "", "", error_panel("", False)
+            text = manager.get_section_text(selected) or ""
+            return selected, text, section_validation_panel(text)
+
+        def on_section_text_change(text: str):
+            return section_validation_panel(text or "")
+
+        def on_section_save(selected: str, name: str, text: str, type_display: str, prompt_text: str):
+            ok, msg, _created = manager.save_section_from_editor(selected, name, text)
+            prompt_type = type_id(type_display)
+            if not ok:
+                return msg, error_panel(msg, True), gr.update(), name or "", gr.update(), gr.update()
+            notify_if_needed(True)
+            saved_name = name.strip()
+            return (
+                msg,
+                error_panel("", False),
+                section_dropdown(saved_name),
+                saved_name,
+                manager.variables_markdown(prompt_type),
+                validation_panel(prompt_type, prompt_text or "")
+            )
+
+        def on_section_rename(selected: str, name: str, type_display: str, prompt_text: str):
+            ok, msg = manager.rename_section(selected, name)
+            prompt_type = type_id(type_display)
+            if not ok:
+                return msg, error_panel(msg, True), gr.update(), name or "", gr.update(), gr.update()
+            notify_if_needed(True)
+            new_selected = name.strip()
+            return (
+                msg,
+                error_panel("", False),
+                section_dropdown(new_selected),
+                new_selected,
+                manager.variables_markdown(prompt_type),
+                validation_panel(prompt_type, prompt_text or "")
+            )
+
+        def on_section_delete(selected: str, type_display: str, prompt_text: str):
+            ok, msg = manager.delete_section(selected)
+            prompt_type = type_id(type_display)
+            if not ok:
+                return msg, error_panel(msg, True), gr.update(), selected or "", gr.update(), gr.update(), gr.update()
+            notify_if_needed(True)
+            names = manager.get_section_names()
+            next_selected = names[0] if names else None
+            next_text = manager.get_section_text(next_selected) if next_selected else ""
+            return (
+                msg,
+                error_panel("", False),
+                section_dropdown(next_selected),
+                next_selected or "",
+                next_text or "",
+                manager.variables_markdown(prompt_type),
+                validation_panel(prompt_type, prompt_text or "")
+            )
+
         def on_active_change(type_display: str, active_value: str):
             prompt_type = type_id(type_display)
             names = manager.get_profile_names(prompt_type)
@@ -849,6 +959,33 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 notify_if_needed(changed)
             return msg
 
+        section_edit_ui.change(
+            on_section_edit,
+            inputs=[section_edit_ui],
+            outputs=[section_name_ui, section_text_ui, section_error_ui],
+            show_progress="hidden"
+        )
+        section_text_ui.blur(
+            on_section_text_change,
+            inputs=[section_text_ui],
+            outputs=[section_error_ui],
+            show_progress="hidden"
+        )
+        section_save_btn.click(
+            on_section_save,
+            inputs=[section_edit_ui, section_name_ui, section_text_ui, type_ui, text_ui],
+            outputs=[section_status_ui, section_error_ui, section_edit_ui, section_name_ui, variables_ui, error_ui]
+        )
+        section_rename_btn.click(
+            on_section_rename,
+            inputs=[section_edit_ui, section_name_ui, type_ui, text_ui],
+            outputs=[section_status_ui, section_error_ui, section_edit_ui, section_name_ui, variables_ui, error_ui]
+        )
+        section_delete_btn.click(
+            on_section_delete,
+            inputs=[section_edit_ui, type_ui, text_ui],
+            outputs=[section_status_ui, section_error_ui, section_edit_ui, section_name_ui, section_text_ui, variables_ui, error_ui]
+        )
         type_ui.change(
             on_type_change,
             inputs=[type_ui],

@@ -25,6 +25,7 @@ from src.http.communication_constants import communication_constants as comm_con
 from src.stt import Transcriber
 import src.utils as utils
 from src.config.config_loader import ConfigLoader
+from src.prompt_profile_manager import PromptSectionError
 
 class conversation_continue_type(Enum):
     NPC_TALK = 1
@@ -133,8 +134,14 @@ class Conversation:
                 
             # Regenerate system message with new prompt from updated conversation type
             if self.__messages and len(self.__messages) > 0:
-                new_prompt = self.__conversation_type.generate_prompt(self.__context)
-                self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
+                try:
+                    new_prompt = self.__conversation_type.generate_prompt(self.__context)
+                except PromptSectionError as e:
+                    logging.error(str(e))
+                    if isinstance(self.__conversation_type, radiant):
+                        self.__conversation_type.mark_prompt_unusable()
+                else:
+                    self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
                 
             # Update message thread with new config
             if self.__messages:
@@ -202,6 +209,9 @@ class Conversation:
             tuple[str, sentence | None]: Returns a tuple consisting of a reply type and an optional sentence
         """
         if self.has_already_ended:
+            return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None
+        if isinstance(self.__conversation_type, radiant) and self.__conversation_type.prompt_unusable:
+            self.__has_already_ended = True
             return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None        
         if self.__llm_client.is_too_long(self.__messages, self.TOKEN_LIMIT_PERCENT):
             # Check if conversation too long and if yes initiate intermittent reload
@@ -373,6 +383,9 @@ class Conversation:
                     multi_npc_conversation=is_multi,
                     remove_system_flagged_messages=False
                 )
+        except PromptSectionError as e:
+            logging.error(str(e))
+            logging.error("NPC reply was not generated. The conversation is waiting. Fix the active prompt profile, or end the conversation.")
         except Exception as e:
             logging.debug(f"Failed to refresh system prompt after context update: {e}")
 
@@ -402,7 +415,17 @@ class Conversation:
             # so "len == 0" is not a reliable indicator. We log only when no SystemMessage exists yet.
             is_initial_prompt = not self.__messages.has_message_type(SystemMessage)
             should_log_prompt = is_initial_prompt or self.__log_prompt_on_next_regen
-            new_prompt = self.__conversation_type.generate_prompt(self.__context, should_log=should_log_prompt)
+            try:
+                new_prompt = self.__conversation_type.generate_prompt(self.__context, should_log=should_log_prompt)
+            except PromptSectionError as e:
+                logging.error(str(e))
+                self.__log_prompt_on_next_regen = False
+                if isinstance(self.__conversation_type, radiant):
+                    self.__conversation_type.mark_prompt_unusable()
+                    logging.error("Radiant conversation will end because the prompt could not be built.")
+                else:
+                    logging.error("NPC reply was not generated. The conversation is waiting. Fix the active prompt profile, or end the conversation.")
+                return
             # Reset after use so we only log once per join event.
             self.__log_prompt_on_next_regen = False
             if is_initial_prompt:
@@ -523,6 +546,10 @@ class Conversation:
                         multi_npc_conversation=is_multi,
                         remove_system_flagged_messages=False
                     )
+                except PromptSectionError as e:
+                    logging.error(str(e))
+                    logging.error("NPC reply was not generated. The conversation is waiting. Fix the active prompt profile, or end the conversation.")
+                    return
                 except Exception as e:
                     logging.debug(f"Could not refresh system prompt before generation: {e}")
                 self.__sentences.is_more_to_come = True
@@ -781,7 +808,13 @@ class Conversation:
     def reload_conversation(self):
         """Reloads the conversation
         """
-        new_prompt = self.__conversation_type.generate_prompt(self.__context)
+        try:
+            new_prompt = self.__conversation_type.generate_prompt(self.__context)
+        except PromptSectionError as e:
+            logging.error(str(e))
+            if isinstance(self.__conversation_type, radiant):
+                self.__conversation_type.mark_prompt_unusable()
+            return
         self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
 
     @utils.time_it
