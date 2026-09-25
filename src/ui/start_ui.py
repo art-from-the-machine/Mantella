@@ -1291,17 +1291,21 @@ class StartUI(routeable):
                     gr.Button(interactive=False)
                 )
 
-            def on_refresh_summaries(label: str, l2k: dict[str, str], world_id: str):
+            def on_refresh_memory(label: str, l2k: dict[str, str], world_id: str):
                 summary = _load_summary_for_label(label, l2k, world_id)
-                return "Summaries refreshed.", summary, gr.Button(interactive=bool(label))
-
-            def on_refresh_thoughts(label: str, l2k: dict[str, str], world_id: str):
                 thoughts = _load_thoughts_for_label(label, l2k, world_id)
-                return "Thoughts refreshed.", thoughts, gr.Button(interactive=bool(label))
-
-            def on_refresh_reflections(label: str, l2k: dict[str, str], world_id: str):
                 reflections = _load_reflections_for_label(label, l2k, world_id)
-                return "Personal reflection refreshed.", reflections, gr.Button(interactive=bool(label)), gr.Button(interactive=bool(label))
+                can_save = bool(label)
+                return (
+                    "Summaries, thoughts, and reflection refreshed.",
+                    summary,
+                    thoughts,
+                    reflections,
+                    gr.Button(interactive=can_save),
+                    gr.Button(interactive=can_save),
+                    gr.Button(interactive=can_save),
+                    gr.Button(interactive=can_save),
+                )
             # Prompt profiles handlers
             def _get_profiles_state():
                 try:
@@ -1933,11 +1937,12 @@ class StartUI(routeable):
             npc_dropdown.change(on_select, inputs=[npc_dropdown, state_df, state_label_to_key, state_world_id, override_csv_path], outputs=[bio_editor, summary_editor, thoughts_editor, reflections_editor, tags_editor, runtime_tags_display, info_line, save_btn, save_summary_btn, save_thoughts_btn, save_reflections_btn, generate_reflection_btn], show_progress="hidden")
             save_btn.click(on_save, inputs=[npc_dropdown, bio_editor, tags_editor, state_label_to_key, state_key_to_label, override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown])
             refresh_btn.click(on_refresh, inputs=[override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown, bio_editor, tags_editor, runtime_tags_display, save_btn])
-            refresh_summaries_btn.click(on_refresh_summaries, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=[info_line, summary_editor, save_summary_btn])
+            _memory_refresh_outputs = [info_line, summary_editor, thoughts_editor, reflections_editor, save_summary_btn, save_thoughts_btn, save_reflections_btn, generate_reflection_btn]
+            refresh_summaries_btn.click(on_refresh_memory, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=_memory_refresh_outputs)
             save_summary_btn.click(on_save_summary, inputs=[npc_dropdown, summary_editor, state_label_to_key, state_world_id], outputs=[info_line])
-            refresh_thoughts_btn.click(on_refresh_thoughts, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=[info_line, thoughts_editor, save_thoughts_btn])
+            refresh_thoughts_btn.click(on_refresh_memory, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=_memory_refresh_outputs)
             save_thoughts_btn.click(on_save_thoughts, inputs=[npc_dropdown, thoughts_editor, state_label_to_key, state_world_id], outputs=[info_line])
-            refresh_reflections_btn.click(on_refresh_reflections, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=[info_line, reflections_editor, save_reflections_btn, generate_reflection_btn])
+            refresh_reflections_btn.click(on_refresh_memory, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=_memory_refresh_outputs)
             save_reflections_btn.click(on_save_reflections, inputs=[npc_dropdown, reflections_editor, state_label_to_key, state_world_id], outputs=[info_line])
             generate_reflection_btn.click(on_generate_reflection, inputs=[npc_dropdown, bio_editor, summary_editor, state_label_to_key, state_world_id], outputs=[info_line, reflections_editor, save_reflections_btn, generate_reflection_btn])
 
