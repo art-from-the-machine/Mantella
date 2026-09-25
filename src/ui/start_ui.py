@@ -1444,6 +1444,7 @@ class StartUI(routeable):
                             config.llm_params,
                             config.custom_token_count,
                             skf,
+                            response_timeout=config.llm_response_timeout,
                         )
                     language_name = getattr(config, "language", "English") or "English"
                     player_name = "the player"

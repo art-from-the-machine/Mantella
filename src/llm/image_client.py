@@ -18,9 +18,9 @@ class ImageClient(ClientBase):
         self.__custom_vision_model: bool = config.custom_vision_model
 
         if self.__custom_vision_model: # if using a custom model for vision, load these custom config values
-            setup_values = {'api_url': config.vision_llm_api, 'llm': config.vision_llm, 'llm_params': config.vision_llm_params, 'custom_token_count': config.vision_custom_token_count}
+            setup_values = {'api_url': config.vision_llm_api, 'llm': config.vision_llm, 'llm_params': config.vision_llm_params, 'custom_token_count': config.vision_custom_token_count, 'response_timeout': config.llm_response_timeout}
         else: # default to base LLM config values
-            setup_values = {'api_url': config.llm_api, 'llm': config.llm, 'llm_params': config.llm_params, 'custom_token_count': config.custom_token_count}
+            setup_values = {'api_url': config.llm_api, 'llm': config.llm, 'llm_params': config.llm_params, 'custom_token_count': config.custom_token_count, 'response_timeout': config.llm_response_timeout}
         
         super().__init__(**setup_values, secret_key_files=[image_secret_key_file, secret_key_file])
 
@@ -145,7 +145,8 @@ class ImageClient(ClientBase):
                     config.vision_llm,
                     config.vision_llm_params,
                     config.vision_custom_token_count,
-                    [image_secret_key_file, secret_key_file]
+                    [image_secret_key_file, secret_key_file],
+                    response_timeout=config.llm_response_timeout,
                 )
             else:
                 # Use main LLM settings
@@ -154,7 +155,8 @@ class ImageClient(ClientBase):
                     config.llm,
                     config.llm_params,
                     config.custom_token_count,
-                    [image_secret_key_file, secret_key_file]
+                    [image_secret_key_file, secret_key_file],
+                    response_timeout=config.llm_response_timeout,
                 )
             
             if not base_success:

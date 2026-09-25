@@ -78,6 +78,15 @@ class LLMDefinitions:
         return ConfigValueInt("max_response_sentences_multi","Max Sentences per Response (Multi NPC)", description, 12, 1, 999, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
 
     @staticmethod
+    def get_llm_response_timeout_config_value() -> ConfigValue:
+        description = """How long to wait (in seconds) for the first spoken token of an LLM response.
+                    If that token has not arrived when this time is up, the request stops.
+                    Applies to one-on-one, multi-NPC, summary, and vision requests.
+                    Connecting to the service still times out after 5 seconds.
+                    After the first spoken token, a silent gap of this many seconds still ends the reply."""
+        return ConfigValueInt("llm_response_timeout", "LLM Response Timeout", description, 120, 1, 999, tags=[ConfigValueTag.basic])
+
+    @staticmethod
     def get_read_thoughts_after_sentence_cap_config_value() -> ConfigValue:
         description = """When enabled, private-thought lines do not count toward Max Sentences per Response.
                     After the spoken cap is reached, later spoken lines are dropped, but generation continues so a trailing thought block can still be saved.

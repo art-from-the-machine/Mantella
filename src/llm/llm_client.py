@@ -41,7 +41,7 @@ class LLMClient(ClientBase):
                 logging.error(f"Error applying profile for one-on-one conversations: {e}")
                 llm_params = config.llm_params
         
-        super().__init__(config.llm_api, config.llm, llm_params, config.custom_token_count, secret_key_files)
+        super().__init__(config.llm_api, config.llm, llm_params, config.custom_token_count, secret_key_files, response_timeout=config.llm_response_timeout)
 
         # Enable Sonnet prompt caching via OpenRouter if configured
         try:
@@ -109,7 +109,8 @@ class LLMClient(ClientBase):
                 config.llm, 
                 llm_params, 
                 config.custom_token_count, 
-                secret_key_files
+                secret_key_files,
+                response_timeout=config.llm_response_timeout,
             )
             
             if not success:

@@ -81,7 +81,8 @@ class OpenRouterServiceProvider(LLMServiceProvider):
             llm=model,
             llm_params=llm_params,
             custom_token_count=config.custom_token_count,
-            secret_key_files=self.get_secret_key_files('GPT_SECRET_KEY.txt')
+            secret_key_files=self.get_secret_key_files('GPT_SECRET_KEY.txt'),
+            response_timeout=config.llm_response_timeout,
         )
         try:
             client._sonnet_cache_connector = SonnetCacheConnector(getattr(config, 'sonnet_prompt_caching_enabled', False))
@@ -137,7 +138,8 @@ class NanoGPTServiceProvider(LLMServiceProvider):
             llm=model,
             llm_params=llm_params,
             custom_token_count=config.custom_token_count,
-            secret_key_files=self.get_secret_key_files('GPT_SECRET_KEY.txt')
+            secret_key_files=self.get_secret_key_files('GPT_SECRET_KEY.txt'),
+            response_timeout=config.llm_response_timeout,
         )
     
     def get_api_url(self) -> str:
@@ -188,7 +190,8 @@ class OpenAIServiceProvider(LLMServiceProvider):
             llm=model,
             llm_params=llm_params,
             custom_token_count=config.custom_token_count,
-            secret_key_files=self.get_secret_key_files('GPT_SECRET_KEY.txt')
+            secret_key_files=self.get_secret_key_files('GPT_SECRET_KEY.txt'),
+            response_timeout=config.llm_response_timeout,
         )
     
     def get_api_url(self) -> str:

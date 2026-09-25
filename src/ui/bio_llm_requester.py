@@ -34,7 +34,7 @@ class BioLLMRequester:
             params = params_override if params_override is not None else self._config.llm_params
             custom_token_count = self._config.custom_token_count
 
-            client = ClientBase(service, model, params, custom_token_count, key_files)
+            client = ClientBase(service, model, params, custom_token_count, key_files, response_timeout=self._config.llm_response_timeout)
             try:
                 # Enable Sonnet caching for Bio Editor prompts too (OpenRouter-only)
                 client._sonnet_cache_connector = SonnetCacheConnector(getattr(self._config, 'sonnet_prompt_caching_enabled', False))

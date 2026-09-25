@@ -86,7 +86,8 @@ class GameStateManager:
                 config.multi_npc_llm,
                 multi_npc_llm_params,
                 config.multi_npc_custom_token_count,
-                multi_npc_secret_key_files
+                multi_npc_secret_key_files,
+                response_timeout=config.llm_response_timeout,
             )
             self._attach_sonnet_cache(multi_npc_client, config, "multi-NPC client (diff settings)")
         elif config.apply_profile_multi_npc:
@@ -121,7 +122,8 @@ class GameStateManager:
                 config.llm,
                 multi_npc_llm_params,
                 config.custom_token_count,
-                multi_npc_secret_key_files
+                multi_npc_secret_key_files,
+                response_timeout=config.llm_response_timeout,
             )
             self._attach_sonnet_cache(multi_npc_client, config, "multi-NPC client (profiled main settings)")
         else:
@@ -249,7 +251,8 @@ class GameStateManager:
                     config.multi_npc_llm,
                     multi_npc_llm_params,
                     config.multi_npc_custom_token_count,
-                    multi_npc_secret_key_files
+                    multi_npc_secret_key_files,
+                    response_timeout=config.llm_response_timeout,
                 )
                 self._attach_sonnet_cache(multi_npc_client, config, "multi-NPC hot-swap client (diff settings)")
             elif config.apply_profile_multi_npc:
@@ -284,7 +287,8 @@ class GameStateManager:
                     config.llm,
                     multi_npc_llm_params,
                     config.custom_token_count,
-                    multi_npc_secret_key_files
+                    multi_npc_secret_key_files,
+                    response_timeout=config.llm_response_timeout,
                 )
                 self._attach_sonnet_cache(multi_npc_client, config, "multi-NPC hot-swap client (profiled main settings)")
             else:
@@ -358,7 +362,8 @@ class GameStateManager:
                             llm_selection.model,
                             llm_selection.parameters,
                             llm_selection.token_count,
-                            selected_secret_key_files
+                            selected_secret_key_files,
+                            response_timeout=config.llm_response_timeout,
                         )
                         self._attach_sonnet_cache(conversation_client, config, "random one-on-one hot-swap client")
                         
@@ -385,7 +390,8 @@ class GameStateManager:
                             multi_npc_selection.model,
                             multi_npc_selection.parameters,
                             multi_npc_selection.token_count,
-                            multi_npc_secret_key_files
+                            multi_npc_secret_key_files,
+                            response_timeout=config.llm_response_timeout,
                         )
                         self._attach_sonnet_cache(multi_npc_conversation_client, config, "random multi-NPC hot-swap client")
                         # Update the chat manager with the randomly selected multi-NPC client
@@ -470,7 +476,8 @@ class GameStateManager:
                     llm_selection.model,
                     llm_selection.parameters,
                     llm_selection.token_count,
-                    selected_secret_key_files
+                    selected_secret_key_files,
+                    response_timeout=self.__config.llm_response_timeout,
                 )
                 self._attach_sonnet_cache(conversation_llm_client, self.__config, "random one-on-one client")
                 
@@ -496,7 +503,8 @@ class GameStateManager:
                     multi_npc_selection.model,
                     multi_npc_selection.parameters,
                     multi_npc_selection.token_count,
-                    multi_npc_secret_key_files
+                    multi_npc_secret_key_files,
+                    response_timeout=self.__config.llm_response_timeout,
                 )
                 
                 self._attach_sonnet_cache(multi_npc_conversation_client, self.__config, "random multi-NPC client")
@@ -655,7 +663,8 @@ class GameStateManager:
                 config.summary_llm,
                 summary_llm_params,
                 config.summary_custom_token_count,
-                summary_secret_key_files
+                summary_secret_key_files,
+                response_timeout=config.llm_response_timeout,
             )
 
         if config.apply_profile_summaries:
@@ -687,7 +696,8 @@ class GameStateManager:
                 config.llm,
                 summary_llm_params,
                 config.custom_token_count,
-                summary_secret_key_files
+                summary_secret_key_files,
+                response_timeout=config.llm_response_timeout,
             )
 
         return None

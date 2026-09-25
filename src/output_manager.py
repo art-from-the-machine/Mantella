@@ -36,7 +36,7 @@ from src.random_llm_selector import RandomLLMSelector
 from src.random_llm_selector import LLMSelection
 from src.sequential_llm_selector import SequentialLLMSelector
 from src.model_profile_manager import ModelProfileManager
-from src.llm.client_base import ClientBase
+from src.llm.client_base import ClientBase, FirstTokenTimeout
 from src.llm.key_file_resolver import key_file_resolver
 from src.llm.sonnet_cache_connector import SonnetCacheConnector
 from src.config.definitions.tts_definitions import TTSEnum
@@ -120,7 +120,8 @@ class ChatManager:
                 selection.model,
                 selection.parameters,
                 selection.token_count,
-                selected_secret_key_files
+                selected_secret_key_files,
+                response_timeout=self.__config.llm_response_timeout,
             )
             try:
                 # Respect global config toggle for Sonnet prompt caching when using OpenRouter
@@ -702,7 +703,7 @@ class ChatManager:
                         logging.info(f"[LLM: {current_client.model_name}]")
                     else:
                         logging.info(f"[LLM: {type(current_client).__name__}]")
-                    async for content in current_client.streaming_call(messages=messages, is_multi_npc=is_multi_npc):
+                    async for content in current_client.streaming_call(messages=messages, is_multi_npc=is_multi_npc, response_started_at=start_time):
                         if self.__stop_generation.is_set():
                             break
                         if not content:
@@ -725,6 +726,13 @@ class ChatManager:
                                 break
                     break #if the streaming_call() completed without exception, break the while loop
                             
+                except FirstTokenTimeout as e:
+                    utils.play_error_sound()
+                    logging.error(f"LLM API Error: {e}")
+                    error_response = "I can't find the right words at the moment."
+                    new_sentence = self.generate_sentence(SentenceContent(active_character, error_response, SentenceTypeEnum.SPEECH, True))
+                    blocking_queue.put(new_sentence)
+                    break
                 except Exception as e:
                     retries += 1
                     utils.play_error_sound()

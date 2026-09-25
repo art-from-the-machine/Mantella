@@ -1,6 +1,8 @@
 from threading import Lock
 from typing import AsyncGenerator, Any
-from openai import APIConnectionError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
+import asyncio
+from openai import APIConnectionError, APITimeoutError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
+import httpx
 import logging
 import time
 import tiktoken
@@ -15,6 +17,10 @@ import src.utils as utils
 from src.llm.sonnet_cache_connector import SonnetCacheConnector
 import json
 
+class FirstTokenTimeout(Exception):
+    """The first spoken token did not arrive within the response timeout."""
+
+
 class ClientBase(AIClient):
     '''Base class for connecting to OpenAI-compatible endpoints
 
@@ -24,8 +30,11 @@ class ClientBase(AIClient):
     api_token_limits = {}
     tiktoken_cache_dir = "data"
     os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
+    CONNECT_TIMEOUT_SECONDS = 5.0
+    WRITE_POOL_TIMEOUT_SECONDS = 600.0
+    DEFAULT_RESPONSE_TIMEOUT_SECONDS = 120
 
-    def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, secret_key_files: list[str]) -> None:
+    def __init__(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, secret_key_files: list[str], response_timeout: float = DEFAULT_RESPONSE_TIMEOUT_SECONDS) -> None:
         '''
         Args:
             api_url (str): The API endpoint URL or a known service name (e.g., 'OpenAI', 'OpenRouter')
@@ -33,6 +42,7 @@ class ClientBase(AIClient):
             llm_params (dict[str, Any] | None): Additional parameters for the LLM requests (eg temperature, max_tokens)
             custom_token_count (int): A fallback token limit if the model's limit isn't known
             secret_key_files (list[str]): A list of filenames to search for the API key, in order of priority
+            response_timeout (float): Seconds to wait for the next piece of an LLM response. The connection limit stays at 5 seconds.
         '''
         super().__init__()
         self._generation_lock: Lock = Lock()
@@ -41,6 +51,8 @@ class ClientBase(AIClient):
         self._base_url = self.__get_endpoint(api_url)
         self._startup_async_client: AsyncOpenAI | None = None
         self._request_params: dict[str, Any] | None = llm_params
+        self._response_timeout = float(response_timeout)
+        self._response_deadline: float | None = None
         self._image_client = None
         self._sonnet_cache_connector: SonnetCacheConnector | None = None
 
@@ -96,6 +108,25 @@ class ClientBase(AIClient):
         """Returns the max_tokens value from request params, or defaults to 250"""
         return self._request_params.get("max_tokens", 250) if self._request_params else 250
 
+    def _http_timeout(self, read_seconds: float | None = None) -> httpx.Timeout:
+        """Wait for response data. Connecting still times out after 5 seconds."""
+        read = float(self._response_timeout if read_seconds is None else read_seconds)
+        return httpx.Timeout(
+            self.WRITE_POOL_TIMEOUT_SECONDS,
+            connect=self.CONNECT_TIMEOUT_SECONDS,
+            read=max(read, 0.001),
+        )
+
+    def _raise_if_first_token_late(self, deadline: float) -> None:
+        if time.time() >= deadline:
+            raise FirstTokenTimeout(f"LLM did not respond within {self._response_timeout} seconds")
+
+    def _completion_request_params(self, request_params: dict[str, Any] | None) -> dict[str, Any]:
+        """Copy request params and drop a client-side timeout so it cannot replace the connection limit."""
+        params = dict(request_params) if request_params else {}
+        params.pop("timeout", None)
+        return params
+
 
     @utils.time_it
     def generate_async_client(self) -> AsyncOpenAI:
@@ -112,7 +143,7 @@ class ClientBase(AIClient):
         headers = self._header
         if self._sonnet_cache_connector and self._sonnet_cache_connector.is_applicable(self._base_url, self._model_name):
             headers = self._sonnet_cache_connector.augment_headers(headers)
-        return AsyncOpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=headers)
+        return AsyncOpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=headers, timeout=self._http_timeout())
 
 
     @utils.time_it
@@ -128,13 +159,19 @@ class ClientBase(AIClient):
         headers = self._header
         if self._sonnet_cache_connector and self._sonnet_cache_connector.is_applicable(self._base_url, self._model_name):
             headers = self._sonnet_cache_connector.augment_headers(headers)
-        return OpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=headers)
+        return OpenAI(api_key=self._api_key, base_url=self._base_url, default_headers=headers, timeout=self._http_timeout())
 
 
     @utils.time_it
     def request_call(self, messages: Message | message_thread) -> str | None:
         with self._generation_lock:
-            sync_client = self.generate_sync_client()        
+            read_limit = None
+            if self._response_deadline is not None:
+                self._raise_if_first_token_late(self._response_deadline)
+                read_limit = self._response_deadline - time.time()
+            sync_client = self.generate_sync_client()
+            if read_limit is not None:
+                sync_client = sync_client.with_options(max_retries=0, timeout=self._http_timeout(read_limit))
             chat_completion = None
             logging.log(28, 'Getting LLM response...')
 
@@ -143,10 +180,7 @@ class ClientBase(AIClient):
             else:
                 openai_messages = messages.get_openai_messages()
 
-            if self._request_params:
-                request_params = self._request_params
-            else:
-                request_params: dict[str, Any] = {}
+            request_params = self._completion_request_params(self._request_params)
             
             # Apply Sonnet cache breakpoint AFTER all message transformations
             if self._sonnet_cache_connector and self._sonnet_cache_connector.is_applicable(self._base_url, self._model_name):
@@ -162,8 +196,13 @@ class ClientBase(AIClient):
                 chat_completion = sync_client.chat.completions.create(
                     model=self.model_name,
                     messages=openai_messages,
+                    timeout=self._http_timeout(read_limit),
                     **request_params,
                 )
+            except APITimeoutError:
+                if self._response_deadline is not None:
+                    raise FirstTokenTimeout(f"LLM did not respond within {self._response_timeout} seconds")
+                raise
             except RateLimitError:
                 logging.warning('Could not connect to LLM API, retrying in 5 seconds...')
                 time.sleep(5)
@@ -184,8 +223,11 @@ class ClientBase(AIClient):
         
 
     @utils.time_it
-    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool) -> AsyncGenerator[str | None, None]:
+    async def streaming_call(self, messages: Message | message_thread, is_multi_npc: bool, response_started_at: float | None = None) -> AsyncGenerator[str | None, None]:
         with self._generation_lock:
+            started_at = time.time() if response_started_at is None else response_started_at
+            deadline = started_at + float(self._response_timeout)
+            self._response_deadline = deadline
             logging.log(28, 'Getting LLM response...')
 
             if self._startup_async_client:
@@ -194,15 +236,13 @@ class ClientBase(AIClient):
             else:
                 async_client = self.generate_async_client()
 
-            if self._request_params:
-                request_params = self._request_params.copy() # copy of self._request_params to allow temporary override
-            else:
-                request_params: dict[str, Any] = {}
+            request_params = self._completion_request_params(self._request_params)
             if is_multi_npc: # override max_tokens to be at least 250 in radiant / multi-NPC conversations
                 original_max_tokens = request_params.get("max_tokens", self.max_tokens_param)
                 request_params["max_tokens"] = max(self.max_tokens_param, 250)
                 if original_max_tokens != request_params["max_tokens"]:
                     logging.info(f"Multi-NPC conversation: max_tokens overridden from {original_max_tokens} to {request_params['max_tokens']}")
+            received_content = False
             try:
                 # Prepare the messages including the image if provided
                 vision_hints = ''
@@ -217,7 +257,13 @@ class ClientBase(AIClient):
                         vision_hints = last_message.get_ingame_events_text()
 
                 if self._image_client:
-                    openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
+                    self._raise_if_first_token_late(deadline)
+                    self._image_client._response_deadline = deadline
+                    try:
+                        openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
+                    finally:
+                        self._image_client._response_deadline = None
+                    self._raise_if_first_token_late(deadline)
                 
                 # Apply Sonnet cache breakpoint AFTER all message transformations (including vision)
                 if self._sonnet_cache_connector and self._sonnet_cache_connector.is_applicable(self._base_url, self._model_name):
@@ -229,18 +275,52 @@ class ClientBase(AIClient):
                 # Log LLM parameters being sent to API
                 logging.info(f"LLM Request Parameters: model='{self.model_name}', base_url='{self._base_url}', params={request_params}")
 
-                async for chunk in await async_client.chat.completions.create(
-                    model=self.model_name, 
-                    messages=openai_messages, 
-                    stream=True,
-                    **request_params,
-                ):
+                stream_client = async_client.with_options(max_retries=0)
+                remaining = deadline - time.time()
+                self._raise_if_first_token_late(deadline)
+                try:
+                    stream = await asyncio.wait_for(
+                        stream_client.chat.completions.create(
+                            model=self.model_name,
+                            messages=openai_messages,
+                            stream=True,
+                            timeout=self._http_timeout(remaining),
+                            **request_params,
+                        ),
+                        timeout=remaining,
+                    )
+                except asyncio.TimeoutError:
+                    raise FirstTokenTimeout(f"LLM did not respond within {self._response_timeout} seconds")
+
+                iterator = stream.__aiter__()
+                while True:
+                    try:
+                        if received_content:
+                            chunk = await iterator.__anext__()
+                        else:
+                            remaining = deadline - time.time()
+                            self._raise_if_first_token_late(deadline)
+                            try:
+                                chunk = await asyncio.wait_for(iterator.__anext__(), timeout=remaining)
+                            except asyncio.TimeoutError:
+                                raise FirstTokenTimeout(f"LLM did not respond within {self._response_timeout} seconds")
+                    except StopAsyncIteration:
+                        break
                     try:
                         if chunk and chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                            received_content = True
                             yield chunk.choices[0].delta.content
                     except Exception as e:
                         logging.error(f"LLM API Connection Error: {e}")
                         break
+            except FirstTokenTimeout:
+                logging.error(f"LLM did not respond within {self._response_timeout} seconds")
+                raise
+            except APITimeoutError:
+                if not received_content:
+                    logging.error(f"LLM did not respond within {self._response_timeout} seconds")
+                    raise FirstTokenTimeout(f"LLM did not respond within {self._response_timeout} seconds")
+                logging.error(f"LLM API Error: timed out after the first token")
             except Exception as e:
                 utils.play_error_sound()
                 if isinstance(e, APIConnectionError):
@@ -260,11 +340,12 @@ class ClientBase(AIClient):
                 else:
                     logging.error(f"LLM API Error: {e}")
             finally:
+                self._response_deadline = None
                 await async_client.close()
 
 
     @utils.time_it
-    def hot_swap_settings(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, secret_key_files: list[str]) -> bool:
+    def hot_swap_settings(self, api_url: str, llm: str, llm_params: dict[str, Any] | None, custom_token_count: int, secret_key_files: list[str], response_timeout: float | None = None) -> bool:
         """Attempts to hot-swap settings without recreating the client instance.
         
         Args:
@@ -273,6 +354,7 @@ class ClientBase(AIClient):
             llm_params: Additional parameters for the LLM requests
             custom_token_count: A fallback token limit if the model's limit isn't known
             secret_key_files: A list of filenames to search for the API key
+            response_timeout: Seconds to wait for the next piece of an LLM response. Omit to keep the current value.
             
         Returns:
             bool: True if hot-swap was successful, False otherwise
@@ -288,6 +370,8 @@ class ClientBase(AIClient):
                 
                 # Update request parameters
                 self._request_params = llm_params
+                if response_timeout is not None:
+                    self._response_timeout = float(response_timeout)
                 
                 # Update API key handling
                 if 'https' in self._base_url:  # Cloud LLM
