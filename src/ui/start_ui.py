@@ -104,20 +104,34 @@ class StartUI(routeable):
             live_undo_npc_reply_btn = gr.Button("Undo NPC reply", variant="secondary")
             live_remove_last_user_btn = gr.Button("Remove last user message", variant="secondary")
         live_conversation_info = gr.Markdown(value="", visible=True)
+        live_decensor_preview = gr.Text(
+            value="",
+            lines=8,
+            label="Decensor bypass (read-only)",
+            info="Sent after the system prompt and before this conversation. Edit the wording in Prompts or Prompt Profiles, then click Reload.",
+            placeholder="Nothing is sent until Enable Decensor Bypass is on and both prompts have text. Click Reload to refresh.",
+            interactive=False,
+        )
+
+        def decensor_preview(gm) -> str:
+            if not gm:
+                return ""
+            return gm.get_decensor_bypass_preview()
 
         def on_live_reload():
             try:
                 from src.ui import settings_ui_constructor as sui
                 gm = getattr(sui, '_game_manager_ref', None)
                 if not gm:
-                    return "", " No game manager. Start the game first."
+                    return "", "", " No game manager. Start the game first."
+                preview = decensor_preview(gm)
                 json_str = gm.get_conversation_as_json()
                 if json_str is None:
-                    return "", " No active conversation, or conversation has no messages yet."
-                return json_str, " Reloaded current conversation."
+                    return "", preview, " No active conversation, or conversation has no messages yet."
+                return json_str, preview, " Reloaded current conversation."
             except Exception as e:
                 logging.error(f"Live conversation reload failed: {e}", exc_info=True)
-                return "", f" Reload failed: {e}"
+                return "", "", f" Reload failed: {e}"
 
         def on_live_save(json_str: str):
             if not json_str or not json_str.strip():
@@ -140,56 +154,59 @@ class StartUI(routeable):
                 from src.ui import settings_ui_constructor as sui
                 gm = getattr(sui, '_game_manager_ref', None)
                 if not gm:
-                    return "", " No game manager. Start the game first."
+                    return "", "", " No game manager. Start the game first."
                 result = gm.undo_last_conversation_round()
+                preview = decensor_preview(gm)
                 if result is None:
-                    return "", " No active conversation."
+                    return "", preview, " No active conversation."
                 json_str = gm.get_conversation_as_json() or ""
                 if result:
-                    return json_str, " Undid last round of talk."
-                return json_str, " No player turn to undo."
+                    return json_str, preview, " Undid last round of talk."
+                return json_str, preview, " No player turn to undo."
             except Exception as e:
                 logging.error(f"Live conversation undo failed: {e}", exc_info=True)
-                return "", f" Undo failed: {e}"
+                return "", "", f" Undo failed: {e}"
 
         def on_live_undo_npc_reply():
             try:
                 from src.ui import settings_ui_constructor as sui
                 gm = getattr(sui, '_game_manager_ref', None)
                 if not gm:
-                    return "", " No game manager. Start the game first."
+                    return "", "", " No game manager. Start the game first."
                 result = gm.undo_last_npc_reply()
+                preview = decensor_preview(gm)
                 if result is None:
-                    return "", " No active conversation."
+                    return "", preview, " No active conversation."
                 json_str = gm.get_conversation_as_json() or ""
                 if result:
-                    return json_str, " Undid last NPC reply."
-                return json_str, " No NPC reply to undo."
+                    return json_str, preview, " Undid last NPC reply."
+                return json_str, preview, " No NPC reply to undo."
             except Exception as e:
                 logging.error(f"Live conversation undo NPC reply failed: {e}", exc_info=True)
-                return "", f" Undo NPC reply failed: {e}"
+                return "", "", f" Undo NPC reply failed: {e}"
 
         def on_live_remove_last_user_message():
             try:
                 from src.ui import settings_ui_constructor as sui
                 gm = getattr(sui, '_game_manager_ref', None)
                 if not gm:
-                    return "", " No game manager. Start the game first."
+                    return "", "", " No game manager. Start the game first."
                 result = gm.undo_last_user_message()
+                preview = decensor_preview(gm)
                 if result is None:
-                    return "", " No active conversation."
+                    return "", preview, " No active conversation."
                 json_str = gm.get_conversation_as_json() or ""
                 if result:
-                    return json_str, " Removed last user message."
-                return json_str, " Last message is not from the user."
+                    return json_str, preview, " Removed last user message."
+                return json_str, preview, " Last message is not from the user."
             except Exception as e:
                 logging.error(f"Live conversation remove last user message failed: {e}", exc_info=True)
-                return "", f" Remove last user message failed: {e}"
+                return "", "", f" Remove last user message failed: {e}"
 
         live_reload_btn.click(
             on_live_reload,
             inputs=[],
-            outputs=[live_conversation_editor, live_conversation_info],
+            outputs=[live_conversation_editor, live_decensor_preview, live_conversation_info],
         )
         live_save_btn.click(
             on_live_save,
@@ -199,17 +216,17 @@ class StartUI(routeable):
         live_undo_btn.click(
             on_live_undo,
             inputs=[],
-            outputs=[live_conversation_editor, live_conversation_info],
+            outputs=[live_conversation_editor, live_decensor_preview, live_conversation_info],
         )
         live_undo_npc_reply_btn.click(
             on_live_undo_npc_reply,
             inputs=[],
-            outputs=[live_conversation_editor, live_conversation_info],
+            outputs=[live_conversation_editor, live_decensor_preview, live_conversation_info],
         )
         live_remove_last_user_btn.click(
             on_live_remove_last_user_message,
             inputs=[],
-            outputs=[live_conversation_editor, live_conversation_info],
+            outputs=[live_conversation_editor, live_decensor_preview, live_conversation_info],
         )
 
     def __generate_bio_editor_page(self):

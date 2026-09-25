@@ -324,6 +324,20 @@ class LLMDefinitions:
         return ConfigValueBool("multi_npc_bios_only", "Send Only Bios (Single + Multi)", description, False, tags=[ConfigValueTag.share_row, ConfigValueTag.advanced])
 
     @staticmethod
+    def get_enable_decensor_bypass_config_value() -> ConfigValue:
+        description = """Insert a short user handshake and an assistant commitment immediately after the system prompt on conversation requests.
+                        The handshake is sent as a user message and the commitment as the following assistant message, so the request stays system, user, assistant, user.
+                        Edit both texts in the Prompts tab. An active Prompt Profile for either type replaces the Prompts tab text at runtime.
+                        If either text is empty, the pair is not sent.
+                        This applies to live NPC conversations only. Summaries, inner thoughts, personal reflections, and vision calls are unchanged."""
+        return ConfigValueBool(
+            "enable_decensor_bypass",
+            "Enable Decensor Bypass",
+            description,
+            False,
+        )
+
+    @staticmethod
     def get_enable_bio_section_filter_config_value() -> ConfigValue:
         description = """Enable prompt-time filtering of selected top-level bio sections for single and multi-NPC conversations.
                         This does not modify character files and only affects what gets sent to the LLM.

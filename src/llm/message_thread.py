@@ -1,18 +1,63 @@
 from copy import deepcopy
 from src.config.config_loader import ConfigLoader
 from src.llm.messages import join_message, leave_message, Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage
+from src.prompt_profile_manager import PromptSectionError
 from typing import Callable
 from openai.types.chat import ChatCompletionMessageParam
 from src import utils
+import json
 import logging
+
+def decensor_bypass_texts(config) -> tuple[str, str] | None:
+    """Return the handshake and assistant commitment when the bypass should be sent.
+
+    Returns None when the toggle is off, either text is empty, or a prompt does not resolve to text.
+    Raises PromptSectionError when an active profile references a broken shared section.
+    """
+    if getattr(config, "enable_decensor_bypass", False) is not True:
+        return None
+    handshake = str(getattr(config, "decensor_handshake_prompt", "") or "")
+    commitment = str(getattr(config, "decensor_assistant_prompt", "") or "")
+    manager = getattr(config, "prompt_profile_manager", None)
+    resolve = getattr(manager, "resolve_prompt", None) if manager is not None else None
+    if callable(resolve):
+        handshake = resolve("decensor_handshake_prompt", handshake)
+        commitment = resolve("decensor_assistant_prompt", commitment)
+    if not isinstance(handshake, str) or not isinstance(commitment, str):
+        return None
+    handshake = handshake.strip()
+    commitment = commitment.strip()
+    if not handshake or not commitment:
+        return None
+    return handshake, commitment
+
+def format_decensor_bypass_preview(config) -> str:
+    """Read-only JSON of the handshake pair, or empty text when it is not sent."""
+    try:
+        pair = decensor_bypass_texts(config)
+    except PromptSectionError as e:
+        return str(e)
+    if not pair:
+        return ""
+    handshake, commitment = pair
+    return json.dumps(
+        [
+            {"role": "user", "content": handshake},
+            {"role": "assistant", "content": commitment},
+        ],
+        indent=2,
+        ensure_ascii=False,
+    )
 
 class message_thread():
     """A thread of messages consisting of system-, user- and assistant-messages.
     Central place for adding new messages to the thread and manipulating the existing ones
     """
-    def __init__(self, config: ConfigLoader, initial_system_message: str | SystemMessage | None) -> None:
+    def __init__(self, config: ConfigLoader, initial_system_message: str | SystemMessage | None, include_decensor_bypass: bool = False) -> None:
         self.__messages: list[Message] = []
         self.__config = config
+        self.__include_decensor_bypass = include_decensor_bypass
+        self.__logged_skipped_decensor = False
         if not initial_system_message:
             return
         if isinstance(initial_system_message, str):
@@ -64,7 +109,39 @@ class message_thread():
 
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
         """Chat requests keep private thoughts only on the latest assistant turn."""
-        return message_thread.transform_to_openai_messages(self.__messages, last_turn_thoughts_only=True)
+        openai_messages = message_thread.transform_to_openai_messages(self.__messages, last_turn_thoughts_only=True)
+        return self.__insert_decensor_bypass(openai_messages)
+
+    def __insert_decensor_bypass(self, openai_messages: list[ChatCompletionMessageParam]) -> list[ChatCompletionMessageParam]:
+        """Place a user handshake and assistant commitment directly after the system prompt.
+
+        Only the live conversation thread opts in. The pair is not stored in history, so it is
+        not summarized and it is rebuilt from the current prompt text on every request.
+        """
+        if not self.__include_decensor_bypass:
+            return openai_messages
+        if not openai_messages or openai_messages[0].get("role") != "system":
+            return openai_messages
+        try:
+            pair = decensor_bypass_texts(self.__config)
+        except PromptSectionError as e:
+            logging.error(str(e))
+            logging.error("Decensor bypass was not added. Fix the active prompt profile.")
+            return openai_messages
+        if pair is None:
+            if getattr(self.__config, "enable_decensor_bypass", False) is True and not self.__logged_skipped_decensor:
+                logging.warning("Decensor bypass is enabled, but the handshake or assistant prompt is empty. Neither message was sent.")
+                self.__logged_skipped_decensor = True
+            return openai_messages
+
+        handshake, commitment = pair
+        self.__logged_skipped_decensor = False
+        return [
+            openai_messages[0],
+            {"role": "user", "content": handshake},
+            {"role": "assistant", "content": commitment},
+            *openai_messages[1:],
+        ]
 
     def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message):
         self.__messages.append(new_message)

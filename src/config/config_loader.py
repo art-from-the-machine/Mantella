@@ -385,6 +385,7 @@ Multi-NPC LLM parameter list must follow the Python dictionary format: https://w
 
             # Multi-NPC prompt content toggles
             self.multi_npc_bios_only = self.__definitions.get_bool_value("multi_npc_bios_only")
+            self.enable_decensor_bypass = self.__definitions.get_bool_value("enable_decensor_bypass")
             self.__apply_bio_section_filter_settings_from_definitions()
 
             # Summary LLM Configuration
@@ -525,6 +526,14 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
         self.inner_monologue_prompt = self.__overlay_prompt("inner_monologue_prompt", self.__definitions.get_string_value("inner_monologue_prompt"))
         self.personal_reflection_prompt = self.__overlay_prompt("personal_reflection_prompt", self.__definitions.get_string_value("personal_reflection_prompt"))
         self.vision_prompt = self.__overlay_prompt("vision_prompt", self.__definitions.get_string_value("vision_prompt"))
+        self.decensor_handshake_prompt = self.__overlay_prompt(
+            "decensor_handshake_prompt",
+            self.__definitions.get_string_value("decensor_handshake_prompt"),
+        )
+        self.decensor_assistant_prompt = self.__overlay_prompt(
+            "decensor_assistant_prompt",
+            self.__definitions.get_string_value("decensor_assistant_prompt"),
+        )
     
     @staticmethod
     def load_actions_from_json(actions_folder: str) -> list[Action]:

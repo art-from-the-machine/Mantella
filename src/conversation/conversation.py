@@ -50,7 +50,7 @@ class Conversation:
             self.__conversation_type: conversation_type = radiant(context_for_conversation.config)
         else:
             self.__conversation_type: conversation_type = pc_to_npc(context_for_conversation.config)        
-        self.__messages: message_thread = message_thread(self.__context.config, None)
+        self.__messages: message_thread = message_thread(self.__context.config, None, include_decensor_bypass=True)
         # When a new NPC joins mid-conversation, log the (updated) system prompt once.
         self.__log_prompt_on_next_regen: bool = False
         self.__output_manager: ChatManager = output_manager
@@ -429,7 +429,7 @@ class Conversation:
             # Reset after use so we only log once per join event.
             self.__log_prompt_on_next_regen = False
             if is_initial_prompt:
-                self.__messages: message_thread = message_thread(self.__context.config, new_prompt)
+                self.__messages: message_thread = message_thread(self.__context.config, new_prompt, include_decensor_bypass=True)
             else:
                 self.__conversation_type.adjust_existing_message_thread(new_prompt, self.__messages)
                 self.reload_and_cull_thread(new_prompt)

@@ -175,6 +175,7 @@ class MantellaConfigValueDefinitionsNew:
         # Multi-NPC LLM Configuration
         llm_category.add_config_value(LLMDefinitions.get_sonnet_prompt_caching_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_bios_only_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_enable_decensor_bypass_config_value())
         llm_category.add_config_value(LLMDefinitions.get_enable_bio_section_filter_config_value())
         llm_category.add_config_value(LLMDefinitions.get_bio_sections_to_exclude_config_value())
         llm_category.add_config_value(LLMDefinitions.get_enable_bio_section_filter_for_memory_config_value())
@@ -285,6 +286,8 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_vision_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_radiant_start_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_radiant_end_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_decensor_handshake_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_decensor_assistant_prompt_config_value())
         result.add_base_group(prompts_category)
 
         prompt_profiles_category = ConfigValueGroup(

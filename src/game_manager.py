@@ -765,6 +765,11 @@ class GameStateManager:
             return None
         return self.__talk.get_conversation_as_json()
 
+    def get_decensor_bypass_preview(self) -> str:
+        """Read-only handshake and commitment shown under the live conversation editor."""
+        from src.llm.message_thread import format_decensor_bypass_preview
+        return format_decensor_bypass_preview(self.__config)
+
     def apply_conversation_from_json(self, json_str: str) -> bool:
         """Apply edited JSON back to the live conversation. Returns True on success."""
         if not self.__talk:
