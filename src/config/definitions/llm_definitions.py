@@ -344,6 +344,7 @@ class LLMDefinitions:
             "Enable Decensor Bypass",
             description,
             False,
+            tags=[ConfigValueTag.advanced],
         )
 
     @staticmethod
