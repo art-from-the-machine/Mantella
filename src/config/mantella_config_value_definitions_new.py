@@ -135,6 +135,7 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_max_response_sentences_multi_config_value())
         llm_category.add_config_value(LLMDefinitions.get_llm_response_timeout_config_value())
         llm_category.add_config_value(LLMDefinitions.get_read_thoughts_after_sentence_cap_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_turn_thoughts_to_keep_config_value())
         llm_category.add_config_value(LLMDefinitions.get_drop_last_sentences_single_config_value())
         llm_category.add_config_value(LLMDefinitions.get_llm_params_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_params_config_value())

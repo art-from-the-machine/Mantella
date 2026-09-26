@@ -69,17 +69,30 @@ class message_thread():
 
     @staticmethod
     @utils.time_it
-    def transform_to_openai_messages(messages: list[Message], last_turn_thoughts_only: bool = False) -> list[ChatCompletionMessageParam]:
-        last_assistant: AssistantMessage | None = None
-        if last_turn_thoughts_only:
-            for message in reversed(messages):
-                if isinstance(message, AssistantMessage):
-                    last_assistant = message
-                    break
+    def transform_to_openai_messages(
+        messages: list[Message],
+        last_turn_thoughts_only: bool = False,
+        thoughts_on_last_assistant_turns: int | None = None,
+    ) -> list[ChatCompletionMessageParam]:
+        """Build OpenAI messages.
+
+        thoughts_on_last_assistant_turns limits turn thoughts to that many recent assistant replies.
+        last_turn_thoughts_only is the same limit with a count of 1. Omit both to keep every thought.
+        """
+        if thoughts_on_last_assistant_turns is not None:
+            keep_count = max(0, thoughts_on_last_assistant_turns)
+        elif last_turn_thoughts_only:
+            keep_count = 1
+        else:
+            keep_count = None
+        kept_assistant_ids: set[int] | None = None
+        if keep_count is not None:
+            assistants = [message for message in messages if isinstance(message, AssistantMessage)]
+            kept_assistant_ids = {id(message) for message in assistants[-keep_count:]} if keep_count else set()
         result = []
         for m in messages:
             if isinstance(m, AssistantMessage):
-                include_thoughts = (not last_turn_thoughts_only) or m is last_assistant
+                include_thoughts = kept_assistant_ids is None or id(m) in kept_assistant_ids
                 result.append(m.get_openai_message(include_thoughts=include_thoughts))
             else:
                 result.append(m.get_openai_message())
@@ -108,9 +121,26 @@ class message_thread():
         return result
 
     def get_openai_messages(self) -> list[ChatCompletionMessageParam]:
-        """Chat requests keep private thoughts only on the latest assistant turn."""
-        openai_messages = message_thread.transform_to_openai_messages(self.__messages, last_turn_thoughts_only=True)
+        """Live chat keeps turn thoughts on the last N assistant replies.
+
+        Other requests, including summaries and inner thoughts, keep thoughts only on the latest assistant reply.
+        """
+        if self.__include_decensor_bypass:
+            openai_messages = message_thread.transform_to_openai_messages(
+                self.__messages,
+                thoughts_on_last_assistant_turns=self.__turn_thoughts_to_keep(),
+            )
+        else:
+            openai_messages = message_thread.transform_to_openai_messages(self.__messages, last_turn_thoughts_only=True)
         return self.__insert_decensor_bypass(openai_messages)
+
+    def __turn_thoughts_to_keep(self) -> int:
+        raw = getattr(self.__config, "turn_thoughts_to_keep", 1)
+        try:
+            count = int(raw)
+        except (TypeError, ValueError):
+            return 1
+        return max(0, count)
 
     def __insert_decensor_bypass(self, openai_messages: list[ChatCompletionMessageParam]) -> list[ChatCompletionMessageParam]:
         """Place a user handshake and assistant commitment directly after the system prompt.

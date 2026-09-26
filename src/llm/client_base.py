@@ -15,7 +15,6 @@ from src.llm.messages import Message, ImageMessage, UserMessage
 from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
 from src.llm.sonnet_cache_connector import SonnetCacheConnector
-import json
 
 class FirstTokenTimeout(Exception):
     """The first spoken token did not arrive within the response timeout."""

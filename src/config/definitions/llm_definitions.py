@@ -88,10 +88,20 @@ class LLMDefinitions:
 
     @staticmethod
     def get_read_thoughts_after_sentence_cap_config_value() -> ConfigValue:
-        description = """When enabled, private-thought lines do not count toward Max Sentences per Response.
+        description = """When enabled, turn-thought lines do not count toward Max Sentences per Response.
                     After the spoken cap is reached, later spoken lines are dropped, but generation continues so a trailing thought block can still be saved.
                     When disabled, every sentence counts, including thoughts. The sentence that reaches the cap is kept, and the rest of the reply is discarded and the stream stops."""
-        return ConfigValueBool("read_thoughts_after_sentence_cap", "Read Private Thoughts After Sentence Cap", description, False, tags=[ConfigValueTag.basic])
+        return ConfigValueBool("read_thoughts_after_sentence_cap", "Read Turn Thoughts After Sentence Cap", description, False, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_turn_thoughts_to_keep_config_value() -> ConfigValue:
+        description = """How many recent assistant replies keep their turn thoughts in the next live chat request.
+                    Count assistant replies backward from the latest one. Player lines do not use a slot.
+                    1 keeps thoughts only on the latest assistant reply. 0 sends no turn thoughts.
+                    A group reply is kept or dropped as one message. Single-NPC and multi-NPC use this same number.
+                    Summaries, inner thoughts, and personal reflections are unchanged.
+                    With Enable Hot-Swap Settings on, a new value applies on the next request."""
+        return ConfigValueInt("turn_thoughts_to_keep", "Turn Thoughts to Keep", description, 1, 0, 999, tags=[ConfigValueTag.advanced])
 
     @staticmethod
     def get_drop_last_sentences_single_config_value() -> ConfigValue:
