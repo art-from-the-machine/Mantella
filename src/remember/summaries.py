@@ -347,12 +347,13 @@ class Summaries(Remembering):
         return timeline
 
     @utils.time_it
-    def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str) -> str:
+    def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str, include_private_thoughts: bool = True) -> str:
         """Load the conversation summaries for all NPCs in the conversation and returns them as one string
 
         Args:
             npcs_in_conversation (Characters): the npcs to load the summaries for
             world_id (str): the world identifier
+            include_private_thoughts: When False, omit saved private thoughts. Live multi-NPC prompts keep them.
 
         Returns:
             str: a concatenation of the summaries as a single string
@@ -369,14 +370,12 @@ class Summaries(Remembering):
             else:
                 return ""
         else:
-            # Multi-NPC / radiant — append each NPC's latest thought at the end of their memory
+            # Multi-NPC / radiant — live prompts append each NPC's latest thought. Summary generation does not.
             character_memories = []
             for character in non_player_characters:
-                memory_text = self.__append_thought_to_memory(
-                    self.__build_character_memory(character, world_id, dedupe_legacy=False),
-                    character,
-                    world_id,
-                )
+                memory_text = self.__build_character_memory(character, world_id, dedupe_legacy=False)
+                if include_private_thoughts:
+                    memory_text = self.__append_thought_to_memory(memory_text, character, world_id)
                 if memory_text:
                     memory_with_delimiters = f"[This is the beginning of {character.name}'s memory]\n" + \
                                            memory_text + \
@@ -769,7 +768,9 @@ class Summaries(Remembering):
         for char in npcInfo.characters:
             characters_obj.add_or_update_character(char)
 
-        memory_conversation_summaries = self.get_prompt_text(characters_obj, world_id)
+        memory_conversation_summaries = self.get_prompt_text(
+            characters_obj, world_id, include_private_thoughts=False
+        )
         prompt_values: Dict[str, str] = {
             "name": names,
             "names": names,

@@ -6,12 +6,13 @@ from src.llm.message_thread import message_thread
 
 class Remembering(ABC):
     @abstractmethod
-    def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str) -> str:
+    def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str, include_private_thoughts: bool = True) -> str:
         """ Generates a text that explains the previous interactions of the npcs with the player. 
             Text is passed as part of the prompt to the LLM
 
         Args:
             npcs_in_conversation (Characters): the NPCs in question
+            include_private_thoughts: When False, omit saved private thoughts. Summary generation uses this.
 
         Returns:
             str: a single text
