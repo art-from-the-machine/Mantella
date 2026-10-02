@@ -152,6 +152,14 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
         """
         self.__apply_bio_section_filter_settings_from_definitions()
 
+    def sync_prompt_values_from_definitions(self) -> None:
+        """Refresh prompt attributes from the Prompts tab and active profiles without clearing the config-changed flag.
+
+        Used by Bio Editor Generate Reflection and manual Save Summary/Thoughts/Reflection
+        so Prompts tab edits apply before the next game request.
+        """
+        self.__apply_prompt_values()
+
     def sync_save_summary_now_toggles_from_definitions(self) -> None:
         """Refresh Save Summary Now extra toggles from UI definitions without clearing the config-changed flag.
 

@@ -707,6 +707,7 @@ class GameStateManager:
         self.__config.sync_summary_llm_settings_from_definitions()
         self.__config.sync_bio_section_filter_settings_from_definitions()
         self.__config.sync_save_summary_now_toggles_from_definitions()
+        self.__config.sync_prompt_values_from_definitions()
         summary_client = GameStateManager.create_summary_client(self.__config, self.__api_file)
         logging.info(
             f"Refreshing summary client for manual save: "

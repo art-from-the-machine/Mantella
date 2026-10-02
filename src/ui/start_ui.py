@@ -1432,6 +1432,7 @@ class StartUI(routeable):
                     try:
                         config.sync_summary_llm_settings_from_definitions()
                         config.sync_bio_section_filter_settings_from_definitions()
+                        config.sync_prompt_values_from_definitions()
                         config.enable_character_tag_reading = config.definitions.get_bool_value("enable_character_tag_reading")
                     except Exception:
                         pass
