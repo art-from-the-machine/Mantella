@@ -66,6 +66,10 @@ class Skyrim(Gameable):
         else:
             return text
 
+    def expand_bio_with_tags(self, base_bio: str, tags_string: str) -> str:
+        """Append static tag-template text to a raw bio, matching in-game character load."""
+        return self.__bio_template_manager.expand_bio_with_tags(base_bio, tags_string)
+
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
@@ -94,7 +98,7 @@ class Skyrim(Gameable):
         # If `tags_overwrite` is set (non-empty), it fully replaces accumulated `tags`.
         effective_tags = tags_overwrite_s if tags_overwrite_s else tags_s
 
-        expanded_bio = self.__bio_template_manager.expand_bio_with_tags(base_bio, effective_tags)
+        expanded_bio = self.expand_bio_with_tags(base_bio, effective_tags)
 
         # Extract dynamic tag events (timestamped event lines) for the memory timeline
         dynamic_tag_events = self.__bio_template_manager.extract_dynamic_events(effective_tags)

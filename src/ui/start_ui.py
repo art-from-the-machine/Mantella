@@ -1432,6 +1432,7 @@ class StartUI(routeable):
                     try:
                         config.sync_summary_llm_settings_from_definitions()
                         config.sync_bio_section_filter_settings_from_definitions()
+                        config.enable_character_tag_reading = config.definitions.get_bool_value("enable_character_tag_reading")
                     except Exception:
                         pass
 
@@ -1470,6 +1471,7 @@ class StartUI(routeable):
                         summary_text or "",
                         world_id or "default",
                         player_name=player_name,
+                        tags=_compute_runtime_tags_for_label(label, l2k),
                     )
                     updated = _load_reflections_for_label(label, l2k, world_id)
                     if result:

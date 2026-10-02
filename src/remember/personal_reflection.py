@@ -230,6 +230,7 @@ class PersonalReflection:
         world_id: str,
         save_timestamp: int | None = None,
         player_name: str = "the player",
+        tags: str = "",
     ) -> str:
         """Generate and append a reflection from Bio Editor texts. Returns the new body, or empty."""
         summary_text = (summaries or "").strip()
@@ -238,7 +239,8 @@ class PersonalReflection:
             return ""
         ts = save_timestamp if save_timestamp is not None else int(time.time())
         dummy = _NameOnlyCharacter(npc_name)
-        resolved_bio = utils.resolve_player_name_placeholder(bio or "", player_name)
+        source_bio = self.__append_tag_templates(bio or "", tags)
+        resolved_bio = utils.resolve_player_name_placeholder(source_bio, player_name)
         filtered_bio = apply_bio_section_filter(
             resolved_bio,
             npc_name,
@@ -260,6 +262,26 @@ class PersonalReflection:
             return ""
         self.__append_reflection(reflection, dummy, world_id, ts)
         return reflection
+
+    def __append_tag_templates(self, bio: str, tags: str) -> str:
+        """Append tag-template text the same way an in-game character bio is expanded.
+
+        Bio Editor stores the raw bio and tags separately. Gameplay already expands
+        tags onto ``Character.bio`` before a reflection is written.
+        """
+        cleaned_tags = (tags or "").strip()
+        if not cleaned_tags:
+            return bio
+        game = self.__game
+        expander = getattr(game, "expand_bio_with_tags", None) if game is not None else None
+        if callable(expander):
+            return expander(bio, cleaned_tags)
+        if self.__config.game.base_game == GameEnum.FALLOUT4:
+            return bio
+        from src.bio_template_manager import BioTemplateManager
+        templates_path = os.path.join(utils.resolve_path(), "data", "Skyrim", "bio_templates")
+        manager = BioTemplateManager(templates_path, self.__config, "Skyrim")
+        return manager.expand_bio_with_tags(bio, cleaned_tags)
 
     def _parse_reflection_file(self, character: Character, world_id: str) -> Tuple[List[str], List[Tuple[int, str]]]:
         reflection_file = self.__get_latest_reflection_file_path(character, world_id)
