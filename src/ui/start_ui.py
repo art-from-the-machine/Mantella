@@ -1437,7 +1437,8 @@ class StartUI(routeable):
                     except Exception:
                         pass
 
-                    summary_client = GameStateManager.create_summary_client(config, "GPT_SECRET_KEY.txt")
+                    summary_client = GameStateManager.create_reflection_client(
+                        config, "GPT_SECRET_KEY.txt", GameStateManager.create_summary_client(config, "GPT_SECRET_KEY.txt"))
                     if summary_client is None:
                         skf = _kfr.get_key_files_for_service(config.llm_api, "GPT_SECRET_KEY.txt")
                         summary_client = ClientBase(

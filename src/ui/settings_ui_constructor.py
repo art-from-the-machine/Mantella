@@ -39,6 +39,9 @@ class SettingConfig(NamedTuple):
     update_on_blur: bool
     additional_buttons: list[tuple[str, Callable[[], Any]]]
 
+# Model dropdowns where no selection (empty value) means "use the active Summary model".
+SUMMARY_FALLBACK_MODEL_IDS = {"thoughts_model", "reflection_model"}
+
 class ModelConfig(TypedDict):
     dependent_config: str  # The config value this model depends on (e.g., "llm_api")
     model_list_getter: Callable[[str, str, str, bool], Any]  # Function to get model list based on service, secret_key_file, default_model, is_vision
@@ -93,6 +96,14 @@ class SettingsUIConstructor(ConfigValueVisitor):
             },
             "summary_model": {
                 "dependent_config": "summary_llm_api",
+                "model_list_getter": ClientBase.get_model_list,
+            },
+            "thoughts_model": {
+                "dependent_config": "thoughts_llm_api",
+                "model_list_getter": ClientBase.get_model_list,
+            },
+            "reflection_model": {
+                "dependent_config": "reflection_llm_api",
                 "model_list_getter": ClientBase.get_model_list,
             },
             "profile_selected_model": {
@@ -230,8 +241,10 @@ class SettingsUIConstructor(ConfigValueVisitor):
         is_vision = True if model_config.identifier == 'vision_model' else False
         model_list = handler["model_list_getter"](service, secret_key_file, default_model, is_vision)
         selected_model = model_config.value
-        
-        if not model_list.is_model_in_list(selected_model):
+        # Leave an unselected summary-fallback model empty instead of replacing it with the default model
+        if model_config.identifier in SUMMARY_FALLBACK_MODEL_IDS and not selected_model:
+            selected_model = None
+        elif not model_list.is_model_in_list(selected_model):
             selected_model = model_list.default_model
             # Update the config value to the default model
             model_config.value = selected_model
@@ -1463,6 +1476,14 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 "dependent_config": "summary_llm_api",
                 "model_list_getter": ClientBase.get_model_list,
             },
+            "thoughts_model": {
+                "dependent_config": "thoughts_llm_api",
+                "model_list_getter": ClientBase.get_model_list,
+            },
+            "reflection_model": {
+                "dependent_config": "reflection_llm_api",
+                "model_list_getter": ClientBase.get_model_list,
+            },
             "profile_selected_model": {
                 "dependent_config": "profile_selected_service",
                 "model_list_getter": ClientBase.get_model_list,
@@ -1499,7 +1520,10 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 model_list = handler["model_list_getter"](service, secret_key_file, default_model, is_vision)
                 selected_model = config_value.value
                 
-                if not model_list.is_model_in_list(selected_model):
+                # Leave an unselected summary-fallback model empty instead of replacing it with the default model
+                if config_value.identifier in SUMMARY_FALLBACK_MODEL_IDS and not selected_model:
+                    selected_model = None
+                elif not model_list.is_model_in_list(selected_model):
                     selected_model = model_list.default_model
                     
                 return gr.Dropdown(

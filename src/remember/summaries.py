@@ -260,14 +260,14 @@ class Summaries(Remembering):
         lorebook_base_path = os.path.join(utils.resolve_path(), "data", game_folder_name, "lorebook")
         self.__lorebook_manager = LorebookManager(lorebook_base_path, config, game_folder_name)
 
-    def update_summary_client(self, summary_client: ClientBase | None, fallback_client: LLMClient) -> None:
-        """Replace the LLM client used for summarization without recreating the rememberer."""
+    def update_summary_client(self, summary_client: ClientBase | None, fallback_client: LLMClient, thoughts_client: ClientBase | None, reflection_client: ClientBase | None) -> None:
+        """Replace the LLM clients used for summarization, private thoughts and personal reflections without recreating the rememberer."""
         self.__client = fallback_client
         self.__summary_client = summary_client if summary_client else fallback_client
         if self.__inner_monologue:
-            self.__inner_monologue.update_summary_client(summary_client, fallback_client)
+            self.__inner_monologue.update_summary_client(thoughts_client, fallback_client)
         if self.__personal_reflection:
-            self.__personal_reflection.update_summary_client(summary_client, fallback_client)
+            self.__personal_reflection.update_summary_client(reflection_client, fallback_client)
 
     def __build_lorebook_text_for_prompt(
         self,

@@ -298,6 +298,53 @@ class LLMDefinitions:
         default_params = json.dumps({"temperature": 0.1, "top_p": 0.9}, indent=4)
         return ConfigValueString("summary_llm_params","Summary LLM Parameters",description, default_params, tags=[ConfigValueTag.basic], row_group="llm_params_row")
 
+    # Private Thoughts / Personal Reflection LLM Configuration
+    # key is "thoughts" or "reflection"; label is the display name used in the UI.
+    @staticmethod
+    def get_memory_task_use_summary_model_config_value(key: str, label: str) -> ConfigValue:
+        description = f"""Use the active Summary model (service, model, parameters, token count and profile) for {label}.
+                        Disable to use the dedicated {label} service, model and parameters configured below."""
+        return ConfigValueBool(f"{key}_use_summary_model", f"Use Summary Model for {label}", description, True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_memory_task_llm_api_config_value(key: str, label: str) -> ConfigValue:
+        description = f"""Selects the LLM service to use for {label} when 'Use Summary Model for {label}' is disabled.
+
+            If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also ignore the dropdown options and instead enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
+            After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
+
+            If you are using an API (OpenAI, OpenRouter, etc) ensure you have the correct secret key set in `GPT_SECRET_KEY.txt` for the respective service you are using."""
+        return ConfigValueSelection(f"{key}_llm_api",f"{label} LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_memory_task_model_config_value(key: str, label: str) -> ConfigValue:
+        model_description = f"""Select the model to use for {label} when 'Use Summary Model for {label}' is disabled. Press the *Update* button to load a list of models available from the service selected above.
+                            The list does not provide all details about the models. For additional information please refer to the corresponding sites:
+                            - OpenRouter: https://openrouter.ai/docs#models
+                            - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
+        return ConfigValueSelection(f"{key}_model",f"{label} Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_memory_task_custom_token_count_config_value(key: str, label: str) -> ConfigValue:
+        description = f"""If the {label} model chosen is not recognised by Mantella, the token count for the given model will default to this number.
+                    Only used when 'Use Summary Model for {label}' is disabled."""
+        return ConfigValueInt(f"{key}_custom_token_count",f"{label} Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced], row_group="memory_token_count_row")
+
+    @staticmethod
+    def get_memory_task_llm_params_config_value(key: str, label: str) -> ConfigValue:
+        description = f"""Parameters for the {label} LLM model. These should be in JSON format.
+                    Only used when 'Use Summary Model for {label}' is disabled.
+                    Common parameters include temperature (0.0-2.0), top_p (0.0-1.0), frequency_penalty (0.0-1.0), presence_penalty (0.0-1.0)."""
+        default_params = json.dumps({"temperature": 0.1, "top_p": 0.9}, indent=4)
+        return ConfigValueString(f"{key}_llm_params",f"{label} LLM Parameters",description, default_params, tags=[ConfigValueTag.basic], row_group="memory_llm_params_row")
+
+    @staticmethod
+    def get_apply_profile_memory_task_config_value(key: str, label: str) -> ConfigValue:
+        description = f"""Automatically apply saved LLM profile parameters for {label}.
+                        Only used when 'Use Summary Model for {label}' is disabled; otherwise 'Apply Profile for Summaries' applies.
+                        When enabled, if a profile exists for the selected {label} model, its parameters will be used instead of the manually configured parameters."""
+        return ConfigValueBool(f"apply_profile_{key}", f"Apply Profile for {label}", description, True, tags=[], row_group="apply_profile_row")
+
     # Multi-NPC LLM Configuration
     @staticmethod
     def get_multi_npc_llm_api_config_value() -> ConfigValue:

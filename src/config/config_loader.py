@@ -125,7 +125,8 @@ class ConfigLoader:
             self.__has_any_value_changed = False
 
     def sync_summary_llm_settings_from_definitions(self) -> None:
-        """Refresh summary LLM attributes from UI definitions without clearing the config-changed flag.
+        """Refresh summary, private-thoughts and personal-reflection LLM attributes from UI definitions
+        without clearing the config-changed flag.
 
         Used by Save Summary Now so the latest summary model is applied without preventing a later
         full hot-swap of other pending settings.
@@ -143,6 +144,31 @@ class ConfigLoader:
             logging.error(f"""Error in parsing Summary LLM parameter list: {e}
 Summary LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
             self.summary_llm_params = None
+        self.__apply_memory_task_llm_settings_from_definitions()
+
+    def __apply_memory_task_llm_settings_from_definitions(self) -> None:
+        """Load the private-thoughts and personal-reflection LLM settings (used when not following the summary model)."""
+        (self.thoughts_use_summary_model, self.apply_profile_thoughts, self.thoughts_llm_api,
+         self.thoughts_llm, self.thoughts_custom_token_count, self.thoughts_llm_params) = \
+            self.__read_memory_task_llm_settings("thoughts", "Private Thoughts")
+        (self.reflection_use_summary_model, self.apply_profile_reflection, self.reflection_llm_api,
+         self.reflection_llm, self.reflection_custom_token_count, self.reflection_llm_params) = \
+            self.__read_memory_task_llm_settings("reflection", "Personal Reflection")
+
+    def __read_memory_task_llm_settings(self, key: str, label: str) -> tuple[bool, bool, str, str, int, dict[str, Any] | None]:
+        use_summary_model = self.__definitions.get_bool_value(f"{key}_use_summary_model")
+        apply_profile = self.__definitions.get_bool_value(f"apply_profile_{key}")
+        llm_api = self.__definitions.get_string_value(f"{key}_llm_api")
+        llm = self.__definitions.get_string_value(f"{key}_model") or ""  # empty means "use the summary model"
+        llm = llm.split(' |')[0] if ' |' in llm else llm
+        custom_token_count = self.__definitions.get_int_value(f"{key}_custom_token_count")
+        try:
+            llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value(f"{key}_llm_params").replace('\n', ''))
+        except Exception as e:
+            logging.error(f"""Error in parsing {label} LLM parameter list: {e}
+{label} LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+            llm_params = None
+        return use_summary_model, apply_profile, llm_api, llm, custom_token_count, llm_params
 
     def sync_bio_section_filter_settings_from_definitions(self) -> None:
         """Refresh bio-section-filter attributes from UI definitions without clearing the config-changed flag.
@@ -409,6 +435,7 @@ Multi-NPC LLM parameter list must follow the Python dictionary format: https://w
                 logging.error(f"""Error in parsing Summary LLM parameter list: {e}
 Summary LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.summary_llm_params = None
+            self.__apply_memory_task_llm_settings_from_definitions()
 
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
 

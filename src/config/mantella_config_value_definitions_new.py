@@ -131,6 +131,12 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_model_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_model_config_value())
+        memory_tasks = [("thoughts", "Private Thoughts"), ("reflection", "Personal Reflection")]
+        for key, label in memory_tasks:
+            llm_category.add_config_value(LLMDefinitions.get_memory_task_use_summary_model_config_value(key, label))
+        for key, label in memory_tasks:
+            llm_category.add_config_value(LLMDefinitions.get_memory_task_llm_api_config_value(key, label))
+            llm_category.add_config_value(LLMDefinitions.get_memory_task_model_config_value(key, label))
         llm_category.add_config_value(LLMDefinitions.get_max_response_sentences_single_config_value())
         llm_category.add_config_value(LLMDefinitions.get_max_response_sentences_multi_config_value())
         llm_category.add_config_value(LLMDefinitions.get_llm_response_timeout_config_value())
@@ -140,6 +146,8 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_llm_params_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_params_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_params_config_value())
+        for key, label in memory_tasks:
+            llm_category.add_config_value(LLMDefinitions.get_memory_task_llm_params_config_value(key, label))
         
         
         # llm_category.add_config_value(LLMDefinitions.get_llm_priority_config_value())
@@ -191,6 +199,8 @@ class MantellaConfigValueDefinitionsNew:
         # Summary LLM Configuration
         
         llm_category.add_config_value(LLMDefinitions.get_summary_custom_token_count_config_value())
+        for key, label in memory_tasks:
+            llm_category.add_config_value(LLMDefinitions.get_memory_task_custom_token_count_config_value(key, label))
         
         
         llm_category.add_config_value(LLMDefinitions.get_narration_handling())
@@ -342,6 +352,8 @@ class MantellaConfigValueDefinitionsNew:
         model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_one_on_one_config_value())
         model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_multi_npc_config_value())
         model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_summaries_config_value())
+        for key, label in memory_tasks:
+            model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_memory_task_config_value(key, label))
         model_profiles_category.add_config_value(ModelProfileDefinitions.get_example_profile_json_config_value())
         result.add_base_group(model_profiles_category)
       

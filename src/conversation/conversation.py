@@ -66,10 +66,10 @@ class Conversation:
         self.last_sentence_start_time = time.time()
         self.__end_conversation_keywords = utils.parse_keywords(context_for_conversation.config.end_conversation_keyword)
 
-    def update_summary_client(self, summary_client: ClientBase | None, fallback_client: LLMClient) -> None:
-        """Update the summary LLM client on the active rememberer, if it supports it."""
+    def update_summary_client(self, summary_client: ClientBase | None, fallback_client: LLMClient, thoughts_client: ClientBase | None, reflection_client: ClientBase | None) -> None:
+        """Update the summary, thoughts and reflection LLM clients on the active rememberer, if it supports it."""
         if isinstance(self.__rememberer, Summaries):
-            self.__rememberer.update_summary_client(summary_client, fallback_client)
+            self.__rememberer.update_summary_client(summary_client, fallback_client, thoughts_client, reflection_client)
 
     @property
     def has_already_ended(self) -> bool:

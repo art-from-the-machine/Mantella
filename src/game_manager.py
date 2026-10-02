@@ -136,7 +136,9 @@ class GameStateManager:
         # Clear per-character client cache to force recreation with new settings
         chat_manager.clear_per_character_client_cache()
             
-        self.__rememberer: Remembering = self._create_rememberer(game, config, client, summary_client)
+        thoughts_client = GameStateManager.create_thoughts_client(config, api_file, summary_client)
+        reflection_client = GameStateManager.create_reflection_client(config, api_file, summary_client)
+        self.__rememberer: Remembering = self._create_rememberer(game, config, client, summary_client, thoughts_client, reflection_client)
 
         self.__talk: Conversation | None = None
         self.__mic_input: bool = False
@@ -163,9 +165,9 @@ class GameStateManager:
         except Exception as e:
             logging.debug(f"Failed to attach Sonnet cache connector to {client_context}: {e}")
 
-    def _create_rememberer(self, game: Gameable, config: ConfigLoader, client: LLMClient, summary_client) -> Summaries:
-        inner_monologue = InnerMonologue(game, config, client, self.__language_info['language'], summary_client)
-        personal_reflection = PersonalReflection(game, config, client, self.__language_info['language'], summary_client)
+    def _create_rememberer(self, game: Gameable, config: ConfigLoader, client: LLMClient, summary_client, thoughts_client=None, reflection_client=None) -> Summaries:
+        inner_monologue = InnerMonologue(game, config, client, self.__language_info['language'], thoughts_client)
+        personal_reflection = PersonalReflection(game, config, client, self.__language_info['language'], reflection_client)
         return Summaries(
             game,
             config,
@@ -296,7 +298,9 @@ class GameStateManager:
                 multi_npc_client = None
             
             # Update rememberer with new config and summary client
-            self.__rememberer = self._create_rememberer(game, config, self.__client, summary_client)
+            thoughts_client = GameStateManager.create_thoughts_client(config, secret_key_file, summary_client, log_prefix="Hot-swap: ")
+            reflection_client = GameStateManager.create_reflection_client(config, secret_key_file, summary_client, log_prefix="Hot-swap: ")
+            self.__rememberer = self._create_rememberer(game, config, self.__client, summary_client, thoughts_client, reflection_client)
             
             # Update chat manager with multi-NPC client
             chat_manager.update_multi_npc_client(multi_npc_client)
@@ -702,6 +706,57 @@ class GameStateManager:
 
         return None
 
+    @staticmethod
+    def create_thoughts_client(config: ConfigLoader, api_file: str, summary_client: "ClientBase | None", log_prefix: str = "") -> "ClientBase | None":
+        """Client for private thoughts: the summary client unless a dedicated model is configured."""
+        if config.thoughts_use_summary_model or not config.thoughts_llm:
+            return summary_client
+        return GameStateManager.__create_memory_task_client(
+            "private thoughts", config.thoughts_llm_api, config.thoughts_llm, config.thoughts_llm_params,
+            config.thoughts_custom_token_count, config.apply_profile_thoughts, config, api_file, log_prefix)
+
+    @staticmethod
+    def create_reflection_client(config: ConfigLoader, api_file: str, summary_client: "ClientBase | None", log_prefix: str = "") -> "ClientBase | None":
+        """Client for personal reflections: the summary client unless a dedicated model is configured."""
+        if config.reflection_use_summary_model or not config.reflection_llm:
+            return summary_client
+        return GameStateManager.__create_memory_task_client(
+            "personal reflections", config.reflection_llm_api, config.reflection_llm, config.reflection_llm_params,
+            config.reflection_custom_token_count, config.apply_profile_reflection, config, api_file, log_prefix)
+
+    @staticmethod
+    def __create_memory_task_client(task_name: str, llm_api: str, llm: str, llm_params: dict[str, Any] | None,
+                                    custom_token_count: int, apply_profile: bool, config: ConfigLoader,
+                                    api_file: str, log_prefix: str) -> "ClientBase":
+        from src.llm.client_base import ClientBase
+        from src.llm.key_file_resolver import key_file_resolver
+
+        params = llm_params
+        if apply_profile:
+            try:
+                from src.model_profile_manager import ModelProfileManager
+                profile_manager = ModelProfileManager()
+                params = profile_manager.apply_profile_to_params(service=llm_api, model=llm, fallback_params=llm_params)
+                if profile_manager.has_profile(llm_api, llm):
+                    logging.info(f"{log_prefix}Applied profile for {task_name}: {llm_api}/{llm}")
+                    logging.info(f"{log_prefix}{task_name} Profile Parameters: {params}")
+                else:
+                    logging.info(f"{log_prefix}No profile found for {task_name} {llm_api}/{llm}, using manual parameters: {params}")
+            except Exception as e:
+                logging.error(f"Error applying profile for {task_name}: {e}")
+                params = llm_params
+        else:
+            logging.info(f"{log_prefix}{task_name} Parameters (manual): {params}")
+
+        return ClientBase(
+            llm_api,
+            llm,
+            params,
+            custom_token_count,
+            key_file_resolver.get_key_files_for_service(llm_api, api_file),
+            response_timeout=config.llm_response_timeout,
+        )
+
     def refresh_summary_client_from_ui_config(self) -> None:
         """Apply the latest UI settings needed for memory saves without clearing other pending config changes."""
         self.__config.sync_summary_llm_settings_from_definitions()
@@ -709,15 +764,17 @@ class GameStateManager:
         self.__config.sync_save_summary_now_toggles_from_definitions()
         self.__config.sync_prompt_values_from_definitions()
         summary_client = GameStateManager.create_summary_client(self.__config, self.__api_file)
+        thoughts_client = GameStateManager.create_thoughts_client(self.__config, self.__api_file, summary_client)
+        reflection_client = GameStateManager.create_reflection_client(self.__config, self.__api_file, summary_client)
         logging.info(
             f"Refreshing summary client for manual save: "
             f"{self.__config.summary_llm_api}/{self.__config.summary_llm}"
         )
 
         if isinstance(self.__rememberer, Summaries):
-            self.__rememberer.update_summary_client(summary_client, self.__client)
+            self.__rememberer.update_summary_client(summary_client, self.__client, thoughts_client, reflection_client)
         if self.__talk:
-            self.__talk.update_summary_client(summary_client, self.__client)
+            self.__talk.update_summary_client(summary_client, self.__client, thoughts_client, reflection_client)
 
     @utils.time_it
     def save_summary_only(self) -> bool:
@@ -1076,7 +1133,10 @@ class GameStateManager:
                 self.__game = Skyrim(self.__config)
             
             # Update the rememberer with the new game instance
-            self.__rememberer = self._create_rememberer(self.__game, self.__config, self.__client, None)
+            summary_client = GameStateManager.create_summary_client(self.__config, self.__api_file)
+            thoughts_client = GameStateManager.create_thoughts_client(self.__config, self.__api_file, summary_client)
+            reflection_client = GameStateManager.create_reflection_client(self.__config, self.__api_file, summary_client)
+            self.__rememberer = self._create_rememberer(self.__game, self.__config, self.__client, summary_client, thoughts_client, reflection_client)
             
             logging.info("Character data reload completed successfully.")
             return True
