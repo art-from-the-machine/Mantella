@@ -230,7 +230,7 @@ def format_character_bios_for_memory(characters, player_name: str, config, *, co
         resolved = utils.resolve_player_name_placeholder(character.bio or "", player_name)
         filtered = apply_bio_section_filter(resolved, character.name, config, enabled=enabled)
         parts.append(f"{character.name}: {filtered}")
-    return "\n\n".join(parts)
+    return "\n\n==========\n\n".join(parts)
 
 
 class CharacterSummaryParameters:
