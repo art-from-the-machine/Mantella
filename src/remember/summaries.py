@@ -490,7 +490,7 @@ class Summaries(Remembering):
     def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, save_timestamp: int | None = None, save_thoughts: bool | None = None, save_reflections: bool | None = None):
         self.may_add_missing_join_leave_messages(messages, npcs_in_conversation)
 
-        characters = self.get_character_lookup_dict(messages)
+        characters = self.get_character_lookup_dict(messages, npcs_in_conversation)
         npc_message_threads: Dict[str, CharacterSummaryParameters] = self.get_threads_for_summarization(messages, characters)
         npcs_with_shared_threads = self.group_shared_threads(npc_message_threads)
         ts = save_timestamp if save_timestamp is not None else int(time.time())
@@ -563,7 +563,7 @@ class Summaries(Remembering):
             return
 
         self.may_add_missing_join_leave_messages(messages, npcs_in_conversation)
-        characters = self.get_character_lookup_dict(messages)
+        characters = self.get_character_lookup_dict(messages, npcs_in_conversation)
         npc_message_threads: Dict[str, CharacterSummaryParameters] = self.get_threads_for_summarization(messages, characters)
         ts = save_timestamp if save_timestamp is not None else int(time.time())
         existing_summaries: Dict[str, str] = {}
@@ -590,7 +590,7 @@ class Summaries(Remembering):
             return
 
         self.may_add_missing_join_leave_messages(messages, npcs_in_conversation)
-        characters = self.get_character_lookup_dict(messages)
+        characters = self.get_character_lookup_dict(messages, npcs_in_conversation)
         npc_message_threads: Dict[str, CharacterSummaryParameters] = self.get_threads_for_summarization(messages, characters)
         ts = save_timestamp if save_timestamp is not None else int(time.time())
         existing_summaries: Dict[str, str] = {}
@@ -610,13 +610,20 @@ class Summaries(Remembering):
 
 
         
-    def get_character_lookup_dict(self, all_messages: message_thread) -> Dict[str, Character]:
-        """Returns a dictionary of character names to Character objects."""
+    def get_character_lookup_dict(self, all_messages: message_thread, npcs_in_conversation: Characters | None = None) -> Dict[str, Character]:
+        """Returns a dictionary of character names to Character objects.
+
+        Join messages can hold frozen copies (after undo / reload), so NPCs still in
+        npcs_in_conversation use the live Character to pick up runtime bio edits.
+        """
+        live_by_ref_id: Dict[str, Character] = {}
+        if npcs_in_conversation:
+            live_by_ref_id = {npc.ref_id: npc for npc in npcs_in_conversation.get_all_characters()}
         characters = {}
         for message in all_messages.get_messages_of_type((join_message)):
             if not isinstance(message, (join_message, leave_message)) or message.character == None or message.character.is_player_character:
                 continue
-            characters[message.character.name] = message.character
+            characters[message.character.name] = live_by_ref_id.get(message.character.ref_id, message.character)
         return characters
  
     @utils.time_it

@@ -667,8 +667,14 @@ class Conversation:
         Returns True on success, False on error.
         """
         try:
+            # NPCs who already left are no longer active; reuse their Character from the
+            # current history so they don't become blank-bio stubs.
+            history_characters: dict[str, Character] = {}
+            for message in self.__messages.get_persistent_messages():
+                if isinstance(message, (join_message, leave_message)) and message.character is not None:
+                    history_characters[message.character.ref_id] = message.character
             def resolve(ref_id: str, _name: str, _base_id: str):
-                return self.get_character(ref_id)
+                return self.get_character(ref_id) or history_characters.get(ref_id)
             new_messages = deserialize_persistent_messages(
                 json_str,
                 self.__context.config,
