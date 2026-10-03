@@ -210,6 +210,34 @@ def _build_new_events_section(new_events: List[Tuple[int, str]]) -> str:
     return "\n".join(lines)
 
 
+def build_memory_text(
+    legacy_blocks: List[str],
+    timestamped_summary_blocks: List[Tuple[int, str]],
+    dynamic_events: List[Tuple[int, str]],
+    dedupe_legacy: bool = False,
+) -> str:
+    """Merge summary blocks and dynamic tag events into the memory text the LLM sees."""
+    # Determine which dynamic events are "new since last meeting"
+    new_events = get_new_events(timestamped_summary_blocks, dynamic_events)
+
+    # Build timeline, excluding new events so they aren't duplicated
+    timeline = build_merged_timeline(
+        legacy_blocks,
+        timestamped_summary_blocks,
+        dynamic_events,
+        dedupe_legacy=dedupe_legacy,
+        exclude_events=new_events,
+    )
+
+    # --- "New developments since last meeting" section ---
+    new_section = _build_new_events_section(new_events)
+    if new_section and timeline:
+        return f"{timeline}\n\n{new_section}"
+    elif new_section:
+        return new_section
+    return timeline
+
+
 def player_name_from_thread(messages: message_thread) -> str:
     """Best-effort player name from talk messages, else ``the player``."""
     try:
@@ -358,26 +386,7 @@ class Summaries(Remembering):
             )
 
         dynamic_events = self.__get_character_dynamic_events(character)
-
-        # Determine which dynamic events are "new since last meeting"
-        new_events = get_new_events(timestamped_summary_blocks, dynamic_events)
-
-        # Build timeline, excluding new events so they aren't duplicated
-        timeline = build_merged_timeline(
-            legacy_blocks,
-            timestamped_summary_blocks,
-            dynamic_events,
-            dedupe_legacy=dedupe_legacy,
-            exclude_events=new_events,
-        )
-
-        # --- "New developments since last meeting" section ---
-        new_section = _build_new_events_section(new_events)
-        if new_section and timeline:
-            return f"{timeline}\n\n{new_section}"
-        elif new_section:
-            return new_section
-        return timeline
+        return build_memory_text(legacy_blocks, timestamped_summary_blocks, dynamic_events, dedupe_legacy=dedupe_legacy)
 
     @utils.time_it
     def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str, include_private_thoughts: bool = True, conversation_start_ts: int | None = None) -> str:

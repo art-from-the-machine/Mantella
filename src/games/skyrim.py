@@ -1,7 +1,7 @@
 import logging
 import os
 import shutil
-from typing import Any
+from typing import Any, List, Tuple
 
 import pandas as pd
 from src.conversation.context import context as Context
@@ -69,6 +69,10 @@ class Skyrim(Gameable):
     def expand_bio_with_tags(self, base_bio: str, tags_string: str) -> str:
         """Append static tag-template text to a raw bio, matching in-game character load."""
         return self.__bio_template_manager.expand_bio_with_tags(base_bio, tags_string)
+
+    def extract_dynamic_events(self, tags_string: str) -> List[Tuple[int, str]]:
+        """Timestamped tag-event lines, matching what in-game character load stores for the memory timeline."""
+        return self.__bio_template_manager.extract_dynamic_events(tags_string)
 
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
