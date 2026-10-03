@@ -8,6 +8,7 @@ from src.ui.settings_ui_constructor import SettingsUIConstructor
 import logging
 import os
 import sys
+import time
 import pandas as pd
 from src.config.definitions.game_definitions import GameEnum
 import src.utils as utils
@@ -1040,6 +1041,8 @@ class StartUI(routeable):
             # Remember chosen world id for summaries
             initial_world_id = pick_world_id(_get_conversations_base_dir())
             state_world_id = gr.State(value=initial_world_id)
+            # When the NPC was selected; Generate Reflection ignores reflections written since then
+            state_selected_ts = gr.State(value=None)
             _default_override_target = os.path.join(_get_personal_override_dir(), 'character_overrides.csv').replace('\\','/')
             override_csv_path = gr.Text(
                 value=config.definitions.get_string_value("bio_override_csv_path"),
@@ -1170,7 +1173,7 @@ class StartUI(routeable):
                 override_tags = _load_override_tags_for_label(label, l2k, user_csv)
                 runtime_tags = _compute_runtime_tags_for_label(label, l2k)
                 can_save = bool(label)
-                return bio, summary, thoughts, reflections, override_tags, runtime_tags, "", gr.Button(interactive=can_save), gr.Button(interactive=can_save), gr.Button(interactive=can_save), gr.Button(interactive=can_save), gr.Button(interactive=can_save)
+                return bio, summary, thoughts, reflections, override_tags, runtime_tags, "", gr.Button(interactive=can_save), gr.Button(interactive=can_save), gr.Button(interactive=can_save), gr.Button(interactive=can_save), gr.Button(interactive=can_save), int(time.time())
 
             def on_save(label: str, bio_text: str, tags_text: str, l2k: dict[str, str], k2l: dict[str, str], user_csv: str):
                 # Try to infer optional column values from current df row, if present
@@ -1414,7 +1417,7 @@ class StartUI(routeable):
                 info = f"Personal reflection saved to: {path}" if path else "Personal reflection save failed. Check logs."
                 return info
 
-            def on_generate_reflection(label: str, bio_text: str, summary_text: str, l2k: dict[str, str], world_id: str):
+            def on_generate_reflection(label: str, bio_text: str, summary_text: str, l2k: dict[str, str], world_id: str, selected_ts: int | None):
                 if not label:
                     return "Select an NPC first.", "", gr.Button(interactive=False), gr.Button(interactive=False)
                 if not (summary_text or "").strip():
@@ -1474,6 +1477,7 @@ class StartUI(routeable):
                         world_id or "default",
                         player_name=player_name,
                         tags=_compute_runtime_tags_for_label(label, l2k),
+                        selected_ts=selected_ts,
                     )
                     updated = _load_reflections_for_label(label, l2k, world_id)
                     if result:
@@ -1956,7 +1960,7 @@ class StartUI(routeable):
                     pass
 
             override_csv_path.change(on_user_csv_change, inputs=[override_csv_path], outputs=[], show_progress="hidden")
-            npc_dropdown.change(on_select, inputs=[npc_dropdown, state_df, state_label_to_key, state_world_id, override_csv_path], outputs=[bio_editor, summary_editor, thoughts_editor, reflections_editor, tags_editor, runtime_tags_display, info_line, save_btn, save_summary_btn, save_thoughts_btn, save_reflections_btn, generate_reflection_btn], show_progress="hidden")
+            npc_dropdown.change(on_select, inputs=[npc_dropdown, state_df, state_label_to_key, state_world_id, override_csv_path], outputs=[bio_editor, summary_editor, thoughts_editor, reflections_editor, tags_editor, runtime_tags_display, info_line, save_btn, save_summary_btn, save_thoughts_btn, save_reflections_btn, generate_reflection_btn, state_selected_ts], show_progress="hidden")
             save_btn.click(on_save, inputs=[npc_dropdown, bio_editor, tags_editor, state_label_to_key, state_key_to_label, override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown])
             refresh_btn.click(on_refresh, inputs=[override_csv_path], outputs=[info_line, state_df, state_labels, state_label_to_key, state_key_to_label, npc_dropdown, bio_editor, tags_editor, runtime_tags_display, save_btn])
             _memory_refresh_outputs = [info_line, summary_editor, thoughts_editor, reflections_editor, save_summary_btn, save_thoughts_btn, save_reflections_btn, generate_reflection_btn]
@@ -1966,7 +1970,7 @@ class StartUI(routeable):
             save_thoughts_btn.click(on_save_thoughts, inputs=[npc_dropdown, thoughts_editor, state_label_to_key, state_world_id], outputs=[info_line])
             refresh_reflections_btn.click(on_refresh_memory, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=_memory_refresh_outputs)
             save_reflections_btn.click(on_save_reflections, inputs=[npc_dropdown, reflections_editor, state_label_to_key, state_world_id], outputs=[info_line])
-            generate_reflection_btn.click(on_generate_reflection, inputs=[npc_dropdown, bio_editor, summary_editor, state_label_to_key, state_world_id], outputs=[info_line, reflections_editor, save_reflections_btn, generate_reflection_btn])
+            generate_reflection_btn.click(on_generate_reflection, inputs=[npc_dropdown, bio_editor, summary_editor, state_label_to_key, state_world_id, state_selected_ts], outputs=[info_line, reflections_editor, save_reflections_btn, generate_reflection_btn])
 
             # LLM section wiring
             # Prompt profile wiring

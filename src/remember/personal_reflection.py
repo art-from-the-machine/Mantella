@@ -240,8 +240,13 @@ class PersonalReflection:
         save_timestamp: int | None = None,
         player_name: str = "the player",
         tags: str = "",
+        selected_ts: int | None = None,
     ) -> str:
-        """Generate and append a reflection from Bio Editor texts. Returns the new body, or empty."""
+        """Generate and append a reflection from Bio Editor texts. Returns the new body, or empty.
+
+        *selected_ts* (when the NPC was selected) hides reflections generated since then from
+        the previous-reflection prompt, so regenerating does not build on rejected attempts.
+        """
         summary_text = (summaries or "").strip()
         if not summary_text:
             logging.info(f"Personal reflection not saved for {npc_name}. No summaries.")
@@ -261,7 +266,7 @@ class PersonalReflection:
             enabled=should_filter_memory_bios(self.__config, contains_player=True),
         )
         involved_bios = f"{npc_name}: {filtered_bio}"
-        previous = self.get_latest_reflection_text(dummy, world_id) or "(none)"
+        previous = self.get_latest_reflection_text(dummy, world_id, selected_ts) or "(none)"
         prompt = self.__format_prompt(
             name=npc_name,
             names=npc_name,
