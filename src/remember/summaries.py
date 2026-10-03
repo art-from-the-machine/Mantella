@@ -100,6 +100,27 @@ def _classify_block(
             legacy_blocks.append(text)
 
 
+def drop_blocks_since(
+    timestamped_blocks: List[Tuple[int, str]],
+    conversation_start_ts: int | None,
+    keep_latest_since: bool = False,
+) -> List[Tuple[int, str]]:
+    """Drop blocks written during the current conversation (``ts >= conversation_start_ts``).
+
+    Regenerating a summary/thought/reflection mid-conversation must not feed earlier
+    attempts back into the next request. With *keep_latest_since*, the newest block
+    from this conversation is kept. ``None`` keeps every block.
+    """
+    if conversation_start_ts is None:
+        return list(timestamped_blocks)
+    kept = [block for block in timestamped_blocks if block[0] < conversation_start_ts]
+    if keep_latest_since:
+        since = [block for block in timestamped_blocks if block[0] >= conversation_start_ts]
+        if since:
+            kept.append(max(since, key=lambda item: item[0]))
+    return kept
+
+
 def build_merged_timeline(
     legacy_blocks: List[str],
     timestamped_summary_blocks: List[Tuple[int, str]],
@@ -303,7 +324,14 @@ class Summaries(Remembering):
             return events
         return []
 
-    def __build_character_memory(self, character: Character, world_id: str, dedupe_legacy: bool = False) -> str:
+    def __build_character_memory(
+        self,
+        character: Character,
+        world_id: str,
+        dedupe_legacy: bool = False,
+        conversation_start_ts: int | None = None,
+        keep_latest_since: bool = False,
+    ) -> str:
         """Build the merged memory text for a single character.
 
         Reads the summary file, parses it into legacy + timestamped blocks,
@@ -314,6 +342,8 @@ class Summaries(Remembering):
         recent summary block, they are highlighted in a
         "New developments since last meeting" section appended after the
         chronological timeline.
+
+        *conversation_start_ts* / *keep_latest_since* filter summary blocks, see ``drop_blocks_since``.
         """
         legacy_blocks: List[str] = []
         timestamped_summary_blocks: List[Tuple[int, str]] = []
@@ -323,6 +353,9 @@ class Summaries(Remembering):
             with open(conversation_summary_file, 'r', encoding='utf-8') as f:
                 raw_text = f.read()
             legacy_blocks, timestamped_summary_blocks = parse_summary_blocks(raw_text)
+            timestamped_summary_blocks = drop_blocks_since(
+                timestamped_summary_blocks, conversation_start_ts, keep_latest_since
+            )
 
         dynamic_events = self.__get_character_dynamic_events(character)
 
@@ -347,13 +380,14 @@ class Summaries(Remembering):
         return timeline
 
     @utils.time_it
-    def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str, include_private_thoughts: bool = True) -> str:
+    def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str, include_private_thoughts: bool = True, conversation_start_ts: int | None = None) -> str:
         """Load the conversation summaries for all NPCs in the conversation and returns them as one string
 
         Args:
             npcs_in_conversation (Characters): the npcs to load the summaries for
             world_id (str): the world identifier
             include_private_thoughts: When False, omit saved private thoughts. Live multi-NPC prompts keep them.
+            conversation_start_ts: When set, ignore summaries written since this time.
 
         Returns:
             str: a concatenation of the summaries as a single string
@@ -364,7 +398,7 @@ class Summaries(Remembering):
         if len(non_player_characters) == 1:
             # Single NPC conversation - thoughts use {private_thoughts}, not this string
             character = non_player_characters[0]
-            memory_text = self.__build_character_memory(character, world_id, dedupe_legacy=True)
+            memory_text = self.__build_character_memory(character, world_id, dedupe_legacy=True, conversation_start_ts=conversation_start_ts)
             if memory_text:
                 return f"Below is a summary of past events:\n{memory_text}"
             else:
@@ -373,7 +407,7 @@ class Summaries(Remembering):
             # Multi-NPC / radiant — live prompts append each NPC's latest thought. Summary generation does not.
             character_memories = []
             for character in non_player_characters:
-                memory_text = self.__build_character_memory(character, world_id, dedupe_legacy=False)
+                memory_text = self.__build_character_memory(character, world_id, dedupe_legacy=False, conversation_start_ts=conversation_start_ts)
                 if include_private_thoughts:
                     memory_text = self.__append_thought_to_memory(memory_text, character, world_id)
                 if memory_text:
@@ -389,17 +423,25 @@ class Summaries(Remembering):
                 return ""
 
     @utils.time_it
-    def get_character_summary(self, character: Character, world_id: str) -> str:
+    def get_character_summary(self, character: Character, world_id: str, conversation_start_ts: int | None = None, keep_latest_since: bool = False) -> str:
         """ Gets the summary for a specific character
         
         Args:
             character (Character): the character to get the summary for
             world_id (str): the world ID
+            conversation_start_ts: When set, ignore summaries written since this time.
+            keep_latest_since: With conversation_start_ts, still keep the newest summary written since then.
             
         Returns:
             str: the summary text for this character, or empty string if no summary exists
         """
-        return self.__build_character_memory(character, world_id, dedupe_legacy=True)
+        return self.__build_character_memory(
+            character,
+            world_id,
+            dedupe_legacy=True,
+            conversation_start_ts=conversation_start_ts,
+            keep_latest_since=keep_latest_since,
+        )
 
     def get_character_private_thought(self, character: Character, world_id: str) -> str:
         """Return this character's latest private thought (raw, no divider), or empty string."""
@@ -487,7 +529,7 @@ class Summaries(Remembering):
         return hadMissingMessages
 
     @utils.time_it
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, save_timestamp: int | None = None, save_thoughts: bool | None = None, save_reflections: bool | None = None):
+    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, save_timestamp: int | None = None, save_thoughts: bool | None = None, save_reflections: bool | None = None, conversation_start_ts: int | None = None):
         self.may_add_missing_join_leave_messages(messages, npcs_in_conversation)
 
         characters = self.get_character_lookup_dict(messages, npcs_in_conversation)
@@ -497,7 +539,7 @@ class Summaries(Remembering):
         saved_summaries: Dict[str, str] = {}
 
         for npc_names in npcs_with_shared_threads:
-           summary = self.__create_new_conversation_summary(npc_message_threads[npc_names[0]], world_id)
+           summary = self.__create_new_conversation_summary(npc_message_threads[npc_names[0]], world_id, conversation_start_ts)
            for npc_name in npc_names:
                self.__append_new_conversation_summary(summary, characters[npc_name], world_id, ts)
                saved_summaries[npc_name] = summary
@@ -505,30 +547,37 @@ class Summaries(Remembering):
         should_save_thoughts = self.__config.inner_monologue_enabled if save_thoughts is None else save_thoughts
         should_save_reflections = self.__config.personal_reflection_enabled if save_reflections is None else save_reflections
 
-        full_summaries: Dict[str, str] = {}
-        if (self.__inner_monologue and should_save_thoughts) or (self.__personal_reflection and should_save_reflections):
-            for npc_name, npc in characters.items():
-                full_summaries[npc_name] = self.get_character_summary(npc, world_id)
-
         if self.__inner_monologue and should_save_thoughts:
             try:
-                # Only NPCs that just got a new summary; fill with the full file, including that summary.
+                # Only NPCs that just got a new summary. Thoughts read the transcript, so the
+                # summaries passed are those from before this conversation (all when no start time).
+                summarized_threads = {
+                    npc_name: params for npc_name, params in npc_message_threads.items()
+                    if (saved_summaries.get(npc_name) or "").strip()
+                }
                 thought_summaries = {
-                    npc_name: full_summaries.get(npc_name, text) if (text or "").strip() else text
-                    for npc_name, text in saved_summaries.items()
+                    npc_name: self.get_character_summary(characters[npc_name], world_id, conversation_start_ts)
+                    for npc_name in summarized_threads
                 }
                 self.__inner_monologue.save_thoughts(
-                    npc_message_threads,
+                    summarized_threads,
                     characters,
                     thought_summaries,
                     world_id,
                     ts,
+                    require_summary=False,
+                    conversation_start_ts=conversation_start_ts,
                 )
             except Exception as e:
                 logging.error(f"Failed to save private thoughts: {e}", exc_info=True)
 
         if self.__personal_reflection and should_save_reflections:
             try:
+                # Reflections do not read the transcript, so keep the newest summary from this conversation.
+                full_summaries: Dict[str, str] = {
+                    npc_name: self.get_character_summary(npc, world_id, conversation_start_ts, keep_latest_since=True)
+                    for npc_name, npc in characters.items()
+                }
                 reflection_characters = characters
                 reflection_summaries = full_summaries
                 # Conversation end uses the same 5-message cutoff as summaries.
@@ -549,6 +598,7 @@ class Summaries(Remembering):
                     reflection_summaries,
                     world_id,
                     ts,
+                    conversation_start_ts=conversation_start_ts,
                 )
             except Exception as e:
                 logging.error(f"Failed to save personal reflections: {e}", exc_info=True)
@@ -556,7 +606,7 @@ class Summaries(Remembering):
         return saved_summaries
 
     @utils.time_it
-    def save_thoughts_only(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, save_timestamp: int | None = None):
+    def save_thoughts_only(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, save_timestamp: int | None = None, conversation_start_ts: int | None = None):
         """Generate private thoughts from the current conversation without writing a new summary."""
         if not self.__inner_monologue:
             logging.info("Private thoughts not saved. Inner monologue is not available.")
@@ -568,7 +618,7 @@ class Summaries(Remembering):
         ts = save_timestamp if save_timestamp is not None else int(time.time())
         existing_summaries: Dict[str, str] = {}
         for npc_name, npc in characters.items():
-            existing_summaries[npc_name] = self.get_character_summary(npc, world_id)
+            existing_summaries[npc_name] = self.get_character_summary(npc, world_id, conversation_start_ts)
 
         try:
             self.__inner_monologue.save_thoughts(
@@ -578,12 +628,13 @@ class Summaries(Remembering):
                 world_id,
                 ts,
                 require_summary=False,
+                conversation_start_ts=conversation_start_ts,
             )
         except Exception as e:
             logging.error(f"Failed to save private thoughts: {e}", exc_info=True)
 
     @utils.time_it
-    def save_reflections_only(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, save_timestamp: int | None = None):
+    def save_reflections_only(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, save_timestamp: int | None = None, conversation_start_ts: int | None = None):
         """Generate personal reflections from existing summaries without writing a new summary."""
         if not self.__personal_reflection:
             logging.info("Personal reflections not saved. Personal reflection is not available.")
@@ -595,7 +646,7 @@ class Summaries(Remembering):
         ts = save_timestamp if save_timestamp is not None else int(time.time())
         existing_summaries: Dict[str, str] = {}
         for npc_name, npc in characters.items():
-            existing_summaries[npc_name] = self.get_character_summary(npc, world_id)
+            existing_summaries[npc_name] = self.get_character_summary(npc, world_id, conversation_start_ts, keep_latest_since=True)
 
         try:
             self.__personal_reflection.save_reflections(
@@ -604,6 +655,7 @@ class Summaries(Remembering):
                 existing_summaries,
                 world_id,
                 ts,
+                conversation_start_ts=conversation_start_ts,
             )
         except Exception as e:
             logging.error(f"Failed to save personal reflections: {e}", exc_info=True)
@@ -755,7 +807,7 @@ class Summaries(Remembering):
         return f"{target_folder}/{base_name}_summary_{latest_file_number}.txt"
     
     @utils.time_it
-    def __create_new_conversation_summary(self, npcInfo:CharacterSummaryParameters, world_id: str) -> str:
+    def __create_new_conversation_summary(self, npcInfo:CharacterSummaryParameters, world_id: str, conversation_start_ts: int | None = None) -> str:
         if self.__config.game == "Fallout4" or self.__config.game == "Fallout4VR":
             location: str = 'the Commonwealth'
         else:
@@ -776,7 +828,7 @@ class Summaries(Remembering):
             characters_obj.add_or_update_character(char)
 
         memory_conversation_summaries = self.get_prompt_text(
-            characters_obj, world_id, include_private_thoughts=False
+            characters_obj, world_id, include_private_thoughts=False, conversation_start_ts=conversation_start_ts
         )
         prompt_values: Dict[str, str] = {
             "name": names,

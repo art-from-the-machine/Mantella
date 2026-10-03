@@ -64,6 +64,9 @@ class Conversation:
         # self.__actions: list[Action] = actions
         self.last_sentence_audio_length = 0
         self.last_sentence_start_time = time.time()
+        # Memory requests ignore summaries/thoughts/reflections written since this time, so
+        # regenerating one mid-conversation does not feed earlier attempts back in.
+        self.__conversation_start_ts: int = int(time.time())
         self.__end_conversation_keywords = utils.parse_keywords(context_for_conversation.config.end_conversation_keyword)
 
     def update_summary_client(self, summary_client: ClientBase | None, fallback_client: LLMClient, thoughts_client: ClientBase | None, reflection_client: ClientBase | None) -> None:
@@ -624,6 +627,7 @@ class Conversation:
                 characters_object,
                 self.__context.world_id,
                 save_timestamp,
+                conversation_start_ts=self.__conversation_start_ts,
             )
         except Exception as e:
             logging.error(f"save_inner_thoughts_only failed: {e}", exc_info=True)
@@ -647,6 +651,7 @@ class Conversation:
                 characters_object,
                 self.__context.world_id,
                 save_timestamp,
+                conversation_start_ts=self.__conversation_start_ts,
             )
         except Exception as e:
             logging.error(f"save_personal_reflection_only failed: {e}", exc_info=True)
@@ -791,6 +796,7 @@ class Conversation:
                 save_timestamp=save_timestamp,
                 save_thoughts=save_thoughts,
                 save_reflections=save_reflections,
+                conversation_start_ts=self.__conversation_start_ts,
             )
             # Save the log
             self.__save_conversation_log_for_characters(characters_to_save_for)

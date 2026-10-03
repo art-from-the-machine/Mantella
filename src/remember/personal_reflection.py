@@ -18,6 +18,7 @@ from src.bio_section_filter import apply_bio_section_filter, should_filter_memor
 from src.prompt_profile_manager import PromptSectionError
 from src.remember.summaries import (
     CharacterSummaryParameters,
+    drop_blocks_since,
     format_character_bios_for_memory,
     player_name_from_thread,
     thread_contains_player,
@@ -176,8 +177,9 @@ class PersonalReflection:
         self.__client = fallback_client
         self.__summary_client = summary_client if summary_client else fallback_client
 
-    def get_latest_reflection_block(self, character: Character, world_id: str) -> Tuple[int, str] | None:
-        latest = select_latest_reflection(*self._parse_reflection_file(character, world_id))
+    def get_latest_reflection_block(self, character: Character, world_id: str, conversation_start_ts: int | None = None) -> Tuple[int, str] | None:
+        legacy_blocks, timestamped_blocks = self._parse_reflection_file(character, world_id)
+        latest = select_latest_reflection(legacy_blocks, drop_blocks_since(timestamped_blocks, conversation_start_ts))
         if not latest:
             return None
         ts, text = latest
@@ -186,8 +188,8 @@ class PersonalReflection:
             return None
         return (ts, text)
 
-    def get_latest_reflection_text(self, character: Character, world_id: str) -> str:
-        latest = self.get_latest_reflection_block(character, world_id)
+    def get_latest_reflection_text(self, character: Character, world_id: str, conversation_start_ts: int | None = None) -> str:
+        latest = self.get_latest_reflection_block(character, world_id, conversation_start_ts)
         if not latest:
             return ""
         return latest[1]
@@ -200,8 +202,12 @@ class PersonalReflection:
         summaries_by_npc: Dict[str, str],
         world_id: str,
         save_timestamp: int,
+        conversation_start_ts: int | None = None,
     ) -> None:
-        """Generate and append a personal reflection for each NPC that has summaries."""
+        """Generate and append a personal reflection for each NPC that has summaries.
+
+        *conversation_start_ts* hides reflections written since then from the previous-reflection prompt.
+        """
         for npc_name, npc in characters.items():
             if getattr(npc, "is_player_character", False):
                 continue
@@ -215,7 +221,8 @@ class PersonalReflection:
             contains_player = thread_contains_player(params.messages) if params else False
             try:
                 reflection = self.__create_reflection(
-                    npc, involved, summary_text, world_id, player_name, contains_player=contains_player
+                    npc, involved, summary_text, world_id, player_name,
+                    contains_player=contains_player, conversation_start_ts=conversation_start_ts,
                 )
                 if reflection:
                     self.__append_reflection(reflection, npc, world_id, save_timestamp)
@@ -341,6 +348,7 @@ class PersonalReflection:
         world_id: str,
         player_name: str,
         contains_player: bool = False,
+        conversation_start_ts: int | None = None,
     ) -> str:
         names = ", ".join([c.name for c in involved_characters])
         bios = format_character_bios_for_memory(
@@ -349,7 +357,7 @@ class PersonalReflection:
             self.__config,
             contains_player=contains_player,
         )
-        previous_reflection = self.get_latest_reflection_text(npc, world_id) or "(none)"
+        previous_reflection = self.get_latest_reflection_text(npc, world_id, conversation_start_ts) or "(none)"
         prompt = self.__format_prompt(
             name=npc.name,
             names=names,

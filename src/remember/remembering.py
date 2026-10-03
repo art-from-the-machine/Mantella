@@ -6,13 +6,14 @@ from src.llm.message_thread import message_thread
 
 class Remembering(ABC):
     @abstractmethod
-    def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str, include_private_thoughts: bool = True) -> str:
+    def get_prompt_text(self, npcs_in_conversation: Characters, world_id: str, include_private_thoughts: bool = True, conversation_start_ts: int | None = None) -> str:
         """ Generates a text that explains the previous interactions of the npcs with the player. 
             Text is passed as part of the prompt to the LLM
 
         Args:
             npcs_in_conversation (Characters): the NPCs in question
             include_private_thoughts: When False, omit saved private thoughts. Summary generation uses this.
+            conversation_start_ts: When set, ignore summaries written since this time.
 
         Returns:
             str: a single text
@@ -20,12 +21,14 @@ class Remembering(ABC):
         pass
 
     @abstractmethod
-    def get_character_summary(self, character: Character, world_id: str) -> str:
+    def get_character_summary(self, character: Character, world_id: str, conversation_start_ts: int | None = None, keep_latest_since: bool = False) -> str:
         """ Gets the summary for a specific character
         
         Args:
             character (Character): the character to get the summary for
             world_id (str): the world ID
+            conversation_start_ts: When set, ignore summaries written since this time.
+            keep_latest_since: With conversation_start_ts, still keep the newest summary written since then.
             
         Returns:
             str: the summary text for this character, or empty string if no summary exists
@@ -48,7 +51,7 @@ class Remembering(ABC):
         pass
 
     @abstractmethod
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, save_timestamp: int | None = None, save_thoughts: bool | None = None, save_reflections: bool | None = None):
+    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, save_timestamp: int | None = None, save_thoughts: bool | None = None, save_reflections: bool | None = None, conversation_start_ts: int | None = None):
         """Saves the current state of the conversation.
 
         Args:
@@ -56,15 +59,16 @@ class Remembering(ABC):
             npcs_in_conversation (Characters): the NPCs to save for
             save_thoughts: If set, overrides Save Private Thoughts for this save.
             save_reflections: If set, overrides Save Personal Reflection for this save.
+            conversation_start_ts: When set, requests ignore summaries/thoughts/reflections written since this time.
         """
         pass
 
     @abstractmethod
-    def save_thoughts_only(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, save_timestamp: int | None = None):
+    def save_thoughts_only(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, save_timestamp: int | None = None, conversation_start_ts: int | None = None):
         """Generate and save private thoughts without writing a new conversation summary."""
         pass
 
     @abstractmethod
-    def save_reflections_only(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, save_timestamp: int | None = None):
+    def save_reflections_only(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, save_timestamp: int | None = None, conversation_start_ts: int | None = None):
         """Generate and save personal reflections without writing a new conversation summary."""
         pass

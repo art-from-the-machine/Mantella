@@ -15,6 +15,7 @@ from src.llm.messages import UserMessage
 from src.prompt_profile_manager import PromptSectionError
 from src.remember.summaries import (
     CharacterSummaryParameters,
+    drop_blocks_since,
     format_character_bios_for_memory,
     parse_summary_blocks,
     player_name_from_thread,
@@ -91,9 +92,10 @@ class InnerMonologue:
             return None
         return (ts, text)
 
-    def get_previous_thoughts_text(self, character: Character, world_id: str) -> str:
-        """Unwrapped thought history for the generation prompt."""
+    def get_previous_thoughts_text(self, character: Character, world_id: str, conversation_start_ts: int | None = None) -> str:
+        """Unwrapped thought history for the generation prompt, ignoring thoughts written since *conversation_start_ts*."""
         legacy_blocks, timestamped_blocks = self._parse_thought_file(character, world_id)
+        timestamped_blocks = drop_blocks_since(timestamped_blocks, conversation_start_ts)
         parts: List[str] = list(legacy_blocks)
         for _, text in sorted(timestamped_blocks, key=lambda item: item[0]):
             parts.append(text)
@@ -108,6 +110,7 @@ class InnerMonologue:
         world_id: str,
         save_timestamp: int,
         require_summary: bool = True,
+        conversation_start_ts: int | None = None,
     ) -> None:
         """Generate and append a private thought for each NPC.
 
@@ -128,7 +131,7 @@ class InnerMonologue:
             if not params or not npc:
                 continue
             try:
-                thought = self.__create_thought(npc, params, world_id, summary_text)
+                thought = self.__create_thought(npc, params, world_id, summary_text, conversation_start_ts)
                 if thought:
                     self.__append_thought(thought, npc, world_id, save_timestamp)
             except Exception as e:
@@ -184,6 +187,7 @@ class InnerMonologue:
         npc_info: CharacterSummaryParameters,
         world_id: str,
         conversation_summary: str,
+        conversation_start_ts: int | None = None,
     ) -> str:
         if self.__config.game.base_game == GameEnum.FALLOUT4:
             location = "the Commonwealth"
@@ -199,7 +203,7 @@ class InnerMonologue:
             contains_player=thread_contains_player(npc_info.messages),
         )
 
-        previous_thoughts = self.get_previous_thoughts_text(npc, world_id) or "(none)"
+        previous_thoughts = self.get_previous_thoughts_text(npc, world_id, conversation_start_ts) or "(none)"
         try:
             monologue_template = self.__config.prompt_profile_manager.resolve_prompt(
                 "inner_monologue_prompt", self.__config.inner_monologue_prompt
