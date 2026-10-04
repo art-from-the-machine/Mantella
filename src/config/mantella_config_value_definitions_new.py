@@ -155,7 +155,7 @@ class MantellaConfigValueDefinitionsNew:
         # llm_category.add_config_value(LLMDefinitions.get_try_filter_narration())
         llm_category.add_config_value(OtherDefinitions.get_conversation_summary_enabled_config_value())
         llm_category.add_config_value(OtherDefinitions.get_inner_monologue_enabled_config_value())
-        llm_category.add_config_value(OtherDefinitions.get_inner_monologue_load_mode_config_value())
+        llm_category.add_config_value(OtherDefinitions.get_inner_monologue_load_count_config_value())
         llm_category.add_config_value(OtherDefinitions.get_personal_reflection_enabled_config_value())
         llm_category.add_config_value(OtherDefinitions.get_personal_reflection_load_mode_config_value())
         

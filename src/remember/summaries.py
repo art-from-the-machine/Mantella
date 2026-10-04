@@ -413,7 +413,7 @@ class Summaries(Remembering):
             else:
                 return ""
         else:
-            # Multi-NPC / radiant — live prompts append each NPC's latest thought. Summary generation does not.
+            # Multi-NPC / radiant — live prompts append each NPC's newest thoughts. Summary generation does not.
             character_memories = []
             for character in non_player_characters:
                 memory_text = self.__build_character_memory(character, world_id, dedupe_legacy=False, conversation_start_ts=conversation_start_ts)
@@ -453,14 +453,16 @@ class Summaries(Remembering):
         )
 
     def get_character_private_thought(self, character: Character, world_id: str) -> str:
-        """Return this character's latest private thought (raw, no divider), or empty string."""
-        from src.remember.inner_monologue import should_load_thoughts_into_prompt
-        if not self.__inner_monologue or not should_load_thoughts_into_prompt(self.__config):
+        """Return this character's newest private thoughts (raw, no divider, oldest first), or empty string.
+
+        How many are returned is set by inner_monologue_load_count.
+        """
+        from src.remember.inner_monologue import get_thoughts_load_count
+        count = get_thoughts_load_count(self.__config)
+        if not self.__inner_monologue or count <= 0:
             return ""
-        latest = self.__inner_monologue.get_latest_thought_block(character, world_id)
-        if not latest:
-            return ""
-        return latest[1]
+        blocks = self.__inner_monologue.get_latest_thought_blocks(character, world_id, count)
+        return "\n\n".join(text for _, text in blocks)
 
     def get_character_personal_reflection(self, character: Character, world_id: str) -> str:
         """Return this character's latest personal reflection (raw, no heading), or empty string."""
@@ -480,7 +482,7 @@ class Summaries(Remembering):
         return self.get_character_private_thought(non_player_characters[0], world_id)
 
     def __append_thought_to_memory(self, memory_text: str, character: Character, world_id: str) -> str:
-        """Append the latest wrapped thought after this NPC's memory (multi-NPC / radiant)."""
+        """Append the newest thoughts, in one wrapper, after this NPC's memory (multi-NPC / radiant)."""
         from src.remember.inner_monologue import wrap_private_thought
         thought = wrap_private_thought(self.get_character_private_thought(character, world_id))
         if not thought:

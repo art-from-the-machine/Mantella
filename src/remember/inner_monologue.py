@@ -24,13 +24,14 @@ from src.remember.summaries import (
 
 PRIVATE_THOUGHT_HEADER = "--- PRIVATE THOUGHT (unspoken; other people must not know this) ---"
 PRIVATE_THOUGHT_FOOTER = "--- END PRIVATE THOUGHT ---"
-INNER_MONOLOGUE_LOAD_NONE = "none"
 
 
-def should_load_thoughts_into_prompt(config) -> bool:
-    """True when the conversation prompt should include the latest private thought."""
-    mode = str(getattr(config, "inner_monologue_load_mode", "Latest") or "Latest").strip().lower()
-    return mode != INNER_MONOLOGUE_LOAD_NONE
+def get_thoughts_load_count(config) -> int:
+    """How many of the newest private thoughts the conversation prompt should include (0 = none)."""
+    try:
+        return max(0, int(getattr(config, "inner_monologue_load_count", 1)))
+    except (TypeError, ValueError):
+        return 1
 
 
 def wrap_private_thought(text: str) -> str:
@@ -43,20 +44,21 @@ def wrap_private_thought(text: str) -> str:
     return f"{PRIVATE_THOUGHT_HEADER}\n{stripped}\n{PRIVATE_THOUGHT_FOOTER}"
 
 
-def select_latest_thought(
+def select_latest_thoughts(
     legacy_blocks: List[str],
     timestamped_blocks: List[Tuple[int, str]],
-) -> Tuple[int, str] | None:
-    """Return the newest thought as ``(timestamp, text)``, or None if none exist.
+    count: int,
+) -> List[Tuple[int, str]]:
+    """Return up to *count* newest thoughts as ``(timestamp, text)``, oldest first.
 
     Timestamped blocks win. If the file only has legacy (un-timestamped) text,
-    the last legacy block is returned with timestamp ``0``.
+    the last legacy blocks are returned with timestamp ``0``.
     """
+    if count <= 0:
+        return []
     if timestamped_blocks:
-        return max(timestamped_blocks, key=lambda item: item[0])
-    if legacy_blocks:
-        return (0, legacy_blocks[-1])
-    return None
+        return sorted(timestamped_blocks, key=lambda item: item[0])[-count:]
+    return [(0, text) for text in legacy_blocks[-count:]]
 
 
 class InnerMonologue:
@@ -81,16 +83,12 @@ class InnerMonologue:
         self.__client = fallback_client
         self.__summary_client = summary_client if summary_client else fallback_client
 
-    def get_latest_thought_block(self, character: Character, world_id: str) -> Tuple[int, str] | None:
-        """Load the latest thought and return ``(timestamp, raw_text)``."""
-        latest = select_latest_thought(*self._parse_thought_file(character, world_id))
-        if not latest:
-            return None
-        ts, text = latest
-        text = (text or "").strip()
-        if not text:
-            return None
-        return (ts, text)
+    def get_latest_thought_blocks(self, character: Character, world_id: str, count: int) -> List[Tuple[int, str]]:
+        """Load up to *count* newest thoughts as ``(timestamp, raw_text)``, oldest first."""
+        legacy_blocks, timestamped_blocks = self._parse_thought_file(character, world_id)
+        legacy_blocks = [text for text in legacy_blocks if text and text.strip()]
+        timestamped_blocks = [(ts, text) for ts, text in timestamped_blocks if text and text.strip()]
+        return [(ts, text.strip()) for ts, text in select_latest_thoughts(legacy_blocks, timestamped_blocks, count)]
 
     def get_previous_thoughts_text(self, character: Character, world_id: str, conversation_start_ts: int | None = None) -> str:
         """Unwrapped thought history for the generation prompt, ignoring thoughts written since *conversation_start_ts*."""

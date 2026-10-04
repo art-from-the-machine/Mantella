@@ -57,7 +57,7 @@ class MantellaConfigValueDefinitionsClassic:
         conversation_category.add_config_value(OtherDefinitions.get_automatic_greeting_folder_config_value())
         conversation_category.add_config_value(OtherDefinitions.get_conversation_summary_enabled_config_value())
         conversation_category.add_config_value(OtherDefinitions.get_inner_monologue_enabled_config_value())
-        conversation_category.add_config_value(OtherDefinitions.get_inner_monologue_load_mode_config_value())
+        conversation_category.add_config_value(OtherDefinitions.get_inner_monologue_load_count_config_value())
         conversation_category.add_config_value(OtherDefinitions.get_personal_reflection_enabled_config_value())
         conversation_category.add_config_value(OtherDefinitions.get_personal_reflection_load_mode_config_value())
         result.append(conversation_category)

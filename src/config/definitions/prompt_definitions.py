@@ -99,7 +99,7 @@ class PromptDefinitions:
                                 time_group = the time of day in words (eg "in the morning", "at night")
                                 language = the selected language
                                 conversation_summary = reads the latest conversation summaries for the NPC stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt
-                                private_thoughts = the NPC's latest private inner monologue as its own block (single-NPC conversation prompts only)
+                                private_thoughts = the NPC's most recent private inner monologue thoughts as their own block (how many is set by Send Private Thoughts to LLM) (single-NPC conversation prompts only)
                                 player_name = the name of the player character
                                 player_description = a description of the player character (needs to be added in game or using the config value)
                                 player_equipment = a basic description of the equipment the player character carries
@@ -115,14 +115,14 @@ class PromptDefinitions:
                                 game = the selected game
                                 bio = the NPC's background description
                                 bios = the backgrounds of the NPCs
-                                bios_and_summaries = combined bios and summaries for all NPCs in the conversation. Each NPC's latest private thought is appended at the end of that NPC's memory.
+                                bios_and_summaries = combined bios and summaries for all NPCs in the conversation. Each NPC's most recent private thoughts are appended at the end of that NPC's memory.
                                 trust = how well the NPC knows the player (eg "a stranger", "a friend")
                                 location = the current location
                                 weather = the current weather
                                 time = the time of day as a number (eg 1, 22)
                                 time_group = the time of day in words (eg "in the morning", "at night")
                                 language = the selected language
-                                conversation_summary = reads the latest conversation summaries for the NPCs stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt. Each NPC's latest private thought is appended at the end of that NPC's memory.
+                                conversation_summary = reads the latest conversation summaries for the NPCs stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt. Each NPC's most recent private thoughts are appended at the end of that NPC's memory.
                                 player_name = the name of the player character
                                 player_description = a description of the player character (needs to be added in game or using the config value)
                                 player_equipment = a basic description of the equipment the player character carries
@@ -141,7 +141,7 @@ class PromptDefinitions:
                                 time = the time of day as a number (eg 1, 22)
                                 time_group = the time of day in words (eg "in the morning", "at night")
                                 language = the selected language
-                                conversation_summary = reads the latest conversation summaries for the NPCs stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt. Each NPC's latest private thought is appended at the end of that NPC's memory.
+                                conversation_summary = reads the latest conversation summaries for the NPCs stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt. Each NPC's most recent private thoughts are appended at the end of that NPC's memory.
                                 equipment = a basic description of the equipment the NPCs carry
                                 actions = instructions for the LLM to trigger actions"""
         

@@ -42,7 +42,7 @@ class Remembering(ABC):
 
     @abstractmethod
     def get_character_private_thought(self, character: Character, world_id: str) -> str:
-        """Latest private thought for one character, or empty string."""
+        """Newest private thoughts for one character (count from config), or empty string."""
         pass
 
     @abstractmethod

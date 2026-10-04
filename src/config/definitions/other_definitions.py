@@ -143,19 +143,21 @@ class OtherDefinitions:
         return ConfigValueBool("inner_monologue_enabled", "Save Private Thoughts", description, False, tags=[ ConfigValueTag.share_row])
 
     @staticmethod
-    def get_inner_monologue_load_mode_config_value() -> ConfigValue:
-        description = """Only the most recent private thought is sent to the conversation LLM — never the full history of older thoughts.
-                        Latest means the thought block with the highest ts= Unix timestamp in the latest thought file (same real-world clock as summaries). If no ts= markers exist, the last block in the file is used.
+    def get_inner_monologue_load_count_config_value() -> ConfigValue:
+        description = """How many of the most recent private thoughts are sent to the conversation LLM.
+                        Newest means the thought blocks with the highest ts= Unix timestamps in the latest thought file (same real-world clock as summaries). If no ts= markers exist, the last blocks in the file are used.
+                        Thoughts are sent oldest first, so the newest thought sits closest to the conversation.
                         This does not change whether new thoughts are saved — that is controlled by Save Private Thoughts.
-                        - Latest: send only the most recent private thought (default).
-                        - None: do not send private thoughts to the conversation LLM, even if thought files already exist.
-                        Older thoughts remain on disk. They are used only as {previous_thoughts} when generating a new thought, not during chat."""
-        return ConfigValueSelection(
-            "inner_monologue_load_mode",
+                        - 1: send only the most recent private thought (default).
+                        - 0: do not send private thoughts to the conversation LLM, even if thought files already exist.
+                        Older thoughts remain on disk. All of them are used as {previous_thoughts} when generating a new thought."""
+        return ConfigValueInt(
+            "inner_monologue_load_count",
             "Send Private Thoughts to LLM",
             description,
-            "Latest",
-            ["Latest", "None"],
+            1,
+            0,
+            50,
             tags=[ConfigValueTag.advanced],
         )
 

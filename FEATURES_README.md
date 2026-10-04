@@ -822,7 +822,7 @@ That paragraph did not come out of nowhere. Two things produced it.
 
 **2. What she did in the conversation, not only what she said.** Nothing romantic is spoken. The summary only records teasing, "I'm fine," first watch. But in the actual conversation, her subtle wordings, her expressions, her tones and actions would indicate how she truly feels. These will be hidden by the summary totally, but will be caught by the private thoughts. After you part, those actions, expressions, and word choices are what the thought is allowed to interpret. 
 
-You never hear that spoken. Next time you talk to her, the latest thought is injected as `{private_thoughts}` (or appended to her memory in a group chat). The summary still says the night was uneventful. The thought is why she might suddenly be warmer, sharper, quieter, or a little too interested in whether you are staying — a change you have no conversation to explain.
+You never hear that spoken. Next time you talk to her, her most recent thoughts are injected as `{private_thoughts}` (or appended to her memory in a group chat). The summary still says the night was uneventful. The thought is why she might suddenly be warmer, sharper, quieter, or a little too interested in whether you are staying — a change you have no conversation to explain.
 
 In a **single-NPC** prompt log, `{private_thoughts}` is the raw paragraph (no extra wrapper). In **multi-NPC / radiant** chats the same text is appended to that NPC's memory section and wrapped so other speakers must not know it:
 
@@ -852,7 +852,7 @@ Private thoughts are a short first-person inner monologue written after a summar
 
 They are meant to stay **unspoken**. In multi-NPC / radiant chats the text is wrapped so other speakers must not know it. In a one-on-one chat `{private_thoughts}` is a separate prompt block (you can add a short “do not speak this” line around it in your conversation prompt if you want that extra reminder).
 
-**Only the latest thought is sent to the conversation LLM.** Older thoughts stay on disk and are **not** dumped into the chat prompt. 
+**Only the most recent thoughts are sent to the conversation LLM** — how many is set by **Send Private Thoughts to LLM** (default 1). Older thoughts stay on disk and are **not** dumped into the chat prompt. 
 
 **Saving vs showing** are two different switches:
 
@@ -860,7 +860,7 @@ They are meant to stay **unspoken**. In multi-NPC / radiant chats the text is wr
 | Setting                          | Controls                                                                                                                                                                                             |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Save Private Thoughts**        | Whether a new thought is written when a conversation **ends** (requires **Enable Conversation Summaries to be turned on**). Off = no new thoughts created and saved; existing thoughts stay on disk. |
-| **Send Private Thoughts to LLM** | Whether the **latest** thought is sent into the next chat. **Latest** (default) sends **only that one thought**, not the full history; **None** keeps files but sends nothing.                       |
+| **Send Private Thoughts to LLM** | How many of the **most recent** thoughts are sent into the next chat. **1** (default) sends only the latest thought; **N** sends the newest N, oldest first; **0** keeps files but sends nothing.  |
 
 
 ### How it shows up in the prompt
@@ -868,8 +868,8 @@ They are meant to stay **unspoken**. In multi-NPC / radiant chats the text is wr
 
 | Conversation            | Where the thought goes                                                                                                                                                                                                                                         |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Single NPC**          | `{private_thoughts}` — **only the latest thought**, as its own block, not mixed into the summary. See the example above.                                                                                                                                       |
-| **Multi-NPC / radiant** | Do not use `{private_thoughts}`. **Only the latest thought** is appended at the **end of that NPC's memory**, wrapped so the model can tell it apart from the factual summary. `{conversation_summaries}` / `{bios_and_summaries}` pick that up automatically. |
+| **Single NPC**          | `{private_thoughts}` — **the most recent N thoughts** (oldest first), as its own block, not mixed into the summary. See the example above.                                                                                                                                       |
+| **Multi-NPC / radiant** | Do not use `{private_thoughts}`. **The most recent N thoughts** are appended at the **end of that NPC's memory**, inside one wrapper, so the model can tell it apart from the factual summary. `{conversation_summaries}` / `{bios_and_summaries}` pick that up automatically. |
 
 
 **How it knows which thought is latest**
@@ -888,16 +888,16 @@ Mantella then:
 
 1. Opens the NPC's thought folder and reads the thought file with the **highest file number** (`..._thoughts_1.txt`, `_thoughts_2.txt`, …).
 2. Inside that file, finds every block that starts with `ts=<unix_seconds>`.
-3. Sends the block with the **largest timestamp** — that is the latest thought. The `ts=` line itself is not sent to the conversation LLM.
+3. Sends the N blocks with the **largest timestamps**, oldest first, so the newest thought sits closest to the conversation. The `ts=` lines themselves are not sent to the conversation LLM.
 
 If you end a conversation or click **Save Inner Thoughts Now**, the new block is stamped with the current real-world time, so it becomes the latest automatically. Need to see a timestamp? **Other** tab → [Real World Timestamp](#real-world-timestamp). Bio Editor saves the thought file as you edited it — leave the `ts=` lines in place if you want that ordering to stay correct.
 
-If a file has **no** `ts=` markers (older / hand-edited text), Mantella falls back to the **last block in the file**. Timestamped blocks always win over un-timestamped ones.
+If a file has **no** `ts=` markers (older / hand-edited text), Mantella falls back to the **last N blocks in the file**. Timestamped blocks always win over un-timestamped ones.
 
 ### Quick start
 
 1. Turn on **Enable Conversation Summaries** (needed for conversation-end thoughts).
-2. Turn on **Save Private Thoughts**. Leave **Send Private Thoughts to LLM** on **Latest**.
+2. Turn on **Save Private Thoughts**. Leave **Send Private Thoughts to LLM** at **1** (or raise it to send more recent thoughts).
 3. Optional: Confirm your single-NPC prompt includes `{private_thoughts}` (defaults already do).
 4. End a conversation (or use **Save Inner Thoughts Now** / **Save Summary Now** with **Also Save Inner Thoughts**).
 5. Start a **new** conversation with the same NPC and check the prompt log: the thought block should appear. In **Bio Editor**, open **Private thoughts** to read or edit the file.

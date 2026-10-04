@@ -458,7 +458,7 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
             self.automatic_greeting = self.__definitions.get_bool_value("automatic_greeting")
             self.conversation_summary_enabled = self.__definitions.get_bool_value("conversation_summary_enabled")
             self.inner_monologue_enabled = self.__definitions.get_bool_value("inner_monologue_enabled")
-            self.inner_monologue_load_mode = self.__definitions.get_string_value("inner_monologue_load_mode")
+            self.inner_monologue_load_count = self.__definitions.get_int_value("inner_monologue_load_count")
             self.personal_reflection_enabled = self.__definitions.get_bool_value("personal_reflection_enabled")
             self.personal_reflection_load_mode = self.__definitions.get_string_value("personal_reflection_load_mode")
             self.save_summary_now_also_save_inner_thoughts = self.__definitions.get_bool_value("save_summary_now_also_save_inner_thoughts")
