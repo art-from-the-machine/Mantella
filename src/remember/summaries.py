@@ -305,6 +305,8 @@ class Summaries(Remembering):
         self.__resummarize_prompt:str = config.resummarize_prompt
         self.__inner_monologue = inner_monologue
         self.__personal_reflection = personal_reflection
+        if self.__personal_reflection is not None and self.__inner_monologue is not None:
+            self.__personal_reflection.attach_inner_monologue(self.__inner_monologue)
         game_folder_name = "Fallout4" if game.game_name_in_filepath.lower() == "fallout4" else "Skyrim"
         lorebook_base_path = os.path.join(utils.resolve_path(), "data", game_folder_name, "lorebook")
         self.__lorebook_manager = LorebookManager(lorebook_base_path, config, game_folder_name)

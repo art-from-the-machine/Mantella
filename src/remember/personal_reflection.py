@@ -16,6 +16,7 @@ from src.llm.message_thread import message_thread
 from src.llm.messages import UserMessage
 from src.bio_section_filter import apply_bio_section_filter, should_filter_memory_bios
 from src.prompt_profile_manager import PromptSectionError
+from src.remember.inner_monologue import format_thought_history_text
 from src.remember.summaries import (
     CharacterSummaryParameters,
     build_memory_text,
@@ -174,6 +175,11 @@ class PersonalReflection:
             self.__reflections_folder_path = game.reflections_folder_path
         else:
             raise ValueError("PersonalReflection requires a game or reflections_folder_path.")
+        self.__inner_monologue = None
+
+    def attach_inner_monologue(self, inner_monologue) -> None:
+        """Use this thought store when filling {private_thoughts} during in-game saves."""
+        self.__inner_monologue = inner_monologue
 
     def update_summary_client(self, summary_client: ClientBase | None, fallback_client: LLMClient) -> None:
         self.__client = fallback_client
@@ -241,11 +247,13 @@ class PersonalReflection:
         player_name: str = "the player",
         tags: str = "",
         selected_ts: int | None = None,
+        private_thoughts: str = "",
     ) -> str:
         """Generate and append a reflection from Bio Editor texts. Returns the new body, or empty.
 
         *selected_ts* (when the NPC was selected) hides reflections generated since then from
         the previous-reflection prompt, so regenerating does not build on rejected attempts.
+        *private_thoughts* is the Bio Editor Thoughts box, including unsaved edits.
         """
         summary_text = (summaries or "").strip()
         if not summary_text:
@@ -274,6 +282,7 @@ class PersonalReflection:
             player_name=player_name,
             conversation_summary=summary_text,
             previous_reflection=previous,
+            private_thoughts=private_thoughts,
         )
         reflection = self.__request_reflection(prompt)
         if not reflection:
@@ -391,6 +400,7 @@ class PersonalReflection:
             player_name=player_name,
             conversation_summary=conversation_summary.strip(),
             previous_reflection=previous_reflection,
+            private_thoughts=self.__thought_history_for_prompt(npc, world_id),
         )
         if not prompt:
             return ""
@@ -404,6 +414,7 @@ class PersonalReflection:
         player_name: str,
         conversation_summary: str,
         previous_reflection: str,
+        private_thoughts: str = "(none)",
     ) -> str:
         if self.__config.game.base_game == GameEnum.FALLOUT4:
             location = "the Commonwealth"
@@ -425,8 +436,25 @@ class PersonalReflection:
             player_name=player_name,
             previous_reflection=previous_reflection,
             conversation_summary=conversation_summary,
+            private_thoughts=self.__fill_private_thoughts(private_thoughts),
             lorebook="",
         )
+
+    def __thought_history_for_prompt(self, npc: Character, world_id: str) -> str:
+        """Full on-disk thought history for this NPC, including thoughts just saved."""
+        loader = self.__inner_monologue
+        if loader is None:
+            return ""
+        try:
+            return loader.get_thought_history_text(npc, world_id) or ""
+        except Exception as e:
+            logging.error(f"Failed to read private thoughts for {npc.name}: {e}")
+            return ""
+
+    @staticmethod
+    def __fill_private_thoughts(raw_text: str) -> str:
+        filled = format_thought_history_text(raw_text or "")
+        return filled or "(none)"
 
     def __append_reflection(self, new_reflection: str, npc: Character, world_id: str, save_timestamp: int) -> None:
         reflection_file = self.__get_latest_reflection_file_path(npc, world_id)

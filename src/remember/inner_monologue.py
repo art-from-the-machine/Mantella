@@ -44,6 +44,24 @@ def wrap_private_thought(text: str) -> str:
     return f"{PRIVATE_THOUGHT_HEADER}\n{stripped}\n{PRIVATE_THOUGHT_FOOTER}"
 
 
+def join_thought_history(legacy_blocks: List[str], timestamped_blocks: List[Tuple[int, str]]) -> str:
+    """Join thought blocks oldest-first, with timestamps already removed."""
+    parts: List[str] = list(legacy_blocks)
+    for _, text in sorted(timestamped_blocks, key=lambda item: item[0]):
+        parts.append(text)
+    return "\n\n".join(part.strip() for part in parts if part and part.strip())
+
+
+def format_thought_history_text(raw_text: str) -> str:
+    """Full unwrapped thought history from a thought file or the Bio Editor box.
+
+    Timestamps are removed. Every block is kept, including thoughts written
+    during the current conversation.
+    """
+    legacy_blocks, timestamped_blocks = parse_summary_blocks(raw_text or "")
+    return join_thought_history(legacy_blocks, timestamped_blocks)
+
+
 def select_latest_thoughts(
     legacy_blocks: List[str],
     timestamped_blocks: List[Tuple[int, str]],
@@ -94,10 +112,11 @@ class InnerMonologue:
         """Unwrapped thought history for the generation prompt, ignoring thoughts written since *conversation_start_ts*."""
         legacy_blocks, timestamped_blocks = self._parse_thought_file(character, world_id)
         timestamped_blocks = drop_blocks_since(timestamped_blocks, conversation_start_ts)
-        parts: List[str] = list(legacy_blocks)
-        for _, text in sorted(timestamped_blocks, key=lambda item: item[0]):
-            parts.append(text)
-        return "\n\n".join(part.strip() for part in parts if part and part.strip())
+        return join_thought_history(legacy_blocks, timestamped_blocks)
+
+    def get_thought_history_text(self, character: Character, world_id: str) -> str:
+        """Unwrapped full thought history, including thoughts written during the current conversation."""
+        return self.get_previous_thoughts_text(character, world_id, conversation_start_ts=None)
 
     @utils.time_it
     def save_thoughts(

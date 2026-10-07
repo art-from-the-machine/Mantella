@@ -83,6 +83,7 @@ class PromptDefinitions:
         "lorebook",
         "previous_reflection",
         "conversation_summary",
+        "private_thoughts",
         ]
     
     BASE_PROMPT_DESCRIPTION = """The starting prompt sent to the LLM when an NPC is selected.
@@ -446,6 +447,7 @@ Content Guidelines:
                                                player_name = the name of the player character
                                                previous_reflection = this NPC's latest previous personal reflection
                                                conversation_summary = this NPC's full past-event summaries, including the summary just written
+                                               private_thoughts = this NPC's full private thought history, including thoughts written during the current conversation. Timestamps are omitted
                                                lorebook = lorebook entries matched from the prompt context and conversation history"""
         personal_reflection_prompt = """
 ## Core Tasks

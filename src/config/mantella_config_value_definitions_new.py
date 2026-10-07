@@ -122,6 +122,13 @@ class MantellaConfigValueDefinitionsNew:
             "",
             []
         ))
+        hidden_category.add_config_value(ConfigValueString(
+            "bio_editor_player_name",
+            "Bio Editor Player Name",
+            "Player name used for {player_name} when the Bio Editor generates a personal reflection.",
+            "",
+            []
+        ))
         result.add_base_group(hidden_category)
         
         llm_category = ConfigValueGroup("LLM", "Large Language Model", "Settings for the LLM providers and the LLMs themselves.", on_value_change_callback)

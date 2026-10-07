@@ -1099,6 +1099,11 @@ class StartUI(routeable):
                     refresh_thoughts_btn = gr.Button("Refresh thoughts", variant="secondary")
 
                 reflections_editor = gr.Text(value="", lines=12, label="Personal Reflection")
+                reflection_player_name = gr.Text(
+                    value=config.definitions.get_string_value("bio_editor_player_name"),
+                    label="Player name (used by Generate Reflection)",
+                    placeholder="Replaces {player_name}. Leave empty to use the player in the active conversation, or \"the player\".",
+                )
                 with gr.Row():
                     save_reflections_btn = gr.Button("Save Reflection", variant="primary", interactive=False)
                     refresh_reflections_btn = gr.Button("Refresh reflection", variant="secondary")
@@ -1286,6 +1291,20 @@ class StartUI(routeable):
                 except Exception:
                     pass
 
+            def on_reflection_player_name_change(player_name: str):
+                try:
+                    cv = config.definitions.get_config_value_definition("bio_editor_player_name")
+                    player_name = (player_name or "").strip()
+                    if player_name != cv.value:
+                        cv.value = player_name
+                        try:
+                            config._ConfigLoader__write_config_state(config.definitions)
+                        except Exception:
+                            pass
+                        config.update_config_loader_with_changed_config_values()
+                except Exception:
+                    pass
+
             def on_refresh(user_csv_path: str = ""):
                 # Rebuild from disk
                 new_df = _get_resolved_character_df()
@@ -1417,7 +1436,7 @@ class StartUI(routeable):
                 info = f"Personal reflection saved to: {path}" if path else "Personal reflection save failed. Check logs."
                 return info
 
-            def on_generate_reflection(label: str, bio_text: str, summary_text: str, l2k: dict[str, str], world_id: str, selected_ts: int | None):
+            def on_generate_reflection(label: str, bio_text: str, summary_text: str, thoughts_text: str, player_name_text: str, l2k: dict[str, str], world_id: str, selected_ts: int | None):
                 if not label:
                     return "Select an NPC first.", "", gr.Button(interactive=False), gr.Button(interactive=False)
                 if not (summary_text or "").strip():
@@ -1453,9 +1472,9 @@ class StartUI(routeable):
                             response_timeout=config.llm_response_timeout,
                         )
                     language_name = getattr(config, "language", "English") or "English"
-                    player_name = "the player"
+                    player_name = (player_name_text or "").strip() or "the player"
                     try:
-                        if gm_ref and getattr(gm_ref, "_GameStateManager__talk", None):
+                        if not (player_name_text or "").strip() and gm_ref and getattr(gm_ref, "_GameStateManager__talk", None):
                             talk = gm_ref._GameStateManager__talk
                             player = talk.context.npcs_in_conversation.get_player_character()
                             if player and player.name:
@@ -1478,6 +1497,7 @@ class StartUI(routeable):
                         player_name=player_name,
                         tags=_compute_runtime_tags_for_label(label, l2k),
                         selected_ts=selected_ts,
+                        private_thoughts=thoughts_text or "",
                     )
                     updated = _load_reflections_for_label(label, l2k, world_id)
                     if result:
@@ -1970,7 +1990,8 @@ class StartUI(routeable):
             save_thoughts_btn.click(on_save_thoughts, inputs=[npc_dropdown, thoughts_editor, state_label_to_key, state_world_id], outputs=[info_line])
             refresh_reflections_btn.click(on_refresh_memory, inputs=[npc_dropdown, state_label_to_key, state_world_id], outputs=_memory_refresh_outputs)
             save_reflections_btn.click(on_save_reflections, inputs=[npc_dropdown, reflections_editor, state_label_to_key, state_world_id], outputs=[info_line])
-            generate_reflection_btn.click(on_generate_reflection, inputs=[npc_dropdown, bio_editor, summary_editor, state_label_to_key, state_world_id, state_selected_ts], outputs=[info_line, reflections_editor, save_reflections_btn, generate_reflection_btn])
+            generate_reflection_btn.click(on_generate_reflection, inputs=[npc_dropdown, bio_editor, summary_editor, thoughts_editor, reflection_player_name, state_label_to_key, state_world_id, state_selected_ts], outputs=[info_line, reflections_editor, save_reflections_btn, generate_reflection_btn])
+            reflection_player_name.change(on_reflection_player_name_change, inputs=[reflection_player_name], outputs=[], show_progress="hidden")
 
             # LLM section wiring
             # Prompt profile wiring
