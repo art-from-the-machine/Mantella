@@ -617,6 +617,12 @@ class GameStateManager:
         else:
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}
 
+    def interrupt_conversation(self):
+        """Interrupt hotkey. Called while another request may still be running"""
+        talk = self.__talk # Can be set to None by a request that ends the conversation
+        if talk:
+            talk.request_interrupt()
+
     @utils.time_it
     def end_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(self.__talk):

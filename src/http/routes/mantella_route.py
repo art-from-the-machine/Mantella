@@ -1,5 +1,7 @@
+import asyncio
 import json
 import logging
+import threading
 from typing import Any, Hashable
 
 from fastapi import FastAPI, Request
@@ -34,6 +36,7 @@ class mantella_route(routeable):
         self.__stt_secret_key_file = stt_secret_key_file
         self.__image_secret_key_file: str = image_secret_key_file
         self.__game: GameStateManager | None = None
+        self.__request_lock: threading.Lock = threading.Lock()
 
         # if not self._can_route_be_used():
         #     error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
@@ -131,6 +134,17 @@ class mantella_route(routeable):
     def add_route_to_server(self, app: FastAPI):
         @app.post("/mantella")
         async def mantella(request: Request):
+            received_json: dict[str, Any] | None = await request.json()
+            if received_json and received_json.get(comm_consts.KEY_REQUESTTYPE) == comm_consts.KEY_REQUESTTYPE_INTERRUPT:
+                # Handled right away, while the continue request that is still running picks the interruption up
+                if self.__game:
+                    self.__game.interrupt_conversation()
+                return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_INTERRUPTRECEIVED}
+            # Handled in a worker thread, so the server stays free to receive an interruption
+            return await asyncio.to_thread(self.__process_request, received_json)
+
+    def __process_request(self, received_json: dict[str, Any] | None) -> dict[str, Any]:
+        with self.__request_lock: # Requests other than interruptions are still handled one at a time
             if not self._can_route_be_used():
                 error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
                 logging.error(error_message)
@@ -140,7 +154,6 @@ class mantella_route(routeable):
                 logging.error(error_message)
                 return self.error_message(error_message)
             reply = {}
-            received_json: dict[str, Any] | None = await request.json()
             if received_json:
                 logging.debug('Processing request...')
                 if self._show_debug_messages:

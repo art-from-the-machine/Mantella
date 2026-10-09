@@ -9,6 +9,7 @@ class communication_constants:
     KEY_REQUESTTYPE_CONTINUECONVERSATION: str = PREFIX + "continue_conversation"
     KEY_REQUESTTYPE_PLAYERINPUT: str = PREFIX + "player_input"
     KEY_REQUESTTYPE_ENDCONVERSATION: str = PREFIX + "end_conversation"
+    KEY_REQUESTTYPE_INTERRUPT: str = PREFIX + "interrupt"
 
     KEY_REPLYTTYPE_INITCOMPLETED: str = PREFIX + "init_completed"
     KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED: str = PREFIX + "start_conversation_completed"
@@ -19,6 +20,7 @@ class communication_constants:
     KEY_REPLYTYPE_NPCACTION: str  = PREFIX + "npc_action"
     KEY_REPLYTYPE_PLAYERTALK: str  = PREFIX + "player_talk"
     KEY_REPLYTYPE_ENDCONVERSATION: str  = PREFIX + "end_conversation"
+    KEY_REPLYTYPE_INTERRUPTRECEIVED: str  = PREFIX + "interrupt_received"
 
     KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"
     KEY_STARTCONVERSATION_USENARRATOR: str = PREFIX + "use_narrator"

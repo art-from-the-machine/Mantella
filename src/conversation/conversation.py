@@ -44,6 +44,8 @@ class Conversation:
         self.__mic_ptt: bool = mic_ptt
         self.__allow_interruption: bool = context_for_conversation.config.allow_interruption # allow mic interruption
         self.__is_player_interrupting = False
+        self.__is_interrupt_requested: bool = False # Set by the interrupt hotkey, from the thread of another request
+        self.__is_ending: bool = False
         self.__stt: Transcriber | None = stt
         self.__events_refresh_time: float = context_for_conversation.config.events_refresh_time  # Time in seconds before events are considered stale
         self.__transcribed_text: str | None = None
@@ -233,6 +235,8 @@ class Conversation:
             self.__sentences.clear()
             self.__is_player_interrupting = True
             return comm_consts.KEY_REQUESTTYPE_TTS, None
+        if self.__interrupt_for_player():
+            return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
         
         # restart mic listening as soon as NPC's first sentence is processed
         if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and not self.__stt.is_listening and self.__allow_mic_input and not isinstance(self.__conversation_type, radiant):
@@ -258,7 +262,12 @@ class Conversation:
                     self.__sentences.clear()
                     self.__is_player_interrupting = True
                     return comm_consts.KEY_REQUESTTYPE_TTS, None
+                if self.__interrupt_for_player():
+                    return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
                 time.sleep(0.01)
+            # The hotkey may have been pressed while waiting for this sentence to be generated
+            if self.__interrupt_for_player():
+                return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
             self.last_sentence_audio_length = next_sentence.voice_line_duration + self.__context.config.wait_time_buffer
             self.last_sentence_start_time = time.time()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, next_sentence
@@ -269,9 +278,9 @@ class Conversation:
                 return comm_consts.KEY_REPLYTYPE_NPCTALK, None
             elif isinstance(self.__conversation_type, multi_npc_game_master):
                 # The next reply is generated while the last one is played, so it is usually ready by now
-                has_player_spoken = lambda: bool(self.__stt and self.__stt.has_player_spoken)
-                has_next_reply = self.__game_master_turns.play_next_reply(self.__context.config.llm_response_timeout, has_player_spoken)
-                if has_player_spoken():
+                has_player_interrupted = lambda: bool(self.__stt and self.__stt.has_player_spoken) or self.__is_interrupt_requested
+                has_next_reply = self.__game_master_turns.play_next_reply(self.__context.config.llm_response_timeout, has_player_interrupted)
+                if has_player_interrupted():
                     # The next continue request handles the interruption
                     return comm_consts.KEY_REPLYTYPE_NPCTALK, None
                 if has_next_reply:
@@ -330,6 +339,7 @@ class Conversation:
                 # otherwise the player could constantly speak over the NPC and never hear a response
                 self.__stt.stop_listening()
             
+            self.__is_interrupt_requested = False # Pressing the interrupt hotkey during the player's turn has nothing to interrupt
             new_message: UserMessage = UserMessage(self.__context.config, player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
             new_message = self.update_game_events(new_message)
@@ -517,6 +527,7 @@ class Conversation:
         """
         if not self.__has_already_ended:
             config = self.__context.config            
+            self.__is_ending = True # The goodbye must not be interrupted, it carries the action that ends the conversation in game
             self.__cancel_game_master_turn()
             self.__stop_generation()
             self.__sentences.clear()
@@ -555,6 +566,28 @@ class Conversation:
         self.__sentences.clear()
         self.__save_summary()
     
+    def request_interrupt(self):
+        """Interrupt hotkey. The NPCs stop and the player gets the turn, like when the player interrupts with the mic.
+        Called while a continue request may still be running, which picks the interruption up"""
+        if self.__context.npcs_in_conversation.contains_player_character():
+            self.__is_interrupt_requested = True
+
+    def __interrupt_for_player(self) -> bool:
+        """Stops the NPCs' response if the interrupt hotkey was pressed
+
+        Returns:
+            bool: True if the response was stopped and the player gets the turn
+        """
+        if not self.__is_interrupt_requested or self.__is_ending:
+            return False
+        self.__is_interrupt_requested = False
+        logging.log(23, "Player interrupted. The player gets the turn.")
+        self.__cancel_game_master_turn()
+        self.__stop_generation()
+        self.__sentences.clear()
+        self.__is_player_interrupting = True
+        return True
+
     def __cancel_game_master_turn(self):
         """Game Master Mode only. Throws away the running NPC turn, so nothing more is generated for it"""
         if isinstance(self.__conversation_type, multi_npc_game_master):
