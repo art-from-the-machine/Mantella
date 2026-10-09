@@ -127,6 +127,32 @@ class multi_npc(conversation_type):
         else:
             return super().get_user_message(context_for_conversation, messages)
 
+class multi_npc_game_master(multi_npc):
+    """Group conversation between the PC and multiple NPCs where a Game Master LLM decides who speaks next.
+    Each NPC's reply is generated with a prompt that only contains that NPC. Skyrim only."""
+    def __init__(self, config: ConfigLoader) -> None:
+        super().__init__(config)
+
+    @staticmethod
+    def is_enabled(config: ConfigLoader) -> bool:
+        return config.multi_npc_game_master_mode and config.game.base_game != GameEnum.FALLOUT4
+
+    @utils.time_it
+    def generate_prompt(self, context_for_conversation: Context, should_log: bool = False, messages_for_lorebook: message_thread | None = None) -> str:
+        # Never sent as is: each request builds its own prompt. Stored in the message thread, where its size
+        # decides when the conversation is reloaded, so it should match the largest prompt that is sent
+        return self.generate_game_master_prompt(context_for_conversation, messages_for_lorebook, should_log)
+
+    @utils.time_it
+    def generate_npc_prompt(self, context_for_conversation: Context, speaker: Character, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
+        actions = [a for a in self._config.actions if a.use_in_multi_npc]
+        return context_for_conversation.generate_system_message(self._config.game_master_npc_prompt, actions, should_log, messages_for_lorebook, "skyrim_game_master_npc_prompt", focus_character=speaker)
+
+    @utils.time_it
+    def generate_game_master_prompt(self, context_for_conversation: Context, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
+        actions = [a for a in self._config.actions if a.use_in_multi_npc]
+        return context_for_conversation.generate_system_message(self._config.game_master_prompt, actions, should_log, messages_for_lorebook, "skyrim_game_master_prompt")
+
 class radiant(conversation_type):
     """ Conversation between two NPCs without the player"""
     def __init__(self, config: ConfigLoader) -> None:

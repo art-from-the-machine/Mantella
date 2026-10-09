@@ -20,6 +20,18 @@ class FirstTokenTimeout(Exception):
     """The first spoken token did not arrive within the response timeout."""
 
 
+def format_openai_messages(openai_messages: list[dict[str, Any]]) -> str:
+    """The messages sent to the LLM as readable text for the log, one block per message. Images are shown as [image]"""
+    lines: list[str] = []
+    for message in openai_messages:
+        content = message.get("content")
+        if isinstance(content, list):
+            parts = [part.get("text", "") if part.get("type") == "text" else f"[{part.get('type', 'unknown')}]" for part in content if isinstance(part, dict)]
+            content = "\n".join(parts)
+        lines += [f"===== {message.get('role', 'unknown')} =====", str(content or ""), ""]
+    return "\n".join(lines).rstrip()
+
+
 class ClientBase(AIClient):
     '''Base class for connecting to OpenAI-compatible endpoints
 
@@ -190,7 +202,8 @@ class ClientBase(AIClient):
             
             # Log LLM parameters being sent to API
             logging.info(f"LLM Request Parameters: model='{self.model_name}', base_url='{self._base_url}', params={request_params}")
-            
+            logging.log(28, f"LLM request to {self.model_name}:\n{format_openai_messages(openai_messages)}")
+
             try:
                 chat_completion = sync_client.chat.completions.create(
                     model=self.model_name,
@@ -218,6 +231,7 @@ class ClientBase(AIClient):
                 return None
             
             reply = chat_completion.choices[0].message.content
+            logging.log(28, f"LLM response from {self.model_name}:\n{reply}")
             return reply
         
 
@@ -273,6 +287,7 @@ class ClientBase(AIClient):
                 
                 # Log LLM parameters being sent to API
                 logging.info(f"LLM Request Parameters: model='{self.model_name}', base_url='{self._base_url}', params={request_params}")
+                logging.log(28, f"LLM request to {self.model_name}:\n{format_openai_messages(openai_messages)}")
 
                 stream_client = async_client.with_options(max_retries=0)
                 remaining = deadline - time.time()
@@ -772,3 +787,44 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
             utils.play_error_sound()
             error = f"Failed to retrieve list of models from {service}. A valid API key in 'GPT_SECRET_KEY.txt' is required. The file is in your mod folder of Mantella. Error: {e}"
             return LLMModelList([(error,"error")], "error", allows_manual_model_input=False)
+
+    # The decision model list of each service, and the number its prompt price is multiplied by to get the price per 1M tokens
+    DECISION_MODELS_URLS = {
+        "OpenRouter": ("https://openrouter.ai/api/v1/models?output_modalities=decisions", 1_000_000),
+        "NanoGPT": ("https://nano-gpt.com/api/v1/models?detailed=true", 1),
+    }
+    DEFAULT_DECISION_MODEL = "typesafe/jev-1.13"
+
+    @staticmethod
+    def get_decision_model_list(service: str, secret_key_file: str, default_model: str = DEFAULT_DECISION_MODEL, is_vision: bool = False) -> LLMModelList:
+        """Lists the decision models on OpenRouter or NanoGPT (e.g. typesafe/jev-1.13). These do not appear in the OpenRouter chat model list.
+        The arguments match the other model list getters. The lists need no key, so the key file is not used.
+        """
+        default_model = ClientBase.DEFAULT_DECISION_MODEL
+        try:
+            url, price_multiplier = ClientBase.DECISION_MODELS_URLS[service]
+            logging.getLogger('urllib3').setLevel(logging.ERROR)
+            response = requests.get(url, timeout=30)
+            logging.getLogger('urllib3').setLevel(logging.INFO)
+            response.raise_for_status()
+            options = []
+            for model in response.json().get("data", []):
+                model_id = model["id"]
+                # NanoGPT lists all its models, so only the decision models are kept
+                if service == "NanoGPT" and "decisions" not in ((model.get("architecture") or {}).get("output_modalities") or []):
+                    continue
+                try:
+                    context_size = int(model.get("context_length") or 0)
+                    prompt_cost = float(model["pricing"]["prompt"]) * price_multiplier
+                    context_text = f"Context: {utils.format_context_size(context_size)}" if context_size > 0 else "Context: unknown"
+                    model_display_name = f"{model_id} | {context_text} | Cost per 1M tokens: Prompt: {utils.format_price(prompt_cost)}"
+                    if context_size > 0:
+                        ClientBase.api_token_limits[model_id.split('/')[-1]] = context_size
+                except Exception:
+                    model_display_name = model_id
+                options.append((model_display_name, model_id))
+            return LLMModelList(options, default_model, allows_manual_model_input=False)
+        except Exception as e:
+            logging.error(f"Failed to retrieve the list of decision models from {service}: {e}")
+            # Manual input keeps the saved decision model selected while the list can't be loaded
+            return LLMModelList([(default_model, default_model)], default_model, allows_manual_model_input=True)

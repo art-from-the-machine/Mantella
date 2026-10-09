@@ -132,6 +132,7 @@ class GameStateManager:
         
         # Update chat manager with multi-NPC client
         chat_manager.update_multi_npc_client(multi_npc_client)
+        chat_manager.update_game_master_client(GameStateManager.create_game_master_client(config, api_file))
         
         # Clear per-character client cache to force recreation with new settings
         chat_manager.clear_per_character_client_cache()
@@ -304,6 +305,7 @@ class GameStateManager:
             
             # Update chat manager with multi-NPC client
             chat_manager.update_multi_npc_client(multi_npc_client)
+            chat_manager.update_game_master_client(GameStateManager.create_game_master_client(config, secret_key_file, log_prefix="Hot-swap: "))
             
             # Clear per-character client cache to force recreation with new settings
             chat_manager.clear_per_character_client_cache()
@@ -723,6 +725,35 @@ class GameStateManager:
         return GameStateManager.__create_memory_task_client(
             "personal reflections", config.reflection_llm_api, config.reflection_llm, config.reflection_llm_params,
             config.reflection_custom_token_count, config.apply_profile_reflection, config, api_file, log_prefix)
+
+    @staticmethod
+    def create_game_master_client(config: ConfigLoader, api_file: str, log_prefix: str = "") -> "ClientBase | None":
+        """Client that decides who speaks next in multi-NPC Game Master Mode. None while the mode is disabled."""
+        if not config.multi_npc_game_master_mode:
+            return None
+        try:
+            if config.game_master_use_decision_model:
+                from src.llm.client_base import ClientBase
+                from src.llm.key_file_resolver import key_file_resolver
+                service = config.game_master_decision_service
+                logging.info(f"{log_prefix}Game Master: using decision model {config.game_master_decision_model} on {service}")
+                # Loads the context sizes of the decision models, used as the client's token limit
+                ClientBase.get_decision_model_list(service, api_file)
+                # Decision models are called through the service's Decisions API, so no LLM parameters or profiles apply
+                return ClientBase(
+                    service,
+                    config.game_master_decision_model,
+                    None,
+                    config.game_master_custom_token_count,
+                    key_file_resolver.get_key_files_for_service(service, api_file),
+                    response_timeout=config.llm_response_timeout,
+                )
+            return GameStateManager.__create_memory_task_client(
+                "Game Master", config.game_master_llm_api, config.game_master_llm, config.game_master_llm_params,
+                config.game_master_custom_token_count, config.apply_profile_game_master, config, api_file, log_prefix)
+        except Exception as e:
+            logging.error(f"{log_prefix}Could not create the Game Master LLM client. Multi-NPC conversations will run without the Game Master: {e}")
+            return None
 
     @staticmethod
     def __create_memory_task_client(task_name: str, llm_api: str, llm: str, llm_params: dict[str, Any] | None,

@@ -160,20 +160,41 @@ class AssistantMessage(Message):
     def __init__(self, config: ConfigLoader, is_system_generated_message: bool = False):
         super().__init__("", config, is_system_generated_message)
         self.__sentences: list[SentenceContent] = []
-    
+        self.thoughts_only_of_ref_id: str | None = None # If set, the thoughts of other NPCs are left out
+        # Game Master Mode: each NPC turn is its own LLM reply, so each thought is shown right after the turn it was written in.
+        # Otherwise one LLM reply holds every NPC's lines and all thoughts are shown at the end
+        self.thoughts_in_place: bool = False
+
     def add_sentence(self, new_sentence: Sentence):
         self.__sentences.append(new_sentence.content)
 
     def get_formatted_content(self, include_thoughts: bool = True) -> str:
         if len(self.__sentences) < 1:
             return ""
-        
+
         result = ""
         lastActor: Character | None = None
         was_last_sentence_narration: bool = False
+        spoken_ref_ids = self.__spoken_ref_ids()
+        thought_ref_id: str | None = None # The speaker of the thought block that was just written, if any
+        thought_text: str = ""
         for sentence in self.__sentences:
             if sentence.sentence_type == SentenceTypeEnum.THOUGHT:
+                if include_thoughts and self.thoughts_in_place and self.__is_kept_thought(sentence, spoken_ref_ids):
+                    text = sentence.text.strip()
+                    if thought_ref_id == sentence.speaker.ref_id:
+                        # A continuation sentence of the same thought block
+                        if text not in thought_text:
+                            result += " " + text
+                            thought_text += " " + text
+                    else:
+                        result += f"\n<<thought {sentence.speaker.name}>> {text}"
+                        thought_ref_id, thought_text = sentence.speaker.ref_id, text
+                        # The next line starts a new turn, so it gets its speaker's name again
+                        lastActor = None
+                        was_last_sentence_narration = False
                 continue
+            thought_ref_id = None
             if self.is_multi_npc_message and lastActor != sentence.speaker:
                 lastActor = sentence.speaker
                 was_last_sentence_narration = False
@@ -186,28 +207,37 @@ class AssistantMessage(Message):
                 result += " "
             was_last_sentence_narration = sentence.sentence_type == SentenceTypeEnum.NARRATION
             result += sentence.text.strip()
-        if include_thoughts:
-            for speaker_name, thought_text in self.__kept_thoughts():
-                result += f"\n<<thought {speaker_name}>> {thought_text}"
+        if include_thoughts and not self.thoughts_in_place:
+            for speaker_name, kept_thought_text in self.__kept_thoughts(spoken_ref_ids):
+                result += f"\n<<thought {speaker_name}>> {kept_thought_text}"
         result = utils.remove_extra_whitespace(result)
         return result
 
-    def __kept_thoughts(self) -> list[tuple[str, str]]:
-        """One thought per NPC who actually spoke in this reply. Later duplicates are ignored."""
-        spoken_ref_ids = {
+    def __spoken_ref_ids(self) -> set[str]:
+        """The NPCs who actually spoke in this reply"""
+        return {
             sentence.speaker.ref_id
             for sentence in self.__sentences
             if sentence.sentence_type != SentenceTypeEnum.THOUGHT and sentence.text.strip()
         }
+
+    def __is_kept_thought(self, sentence: SentenceContent, spoken_ref_ids: set[str]) -> bool:
+        ref_id = sentence.speaker.ref_id
+        if ref_id not in spoken_ref_ids or not sentence.text.strip():
+            return False
+        return self.thoughts_only_of_ref_id is None or ref_id == self.thoughts_only_of_ref_id
+
+    def __kept_thoughts(self, spoken_ref_ids: set[str]) -> list[tuple[str, str]]:
+        """One thought per NPC who actually spoke in this reply. Later duplicates are ignored."""
         merged: dict[str, str] = {}
         order: list[str] = []
         names: dict[str, str] = {}
         for sentence in self.__sentences:
             if sentence.sentence_type != SentenceTypeEnum.THOUGHT:
                 continue
-            ref_id = sentence.speaker.ref_id
-            if ref_id not in spoken_ref_ids or not sentence.text.strip():
+            if not self.__is_kept_thought(sentence, spoken_ref_ids):
                 continue
+            ref_id = sentence.speaker.ref_id
             if ref_id not in merged:
                 merged[ref_id] = sentence.text.strip()
                 order.append(ref_id)

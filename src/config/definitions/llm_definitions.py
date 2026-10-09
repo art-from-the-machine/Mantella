@@ -451,3 +451,85 @@ class LLMDefinitions:
                         Note: This only affects Skyrim multi-NPC conversations, not radiant or single-NPC conversations."""
         return ConfigValueBool("multi_conversation_director_mode", "Multi Conversation Director Mode", description, False, tags=[ConfigValueTag.share_row])
 
+    @staticmethod
+    def get_multi_npc_game_master_mode_config_value() -> ConfigValue:
+        description = """Enable Game Master Mode for Skyrim multi-NPC conversations.
+                        When enabled, a separate Game Master LLM decides who speaks next (one of the NPCs, or the player).
+                        Each NPC's reply is then generated on its own, with a prompt that only contains that NPC's bio and memories.
+                        When disabled, multi-NPC conversations work as before: one LLM call writes the lines of all NPCs.
+                        Takes priority over Multi Conversation Director Mode.
+                        Note: This only affects Skyrim multi-NPC conversations, not radiant or single-NPC conversations."""
+        return ConfigValueBool("multi_npc_game_master_mode", "Multi-NPC Game Master Mode", description, False, tags=[ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_multi_npc_game_master_max_npc_turns_config_value() -> ConfigValue:
+        description = """Game Master Mode only. The maximum number of NPC replies in a row before the player gets the turn back.
+                        The Game Master can hand the turn to the player earlier."""
+        return ConfigValueInt("multi_npc_game_master_max_npc_turns", "Game Master Max NPC Turns per Player Turn", description, 3, 1, 10, tags=[ConfigValueTag.share_row])
+
+    # Game Master LLM Configuration
+    @staticmethod
+    def get_game_master_llm_api_config_value() -> ConfigValue:
+        description = """Selects the LLM service the Game Master uses to decide who speaks next in multi-NPC Game Master Mode.
+            Only used when Multi-NPC Game Master Mode is enabled.
+
+            If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also ignore the dropdown options and instead enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
+            After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
+
+            If you are using an API (OpenAI, OpenRouter, NanoGPT, etc) ensure you have the correct secret key set in the appropriate file for the respective service you are using:
+            - OpenAI/OpenRouter: `GPT_SECRET_KEY.txt`
+            - NanoGPT: `NANOGPT_SECRET_KEY.txt` (or `GPT_SECRET_KEY.txt` as fallback)"""
+        return ConfigValueSelection("game_master_llm_api","Game Master LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_game_master_model_config_value() -> ConfigValue:
+        model_description = """Select the model the Game Master uses to decide who speaks next. Press the *Update* button to load a list of models available from the service selected above.
+                            Only used when Multi-NPC Game Master Mode is enabled. A small, fast model is usually enough.
+                            The list does not provide all details about the models. For additional information please refer to the corresponding sites:
+                            - OpenRouter: https://openrouter.ai/docs#models
+                            - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
+        return ConfigValueSelection("game_master_model","Game Master Model",model_description,"google/gemini-3.1-flash-lite",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_game_master_use_decision_model_config_value() -> ConfigValue:
+        description = """Use a decision model instead of an LLM for the Game Master in multi-NPC Game Master Mode.
+                        Decision models (e.g. typesafe/jev-1.13) do not write text. They pick the next speaker from a fixed list of options and return a probability for each one. They are fast and cheap.
+                        When enabled, the Game Master uses the Game Master Decision Model below through the Game Master Decision Service.
+                        Game Master LLM Service, Game Master Model, Game Master LLM Parameters and Apply Profile for Game Master are then ignored."""
+        return ConfigValueBool("game_master_use_decision_model", "Use Decision Model for Game Master", description, True, tags=[ConfigValueTag.basic])
+
+    @staticmethod
+    def get_game_master_decision_service_config_value() -> ConfigValue:
+        description = """Selects the service the Game Master decision model runs on when Use Decision Model for Game Master is enabled.
+                        Ensure you have the correct secret key set in the appropriate file for the service:
+                        - OpenRouter: `GPT_SECRET_KEY.txt`
+                        - NanoGPT: `NANOGPT_SECRET_KEY.txt` (or `GPT_SECRET_KEY.txt` as fallback)"""
+        return ConfigValueSelection("game_master_decision_service","Game Master Decision Service",description,"OpenRouter",["OpenRouter", "NanoGPT"], tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_game_master_decision_model_config_value() -> ConfigValue:
+        description = """Select the decision model the Game Master uses when Use Decision Model for Game Master is enabled. Press the *Update* button to load the decision models available on the Game Master Decision Service.
+                        The instructions and the criteria for each option can be changed in the Game Master Decision prompts."""
+        return ConfigValueSelection("game_master_decision_model","Game Master Decision Model",description,"typesafe/jev-1.13",["typesafe/jev-1.13"], allows_values_not_in_options=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_game_master_custom_token_count_config_value() -> ConfigValue:
+        description = """If the Game Master model chosen is not recognised by Mantella, the token count for the given model will default to this number.
+                    Only used when Multi-NPC Game Master Mode is enabled."""
+        return ConfigValueInt("game_master_custom_token_count","Game Master Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced], row_group="token_count_row")
+
+    @staticmethod
+    def get_game_master_llm_params_config_value() -> ConfigValue:
+        description = """Parameters for the Game Master LLM model. These should be in JSON format.
+                    Only used when Multi-NPC Game Master Mode is enabled.
+                    Common parameters include temperature (0.0-2.0), top_p (0.0-1.0), frequency_penalty (0.0-1.0), presence_penalty (0.0-1.0)."""
+        default_params = json.dumps({"temperature": 0.2}, indent=4)
+        return ConfigValueString("game_master_llm_params","Game Master LLM Parameters",description, default_params, tags=[ConfigValueTag.basic], row_group="llm_params_row")
+
+    @staticmethod
+    def get_apply_profile_game_master_config_value() -> ConfigValue:
+        description = """Automatically apply saved LLM profile parameters for the Game Master in multi-NPC Game Master Mode.
+                        When enabled, if a profile exists for the selected Game Master model, its parameters will be used instead of the manually configured parameters.
+                        When disabled, manually configured parameters will always be used."""
+        return ConfigValueBool("apply_profile_game_master", "Apply Profile for Game Master", description, False, tags=[], row_group="apply_profile_row")
+

@@ -103,6 +103,7 @@ def serialize_persistent_messages(messages: list[Message], config: ConfigLoader)
                 "type": "assistant",
                 "is_multi_npc": m.is_multi_npc_message,
                 "is_system_generated": m.is_system_generated_message,
+                "thoughts_in_place": m.thoughts_in_place,
                 "sentences": sentences_data,
             })
         elif isinstance(m, join_message):
@@ -165,6 +166,7 @@ def deserialize_persistent_messages(
                 is_system_generated_message=bool(item.get("is_system_generated", False)),
             )
             msg.is_multi_npc_message = bool(item.get("is_multi_npc", False))
+            msg.thoughts_in_place = bool(item.get("thoughts_in_place", False))
             for sdata in item.get("sentences", []):
                 ref_id = str(sdata.get("speaker_ref_id", ""))
                 name = str(sdata.get("speaker_name", ""))

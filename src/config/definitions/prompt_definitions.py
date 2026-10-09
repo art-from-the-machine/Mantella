@@ -31,6 +31,14 @@ class PromptDefinitions:
 
     # Multi-NPC / director: private thoughts are mixed into memory, not a prompt variable.
     ALLOWED_PROMPT_VARIABLES_MULTI = [v for v in ALLOWED_PROMPT_VARIABLES if v != "private_thoughts"]
+
+    # Game Master NPC prompt: {names} is only the NPC who is speaking, so all NPCs need their own variable
+    ALLOWED_PROMPT_VARIABLES_GAME_MASTER_NPC = ALLOWED_PROMPT_VARIABLES + ["all_names_without_player"]
+
+    # Game Master decision model prompts. Filled per option, so only names are available
+    ALLOWED_PROMPT_VARIABLES_DECISION_INSTRUCTIONS = ["player_name", "names"]
+    ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA = ["name", "player_name"]
+    ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA = ["player_name"]
     
     ALLOWED_PROMPT_VARIABLES_RADIANT = [
                                 "game",
@@ -93,6 +101,8 @@ class PromptDefinitions:
                                 names_w_player = the names of all NPCs in the conversation and the name of the player character
                                 game = the selected game
                                 bio = the NPC's background description
+                                bios = same as bio
+                                bios_and_summaries = the NPC's bio followed by their conversation summaries
                                 trust = how well the NPC knows the player (eg "a stranger", "a friend")
                                 location = the current location
                                 weather = the current weather
@@ -100,6 +110,7 @@ class PromptDefinitions:
                                 time_group = the time of day in words (eg "in the morning", "at night")
                                 language = the selected language
                                 conversation_summary = reads the latest conversation summaries for the NPC stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt
+                                conversation_summaries = same as conversation_summary
                                 private_thoughts = the NPC's most recent private inner monologue thoughts as their own block (how many is set by Send Private Thoughts to LLM) (single-NPC conversation prompts only)
                                 player_name = the name of the player character
                                 player_description = a description of the player character (needs to be added in game or using the config value)
@@ -114,7 +125,7 @@ class PromptDefinitions:
                                 names = the names of all NPCs in the conversation
                                 names_w_player = the names of all NPCs in the conversation and the name of the player character
                                 game = the selected game
-                                bio = the NPC's background description
+                                bio = same as bios
                                 bios = the backgrounds of the NPCs
                                 bios_and_summaries = combined bios and summaries for all NPCs in the conversation. Each NPC's most recent private thoughts are appended at the end of that NPC's memory.
                                 trust = how well the NPC knows the player (eg "a stranger", "a friend")
@@ -124,6 +135,7 @@ class PromptDefinitions:
                                 time_group = the time of day in words (eg "in the morning", "at night")
                                 language = the selected language
                                 conversation_summary = reads the latest conversation summaries for the NPCs stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt. Each NPC's most recent private thoughts are appended at the end of that NPC's memory.
+                                conversation_summaries = same as conversation_summary
                                 player_name = the name of the player character
                                 player_description = a description of the player character (needs to be added in game or using the config value)
                                 player_equipment = a basic description of the equipment the player character carries
@@ -136,15 +148,19 @@ class PromptDefinitions:
                                 name = the NPC's name
                                 names = the names of all NPCs in the conversation
                                 game = the selected game
-                                bio = the backgrounds of the NPCs
+                                bio = same as bios
+                                bios = the backgrounds of the NPCs
+                                bios_and_summaries = combined bios and summaries for all NPCs in the conversation. Each NPC's most recent private thoughts are appended at the end of that NPC's memory.
                                 location = the current location
                                 weather = the current weather
                                 time = the time of day as a number (eg 1, 22)
                                 time_group = the time of day in words (eg "in the morning", "at night")
                                 language = the selected language
                                 conversation_summary = reads the latest conversation summaries for the NPCs stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt. Each NPC's most recent private thoughts are appended at the end of that NPC's memory.
+                                conversation_summaries = same as conversation_summary
                                 equipment = a basic description of the equipment the NPCs carry
-                                actions = instructions for the LLM to trigger actions"""
+                                actions = instructions for the LLM to trigger actions
+                                lorebook = lorebook entries matched from non-bio/non-summary prompt context and conversation history"""
         
     class PromptChecker(ConfigValueConstraint[str]):
         def __init__(self, allowed_prompt_variables: list[str]) -> None:
@@ -289,6 +305,100 @@ Content Guidelines:
         return ConfigValueString("skyrim_multi_npc_director_prompt","Skyrim Multi-NPC Director Prompt",PromptDefinitions.BASE_MULTI_PROMPT_DESCRIPTION,skyrim_multi_npc_director_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MULTI)])
 
     @staticmethod
+    def get_skyrim_game_master_prompt_config_value() -> ConfigValue:
+        description = """Game Master Mode only. The prompt sent to the Game Master LLM that decides who speaks next in a multi-NPC conversation.
+                        The instruction to answer with the next speaker is added automatically after the conversation.
+                        Supports the same variables as the multi-NPC prompt:""" + PromptDefinitions.BASE_MULTI_PROMPT_DESCRIPTION.split("{}:", 1)[1]
+        skyrim_game_master_prompt = """You are the game master of a group conversation in {location} in Skyrim between {names_w_player}. {player_name} is the player. {player_name} {player_description}
+                                    Here are the NPCs' backgrounds:
+                                    {bios}
+                                    And here are their conversation histories:
+                                    {conversation_summaries}
+                                    The time is {time} {time_group}.
+                                    {weather}
+                                    You do not write any dialogue. Your only job is to decide who speaks next: one of {names}, or {player_name}.
+                                    Hand the turn to {player_name} when:
+                                    - the last line asked {player_name} something or was addressed to them
+                                    - what {player_name} said has been answered
+                                    - another NPC line would only agree with or repeat what was already said
+                                    Pick an NPC when:
+                                    - that NPC was named, challenged or asked something by someone else
+                                    - that NPC has a strong in-character reason to react to what was just said
+                                    Do not pick the NPC who spoke last unless they were interrupted or asked something directly.
+                                    The conversation takes place in {language}."""
+        return ConfigValueString("skyrim_game_master_prompt","Skyrim Game Master Prompt",description,skyrim_game_master_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MULTI)])
+
+    @staticmethod
+    def get_skyrim_game_master_npc_prompt_config_value() -> ConfigValue:
+        description = """Game Master Mode only. The prompt sent to the LLM for the NPC the Game Master picked to speak next.
+                        The following are dynamic variables that need to be contained in curly brackets {}:
+                                name = the name of the NPC who is speaking
+                                names = same as name
+                                all_names_without_player = the names of all NPCs in the conversation, without the player
+                                names_w_player = the names of all NPCs in the conversation and the name of the player character
+                                game = the selected game
+                                bio = the speaking NPC's background description
+                                bios = same as bio
+                                bios_and_summaries = the speaking NPC's bio followed by their conversation summaries
+                                trust = how well the speaking NPC knows the player (eg "a stranger", "a friend")
+                                location = the current location
+                                weather = the current weather
+                                time = the time of day as a number (eg 1, 22)
+                                time_group = the time of day in words (eg "in the morning", "at night")
+                                language = the selected language
+                                conversation_summary = reads the latest conversation summaries for the speaking NPC stored in data/conversations/NPC_Name/NPC_Name_summary_X.txt
+                                conversation_summaries = same as conversation_summary
+                                private_thoughts = the speaking NPC's most recent private inner monologue thoughts as their own block (how many is set by Send Private Thoughts to LLM)
+                                player_name = the name of the player character
+                                player_description = a description of the player character (needs to be added in game or using the config value)
+                                player_equipment = a basic description of the equipment the player character carries
+                                equipment = a basic description of the equipment all NPCs in the conversation carry
+                                actions = instructions for the LLM how to trigger actions
+                                lorebook = lorebook entries matched from non-bio/non-summary prompt context and conversation history"""
+        skyrim_game_master_npc_prompt = """You are {name}, and you live in Skyrim. This is your background: {bio}
+                                    You are in a group conversation in {location} with {names_w_player}. {player_name} is the player, who is {trust}. {player_name} {player_description} {player_equipment} {equipment}
+                                    Each line in the conversation is labelled with the name of the person who said it. Other people's lines were said by them, not by you.
+                                    You only speak as {name}. Never write lines for anyone else, and do not start your reply with a name.
+                                    You only know what is in your own background and memories, and what was said or happened in front of you.
+                                    Sometimes in-game events will be passed within brackets. You cannot respond with brackets yourself, they only exist to give context.
+                                    This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
+                                    The time is {time} {time_group}.
+                                    {weather}
+                                    Remember to stay in character.
+                                    {actions}
+                                    The conversation takes place in {language}.
+                                    {conversation_summary}
+                                    {private_thoughts}"""
+        return ConfigValueString("skyrim_game_master_npc_prompt","Skyrim Game Master NPC Prompt",description,skyrim_game_master_npc_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_GAME_MASTER_NPC)])
+
+    GAME_MASTER_DECISION_DESCRIPTION = """Decision model only (Use Decision Model for Game Master). The answer options are added automatically, one per NPC plus the player when the player may speak.
+                        The Skyrim Game Master Prompt and the conversation are sent alongside as the scene."""
+
+    @staticmethod
+    def get_skyrim_game_master_decision_instructions_config_value() -> ConfigValue:
+        description = PromptDefinitions.GAME_MASTER_DECISION_DESCRIPTION + """
+                        The question the decision model answers.
+                        Supports {player_name} and {names} (the NPCs in the conversation)."""
+        instructions = "Who speaks next in this conversation? Follow the game master's rules in the scene."
+        return ConfigValueString("skyrim_game_master_decision_instructions","Skyrim Game Master Decision Instructions",description,instructions,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_INSTRUCTIONS)])
+
+    @staticmethod
+    def get_skyrim_game_master_decision_npc_criteria_config_value() -> ConfigValue:
+        description = PromptDefinitions.GAME_MASTER_DECISION_DESCRIPTION + """
+                        When to choose an NPC. Used once for each NPC in the conversation.
+                        Supports {name} (that NPC) and {player_name}."""
+        criteria = "{name} speaks next: {name} was named, challenged or asked something, or has a strong in-character reason to react to the last line. Not {name} if they spoke last, unless they were interrupted or asked something directly."
+        return ConfigValueString("skyrim_game_master_decision_npc_criteria","Skyrim Game Master Decision NPC Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA)])
+
+    @staticmethod
+    def get_skyrim_game_master_decision_player_criteria_config_value() -> ConfigValue:
+        description = PromptDefinitions.GAME_MASTER_DECISION_DESCRIPTION + """
+                        When to hand the turn to the player.
+                        Supports {player_name}."""
+        criteria = "{player_name} gets the turn: the last line asked {player_name} something or was addressed to them, what {player_name} said has been answered, or another NPC line would only agree with or repeat what was already said."
+        return ConfigValueString("skyrim_game_master_decision_player_criteria","Skyrim Game Master Decision Player Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA)])
+
+    @staticmethod
     def get_skyrim_radiant_prompt_config_value() -> ConfigValue:
         skyrim_radiant_prompt = """The following is a conversation in {location} in Skyrim between {names}.
                                     Here are their backgrounds: 
@@ -350,10 +460,11 @@ Content Guidelines:
                                                bios = the background information/bios of the characters involved
                                                names = the NPC's name(s) (same as name)
                                                conversation_summaries = previous conversation summaries for context
-                                               name = the NPC's name
+                                               name = same as names
                                                language = the selected language
                                                game = the game selected
-                                               player_name = the name of the player character""" 
+                                               player_name = the name of the player character
+                                               lorebook = lorebook entries matched from non-bio/non-summary prompt context and conversation history""" 
         memory_prompt = """You are tasked with summarizing the conversation between {name} (the assistant) and the player (the user) / other characters. Here are their backgrounds: 
                                             {bios} 
                                             And here are their conversation histories: {conversation_summaries}
@@ -517,7 +628,8 @@ Content Guidelines:
     
     @staticmethod
     def get_vision_prompt_config_value() -> ConfigValue:
-        vision_prompt_description = """The prompt passed to the vision-capable LLM when `Custom Vision Model` is enabled."""
+        vision_prompt_description = """The prompt passed to the vision-capable LLM when `Custom Vision Model` is enabled.
+                                    Supports {game} = the selected game."""
         vision_prompt = """This image is to give context and is from the player's point of view in the game of {game}. 
                             Describe the details visible inside it without mentioning the game. Refer to it as a scene instead of an image."""
         return ConfigValueString("vision_prompt","Vision Prompt",vision_prompt_description,vision_prompt)
@@ -554,7 +666,8 @@ Content Guidelines:
 
     def get_radiant_start_prompt_config_value() -> ConfigValue:
         radiant_start_prompt_description = """Once a radiant conversation has started and the radiant prompt has been passed to the LLM, the below text is passed in replace of the player response.
-                                        This prompt is used to steer the radiant conversation.""" 
+                                        This prompt is used to steer the radiant conversation.
+                                        Variables are not supported.""" 
         radiant_start_prompt = """Please begin / continue a conversation topic (greetings are not needed). Ensure to change the topic if the current one is losing steam. 
                             The conversation should steer towards topics which reveal information about the characters and who they are, or instead drive forward previous conversations in their memory."""
         return ConfigValueString("radiant_start_prompt","Radiant Start Prompt",radiant_start_prompt_description,radiant_start_prompt,[PromptDefinitions.PromptChecker([])])
@@ -562,7 +675,8 @@ Content Guidelines:
     @staticmethod
     def get_radiant_end_prompt_config_value() -> ConfigValue:
         radiant_end_prompt_description = """The final prompt sent to the LLM before ending a radiant conversation.
-                                            This prompt is used to guide the LLM to end the conversation naturally.""" 
+                                            This prompt is used to guide the LLM to end the conversation naturally.
+                                            Variables are not supported.""" 
         radiant_end_prompt = """Please wrap up the current topic between the NPCs in a natural way. Nobody is leaving, so there is no need for formal goodbyes."""
         return ConfigValueString("radiant_end_prompt","Radiant End Prompt",radiant_end_prompt_description,radiant_end_prompt,[PromptDefinitions.PromptChecker([])])
 
@@ -577,6 +691,11 @@ Content Guidelines:
             ("skyrim_prompt", "Skyrim Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES),
             ("skyrim_multi_npc_prompt", "Skyrim Multi-NPC Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MULTI),
             ("skyrim_multi_npc_director_prompt", "Skyrim Multi-NPC Director Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MULTI),
+            ("skyrim_game_master_prompt", "Skyrim Game Master Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MULTI),
+            ("skyrim_game_master_npc_prompt", "Skyrim Game Master NPC Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_GAME_MASTER_NPC),
+            ("skyrim_game_master_decision_instructions", "Skyrim Game Master Decision Instructions", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_INSTRUCTIONS),
+            ("skyrim_game_master_decision_npc_criteria", "Skyrim Game Master Decision NPC Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA),
+            ("skyrim_game_master_decision_player_criteria", "Skyrim Game Master Decision Player Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA),
             ("skyrim_radiant_prompt", "Skyrim Radiant Conversation Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_RADIANT),
             ("memory_prompt", "Memory Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MEMORY),
             ("inner_monologue_prompt", "Inner Monologue Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_INNER_MONOLOGUE),
@@ -588,6 +707,15 @@ Content Guidelines:
             ("decensor_handshake_prompt", "Decensor Handshake Prompt", []),
             ("decensor_assistant_prompt", "Decensor Assistant Prompt", []),
         ]
+
+    @staticmethod
+    def get_name_variables_note(prompt_type: str) -> str:
+        """Explains the name variables of the Game Master NPC prompt, where {names} is only the NPC who is speaking. Empty for other prompt types"""
+        if prompt_type == "skyrim_game_master_npc_prompt":
+            return ("- `{name}`, `{names}`: the name of the NPC who is speaking\n"
+                    "- `{all_names_without_player}`: the names of all NPCs in the conversation, without the player\n"
+                    "- `{names_w_player}`: the names of all NPCs in the conversation and the player")
+        return ""
 
     @staticmethod
     def get_allowed_variables_for_prompt_type(prompt_type: str) -> list[str] | None:

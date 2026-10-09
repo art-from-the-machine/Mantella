@@ -94,6 +94,14 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 "dependent_config": "multi_npc_llm_api",
                 "model_list_getter": ClientBase.get_model_list,
             },
+            "game_master_model": {
+                "dependent_config": "game_master_llm_api",
+                "model_list_getter": ClientBase.get_model_list,
+            },
+            "game_master_decision_model": {
+                "dependent_config": "game_master_decision_service",
+                "model_list_getter": ClientBase.get_decision_model_list,
+            },
             "summary_model": {
                 "dependent_config": "summary_llm_api",
                 "model_list_getter": ClientBase.get_model_list,
@@ -1471,6 +1479,14 @@ class SettingsUIConstructor(ConfigValueVisitor):
             "multi_npc_model": {
                 "dependent_config": "multi_npc_llm_api",
                 "model_list_getter": ClientBase.get_model_list,
+            },
+            "game_master_model": {
+                "dependent_config": "game_master_llm_api",
+                "model_list_getter": ClientBase.get_model_list,
+            },
+            "game_master_decision_model": {
+                "dependent_config": "game_master_decision_service",
+                "model_list_getter": ClientBase.get_decision_model_list,
             },
             "summary_model": {
                 "dependent_config": "summary_llm_api",

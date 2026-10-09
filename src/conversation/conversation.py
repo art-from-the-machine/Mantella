@@ -19,7 +19,8 @@ from src.output_manager import ChatManager
 from src.llm.messages import AssistantMessage, join_message, leave_message, SystemMessage, UserMessage
 from src.conversation.context import add_or_update_result, context as Context
 from src.llm.message_thread import message_thread
-from src.conversation.conversation_type import conversation_type, multi_npc, pc_to_npc, radiant
+from src.conversation.conversation_type import conversation_type, multi_npc, multi_npc_game_master, pc_to_npc, radiant
+from src.conversation.game_master import GameMasterTurns
 from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
@@ -68,6 +69,7 @@ class Conversation:
         # regenerating one mid-conversation does not feed earlier attempts back in.
         self.__conversation_start_ts: int = int(time.time())
         self.__end_conversation_keywords = utils.parse_keywords(context_for_conversation.config.end_conversation_keyword)
+        self.__game_master_turns: GameMasterTurns = GameMasterTurns(self.__context, self.__sentences)
 
     def update_summary_client(self, summary_client: ClientBase | None, fallback_client: LLMClient, thoughts_client: ClientBase | None, reflection_client: ClientBase | None) -> None:
         """Update the summary, thoughts and reflection LLM clients on the active rememberer, if it supports it."""
@@ -108,6 +110,10 @@ class Conversation:
             bool: True if hot-swap was successful, False otherwise
         """
         try:
+            # Replies generated ahead would keep using the old chat manager. The player gets the turn after the reply being played
+            if isinstance(self.__conversation_type, multi_npc_game_master) and self.__game_master_turns.drop_lookahead():
+                self.__output_manager.stop_generation()
+
             # Update basic components
             self.__output_manager = chat_manager
             self.__rememberer = rememberer
@@ -131,7 +137,7 @@ class Conversation:
             if not self.__context.npcs_in_conversation.contains_player_character():
                 self.__conversation_type = radiant(config)
             elif self.__context.npcs_in_conversation.active_character_count() >= 3:
-                self.__conversation_type = multi_npc(config)
+                self.__conversation_type = self.__create_multi_npc_type(config)
             else:
                 self.__conversation_type = pc_to_npc(config)
                 
@@ -222,6 +228,7 @@ class Conversation:
 
         # interrupt response if player has spoken
         if self.__stt and self.__stt.has_player_spoken:
+            self.__cancel_game_master_turn()
             self.__stop_generation()
             self.__sentences.clear()
             self.__is_player_interrupting = True
@@ -246,6 +253,7 @@ class Conversation:
             # before immediately sending the next voiceline, give the player the chance to interrupt
             while time.time() - self.last_sentence_start_time < self.last_sentence_audio_length:
                 if self.__stt and self.__stt.has_player_spoken:
+                    self.__cancel_game_master_turn()
                     self.__stop_generation()
                     self.__sentences.clear()
                     self.__is_player_interrupting = True
@@ -259,6 +267,16 @@ class Conversation:
             if self.__conversation_type.should_end(self.__context, self.__messages):
                 self.initiate_end_sequence()
                 return comm_consts.KEY_REPLYTYPE_NPCTALK, None
+            elif isinstance(self.__conversation_type, multi_npc_game_master):
+                # The next reply is generated while the last one is played, so it is usually ready by now
+                has_player_spoken = lambda: bool(self.__stt and self.__stt.has_player_spoken)
+                has_next_reply = self.__game_master_turns.play_next_reply(self.__context.config.llm_response_timeout, has_player_spoken)
+                if has_player_spoken():
+                    # The next continue request handles the interruption
+                    return comm_consts.KEY_REPLYTYPE_NPCTALK, None
+                if has_next_reply:
+                    return comm_consts.KEY_REPLYTYPE_NPCTALK, None
+                return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
             else:
                 #If not ended, ask the conversation type for an automatic user message. If there is None, signal the game that the player must provide it 
                 new_user_message = self.__conversation_type.get_user_message(self.__context, self.__messages)
@@ -286,6 +304,8 @@ class Conversation:
         events_need_updating: bool = False
 
         with self.__generation_start_lock: #This lock makes sure no new generation by the LLM is started while we clear this
+            self.__cancel_game_master_turn() # Before stopping, so a running Game Master turn sees it was discarded
+            self.__game_master_turns.on_player_input()
             self.__stop_generation() # Stop generation of additional sentences right now
             self.__sentences.clear() # Clear any remaining sentences from the list
 
@@ -402,13 +422,14 @@ class Conversation:
         """
         # If the conversation can proceed for the first time, it starts and we add the system_message with the prompt
         if not self.__has_already_ended:
+            self.__cancel_game_master_turn()
             self.__stop_generation()
             self.__sentences.clear()
             
             if not self.__context.npcs_in_conversation.contains_player_character():
                 self.__conversation_type = radiant(self.__context.config)
             elif self.__context.npcs_in_conversation.active_character_count() >= 3:
-                self.__conversation_type = multi_npc(self.__context.config)
+                self.__conversation_type = self.__create_multi_npc_type(self.__context.config)
             else:
                 self.__conversation_type = pc_to_npc(self.__context.config)
 
@@ -485,6 +506,7 @@ class Conversation:
             if not isinstance(last_message, AssistantMessage):
                 last_message = AssistantMessage(self.__context.config)
                 last_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
+                last_message.thoughts_in_place = isinstance(self.__conversation_type, multi_npc_game_master)
                 self.__messages.add_message(last_message)
             last_message.add_sentence(next_sentence)
         return next_sentence
@@ -495,6 +517,7 @@ class Conversation:
         """
         if not self.__has_already_ended:
             config = self.__context.config            
+            self.__cancel_game_master_turn()
             self.__stop_generation()
             self.__sentences.clear()
             if self.__stt:
@@ -527,13 +550,31 @@ class Conversation:
         """Ends a conversation
         """
         self.__has_already_ended = True
+        self.__cancel_game_master_turn()
         self.__stop_generation()
         self.__sentences.clear()
         self.__save_summary()
     
+    def __cancel_game_master_turn(self):
+        """Game Master Mode only. Throws away the running NPC turn, so nothing more is generated for it"""
+        if isinstance(self.__conversation_type, multi_npc_game_master):
+            self.__game_master_turns.cancel()
+
+    def __create_multi_npc_type(self, config: ConfigLoader) -> multi_npc:
+        """Game Master Mode when it is enabled and its LLM client exists, otherwise the regular multi-NPC conversation"""
+        if multi_npc_game_master.is_enabled(config) and self.__output_manager.game_master_client:
+            return multi_npc_game_master(config)
+        return multi_npc(config)
+
     @utils.time_it
     def __start_generating_npc_sentences(self):
-        """Starts a background Thread to generate sentences into the SentenceQueue"""    
+        """Starts a background Thread to generate sentences into the SentenceQueue"""
+        if isinstance(self.__conversation_type, multi_npc_game_master):
+            with self.__generation_start_lock:
+                turn_id = self.__game_master_turns.start_turn()
+                self.__sentences.is_more_to_come = True
+                Thread(None, self.__game_master_turns.run_turn, None, [turn_id, self.__conversation_type, self.__output_manager, self.__messages]).start()
+            return
         with self.__generation_start_lock:
             if not self.__generation_thread:
                 # Refresh the system prompt each request so `{lorebook}` can react
@@ -686,6 +727,9 @@ class Conversation:
                 character_resolver=resolve,
             )
             self.__messages.replace_persistent_messages(new_messages)
+            # Replies generated ahead were built from the old history. The player gets the turn after the reply being played
+            if isinstance(self.__conversation_type, multi_npc_game_master) and self.__game_master_turns.drop_lookahead():
+                self.__output_manager.stop_generation()
             return True
         except Exception as e:
             logging.error(f"apply_conversation_from_json failed: {e}", exc_info=True)
@@ -700,6 +744,7 @@ class Conversation:
         generation and clears the sentence queue. Returns True if a round was removed.
         """
         with self.__generation_start_lock:
+            self.__cancel_game_master_turn()
             self.__stop_generation()
             self.__sentences.clear()
 
@@ -723,6 +768,7 @@ class Conversation:
         anything after the last player UserMessage was removed.
         """
         with self.__generation_start_lock:
+            self.__cancel_game_master_turn()
             self.__stop_generation()
             self.__sentences.clear()
 
@@ -746,6 +792,7 @@ class Conversation:
         the last message was a player turn and was removed.
         """
         with self.__generation_start_lock:
+            self.__cancel_game_master_turn()
             self.__stop_generation()
             self.__sentences.clear()
 

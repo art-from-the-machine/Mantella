@@ -8,8 +8,9 @@ from src.llm.sentence_content import SentenceContent, SentenceTypeEnum
 
 class change_character_parser(output_parser):
     """Class to check if character change is in the current output of the LLM."""
-    def __init__(self, characters_in_conversation: Characters) -> None:
+    def __init__(self, characters_in_conversation: Characters, locked_speaker: Character | None = None) -> None:
         super().__init__()
+        self.__locked_speaker: Character | None = locked_speaker #If set, a switch to any other character stops generation
         self.__dict_name_permutations: OrderedDict[str, Character] = OrderedDict() #Dictionary to hold permutations of the name for easy checks. e.g. "Svana Far-Shield" -> ["Svana Far-Shield", "Svana", "Far-Shield"]
         for actor in characters_in_conversation.get_all_characters():
             if actor.is_player_character:
@@ -45,6 +46,10 @@ class change_character_parser(output_parser):
                 else: #New sentence starts with character change
                     if character.is_player_character:
                         logging.log(28, f"Stopped LLM from speaking on behalf of the player")
+                        current_settings.stop_generation = True
+                        return None, ""
+                    if self.__locked_speaker and character != self.__locked_speaker:
+                        logging.log(28, f"Stopped LLM from speaking on behalf of {character.name}")
                         current_settings.stop_generation = True
                         return None, ""
                     current_settings.current_speaker = character

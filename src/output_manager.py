@@ -53,6 +53,7 @@ class ChatManager:
         self.__tts: TTSable = tts
         self.__client: AIClient = client
         self.__multi_npc_client: AIClient | None = multi_npc_client
+        self.__game_master_client: AIClient | None = None
         self.__api_file: str = api_file  # Store API file path for secret key resolution
         self.__is_generating: bool = False
         self.__stop_generation = asyncio.Event()
@@ -80,6 +81,14 @@ class ChatManager:
         # If the multi-NPC client has a vision client, preserve it
         if multi_npc_client and getattr(multi_npc_client, '_image_client', None) and not self.__vision_client:
             self.__vision_client = multi_npc_client._image_client
+
+    def update_game_master_client(self, game_master_client: AIClient | None):
+        """Update the client that decides who speaks next in multi-NPC Game Master Mode"""
+        self.__game_master_client = game_master_client
+
+    @property
+    def game_master_client(self) -> AIClient | None:
+        return self.__game_master_client
 
     def update_primary_client(self, primary_client: AIClient):
         """Update the primary client for conversations (used for random LLM selection)"""
@@ -513,7 +522,7 @@ class ChatManager:
                 break
         return pending_sentence, parsed_sentence, False
 
-    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action]):
+    def generate_response(self, messages: message_thread, characters: Characters, blocking_queue: SentenceQueue, actions: list[Action], single_speaker: Character | None = None):
         """Starts generating responses by the LLM for the current state of the input messages
 
         Args:
@@ -521,12 +530,13 @@ class ChatManager:
             characters (Characters): _description_
             blocking_queue (SentenceQueue): _description_
             actions (list[Action]): _description_
+            single_speaker (Character | None): If set, only this character speaks. Generation stops when the LLM switches to another character.
         """
         if(not characters.last_added_character):
             return
         self.__is_generating = True
         
-        asyncio.run(self.process_response(characters.last_added_character, blocking_queue, messages, characters, actions))
+        asyncio.run(self.process_response(single_speaker or characters.last_added_character, blocking_queue, messages, characters, actions, single_speaker is not None))
     
     @utils.time_it
     def stop_generation(self):
@@ -539,7 +549,7 @@ class ChatManager:
         return
  
     @utils.time_it
-    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action]):
+    async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], lock_speaker: bool = False):
         """Stream response from LLM one sentence at a time"""
 
         raw_response: str = ''  # Track the raw response
@@ -548,15 +558,15 @@ class ChatManager:
         pending_sentence: SentenceContent | None = None
         self.__is_first_sentence = True
         is_multi_npc = characters.contains_multiple_npcs()
-        max_response_sentences = self.__config.max_response_sentences_single if not is_multi_npc else self.__config.max_response_sentences_multi
+        max_response_sentences = self.__config.max_response_sentences_single if (not is_multi_npc or lock_speaker) else self.__config.max_response_sentences_multi
         drop_last_count = 0 if is_multi_npc else self.__config.drop_last_sentences_single
         drop_buffer = drop_last_sentences_buffer(drop_last_count)
         max_retries = 5
         retries = 0
 
         parser_chain: list[output_parser] = [
-            thought_parser(characters.get_all_characters()),
-            change_character_parser(characters)]
+            thought_parser([active_character] if lock_speaker else characters.get_all_characters()),
+            change_character_parser(characters, active_character if lock_speaker else None)]
         if self.__config.narration_handling != NarrationHandlingEnum.DEACTIVATE_HANDLING_OF_NARRATIONS:
             parser_chain.append(narration_parser(self.__config.narration_start_indicators, self.__config.narration_end_indicators, 
                                                  self.__config.speech_start_indicators, self.__config.speech_end_indicators))

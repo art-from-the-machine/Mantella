@@ -417,7 +417,7 @@ class context:
         return trust
     
     @utils.time_it
-    def __get_trusts(self) -> str:
+    def __get_trusts(self, characters: Characters | None = None) -> str:
         """Calculates the trust towards the player for all NPCs in the conversation
 
         Args:
@@ -430,7 +430,7 @@ class context:
         #     return ""
         
         relationships = []
-        for npc in self.get_characters_excluding_player().get_all_characters():
+        for npc in (characters or self.get_characters_excluding_player()).get_all_characters():
             trust = self.__get_trust(npc)
             relationships.append(f"{trust} to {npc.name}")
         
@@ -484,14 +484,14 @@ class context:
         return reflection
 
     @utils.time_it
-    def __get_bios_text(self) -> str:
+    def __get_bios_text(self, characters: Characters | None = None) -> str:
         """Gets the bios of all characters in the conversation
 
         Returns:
             str: the bios concatenated together into a single string
         """
         bio_descriptions = []
-        for character in self.get_characters_excluding_player().get_all_characters():
+        for character in (characters or self.get_characters_excluding_player()).get_all_characters():
             resolved_bio = self._resolve_bio_player_name(character.bio)
             resolved_bio = self._filter_bio_sections_for_prompt(resolved_bio, character.name)
             resolved_bio = self._append_reflection_to_bio(resolved_bio, character)
@@ -504,14 +504,14 @@ class context:
         return "\n\n==========\n\n".join(bio_descriptions)
     
     @utils.time_it
-    def __get_bios_and_summaries_text(self, include_memories: bool = True) -> str:
+    def __get_bios_and_summaries_text(self, include_memories: bool = True, characters: Characters | None = None) -> str:
         """Gets the bios and summaries combined for each character in the conversation
 
         Returns:
             str: the bios and summaries paired together for each character
         """
         character_sections = []
-        non_player_characters = self.get_characters_excluding_player().get_all_characters()
+        non_player_characters = (characters or self.get_characters_excluding_player()).get_all_characters()
         wrap_thought = None
         if include_memories and len(non_player_characters) > 1:
             from src.remember.inner_monologue import wrap_private_thought
@@ -661,7 +661,7 @@ class context:
             raise PromptSectionError("unmatched brace")
 
     @utils.time_it
-    def generate_system_message(self, prompt: str, actions_for_prompt: list[Action], should_log: bool = False, messages_for_lorebook = None, prompt_type: str | None = None) -> str:
+    def generate_system_message(self, prompt: str, actions_for_prompt: list[Action], should_log: bool = False, messages_for_lorebook = None, prompt_type: str | None = None, focus_character: Character | None = None) -> str:
         """Fills the variables in the prompt with the values calculated from the context
 
         Args:
@@ -669,6 +669,8 @@ class context:
             actions_for_prompt (list[Action]): The list of actions to include in the prompt
             should_log (bool): Whether to log the generated prompt. Defaults to False.
                 The filled-in prompt is also logged after the active prompt profile changes.
+            focus_character (Character | None): If set, name, names, bios, trust, summaries and private thoughts only cover this NPC.
+                all_names_without_player, names_w_player and equipment still cover everyone in the conversation.
 
         Returns:
             str: the filled prompt
@@ -686,12 +688,18 @@ class context:
         name = ""
         if self.npcs_in_conversation.last_added_character:
             name = self.npcs_in_conversation.last_added_character.name
-        names = self.get_character_names_as_text(False)
+        prompt_characters = self.get_characters_excluding_player()
+        if focus_character:
+            name = focus_character.name
+            prompt_characters = Characters()
+            prompt_characters.add_or_update_character(focus_character)
+        all_names_without_player = self.get_character_names_as_text(False)
+        names = focus_character.name if focus_character else all_names_without_player
         names_w_player = self.get_character_names_as_text(True)
-        bios = self.__get_bios_text()
+        bios = self.__get_bios_text(prompt_characters)
         include_memories = not self.__config.multi_npc_bios_only
-        bios_and_summaries = self.__get_bios_and_summaries_text(include_memories=include_memories)
-        trusts = self.__get_trusts()
+        bios_and_summaries = self.__get_bios_and_summaries_text(include_memories=include_memories, characters=prompt_characters)
+        trusts = self.__get_trusts(prompt_characters)
         equipment = self.__get_npc_equipment_text()
         location = self.__location
         self.__prev_location = location
@@ -704,13 +712,13 @@ class context:
             self.__prev_game_time = None, time_group
         conversation_summaries = ""
         private_thoughts = ""
-        is_single_npc = len(self.get_characters_excluding_player()) == 1
+        is_single_npc = len(prompt_characters) == 1
         if include_memories:
-            conversation_summaries = self.__rememberer.get_prompt_text(self.get_characters_excluding_player(), self.__world_id)
+            conversation_summaries = self.__rememberer.get_prompt_text(prompt_characters, self.__world_id)
             if conversation_summaries:
                 conversation_summaries = self._resolve_bio_player_name(conversation_summaries)
             if is_single_npc:
-                private_thoughts = self.__rememberer.get_private_thoughts_text(self.get_characters_excluding_player(), self.__world_id)
+                private_thoughts = self.__rememberer.get_private_thoughts_text(prompt_characters, self.__world_id)
                 if private_thoughts:
                     private_thoughts = self._resolve_bio_player_name(private_thoughts)
         actions = self.__get_action_texts(actions_for_prompt)
@@ -720,6 +728,7 @@ class context:
             "player_equipment": player_equipment,
             "name": name,
             "names": names,
+            "all_names_without_player": all_names_without_player,
             "names_w_player": names_w_player,
             "bio": bios,
             "bios": bios,
@@ -761,6 +770,7 @@ class context:
                 game=game_name,
                 name=name,
                 names=names,
+                all_names_without_player=all_names_without_player,
                 names_w_player = names_w_player,
                 bio=content[0],
                 bios=content[0], 

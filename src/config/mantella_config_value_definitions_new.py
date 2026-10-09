@@ -136,6 +136,11 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_model_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_api_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_model_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_game_master_llm_api_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_game_master_model_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_game_master_use_decision_model_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_game_master_decision_service_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_game_master_decision_model_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_model_config_value())
         memory_tasks = [("thoughts", "Private Thoughts"), ("reflection", "Personal Reflection")]
@@ -152,6 +157,7 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_drop_last_sentences_single_config_value())
         llm_category.add_config_value(LLMDefinitions.get_llm_params_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_params_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_game_master_llm_params_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_params_config_value())
         for key, label in memory_tasks:
             llm_category.add_config_value(LLMDefinitions.get_memory_task_llm_params_config_value(key, label))
@@ -167,6 +173,8 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(OtherDefinitions.get_personal_reflection_load_mode_config_value())
         
         llm_category.add_config_value(LLMDefinitions.get_multi_conversation_director_mode_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_mode_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_max_npc_turns_config_value())
         
                
         
@@ -201,6 +209,7 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_wait_time_buffer_config_value())
         llm_category.add_config_value(LLMDefinitions.get_custom_token_count_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_custom_token_count_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_game_master_custom_token_count_config_value())
         
         
         # Summary LLM Configuration
@@ -294,6 +303,11 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_multi_npc_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_multi_npc_director_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_game_master_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_game_master_npc_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_game_master_decision_instructions_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_game_master_decision_npc_criteria_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_game_master_decision_player_criteria_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_radiant_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_multi_npc_prompt_config_value())
@@ -358,6 +372,7 @@ class MantellaConfigValueDefinitionsNew:
         model_profiles_category.add_config_value(ModelProfileDefinitions.get_profile_parameters_config_value())
         model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_one_on_one_config_value())
         model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_multi_npc_config_value())
+        model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_game_master_config_value())
         model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_summaries_config_value())
         for key, label in memory_tasks:
             model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_memory_task_config_value(key, label))

@@ -419,6 +419,23 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
 Multi-NPC LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
                 self.multi_npc_llm_params = None
 
+            # Game Master LLM Configuration (multi-NPC Game Master Mode)
+            self.apply_profile_game_master = self.__definitions.get_bool_value("apply_profile_game_master")
+            self.game_master_llm_api = self.__definitions.get_string_value("game_master_llm_api")
+            self.game_master_llm = self.__definitions.get_string_value("game_master_model")
+            self.game_master_llm = self.game_master_llm.split(' |')[0] if ' |' in self.game_master_llm else self.game_master_llm
+            self.game_master_custom_token_count = self.__definitions.get_int_value("game_master_custom_token_count")
+            try:
+                self.game_master_llm_params: dict[str, Any] | None = json.loads(self.__definitions.get_string_value("game_master_llm_params").replace('\n', ''))
+            except Exception as e:
+                logging.error(f"""Error in parsing Game Master LLM parameter list: {e}
+Game Master LLM parameter list must follow the Python dictionary format: https://www.w3schools.com/python/python_dictionaries.asp""")
+                self.game_master_llm_params = None
+            self.game_master_use_decision_model = self.__definitions.get_bool_value("game_master_use_decision_model")
+            self.game_master_decision_service = self.__definitions.get_string_value("game_master_decision_service")
+            self.game_master_decision_model = self.__definitions.get_string_value("game_master_decision_model")
+            self.game_master_decision_model = self.game_master_decision_model.split(' |')[0] if ' |' in self.game_master_decision_model else self.game_master_decision_model
+
             # Multi-NPC prompt content toggles
             self.multi_npc_bios_only = self.__definitions.get_bool_value("multi_npc_bios_only")
             self.enable_decensor_bypass = self.__definitions.get_bool_value("enable_decensor_bypass")
@@ -511,6 +528,8 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
             self.__apply_prompt_values()
 
             self.multi_conversation_director_mode = self.__definitions.get_bool_value("multi_conversation_director_mode")
+            self.multi_npc_game_master_mode = self.__definitions.get_bool_value("multi_npc_game_master_mode")
+            self.multi_npc_game_master_max_npc_turns = self.__definitions.get_int_value("multi_npc_game_master_max_npc_turns")
 
             # Vision
             self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')
@@ -554,6 +573,11 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.prompt = self.__overlay_prompt("skyrim_prompt", self.__definitions.get_string_value("skyrim_prompt"))
             self.multi_npc_prompt = self.__overlay_prompt("skyrim_multi_npc_prompt", self.__definitions.get_string_value("skyrim_multi_npc_prompt"))
             self.multi_npc_director_prompt = self.__overlay_prompt("skyrim_multi_npc_director_prompt", self.__definitions.get_string_value("skyrim_multi_npc_director_prompt"))
+            self.game_master_prompt = self.__overlay_prompt("skyrim_game_master_prompt", self.__definitions.get_string_value("skyrim_game_master_prompt"))
+            self.game_master_npc_prompt = self.__overlay_prompt("skyrim_game_master_npc_prompt", self.__definitions.get_string_value("skyrim_game_master_npc_prompt"))
+            self.game_master_decision_instructions = self.__overlay_prompt("skyrim_game_master_decision_instructions", self.__definitions.get_string_value("skyrim_game_master_decision_instructions"))
+            self.game_master_decision_npc_criteria = self.__overlay_prompt("skyrim_game_master_decision_npc_criteria", self.__definitions.get_string_value("skyrim_game_master_decision_npc_criteria"))
+            self.game_master_decision_player_criteria = self.__overlay_prompt("skyrim_game_master_decision_player_criteria", self.__definitions.get_string_value("skyrim_game_master_decision_player_criteria"))
             self.radiant_prompt = self.__overlay_prompt("skyrim_radiant_prompt", self.__definitions.get_string_value("skyrim_radiant_prompt"))
 
         self.radiant_start_prompt = self.__overlay_prompt("radiant_start_prompt", self.__definitions.get_string_value("radiant_start_prompt"))
