@@ -78,9 +78,9 @@ class OtherDefinitions:
     
     @staticmethod
     def get_advanced_logs_config_value() -> ConfigValue:
-        description = """Save advanced logs to Mantella's My Games/Mantella/logging.log file.
+        description = """Show the full LLM requests and responses in Mantella.exe's log, and save advanced logs to Mantella's My Games/Mantella/logging.log file.
                         Useful for troubleshooting issues."""
-        return ConfigValueBool("advanced_logs", "Advanced Logs", description, False, tags=[ConfigValueTag.advanced])
+        return ConfigValueBool("advanced_logs", "Debug Mode", description, False, tags=[ConfigValueTag.advanced])
     
     #Debugging
     @staticmethod

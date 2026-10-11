@@ -36,6 +36,7 @@ class conversation_continue_type(Enum):
 class Conversation:
     TOKEN_LIMIT_PERCENT: float = 0.9
     TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
+    DIRECTOR_CONTINUE_TEXT: str = "The scene continues."
     """Controls the flow of a conversation."""
     def __init__(self, context_for_conversation: Context, output_manager: ChatManager, rememberer: Remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool) -> None:
         
@@ -112,9 +113,10 @@ class Conversation:
             bool: True if hot-swap was successful, False otherwise
         """
         try:
-            # Replies generated ahead would keep using the old chat manager. The player gets the turn after the reply being played
-            if isinstance(self.__conversation_type, multi_npc_game_master) and self.__game_master_turns.drop_lookahead():
-                self.__output_manager.stop_generation()
+            # A running Game Master turn reads the chat manager and conversation type again for each request,
+            # so the reply generated ahead is still played and the requests after it use the new settings
+            was_game_master = isinstance(self.__conversation_type, multi_npc_game_master)
+            self.__game_master_turns.log_prompts_again() # The new settings can change the prompts
 
             # Update basic components
             self.__output_manager = chat_manager
@@ -142,7 +144,10 @@ class Conversation:
                 self.__conversation_type = self.__create_multi_npc_type(config)
             else:
                 self.__conversation_type = pc_to_npc(config)
-                
+            # Game Master Mode was turned off: the reply generated ahead would never be played. The player gets the turn after the reply being played
+            if was_game_master and not isinstance(self.__conversation_type, multi_npc_game_master) and self.__game_master_turns.drop_lookahead():
+                self.__stop_generation()
+
             # Regenerate system message with new prompt from updated conversation type
             if self.__messages and len(self.__messages) > 0:
                 try:
@@ -340,12 +345,23 @@ class Conversation:
                 self.__stt.stop_listening()
             
             self.__is_interrupt_requested = False # Pressing the interrupt hotkey during the player's turn has nothing to interrupt
-            new_message: UserMessage = UserMessage(self.__context.config, player_text, player_character.name, False)
+            is_director = self.__conversation_type.is_director_mode()
+            # Director mode: "." lets the NPCs keep talking without a new scene direction
+            is_continue = is_director and player_text.strip() == "."
+            new_message: UserMessage = UserMessage(self.__context.config, "" if is_continue else player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
+            new_message.is_director_message = is_director
             new_message = self.update_game_events(new_message)
-            self.__messages.add_message(new_message)
-            player_voiceline = self.__get_player_voiceline(player_character, player_text)
-            text = new_message.text
+            if not is_continue or new_message.count_ingame_events() > 0:
+                self.__messages.add_message(new_message)
+            elif not isinstance(self.__conversation_type, multi_npc_game_master):
+                # The LLM needs a new message to reply to. Flagged as system generated, so summaries leave it out.
+                # Game Master Mode needs none: each NPC request adds its own
+                new_message.text = self.DIRECTOR_CONTINUE_TEXT
+                new_message.is_system_generated_message = True
+                self.__messages.add_message(new_message)
+            player_voiceline = None if is_director else self.__get_player_voiceline(player_character, player_text)
+            text = "" if is_continue else new_message.text
             logging.log(23, f"Text passed to NPC: {text}")
 
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
@@ -487,7 +503,8 @@ class Conversation:
 
         all_ingame_events = self.__context.get_context_ingame_events()
         if self.__is_player_interrupting:
-            all_ingame_events.append('Interrupting...')
+            if not self.__conversation_type.is_director_mode(): # Director mode: the player is not in the scene, so there is nobody interrupting
+                all_ingame_events.append('Interrupting...')
             self.__is_player_interrupting = False
         max_events = min(len(all_ingame_events) ,self.__context.config.max_count_events)
         message.add_event(all_ingame_events[-max_events:])
@@ -606,7 +623,7 @@ class Conversation:
             with self.__generation_start_lock:
                 turn_id = self.__game_master_turns.start_turn()
                 self.__sentences.is_more_to_come = True
-                Thread(None, self.__game_master_turns.run_turn, None, [turn_id, self.__conversation_type, self.__output_manager, self.__messages]).start()
+                Thread(None, self.__game_master_turns.run_turn, None, [turn_id, lambda: self.__conversation_type, lambda: self.__output_manager, self.__messages]).start()
             return
         with self.__generation_start_lock:
             if not self.__generation_thread:
@@ -637,6 +654,7 @@ class Conversation:
         """Stops the current generation of sentences if there is one
         """
         self.__output_manager.stop_generation()
+        self.__game_master_turns.stop_generation()
         while self.__generation_thread and self.__generation_thread.is_alive():
             time.sleep(0.1)
         self.__generation_thread = None
@@ -762,7 +780,7 @@ class Conversation:
             self.__messages.replace_persistent_messages(new_messages)
             # Replies generated ahead were built from the old history. The player gets the turn after the reply being played
             if isinstance(self.__conversation_type, multi_npc_game_master) and self.__game_master_turns.drop_lookahead():
-                self.__output_manager.stop_generation()
+                self.__stop_generation() # The reply generated ahead may be on the chat manager from before a settings change
             return True
         except Exception as e:
             logging.error(f"apply_conversation_from_json failed: {e}", exc_info=True)

@@ -65,6 +65,10 @@ class conversation_type(ABC):
         """
         return False
 
+    def is_director_mode(self) -> bool:
+        """True if the player directs the scene instead of taking part in it"""
+        return False
+
 class pc_to_npc(conversation_type):
     """PC talks to a single NPC. The classic conversation"""
     def __init__(self, config: ConfigLoader) -> None:
@@ -99,15 +103,15 @@ class multi_npc(conversation_type):
     def __init__(self, config: ConfigLoader) -> None:
         super().__init__(config)
 
+    def is_director_mode(self) -> bool:
+        """Multi Conversation Director Mode. Skyrim only, as the director prompts only exist for Skyrim"""
+        return bool(self._config.multi_conversation_director_mode) and self._config.game.base_game != GameEnum.FALLOUT4
+
     @utils.time_it
     def generate_prompt(self, context_for_conversation: Context, should_log: bool = False, messages_for_lorebook: message_thread | None = None) -> str:
         actions = [a for a in self._config.actions if a.use_in_multi_npc]
-        # Use director prompt if enabled and available (Skyrim only)
-        if (hasattr(self._config, 'multi_conversation_director_mode') and 
-            self._config.multi_conversation_director_mode and 
-            hasattr(self._config, 'multi_npc_director_prompt')):
-            prompt_type = None if self._config.game.base_game == GameEnum.FALLOUT4 else "skyrim_multi_npc_director_prompt"
-            return context_for_conversation.generate_system_message(self._config.multi_npc_director_prompt, actions, should_log, messages_for_lorebook, prompt_type)
+        if self.is_director_mode():
+            return context_for_conversation.generate_system_message(self._config.multi_npc_director_prompt, actions, should_log, messages_for_lorebook, "skyrim_multi_npc_director_prompt")
         prompt_type = None if self._config.game.base_game == GameEnum.FALLOUT4 else "skyrim_multi_npc_prompt"
         return context_for_conversation.generate_system_message(self._config.multi_npc_prompt, actions, should_log, messages_for_lorebook, prompt_type)
     
@@ -117,6 +121,8 @@ class multi_npc(conversation_type):
 
     @utils.time_it
     def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:
+        if self.is_director_mode():
+            return None # The player is not part of the conversation, so there is no greeting from them
         if len(messages) == 1 and context_for_conversation.config.automatic_greeting:
             player_character: Character | None = context_for_conversation.npcs_in_conversation.get_player_character()
             if player_character:
@@ -140,17 +146,22 @@ class multi_npc_game_master(multi_npc):
     @utils.time_it
     def generate_prompt(self, context_for_conversation: Context, should_log: bool = False, messages_for_lorebook: message_thread | None = None) -> str:
         # Never sent as is: each request builds its own prompt. Stored in the message thread, where its size
-        # decides when the conversation is reloaded, so it should match the largest prompt that is sent
-        return self.generate_game_master_prompt(context_for_conversation, messages_for_lorebook, should_log)
+        # decides when the conversation is reloaded, so it should match the largest prompt that is sent.
+        # Not logged: the Game Master logs each prompt when it is sent, so logging it here too would log it twice
+        return self.generate_game_master_prompt(context_for_conversation, messages_for_lorebook)
 
     @utils.time_it
     def generate_npc_prompt(self, context_for_conversation: Context, speaker: Character, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
         actions = [a for a in self._config.actions if a.use_in_multi_npc]
+        if self.is_director_mode():
+            return context_for_conversation.generate_system_message(self._config.game_master_director_npc_prompt, actions, should_log, messages_for_lorebook, "skyrim_game_master_director_npc_prompt", focus_character=speaker)
         return context_for_conversation.generate_system_message(self._config.game_master_npc_prompt, actions, should_log, messages_for_lorebook, "skyrim_game_master_npc_prompt", focus_character=speaker)
 
     @utils.time_it
     def generate_game_master_prompt(self, context_for_conversation: Context, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
         actions = [a for a in self._config.actions if a.use_in_multi_npc]
+        if self.is_director_mode():
+            return context_for_conversation.generate_system_message(self._config.game_master_director_prompt, actions, should_log, messages_for_lorebook, "skyrim_game_master_director_prompt")
         return context_for_conversation.generate_system_message(self._config.game_master_prompt, actions, should_log, messages_for_lorebook, "skyrim_game_master_prompt")
 
 class radiant(conversation_type):

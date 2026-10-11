@@ -1,5 +1,6 @@
 import configparser
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 from typing import Hashable
 import src.color_formatter as cf
@@ -80,14 +81,15 @@ class MantellaSetup:
 
         # add formatter to ch
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
+        # The full LLM requests / responses (level 15) only reach the console in debug mode, when the root logger lets them through
+        console_handler.setLevel(15)
         console_handler.setFormatter(formatter)
 
         # Create a formatter for file output
         file_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
 
-        # Create a file handler and set the formatter
-        file_handler = logging.FileHandler(file_name, encoding='utf-8')
+        # Create a file handler and set the formatter. When the log reaches 10 MB, it is moved to logging.log.1 (replacing the previous one) and a new log is started
+        file_handler = RotatingFileHandler(file_name, maxBytes=10 * 1024 * 1024, backupCount=1, encoding='utf-8')
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(file_formatter)
 
@@ -96,10 +98,13 @@ class MantellaSetup:
         logging.getLogger().addHandler(file_handler)
 
         # custom levels
+        logging.addLevelName(15, "LLM")
+
         logging.addLevelName(21, "INFO")
         logging.addLevelName(22, "INFO")
         logging.addLevelName(23, "INFO")
         logging.addLevelName(24, "Startup")
+        logging.addLevelName(26, "INFO")
 
         logging.addLevelName(27, "STT")
         logging.addLevelName(28, "LLM")

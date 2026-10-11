@@ -104,8 +104,13 @@ class ConfigLoader:
         return should_log
     
     def update_config_loader_with_changed_config_values(self):
+        was_debug_mode = self.advanced_logs
         self.__update_config_values_from_current_state()
         self.__has_any_value_changed = False
+        if self.advanced_logs != was_debug_mode:
+            # The log handlers let through whatever the root logger lets through, so Debug Mode applies without a restart
+            logging.getLogger().setLevel(logging.DEBUG if self.advanced_logs else logging.INFO)
+            logging.info(f"Debug Mode {'enabled' if self.advanced_logs else 'disabled'}")
 
     def get_ui_tab_order(self) -> list[str]:
         try:
@@ -530,6 +535,7 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
             self.multi_conversation_director_mode = self.__definitions.get_bool_value("multi_conversation_director_mode")
             self.multi_npc_game_master_mode = self.__definitions.get_bool_value("multi_npc_game_master_mode")
             self.multi_npc_game_master_max_npc_turns = self.__definitions.get_int_value("multi_npc_game_master_max_npc_turns")
+            self.multi_npc_game_master_director_max_npc_turns = self.__definitions.get_int_value("multi_npc_game_master_director_max_npc_turns")
 
             # Vision
             self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')
@@ -575,6 +581,8 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.multi_npc_director_prompt = self.__overlay_prompt("skyrim_multi_npc_director_prompt", self.__definitions.get_string_value("skyrim_multi_npc_director_prompt"))
             self.game_master_prompt = self.__overlay_prompt("skyrim_game_master_prompt", self.__definitions.get_string_value("skyrim_game_master_prompt"))
             self.game_master_npc_prompt = self.__overlay_prompt("skyrim_game_master_npc_prompt", self.__definitions.get_string_value("skyrim_game_master_npc_prompt"))
+            self.game_master_director_prompt = self.__overlay_prompt("skyrim_game_master_director_prompt", self.__definitions.get_string_value("skyrim_game_master_director_prompt"))
+            self.game_master_director_npc_prompt = self.__overlay_prompt("skyrim_game_master_director_npc_prompt", self.__definitions.get_string_value("skyrim_game_master_director_npc_prompt"))
             self.game_master_decision_instructions = self.__overlay_prompt("skyrim_game_master_decision_instructions", self.__definitions.get_string_value("skyrim_game_master_decision_instructions"))
             self.game_master_decision_npc_criteria = self.__overlay_prompt("skyrim_game_master_decision_npc_criteria", self.__definitions.get_string_value("skyrim_game_master_decision_npc_criteria"))
             self.game_master_decision_player_criteria = self.__overlay_prompt("skyrim_game_master_decision_player_criteria", self.__definitions.get_string_value("skyrim_game_master_decision_player_criteria"))

@@ -175,6 +175,7 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_multi_conversation_director_mode_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_mode_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_max_npc_turns_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_director_max_npc_turns_config_value())
         
                
         
@@ -305,6 +306,8 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_multi_npc_director_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_game_master_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_game_master_npc_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_game_master_director_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_game_master_director_npc_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_game_master_decision_instructions_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_game_master_decision_npc_criteria_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_game_master_decision_player_criteria_config_value())

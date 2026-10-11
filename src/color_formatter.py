@@ -44,6 +44,7 @@ class CustomFormatter(logging.Formatter):
     npc_info_style = dim
     startup_style = white
     hyperlink_style = blue + underscore
+    game_master_style = yellow
 
     format_string: str = "%(asctime)s.%(msecs)03d %(levelname)s: %(message)s"
 
@@ -53,6 +54,9 @@ class CustomFormatter(logging.Formatter):
         logging.WARNING: warning_style + format_string + reset,
         logging.ERROR: error_style + format_string + reset,
         logging.CRITICAL: white + BGred + bright + format_string + reset,
+
+        # LLM request / response (debug mode only)
+        15: cyan + format_string + reset,
 
         # INFO level
         # player
@@ -65,6 +69,8 @@ class CustomFormatter(logging.Formatter):
         24: startup_style + "%(message)s" + reset,
         # Hyperlink
         25: hyperlink_style + "%(message)s" + reset,
+        # Game Master
+        26: game_master_style + "%(message)s" + reset,
 
         # STT
         27: blue + format_string + reset,

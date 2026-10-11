@@ -446,8 +446,10 @@ class LLMDefinitions:
     @staticmethod
     def get_multi_conversation_director_mode_config_value() -> ConfigValue:
         description = """Enable Multi Conversation Director Mode for Skyrim multi-NPC conversations.
-                        When enabled, multi-NPC conversations will use a specialized director-style prompt instead of the standard multi-NPC prompt.
-                        This mode provides more detailed instructions for managing group conversations.
+                        The player directs the scene instead of taking part in it: the NPCs talk among themselves, and what the player types or says is sent as a scene direction, not as dialogue.
+                        Send "." to let the NPCs keep talking without a new direction. There is no automatic greeting, and the player's input is not voiced.
+                        Without Multi-NPC Game Master Mode, one LLM call writes the lines of all NPCs using the Skyrim Multi-NPC Director Prompt.
+                        With Multi-NPC Game Master Mode, the Game Master only picks NPCs, using the Skyrim Game Master Director prompts.
                         Note: This only affects Skyrim multi-NPC conversations, not radiant or single-NPC conversations."""
         return ConfigValueBool("multi_conversation_director_mode", "Multi Conversation Director Mode", description, False, tags=[ConfigValueTag.share_row])
 
@@ -457,7 +459,7 @@ class LLMDefinitions:
                         When enabled, a separate Game Master LLM decides who speaks next (one of the NPCs, or the player).
                         Each NPC's reply is then generated on its own, with a prompt that only contains that NPC's bio and memories.
                         When disabled, multi-NPC conversations work as before: one LLM call writes the lines of all NPCs.
-                        Takes priority over Multi Conversation Director Mode.
+                        Can be combined with Multi Conversation Director Mode: the Game Master then only picks NPCs, and the player directs the scene.
                         Note: This only affects Skyrim multi-NPC conversations, not radiant or single-NPC conversations."""
         return ConfigValueBool("multi_npc_game_master_mode", "Multi-NPC Game Master Mode", description, False, tags=[ConfigValueTag.share_row])
 
@@ -466,6 +468,12 @@ class LLMDefinitions:
         description = """Game Master Mode only. The maximum number of NPC replies in a row before the player gets the turn back.
                         The Game Master can hand the turn to the player earlier."""
         return ConfigValueInt("multi_npc_game_master_max_npc_turns", "Game Master Max NPC Turns per Player Turn", description, 3, 1, 10, tags=[ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_multi_npc_game_master_director_max_npc_turns_config_value() -> ConfigValue:
+        description = """Game Master Mode with Multi Conversation Director Mode only. The number of NPC replies in a row before the player can direct the scene again.
+                        The Game Master never hands the turn to the player in this mode, so the run only ends early if the Game Master fails to decide."""
+        return ConfigValueInt("multi_npc_game_master_director_max_npc_turns", "Game Master Director Max NPC Turns", description, 6, 1, 30, tags=[ConfigValueTag.share_row])
 
     # Game Master LLM Configuration
     @staticmethod

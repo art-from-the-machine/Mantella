@@ -222,10 +222,9 @@ class PromptDefinitions:
 - **Simulate NPC Conversation:** You are simulating a group conversation in {location} between these characters: {names}. They are people living in Skyrim. These NPCs do not necessarily know each other. They may be complete strangers. Their personalities, behavior, and dialogue must always be grounded in their **bios and memories**.  
 - **Self-Propelled Conversation:** NPCs must **initiate topics themselves** instead of waiting for prompts. They should talk in depth about certain topics, not just small talk. They may draw inspiration from their own**memories, bios, or Skyrim world knowledge** to raise meaningful subjects, debates, stories, or personal reflections.  
 - **Dynamic Participation:** The list of participants in the {names} field may change at any time. This means new NPCs can join the scene or existing ones may leave. NPCs must **acknowledge arrivals and departures** in a natural way (greetings, reactions, noticing absence, adjusting tone).  
-- **User doesn't participate in the conversation.**
-- **User Input as Instruction:** If the user types something, treat it as a **scene instruction or new event** that becomes canon truth in the world.  
-- **Always integrate the user's event instructions as canon truth.**  
-- **If the user inputs `"."` the NPCs keep talking naturally without new events.**  
+- **Scene Directions:** Lines in the conversation without a speaker name, written as narration, are **scene directions or new events** from the director. They are not said by anyone in the scene.
+- **Always integrate scene directions as canon truth** in the world, and have the NPCs react to them naturally.
+- **If the scene direction is "The scene continues."** the NPCs keep talking naturally without new events.
 - **All NPCs Speak:** Generate responses for **all relevant NPCs** in the conversation, not just one. NPCs should talk to each other directly, interject, argue, or react freely. This is a natural group dynamic, not a turn-by-turn script. NPCs can speak multiple times in a row if it fits the flow.
 
 
@@ -328,9 +327,7 @@ Content Guidelines:
                                     The conversation takes place in {language}."""
         return ConfigValueString("skyrim_game_master_prompt","Skyrim Game Master Prompt",description,skyrim_game_master_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MULTI)])
 
-    @staticmethod
-    def get_skyrim_game_master_npc_prompt_config_value() -> ConfigValue:
-        description = """Game Master Mode only. The prompt sent to the LLM for the NPC the Game Master picked to speak next.
+    GAME_MASTER_NPC_PROMPT_VARIABLES_DESCRIPTION = """
                         The following are dynamic variables that need to be contained in curly brackets {}:
                                 name = the name of the NPC who is speaking
                                 names = same as name
@@ -355,6 +352,10 @@ Content Guidelines:
                                 equipment = a basic description of the equipment all NPCs in the conversation carry
                                 actions = instructions for the LLM how to trigger actions
                                 lorebook = lorebook entries matched from non-bio/non-summary prompt context and conversation history"""
+
+    @staticmethod
+    def get_skyrim_game_master_npc_prompt_config_value() -> ConfigValue:
+        description = """Game Master Mode only. The prompt sent to the LLM for the NPC the Game Master picked to speak next.""" + PromptDefinitions.GAME_MASTER_NPC_PROMPT_VARIABLES_DESCRIPTION
         skyrim_game_master_npc_prompt = """You are {name}, and you live in Skyrim. This is your background: {bio}
                                     You are in a group conversation in {location} with {names_w_player}. {player_name} is the player, who is {trust}. {player_name} {player_description} {player_equipment} {equipment}
                                     Each line in the conversation is labelled with the name of the person who said it. Other people's lines were said by them, not by you.
@@ -370,6 +371,53 @@ Content Guidelines:
                                     {conversation_summary}
                                     {private_thoughts}"""
         return ConfigValueString("skyrim_game_master_npc_prompt","Skyrim Game Master NPC Prompt",description,skyrim_game_master_npc_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_GAME_MASTER_NPC)])
+
+    @staticmethod
+    def get_skyrim_game_master_director_prompt_config_value() -> ConfigValue:
+        description = """Game Master Mode with Multi Conversation Director Mode only. The prompt sent to the Game Master LLM that decides which NPC speaks next.
+                        The player directs the scene instead of taking part in it, so the Game Master only picks NPCs.
+                        The instruction to answer with the next speaker is added automatically after the conversation.
+                        Supports the same variables as the multi-NPC prompt:""" + PromptDefinitions.BASE_MULTI_PROMPT_DESCRIPTION.split("{}:", 1)[1]
+        skyrim_game_master_director_prompt = """You are the game master of a group conversation in {location} in Skyrim between {names}.
+                                    Here are their backgrounds:
+                                    {bios}
+                                    And here are their conversation histories:
+                                    {conversation_summaries}
+                                    The time is {time} {time_group}.
+                                    {weather}
+                                    Lines without a speaker name, written as narration, are scene directions: events that really happen in the scene. Nobody in the scene said them.
+                                    You do not write any dialogue. Your only job is to decide which of {names} speaks next.
+                                    Pick the NPC who:
+                                    - was named, challenged or asked something by someone else
+                                    - is most affected by the latest scene direction
+                                    - has a strong in-character reason to react to what was just said
+                                    - has a reason to bring up a new topic when the current one has run its course
+                                    Do not pick the NPC who spoke last unless they were interrupted or asked something directly.
+                                    Over the course of the scene, give every NPC a chance to speak.
+                                    The conversation takes place in {language}."""
+        return ConfigValueString("skyrim_game_master_director_prompt","Skyrim Game Master Director Prompt",description,skyrim_game_master_director_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MULTI)])
+
+    @staticmethod
+    def get_skyrim_game_master_director_npc_prompt_config_value() -> ConfigValue:
+        description = """Game Master Mode with Multi Conversation Director Mode only. The prompt sent to the LLM for the NPC the Game Master picked to speak next.
+                        The player directs the scene instead of taking part in it, so their input reaches the NPCs as scene directions.""" + PromptDefinitions.GAME_MASTER_NPC_PROMPT_VARIABLES_DESCRIPTION
+        skyrim_game_master_director_npc_prompt = """You are {name}, and you live in Skyrim. This is your background: {bio}
+                                    You are in a group conversation in {location} with {all_names_without_player}. {equipment}
+                                    Each line in the conversation is labelled with the name of the person who said it. Other people's lines were said by them, not by you.
+                                    Lines without a speaker name, written as narration, are scene directions: events that really happen in the scene. React to them in character. Nobody in the scene said them.
+                                    You only speak as {name}. Never write lines for anyone else, and do not start your reply with a name.
+                                    You only know what is in your own background and memories, and what was said or happened in front of you. You do not know the backgrounds or memories of the others.
+                                    Keep the conversation going yourself: react to the others, ask them something, disagree, or bring up a topic from your own memories, your background or life in Skyrim. Do not just agree with or repeat what was already said.
+                                    You cannot respond with narration brackets yourself.
+                                    This conversation is a script that will be spoken aloud, so please keep your responses appropriately concise and avoid text-only formatting such as numbered lists.
+                                    The time is {time} {time_group}.
+                                    {weather}
+                                    Remember to stay in character.
+                                    {actions}
+                                    The conversation takes place in {language}.
+                                    {conversation_summary}
+                                    {private_thoughts}"""
+        return ConfigValueString("skyrim_game_master_director_npc_prompt","Skyrim Game Master Director NPC Prompt",description,skyrim_game_master_director_npc_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_GAME_MASTER_NPC)])
 
     GAME_MASTER_DECISION_DESCRIPTION = """Decision model only (Use Decision Model for Game Master). The answer options are added automatically, one per NPC plus the player when the player may speak.
                         The Skyrim Game Master Prompt and the conversation are sent alongside as the scene."""
@@ -693,6 +741,8 @@ Content Guidelines:
             ("skyrim_multi_npc_director_prompt", "Skyrim Multi-NPC Director Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MULTI),
             ("skyrim_game_master_prompt", "Skyrim Game Master Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MULTI),
             ("skyrim_game_master_npc_prompt", "Skyrim Game Master NPC Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_GAME_MASTER_NPC),
+            ("skyrim_game_master_director_prompt", "Skyrim Game Master Director Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MULTI),
+            ("skyrim_game_master_director_npc_prompt", "Skyrim Game Master Director NPC Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_GAME_MASTER_NPC),
             ("skyrim_game_master_decision_instructions", "Skyrim Game Master Decision Instructions", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_INSTRUCTIONS),
             ("skyrim_game_master_decision_npc_criteria", "Skyrim Game Master Decision NPC Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA),
             ("skyrim_game_master_decision_player_criteria", "Skyrim Game Master Decision Player Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA),
@@ -710,8 +760,8 @@ Content Guidelines:
 
     @staticmethod
     def get_name_variables_note(prompt_type: str) -> str:
-        """Explains the name variables of the Game Master NPC prompt, where {names} is only the NPC who is speaking. Empty for other prompt types"""
-        if prompt_type == "skyrim_game_master_npc_prompt":
+        """Explains the name variables of the Game Master NPC prompts, where {names} is only the NPC who is speaking. Empty for other prompt types"""
+        if prompt_type in ("skyrim_game_master_npc_prompt", "skyrim_game_master_director_npc_prompt"):
             return ("- `{name}`, `{names}`: the name of the NPC who is speaking\n"
                     "- `{all_names_without_player}`: the names of all NPCs in the conversation, without the player\n"
                     "- `{names_w_player}`: the names of all NPCs in the conversation and the player")

@@ -266,6 +266,7 @@ class UserMessage(Message):
         self.__player_character_name: str = player_character_name
         self.__ingame_events: list[str] = []
         self.__time: tuple[str,str] | None = None
+        self.is_director_message: bool = False # Director mode: the text is a scene direction, shown as narration without the player's name
         
 
     @property
@@ -277,9 +278,13 @@ class UserMessage(Message):
         result += self.get_ingame_events_text()
         if self.__time:
             result += f"{self.narration_start}The time is {self.__time[0]} {self.__time[1]}.{self.narration_end}\n"
-        if self.is_multi_npc_message:
-            result += f"{self.__player_character_name}: "
-        result += f"{self.text}"
+        if self.is_director_message:
+            if self.text:
+                result += f"{self.narration_start}{self.text}{self.narration_end}"
+        else:
+            if self.is_multi_npc_message:
+                result += f"{self.__player_character_name}: "
+            result += f"{self.text}"
         # if self.is_multi_npc_message:
         #     result += f"\n[Please respond with replies for as many of your characters as possible.]"
         result = utils.remove_extra_whitespace(result)

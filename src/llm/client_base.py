@@ -202,7 +202,7 @@ class ClientBase(AIClient):
             
             # Log LLM parameters being sent to API
             logging.info(f"LLM Request Parameters: model='{self.model_name}', base_url='{self._base_url}', params={request_params}")
-            logging.log(28, f"LLM request to {self.model_name}:\n{format_openai_messages(openai_messages)}")
+            logging.log(15, f"LLM request to {self.model_name}:\n{format_openai_messages(openai_messages)}")
 
             try:
                 chat_completion = sync_client.chat.completions.create(
@@ -231,7 +231,7 @@ class ClientBase(AIClient):
                 return None
             
             reply = chat_completion.choices[0].message.content
-            logging.log(28, f"LLM response from {self.model_name}:\n{reply}")
+            logging.log(15, f"LLM response from {self.model_name}:\n{reply}")
             return reply
         
 
@@ -287,7 +287,7 @@ class ClientBase(AIClient):
                 
                 # Log LLM parameters being sent to API
                 logging.info(f"LLM Request Parameters: model='{self.model_name}', base_url='{self._base_url}', params={request_params}")
-                logging.log(28, f"LLM request to {self.model_name}:\n{format_openai_messages(openai_messages)}")
+                logging.log(15, f"LLM request to {self.model_name}:\n{format_openai_messages(openai_messages)}")
 
                 stream_client = async_client.with_options(max_retries=0)
                 remaining = deadline - time.time()

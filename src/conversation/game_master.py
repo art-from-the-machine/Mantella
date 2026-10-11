@@ -180,7 +180,7 @@ def format_confidence(answer: dict[str, Any]) -> str:
 
 
 def log_request_time(started_at: float):
-    logging.log(23, f"Game Master request took {time.time() - started_at:.2f} seconds")
+    logging.log(26, f"Game Master request took {time.time() - started_at:.2f} seconds")
 
 
 def should_log_prompt(logged_prompts: set[str], key: str) -> bool:
@@ -275,7 +275,7 @@ class GameMaster:
         player_name = player.name if player else ""
         should_log = should_log_prompt(self.__logged_prompts, "game master|" + self.__context.get_character_names_as_text(True))
         if should_log:
-            logging.log(23, "Game Master prompt:")
+            logging.log(26, "===== Game Master prompt =====")
         try:
             prompt = self.__conversation_type.generate_game_master_prompt(self.__context, live_messages, should_log)
         except PromptSectionError as e:
@@ -315,7 +315,7 @@ class GameMaster:
         if not is_valid:
             logging.warning(f"Game Master gave no valid choice: {reply}")
             return None
-        logging.log(23, f"Game Master: {speaker.name if speaker else player_name} speaks next ({reason})")
+        logging.log(26, f"Game Master: {speaker.name if speaker else player_name} speaks next ({reason})")
         return speaker
 
     def __choose_with_decision_model(self, prompt: str, history: list[Message], allow_player: bool,
@@ -339,13 +339,14 @@ class GameMaster:
         if not body:
             logging.error(f"Game Master prompt is too long for the decision model {client.model_name} ({client.token_limit} tokens). Shorten the Skyrim Game Master Prompt.")
             return None
-        logging.log(23, "Game Master decision request:\n" + format_decision_request(body))
+        logging.log(15, "Game Master decision request:\n" + format_decision_request(body))
 
         headers = {
             "Authorization": f"Bearer {client.api_key}",
             "HTTP-Referer": "https://art-from-the-machine.github.io/Mantella/",
             "X-Title": "Mantella",
         }
+        logging.info(f"Game Master Request Parameters: model='{client.model_name}', url='{url}'")
         started_at = time.time()
         try:
             response = post_decision_with_retry(url, headers, body, config.llm_response_timeout)
@@ -373,7 +374,7 @@ class GameMaster:
         if not is_valid:
             logging.warning(f"Game Master gave no valid choice: {choice}")
             return None
-        logging.log(23, f"Game Master: {speaker.name if speaker else player_name} speaks next ({format_confidence(answer)})")
+        logging.log(26, f"Game Master: {speaker.name if speaker else player_name} speaks next ({format_confidence(answer)})")
         return speaker
 
 
@@ -457,6 +458,7 @@ class GameMasterTurns:
         self.__replies: list[ReplyQueue] = [] # The replies of the running turn
         self.__logged_prompts: set[str] = set()
         self.__lock: threading.Lock = threading.Lock() # Keeps the turn id check and the update that follows it together
+        self.__output_manager = None # The ChatManager the latest reply was generated with. After a settings change, it is not the conversation's ChatManager
 
     def on_player_input(self):
         with self.__lock:
@@ -480,6 +482,17 @@ class GameMasterTurns:
         """
         with self.__lock:
             return self.__drop_lookahead()
+
+    def log_prompts_again(self):
+        """Logs each prompt again the next time it is used, e.g. after a settings change that can change the prompts"""
+        self.__logged_prompts.clear()
+
+    def stop_generation(self):
+        """Stops generation on the ChatManager the latest reply was generated with.
+        A reply started before a settings change keeps generating on the old ChatManager"""
+        output_manager = self.__output_manager
+        if output_manager:
+            output_manager.stop_generation()
 
     def __drop_lookahead(self) -> bool:
         """drop_lookahead for a caller that holds the lock"""
@@ -546,38 +559,46 @@ class GameMasterTurns:
             self.__playing = next_reply
             return True
 
-    def run_turn(self, turn_id: int, conversation_type: multi_npc_game_master, output_manager, live_messages: message_thread):
+    def run_turn(self, turn_id: int, get_conversation_type: Callable[[], Any], get_output_manager: Callable[[], Any], live_messages: message_thread):
         """Generates NPC replies one after another, each with a prompt that only contains that NPC, until the player gets the turn.
         Each reply after the first is generated while the one before it is being played, and is held until that one has been played.
         Runs in the generation thread.
 
         Args:
             turn_id (int): the id returned by start_turn
-            conversation_type (multi_npc_game_master): the conversation type that builds the prompts
-            output_manager (ChatManager): generates the replies and holds the Game Master client
+            get_conversation_type (Callable[[], Any]): returns the conversation's current conversation type, which builds the prompts
+            get_output_manager (Callable[[], Any]): returns the conversation's current ChatManager, which generates the replies and holds the Game Master client
+                Both are read again for each request, so a settings change applies from the next request on
             live_messages (message_thread): the conversation's message thread
         """
         with self.__lock:
             if turn_id != self.__turn_id or not self.__playing:
                 return
             reply: ReplyQueue | None = self.__playing
-        game_master = GameMaster(self.__context, conversation_type, output_manager.game_master_client, self.__logged_prompts)
         # The history as it will be once the replies generated so far have been played
         history = live_messages.get_persistent_messages()
         speaker: Character | None = None
         while reply:
             try:
+                conversation_type = get_conversation_type()
+                if not isinstance(conversation_type, multi_npc_game_master):
+                    # A settings change turned Game Master Mode off
+                    self.__end_turn_early(turn_id, reply)
+                    return
                 if not speaker:
                     # The first speaker of the turn, after the player has spoken
-                    speaker = self.__choose_first_speaker(game_master, history)
+                    speaker = self.__choose_first_speaker(self.__game_master(conversation_type, get_output_manager()), history)
                 if not speaker:
                     self.__end_turn_early(turn_id, reply)
                     return
-                speaker, reply = self.__run_reply(speaker, reply, turn_id, history, game_master, conversation_type, output_manager)
+                speaker, reply = self.__run_reply(speaker, reply, turn_id, history, conversation_type, get_conversation_type, get_output_manager)
             except Exception as e:
                 logging.error(f"Game Master turn failed: {e}")
                 self.__end_turn_early(turn_id, reply)
                 return
+
+    def __game_master(self, conversation_type: multi_npc_game_master, output_manager) -> GameMaster:
+        return GameMaster(self.__context, conversation_type, output_manager.game_master_client, self.__logged_prompts)
 
     def __choose_first_speaker(self, game_master: GameMaster, history: list[Message]) -> Character | None:
         speaker = game_master.choose_next_speaker(thread_for_lorebook(self.__context.config, history), history, allow_player=False)
@@ -591,8 +612,8 @@ class GameMasterTurns:
             return npcs[-1]
         return None
 
-    def __run_reply(self, speaker: Character, reply: ReplyQueue, turn_id: int, history: list[Message], game_master: GameMaster,
-                    conversation_type: multi_npc_game_master, output_manager) -> tuple[Character | None, ReplyQueue | None]:
+    def __run_reply(self, speaker: Character, reply: ReplyQueue, turn_id: int, history: list[Message], conversation_type: multi_npc_game_master,
+                    get_conversation_type: Callable[[], Any], get_output_manager: Callable[[], Any]) -> tuple[Character | None, ReplyQueue | None]:
         """Generates one reply, decides who speaks next and waits until the reply is being played
 
         Returns:
@@ -602,10 +623,11 @@ class GameMasterTurns:
         characters = self.__context.npcs_in_conversation
         if turn_id != self.__turn_id:
             return None, None
+        output_manager = get_output_manager()
 
         should_log = should_log_prompt(self.__logged_prompts, f"{speaker.ref_id}|{self.__context.get_character_names_as_text(True)}")
         if should_log:
-            logging.log(23, f"Game Master Mode prompt for {speaker.name}:")
+            logging.log(26, f"===== Game Master Mode prompt for {speaker.name} =====")
         try:
             prompt = conversation_type.generate_npc_prompt(self.__context, speaker, thread_for_lorebook(config, history), should_log)
         except PromptSectionError as e:
@@ -624,8 +646,10 @@ class GameMasterTurns:
             # Only sent with this request so the NPC has something to reply to. Never added to the conversation itself
             npc_request.add_message(UserMessage(config, f"({speaker.name} speaks next.)", "", True))
 
-        if turn_id != self.__turn_id:
-            return None, None
+        with self.__lock:
+            if turn_id != self.__turn_id:
+                return None, None
+            self.__output_manager = output_manager
         output_manager.generate_response(npc_request, characters, reply, config.actions, single_speaker=speaker)
         add_reply_to_history(history, reply.sentences, config, characters.contains_multiple_npcs())
         with self.__lock:
@@ -634,10 +658,17 @@ class GameMasterTurns:
             self.__npc_turns_since_player += 1
             npc_turns = self.__npc_turns_since_player
         next_speaker: Character | None = None
-        if npc_turns < config.multi_npc_game_master_max_npc_turns:
-            next_speaker = game_master.choose_next_speaker(thread_for_lorebook(config, history), history, allow_player=True)
-        else:
-            logging.log(23, f"Game Master: {npc_turns} NPC replies in a row. The player gets the turn.")
+        # Read again, so a settings change made while the reply was generating applies to the decision
+        conversation_type = get_conversation_type()
+        if isinstance(conversation_type, multi_npc_game_master): # Otherwise a settings change turned Game Master Mode off, and the player gets the turn
+            # Director mode: the player is not part of the conversation, so they only get the turn back once the run ends
+            is_director = conversation_type.is_director_mode()
+            max_npc_turns = config.multi_npc_game_master_director_max_npc_turns if is_director else config.multi_npc_game_master_max_npc_turns
+            if npc_turns < max_npc_turns:
+                game_master = self.__game_master(conversation_type, get_output_manager())
+                next_speaker = game_master.choose_next_speaker(thread_for_lorebook(config, history), history, allow_player=not is_director)
+            else:
+                logging.log(26, f"Game Master: {npc_turns} NPC replies in a row. The player gets the turn.")
         with self.__lock:
             if turn_id != self.__turn_id:
                 return None, None

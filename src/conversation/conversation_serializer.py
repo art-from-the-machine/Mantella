@@ -85,6 +85,7 @@ def serialize_persistent_messages(messages: list[Message], config: ConfigLoader)
                 "time": time_val,
                 "is_system_generated": m.is_system_generated_message,
                 "is_multi_npc": m.is_multi_npc_message,
+                "is_director": m.is_director_message,
             })
         elif isinstance(m, AssistantMessage):
             sentences_data = []
@@ -153,6 +154,7 @@ def deserialize_persistent_messages(
                 is_system_generated_message=bool(item.get("is_system_generated", False)),
             )
             msg.is_multi_npc_message = bool(item.get("is_multi_npc", False))
+            msg.is_director_message = bool(item.get("is_director", False))
             for ev in item.get("ingame_events", []):
                 msg.add_event([str(ev)])
             if item.get("time"):
