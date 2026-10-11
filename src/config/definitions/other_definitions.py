@@ -130,7 +130,7 @@ class OtherDefinitions:
         description = """Whether to generate and save conversation summaries when conversations end.
                         If enabled: Summaries will be generated and saved to help NPCs remember past conversations.
                         If disabled: No summaries will be generated, conversations will end without sending summary requests to the LLM."""
-        return ConfigValueBool("conversation_summary_enabled", "Enable Conversation Summaries", description, True, tags=[ ConfigValueTag.share_row])
+        return ConfigValueBool("conversation_summary_enabled", "Enable Conversation Summaries", description, True, row_group="memory_saving_row")
 
     @staticmethod
     def get_inner_monologue_enabled_config_value() -> ConfigValue:
@@ -140,7 +140,7 @@ class OtherDefinitions:
                         If disabled: summaries still save (when enabled), but no new private thoughts are written.
                         Whether saved thoughts appear in the next conversation prompt is controlled separately by Send Private Thoughts to LLM.
                         Save Summary Now has its own Inner Thoughts toggle and does not use this setting."""
-        return ConfigValueBool("inner_monologue_enabled", "Save Private Thoughts", description, False, tags=[ ConfigValueTag.share_row])
+        return ConfigValueBool("inner_monologue_enabled", "Save Private Thoughts", description, False, row_group="memory_saving_row")
 
     @staticmethod
     def get_inner_monologue_load_count_config_value() -> ConfigValue:
@@ -171,7 +171,7 @@ class OtherDefinitions:
                         Whether saved reflections appear in the next conversation prompt is controlled separately by Send Personal Reflection to LLM.
                         Manual Save Personal Reflection Now and Bio Editor Generate still work when this is off.
                         Save Summary Now has its own Personal Reflection toggle and does not use this setting."""
-        return ConfigValueBool("personal_reflection_enabled", "Save Personal Reflection", description, False, tags=[ ConfigValueTag.share_row])
+        return ConfigValueBool("personal_reflection_enabled", "Save Personal Reflection", description, False, row_group="memory_saving_row")
 
     @staticmethod
     def get_personal_reflection_load_mode_config_value() -> ConfigValue:

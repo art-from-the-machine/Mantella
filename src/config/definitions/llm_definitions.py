@@ -84,7 +84,7 @@ class LLMDefinitions:
                     Applies to one-on-one, multi-NPC, summary, and vision requests.
                     Connecting to the service still times out after 5 seconds.
                     After the first spoken token, a silent gap of this many seconds still ends the reply."""
-        return ConfigValueInt("llm_response_timeout", "LLM Response Timeout", description, 120, 1, 999, tags=[ConfigValueTag.basic])
+        return ConfigValueInt("llm_response_timeout", "LLM Response Timeout", description, 120, 1, 999, tags=[ConfigValueTag.advanced])
 
     @staticmethod
     def get_read_thoughts_after_sentence_cap_config_value() -> ConfigValue:
@@ -109,9 +109,9 @@ class LLMDefinitions:
                     Dropped sentences are not spoken and are not added to conversation history.
                     This is useful for removing trailing questions or filler that often appear at the end of LLM replies.
                     The response will always keep at least one sentence. Set to 0 to disable.
-                    Only applies to single-NPC conversations.
+                    Only applies to single-NPC conversations and to each NPC reply in Multi-NPC Game Master Mode.
                     Warning: This can increase waiting time before the NPC starts speaking, because Mantella must generate extra N sentences before it knows which ones to drop. The higher the value, the greater the delay."""
-        return ConfigValueInt("drop_last_sentences_single", "Drop Last Sentences (Single NPC)", description, 0, 0, 999, tags=[ConfigValueTag.basic])
+        return ConfigValueInt("drop_last_sentences_single", "Drop Last Sentences", description, 0, 0, 999, tags=[ConfigValueTag.advanced])
     
     @staticmethod
     def get_custom_token_count_config_value() -> ConfigValue:

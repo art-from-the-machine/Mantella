@@ -172,10 +172,8 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(OtherDefinitions.get_personal_reflection_enabled_config_value())
         llm_category.add_config_value(OtherDefinitions.get_personal_reflection_load_mode_config_value())
         
-        llm_category.add_config_value(LLMDefinitions.get_multi_conversation_director_mode_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_mode_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_max_npc_turns_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_director_max_npc_turns_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_conversation_director_mode_config_value())
         
                
         
@@ -184,6 +182,8 @@ class MantellaConfigValueDefinitionsNew:
         
         
         
+        llm_category.add_config_value(LLMDefinitions.get_enable_decensor_bypass_config_value())
+
         # Random LLM Selection (advanced)
         llm_category.add_config_value(OtherDefinitions.get_random_llm_one_on_one_enabled_config_value())
         llm_category.add_config_value(OtherDefinitions.get_random_llm_multi_npc_enabled_config_value())
@@ -201,7 +201,8 @@ class MantellaConfigValueDefinitionsNew:
         # Multi-NPC LLM Configuration
         llm_category.add_config_value(LLMDefinitions.get_sonnet_prompt_caching_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_bios_only_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_enable_decensor_bypass_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_director_max_npc_turns_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_max_npc_turns_config_value())
         llm_category.add_config_value(LLMDefinitions.get_enable_bio_section_filter_config_value())
         llm_category.add_config_value(LLMDefinitions.get_bio_sections_to_exclude_config_value())
         llm_category.add_config_value(LLMDefinitions.get_enable_bio_section_filter_for_memory_config_value())

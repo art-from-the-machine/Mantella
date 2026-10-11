@@ -559,7 +559,7 @@ class ChatManager:
         self.__is_first_sentence = True
         is_multi_npc = characters.contains_multiple_npcs()
         max_response_sentences = self.__config.max_response_sentences_single if (not is_multi_npc or lock_speaker) else self.__config.max_response_sentences_multi
-        drop_last_count = 0 if is_multi_npc else self.__config.drop_last_sentences_single
+        drop_last_count = self.__config.drop_last_sentences_single if (not is_multi_npc or lock_speaker) else 0
         drop_buffer = drop_last_sentences_buffer(drop_last_count)
         max_retries = 5
         retries = 0
