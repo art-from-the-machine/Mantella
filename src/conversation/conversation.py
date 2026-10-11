@@ -814,9 +814,10 @@ class Conversation:
     @utils.time_it
     def undo_last_npc_reply(self) -> bool:
         """Removes everything after the last real player turn, keeping the user message.
+        Game Master Mode: removes only the last NPC turn, as one player turn can be followed by many NPC turns.
 
         Stops any in-flight generation and clears the sentence queue. Returns True if
-        anything after the last player UserMessage was removed.
+        anything was removed.
         """
         with self.__generation_start_lock:
             self.__cancel_game_master_turn()
@@ -824,6 +825,13 @@ class Conversation:
             self.__sentences.clear()
 
             persistent = self.__messages.get_persistent_messages()
+            if isinstance(self.__conversation_type, multi_npc_game_master) and persistent and isinstance(persistent[-1], AssistantMessage):
+                last = persistent[-1]
+                if last.remove_last_speaker_turn():
+                    if not last.has_sentences():
+                        persistent.pop()
+                    self.__messages.replace_persistent_messages(persistent)
+                    return True
             cut_index = None
             for i in range(len(persistent) - 1, -1, -1):
                 msg = persistent[i]

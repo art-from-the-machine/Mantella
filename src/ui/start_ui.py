@@ -23,6 +23,7 @@ from src.ui.tab_reorder import (
     default_tab_names,
     merge_tab_order,
 )
+from src.ui.conversation_table import DELETE_BUTTON_ELEM_ID, HEADERS, TABLE_JS, TABLE_ELEM_ID, apply_rows_to_json, delete_selected_rows, json_to_rows
 from src.ui.bio_editor_memory_files import (
     conversations_base_dir,
     load_latest_text,
@@ -40,7 +41,7 @@ class StartUI(routeable):
         self.__constructor = SettingsUIConstructor(config)
 
     def create_main_block(self) -> gr.Blocks:
-        with gr.Blocks(title="Mantella", fill_height=True, analytics_enabled=False, theme= self.__get_theme(), css=self.__load_css(), js="() => {\n" + TAB_REORDER_JS + "\n}", head="<script>" + TAB_REORDER_JS + "</script>") as main_block:
+        with gr.Blocks(title="Mantella", fill_height=True, analytics_enabled=False, theme= self.__get_theme(), css=self.__load_css(), js="() => {\n" + TAB_REORDER_JS + TABLE_JS + "\n}", head="<script>" + TAB_REORDER_JS + TABLE_JS + "</script>") as main_block:
             # with gr.Tab("Settings") as tabs:
             self.__generate_tabs()
             # with gr.Tab("Chat with NPCs", interactive=False):
@@ -95,16 +96,37 @@ class StartUI(routeable):
 
     def __generate_live_conversation_page(self):
         gr.Markdown(
-            "Edit the active conversation in real time. When the model returns gibberish, click **Reload** to fetch the current history, fix the bad text in the JSON, then click **Save** to apply. Use **Undo last round** to remove the last player turn and everything after it, **Undo NPC reply** to keep the player line and drop only the reply, or **Remove last user message** to drop the last player line when it is the most recent message. All information is preserved in the JSON format."
+            "Edit the active conversation in real time. When the model returns gibberish, click **Reload** to fetch the current history, fix the bad line in the **Text** column, then click **Save** to apply. "
+            "**💭 Thought** rows are an NPC's private thoughts: they are never spoken aloud. "
+            "To delete rows, click their **#** to select them, then click **Delete selected**. This also saves your text edits. Click outside the table to clear the selection. "
+            "Use **Undo last round** to remove the last player turn and everything after it, **Undo NPC reply** to keep the player line and drop only the reply (in Game Master Mode, only the last NPC's turn), or **Remove last user message** to drop the last player line when it is the most recent message."
         )
-        live_conversation_editor = gr.Text(value="", lines=20, label="Conversation (JSON)", placeholder="Click Reload to fetch current conversation. Edit the JSON and click Save to apply changes.")
+        live_conversation_table = gr.Dataframe(
+            headers=HEADERS,
+            datatype="str",
+            type="array",
+            row_count=(1, "dynamic"), # Gradio 4.28's frontend crashes on 0 rows, and "fixed" cuts updates down to that count
+            col_count=(len(HEADERS), "fixed"),
+            interactive=True,
+            wrap=True,
+            height=400,
+            column_widths=["6%", "14%", "11%", "69%"],
+            label="Conversation",
+            elem_id=TABLE_ELEM_ID,
+        )
         with gr.Row():
             live_reload_btn = gr.Button("Reload", variant="secondary")
+            live_delete_btn = gr.Button("Delete selected", variant="stop", elem_id=DELETE_BUTTON_ELEM_ID)
             live_save_btn = gr.Button("Save", variant="primary")
-            live_undo_btn = gr.Button("Undo last round", variant="secondary")
+        with gr.Row():
             live_undo_npc_reply_btn = gr.Button("Undo NPC reply", variant="secondary")
+            live_undo_btn = gr.Button("Undo last round", variant="secondary")
             live_remove_last_user_btn = gr.Button("Remove last user message", variant="secondary")
         live_conversation_info = gr.Markdown(value="", visible=True)
+        live_selected_rows = gr.Textbox(visible=False) # The # of the selected rows as JSON, filled in by the browser when Delete selected is clicked
+        with gr.Accordion("Raw JSON (advanced)", open=False):
+            live_conversation_editor = gr.Text(value="", lines=20, label="Conversation (JSON)", placeholder="Click Reload to fetch current conversation. Edit the JSON and click Save JSON to apply changes.", info="Every field of every message, including ones not shown in the table. Use this for changes beyond text, such as speaker or message type.")
+            live_save_json_btn = gr.Button("Save JSON", variant="secondary")
         live_decensor_preview = gr.Text(
             value="",
             lines=8,
@@ -134,21 +156,50 @@ class StartUI(routeable):
                 logging.error(f"Live conversation reload failed: {e}", exc_info=True)
                 return "", "", f" Reload failed: {e}"
 
-        def on_live_save(json_str: str):
+        def with_rows(handler):
+            """Adds the table rows in front of a handler's (json, preview, info) outputs."""
+            def wrapped(*args):
+                json_str, preview, info = handler(*args)
+                return json_to_rows(json_str), json_str, preview, info
+            return wrapped
+
+        def on_live_save_json(json_str: str):
+            unchanged = (gr.update(), gr.update(), gr.update())
             if not json_str or not json_str.strip():
-                return " Enter or load conversation JSON first."
+                return *unchanged, " Click Reload to load the conversation first."
             try:
                 from src.ui import settings_ui_constructor as sui
                 gm = getattr(sui, '_game_manager_ref', None)
                 if not gm:
-                    return " No game manager. Start the game first."
-                ok = gm.apply_conversation_from_json(json_str.strip())
-                if ok:
-                    return " Conversation updated successfully."
-                return " Apply failed. Check logs."
+                    return *unchanged, " No game manager. Start the game first."
+                if not gm.apply_conversation_from_json(json_str.strip()):
+                    return *unchanged, " Apply failed. Check logs."
+                rows, json_str, preview, _ = with_rows(on_live_reload)()
+                return rows, json_str, preview, " Conversation updated successfully."
             except Exception as e:
                 logging.error(f"Live conversation save failed: {e}", exc_info=True)
-                return f" Save failed: {e}"
+                return *unchanged, f" Save failed: {e}"
+
+        def on_live_save_table(rows, json_str: str):
+            if not json_str or not json_str.strip():
+                return gr.update(), gr.update(), gr.update(), " Click Reload to load the conversation first."
+            try:
+                json_str = apply_rows_to_json(json_str, rows)
+            except ValueError as e:
+                return gr.update(), gr.update(), gr.update(), f" {e}"
+            return on_live_save_json(json_str)
+
+        def on_live_delete_selected(rows, json_str: str, selected_rows_json: str):
+            if not json_str or not json_str.strip():
+                return gr.update(), gr.update(), gr.update(), " Click Reload to load the conversation first."
+            selected = json.loads(selected_rows_json or "[]")
+            if not selected:
+                return gr.update(), gr.update(), gr.update(), " Click a row's # to select it first."
+            try:
+                json_str = delete_selected_rows(json_str, rows, selected)
+            except ValueError as e:
+                return gr.update(), gr.update(), gr.update(), f" {e}"
+            return on_live_save_json(json_str)
 
         def on_live_undo():
             try:
@@ -204,31 +255,15 @@ class StartUI(routeable):
                 logging.error(f"Live conversation remove last user message failed: {e}", exc_info=True)
                 return "", "", f" Remove last user message failed: {e}"
 
-        live_reload_btn.click(
-            on_live_reload,
-            inputs=[],
-            outputs=[live_conversation_editor, live_decensor_preview, live_conversation_info],
-        )
-        live_save_btn.click(
-            on_live_save,
-            inputs=[live_conversation_editor],
-            outputs=[live_conversation_info],
-        )
-        live_undo_btn.click(
-            on_live_undo,
-            inputs=[],
-            outputs=[live_conversation_editor, live_decensor_preview, live_conversation_info],
-        )
-        live_undo_npc_reply_btn.click(
-            on_live_undo_npc_reply,
-            inputs=[],
-            outputs=[live_conversation_editor, live_decensor_preview, live_conversation_info],
-        )
-        live_remove_last_user_btn.click(
-            on_live_remove_last_user_message,
-            inputs=[],
-            outputs=[live_conversation_editor, live_decensor_preview, live_conversation_info],
-        )
+        live_outputs = [live_conversation_table, live_conversation_editor, live_decensor_preview, live_conversation_info]
+        live_reload_btn.click(with_rows(on_live_reload), inputs=[], outputs=live_outputs)
+        live_delete_btn.click(on_live_delete_selected, inputs=[live_conversation_table, live_conversation_editor, live_selected_rows], outputs=live_outputs,
+                              js="(rows, json_str, _selected) => [rows, json_str, window.__mantellaTakeSelectedRows ? window.__mantellaTakeSelectedRows() : '[]']")
+        live_save_btn.click(on_live_save_table, inputs=[live_conversation_table, live_conversation_editor], outputs=live_outputs)
+        live_save_json_btn.click(on_live_save_json, inputs=[live_conversation_editor], outputs=live_outputs)
+        live_undo_btn.click(with_rows(on_live_undo), inputs=[], outputs=live_outputs)
+        live_undo_npc_reply_btn.click(with_rows(on_live_undo_npc_reply), inputs=[], outputs=live_outputs)
+        live_remove_last_user_btn.click(with_rows(on_live_remove_last_user_message), inputs=[], outputs=live_outputs)
 
     def __generate_bio_editor_page(self):
         config = self._config

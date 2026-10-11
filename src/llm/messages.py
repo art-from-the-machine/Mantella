@@ -168,6 +168,26 @@ class AssistantMessage(Message):
     def add_sentence(self, new_sentence: Sentence):
         self.__sentences.append(new_sentence.content)
 
+    def remove_last_speaker_turn(self) -> bool:
+        """Removes the sentences at the end said by the last speaker, including their thoughts.
+        Game Master Mode stores consecutive NPC turns in one message, so this drops only the last turn.
+        Consecutive turns by the same NPC can't be told apart and are removed together.
+
+        Returns:
+            bool: True if any sentence was removed
+        """
+        if not self.__sentences:
+            return False
+        last_ref_id = self.__sentences[-1].speaker.ref_id
+        cut_index = len(self.__sentences)
+        while cut_index > 0 and self.__sentences[cut_index - 1].speaker.ref_id == last_ref_id:
+            cut_index -= 1
+        del self.__sentences[cut_index:]
+        return True
+
+    def has_sentences(self) -> bool:
+        return len(self.__sentences) > 0
+
     def get_formatted_content(self, include_thoughts: bool = True) -> str:
         if len(self.__sentences) < 1:
             return ""

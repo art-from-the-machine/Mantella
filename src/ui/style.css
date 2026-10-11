@@ -249,3 +249,39 @@
     cursor: grabbing !important;
     opacity: 0.55 !important;
 }
+
+/* Live Conversation table: Gradio always shows both scrollbars. Text wraps, so only scroll vertically, and only when needed */
+#live-conversation-table table {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+}
+
+/* Laid over a Live Conversation cell while it is edited, so long text stays wrapped. Lines up with the cell's text */
+#live-conversation-table textarea.mantella-cell-editor {
+    position: absolute;
+    top: var(--size-2);
+    right: var(--size-2);
+    bottom: var(--size-2);
+    left: var(--size-2);
+    margin: 0;
+    padding: 0;
+    border: none;
+    outline: none;
+    resize: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: inherit;
+    white-space: pre-wrap;
+    overflow-y: auto;
+}
+
+/* Live Conversation rows selected for deletion */
+#live-conversation-table tr.mantella-row-selected td {
+    background: var(--color-accent-soft) !important;
+}
+
+#live-conversation-table tr.mantella-row-selected td:first-child {
+    box-shadow: inset 3px 0 0 var(--color-accent);
+}
