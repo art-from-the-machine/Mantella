@@ -1130,9 +1130,11 @@ The dedicated model is used everywhere reflections are generated: at conversatio
 
 ## Turn Thoughts
 
+> **⚠️ Turn thoughts need a custom prompt.** There is no on/off toggle. The NPC only writes turn thoughts if the conversation prompt tells it to. The default **Skyrim Prompt**, **Skyrim Multi-NPC Prompt**, and **Skyrim Multi-NPC Director Prompt** do **not** ask for them, so you have to add the instructions yourself (see **Quick start** below). Only the default **Skyrim Game Master NPC Prompt** and **Skyrim Game Master Director NPC Prompt** already include them.
+
 ### Where to find it
 
-**Prompts** tab — the conversation prompt has to ask for them. The default **Skyrim Game Master NPC Prompt** and **Skyrim Game Master Director NPC Prompt** already do. For other prompts, add the instructions yourself (see Quick start).
+**Prompts** tab — the conversation prompt has to ask for them (see the note above).
 
 **LLM** tab → **Advanced** → **Turn Thoughts to Keep** and **Read Turn Thoughts After Sentence Cap**.
 
@@ -1140,7 +1142,15 @@ The dedicated model is used everywhere reflections are generated: at conversatio
 
 ### What it does
 
-[Private thoughts](#private-thoughts) are written **after** a conversation ends. Turn thoughts are written **during** the conversation: at the end of every reply, the NPC adds a short unspoken thought about what just happened and what they are going to do or bring up next.
+Turn thoughts are the last piece of the NPC's inner life. Each piece works on a different time scale:
+
+- **Long term:** [Personal reflection](#personal-reflection). How the NPC's relationship with you has developed from the first meeting through today.
+- **Short term:** [Private thoughts](#private-thoughts). How the NPC feels after the latest conversation, written once it ends.
+- **Every turn:** **Turn thoughts** (new). What the NPC is thinking *right now*, in the middle of the conversation, and what they plan to do next.
+
+With all three, the pieces finally come together. The NPC carries a long-term relationship, walks in with fresh feelings about the last encounter, and keeps a running inner voice from one line to the next.
+
+Turn thoughts are written **during** the conversation: at the end of every reply, the NPC adds a short unspoken thought about what just happened and what they are going to do or bring up next.
 
 Mantella cuts the thought out of the reply. It is **never spoken** and never shown in game, but it stays in the conversation history. On the next request, the LLM sees what the NPC was thinking last turn, so the NPC follows through on the plan instead of only reacting to the last line.
 
@@ -1155,7 +1165,7 @@ Mantella cuts the thought out of the reply. It is **never spoken** and never sho
 
 Turn thoughts are part of the conversation text used for the summary and the conversation-end private thought, so what the NPC was thinking can still shape their memory.
 
-**Format**
+**Example**
 
 The LLM writes a thought with a `<<thought Full Name>>` marker. Everything after the marker, until the next marker, is that NPC's thought:
 
@@ -1165,13 +1175,61 @@ Ysolda: Keep your voice down. We're here to close the deal, we don't want to dra
 <<action next turn Ysolda>> I need to make the handoff quickly and get back behind the city gates.
 ```
 
-Only the first line is spoken. `<<action next turn ...>>` is not a separate marker; it is just part of the thought text the default prompts ask for.
+Only the first line is spoken.
 
 - The name after `thought` is matched to an NPC in the conversation (full name, or any single part of it such as `Ysolda`). A marker with no name belongs to the NPC who was speaking.
 - One thought per NPC per reply. A second thought for the same NPC in the same reply is dropped.
 - A thought for an NPC who did not speak in that reply is dropped.
-- In multi-NPC chats (one LLM call for everyone), each NPC who spoke can have one thought, and all of them are sent back on the next request.
 - In [Game Master Mode](#game-master-mode), each NPC only sees **its own** thoughts, and the Game Master sees none.
+
+**Make your own tags**
+
+`<<thought Full Name>>` is the **only** marker Mantella reads. `<<action next turn ...>>` is not a Mantella feature. It is a tag the default prompts invent, and Mantella keeps it as plain thought text.
+
+So you can invent your own tags. Anything you put **after** the `<<thought>>` marker is kept word for word, tags included. It is never spoken, and the LLM sees it again on the next request. Mantella does not interpret these tags; the LLM does. Ask for the tags you want in your prompt, and the LLM will write them and act on them next turn. For example:
+
+```
+<<thought Serana>> Aela is itching for an excuse to draw steel.
+<<action next turn Serana>> I will hum songs to act like I don't care.
+<<mood Serana>> Smug, but my hand stays near my dagger.
+<<secret Serana>> I recognized the trader's ring. He works for the Volkihar.
+<<goal Serana>> Get out of this cave before nightfall.
+```
+
+Use this to track anything you want an NPC to carry from turn to turn: a mood, a long-term goal, a secret, a grudge, how much they trust the player, a plan that takes several turns.
+
+Rules for custom tags:
+
+- **Put them after the `<<thought>>` marker.** A tag before the marker, or between spoken lines, is treated as dialogue and **spoken aloud**.
+- **Do not start a tag name with `thought`** (e.g. `<<thought process>>`). Mantella reads it as a new thought for an NPC called "process", finds no such NPC, and drops it.
+- Custom tags are part of the thought, so **Turn Thoughts to Keep** applies to them too. Each extra tag also adds tokens to every request that keeps it.
+
+**Multi-NPC conversations**
+
+Turn thoughts also work in regular multi-NPC chats, where one LLM call writes the lines for every NPC. The format is the same, but **all** thoughts go at the very end of the reply, after the last spoken line, one block per NPC who spoke:
+
+```
+Serana: Serana dragged a gloved finger across the damp stone, stopping to inspect the grime under the torchlight.
+Serana: Honestly, I've stayed in nicer dungeons than this.
+Aela the Huntress: Aela stopped. She kept her back to the vampire.
+Aela the Huntress: Nobody's forcing you to stay.
+Ysolda: Ysolda stepped into the narrow space between the two women and raised a hand.
+Ysolda: Hey guys, we need to stay focused. We're here for the trader, remember?
+Serana: Serana pulled a small cloth from her belt, wiped her fingers clean, and tossed it into the dark.
+Serana: Right. Lead the way.
+Ysolda: Ysolda exhaled sharply and turned around, her boots splashing through the shallow puddles.
+Ysolda: Come on, let's keep moving.
+<<thought Serana>> Aela is itching for an excuse to draw steel, and I refuse to give her the satisfaction.
+<<action next turn Serana>> I will hum songs to act like I don't care.
+<<thought Aela the Huntress>> Serana backed down too smoothly, and I don't trust her for a second.
+<<action next turn Aela the Huntress>> I'm keeping an eye on her and I will provoke her further.
+<<thought Ysolda>> Aela and Serana are one bad look away from killing each other, and I refuse to get caught in the crossfire.
+<<action next turn Ysolda>> I am taking control of the conversation immediately and demanding the coin upfront so we can finish this and leave.
+```
+
+- Use the NPC's name in every `<<thought>>` marker. Without a name, the thought goes to whoever spoke last (Ysolda above).
+- A custom tag belongs to the thought it comes after, up to the next `<<thought>>` marker. The name inside the tag (`<<action next turn Serana>>`) is only there to help the LLM; Mantella ignores it.
+- All of them are sent back on the next request, so every NPC remembers its own plan and the LLM can play the NPCs against each other.
 
 **How many are sent back**
 
@@ -1179,22 +1237,24 @@ Only the first line is spoken. `<<action next turn ...>>` is not a separate mark
 
 **Thoughts and the sentence cap**
 
+> **⭐ Recommended: turn on Read Turn Thoughts After Sentence Cap** (**LLM** tab → **Advanced**). With it off, any reply that hits the sentence cap loses its thought.
+
 Thoughts come **after** the spoken lines, so **Max Sentences per Response** can cut the reply off before the thought is written. **Read Turn Thoughts After Sentence Cap** decides what happens:
 
 
 | Setting           | Behavior                                                                                                                                             |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Off** (default) | Thoughts count as sentences. When the cap is reached, the rest of the reply is thrown away and generation stops, so a thought after the cap is lost. |
-| **On**            | Thoughts do not count. Spoken lines past the cap are dropped, but generation keeps going so the thought at the end is still saved.                   |
+| **On** (recommended) | Thoughts do not count. Spoken lines past the cap are dropped, but generation keeps going so the thought at the end is still saved.                   |
 
 
-Turn it **on** if you use a low sentence cap and want the thoughts. The tradeoff is that the LLM keeps generating (and you keep paying for) the dropped lines. [Drop Last Sentences](#drop-last-sentences) never counts or drops thoughts.
+[Drop Last Sentences](#drop-last-sentences) never counts or drops thoughts.
 
 ### Quick start
 
-**Game Master Mode:** the default NPC prompts already ask for turn thoughts. Turn on [Game Master Mode](#game-master-mode) and skip to step 2.
-
-1. For a one-on-one (or multi-NPC) chat, add instructions like these to your conversation prompt (or a [prompt profile](#prompt-profiles)):
+1. Add the instructions below to the prompt for the kind of chat you want thoughts in (or to a [prompt profile](#prompt-profiles)). The same instructions work for both kinds:
+   - **One-on-one chats:** **Skyrim Prompt**
+   - **Multi-NPC chats:** **Skyrim Multi-NPC Prompt** (or **Skyrim Multi-NPC Director Prompt** if you use [Multi Conversation Director Mode](#multi-conversation-director-mode))
 
 ```
 - At the very END of the response, after ALL spoken lines and actions are finished, you MUST add one unspoken private thought per NPC who spoke
@@ -1204,9 +1264,12 @@ Turn it **on** if you use a low sentence cap and want the thoughts. The tradeoff
   - Must express the NPC's internal reaction/feelings to what just happened, and what impactful actions they will immediately take, or what new topics they will bring up in the next turn.
 ```
 
-2. Talk to the NPC. The thought is not spoken.
-3. Open **Live Conversation** → **Reload**. The thought shows as a **💭 Thought** row under the reply.
-4. On the next turn, check the prompt log: the last reply ends with the `<<thought ...>>` line.
+   In the multi-NPC prompt, also paste the [multi-NPC example](#turn-thoughts) above as a response format example, so the LLM puts every NPC's thought at the end. Swap `<<action next turn Full Name>>` for [your own tags](#turn-thoughts) if you want to track something else.
+
+2. **Recommended:** **LLM** tab → **Advanced** → turn on **Read Turn Thoughts After Sentence Cap**, so the sentence cap does not cut off the thoughts.
+3. Talk to the NPC. The thought is not spoken.
+4. Open **Live Conversation** → **Reload**. The thought shows as a **💭 Thought** row under the reply.
+5. On the next turn, check the prompt log: the last reply ends with the `<<thought ...>>` line.
 
 **Notes**
 
