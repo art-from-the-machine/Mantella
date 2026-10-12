@@ -1130,7 +1130,7 @@ The dedicated model is used everywhere reflections are generated: at conversatio
 
 ## Turn Thoughts
 
-> **⚠️ Turn thoughts need a custom prompt.** There is no on/off toggle. The NPC only writes turn thoughts if the conversation prompt tells it to. The default **Skyrim Prompt**, **Skyrim Multi-NPC Prompt**, and **Skyrim Multi-NPC Director Prompt** do **not** ask for them, so you have to add the instructions yourself (see **Quick start** below). Only the default **Skyrim Game Master NPC Prompt** and **Skyrim Game Master Director NPC Prompt** already include them.
+> **⚠️ Turn thoughts need a custom prompt.** There is no on/off toggle. The NPC only writes turn thoughts if the conversation prompt tells it to, so you have to add the instructions yourself (see **Quick start** below). Only the default **Skyrim Game Master NPC Prompt** and **Skyrim Game Master Director NPC Prompt** already include them.
 
 ### Where to find it
 
