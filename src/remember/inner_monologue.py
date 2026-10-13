@@ -11,7 +11,7 @@ from src.games.gameable import Gameable
 from src.llm.client_base import ClientBase
 from src.llm.llm_client import LLMClient
 from src.llm.message_thread import message_thread
-from src.llm.messages import UserMessage
+from src.llm.messages import AssistantMessage, UserMessage
 from src.prompt_profile_manager import PromptSectionError
 from src.remember.summaries import (
     CharacterSummaryParameters,
@@ -239,9 +239,12 @@ class InnerMonologue:
             conversation_summary=conversation_summary.strip(),
             lorebook="",
         )
-        talk_text = npc_info.messages.transform_to_text(
-            npc_info.messages.get_talk_only(include_system_generated_messages=True)
-        )
+        talk_messages = npc_info.messages.get_talk_only(include_system_generated_messages=True)
+        # get_talk_only returns copies, so this only hides other NPCs' turn thoughts from this request
+        for message in talk_messages:
+            if isinstance(message, AssistantMessage):
+                message.thoughts_only_of_ref_id = npc.ref_id
+        talk_text = npc_info.messages.transform_to_text(talk_messages)
         return self.__request_thought(talk_text, prompt)
 
     def __append_thought(self, new_thought: str, npc: Character, world_id: str, save_timestamp: int) -> None:
