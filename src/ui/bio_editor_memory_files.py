@@ -1,7 +1,9 @@
-"""Path helpers for Bio Editor summary, private-thought, and personal-reflection files.
+"""Path helpers for Bio Editor summary, private-thought, personal-reflection, and note files.
 
 Mirrors the on-disk layout used at runtime:
-``{save_folder}/data/{game}/{conversations|thoughts|reflections}/{world_id}/{Name}[- {ref_id}]/{Name}_{kind}_{N}.txt``
+``{save_folder}/data/{game}/{conversations|thoughts|reflections|notes}/{world_id}/{Name}[- {ref_id}]/{Name}_{kind}_{N}.txt``
+
+Notes are user-only and never read by the runtime.
 """
 import os
 import re
@@ -63,6 +65,10 @@ def thoughts_base_dir(save_folder: str, game_folder: str) -> str:
 
 def reflections_base_dir(save_folder: str, game_folder: str) -> str:
     return os.path.join(save_folder, "data", game_folder, "reflections")
+
+
+def notes_base_dir(save_folder: str, game_folder: str) -> str:
+    return os.path.join(save_folder, "data", game_folder, "notes")
 
 
 def pick_world_id(base_dir: str) -> str:
