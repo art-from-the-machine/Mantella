@@ -199,7 +199,9 @@ class ClientBase(AIClient):
                     openai_messages = self._sonnet_cache_connector.transform_messages(openai_messages, model_name=self._model_name)
                 except Exception as e:
                     logging.debug(f"Sonnet caching transform (sync) failed: {e}")
-            
+            if isinstance(messages, message_thread):
+                openai_messages = messages.append_decensor_commitment(openai_messages)
+
             # Log LLM parameters being sent to API
             logging.info(f"LLM Request Parameters: model='{self.model_name}', base_url='{self._base_url}', params={request_params}")
             logging.log(15, f"LLM request to {self.model_name}:\n{format_openai_messages(openai_messages)}")
@@ -284,7 +286,9 @@ class ClientBase(AIClient):
                         openai_messages = self._sonnet_cache_connector.transform_messages(openai_messages, model_name=self._model_name)
                     except Exception as e:
                         logging.debug(f"Sonnet caching transform (stream) failed: {e}")
-                
+                if isinstance(messages, message_thread):
+                    openai_messages = messages.append_decensor_commitment(openai_messages)
+
                 # Log LLM parameters being sent to API
                 logging.info(f"LLM Request Parameters: model='{self.model_name}', base_url='{self._base_url}', params={request_params}")
                 logging.log(15, f"LLM request to {self.model_name}:\n{format_openai_messages(openai_messages)}")
@@ -611,7 +615,7 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
         '''
         messages_to_check = []
         if isinstance(messages, message_thread):
-            messages_to_check = messages.get_openai_messages()
+            messages_to_check = messages.append_decensor_commitment(messages.get_openai_messages())
         else:
             for m in messages:
                 messages_to_check.append(m.get_openai_message())

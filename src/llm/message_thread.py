@@ -1,5 +1,6 @@
 from copy import deepcopy
 from src.config.config_loader import ConfigLoader
+from src.config.definitions.llm_definitions import DecensorPlacementEnum
 from src.llm.messages import join_message, leave_message, Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage
 from src.prompt_profile_manager import PromptSectionError
 from typing import Callable
@@ -8,46 +9,53 @@ from src import utils
 import json
 import logging
 
-def decensor_bypass_texts(config) -> tuple[str, str] | None:
-    """Return the handshake and assistant commitment when the bypass should be sent.
+def decensor_placement(config) -> DecensorPlacementEnum:
+    placement = getattr(config, "decensor_assistant_placement", DecensorPlacementEnum.AFTER_SYSTEM_PROMPT)
+    return placement if isinstance(placement, DecensorPlacementEnum) else DecensorPlacementEnum.AFTER_SYSTEM_PROMPT
 
-    Returns None when the toggle is off, either text is empty, or a prompt does not resolve to text.
-    Raises PromptSectionError when an active profile references a broken shared section.
-    """
-    if getattr(config, "enable_decensor_bypass", False) is not True:
-        return None
-    handshake = str(getattr(config, "decensor_handshake_prompt", "") or "")
-    commitment = str(getattr(config, "decensor_assistant_prompt", "") or "")
+def _decensor_text(config, prompt_type: str) -> str:
+    text = str(getattr(config, prompt_type, "") or "")
     manager = getattr(config, "prompt_profile_manager", None)
     resolve = getattr(manager, "resolve_prompt", None) if manager is not None else None
     if callable(resolve):
-        handshake = resolve("decensor_handshake_prompt", handshake)
-        commitment = resolve("decensor_assistant_prompt", commitment)
-    if not isinstance(handshake, str) or not isinstance(commitment, str):
-        return None
-    handshake = handshake.strip()
-    commitment = commitment.strip()
-    if not handshake or not commitment:
-        return None
-    return handshake, commitment
+        text = resolve(prompt_type, text)
+    return text.strip() if isinstance(text, str) else ""
 
-def format_decensor_bypass_preview(config) -> str:
-    """Read-only JSON of the handshake pair, or empty text when it is not sent."""
-    try:
-        pair = decensor_bypass_texts(config)
-    except PromptSectionError as e:
-        return str(e)
-    if not pair:
-        return ""
-    handshake, commitment = pair
-    return json.dumps(
-        [
+def decensor_bypass_messages(config) -> list[ChatCompletionMessageParam]:
+    """Return the decensor messages to send, in order, for the chosen placement.
+
+    After the system prompt: the user handshake, then the assistant commitment.
+    At the end of the request: only the commitment, in the chosen role, because the latest player input already comes before it.
+    Empty when the toggle is off or a text the placement needs is empty or does not resolve to text.
+    Raises PromptSectionError when an active profile references a broken shared section.
+    """
+    if getattr(config, "enable_decensor_bypass", False) is not True:
+        return []
+    placement = decensor_placement(config)
+    if placement == DecensorPlacementEnum.AFTER_SYSTEM_PROMPT:
+        handshake = _decensor_text(config, "decensor_handshake_prompt")
+        commitment = _decensor_text(config, "decensor_assistant_prompt")
+        if not handshake or not commitment:
+            return []
+        return [
             {"role": "user", "content": handshake},
             {"role": "assistant", "content": commitment},
-        ],
-        indent=2,
-        ensure_ascii=False,
-    )
+        ]
+    commitment = _decensor_text(config, "decensor_assistant_prompt")
+    if not commitment:
+        return []
+    role = "system" if placement == DecensorPlacementEnum.END_AS_SYSTEM else "assistant"
+    return [{"role": role, "content": commitment}]
+
+def format_decensor_bypass_preview(config) -> str:
+    """Read-only JSON of the decensor messages, or empty text when they are not sent."""
+    try:
+        bypass = decensor_bypass_messages(config)
+    except PromptSectionError as e:
+        return str(e)
+    if not bypass:
+        return ""
+    return json.dumps(bypass, indent=2, ensure_ascii=False)
 
 class message_thread():
     """A thread of messages consisting of system-, user- and assistant-messages.
@@ -143,35 +151,47 @@ class message_thread():
         return max(0, count)
 
     def __insert_decensor_bypass(self, openai_messages: list[ChatCompletionMessageParam]) -> list[ChatCompletionMessageParam]:
-        """Place a user handshake and assistant commitment directly after the system prompt.
+        """Place a user handshake and assistant commitment directly after the system prompt, when that is the chosen placement.
 
-        Only the live conversation thread opts in. The pair is not stored in history, so it is
-        not summarized and it is rebuilt from the current prompt text on every request.
+        Only the live conversation thread opts in. The decensor messages are not stored in history, so they are
+        not summarized and they are rebuilt from the current prompt text on every request.
         """
-        if not self.__include_decensor_bypass:
+        if not self.__include_decensor_bypass or decensor_placement(self.__config) != DecensorPlacementEnum.AFTER_SYSTEM_PROMPT:
             return openai_messages
         if not openai_messages or openai_messages[0].get("role") != "system":
             return openai_messages
+        bypass = self.__decensor_bypass_messages()
+        if not bypass:
+            return openai_messages
+        return [openai_messages[0], *bypass, *openai_messages[1:]]
+
+    def append_decensor_commitment(self, openai_messages: list[ChatCompletionMessageParam]) -> list[ChatCompletionMessageParam]:
+        """Append the commitment as the last message, when an end of request placement is chosen.
+
+        Call this on the final request messages, after the image and the cache breakpoints were added,
+        because both expect the latest player input to be the last message.
+        """
+        if not self.__include_decensor_bypass or decensor_placement(self.__config) == DecensorPlacementEnum.AFTER_SYSTEM_PROMPT:
+            return openai_messages
+        bypass = self.__decensor_bypass_messages()
+        if not bypass:
+            return openai_messages
+        return [*openai_messages, *bypass]
+
+    def __decensor_bypass_messages(self) -> list[ChatCompletionMessageParam]:
         try:
-            pair = decensor_bypass_texts(self.__config)
+            bypass = decensor_bypass_messages(self.__config)
         except PromptSectionError as e:
             logging.error(str(e))
             logging.error("Decensor bypass was not added. Fix the active prompt profile.")
-            return openai_messages
-        if pair is None:
+            return []
+        if not bypass:
             if getattr(self.__config, "enable_decensor_bypass", False) is True and not self.__logged_skipped_decensor:
-                logging.warning("Decensor bypass is enabled, but the handshake or assistant prompt is empty. Neither message was sent.")
+                logging.warning("Decensor bypass is enabled, but a decensor prompt its placement needs is empty. Nothing was sent.")
                 self.__logged_skipped_decensor = True
-            return openai_messages
-
-        handshake, commitment = pair
+            return []
         self.__logged_skipped_decensor = False
-        return [
-            openai_messages[0],
-            {"role": "user", "content": handshake},
-            {"role": "assistant", "content": commitment},
-            *openai_messages[1:],
-        ]
+        return bypass
 
     def add_message(self, new_message: UserMessage | AssistantMessage | ImageMessage | ImageDescriptionMessage | join_message | leave_message):
         self.__messages.append(new_message)

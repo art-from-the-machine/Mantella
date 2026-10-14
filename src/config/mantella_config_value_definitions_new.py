@@ -183,6 +183,7 @@ class MantellaConfigValueDefinitionsNew:
         
         
         llm_category.add_config_value(LLMDefinitions.get_enable_decensor_bypass_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_decensor_assistant_placement_config_value())
 
         # Random LLM Selection (advanced)
         llm_category.add_config_value(OtherDefinitions.get_random_llm_one_on_one_enabled_config_value())

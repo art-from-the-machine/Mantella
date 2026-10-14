@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from typing import Any
-from src.config.definitions.llm_definitions import NarrationHandlingEnum, NarrationIndicatorsEnum
+from src.config.definitions.llm_definitions import DecensorPlacementEnum, NarrationHandlingEnum, NarrationIndicatorsEnum
 from src.config.definitions.game_definitions import GameEnum
 from src.config.definitions.tts_definitions import TTSEnum
 from src.conversation.action import Action
@@ -444,6 +444,7 @@ Game Master LLM parameter list must follow the Python dictionary format: https:/
             # Multi-NPC prompt content toggles
             self.multi_npc_bios_only = self.__definitions.get_bool_value("multi_npc_bios_only")
             self.enable_decensor_bypass = self.__definitions.get_bool_value("enable_decensor_bypass")
+            self.decensor_assistant_placement: DecensorPlacementEnum = self.__definitions.get_enum_value("decensor_assistant_placement", DecensorPlacementEnum)
             self.__apply_bio_section_filter_settings_from_definitions()
 
             # Summary LLM Configuration

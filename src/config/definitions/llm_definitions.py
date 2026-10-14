@@ -36,6 +36,19 @@ class NarrationIndicatorsEnum(Enum):
             self.BRACKETS: "[]",
         }[self]
 
+class DecensorPlacementEnum(Enum):
+    AFTER_SYSTEM_PROMPT = auto()
+    END_AS_ASSISTANT = auto()
+    END_AS_SYSTEM = auto()
+
+    @property
+    def display_name(self) -> str:
+        return {
+            self.AFTER_SYSTEM_PROMPT: "After system prompt",
+            self.END_AS_ASSISTANT: "End of request, as assistant",
+            self.END_AS_SYSTEM: "End of request, as system",
+        }[self]
+
 class LLMDefinitions:
     @staticmethod
     def get_llm_api_config_value() -> ConfigValue:
@@ -391,16 +404,32 @@ class LLMDefinitions:
 
     @staticmethod
     def get_enable_decensor_bypass_config_value() -> ConfigValue:
-        description = """Insert a short user handshake and an assistant commitment immediately after the system prompt on conversation requests.
-                        The handshake is sent as a user message and the commitment as the following assistant message, so the request stays system, user, assistant, user.
+        description = """Add the decensor assistant commitment to conversation requests. Decensor Assistant Placement sets where it goes, and whether the user handshake is sent before it.
                         Edit both texts in the Prompts tab. An active Prompt Profile for either type replaces the Prompts tab text at runtime.
-                        If either text is empty, the pair is not sent.
+                        If a text the placement needs is empty, nothing is sent.
                         This applies to live NPC conversations only. Summaries, inner thoughts, personal reflections, and vision calls are unchanged."""
         return ConfigValueBool(
             "enable_decensor_bypass",
             "Enable Decensor Bypass",
             description,
             False,
+            tags=[ConfigValueTag.advanced],
+        )
+
+    @staticmethod
+    def get_decensor_assistant_placement_config_value() -> ConfigValue:
+        description = """Where the decensor assistant commitment is sent when Enable Decensor Bypass is on.
+                        - After system prompt: the user handshake and then the commitment as an assistant message, directly after the system prompt. The request stays system, user, assistant, then the conversation.
+                        - End of request, as assistant: only the commitment, as the last message after the latest player input. The handshake is not sent. The model reads it as its own most recent reasoning. Some models continue it as the start of their reply, and some, such as Gemini, reject a request that ends with an assistant message.
+                        - End of request, as system: the same, but sent as a system message. Use this if the model rejects a request that ends with an assistant message. Write the commitment as an instruction when you use this."""
+        options = [e.display_name for e in DecensorPlacementEnum]
+        return ConfigValueSelection(
+            "decensor_assistant_placement",
+            "Decensor Assistant Placement",
+            description,
+            DecensorPlacementEnum.AFTER_SYSTEM_PROMPT.display_name,
+            options,
+            corresponding_enums=list(DecensorPlacementEnum),
             tags=[ConfigValueTag.advanced],
         )
 

@@ -132,7 +132,7 @@ class StartUI(routeable):
             lines=8,
             label="Decensor bypass (read-only)",
             info="Sent after the system prompt and before this conversation. Edit the wording in Prompts or Prompt Profiles, then click Reload.",
-            placeholder="Nothing is sent until Enable Decensor Bypass is on and both prompts have text. Click Reload to refresh.",
+            placeholder="Nothing is sent until Enable Decensor Bypass is on and the prompts its placement needs have text. Click Reload to refresh.",
             interactive=False,
         )
 
