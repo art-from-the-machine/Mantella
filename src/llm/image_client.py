@@ -9,6 +9,13 @@ from src.llm.sonnet_cache_connector import SonnetCacheConnector
 from src.prompt_profile_manager import PromptSectionError
 from src.llm.messages import ImageMessage
 
+class VisionCapture:
+    '''One screenshot (and its transcription) shared by several requests, so only the first of them captures the game window
+    '''
+    def __init__(self) -> None:
+        self.image: str | None = None
+        self.transcription: str | None = None
+
 class ImageClient(ClientBase):
     '''Image class to handle LLM vision
     '''
@@ -59,16 +66,21 @@ class ImageClient(ClientBase):
             return ""
 
     @utils.time_it
-    def add_image_to_messages(self, openai_messages: list[ChatCompletionMessageParam], vision_hints: str) -> list[ChatCompletionMessageParam]:
+    def add_image_to_messages(self, openai_messages: list[ChatCompletionMessageParam], vision_hints: str, capture: VisionCapture | None = None) -> list[ChatCompletionMessageParam]:
         '''Adds a captured image to the latest user message
 
         Args:
             openai_messages (list[ChatCompletionMessageParam]): The existing list of messages in the OpenAI format
+            capture (VisionCapture | None): reuses the screenshot (and transcription) it holds. Takes a new screenshot and stores it there if it holds none
 
         Returns:
             list[ChatCompletionMessageParam]: The updated list of messages with the image added
         '''
-        image = self.__image_manager.get_image()
+        image = capture.image if capture else None
+        if image is None:
+            image = self.__image_manager.get_image()
+            if capture:
+                capture.image = image
         if image is None:
             return openai_messages
         
@@ -90,19 +102,23 @@ class ImageClient(ClientBase):
         else:
             if not self.__vision_prompt:
                 return openai_messages
-            if len(vision_hints) > 0:
-                vision_prompt = f"{self.__vision_prompt}\n{vision_hints}"
-            else:
-                vision_prompt = self.__vision_prompt
-            image_msg_instance = ImageMessage(self.__config, image, vision_prompt, self.__detail, True)
-            image_transcription = self.request_call(image_msg_instance)
+            image_transcription = capture.transcription if capture else None
+            if not image_transcription:
+                if len(vision_hints) > 0:
+                    vision_prompt = f"{self.__vision_prompt}\n{vision_hints}"
+                else:
+                    vision_prompt = self.__vision_prompt
+                image_msg_instance = ImageMessage(self.__config, image, vision_prompt, self.__detail, True)
+                image_transcription = self.request_call(image_msg_instance)
+                if image_transcription:
+                    last_punctuation = max(image_transcription.rfind(p) for p in self.__end_of_sentence_chars)
+                    # filter transcription to full sentences
+                    image_transcription = image_transcription if last_punctuation == -1 else image_transcription[:last_punctuation + 1]
+
+                    logging.log(23, f"Image transcription: {image_transcription}")
+                    if capture:
+                        capture.transcription = image_transcription
             if image_transcription:
-                last_punctuation = max(image_transcription.rfind(p) for p in self.__end_of_sentence_chars)
-                # filter transcription to full sentences
-                image_transcription = image_transcription if last_punctuation == -1 else image_transcription[:last_punctuation + 1]
-
-                logging.log(23, f"Image transcription: {image_transcription}")
-
                 # Add the image to the last user message or create a new message if needed
                 if openai_messages and openai_messages[-1]['role'] == 'user':
                     openai_messages[-1]['content'] = [

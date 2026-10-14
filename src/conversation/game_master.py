@@ -12,6 +12,7 @@ from src.conversation.context import context as Context
 from src.conversation.conversation_type import multi_npc_game_master
 from src.llm.ai_client import AIClient
 from src.llm.client_base import ClientBase
+from src.llm.image_client import VisionCapture
 from src.llm.message_thread import message_thread
 from src.llm.messages import AssistantMessage, join_message, leave_message, Message, UserMessage
 from src.llm.sentence import Sentence
@@ -577,6 +578,8 @@ class GameMasterTurns:
             reply: ReplyQueue | None = self.__playing
         # The history as it will be once the replies generated so far have been played
         history = live_messages.get_persistent_messages()
+        # One screenshot per turn: every reply of the turn sees the game as it was when the turn started
+        vision_capture = VisionCapture()
         speaker: Character | None = None
         while reply:
             try:
@@ -591,7 +594,7 @@ class GameMasterTurns:
                 if not speaker:
                     self.__end_turn_early(turn_id, reply)
                     return
-                speaker, reply = self.__run_reply(speaker, reply, turn_id, history, conversation_type, get_conversation_type, get_output_manager)
+                speaker, reply = self.__run_reply(speaker, reply, turn_id, history, conversation_type, get_conversation_type, get_output_manager, vision_capture)
             except Exception as e:
                 logging.error(f"Game Master turn failed: {e}")
                 self.__end_turn_early(turn_id, reply)
@@ -613,7 +616,7 @@ class GameMasterTurns:
         return None
 
     def __run_reply(self, speaker: Character, reply: ReplyQueue, turn_id: int, history: list[Message], conversation_type: multi_npc_game_master,
-                    get_conversation_type: Callable[[], Any], get_output_manager: Callable[[], Any]) -> tuple[Character | None, ReplyQueue | None]:
+                    get_conversation_type: Callable[[], Any], get_output_manager: Callable[[], Any], vision_capture: VisionCapture) -> tuple[Character | None, ReplyQueue | None]:
         """Generates one reply, decides who speaks next and waits until the reply is being played
 
         Returns:
@@ -641,6 +644,7 @@ class GameMasterTurns:
             if isinstance(message, AssistantMessage):
                 message.thoughts_only_of_ref_id = speaker.ref_id
         npc_request = message_thread(config, prompt, include_decensor_bypass=True)
+        npc_request.vision_capture = vision_capture
         npc_request.add_non_system_messages(npc_history)
         if len(npc_history) == 0 or not isinstance(npc_history[-1], UserMessage):
             # Only sent with this request so the NPC has something to reply to. Never added to the conversation itself

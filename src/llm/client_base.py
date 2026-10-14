@@ -275,7 +275,8 @@ class ClientBase(AIClient):
                     self._raise_if_first_token_late(deadline)
                     self._image_client._response_deadline = deadline
                     try:
-                        openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints)
+                        capture = messages.vision_capture if isinstance(messages, message_thread) else None
+                        openai_messages = self._image_client.add_image_to_messages(openai_messages, vision_hints, capture)
                     finally:
                         self._image_client._response_deadline = None
                     self._raise_if_first_token_late(deadline)

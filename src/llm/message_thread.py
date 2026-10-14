@@ -3,11 +3,14 @@ from src.config.config_loader import ConfigLoader
 from src.config.definitions.llm_definitions import DecensorPlacementEnum
 from src.llm.messages import join_message, leave_message, Message, SystemMessage, UserMessage, AssistantMessage, ImageMessage, ImageDescriptionMessage
 from src.prompt_profile_manager import PromptSectionError
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 from openai.types.chat import ChatCompletionMessageParam
 from src import utils
 import json
 import logging
+
+if TYPE_CHECKING:
+    from src.llm.image_client import VisionCapture
 
 def decensor_placement(config) -> DecensorPlacementEnum:
     placement = getattr(config, "decensor_assistant_placement", DecensorPlacementEnum.AFTER_SYSTEM_PROMPT)
@@ -66,6 +69,7 @@ class message_thread():
         self.__config = config
         self.__include_decensor_bypass = include_decensor_bypass
         self.__logged_skipped_decensor = False
+        self.vision_capture: "VisionCapture | None" = None # When set, requests with this thread reuse its screenshot instead of taking a new one
         if not initial_system_message:
             return
         if isinstance(initial_system_message, str):
