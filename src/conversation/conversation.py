@@ -346,11 +346,11 @@ class Conversation:
             
             self.__is_interrupt_requested = False # Pressing the interrupt hotkey during the player's turn has nothing to interrupt
             is_director = self.__conversation_type.is_director_mode()
-            # Director mode: "." lets the NPCs keep talking without a new scene direction
-            is_continue = is_director and player_text.strip() == "."
+            # Director mode and Game Master Mode: "." lets the NPCs keep talking without new player input
+            is_continue = (is_director or isinstance(self.__conversation_type, multi_npc_game_master)) and player_text.strip() == "."
             new_message: UserMessage = UserMessage(self.__context.config, "" if is_continue else player_text, player_character.name, False)
             new_message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
-            new_message.is_director_message = is_director
+            new_message.is_director_message = is_director or is_continue # A continue message only carries events, so no player name is shown
             new_message = self.update_game_events(new_message)
             if not is_continue or new_message.count_ingame_events() > 0:
                 self.__messages.add_message(new_message)
@@ -360,7 +360,7 @@ class Conversation:
                 new_message.text = self.DIRECTOR_CONTINUE_TEXT
                 new_message.is_system_generated_message = True
                 self.__messages.add_message(new_message)
-            player_voiceline = None if is_director else self.__get_player_voiceline(player_character, player_text)
+            player_voiceline = None if is_director or is_continue else self.__get_player_voiceline(player_character, player_text)
             text = "" if is_continue else new_message.text
             logging.log(23, f"Text passed to NPC: {text}")
 
@@ -503,7 +503,7 @@ class Conversation:
 
         all_ingame_events = self.__context.get_context_ingame_events()
         if self.__is_player_interrupting:
-            if not self.__conversation_type.is_director_mode(): # Director mode: the player is not in the scene, so there is nobody interrupting
+            if not message.is_director_message: # Director mode or a continue: the player says nothing, so there is nobody interrupting
                 all_ingame_events.append('Interrupting...')
             self.__is_player_interrupting = False
         max_events = min(len(all_ingame_events) ,self.__context.config.max_count_events)
