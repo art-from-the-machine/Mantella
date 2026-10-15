@@ -537,6 +537,8 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
             self.multi_npc_game_master_mode = self.__definitions.get_bool_value("multi_npc_game_master_mode")
             self.multi_npc_game_master_max_npc_turns = self.__definitions.get_int_value("multi_npc_game_master_max_npc_turns")
             self.multi_npc_game_master_director_max_npc_turns = self.__definitions.get_int_value("multi_npc_game_master_director_max_npc_turns")
+            self.game_master_history_message_count = self.__definitions.get_int_value("game_master_history_message_count")
+            self.game_master_include_turn_thoughts = self.__definitions.get_bool_value("game_master_include_turn_thoughts")
 
             # Vision
             self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')

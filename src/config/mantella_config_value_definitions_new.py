@@ -204,6 +204,8 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_bios_only_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_director_max_npc_turns_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_max_npc_turns_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_game_master_history_message_count_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_game_master_include_turn_thoughts_config_value())
         llm_category.add_config_value(LLMDefinitions.get_enable_bio_section_filter_config_value())
         llm_category.add_config_value(LLMDefinitions.get_bio_sections_to_exclude_config_value())
         llm_category.add_config_value(LLMDefinitions.get_enable_bio_section_filter_for_memory_config_value())

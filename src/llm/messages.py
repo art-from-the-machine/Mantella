@@ -189,7 +189,24 @@ class AssistantMessage(Message):
         return len(self.__sentences) > 0
 
     def get_formatted_content(self, include_thoughts: bool = True) -> str:
-        if len(self.__sentences) < 1:
+        return self.__format_sentences(self.__sentences, include_thoughts)
+
+    def get_formatted_turns(self, include_thoughts: bool = True) -> list[str]:
+        """The content as one text per speaker turn. Only Game Master Mode messages (thoughts_in_place) are split,
+        since there each thought belongs to the turn it was written in. Other messages are returned whole.
+        Consecutive turns by the same speaker can't be told apart and are returned as one."""
+        if not self.thoughts_in_place:
+            return [self.get_formatted_content(include_thoughts)]
+        turns: list[list[SentenceContent]] = []
+        for sentence in self.__sentences:
+            if turns and turns[-1][-1].speaker.ref_id == sentence.speaker.ref_id:
+                turns[-1].append(sentence)
+            else:
+                turns.append([sentence])
+        return [self.__format_sentences(turn, include_thoughts) for turn in turns]
+
+    def __format_sentences(self, sentences: list[SentenceContent], include_thoughts: bool) -> str:
+        if len(sentences) < 1:
             return ""
 
         result = ""
@@ -198,7 +215,7 @@ class AssistantMessage(Message):
         spoken_ref_ids = self.__spoken_ref_ids()
         thought_ref_id: str | None = None # The speaker of the thought block that was just written, if any
         thought_text: str = ""
-        for sentence in self.__sentences:
+        for sentence in sentences:
             if sentence.sentence_type == SentenceTypeEnum.THOUGHT:
                 if include_thoughts and self.thoughts_in_place and self.__is_kept_thought(sentence, spoken_ref_ids):
                     text = sentence.text.strip()

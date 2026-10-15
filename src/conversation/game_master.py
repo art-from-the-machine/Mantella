@@ -212,18 +212,26 @@ def messages_heard_by(history: list[Message], npc: Character) -> list[Message]:
     return result
 
 
-def history_text_without_thoughts(history: list[Message]) -> str:
-    """The conversation as text with each line labelled by speaker. Turn thoughts are left out"""
+def history_text(history: list[Message], include_thoughts: bool) -> str:
+    """The conversation as text with each line labelled by speaker, one line per NPC turn. Turn thoughts are left out unless include_thoughts is set"""
     result = ""
     for message in history:
         was_multi_npc_message = message.is_multi_npc_message
         message.is_multi_npc_message = True
         if isinstance(message, AssistantMessage):
-            result += f"{message.get_formatted_content(include_thoughts=False)}\n"
+            result += "".join(f"{turn}\n" for turn in message.get_formatted_turns(include_thoughts=include_thoughts))
         else:
             result += f"{message.get_formatted_content()}\n"
         message.is_multi_npc_message = was_multi_npc_message
     return result
+
+
+def game_master_history_lines(history: list[Message], config: ConfigLoader) -> list[str]:
+    """The conversation lines the Game Master sees: only the last lines if a message limit is set, and turn thoughts only if enabled.
+    Each line is one message: a player line, one NPC's reply, or a join/leave note"""
+    lines = [line for line in history_text(history, config.game_master_include_turn_thoughts).split("\n") if line.strip()]
+    message_count = config.game_master_history_message_count
+    return lines[-message_count:] if message_count > 0 else lines
 
 
 def add_reply_to_history(history: list[Message], sentences: list[Sentence], config: ConfigLoader, is_multi_npc: bool):
@@ -289,8 +297,8 @@ class GameMaster:
         choices = [npc.name for npc in npcs]
         if allow_player and player_name:
             choices.append(player_name)
-        history_lines = [line for line in history_text_without_thoughts(history).split("\n") if line.strip()]
-        header = "The conversation so far:\n"
+        history_lines = game_master_history_lines(history, config)
+        header ="The conversation so far:\n"
         footer = (f"\nWho speaks next? Choose one of: {', '.join(choices)}.\n"
                   'Reply only with JSON in this format: {"next": "<name>", "reason": "<a few words>"}')
         # The conversation is only reloaded when it gets too long for the NPC model, so the oldest lines are dropped to fit the Game Master model
@@ -328,7 +336,7 @@ class GameMaster:
         if not url:
             logging.error(f"Game Master decision models only work through OpenRouter or NanoGPT, not {client.service_name}.")
             return None
-        history_lines = [line for line in history_text_without_thoughts(history).split("\n") if line.strip()]
+        history_lines = game_master_history_lines(history, config)
         try:
             prompts = resolve_decision_prompts(config)
         except PromptSectionError as e:
@@ -638,7 +646,7 @@ class GameMasterTurns:
             logging.error("NPC reply was not generated. Fix the active Game Master NPC prompt profile, or end the conversation.")
             self.__end_turn_early(turn_id, reply)
             return None, None
-        # A separate copy, so only what this NPC heard and only its own thoughts are sent. The Game Master sees the whole conversation, without thoughts
+        # A separate copy, so only what this NPC heard and only its own thoughts are sent. The Game Master sees the whole conversation (see game_master_history_lines)
         npc_history = messages_heard_by(deepcopy(history), speaker)
         for message in npc_history:
             if isinstance(message, AssistantMessage):

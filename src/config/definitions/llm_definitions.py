@@ -504,6 +504,19 @@ class LLMDefinitions:
                         The Game Master never hands the turn to the player in this mode, so the run only ends early if the Game Master fails to decide."""
         return ConfigValueInt("multi_npc_game_master_director_max_npc_turns", "Game Master Director Max NPC Turns", description, 6, 1, 30, tags=[ConfigValueTag.share_row])
 
+    @staticmethod
+    def get_game_master_history_message_count_config_value() -> ConfigValue:
+        description = """Game Master Mode only. How many of the latest conversation messages are sent to the Game Master when it decides who speaks next. 0 sends the whole conversation.
+                        Each player line and each NPC's reply is one message.
+                        Lines that do not fit the Game Master model's token limit are still dropped, oldest first."""
+        return ConfigValueInt("game_master_history_message_count", "Game Master Message Limit", description, 0, 0, 999, tags=[ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_game_master_include_turn_thoughts_config_value() -> ConfigValue:
+        description = """Game Master Mode only. When enabled, the NPCs' turn thoughts are included in the conversation sent to the Game Master.
+                        When disabled, the Game Master only sees what was said."""
+        return ConfigValueBool("game_master_include_turn_thoughts", "Include Turn Thoughts for Game Master", description, False, tags=[ConfigValueTag.share_row])
+
     # Game Master LLM Configuration
     @staticmethod
     def get_game_master_llm_api_config_value() -> ConfigValue:
