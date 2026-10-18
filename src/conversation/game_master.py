@@ -71,14 +71,17 @@ DECISION_QUESTION = "next_speaker"
 TOKEN_MARGIN = 0.9 # The token count is only an estimate, so part of the limit is kept free
 
 
-def post_decision_with_retry(url: str, headers: dict[str, str], body: dict[str, Any], timeout: int) -> requests.Response:
-    """Posts to the Decisions API, and posts once more if the connection breaks or the server fails (5xx)"""
+def post_decision_with_retry(url: str, headers: dict[str, str], body: dict[str, Any], timeout: int,
+                             should_retry: Callable[[], bool] = lambda: True) -> requests.Response:
+    """Posts to the Decisions API, and posts once more if the connection breaks or the server fails (5xx) and should_retry() allows it"""
     try:
         response = requests.post(url, headers=headers, json=body, timeout=timeout)
-        if response.status_code < 500:
+        if response.status_code < 500 or not should_retry():
             return response
         logging.warning(f"Game Master decision call failed with status {response.status_code}. Retrying once...")
     except requests.ConnectionError as e:
+        if not should_retry():
+            raise
         logging.warning(f"Game Master decision call failed: {e}. Retrying once...")
     return requests.post(url, headers=headers, json=body, timeout=timeout)
 

@@ -18,6 +18,73 @@ from src.prompt_profile_manager import PromptSectionError
 from src.bio_section_filter import apply_bio_section_filter, should_filter_conversation_bios
 
 
+def append_reflection_to_bio(bio: str, character: Character, rememberer: Remembering, world_id: str, player_name: str | None) -> str:
+    """Append the latest wrapped personal reflection after the filtered bio."""
+    from src.remember.personal_reflection import wrap_personal_reflection
+    reflection = wrap_personal_reflection(rememberer.get_character_personal_reflection(character, world_id))
+    if not reflection:
+        return bio
+    reflection = utils.resolve_player_name_placeholder(reflection, player_name)
+    if bio:
+        return f"{bio.rstrip()}\n\n{reflection}"
+    return reflection
+
+
+def build_bios_and_summaries_text(characters: list[Character], config: ConfigLoader, rememberer: Remembering, world_id: str, player_name: str | None,
+                                  contains_player: bool, include_memories: bool = True, always_multi_npc: bool = False) -> str:
+    """Gets the bios and summaries combined for each character, the text of the {bios_and_summaries} prompt variable
+
+    Args:
+        player_name (str | None): fills {player_name} in the texts. None or empty for "the player"
+        contains_player (bool): the player takes part, so the configured bio sections are filtered out
+        always_multi_npc (bool): uses the multi-NPC layout even for a single character
+
+    Returns:
+        str: the bios and summaries paired together for each character
+    """
+    character_sections = []
+    is_multi_npc = always_multi_npc or len(characters) > 1
+    wrap_thought = None
+    if include_memories and is_multi_npc:
+        from src.remember.inner_monologue import wrap_private_thought
+        wrap_thought = wrap_private_thought
+    is_bio_filter_enabled = should_filter_conversation_bios(config, contains_player=contains_player)
+
+    for character in characters:
+        # Get the bio
+        bio = utils.resolve_player_name_placeholder(character.bio, player_name)
+        bio = apply_bio_section_filter(bio, character.name, config, enabled=is_bio_filter_enabled)
+        bio = append_reflection_to_bio(bio, character, rememberer, world_id, player_name)
+
+        # Get the summary for this specific character using the new interface method
+        summary = ""
+        if include_memories:
+            summary = rememberer.get_character_summary(character, world_id)
+            if summary:
+                summary = utils.resolve_player_name_placeholder(summary, player_name)
+
+        # Single NPC: private thoughts use {private_thoughts}. Multi-NPC: append to this memory.
+        if not is_multi_npc:
+            section = bio
+            if summary:
+                section += f"\n\nBelow is a summary of past events:\n{summary}"
+        else:
+            if include_memories and wrap_thought:
+                thought = wrap_thought(rememberer.get_character_private_thought(character, world_id))
+                if thought:
+                    thought = utils.resolve_player_name_placeholder(thought, player_name)
+                    summary = f"{summary}\n\n{thought}" if summary else thought
+            section = f"[This is the beginning of {character.name}'s information, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]\n"
+            section += f"[This is the beginning of {character.name}'s bio, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]\n{bio}\n[This is the end of {character.name}'s bio, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]"
+            if summary:
+                section += f"\n\n[This is the beginning of {character.name}'s memory, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]\n{summary}\n[This is the end of {character.name}'s memory, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]"
+            section += f"\n[This is the end of {character.name}'s information, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]"
+
+        character_sections.append(section)
+
+    return "\n\n==========\n\n".join(character_sections)
+
+
 class add_or_update_result:
     def __init__(self, added_npcs: List[Character], removed_npcs: List[Character]):
         self.added_npcs: List[Character]  = added_npcs
@@ -44,6 +111,7 @@ class context:
         self.__ingame_events: list[str] = []
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
+        self.npc_initiative: bool = False # The NPC walked up to the player: their first reply uses the NPC Initiative Prompt until the player answers
         self.__game: GameEnum = config.game
         game_folder_name = "Fallout4" if self.__game.base_game == GameEnum.FALLOUT4 else "Skyrim"
         lorebook_base_path = os.path.join(utils.resolve_path(), "data", game_folder_name, "lorebook")
@@ -472,16 +540,8 @@ class context:
 
     def _append_reflection_to_bio(self, bio: str, character: Character) -> str:
         """Append the latest wrapped personal reflection after the filtered bio."""
-        from src.remember.personal_reflection import wrap_personal_reflection
-        reflection = wrap_personal_reflection(
-            self.__rememberer.get_character_personal_reflection(character, self.__world_id)
-        )
-        if not reflection:
-            return bio
-        reflection = self._resolve_bio_player_name(reflection)
-        if bio:
-            return f"{bio.rstrip()}\n\n{reflection}"
-        return reflection
+        player = self.__npcs_in_conversation.get_player_character()
+        return append_reflection_to_bio(bio, character, self.__rememberer, self.__world_id, player.name if player else None)
 
     @utils.time_it
     def __get_bios_text(self, characters: Characters | None = None) -> str:
@@ -510,46 +570,16 @@ class context:
         Returns:
             str: the bios and summaries paired together for each character
         """
-        character_sections = []
-        non_player_characters = (characters or self.get_characters_excluding_player()).get_all_characters()
-        wrap_thought = None
-        if include_memories and len(non_player_characters) > 1:
-            from src.remember.inner_monologue import wrap_private_thought
-            wrap_thought = wrap_private_thought
-        
-        for character in non_player_characters:
-            # Get the bio
-            bio = self._resolve_bio_player_name(character.bio)
-            bio = self._filter_bio_sections_for_prompt(bio, character.name)
-            bio = self._append_reflection_to_bio(bio, character)
-            
-            # Get the summary for this specific character using the new interface method
-            summary = ""
-            if include_memories:
-                summary = self.__rememberer.get_character_summary(character, self.__world_id)
-                if summary:
-                    summary = self._resolve_bio_player_name(summary)
-            
-            # Single NPC: private thoughts use {private_thoughts}. Multi-NPC: append to this memory.
-            if len(non_player_characters) == 1:
-                section = bio
-                if summary:
-                    section += f"\n\nBelow is a summary of past events:\n{summary}"
-            else:
-                if include_memories and wrap_thought:
-                    thought = wrap_thought(self.__rememberer.get_character_private_thought(character, self.__world_id))
-                    if thought:
-                        thought = self._resolve_bio_player_name(thought)
-                        summary = f"{summary}\n\n{thought}" if summary else thought
-                section = f"[This is the beginning of {character.name}'s information, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]\n"
-                section += f"[This is the beginning of {character.name}'s bio, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]\n{bio}\n[This is the end of {character.name}'s bio, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]"
-                if summary:
-                    section += f"\n\n[This is the beginning of {character.name}'s memory, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]\n{summary}\n[This is the end of {character.name}'s memory, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]"
-                section += f"\n[This is the end of {character.name}'s information, other people in the conversation should not be aware of these info, don't have access to these, and should not mention or comment on these info.]"
-            
-            character_sections.append(section)
-        
-        return "\n\n==========\n\n".join(character_sections)
+        player = self.__npcs_in_conversation.get_player_character()
+        return build_bios_and_summaries_text(
+            (characters or self.get_characters_excluding_player()).get_all_characters(),
+            self.__config,
+            self.__rememberer,
+            self.__world_id,
+            player.name if player else None,
+            self.__npcs_in_conversation.contains_player_character(),
+            include_memories,
+        )
     
     @utils.time_it
     def get_npc_equipment_snapshot(self) -> str:

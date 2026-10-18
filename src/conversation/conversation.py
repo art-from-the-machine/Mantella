@@ -322,6 +322,7 @@ class Conversation:
             self.__game_master_turns.on_player_input()
             self.__stop_generation() # Stop generation of additional sentences right now
             self.__sentences.clear() # Clear any remaining sentences from the list
+            self.__context.npc_initiative = False # Once the player answers, the NPC Initiative Prompt gives way to the normal prompt
 
             # If the player's input does not already exist, parse mic input if mic is enabled
             if self.__mic_input and len(player_text) == 0:

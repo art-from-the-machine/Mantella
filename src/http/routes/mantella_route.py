@@ -140,8 +140,26 @@ class mantella_route(routeable):
                 if self.__game:
                     self.__game.interrupt_conversation()
                 return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_INTERRUPTRECEIVED}
+            if received_json and received_json.get(comm_consts.KEY_REQUESTTYPE) == comm_consts.KEY_REQUESTTYPE_NPCINITIATIVE:
+                # Not queued with the other requests, so a slow check never delays a conversation the player starts
+                return await asyncio.to_thread(self.__process_npc_initiative_check, received_json)
             # Handled in a worker thread, so the server stays free to receive an interruption
             return await asyncio.to_thread(self.__process_request, received_json)
+
+    def __process_npc_initiative_check(self, received_json: dict[str, Any]) -> dict[str, Any]:
+        """Never replies with an error: the game would end a conversation the player started meanwhile"""
+        with self.__request_lock: # Only held to check the settings, which this may reload
+            game = self.__game if self._can_route_be_used() else None
+        if self._show_debug_messages:
+            logging.log(self._log_level_http_in, json.dumps(received_json, indent=4))
+        if not game:
+            logging.error("NPC Initiative check skipped: MantellaSoftware settings faulty. Please check MantellaSoftware's window or log.")
+            reply = {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCINITIATIVE, comm_consts.KEY_NPCINITIATIVE_CHOSEN_REFID: 0}
+        else:
+            reply = game.npc_initiative_check(received_json)
+        if self._show_debug_messages:
+            logging.log(self._log_level_http_out, json.dumps(reply, indent=4))
+        return reply
 
     def __process_request(self, received_json: dict[str, Any] | None) -> dict[str, Any]:
         with self.__request_lock: # Requests other than interruptions are still handled one at a time

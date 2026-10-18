@@ -440,6 +440,7 @@ Game Master LLM parameter list must follow the Python dictionary format: https:/
             self.game_master_decision_service = self.__definitions.get_string_value("game_master_decision_service")
             self.game_master_decision_model = self.__definitions.get_string_value("game_master_decision_model")
             self.game_master_decision_model = self.game_master_decision_model.split(' |')[0] if ' |' in self.game_master_decision_model else self.game_master_decision_model
+            self.npc_initiative_threshold = self.__definitions.get_float_value("npc_initiative_threshold")
 
             # Multi-NPC prompt content toggles
             self.multi_npc_bios_only = self.__definitions.get_bool_value("multi_npc_bios_only")
@@ -589,6 +590,11 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.game_master_decision_instructions = self.__overlay_prompt("skyrim_game_master_decision_instructions", self.__definitions.get_string_value("skyrim_game_master_decision_instructions"))
             self.game_master_decision_npc_criteria = self.__overlay_prompt("skyrim_game_master_decision_npc_criteria", self.__definitions.get_string_value("skyrim_game_master_decision_npc_criteria"))
             self.game_master_decision_player_criteria = self.__overlay_prompt("skyrim_game_master_decision_player_criteria", self.__definitions.get_string_value("skyrim_game_master_decision_player_criteria"))
+            self.npc_initiative_prompt = self.__overlay_prompt("skyrim_npc_initiative_prompt", self.__definitions.get_string_value("skyrim_npc_initiative_prompt"))
+            self.npc_initiative_opener = self.__overlay_prompt("skyrim_npc_initiative_opener", self.__definitions.get_string_value("skyrim_npc_initiative_opener"))
+            self.npc_initiative_decision_instructions = self.__overlay_prompt("skyrim_npc_initiative_decision_instructions", self.__definitions.get_string_value("skyrim_npc_initiative_decision_instructions"))
+            self.npc_initiative_decision_npc_criteria = self.__overlay_prompt("skyrim_npc_initiative_decision_npc_criteria", self.__definitions.get_string_value("skyrim_npc_initiative_decision_npc_criteria"))
+            self.npc_initiative_decision_nobody_criteria = self.__overlay_prompt("skyrim_npc_initiative_decision_nobody_criteria", self.__definitions.get_string_value("skyrim_npc_initiative_decision_nobody_criteria"))
             self.radiant_prompt = self.__overlay_prompt("skyrim_radiant_prompt", self.__definitions.get_string_value("skyrim_radiant_prompt"))
 
         self.radiant_start_prompt = self.__overlay_prompt("radiant_start_prompt", self.__definitions.get_string_value("radiant_start_prompt"))

@@ -563,6 +563,13 @@ class LLMDefinitions:
         return ConfigValueSelection("game_master_decision_model","Game Master Decision Model",description,"typesafe/jev-1.13",["typesafe/jev-1.13"], allows_values_not_in_options=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
 
     @staticmethod
+    def get_npc_initiative_threshold_config_value() -> ConfigValue:
+        description = """NPC Initiative (enabled in the Mantella MCM): how sure the decision model must be before a nearby NPC walks up to the player and starts a conversation.
+                        The check uses the Game Master Decision Service and Model. The NPC with the highest probability is chosen only if that probability is at least this value.
+                        Ignored when Use Decision Model for Game Master is disabled: the Game Master LLM then picks an NPC or nobody directly."""
+        return ConfigValueFloat("npc_initiative_threshold","NPC Initiative Threshold",description, 0.6, 0, 1, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
     def get_game_master_custom_token_count_config_value() -> ConfigValue:
         description = """If the Game Master model chosen is not recognised by Mantella, the token count for the given model will default to this number.
                     Only used when Multi-NPC Game Master Mode is enabled."""

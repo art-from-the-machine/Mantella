@@ -77,8 +77,11 @@ class pc_to_npc(conversation_type):
     @utils.time_it
     def generate_prompt(self, context_for_conversation: Context, should_log: bool = False, messages_for_lorebook: message_thread | None = None) -> str:
         actions = [a for a in self._config.actions if a.use_in_on_on_one]
-        prompt_type = None if self._config.game.base_game == GameEnum.FALLOUT4 else "skyrim_prompt"
-        return context_for_conversation.generate_system_message(self._config.prompt, actions, should_log, messages_for_lorebook, prompt_type)
+        if self._config.game.base_game == GameEnum.FALLOUT4:
+            return context_for_conversation.generate_system_message(self._config.prompt, actions, should_log, messages_for_lorebook, None)
+        if context_for_conversation.npc_initiative:
+            return context_for_conversation.generate_system_message(self._config.npc_initiative_prompt, actions, should_log, messages_for_lorebook, "skyrim_npc_initiative_prompt")
+        return context_for_conversation.generate_system_message(self._config.prompt, actions, should_log, messages_for_lorebook, "skyrim_prompt")
     
     @utils.time_it
     def adjust_existing_message_thread(self, prompt: str, message_thread_to_adjust: message_thread):
@@ -86,6 +89,10 @@ class pc_to_npc(conversation_type):
     
     @utils.time_it
     def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:
+        if len(messages) == 1 and context_for_conversation.npc_initiative:
+            opener = self.__get_npc_initiative_opener(context_for_conversation)
+            if opener:
+                return opener
         if len(messages) == 1 and context_for_conversation.config.automatic_greeting:
             player_character: Character | None = context_for_conversation.npcs_in_conversation.get_player_character()
             if player_character:
@@ -97,6 +104,24 @@ class pc_to_npc(conversation_type):
             return None
         else:
             return super().get_user_message(context_for_conversation, messages)
+
+    def __get_npc_initiative_opener(self, context_for_conversation: Context) -> UserMessage | None:
+        """The narration that starts a conversation the NPC started. None if it can not be built"""
+        player_character: Character | None = context_for_conversation.npcs_in_conversation.get_player_character()
+        npcs = context_for_conversation.get_characters_excluding_player().get_all_characters()
+        if not player_character or not npcs:
+            return None
+        try:
+            text = self._config.prompt_profile_manager.resolve_prompt("skyrim_npc_initiative_opener", self._config.npc_initiative_opener)
+        except PromptSectionError as e:
+            logging.error(str(e))
+            logging.error("NPC Initiative opener could not be built. Fix the active Skyrim NPC Initiative Opener prompt profile.")
+            return None
+        text = text.replace("{name}", npcs[0].name).replace("{player_name}", player_character.name)
+        message = UserMessage(context_for_conversation.config, text, player_character.name, True)
+        message.is_director_message = True # Narration, not something the player says
+        message.is_multi_npc_message = False
+        return message
 
 class multi_npc(conversation_type):
     """Group conversation between the PC and multiple NPCs"""

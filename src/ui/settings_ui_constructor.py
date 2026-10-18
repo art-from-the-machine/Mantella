@@ -786,6 +786,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
             max_lines=16,
             elem_classes="multiline-textbox"
         )
+        load_prompts_tab_btn = gr.Button("Load from Prompts tab", size="sm")
         initial_error_message, initial_error_visible = validation_result(initial_type, initial_text or "")
         error_ui = self.__construct_error_message_panel(initial_error_message, is_visible=initial_error_visible)
         active_ui = gr.Dropdown(
@@ -854,6 +855,17 @@ class SettingsUIConstructor(ConfigValueVisitor):
 
         def on_text_change(type_display: str, text: str):
             return validation_panel(type_id(type_display), text or "")
+
+        def on_load_prompts_tab(type_display: str):
+            if self.__config_loader is None:
+                return gr.update(), gr.update(), "The Prompts tab is not available."
+            prompt_type = type_id(type_display)
+            text = str(self.__config_loader.definitions.get_config_value_definition(prompt_type).value)
+            return (
+                text,
+                validation_panel(prompt_type, text),
+                "Loaded the Prompts tab text into the editor. Click Save to keep it, or refresh the page to discard it."
+            )
 
         def on_save(type_display: str, selected: str, name: str, text: str):
             prompt_type = type_id(type_display)
@@ -1030,6 +1042,11 @@ class SettingsUIConstructor(ConfigValueVisitor):
             inputs=[type_ui, text_ui],
             outputs=[error_ui],
             show_progress="hidden"
+        )
+        load_prompts_tab_btn.click(
+            on_load_prompts_tab,
+            inputs=[type_ui],
+            outputs=[text_ui, error_ui, status_ui]
         )
         save_btn.click(
             on_save,

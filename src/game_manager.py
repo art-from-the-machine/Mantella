@@ -142,6 +142,8 @@ class GameStateManager:
         self.__rememberer: Remembering = self._create_rememberer(game, config, client, summary_client, thoughts_client, reflection_client)
 
         self.__talk: Conversation | None = None
+        self.__npc_initiative_client: "ClientBase | None" = None # Created on the first NPC Initiative check
+        self.__conversation_start_count: int = 0 # A change cancels the NPC Initiative checks that are still running
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk
         self.__stt_api_file: str = stt_api_file
@@ -306,6 +308,7 @@ class GameStateManager:
             # Update chat manager with multi-NPC client
             chat_manager.update_multi_npc_client(multi_npc_client)
             chat_manager.update_game_master_client(GameStateManager.create_game_master_client(config, secret_key_file, log_prefix="Hot-swap: "))
+            self.__npc_initiative_client = None # Recreated with the new settings on the next check
             
             # Clear per-character client cache to force recreation with new settings
             chat_manager.clear_per_character_client_cache()
@@ -434,22 +437,22 @@ class GameStateManager:
     ###### react to calls from the game #######
     @utils.time_it
     def start_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
+        self.__conversation_start_count += 1 # Any NPC Initiative check still running is no longer needed
         if self.__talk: #This should only happen if game and server are out of sync due to some previous error -> close conversation and start a new one
             self.__talk.end()
             self.__talk = None
 
         self.__chat_manager.reset_sequential_llm_selection()
 
-        world_id = "default"
-        if input_json.__contains__(comm_consts.KEY_STARTCONVERSATION_WORLDID):
-            world_id = input_json[comm_consts.KEY_STARTCONVERSATION_WORLDID]
-            world_id = self.WORLD_ID_CLEANSE_REGEX.sub("", world_id)
+        world_id = self.__get_world_id(input_json)
 
         if input_json.__contains__(comm_consts.KEY_INPUTTYPE):
             self.process_stt_setup(input_json)
         
         # Create conversation context to determine conversation type
         context_for_conversation = Context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
+        # Set before the first system prompt is built, which happens in __update_context below
+        context_for_conversation.npc_initiative = bool(input_json.get(comm_consts.KEY_STARTCONVERSATION_NPCINITIATIVE, False))
         
         # Determine LLM client to use based on random selection settings
         conversation_llm_client = self.__client  # Default to main client
@@ -634,6 +637,68 @@ class GameStateManager:
         logging.log(24, '\nWaiting for player to select an NPC...')
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_ENDCONVERSATION}
 
+    def npc_initiative_check(self, input_json: dict[str, Any]) -> dict[str, Any]:
+        """Decides whether one of the nearby NPCs in the request walks up to the player and starts a conversation.
+        Runs alongside the other requests. Starting a conversation cancels it.
+        Never replies with an error: any failure means nobody (refid 0)"""
+        chosen_refid = 0
+        start_count = self.__conversation_start_count
+        is_cancelled = lambda: self.__conversation_start_count != start_count
+        try:
+            from src.conversation.context import build_bios_and_summaries_text
+            from src.conversation.npc_initiative import InitiativeCandidate, choose_initiator
+            world_id = self.__get_world_id(input_json)
+            player_name = ""
+            candidates: list[InitiativeCandidate] = []
+            characters: list[Character] = []
+            for actor_json in input_json.get(comm_consts.KEY_ACTORS, []):
+                if is_cancelled():
+                    break
+                character = self.load_character(actor_json)
+                if not character:
+                    continue
+                if character.is_player_character:
+                    player_name = character.name
+                    continue
+                candidates.append(InitiativeCandidate(character.name, int(actor_json[comm_consts.KEY_ACTOR_REFID])))
+                characters.append(character)
+            # The same text as {bios_and_summaries} in the Skyrim Multi-NPC Prompt. The approach leads to a conversation with the player,
+            # so bios are filtered as in one. Memories are always included, so the check can find a reason to approach
+            bios_and_summaries = build_bios_and_summaries_text(characters, self.__config, self.__rememberer, world_id, player_name,
+                                                               contains_player=True, always_multi_npc=True)
+            context_json: dict[str, Any] = input_json.get(comm_consts.KEY_CONTEXT, {})
+            location = str(context_json.get(comm_consts.KEY_CONTEXT_LOCATION, "Skyrim"))
+            hour = int(context_json.get(comm_consts.KEY_CONTEXT_TIME, 12))
+            logging.log(26, f"NPC Initiative check in {location}: {', '.join(c.name for c in candidates) or 'no candidates'}")
+            if not is_cancelled():
+                chosen = choose_initiator(self.__config, self.__get_npc_initiative_client(), candidates, player_name, location, hour,
+                                          bios_and_summaries, is_cancelled,
+                                          bool(input_json.get(comm_consts.KEY_NPCINITIATIVE_SKIPTHRESHOLD, False)))
+                if chosen:
+                    chosen_refid = chosen.refid
+            if is_cancelled():
+                logging.log(26, "NPC Initiative check cancelled: a conversation was started")
+                chosen_refid = 0
+        except Exception as e:
+            logging.error(f"NPC Initiative check failed: {e}")
+        return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCINITIATIVE, comm_consts.KEY_NPCINITIATIVE_CHOSEN_REFID: chosen_refid}
+
+    def __get_npc_initiative_client(self) -> "ClientBase | None":
+        """The Game Master decision model or LLM, also when Game Master Mode is disabled"""
+        if not self.__npc_initiative_client:
+            try:
+                self.__npc_initiative_client = GameStateManager.__create_game_master_settings_client(self.__config, self.__api_file, "NPC Initiative: ")
+            except Exception as e:
+                logging.error(f"Could not create the NPC Initiative client from the Game Master settings: {e}")
+        return self.__npc_initiative_client
+
+    def __get_world_id(self, input_json: dict[str, Any]) -> str:
+        world_id = "default"
+        if input_json.__contains__(comm_consts.KEY_STARTCONVERSATION_WORLDID):
+            world_id = input_json[comm_consts.KEY_STARTCONVERSATION_WORLDID]
+            world_id = self.WORLD_ID_CLEANSE_REGEX.sub("", world_id)
+        return world_id
+
     @staticmethod
     def create_summary_client(config: ConfigLoader, api_file: str, log_prefix: str = "") -> "ClientBase | None":
         """Build a summary LLM client from config, or None to reuse the main LLM client."""
@@ -738,28 +803,33 @@ class GameStateManager:
         if not config.multi_npc_game_master_mode:
             return None
         try:
-            if config.game_master_use_decision_model:
-                from src.llm.client_base import ClientBase
-                from src.llm.key_file_resolver import key_file_resolver
-                service = config.game_master_decision_service
-                logging.info(f"{log_prefix}Game Master: using decision model {config.game_master_decision_model} on {service}")
-                # Loads the context sizes of the decision models, used as the client's token limit
-                ClientBase.get_decision_model_list(service, api_file)
-                # Decision models are called through the service's Decisions API, so no LLM parameters or profiles apply
-                return ClientBase(
-                    service,
-                    config.game_master_decision_model,
-                    None,
-                    config.game_master_custom_token_count,
-                    key_file_resolver.get_key_files_for_service(service, api_file),
-                    response_timeout=config.llm_response_timeout,
-                )
-            return GameStateManager.__create_memory_task_client(
-                "Game Master", config.game_master_llm_api, config.game_master_llm, config.game_master_llm_params,
-                config.game_master_custom_token_count, config.apply_profile_game_master, config, api_file, log_prefix)
+            return GameStateManager.__create_game_master_settings_client(config, api_file, log_prefix)
         except Exception as e:
             logging.error(f"{log_prefix}Could not create the Game Master LLM client. Multi-NPC conversations will run without the Game Master: {e}")
             return None
+
+    @staticmethod
+    def __create_game_master_settings_client(config: ConfigLoader, api_file: str, log_prefix: str) -> "ClientBase":
+        """Client from the Game Master settings: the decision model or the Game Master LLM. Also used by NPC Initiative."""
+        if config.game_master_use_decision_model:
+            from src.llm.client_base import ClientBase
+            from src.llm.key_file_resolver import key_file_resolver
+            service = config.game_master_decision_service
+            logging.info(f"{log_prefix}Game Master: using decision model {config.game_master_decision_model} on {service}")
+            # Loads the context sizes of the decision models, used as the client's token limit
+            ClientBase.get_decision_model_list(service, api_file)
+            # Decision models are called through the service's Decisions API, so no LLM parameters or profiles apply
+            return ClientBase(
+                service,
+                config.game_master_decision_model,
+                None,
+                config.game_master_custom_token_count,
+                key_file_resolver.get_key_files_for_service(service, api_file),
+                response_timeout=config.llm_response_timeout,
+            )
+        return GameStateManager.__create_memory_task_client(
+            "Game Master", config.game_master_llm_api, config.game_master_llm, config.game_master_llm_params,
+            config.game_master_custom_token_count, config.apply_profile_game_master, config, api_file, log_prefix)
 
     @staticmethod
     def __create_memory_task_client(task_name: str, llm_api: str, llm: str, llm_params: dict[str, Any] | None,
@@ -1045,7 +1115,7 @@ class GameStateManager:
                     prev_dynamic = already_loaded_character.get_custom_character_value('mantella_dynamic_tag_events')
                     if prev_dynamic is not None:
                         custom_values['mantella_dynamic_tag_events'] = prev_dynamic
-            elif self.__talk and not is_player_character :#If this is not the player and the character has not already been loaded
+            elif not is_player_character :#If this is not the player and the character has not already been loaded. Also used by the NPC Initiative check, outside a conversation
                 external_info: external_character_info = self.__game.load_external_character_info(base_id, character_name, race, gender, actor_voice_model)
                 
                 bio = external_info.bio
@@ -1125,7 +1195,7 @@ class GameStateManager:
 
         Then pre-load the NPC's voice model
         '''
-        is_npc_speaking_first: bool = self.__automatic_greeting
+        is_npc_speaking_first: bool = self.__automatic_greeting or self.__talk.context.npc_initiative
 
         if not self.__talk.context.npcs_in_conversation.contains_multiple_npcs() and is_npc_speaking_first and not self.__conv_has_narrator:
             character_to_talk = self.__talk.context.npcs_in_conversation.last_added_character

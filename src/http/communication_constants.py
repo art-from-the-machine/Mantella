@@ -22,6 +22,12 @@ class communication_constants:
     KEY_REPLYTYPE_ENDCONVERSATION: str  = PREFIX + "end_conversation"
     KEY_REPLYTYPE_INTERRUPTRECEIVED: str  = PREFIX + "interrupt_received"
 
+    KEY_REQUESTTYPE_NPCINITIATIVE: str = PREFIX + "npc_initiative_check"
+    KEY_REPLYTYPE_NPCINITIATIVE: str = PREFIX + "npc_initiative_result"
+    KEY_STARTCONVERSATION_NPCINITIATIVE: str = PREFIX + "npc_initiative"
+    KEY_NPCINITIATIVE_CHOSEN_REFID: str = PREFIX + "npc_initiative_chosen_refid"
+    KEY_NPCINITIATIVE_SKIPTHRESHOLD: str = PREFIX + "npc_initiative_skip_threshold"
+
     KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"
     KEY_STARTCONVERSATION_USENARRATOR: str = PREFIX + "use_narrator"
     KEY_CONTINUECONVERSATION_TOPICINFOFILE: str = PREFIX + "topicinfofile"

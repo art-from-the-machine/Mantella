@@ -39,6 +39,12 @@ class PromptDefinitions:
     ALLOWED_PROMPT_VARIABLES_DECISION_INSTRUCTIONS = ["player_name", "names"]
     ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA = ["name", "player_name"]
     ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA = ["player_name"]
+
+    # NPC Initiative opener: a single narration line, filled with the approaching NPC and the player
+    ALLOWED_PROMPT_VARIABLES_NPC_INITIATIVE_OPENER = ["name", "player_name"]
+
+    # NPC Initiative decision instructions: filled once for all nearby NPCs
+    ALLOWED_PROMPT_VARIABLES_NPC_INITIATIVE_DECISION_INSTRUCTIONS = ["player_name", "names", "location", "time", "time_group", "bios_and_summaries"]
     
     ALLOWED_PROMPT_VARIABLES_RADIANT = [
                                 "game",
@@ -525,6 +531,67 @@ Always use the most recent memory to determine the current relationship
         return ConfigValueString("skyrim_game_master_decision_player_criteria","Skyrim Game Master Decision Player Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA)])
 
     @staticmethod
+    def get_skyrim_npc_initiative_prompt_config_value() -> ConfigValue:
+        description = """NPC Initiative (enabled in the Mantella MCM): the system prompt for the first reply of an NPC who walks up to the player on their own.
+                        After the player's first answer, the conversation continues with the Skyrim Prompt.
+                        Supports the same variables as the Skyrim Prompt."""
+        skyrim_npc_initiative_prompt = """You are {name}, and you live in Skyrim. This is your background: {bio}
+                                Sometimes in-game events will be passed before the player response within brackets. You cannot respond with brackets yourself, they only exist to give context. Here is an example:
+                                (The player picked up a pair of gloves)
+                                Who do you think these belong to?
+                                {player_name} (the player), who is {trust}, has just come near you in {location}. {player_name} {player_description} {player_equipment} {equipment}
+                                The time is {time} {time_group}.
+                                {weather}
+                                {conversation_summary}
+                                {private_thoughts}
+                                You have decided to walk up to {player_name} and start this conversation yourself. Before you say anything, work out the real reason you have to talk to {player_name} right now.
+                                Look for it first in your own inner life: your private thoughts, your memories of past events with {player_name}, and your personal reflection in your background. It could be something you have been meaning to tell them, ask them, thank them for, warn them about, apologise for or settle with them, or a feeling about them you can no longer keep to yourself.
+                                Only if none of these gives you a reason, use your role, your job or your situation in {location}, or something happening around you right now.
+                                The reason must be specific to you and to {player_name}. Never approach just to greet them, make small talk, or because they happen to be nearby. Never invent shared history that is not in your background or memories.
+                                Your private thoughts and reflection are your motive, not a script: act on them in your own voice, the way {name} would bring it up, without reciting them.
+                                Open with that reason straight away, and end with something {player_name} can respond to.
+                                This conversation is a script that will be spoken aloud, so keep your response concise and avoid text-only formatting such as numbered lists.
+                                Remember to stay in character.
+                                {actions}
+                                The conversation takes place in {language}."""
+        return ConfigValueString("skyrim_npc_initiative_prompt","Skyrim NPC Initiative Prompt",description,skyrim_npc_initiative_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES)])
+
+    @staticmethod
+    def get_skyrim_npc_initiative_opener_config_value() -> ConfigValue:
+        description = """NPC Initiative (enabled in the Mantella MCM): the narration sent once as the first message, in place of the player's greeting. The NPC replies to it using the Skyrim NPC Initiative Prompt.
+                        Supports {name} (the NPC) and {player_name}."""
+        opener = "{name} approaches {player_name}."
+        return ConfigValueString("skyrim_npc_initiative_opener","Skyrim NPC Initiative Opener",description,opener,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_INITIATIVE_OPENER)])
+
+    NPC_INITIATIVE_DECISION_DESCRIPTION = """NPC Initiative (enabled in the Mantella MCM). Read by the decision model, or by the Game Master LLM when Use Decision Model for Game Master is disabled. The answer options are added automatically, one per nearby NPC plus Nobody."""
+
+    @staticmethod
+    def get_skyrim_npc_initiative_decision_instructions_config_value() -> ConfigValue:
+        description = PromptDefinitions.NPC_INITIATIVE_DECISION_DESCRIPTION + """
+                        The scene and the question the decision model answers.
+                        Supports {player_name}, {names} (the nearby NPCs), {location}, {time}, {time_group} and {bios_and_summaries}: each nearby NPC's bio with their personal reflection, their memories and their private thoughts, as in the Skyrim Multi-NPC Prompt.
+                        Keep {bios_and_summaries}: without it the decision model knows nothing about the NPCs."""
+        instructions = ("{player_name} has just come near these people in {location}. The time is {time} {time_group}.\n\n{bios_and_summaries}\n\n"
+                        "Does one of these people have to walk up to {player_name} and start a conversation right now? Choose the one with the strongest and most specific reason, or Nobody.")
+        return ConfigValueString("skyrim_npc_initiative_decision_instructions","Skyrim NPC Initiative Decision Instructions",description,instructions,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_INITIATIVE_DECISION_INSTRUCTIONS)])
+
+    @staticmethod
+    def get_skyrim_npc_initiative_decision_npc_criteria_config_value() -> ConfigValue:
+        description = PromptDefinitions.NPC_INITIATIVE_DECISION_DESCRIPTION + """
+                        When to choose an NPC. Used once for each nearby NPC.
+                        Supports {name} (that NPC) and {player_name}."""
+        criteria = "{name} has a real, specific reason to walk up to {player_name} right now. Most of all, something in their memories of {player_name}, their private thoughts or their personal reflection that they need to tell, ask, thank, warn about or settle. Otherwise, their job or role at this location requires it. Being nearby, wanting small talk or a plain greeting is not a reason."
+        return ConfigValueString("skyrim_npc_initiative_decision_npc_criteria","Skyrim NPC Initiative Decision NPC Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA)])
+
+    @staticmethod
+    def get_skyrim_npc_initiative_decision_nobody_criteria_config_value() -> ConfigValue:
+        description = PromptDefinitions.NPC_INITIATIVE_DECISION_DESCRIPTION + """
+                        When nobody should approach the player.
+                        Supports {player_name}."""
+        criteria = "No one here has a specific, meaningful reason to approach {player_name} right now."
+        return ConfigValueString("skyrim_npc_initiative_decision_nobody_criteria","Skyrim NPC Initiative Decision Nobody Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA)])
+
+    @staticmethod
     def get_skyrim_radiant_prompt_config_value() -> ConfigValue:
         skyrim_radiant_prompt = """The following is a conversation in {location} in Skyrim between {names}.
                                     Here are their backgrounds: 
@@ -829,6 +896,11 @@ Always use the most recent memory to determine the current relationship
             ("skyrim_game_master_decision_instructions", "Skyrim Game Master Decision Instructions", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_INSTRUCTIONS),
             ("skyrim_game_master_decision_npc_criteria", "Skyrim Game Master Decision NPC Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA),
             ("skyrim_game_master_decision_player_criteria", "Skyrim Game Master Decision Player Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA),
+            ("skyrim_npc_initiative_prompt", "Skyrim NPC Initiative Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES),
+            ("skyrim_npc_initiative_opener", "Skyrim NPC Initiative Opener", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_INITIATIVE_OPENER),
+            ("skyrim_npc_initiative_decision_instructions", "Skyrim NPC Initiative Decision Instructions", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_INITIATIVE_DECISION_INSTRUCTIONS),
+            ("skyrim_npc_initiative_decision_npc_criteria", "Skyrim NPC Initiative Decision NPC Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA),
+            ("skyrim_npc_initiative_decision_nobody_criteria", "Skyrim NPC Initiative Decision Nobody Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA),
             ("resummarize_prompt", "Resummarize Prompt", ["name", "language", "game", "player_name", "lorebook"]),
             ("vision_prompt", "Vision Prompt", ["game"]),
             ("radiant_start_prompt", "Radiant Start Prompt", []),
