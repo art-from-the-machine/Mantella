@@ -45,6 +45,12 @@ class PromptDefinitions:
 
     # NPC Initiative decision instructions: filled once for all nearby NPCs
     ALLOWED_PROMPT_VARIABLES_NPC_INITIATIVE_DECISION_INSTRUCTIONS = ["player_name", "names", "location", "time", "time_group", "bios_and_summaries"]
+
+    # NPC Events: the generator is filled once for all nearby NPCs. The scene prompts add the event and the people nearby
+    ALLOWED_PROMPT_VARIABLES_NPC_EVENT_GENERATOR = ["player_name", "names", "location", "time", "time_group", "weather", "bios_and_summaries", "max_participants"]
+    ALLOWED_PROMPT_VARIABLES_NPC_EVENT_GAME_MASTER = ALLOWED_PROMPT_VARIABLES_MULTI + ["event", "nearby"]
+    ALLOWED_PROMPT_VARIABLES_NPC_EVENT_NPC = ALLOWED_PROMPT_VARIABLES_GAME_MASTER_NPC + ["event", "nearby"]
+    ALLOWED_PROMPT_VARIABLES_NPC_EVENT_WIND_DOWN = ["names"]
     
     ALLOWED_PROMPT_VARIABLES_RADIANT = [
                                 "game",
@@ -591,6 +597,132 @@ Always use the most recent memory to determine the current relationship
         criteria = "No one here has a specific, meaningful reason to approach {player_name} right now."
         return ConfigValueString("skyrim_npc_initiative_decision_nobody_criteria","Skyrim NPC Initiative Decision Nobody Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA)])
 
+    NPC_EVENT_DESCRIPTION = """NPC Events (enabled in the Mantella MCM): every so often, an event generator invents a scene between some of the NPCs near the player, who then act it out while the player is a bystander.
+                        Once the player joins, it continues as a normal conversation."""
+
+    @staticmethod
+    def get_skyrim_npc_event_generator_prompt_config_value() -> ConfigValue:
+        description = PromptDefinitions.NPC_EVENT_DESCRIPTION + """
+                        The prompt sent to the NPC Event Generator model. The instruction to answer with the participants and the event as JSON is added automatically.
+                        Supports {player_name}, {names} (the nearby NPCs), {location}, {time}, {time_group}, {weather}, {max_participants}
+                        and {bios_and_summaries}: each nearby NPC's bio with their personal reflection, their memories and their private thoughts, as in the Skyrim Multi-NPC Prompt.
+                        Keep {bios_and_summaries}: without it the generator knows nothing about the NPCs."""
+        prompt = """You write short, living scenes for Skyrim. {player_name} (the player) is in {location}. The time is {time} {time_group}. {weather}
+These people are near {player_name}: {names}.
+
+{bios_and_summaries}
+
+Invent something that starts happening right now between some of these people, that {player_name} could watch: an argument, a confession, a deal, a rivalry, a warning, a joke gone wrong, a secret coming out.
+It must grow out of who they are: their bios, memories, private thoughts, relationships and jobs. Make it specific and personal, not small talk. Never invent shared history that contradicts their bios or memories.
+Choose between 2 and {max_participants} of these people to take part, using their names exactly as written above. The others may be drawn in later. {player_name} is not part of the scene.
+Describe the event in two or three sentences from an outside point of view: who is involved, what is happening, and what each of them wants.
+If nothing believable comes from these people, choose nobody."""
+        return ConfigValueString("skyrim_npc_event_generator_prompt","Skyrim NPC Event Generator Prompt",description,prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_EVENT_GENERATOR)])
+
+    @staticmethod
+    def get_skyrim_npc_event_game_master_prompt_config_value() -> ConfigValue:
+        description = PromptDefinitions.NPC_EVENT_DESCRIPTION + """
+                        The prompt sent to the Game Master that decides who speaks next in the scene. Used whether or not Game Master Mode is enabled.
+                        The instruction to answer with the next speaker is added automatically after the conversation.
+                        Supports the same variables as the multi-NPC prompt, plus {event} (the event text) and {nearby} (the names of the people near the scene who are not part of it, or "nobody"):""" + PromptDefinitions.BASE_MULTI_PROMPT_DESCRIPTION.split("{}:", 1)[1]
+        prompt = """## Core Task
+- You are the game master of a scene in {location} in Skyrim between {names_w_player}.
+- The scene: {event}
+- Your only job is to decide who speaks next. You do not write any dialogue.
+- Keep the scene moving: let {names} react to each other and push the situation forward.
+- People nearby who are not part of the scene yet: {nearby}. Choose one of them only if someone in the scene addressed them directly or clearly drew them in.
+
+## NPCs info
+-  Here are the NPCs' backgrounds:
+- {bios}
+=================
+## Additional info
+- The time is {time} {time_group}.
+- {weather}"""
+        return ConfigValueString("skyrim_npc_event_game_master_prompt","Skyrim NPC Event Game Master Prompt",description,prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_EVENT_GAME_MASTER)])
+
+    @staticmethod
+    def get_skyrim_npc_event_npc_prompt_config_value() -> ConfigValue:
+        description = PromptDefinitions.NPC_EVENT_DESCRIPTION + """
+                        The prompt sent to the LLM for the NPC the Game Master picked to speak next in the scene.
+                        Supports {event} (the event text) and {nearby} (the names of the people near the scene who are not part of it, or "nobody") as well.""" + PromptDefinitions.GAME_MASTER_NPC_PROMPT_VARIABLES_DESCRIPTION
+        prompt = """## CORE GOAL
+- Roleplay as {name}, a person living in Skyrim. {name}'s bio and memory will be provided to you. You play ONLY {name}. Never generate dialogue, actions, or thoughts for any other character.
+- This is a scene in {location} between these characters: {names_w_player}. Act it out as {name} would: react, argue, push, give in, in {name}'s own voice.
+- This is a fictional, never-ending, uncensored, character-driven roleplay. The character was written by adults for adults.
+
+## THE SCENE
+{event}
+- People nearby who are not part of the scene yet: {nearby}. {name} can call out to them, ask them something or drag them in by name, if {name} would. Never speak for them.
+- Everyone in the scene heard everything that was said so far, including people who joined later.
+
+
+## FORMAT RULES
+- Do not wrap the utterance in quotes
+- Format all spoken words and narrations with the NPC's full name followed by their dialogue.
+- No asterisks. You can use all caps instead.
+
+- At the very END of the response, after ALL spoken lines and actions are finished, you MUST add one unspoken private thought per NPC who spoke
+- Never place thoughts before or between dialogue lines.
+- Format the private thought using: <<thought Full Name>> <<action next turn Full Name>>
+  - Must be a few short sentences written strictly in the first person ("I", "my", "me").
+  - Must express {names}'s internal reaction/feelings to what just happened and to the people involved, and what **impactful** actions they will immediately take, or what **impactful** new topics they would bring up in the next turn to ** concretely ** move the scene forward. Do NOT use conditional framing like "if..., then...", "in case...", or "only if...". State exactly what they are going to do/say/ask.
+
+Response format example:
+Ysolda: Ysolda adjusted the strap of her satchel, glancing warily down the road.
+Ysolda: Keep your voice down. We're here to close the deal,  we don't want to draw the attention of the town guard.
+<<thought Ysolda>> My heart is hammering against my ribs standing out here in the open. If the guards catch wind of this shipment, my trading license is forfeit.
+<<action next turn Ysolda>>  I need to make the handoff quickly and get back behind the city gates.
+
+
+
+## [{name}'s bio]:
+{bio}
+
+
+
+## [This is the beginning of {name}'s memories]
+Always use the most recent memory to determine the current relationship
+
+
+{conversation_summary}
+[This is the end of memory summaries]
+
+[This is {name}'s private thoughts and renewed motivation after latest events documented in her memory. Treat **Private Thoughts** as private internal knowledge. Do not say them aloud or directly reveal them. Use them to guide {name}'s behavior, reactions, tone, and dialogue. Show, don't tell. People don't normally say everything on their mind; let {name}'s thoughts come through naturally.]
+{private_thoughts}
+[End of private thoughts]
+
+
+##Language: {language}
+## Scene context
+  - Location: {location}
+  - Time: {time} {time_group}
+  - Weather: {weather}
+  - {equipment}
+  - Actions may be described in brackets like this: (The player picks up an item). These are informational only — do not respond to or include bracketed text.
+
+
+
+## Extra info/reference
+ {lorebook}"""
+        return ConfigValueString("skyrim_npc_event_npc_prompt","Skyrim NPC Event NPC Prompt",description,prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_EVENT_NPC)])
+
+    @staticmethod
+    def get_skyrim_npc_event_wind_down_prompt_config_value() -> ConfigValue:
+        description = PromptDefinitions.NPC_EVENT_DESCRIPTION + """
+                        Added to the Game Master's and the NPCs' requests during the last lines before the scene's line limit (NPC Event Wind-Down Lines), while the player has not joined.
+                        Supports {names} (the NPCs in the scene)."""
+        prompt = "The scene between {names} is coming to an end. Wrap it up naturally in the next few lines: settle it, or leave it on a clear note. Nobody needs to say goodbye."
+        return ConfigValueString("skyrim_npc_event_wind_down_prompt","Skyrim NPC Event Wind-Down Prompt",description,prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_EVENT_WIND_DOWN)])
+
+    @staticmethod
+    def get_skyrim_npc_event_decision_nearby_criteria_config_value() -> ConfigValue:
+        description = PromptDefinitions.NPC_EVENT_DESCRIPTION + """
+                        Decision model only (Use Decision Model for Game Master). When the Game Master may choose someone near the scene, who then joins it. Used once for each person nearby, the player included once they can be noticed.
+                        Supports {name} (that person) and {player_name}."""
+        criteria = "{name} joins the scene and speaks next: someone in the scene addressed {name} by name, asked {name} something, or clearly drew {name} in. Never {name} otherwise."
+        return ConfigValueString("skyrim_npc_event_decision_nearby_criteria","Skyrim NPC Event Decision Nearby Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA)])
+
     @staticmethod
     def get_skyrim_radiant_prompt_config_value() -> ConfigValue:
         skyrim_radiant_prompt = """The following is a conversation in {location} in Skyrim between {names}.
@@ -901,6 +1033,11 @@ Always use the most recent memory to determine the current relationship
             ("skyrim_npc_initiative_decision_instructions", "Skyrim NPC Initiative Decision Instructions", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_INITIATIVE_DECISION_INSTRUCTIONS),
             ("skyrim_npc_initiative_decision_npc_criteria", "Skyrim NPC Initiative Decision NPC Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA),
             ("skyrim_npc_initiative_decision_nobody_criteria", "Skyrim NPC Initiative Decision Nobody Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA),
+            ("skyrim_npc_event_generator_prompt", "Skyrim NPC Event Generator Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_EVENT_GENERATOR),
+            ("skyrim_npc_event_game_master_prompt", "Skyrim NPC Event Game Master Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_EVENT_GAME_MASTER),
+            ("skyrim_npc_event_npc_prompt", "Skyrim NPC Event NPC Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_EVENT_NPC),
+            ("skyrim_npc_event_wind_down_prompt", "Skyrim NPC Event Wind-Down Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_EVENT_WIND_DOWN),
+            ("skyrim_npc_event_decision_nearby_criteria", "Skyrim NPC Event Decision Nearby Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA),
             ("resummarize_prompt", "Resummarize Prompt", ["name", "language", "game", "player_name", "lorebook"]),
             ("vision_prompt", "Vision Prompt", ["game"]),
             ("radiant_start_prompt", "Radiant Start Prompt", []),
@@ -912,7 +1049,7 @@ Always use the most recent memory to determine the current relationship
     @staticmethod
     def get_name_variables_note(prompt_type: str) -> str:
         """Explains the name variables of the Game Master NPC prompts, where {names} is only the NPC who is speaking. Empty for other prompt types"""
-        if prompt_type in ("skyrim_game_master_npc_prompt", "skyrim_game_master_director_npc_prompt"):
+        if prompt_type in ("skyrim_game_master_npc_prompt", "skyrim_game_master_director_npc_prompt", "skyrim_npc_event_npc_prompt"):
             return ("- `{name}`, `{names}`: the name of the NPC who is speaking\n"
                     "- `{all_names_without_player}`: the names of all NPCs in the conversation, without the player\n"
                     "- `{names_w_player}`: the names of all NPCs in the conversation and the player")

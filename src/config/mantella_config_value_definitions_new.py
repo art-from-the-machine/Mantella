@@ -144,12 +144,14 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_npc_initiative_threshold_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_model_config_value())
-        memory_tasks = [("thoughts", "Private Thoughts"), ("reflection", "Personal Reflection")]
-        for key, label in memory_tasks:
-            llm_category.add_config_value(LLMDefinitions.get_memory_task_use_summary_model_config_value(key, label))
-        for key, label in memory_tasks:
-            llm_category.add_config_value(LLMDefinitions.get_memory_task_llm_api_config_value(key, label))
-            llm_category.add_config_value(LLMDefinitions.get_memory_task_model_config_value(key, label))
+        # (key, label, can use the Summary model instead). The NPC Event Generator always uses its own model
+        memory_tasks = [("thoughts", "Private Thoughts", True), ("reflection", "Personal Reflection", True), ("npc_event", "NPC Event Generator", False)]
+        for key, label, has_summary_option in memory_tasks:
+            if has_summary_option:
+                llm_category.add_config_value(LLMDefinitions.get_memory_task_use_summary_model_config_value(key, label))
+        for key, label, has_summary_option in memory_tasks:
+            llm_category.add_config_value(LLMDefinitions.get_memory_task_llm_api_config_value(key, label, has_summary_option))
+            llm_category.add_config_value(LLMDefinitions.get_memory_task_model_config_value(key, label, has_summary_option))
         llm_category.add_config_value(LLMDefinitions.get_max_response_sentences_single_config_value())
         llm_category.add_config_value(LLMDefinitions.get_max_response_sentences_multi_config_value())
         llm_category.add_config_value(LLMDefinitions.get_llm_response_timeout_config_value())
@@ -160,8 +162,8 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_llm_params_config_value())
         llm_category.add_config_value(LLMDefinitions.get_game_master_llm_params_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_params_config_value())
-        for key, label in memory_tasks:
-            llm_category.add_config_value(LLMDefinitions.get_memory_task_llm_params_config_value(key, label))
+        for key, label, has_summary_option in memory_tasks:
+            llm_category.add_config_value(LLMDefinitions.get_memory_task_llm_params_config_value(key, label, has_summary_option))
         
         
         # llm_category.add_config_value(LLMDefinitions.get_llm_priority_config_value())
@@ -207,6 +209,11 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_max_npc_turns_config_value())
         llm_category.add_config_value(LLMDefinitions.get_game_master_history_message_count_config_value())
         llm_category.add_config_value(LLMDefinitions.get_game_master_include_turn_thoughts_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_npc_event_max_participants_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_npc_event_max_scene_size_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_npc_event_player_notice_delay_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_npc_event_max_lines_without_player_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_npc_event_wind_down_lines_config_value())
         llm_category.add_config_value(LLMDefinitions.get_enable_bio_section_filter_config_value())
         llm_category.add_config_value(LLMDefinitions.get_bio_sections_to_exclude_config_value())
         llm_category.add_config_value(LLMDefinitions.get_enable_bio_section_filter_for_memory_config_value())
@@ -221,8 +228,8 @@ class MantellaConfigValueDefinitionsNew:
         # Summary LLM Configuration
         
         llm_category.add_config_value(LLMDefinitions.get_summary_custom_token_count_config_value())
-        for key, label in memory_tasks:
-            llm_category.add_config_value(LLMDefinitions.get_memory_task_custom_token_count_config_value(key, label))
+        for key, label, has_summary_option in memory_tasks:
+            llm_category.add_config_value(LLMDefinitions.get_memory_task_custom_token_count_config_value(key, label, has_summary_option))
         
         
         llm_category.add_config_value(LLMDefinitions.get_narration_handling())
@@ -321,6 +328,11 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_npc_initiative_decision_instructions_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_npc_initiative_decision_npc_criteria_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_npc_initiative_decision_nobody_criteria_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_npc_event_generator_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_npc_event_game_master_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_npc_event_npc_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_npc_event_wind_down_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_npc_event_decision_nearby_criteria_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_radiant_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_multi_npc_prompt_config_value())
@@ -387,8 +399,8 @@ class MantellaConfigValueDefinitionsNew:
         model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_multi_npc_config_value())
         model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_game_master_config_value())
         model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_summaries_config_value())
-        for key, label in memory_tasks:
-            model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_memory_task_config_value(key, label))
+        for key, label, has_summary_option in memory_tasks:
+            model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_memory_task_config_value(key, label, has_summary_option))
         model_profiles_category.add_config_value(ModelProfileDefinitions.get_example_profile_json_config_value())
         result.add_base_group(model_profiles_category)
       

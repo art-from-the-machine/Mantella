@@ -114,6 +114,10 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 "dependent_config": "reflection_llm_api",
                 "model_list_getter": ClientBase.get_model_list,
             },
+            "npc_event_model": {
+                "dependent_config": "npc_event_llm_api",
+                "model_list_getter": ClientBase.get_model_list,
+            },
             "profile_selected_model": {
                 "dependent_config": "profile_selected_service",
                 "model_list_getter": ClientBase.get_model_list,
@@ -1515,6 +1519,10 @@ class SettingsUIConstructor(ConfigValueVisitor):
             },
             "reflection_model": {
                 "dependent_config": "reflection_llm_api",
+                "model_list_getter": ClientBase.get_model_list,
+            },
+            "npc_event_model": {
+                "dependent_config": "npc_event_llm_api",
                 "model_list_getter": ClientBase.get_model_list,
             },
             "profile_selected_model": {

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Hashable
+from typing import Any, Hashable, TYPE_CHECKING
 import regex
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
 from src.llm.summary_client import SummaryLLMCLient
@@ -24,6 +24,10 @@ from src.config.definitions.game_definitions import GameEnum
 from src.games.fallout4 import Fallout4
 from src.games.skyrim import Skyrim
 from src.llm.sonnet_cache_connector import SonnetCacheConnector
+
+if TYPE_CHECKING:
+    from src.conversation.npc_event import NpcEvent
+    from src.llm.ai_client import AIClient
 
 class CharacterDoesNotExist(Exception):
     """Exception raised when NPC name cannot be found in skyrim_characters.csv/fallout4_characters.csv"""
@@ -143,7 +147,10 @@ class GameStateManager:
 
         self.__talk: Conversation | None = None
         self.__npc_initiative_client: "ClientBase | None" = None # Created on the first NPC Initiative check
-        self.__conversation_start_count: int = 0 # A change cancels the NPC Initiative checks that are still running
+        self.__npc_event_clients: "dict[int, AIClient]" = {} # The event generator, by model profile slot (0 for no profile). Created on first use
+        self.__npc_event_count: int = 0 # Gives each event its id
+        self.__pending_npc_event: "NpcEvent | None" = None # The latest event, until the game starts the conversation that acts it out
+        self.__conversation_start_count: int = 0 # A change cancels the NPC Initiative and NPC Event checks that are still running
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk
         self.__stt_api_file: str = stt_api_file
@@ -309,6 +316,9 @@ class GameStateManager:
             chat_manager.update_multi_npc_client(multi_npc_client)
             chat_manager.update_game_master_client(GameStateManager.create_game_master_client(config, secret_key_file, log_prefix="Hot-swap: "))
             self.__npc_initiative_client = None # Recreated with the new settings on the next check
+            self.__npc_event_clients = {}
+            if self.__talk and self.__talk.context.npc_event:
+                self.__ensure_event_game_master_client()
             
             # Clear per-character client cache to force recreation with new settings
             chat_manager.clear_per_character_client_cache()
@@ -453,6 +463,14 @@ class GameStateManager:
         context_for_conversation = Context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
         # Set before the first system prompt is built, which happens in __update_context below
         context_for_conversation.npc_initiative = bool(input_json.get(comm_consts.KEY_STARTCONVERSATION_NPCINITIATIVE, False))
+        event_id = int(input_json.get(comm_consts.KEY_NPCEVENT_ID, 0))
+        pending_event, self.__pending_npc_event = self.__pending_npc_event, None
+        if event_id:
+            if pending_event and pending_event.id == event_id and self.__ensure_event_game_master_client():
+                context_for_conversation.npc_event = pending_event
+                logging.log(26, f"NPC Event {event_id} starts: {pending_event.text}")
+            else:
+                logging.warning(f"NPC Event {event_id} could not be started. The NPCs have a radiant conversation instead.")
         
         # Determine LLM client to use based on random selection settings
         conversation_llm_client = self.__client  # Default to main client
@@ -558,6 +576,11 @@ class GameStateManager:
 
         topicInfoID: int = int(input_json.get(comm_consts.KEY_CONTINUECONVERSATION_TOPICINFOFILE,1))
 
+        event = self.__talk.context.npc_event
+        if event:
+            event.apply_game_update(input_json.get(comm_consts.KEY_NPCEVENT_NEARBY_REFIDS),
+                                    input_json.get(comm_consts.KEY_NPCEVENT_PLAYERNOTICEABLE),
+                                    int(input_json.get(comm_consts.KEY_NPCEVENT_ADDFAILED_REFID, 0)))
         self.__update_context(input_json)
 
         while True:
@@ -570,6 +593,16 @@ class GameStateManager:
             else:
                 reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
                 break
+
+        if event and replyType == comm_consts.KEY_REPLYTYPE_NPCEVENT_ADDACTOR and event.pending_add:
+            reply[comm_consts.KEY_NPCEVENT_ADDACTOR_REFID] = event.pending_add.refid
+        elif event and replyType == comm_consts.KEY_REPLYTYPE_ENDCONVERSATION:
+            # The scene is over. The game only cleans up on its side, so the conversation ends here and its summaries are saved
+            logging.log(26, "NPC Event ended")
+            if not self.__talk.has_already_ended:
+                self.__talk.end()
+            self.__talk = None
+            return reply
 
         if sentence_to_play:
             if not sentence_to_play.error_message:
@@ -684,13 +717,112 @@ class GameStateManager:
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCINITIATIVE, comm_consts.KEY_NPCINITIATIVE_CHOSEN_REFID: chosen_refid}
 
     def __get_npc_initiative_client(self) -> "ClientBase | None":
-        """The Game Master decision model or LLM, also when Game Master Mode is disabled"""
+        """The Game Master decision model or LLM, also when Game Master Mode is disabled. Also the Game Master of NPC Events"""
         if not self.__npc_initiative_client:
             try:
                 self.__npc_initiative_client = GameStateManager.__create_game_master_settings_client(self.__config, self.__api_file, "NPC Initiative: ")
             except Exception as e:
                 logging.error(f"Could not create the NPC Initiative client from the Game Master settings: {e}")
         return self.__npc_initiative_client
+
+    def __ensure_event_game_master_client(self) -> bool:
+        """NPC Events always run with a Game Master. While Game Master Mode is disabled, the chat manager has no Game Master client,
+        so it gets the one NPC Initiative uses. Other conversations still check Game Master Mode before using it
+
+        Returns:
+            bool: False if no Game Master client could be created
+        """
+        if not self.__chat_manager.game_master_client:
+            self.__chat_manager.update_game_master_client(self.__get_npc_initiative_client())
+        return self.__chat_manager.game_master_client is not None
+
+    def npc_event_check(self, input_json: dict[str, Any]) -> dict[str, Any]:
+        """Asks the event generator to invent a scene between some of the nearby NPCs in the request.
+        The game then starts a conversation with them and the event's id, and they act the scene out.
+        Runs alongside the other requests. Starting a conversation cancels it.
+        Never replies with an error: any failure means no event (id 0)"""
+        no_event = {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCEVENT, comm_consts.KEY_NPCEVENT_ID: 0, comm_consts.KEY_NPCEVENT_PARTICIPANT_REFIDS: []}
+        start_count = self.__conversation_start_count
+        is_cancelled = lambda: self.__conversation_start_count != start_count
+        try:
+            from src.conversation.context import build_bios_and_summaries_text
+            from src.conversation.npc_event import EventPerson, NpcEvent, generate_event
+            from src.conversation.npc_initiative import InitiativeCandidate, label_candidates
+            world_id = self.__get_world_id(input_json)
+            player: EventPerson | None = None
+            candidates: list[InitiativeCandidate] = []
+            ref_ids: dict[int, str] = {}
+            characters: list[Character] = []
+            for actor_json in input_json.get(comm_consts.KEY_ACTORS, []):
+                if is_cancelled():
+                    break
+                character = self.load_character(actor_json)
+                if not character:
+                    continue
+                refid = int(actor_json[comm_consts.KEY_ACTOR_REFID])
+                if character.is_player_character:
+                    player = EventPerson(character.name, refid, character.ref_id)
+                    continue
+                candidates.append(InitiativeCandidate(character.name, refid))
+                ref_ids[refid] = character.ref_id
+                characters.append(character)
+            people = [EventPerson(label, candidate.refid, ref_ids[candidate.refid]) for label, candidate in label_candidates(candidates).items()]
+            # The same text as {bios_and_summaries} in the Skyrim Multi-NPC Prompt. The player is not part of the scene, so bios are filtered as without them
+            bios_and_summaries = build_bios_and_summaries_text(characters, self.__config, self.__rememberer, world_id, player.name if player else None,
+                                                               contains_player=False, always_multi_npc=True)
+            context_json: dict[str, Any] = input_json.get(comm_consts.KEY_CONTEXT, {})
+            location = str(context_json.get(comm_consts.KEY_CONTEXT_LOCATION, "Skyrim"))
+            hour = int(context_json.get(comm_consts.KEY_CONTEXT_TIME, 12))
+            weather = self.__game.get_weather_description(context_json[comm_consts.KEY_CONTEXT_WEATHER]) if comm_consts.KEY_CONTEXT_WEATHER in context_json else ""
+            logging.log(26, f"NPC Event check in {location}: {', '.join(p.name for p in people) or 'no candidates'}")
+            result = None
+            if not is_cancelled():
+                result = generate_event(self.__config, self.__get_npc_event_client(), people, player.name if player else "", location, hour,
+                                        weather, bios_and_summaries, is_cancelled)
+            if is_cancelled():
+                logging.log(26, "NPC Event check cancelled: a conversation was started")
+                return no_event
+            if not result:
+                return no_event
+            participants, text = result
+            self.__npc_event_count += 1
+            nearby = [person for person in people if person not in participants]
+            self.__pending_npc_event = NpcEvent(self.__npc_event_count, text, player, nearby)
+            return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCEVENT, comm_consts.KEY_NPCEVENT_ID: self.__npc_event_count,
+                    comm_consts.KEY_NPCEVENT_PARTICIPANT_REFIDS: [person.refid for person in participants]}
+        except Exception as e:
+            logging.error(f"NPC Event check failed: {e}")
+            return no_event
+
+    def __get_npc_event_client(self) -> "AIClient | None":
+        """The event generator, from its own model settings.
+        Like one-on-one conversations, picks one of the model's enabled profiles for each request"""
+        config = self.__config
+        profile = None
+        if config.apply_profile_npc_event:
+            try:
+                from src.model_profile_manager import ModelProfileManager
+                profile = ModelProfileManager().select_profile(config.npc_event_llm_api, config.npc_event_llm, random_enabled=True)
+            except Exception as e:
+                logging.error(f"Error applying profile for NPC Event Generator: {e}")
+        slot = profile.slot if profile else 0
+        if slot not in self.__npc_event_clients:
+            try:
+                from src.llm.client_base import ClientBase
+                from src.llm.key_file_resolver import key_file_resolver
+                params = profile.parameters.copy() if profile else config.npc_event_llm_params
+                logging.info(f"NPC Events: NPC Event Generator Parameters ({f'profile {slot}' if profile else 'manual'}): {params}")
+                self.__npc_event_clients[slot] = ClientBase(
+                    config.npc_event_llm_api,
+                    config.npc_event_llm,
+                    params,
+                    config.npc_event_custom_token_count,
+                    key_file_resolver.get_key_files_for_service(config.npc_event_llm_api, self.__api_file),
+                    response_timeout=config.llm_response_timeout,
+                )
+            except Exception as e:
+                logging.error(f"Could not create the NPC Event generator client: {e}")
+        return self.__npc_event_clients.get(slot)
 
     def __get_world_id(self, input_json: dict[str, Any]) -> str:
         world_id = "default"

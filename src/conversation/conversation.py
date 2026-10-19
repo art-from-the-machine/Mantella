@@ -19,7 +19,7 @@ from src.output_manager import ChatManager
 from src.llm.messages import AssistantMessage, join_message, leave_message, SystemMessage, UserMessage
 from src.conversation.context import add_or_update_result, context as Context
 from src.llm.message_thread import message_thread
-from src.conversation.conversation_type import conversation_type, multi_npc, multi_npc_game_master, pc_to_npc, radiant
+from src.conversation.conversation_type import conversation_type, multi_npc, multi_npc_game_master, npc_event, pc_to_npc, radiant
 from src.conversation.game_master import GameMasterTurns
 from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
@@ -138,12 +138,7 @@ class Conversation:
                     return False
             
             # Update conversation type with new config
-            if not self.__context.npcs_in_conversation.contains_player_character():
-                self.__conversation_type = radiant(config)
-            elif self.__context.npcs_in_conversation.active_character_count() >= 3:
-                self.__conversation_type = self.__create_multi_npc_type(config)
-            else:
-                self.__conversation_type = pc_to_npc(config)
+            self.__conversation_type = self.__select_conversation_type(config)
             # Game Master Mode was turned off: the reply generated ahead would never be played. The player gets the turn after the reply being played
             if was_game_master and not isinstance(self.__conversation_type, multi_npc_game_master) and self.__game_master_turns.drop_lookahead():
                 self.__stop_generation()
@@ -178,6 +173,9 @@ class Conversation:
             new_character (Character): the character to add or update
         """
         update_result = self.__context.add_or_update_characters(new_character)
+        if self.__context.npc_event:
+            for npc in update_result.added_npcs:
+                self.__context.npc_event.on_joined(npc.ref_id, npc.is_player_character)
         # If a non-player NPC joined, log the prompt the next time we regenerate it.
         # (Prompt regeneration itself happens in update_context() when have_actors_changed is true.)
         if any((not npc.is_player_character) for npc in update_result.added_npcs):
@@ -209,6 +207,10 @@ class Conversation:
         Returns:
             tuple[str, sentence | None]: Returns a tuple consisting of a reply type and an optional sentence
         """
+        if isinstance(self.__conversation_type, npc_event):
+            # The first speaker opens the scene from the event
+            self.__start_generating_npc_sentences()
+            return comm_consts.KEY_REPLYTYPE_NPCTALK, None
         greeting: UserMessage | None = self.__conversation_type.get_user_message(self.__context, self.__messages)
         if greeting:
             self.__messages.add_message(greeting)
@@ -244,14 +246,17 @@ class Conversation:
             return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
         
         # restart mic listening as soon as NPC's first sentence is processed
-        if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and not self.__stt.is_listening and self.__allow_mic_input and not isinstance(self.__conversation_type, radiant):
+        # Not while the player is not in the conversation (radiant, or a bystander of an NPC Event): what they say would interrupt a conversation they are not part of
+        if self.__mic_input and self.__allow_interruption and not self.__mic_ptt and not self.__stt.is_listening and self.__allow_mic_input and not isinstance(self.__conversation_type, radiant) and self.__context.npcs_in_conversation.contains_player_character():
             mic_prompt = self.__get_mic_prompt()
             self.__stt.start_listening(mic_prompt)
         
         #Grab the next sentence from the queue. Private thoughts stay in history and are not spoken.
-        next_sentence: Sentence | None = self.retrieve_sentence_from_queue()
+        #A spoken sentence is only added to the history once it is sent to the game: an interruption while waiting below throws it away unspoken
+        next_sentence: Sentence | None = self.retrieve_sentence_from_queue(add_to_history=False)
         while next_sentence is not None and next_sentence.content.sentence_type == SentenceTypeEnum.THOUGHT:
-            next_sentence = self.retrieve_sentence_from_queue()
+            self.add_sentence_to_history(next_sentence)
+            next_sentence = self.retrieve_sentence_from_queue(add_to_history=False)
         
         if next_sentence and len(next_sentence.text) > 0:
             if comm_consts.ACTION_REMOVECHARACTER in next_sentence.actions:
@@ -275,6 +280,7 @@ class Conversation:
                 return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
             self.last_sentence_audio_length = next_sentence.voice_line_duration + self.__context.config.wait_time_buffer
             self.last_sentence_start_time = time.time()
+            self.add_sentence_to_history(next_sentence)
             return comm_consts.KEY_REPLYTYPE_NPCTALK, next_sentence
         else:
             #Ask the conversation type here, if we should end the conversation
@@ -290,6 +296,8 @@ class Conversation:
                     return comm_consts.KEY_REPLYTYPE_NPCTALK, None
                 if has_next_reply:
                     return comm_consts.KEY_REPLYTYPE_NPCTALK, None
+                if isinstance(self.__conversation_type, npc_event):
+                    return self.__continue_npc_event()
                 return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
             else:
                 #If not ended, ask the conversation type for an automatic user message. If there is None, signal the game that the player must provide it 
@@ -300,6 +308,25 @@ class Conversation:
                     return comm_consts.KEY_REPLYTYPE_NPCTALK, None
                 else:
                     return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
+
+    def __continue_npc_event(self) -> tuple[str, Sentence | None]:
+        """NPC Events: what happens once the NPCs' turn is over. Without the player, the scene goes on until its line limit"""
+        event = self.__context.npc_event
+        if not event:
+            return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
+        if event.pending_add:
+            # The game adds them first, as only actors in the conversation can speak in game
+            return comm_consts.KEY_REPLYTYPE_NPCEVENT_ADDACTOR, None
+        if event.forced_speaker_ref_id:
+            self.__start_generating_npc_sentences()
+            return comm_consts.KEY_REPLYTYPE_NPCTALK, None
+        if event.player_joined:
+            return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
+        if event.has_failed or event.has_reached_limit(self.__context.config):
+            return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None
+        # The Game Master gave no valid choice, or the turn was thrown away. The scene goes on
+        self.__start_generating_npc_sentences()
+        return comm_consts.KEY_REPLYTYPE_NPCTALK, None
 
     @utils.time_it
     def process_player_input(self, player_text: str) -> tuple[str, bool, Sentence|None]:
@@ -452,13 +479,8 @@ class Conversation:
             self.__cancel_game_master_turn()
             self.__stop_generation()
             self.__sentences.clear()
-            
-            if not self.__context.npcs_in_conversation.contains_player_character():
-                self.__conversation_type = radiant(self.__context.config)
-            elif self.__context.npcs_in_conversation.active_character_count() >= 3:
-                self.__conversation_type = self.__create_multi_npc_type(self.__context.config)
-            else:
-                self.__conversation_type = pc_to_npc(self.__context.config)
+
+            self.__conversation_type = self.__select_conversation_type(self.__context.config)
 
             # Only log the prompt when creating the initial message thread (conversation start),
             # or when a new NPC has joined and we regenerated the prompt.
@@ -517,18 +539,23 @@ class Conversation:
         return message
 
     @utils.time_it
-    def retrieve_sentence_from_queue(self) -> Sentence | None:
+    def retrieve_sentence_from_queue(self, add_to_history: bool = True) -> Sentence | None:
         """Retrieves the next sentence from the queue.
         If there is a sentence, adds the sentence to the last assistant_message of the message_thread.
         If the last message is not an assistant_message, a new one will be added.
+
+        Args:
+            add_to_history (bool): False to add it later with add_sentence_to_history, e.g. only once it is sent to the game
 
         Returns:
             sentence | None: The next sentence from the queue or None if the queue is empty
         """
         next_sentence: Sentence | None = self.__sentences.get_next_sentence() #This is a blocking call. Execution will wait here until queue is filled again
-        if not next_sentence:
-            return None
-        
+        if next_sentence and add_to_history:
+            self.add_sentence_to_history(next_sentence)
+        return next_sentence
+
+    def add_sentence_to_history(self, next_sentence: Sentence):
         if not next_sentence.is_system_generated_sentence and not next_sentence.speaker.is_player_character:
             last_message = self.__messages.get_last_message()
             if not isinstance(last_message, AssistantMessage):
@@ -537,8 +564,7 @@ class Conversation:
                 last_message.thoughts_in_place = isinstance(self.__conversation_type, multi_npc_game_master)
                 self.__messages.add_message(last_message)
             last_message.add_sentence(next_sentence)
-        return next_sentence
-   
+
     @utils.time_it
     def initiate_end_sequence(self):
         """Replaces all remaining sentences with a "goodbye" sentence that also prompts the game to request a stop to the conversation using an action
@@ -586,8 +612,9 @@ class Conversation:
     
     def request_interrupt(self):
         """Interrupt hotkey. The NPCs stop and the player gets the turn, like when the player interrupts with the mic.
-        Called while a continue request may still be running, which picks the interruption up"""
-        if self.__context.npcs_in_conversation.contains_player_character():
+        Called while a continue request may still be running, which picks the interruption up.
+        During an NPC Event it is also how a bystander player steps in: the game sends them with their input, after the interruption"""
+        if self.__context.npcs_in_conversation.contains_player_character() or self.__context.npc_event:
             self.__is_interrupt_requested = True
 
     def __interrupt_for_player(self) -> bool:
@@ -610,6 +637,18 @@ class Conversation:
         """Game Master Mode only. Throws away the running NPC turn, so nothing more is generated for it"""
         if isinstance(self.__conversation_type, multi_npc_game_master):
             self.__game_master_turns.cancel()
+
+    def __select_conversation_type(self, config: ConfigLoader) -> conversation_type:
+        """The conversation type for the people in the conversation now"""
+        characters = self.__context.npcs_in_conversation
+        if self.__context.npc_event and npc_event.is_enabled(config) and self.__output_manager.game_master_client:
+            # Before the radiant check: the event usually runs without the player
+            return npc_event(config)
+        if not characters.contains_player_character():
+            return radiant(config)
+        if characters.active_character_count() >= 3:
+            return self.__create_multi_npc_type(config)
+        return pc_to_npc(config)
 
     def __create_multi_npc_type(self, config: ConfigLoader) -> multi_npc:
         """Game Master Mode when it is enabled and its LLM client exists, otherwise the regular multi-NPC conversation"""

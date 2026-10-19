@@ -160,8 +160,8 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
          self.reflection_llm, self.reflection_custom_token_count, self.reflection_llm_params) = \
             self.__read_memory_task_llm_settings("reflection", "Personal Reflection")
 
-    def __read_memory_task_llm_settings(self, key: str, label: str) -> tuple[bool, bool, str, str, int, dict[str, Any] | None]:
-        use_summary_model = self.__definitions.get_bool_value(f"{key}_use_summary_model")
+    def __read_memory_task_llm_settings(self, key: str, label: str, has_summary_option: bool = True) -> tuple[bool, bool, str, str, int, dict[str, Any] | None]:
+        use_summary_model = has_summary_option and self.__definitions.get_bool_value(f"{key}_use_summary_model")
         apply_profile = self.__definitions.get_bool_value(f"apply_profile_{key}")
         llm_api = self.__definitions.get_string_value(f"{key}_llm_api")
         llm = self.__definitions.get_string_value(f"{key}_model") or ""  # empty means "use the summary model"
@@ -442,6 +442,16 @@ Game Master LLM parameter list must follow the Python dictionary format: https:/
             self.game_master_decision_model = self.game_master_decision_model.split(' |')[0] if ' |' in self.game_master_decision_model else self.game_master_decision_model
             self.npc_initiative_threshold = self.__definitions.get_float_value("npc_initiative_threshold")
 
+            # NPC Events. The generator always uses its own model: the Summary model is not meant for writing scenes
+            (_, self.apply_profile_npc_event, self.npc_event_llm_api,
+             self.npc_event_llm, self.npc_event_custom_token_count, self.npc_event_llm_params) = \
+                self.__read_memory_task_llm_settings("npc_event", "NPC Event Generator", has_summary_option=False)
+            self.npc_event_max_participants = self.__definitions.get_int_value("npc_event_max_participants")
+            self.npc_event_max_scene_size = self.__definitions.get_int_value("npc_event_max_scene_size")
+            self.npc_event_player_notice_delay = self.__definitions.get_int_value("npc_event_player_notice_delay")
+            self.npc_event_max_lines_without_player = self.__definitions.get_int_value("npc_event_max_lines_without_player")
+            self.npc_event_wind_down_lines = self.__definitions.get_int_value("npc_event_wind_down_lines")
+
             # Multi-NPC prompt content toggles
             self.multi_npc_bios_only = self.__definitions.get_bool_value("multi_npc_bios_only")
             self.enable_decensor_bypass = self.__definitions.get_bool_value("enable_decensor_bypass")
@@ -595,6 +605,11 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.npc_initiative_decision_instructions = self.__overlay_prompt("skyrim_npc_initiative_decision_instructions", self.__definitions.get_string_value("skyrim_npc_initiative_decision_instructions"))
             self.npc_initiative_decision_npc_criteria = self.__overlay_prompt("skyrim_npc_initiative_decision_npc_criteria", self.__definitions.get_string_value("skyrim_npc_initiative_decision_npc_criteria"))
             self.npc_initiative_decision_nobody_criteria = self.__overlay_prompt("skyrim_npc_initiative_decision_nobody_criteria", self.__definitions.get_string_value("skyrim_npc_initiative_decision_nobody_criteria"))
+            self.npc_event_generator_prompt = self.__overlay_prompt("skyrim_npc_event_generator_prompt", self.__definitions.get_string_value("skyrim_npc_event_generator_prompt"))
+            self.npc_event_game_master_prompt = self.__overlay_prompt("skyrim_npc_event_game_master_prompt", self.__definitions.get_string_value("skyrim_npc_event_game_master_prompt"))
+            self.npc_event_npc_prompt = self.__overlay_prompt("skyrim_npc_event_npc_prompt", self.__definitions.get_string_value("skyrim_npc_event_npc_prompt"))
+            self.npc_event_wind_down_prompt = self.__overlay_prompt("skyrim_npc_event_wind_down_prompt", self.__definitions.get_string_value("skyrim_npc_event_wind_down_prompt"))
+            self.npc_event_decision_nearby_criteria = self.__overlay_prompt("skyrim_npc_event_decision_nearby_criteria", self.__definitions.get_string_value("skyrim_npc_event_decision_nearby_criteria"))
             self.radiant_prompt = self.__overlay_prompt("skyrim_radiant_prompt", self.__definitions.get_string_value("skyrim_radiant_prompt"))
 
         self.radiant_start_prompt = self.__overlay_prompt("radiant_start_prompt", self.__definitions.get_string_value("radiant_start_prompt"))

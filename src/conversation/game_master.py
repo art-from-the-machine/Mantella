@@ -10,6 +10,7 @@ from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.conversation.context import context as Context
 from src.conversation.conversation_type import multi_npc_game_master
+from src.conversation.npc_event import NEARBY_CRITERIA, EventPerson, wind_down_text
 from src.llm.ai_client import AIClient
 from src.llm.client_base import ClientBase
 from src.llm.image_client import VisionCapture
@@ -21,26 +22,43 @@ from src.llm.sentence_queue import SentenceQueue
 from src.prompt_profile_manager import PromptSectionError
 
 
+def read_decision(text: str | None) -> tuple[str, str] | None:
+    """The choice and reason in the Game Master's JSON reply, e.g. {"next": "Lydia", "reason": "..."}. None if it is not valid"""
+    if not text:
+        return None
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        return None
+    try:
+        data = json.loads(match.group(0))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return str(data.get("next", "")), str(data.get("reason", "")).strip()
+
+
 def parse_decision(text: str | None, npcs: list[Character], player_name: str, allow_player: bool) -> tuple[bool, Character | None, str]:
     """Reads the Game Master's JSON reply, e.g. {"next": "Lydia", "reason": "..."}
 
     Returns:
         tuple[bool, Character | None, str]: (is the choice valid, the chosen NPC or None for the player, the reason)
     """
-    if not text:
+    decision = read_decision(text)
+    if not decision:
         return False, None, ""
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        return False, None, ""
-    try:
-        data = json.loads(match.group(0))
-    except json.JSONDecodeError:
-        return False, None, ""
-    if not isinstance(data, dict):
-        return False, None, ""
-    reason = str(data.get("reason", "")).strip()
-    is_valid, speaker = match_speaker(str(data.get("next", "")), npcs, player_name, allow_player)
+    choice, reason = decision
+    is_valid, speaker = match_speaker(choice, npcs, player_name, allow_player)
     return is_valid, speaker, reason
+
+
+def match_nearby(choice: str, nearby: list[EventPerson]) -> EventPerson | None:
+    """NPC Events: the nearby person the Game Master chose, by their exact label"""
+    choice = choice.strip().lower()
+    for person in nearby:
+        if person.name.lower() == choice:
+            return person
+    return None
 
 
 def match_speaker(choice: str, npcs: list[Character], player_name: str, allow_player: bool) -> tuple[bool, Character | None]:
@@ -124,12 +142,14 @@ def drop_oldest_lines(lines: list[str], budget: int, count_line_tokens: Callable
 
 
 def build_decision_request(prompts: dict[str, str], model: str, scene: str, history_lines: list[str], npc_names: list[str],
-                           player_name: str, allow_player: bool, count_tokens: Callable[[str], int], token_limit: int) -> dict[str, Any] | None:
+                           player_name: str, allow_player: bool, count_tokens: Callable[[str], int], token_limit: int,
+                           extra_criteria: dict[str, str] | None = None) -> dict[str, Any] | None:
     """Builds the Decisions API request that asks a decision model who speaks next.
     The oldest conversation lines are dropped until the request fits the model's token limit.
 
     Args:
         prompts (dict[str, str]): the decision prompts by prompt type (see resolve_decision_prompts)
+        extra_criteria (dict[str, str] | None): more options and their criteria, e.g. the people near an NPC Event
 
     Returns:
         dict[str, Any] | None: the request body. None if it does not fit even without any conversation lines
@@ -138,6 +158,7 @@ def build_decision_request(prompts: dict[str, str], model: str, scene: str, hist
     criteria = {name: fill_prompt_variables(prompts[DECISION_NPC_CRITERIA], {"name": name, "player_name": player_label}) for name in npc_names}
     if allow_player:
         criteria[player_label] = fill_prompt_variables(prompts[DECISION_PLAYER_CRITERIA], {"player_name": player_label})
+    criteria.update(extra_criteria or {})
     question = {
         "type": "choice",
         "instructions": fill_prompt_variables(prompts[DECISION_INSTRUCTIONS], {"player_name": player_label, "names": ", ".join(npc_names)}),
@@ -268,16 +289,17 @@ class GameMaster:
         self.__client = client
         self.__logged_prompts: set[str] = logged_prompts if logged_prompts is not None else set()
 
-    def choose_next_speaker(self, live_messages: message_thread, history: list[Message], allow_player: bool) -> Character | None:
+    def choose_next_speaker(self, live_messages: message_thread, history: list[Message], allow_player: bool, allow_nearby: bool = False) -> Character | EventPerson | None:
         """Asks the Game Master who speaks next
 
         Args:
             live_messages (message_thread): the message thread used for the lorebook
             history (list[Message]): the conversation history to show the Game Master
             allow_player (bool): whether the Game Master may hand the turn to the player
+            allow_nearby (bool): NPC Events only. The Game Master may also pick someone near the scene, who has to be added in game before they can speak
 
         Returns:
-            Character | None: the NPC to speak next. None if the player should speak or no valid choice was made
+            Character | EventPerson | None: the NPC to speak next, or the person nearby who joins first. None if the player should speak or no valid choice was made
         """
         if not self.__client:
             return None
@@ -285,6 +307,10 @@ class GameMaster:
         npcs = self.__context.get_characters_excluding_player().get_all_characters()
         player = self.__context.npcs_in_conversation.get_player_character()
         player_name = player.name if player else ""
+        allow_player = allow_player and player is not None # A bystander of an NPC Event can only be drawn in as someone nearby
+        event = self.__context.npc_event
+        participant_names = [npc.name for npc in npcs] + ([player_name] if player_name else [])
+        nearby = event.nearby_choices(config, participant_names, len(npcs)) if event and allow_nearby else []
         should_log = should_log_prompt(self.__logged_prompts, "game master|" + self.__context.get_character_names_as_text(True))
         if should_log:
             logging.log(26, "===== Game Master prompt =====")
@@ -294,10 +320,13 @@ class GameMaster:
             logging.error(str(e))
             logging.error("Game Master could not decide who speaks next. Fix the active Game Master prompt profile.")
             return None
+        wind_down = wind_down_text(event, config, self.__context.get_character_names_as_text(False))
+        if wind_down:
+            prompt += "\n\n" + wind_down
         if config.game_master_use_decision_model:
-            return self.__choose_with_decision_model(prompt, history, allow_player, npcs, player_name)
+            return self.__choose_with_decision_model(prompt, history, allow_player, npcs, player_name, nearby)
 
-        choices = [npc.name for npc in npcs]
+        choices = [npc.name for npc in npcs] + [person.name for person in nearby]
         if allow_player and player_name:
             choices.append(player_name)
         history_lines = game_master_history_lines(history, config)
@@ -323,6 +352,9 @@ class GameMaster:
             return None
         finally:
             log_request_time(started_at)
+        decision = read_decision(reply)
+        if decision and (person := match_nearby(decision[0], nearby)):
+            return self.__request_join(person, decision[1])
         is_valid, speaker, reason = parse_decision(reply, npcs, player_name, allow_player)
         if not is_valid:
             logging.warning(f"Game Master gave no valid choice: {reply}")
@@ -330,8 +362,13 @@ class GameMaster:
         logging.log(26, f"Game Master: {speaker.name if speaker else player_name} speaks next ({reason})")
         return speaker
 
+    def __request_join(self, person: EventPerson, reason: str) -> EventPerson:
+        """NPC Events: the person nearby joins the scene before they speak"""
+        logging.log(26, f"Game Master: {person.name} joins the scene and speaks next ({reason})")
+        return person
+
     def __choose_with_decision_model(self, prompt: str, history: list[Message], allow_player: bool,
-                                     npcs: list[Character], player_name: str) -> Character | None:
+                                     npcs: list[Character], player_name: str, nearby: list[EventPerson]) -> Character | EventPerson | None:
         """Asks a decision model (e.g. typesafe/jev-1.13) who speaks next through the OpenRouter or NanoGPT Decisions API"""
         config = self.__context.config
         client = cast(ClientBase, self.__client)
@@ -342,12 +379,18 @@ class GameMaster:
         history_lines = game_master_history_lines(history, config)
         try:
             prompts = resolve_decision_prompts(config)
+            nearby_criteria = {}
+            if nearby:
+                event = self.__context.npc_event
+                event_player_name = player_name or (event.player.name if event and event.player else "")
+                criteria = config.prompt_profile_manager.resolve_prompt(NEARBY_CRITERIA, config.npc_event_decision_nearby_criteria)
+                nearby_criteria = {p.name: fill_prompt_variables(criteria, {"name": p.name, "player_name": event_player_name}) for p in nearby}
         except PromptSectionError as e:
             logging.error(str(e))
             logging.error("Game Master could not decide who speaks next. Fix the active Game Master Decision prompt profile.")
             return None
         body = build_decision_request(prompts, client.model_name, prompt, history_lines, [npc.name for npc in npcs],
-                                      player_name, allow_player, client.get_count_tokens, client.token_limit)
+                                      player_name, allow_player, client.get_count_tokens, client.token_limit, nearby_criteria)
         if not body:
             logging.error(f"Game Master prompt is too long for the decision model {client.model_name} ({client.token_limit} tokens). Shorten the Skyrim Game Master Prompt.")
             return None
@@ -382,6 +425,9 @@ class GameMaster:
             logging.warning(f"Game Master gave no valid choice:\n{format_response_text(response.text)}")
             return None
 
+        person = match_nearby(choice, nearby)
+        if person:
+            return self.__request_join(person, format_confidence(answer))
         is_valid, speaker = match_speaker(choice, npcs, player_name, allow_player)
         if not is_valid:
             logging.warning(f"Game Master gave no valid choice: {choice}")
@@ -601,7 +647,7 @@ class GameMasterTurns:
                     return
                 if not speaker:
                     # The first speaker of the turn, after the player has spoken
-                    speaker = self.__choose_first_speaker(self.__game_master(conversation_type, get_output_manager()), history)
+                    speaker = self.__take_forced_speaker() or self.__choose_first_speaker(self.__game_master(conversation_type, get_output_manager()), history)
                 if not speaker:
                     self.__end_turn_early(turn_id, reply)
                     return
@@ -613,6 +659,17 @@ class GameMasterTurns:
 
     def __game_master(self, conversation_type: multi_npc_game_master, output_manager) -> GameMaster:
         return GameMaster(self.__context, conversation_type, output_manager.game_master_client, self.__logged_prompts)
+
+    def __take_forced_speaker(self) -> Character | None:
+        """NPC Events: the person who has just joined speaks first, without asking the Game Master"""
+        event = self.__context.npc_event
+        if not event or not event.forced_speaker_ref_id:
+            return None
+        ref_id, event.forced_speaker_ref_id = event.forced_speaker_ref_id, ""
+        for npc in self.__context.get_characters_excluding_player().get_all_characters():
+            if npc.ref_id == ref_id:
+                return npc
+        return None
 
     def __choose_first_speaker(self, game_master: GameMaster, history: list[Message]) -> Character | None:
         speaker = game_master.choose_next_speaker(thread_for_lorebook(self.__context.config, history), history, allow_player=False)
@@ -649,8 +706,10 @@ class GameMasterTurns:
             logging.error("NPC reply was not generated. Fix the active Game Master NPC prompt profile, or end the conversation.")
             self.__end_turn_early(turn_id, reply)
             return None, None
-        # A separate copy, so only what this NPC heard and only its own thoughts are sent. The Game Master sees the whole conversation (see game_master_history_lines)
-        npc_history = messages_heard_by(deepcopy(history), speaker)
+        event = self.__context.npc_event
+        # A separate copy, so only what this NPC heard and only its own thoughts are sent. The Game Master sees the whole conversation (see game_master_history_lines).
+        # In an NPC Event, people who join later were nearby and overheard the whole scene
+        npc_history = deepcopy(history) if event else messages_heard_by(deepcopy(history), speaker)
         for message in npc_history:
             if isinstance(message, AssistantMessage):
                 message.thoughts_only_of_ref_id = speaker.ref_id
@@ -659,7 +718,8 @@ class GameMasterTurns:
         npc_request.add_non_system_messages(npc_history)
         if len(npc_history) == 0 or not isinstance(npc_history[-1], UserMessage):
             # Only sent with this request so the NPC has something to reply to. Never added to the conversation itself
-            npc_request.add_message(UserMessage(config, f"({speaker.name} speaks next.)", "", True))
+            wind_down = wind_down_text(event, config, self.__context.get_character_names_as_text(False))
+            npc_request.add_message(UserMessage(config, f"({speaker.name} speaks next.) {wind_down}".strip(), "", True))
 
         with self.__lock:
             if turn_id != self.__turn_id:
@@ -672,21 +732,32 @@ class GameMasterTurns:
                 return None, None
             self.__npc_turns_since_player += 1
             npc_turns = self.__npc_turns_since_player
-        next_speaker: Character | None = None
+            is_bystander_scene = bool(event and not event.player_joined)
+            if event and is_bystander_scene:
+                event.npc_lines += 1
+        next_speaker: Character | EventPerson | None = None
         # Read again, so a settings change made while the reply was generating applies to the decision
         conversation_type = get_conversation_type()
         if isinstance(conversation_type, multi_npc_game_master): # Otherwise a settings change turned Game Master Mode off, and the player gets the turn
             # Director mode: the player is not part of the conversation, so they only get the turn back once the run ends
             is_director = conversation_type.is_director_mode()
             max_npc_turns = config.multi_npc_game_master_director_max_npc_turns if is_director else config.multi_npc_game_master_max_npc_turns
-            if npc_turns < max_npc_turns:
+            if event and is_bystander_scene and event.has_reached_limit(config):
+                logging.log(26, f"NPC Event: {event.npc_lines} lines without the player. The scene ends.")
+            elif is_bystander_scene or npc_turns < max_npc_turns:
+                # A bystander player never gets the turn, so only the scene's line limit applies
                 game_master = self.__game_master(conversation_type, get_output_manager())
-                next_speaker = game_master.choose_next_speaker(thread_for_lorebook(config, history), history, allow_player=not is_director)
+                next_speaker = game_master.choose_next_speaker(thread_for_lorebook(config, history), history, allow_player=not is_director, allow_nearby=bool(event))
             else:
                 logging.log(26, f"Game Master: {npc_turns} NPC replies in a row. The player gets the turn.")
         with self.__lock:
             if turn_id != self.__turn_id:
                 return None, None
+            if isinstance(next_speaker, EventPerson):
+                # Set only while the turn is current, so a turn thrown away meanwhile (e.g. the player stepped in) can't add anyone
+                if event:
+                    event.pending_add = next_speaker
+                next_speaker = None
             next_reply = ReplyQueue(self.__sentences, False) if next_speaker else None
             if next_reply:
                 self.__replies.append(next_reply)
@@ -707,6 +778,9 @@ class GameMasterTurns:
             if reply and turn_id == self.__turn_id:
                 reply.next_reply = None
                 reply.next_ready.set()
+                event = self.__context.npc_event
+                if event and not reply.sentences:
+                    event.has_failed = True # Starting another turn would most likely fail the same way
         if reply:
             reply.end(self.__context.npcs_in_conversation.last_added_character)
 

@@ -189,6 +189,33 @@ class multi_npc_game_master(multi_npc):
             return context_for_conversation.generate_system_message(self._config.game_master_director_prompt, actions, should_log, messages_for_lorebook, "skyrim_game_master_director_prompt")
         return context_for_conversation.generate_system_message(self._config.game_master_prompt, actions, should_log, messages_for_lorebook, "skyrim_game_master_prompt")
 
+class npc_event(multi_npc_game_master):
+    """An NPC Event acted out by its participants, with or without the player. Always runs with a Game Master,
+    also when Game Master Mode is disabled. The player is a bystander until they join, after which it is a normal conversation. Skyrim only."""
+    def __init__(self, config: ConfigLoader) -> None:
+        super().__init__(config)
+
+    @staticmethod
+    def is_enabled(config: ConfigLoader) -> bool:
+        return config.game.base_game != GameEnum.FALLOUT4
+
+    def is_director_mode(self) -> bool:
+        return False
+
+    @utils.time_it
+    def generate_npc_prompt(self, context_for_conversation: Context, speaker: Character, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
+        actions = [a for a in self._config.actions if a.use_in_multi_npc]
+        return context_for_conversation.generate_system_message(self._config.npc_event_npc_prompt, actions, should_log, messages_for_lorebook, "skyrim_npc_event_npc_prompt", focus_character=speaker)
+
+    @utils.time_it
+    def generate_game_master_prompt(self, context_for_conversation: Context, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
+        actions = [a for a in self._config.actions if a.use_in_multi_npc]
+        return context_for_conversation.generate_system_message(self._config.npc_event_game_master_prompt, actions, should_log, messages_for_lorebook, "skyrim_npc_event_game_master_prompt")
+
+    @utils.time_it
+    def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:
+        return None # No greeting: the first speaker opens the scene from the event
+
 class radiant(conversation_type):
     """ Conversation between two NPCs without the player"""
     def __init__(self, config: ConfigLoader) -> None:

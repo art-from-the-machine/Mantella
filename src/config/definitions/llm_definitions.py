@@ -320,8 +320,9 @@ class LLMDefinitions:
         return ConfigValueBool(f"{key}_use_summary_model", f"Use Summary Model for {label}", description, True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
 
     @staticmethod
-    def get_memory_task_llm_api_config_value(key: str, label: str) -> ConfigValue:
-        description = f"""Selects the LLM service to use for {label} when 'Use Summary Model for {label}' is disabled.
+    def get_memory_task_llm_api_config_value(key: str, label: str, has_summary_option: bool = True) -> ConfigValue:
+        when_own_model = f" when 'Use Summary Model for {label}' is disabled" if has_summary_option else ""
+        description = f"""Selects the LLM service to use for {label}{when_own_model}.
 
             If you are connecting to a local service (KoboldCpp, textgenwebui etc), please ensure that the service is running and a model is loaded. You can also ignore the dropdown options and instead enter a custom URL to connect to other LLM services that provide an OpenAI compatible endpoint.
             After selecting a service, select the model using the option below. Press the *Update* button to load a list of models available from the service.
@@ -330,31 +331,36 @@ class LLMDefinitions:
         return ConfigValueSelection(f"{key}_llm_api",f"{label} LLM Service",description, "OpenRouter", ["OpenRouter", "OpenAI", "NanoGPT", "KoboldCpp", "textgenwebui"], allows_free_edit=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
 
     @staticmethod
-    def get_memory_task_model_config_value(key: str, label: str) -> ConfigValue:
-        model_description = f"""Select the model to use for {label} when 'Use Summary Model for {label}' is disabled. Press the *Update* button to load a list of models available from the service selected above.
+    def get_memory_task_model_config_value(key: str, label: str, has_summary_option: bool = True) -> ConfigValue:
+        when_own_model = f" when 'Use Summary Model for {label}' is disabled" if has_summary_option else ""
+        model_description = f"""Select the model to use for {label}{when_own_model}. Press the *Update* button to load a list of models available from the service selected above.
                             The list does not provide all details about the models. For additional information please refer to the corresponding sites:
                             - OpenRouter: https://openrouter.ai/docs#models
                             - OpenAI: https://platform.openai.com/docs/models https://openai.com/api/pricing/"""
         return ConfigValueSelection(f"{key}_model",f"{label} Model",model_description,"google/gemma-2-9b-it:free",["Custom Model"], allows_values_not_in_options=True, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
 
     @staticmethod
-    def get_memory_task_custom_token_count_config_value(key: str, label: str) -> ConfigValue:
-        description = f"""If the {label} model chosen is not recognised by Mantella, the token count for the given model will default to this number.
+    def get_memory_task_custom_token_count_config_value(key: str, label: str, has_summary_option: bool = True) -> ConfigValue:
+        description = f"""If the {label} model chosen is not recognised by Mantella, the token count for the given model will default to this number."""
+        if has_summary_option:
+            description += f"""
                     Only used when 'Use Summary Model for {label}' is disabled."""
         return ConfigValueInt(f"{key}_custom_token_count",f"{label} Custom Token Count",description, 4096, 4096, 9999999, tags=[ConfigValueTag.advanced], row_group="memory_token_count_row")
 
     @staticmethod
-    def get_memory_task_llm_params_config_value(key: str, label: str) -> ConfigValue:
-        description = f"""Parameters for the {label} LLM model. These should be in JSON format.
-                    Only used when 'Use Summary Model for {label}' is disabled.
+    def get_memory_task_llm_params_config_value(key: str, label: str, has_summary_option: bool = True) -> ConfigValue:
+        when_own_model = f"""
+                    Only used when 'Use Summary Model for {label}' is disabled.""" if has_summary_option else ""
+        description = f"""Parameters for the {label} LLM model. These should be in JSON format.{when_own_model}
                     Common parameters include temperature (0.0-2.0), top_p (0.0-1.0), frequency_penalty (0.0-1.0), presence_penalty (0.0-1.0)."""
         default_params = json.dumps({"temperature": 0.1, "top_p": 0.9}, indent=4)
         return ConfigValueString(f"{key}_llm_params",f"{label} LLM Parameters",description, default_params, tags=[ConfigValueTag.basic], row_group="memory_llm_params_row")
 
     @staticmethod
-    def get_apply_profile_memory_task_config_value(key: str, label: str) -> ConfigValue:
-        description = f"""Automatically apply saved LLM profile parameters for {label}.
-                        Only used when 'Use Summary Model for {label}' is disabled; otherwise 'Apply Profile for Summaries' applies.
+    def get_apply_profile_memory_task_config_value(key: str, label: str, has_summary_option: bool = True) -> ConfigValue:
+        when_own_model = f"""
+                        Only used when 'Use Summary Model for {label}' is disabled; otherwise 'Apply Profile for Summaries' applies.""" if has_summary_option else ""
+        description = f"""Automatically apply saved LLM profile parameters for {label}.{when_own_model}
                         When enabled, if a profile exists for the selected {label} model, its parameters will be used instead of the manually configured parameters."""
         return ConfigValueBool(f"apply_profile_{key}", f"Apply Profile for {label}", description, True, tags=[], row_group="apply_profile_row")
 
@@ -568,6 +574,41 @@ class LLMDefinitions:
                         The check uses the Game Master Decision Service and Model. The NPC with the highest probability is chosen only if that probability is at least this value.
                         Ignored when Use Decision Model for Game Master is disabled: the Game Master LLM then picks an NPC or nobody directly."""
         return ConfigValueFloat("npc_initiative_threshold","NPC Initiative Threshold",description, 0.6, 0, 1, tags=[ConfigValueTag.advanced])
+
+    NPC_EVENT_DESCRIPTION = """NPC Events (enabled in the Mantella MCM): every so often, an event generator invents a scene between some of the NPCs near the player, who then act it out while the player is a bystander.
+                        The scene always runs with the Game Master (Game Master Decision Service and Model, or the Game Master LLM), also when Multi-NPC Game Master Mode is disabled."""
+
+    @staticmethod
+    def get_npc_event_max_participants_config_value() -> ConfigValue:
+        description = LLMDefinitions.NPC_EVENT_DESCRIPTION + """
+                        The most NPCs the event generator may put in a scene when it starts. Others nearby can still be drawn in later."""
+        return ConfigValueInt("npc_event_max_participants", "NPC Event Max Participants", description, 3, 2, 10, tags=[ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_npc_event_max_scene_size_config_value() -> ConfigValue:
+        description = LLMDefinitions.NPC_EVENT_DESCRIPTION + """
+                        The most NPCs in a scene, including the ones drawn in later. Once reached, nearby NPCs are no longer drawn in. The player still can be."""
+        return ConfigValueInt("npc_event_max_scene_size", "NPC Event Max Scene Size", description, 5, 2, 20, tags=[ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_npc_event_player_notice_delay_config_value() -> ConfigValue:
+        description = LLMDefinitions.NPC_EVENT_DESCRIPTION + """
+                        How many NPC lines the scene runs before the NPCs can notice the player nearby and draw them in.
+                        After that, the player is only noticed while within the MCM hearing distance, not sneaking, and in sight if the MCM requires it."""
+        return ConfigValueInt("npc_event_player_notice_delay", "NPC Event Player Notice Delay", description, 3, 0, 50, tags=[ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_npc_event_max_lines_without_player_config_value() -> ConfigValue:
+        description = LLMDefinitions.NPC_EVENT_DESCRIPTION + """
+                        The number of NPC lines after which the scene ends while the player has not joined. Once the player joins, the scene goes on until the player ends it."""
+        return ConfigValueInt("npc_event_max_lines_without_player", "NPC Event Max Lines Without Player", description, 10, 2, 100, tags=[ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_npc_event_wind_down_lines_config_value() -> ConfigValue:
+        description = LLMDefinitions.NPC_EVENT_DESCRIPTION + """
+                        For this many lines before NPC Event Max Lines Without Player, the Skyrim NPC Event Wind-Down Prompt asks the NPCs to wrap the scene up.
+                        0 stops the scene straight after the last line."""
+        return ConfigValueInt("npc_event_wind_down_lines", "NPC Event Wind-Down Lines", description, 2, 0, 20, tags=[ConfigValueTag.share_row])
 
     @staticmethod
     def get_game_master_custom_token_count_config_value() -> ConfigValue:

@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any, Hashable, List
+from typing import Any, Hashable, List, TYPE_CHECKING
 import re
 from src.conversation.action import Action
 from src.http.communication_constants import communication_constants
@@ -16,6 +16,9 @@ from src.config.definitions.game_definitions import GameEnum
 from src.lorebook_manager import LorebookManager
 from src.prompt_profile_manager import PromptSectionError
 from src.bio_section_filter import apply_bio_section_filter, should_filter_conversation_bios
+
+if TYPE_CHECKING:
+    from src.conversation.npc_event import NpcEvent
 
 
 def append_reflection_to_bio(bio: str, character: Character, rememberer: Remembering, world_id: str, player_name: str | None) -> str:
@@ -112,6 +115,7 @@ class context:
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
         self.npc_initiative: bool = False # The NPC walked up to the player: their first reply uses the NPC Initiative Prompt until the player answers
+        self.npc_event: "NpcEvent | None" = None # The conversation acts out an NPC Event. Kept for the whole conversation, whoever joins
         self.__game: GameEnum = config.game
         game_folder_name = "Fallout4" if self.__game.base_game == GameEnum.FALLOUT4 else "Skyrim"
         lorebook_base_path = os.path.join(utils.resolve_path(), "data", game_folder_name, "lorebook")
@@ -752,6 +756,8 @@ class context:
                 if private_thoughts:
                     private_thoughts = self._resolve_bio_player_name(private_thoughts)
         actions = self.__get_action_texts(actions_for_prompt)
+        event = self.npc_event.text if self.npc_event else ""
+        nearby = self.npc_event.nearby_text(self.__config, [c.name for c in self.__npcs_in_conversation.get_all_characters()]) if self.npc_event else ""
         variable_values = {
             "player_name": player_name,
             "player_description": player_description,
@@ -776,6 +782,8 @@ class context:
             "private_thought": private_thoughts,
             "actions": actions,
             "game": self.__game.display_name,
+            "event": event,
+            "nearby": nearby,
         }
         lorebook_text = self.__build_lorebook_text(prompt, variable_values, messages_for_lorebook)
         if prompt_type:
@@ -818,6 +826,8 @@ class context:
                 private_thought=content[3],
                 actions = actions,
                 lorebook=lorebook_text,
+                event=event,
+                nearby=nearby,
                 )
             if self.__client.is_too_long(result, self.TOKEN_LIMIT_PERCENT):
                 if content[0] != "":

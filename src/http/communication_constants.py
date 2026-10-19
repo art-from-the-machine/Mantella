@@ -28,6 +28,16 @@ class communication_constants:
     KEY_NPCINITIATIVE_CHOSEN_REFID: str = PREFIX + "npc_initiative_chosen_refid"
     KEY_NPCINITIATIVE_SKIPTHRESHOLD: str = PREFIX + "npc_initiative_skip_threshold"
 
+    KEY_REQUESTTYPE_NPCEVENT: str = PREFIX + "npc_event_check"
+    KEY_REPLYTYPE_NPCEVENT: str = PREFIX + "npc_event_result"
+    KEY_REPLYTYPE_NPCEVENT_ADDACTOR: str = PREFIX + "npc_event_add_actor"
+    KEY_NPCEVENT_ID: str = PREFIX + "npc_event_id" # In the result, and in the start request of the conversation that acts the event out
+    KEY_NPCEVENT_PARTICIPANT_REFIDS: str = PREFIX + "npc_event_participant_refids"
+    KEY_NPCEVENT_ADDACTOR_REFID: str = PREFIX + "npc_event_add_actor_refid"
+    KEY_NPCEVENT_ADDFAILED_REFID: str = PREFIX + "npc_event_add_failed_refid"
+    KEY_NPCEVENT_NEARBY_REFIDS: str = PREFIX + "npc_event_nearby_refids"
+    KEY_NPCEVENT_PLAYERNOTICEABLE: str = PREFIX + "npc_event_player_noticeable"
+
     KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"
     KEY_STARTCONVERSATION_USENARRATOR: str = PREFIX + "use_narrator"
     KEY_CONTINUECONVERSATION_TOPICINFOFILE: str = PREFIX + "topicinfofile"
