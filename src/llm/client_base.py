@@ -295,21 +295,28 @@ class ClientBase(AIClient):
                 logging.log(15, f"LLM request to {self.model_name}:\n{format_openai_messages(openai_messages)}")
 
                 stream_client = async_client.with_options(max_retries=0)
-                remaining = deadline - time.time()
-                self._raise_if_first_token_late(deadline)
-                try:
-                    stream = await asyncio.wait_for(
-                        stream_client.chat.completions.create(
-                            model=self.model_name,
-                            messages=openai_messages,
-                            stream=True,
-                            timeout=self._http_timeout(remaining),
-                            **request_params,
-                        ),
-                        timeout=remaining,
-                    )
-                except asyncio.TimeoutError:
-                    raise FirstTokenTimeout(f"LLM did not respond within {self._response_timeout} seconds")
+                while True:
+                    remaining = deadline - time.time()
+                    self._raise_if_first_token_late(deadline)
+                    try:
+                        stream = await asyncio.wait_for(
+                            stream_client.chat.completions.create(
+                                model=self.model_name,
+                                messages=openai_messages,
+                                stream=True,
+                                timeout=self._http_timeout(remaining),
+                                **request_params,
+                            ),
+                            timeout=remaining,
+                        )
+                        break
+                    except asyncio.TimeoutError:
+                        raise FirstTokenTimeout(f"LLM did not respond within {self._response_timeout} seconds")
+                    except APITimeoutError as e:
+                        # The connection (e.g. the TLS handshake) took over 5 seconds, so the request was never sent and can be tried again
+                        if not isinstance(e.__cause__, httpx.ConnectTimeout):
+                            raise
+                        logging.warning(f"Could not connect to the LLM within {self.CONNECT_TIMEOUT_SECONDS} seconds, retrying...")
 
                 iterator = stream.__aiter__()
                 while True:
