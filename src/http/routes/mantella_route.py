@@ -42,6 +42,17 @@ class mantella_route(routeable):
         #     error_message = "MantellaSoftware settings faulty. Please check MantellaSoftware's window or log."
         #     logging.error(error_message)
 
+    def start_loading_in_background(self):
+        """Loads the settings, TTS, LLM clients and character data right away instead of on the first request from the game"""
+        threading.Thread(target=self.__load, daemon=True).start()
+
+    def __load(self):
+        try:
+            with self.__request_lock: # Any request arriving meanwhile waits for this instead of loading again
+                self._can_route_be_used()
+        except Exception as e:
+            logging.error(f"Loading on startup failed, it will be retried when a conversation starts: {e}")
+
     def _supports_hot_swap(self) -> bool:
         """Returns True since mantella_route supports hot-swapping settings"""
         return True

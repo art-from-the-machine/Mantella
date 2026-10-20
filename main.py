@@ -28,6 +28,7 @@ def main():
             language_info=language_info, 
             show_debug_messages=should_debug_http
         )
+        conversation.start_loading_in_background()
         ui = StartUI(config)
         config_reload = config_route(config, should_debug_http)
         routes: list[routeable] = [conversation, ui]
