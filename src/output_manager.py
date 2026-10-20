@@ -7,7 +7,7 @@ import unicodedata
 import wave
 import hashlib
 import json
-from typing import Any
+from typing import Any, AsyncGenerator
 from openai import APIConnectionError
 from src.llm.output.sentence_accumulator import sentence_accumulator
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
@@ -568,7 +568,24 @@ class ChatManager:
             time.sleep(0.01)
         self.__stop_generation.clear()
         return
- 
+
+    async def __until_stopped(self, stream: AsyncGenerator[str | None, None]) -> AsyncGenerator[str | None, None]:
+        """Passes the stream on until generation is stopped, also while still waiting for the LLM to answer"""
+        iterator = stream.__aiter__()
+        while True:
+            next_content = asyncio.ensure_future(iterator.__anext__())
+            while not next_content.done():
+                if self.__stop_generation.is_set():
+                    next_content.cancel()
+                    await asyncio.wait({next_content}) # Lets the stream close its connection
+                    return
+                await asyncio.wait({next_content}, timeout=0.05)
+            try:
+                content = next_content.result()
+            except StopAsyncIteration:
+                return
+            yield content
+
     @utils.time_it
     async def process_response(self, active_character: Character, blocking_queue: SentenceQueue, messages : message_thread, characters: Characters, actions: list[Action], lock_speaker: bool = False):
         """Stream response from LLM one sentence at a time"""
@@ -735,7 +752,7 @@ class ChatManager:
                         logging.info(f"[LLM: {current_client.model_name}]")
                     else:
                         logging.info(f"[LLM: {type(current_client).__name__}]")
-                    async for content in current_client.streaming_call(messages=messages, is_multi_npc=is_multi_npc, response_started_at=start_time):
+                    async for content in self.__until_stopped(current_client.streaming_call(messages=messages, is_multi_npc=is_multi_npc, response_started_at=start_time)):
                         if self.__stop_generation.is_set():
                             break
                         if not content:

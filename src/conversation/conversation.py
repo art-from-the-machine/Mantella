@@ -261,7 +261,10 @@ class Conversation:
         while next_sentence is not None and next_sentence.content.sentence_type == SentenceTypeEnum.THOUGHT:
             self.add_sentence_to_history(next_sentence)
             next_sentence = self.retrieve_sentence_from_queue(add_to_history=False)
-        
+        # The hotkey stopped the wait before the LLM answered
+        if next_sentence is None and self.__interrupt_for_player():
+            return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
+
         if next_sentence and len(next_sentence.text) > 0:
             if comm_consts.ACTION_REMOVECHARACTER in next_sentence.actions:
                 self.__context.remove_character(next_sentence.speaker)
@@ -554,7 +557,9 @@ class Conversation:
         Returns:
             sentence | None: The next sentence from the queue or None if the queue is empty
         """
-        next_sentence: Sentence | None = self.__sentences.get_next_sentence() #This is a blocking call. Execution will wait here until queue is filled again
+        # The interrupt hotkey stops the wait, e.g. while the LLM has not answered yet
+        is_interrupted = lambda: self.__is_interrupt_requested and not self.__is_ending
+        next_sentence: Sentence | None = self.__sentences.get_next_sentence(is_interrupted) #This is a blocking call. Execution will wait here until queue is filled again
         if next_sentence and add_to_history:
             self.add_sentence_to_history(next_sentence)
         return next_sentence

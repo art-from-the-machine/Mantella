@@ -1,6 +1,7 @@
 import logging
 import queue
 import threading
+from typing import Callable
 from src.llm.sentence import Sentence
 from src import utils
 
@@ -23,11 +24,23 @@ class SentenceQueue:
         self.__is_more_to_come = value
 
     @utils.time_it
-    def get_next_sentence(self) -> Sentence | None:
+    def get_next_sentence(self, is_interrupted: Callable[[], bool] = lambda: False) -> Sentence | None:
+        """Waits for the next sentence while more are to come
+
+        Args:
+            is_interrupted (Callable[[], bool]): stops the wait early when it returns True, e.g. when the interrupt hotkey was pressed
+        """
         self.log(f"Trying to aquire get_lock to get next sentence")
         with self.__get_lock:
             if self.__queue.qsize() > 0 or self.__is_more_to_come:
-                retrieved_sentence = self.__queue.get()
+                while True:
+                    try:
+                        retrieved_sentence = self.__queue.get(timeout=0.05)
+                        break
+                    except queue.Empty:
+                        if is_interrupted():
+                            self.log(f"Interrupted while waiting, returning None")
+                            return None
                 self.log(f"Retrieved '{retrieved_sentence.text}'")
                 return retrieved_sentence
             else:
