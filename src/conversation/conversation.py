@@ -208,7 +208,11 @@ class Conversation:
             tuple[str, sentence | None]: Returns a tuple consisting of a reply type and an optional sentence
         """
         if isinstance(self.__conversation_type, npc_event):
-            # The first speaker opens the scene from the event
+            # The scene starts as an in-game event, which the first speaker reacts to
+            if self.__context.npc_event:
+                scene = UserMessage(self.__context.config, self.__context.npc_event.text, "", False)
+                scene.is_director_message = True # Shown as narration, without the player's name
+                self.__messages.add_message(scene)
             self.__start_generating_npc_sentences()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, None
         greeting: UserMessage | None = self.__conversation_type.get_user_message(self.__context, self.__messages)

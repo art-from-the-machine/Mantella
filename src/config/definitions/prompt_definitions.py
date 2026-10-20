@@ -683,10 +683,10 @@ Always use the most recent memory to determine the current relationship
         description = PromptDefinitions.NPC_EVENT_DESCRIPTION + """
                         The prompt sent to the Game Master that decides who speaks next in the scene. Used whether or not Game Master Mode is enabled.
                         The instruction to answer with the next speaker is added automatically after the conversation.
-                        Supports the same variables as the multi-NPC prompt, plus {event} (the event text) and {nearby} (the names of the people near the scene who are not part of it, or "nobody"):""" + PromptDefinitions.BASE_MULTI_PROMPT_DESCRIPTION.split("{}:", 1)[1]
+                        The event text starts the conversation as an in-game event.
+                        Supports the same variables as the multi-NPC prompt, plus {event} (the event text, optional) and {nearby} (the names of the people near the scene who are not part of it, or "nobody"):""" + PromptDefinitions.BASE_MULTI_PROMPT_DESCRIPTION.split("{}:", 1)[1]
         prompt = """## Core Task
 - You are the game master of a scene in {location} in Skyrim. Currently, these people are in the conversation: {names_w_player}.
-- The scene: {event}
 - Your only job is to decide who speaks next. You do not write any dialogue.
 - Keep the scene moving: let {names} react to each other and push the situation forward.
 - People nearby who might overhear the conversation: {nearby}. Choose one of them if someone in the scene addressed them directly or clearly drew them in, or it makes sense for them to jump into the current conversation.
@@ -704,7 +704,8 @@ Always use the most recent memory to determine the current relationship
     def get_skyrim_npc_event_npc_prompt_config_value() -> ConfigValue:
         description = PromptDefinitions.NPC_EVENT_DESCRIPTION + """
                         The prompt sent to the LLM for the NPC the Game Master picked to speak next in the scene.
-                        Supports {event} (the event text) and {nearby} (the names of the people near the scene who are not part of it, or "nobody") as well.""" + PromptDefinitions.GAME_MASTER_NPC_PROMPT_VARIABLES_DESCRIPTION
+                        The event text starts the conversation as an in-game event.
+                        Supports {event} (the event text, optional) and {nearby} (the names of the people near the scene who are not part of it, or "nobody") as well.""" + PromptDefinitions.GAME_MASTER_NPC_PROMPT_VARIABLES_DESCRIPTION
         prompt = """## CORE GOAL
 - Roleplay as {name}, a person living in Skyrim. {name}'s bio and memory will be provided to you. You play ONLY {name}. Never generate dialogue, actions, or thoughts for any other character.
 - This is a scene in {location}, and these characters are currently in the conversation: {names_w_player}. Act it out as {name} would: react, argue, push, give in, in {name}'s own voice.
@@ -712,7 +713,6 @@ Always use the most recent memory to determine the current relationship
 - No more than 5 sentences in each response.
 
 ## THE SCENE
-{event}
 -  People who are in the same room now: {nearby}. {name} can call out to them, ask them something or drag them in by name, if {name} would. Never speak for them.
 - Everyone in the scene heard everything that was said so far, including people who joined later.
 

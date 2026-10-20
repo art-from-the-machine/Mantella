@@ -34,6 +34,7 @@ Trying my best to explain why I added these features and how to make the most of
 - [Multiple Profile System](#multiple-profile-system)
 - [Prompt Profiles](#prompt-profiles)
 - [Sequential LLM Selection](#sequential-llm-selection)
+- [Fallback Model](#fallback-model)
 - [Decensor Bypass](#decensor-bypass)
 - [LLM Response Timeout](#llm-response-timeout)
 
@@ -787,6 +788,20 @@ Start a conversation and look at the log: you should see sequential picks cyclin
 
 - Empty / invalid pools are skipped; Mantella falls back to the normal (or random) client.
 - If **Apply Profile for One-on-One / Multi-NPC** is on, each sequential pick can still apply a [model profile](#multiple-profile-system) for that service+model.
+
+## Fallback Model
+
+### Where to find it
+
+**LLM** tab → **Use Fallback Model on LLM Errors**, **Fallback LLM Service**, **Fallback Model** and **Fallback LLM Parameters**. **Apply Profile for Fallback** is with the other profile settings.
+
+### What it does
+
+Some services reject a request outright, for example when the model's content filter blocks it (the log shows `LLM API Error: An error occurred during streaming`). Without a fallback, that NPC's reply is skipped, and later replies in the same conversation often fail the same way.
+
+With **Use Fallback Model on LLM Errors** on, Mantella asks the Fallback model for that reply instead. This only happens when the service returns an error before any text of the reply. Timeouts and replies cut off halfway are handled as before. The Fallback model is asked once per reply, and the next reply goes back to your normal model.
+
+It applies to NPC replies in all conversations, NPC Events included. Summaries, the Game Master and the NPC Event Generator do not use it.
 
 ## Bio Sections to Exclude
 
@@ -1877,7 +1892,7 @@ Radiant conversations are two NPCs making small talk. NPC Events are scenes: eve
 1. **A check runs** every **Frequency** minutes, or when you press the **Check Now** hotkey. No check runs while a conversation is running, while you are in combat, or in a menu.
 2. **The game picks the candidates:** the nearest **Max NPCs per Check** NPCs within **Hearing Distance** (at least two). Line of sight is not needed. They must be awake, not hostile, not in combat, and not already talking.
 3. **The NPC Event Generator invents a scene.** It reads each candidate's bio with their [personal reflection](#personal-reflection), their memories, and their private thoughts (the same text as [`{bios_and_summaries}`](#bios_and_summaries-prompt-variable)), picks 2 to **NPC Event Max Participants** of them, and describes what is happening in two or three sentences. It can also decide nothing believable would happen.
-4. **The participants act it out.** The scene always runs with the [Game Master](#game-master-mode), even while **Multi-NPC Game Master Mode** is off: it picks who speaks next with the **Skyrim NPC Event Game Master Prompt**, and each NPC replies on their own with the **Skyrim NPC Event NPC Prompt**. Both get the scene text as `{event}`. There is no greeting: the first speaker opens the scene.
+4. **The participants act it out.** The scene always runs with the [Game Master](#game-master-mode), even while **Multi-NPC Game Master Mode** is off: it picks who speaks next with the **Skyrim NPC Event Game Master Prompt**, and each NPC replies on their own with the **Skyrim NPC Event NPC Prompt**. The scene text starts the conversation as an in-game event (narration, like `*Hulda accuses Mikael of ...*`) instead of a greeting, and the first speaker reacts to it. From there the scene lives in the conversation, so it can move on from where it started. The scene text is also available to both prompts as `{event}`, but the default prompts leave it out.
 
 **Drawing others in**
 
