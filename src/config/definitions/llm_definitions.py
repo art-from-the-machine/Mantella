@@ -364,6 +364,12 @@ class LLMDefinitions:
                         When enabled, if a profile exists for the selected {label} model, its parameters will be used instead of the manually configured parameters."""
         return ConfigValueBool(f"apply_profile_{key}", f"Apply Profile for {label}", description, True, tags=[], row_group="apply_profile_row")
 
+    @staticmethod
+    def get_fallback_llm_enabled_config_value() -> ConfigValue:
+        description = """When the LLM service returns an error before any text of an NPC's reply (e.g. the model's content filter blocks the request), ask the Fallback model below for that reply instead.
+                        Applies to NPC replies in conversations only, not to summaries, the Game Master or the NPC Event Generator."""
+        return ConfigValueBool("fallback_llm_enabled", "Use Fallback Model on LLM Errors", description, False, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
+
     # Multi-NPC LLM Configuration
     @staticmethod
     def get_multi_npc_llm_api_config_value() -> ConfigValue:

@@ -1,7 +1,7 @@
 from threading import Lock
 from typing import AsyncGenerator, Any
 import asyncio
-from openai import APIConnectionError, APITimeoutError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
+from openai import APIConnectionError, APIError, APITimeoutError, BadRequestError, OpenAI, AsyncOpenAI, RateLimitError
 import httpx
 import logging
 import time
@@ -18,6 +18,10 @@ from src.llm.sonnet_cache_connector import SonnetCacheConnector
 
 class FirstTokenTimeout(Exception):
     """The first spoken token did not arrive within the response timeout."""
+
+
+class ProviderError(Exception):
+    """The LLM service returned an error before any text (e.g. a content block). Another model may still answer."""
 
 
 def format_openai_messages(openai_messages: list[dict[str, Any]]) -> str:
@@ -364,7 +368,11 @@ class ClientBase(AIClient):
                     else:
                         logging.error(f"LLM API Error: {e}")
                 else:
-                    logging.error(f"LLM API Error: {e}")
+                    # Errors sent inside the stream (e.g. a provider's content block) only carry the reason in the body
+                    body = getattr(e, 'body', None)
+                    logging.error(f"LLM API Error: {e}" + (f": {body}" if body else ""))
+                if isinstance(e, APIError) and not received_content:
+                    raise ProviderError(str(e)) from e
             finally:
                 self._response_deadline = None
                 await async_client.close()

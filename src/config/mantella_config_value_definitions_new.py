@@ -144,11 +144,12 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_npc_initiative_threshold_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_model_config_value())
-        # (key, label, can use the Summary model instead). The NPC Event Generator always uses its own model
-        memory_tasks = [("thoughts", "Private Thoughts", True), ("reflection", "Personal Reflection", True), ("npc_event", "NPC Event Generator", False)]
+        # (key, label, can use the Summary model instead). The NPC Event Generator and the Fallback always use their own model
+        memory_tasks = [("thoughts", "Private Thoughts", True), ("reflection", "Personal Reflection", True), ("npc_event", "NPC Event Generator", False), ("fallback", "Fallback", False)]
         for key, label, has_summary_option in memory_tasks:
             if has_summary_option:
                 llm_category.add_config_value(LLMDefinitions.get_memory_task_use_summary_model_config_value(key, label))
+        llm_category.add_config_value(LLMDefinitions.get_fallback_llm_enabled_config_value())
         for key, label, has_summary_option in memory_tasks:
             llm_category.add_config_value(LLMDefinitions.get_memory_task_llm_api_config_value(key, label, has_summary_option))
             llm_category.add_config_value(LLMDefinitions.get_memory_task_model_config_value(key, label, has_summary_option))

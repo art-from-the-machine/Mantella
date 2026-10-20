@@ -452,6 +452,12 @@ Game Master LLM parameter list must follow the Python dictionary format: https:/
             self.npc_event_max_lines_without_player = self.__definitions.get_int_value("npc_event_max_lines_without_player")
             self.npc_event_wind_down_lines = self.__definitions.get_int_value("npc_event_wind_down_lines")
 
+            # Fallback model for NPC replies the LLM service rejects
+            self.fallback_llm_enabled = self.__definitions.get_bool_value("fallback_llm_enabled")
+            (_, self.apply_profile_fallback, self.fallback_llm_api,
+             self.fallback_llm, self.fallback_custom_token_count, self.fallback_llm_params) = \
+                self.__read_memory_task_llm_settings("fallback", "Fallback", has_summary_option=False)
+
             # Multi-NPC prompt content toggles
             self.multi_npc_bios_only = self.__definitions.get_bool_value("multi_npc_bios_only")
             self.enable_decensor_bypass = self.__definitions.get_bool_value("enable_decensor_bypass")

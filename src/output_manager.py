@@ -36,7 +36,7 @@ from src.random_llm_selector import RandomLLMSelector
 from src.random_llm_selector import LLMSelection
 from src.sequential_llm_selector import SequentialLLMSelector
 from src.model_profile_manager import ModelProfileManager
-from src.llm.client_base import ClientBase, FirstTokenTimeout
+from src.llm.client_base import ClientBase, FirstTokenTimeout, ProviderError
 from src.llm.key_file_resolver import key_file_resolver
 from src.llm.sonnet_cache_connector import SonnetCacheConnector
 from src.config.definitions.tts_definitions import TTSEnum
@@ -259,7 +259,28 @@ class ChatManager:
             from_profile=True
         )
         return self._get_or_create_random_client(selection)
-    
+
+    def _get_fallback_client(self) -> AIClient | None:
+        """The Fallback model for a reply the LLM service rejected, or None when it is off or cannot be created"""
+        config = self.__config
+        if not config.fallback_llm_enabled:
+            return None
+        try:
+            profile = None
+            if config.apply_profile_fallback:
+                profile = ModelProfileManager().select_profile(config.fallback_llm_api, config.fallback_llm, random_enabled=True)
+            selection = LLMSelection(
+                service=config.fallback_llm_api,
+                model=config.fallback_llm,
+                parameters=profile.parameters.copy() if profile else (config.fallback_llm_params or {}),
+                token_count=config.fallback_custom_token_count,
+                from_profile=profile is not None
+            )
+            return self._get_or_create_random_client(selection)
+        except Exception as e:
+            logging.error(f"Could not use the Fallback model {config.fallback_llm_api}/{config.fallback_llm}: {e}")
+            return None
+
     def _get_per_character_client(self, character: Character) -> AIClient:
         """Get or create a per-character LLM client based on the character's settings.
         
@@ -600,6 +621,7 @@ class ChatManager:
             selected_client_for_request: AIClient | None = None
             selected_multi_client_for_request: AIClient | None = None
             use_sequential = False
+            used_fallback = False
 
             selector: RandomLLMSelector = getattr(self, "_ChatManager__random_selector", None) or RandomLLMSelector()
             self.__random_selector = selector
@@ -743,6 +765,16 @@ class ChatManager:
                     new_sentence = self.generate_sentence(SentenceContent(active_character, error_response, SentenceTypeEnum.SPEECH, True))
                     blocking_queue.put(new_sentence)
                     break
+                except ProviderError:
+                    fallback_client = None if used_fallback else self._get_fallback_client()
+                    if fallback_client is None:
+                        break # Already logged by the client. The reply stays empty
+                    used_fallback = True
+                    if is_multi_npc:
+                        selected_multi_client_for_request = fallback_client
+                    else:
+                        selected_client_for_request = fallback_client
+                    logging.log(self.loglevel, f"Asking the Fallback model {self.__config.fallback_llm_api}/{self.__config.fallback_llm} instead")
                 except Exception as e:
                     retries += 1
                     utils.play_error_sound()
