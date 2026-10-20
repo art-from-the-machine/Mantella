@@ -368,7 +368,7 @@ class LLMDefinitions:
     def get_fallback_llm_enabled_config_value() -> ConfigValue:
         description = """When the LLM service returns an error before any text of an NPC's reply (e.g. the model's content filter blocks the request), ask the Fallback model below for that reply instead.
                         Applies to NPC replies in conversations only, not to summaries, the Game Master or the NPC Event Generator."""
-        return ConfigValueBool("fallback_llm_enabled", "Use Fallback Model on LLM Errors", description, False, tags=[ConfigValueTag.basic, ConfigValueTag.share_row])
+        return ConfigValueBool("fallback_llm_enabled", "Use Fallback Model on LLM Errors", description, False, tags=[ConfigValueTag.basic])
 
     # Multi-NPC LLM Configuration
     @staticmethod
