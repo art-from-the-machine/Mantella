@@ -1,3 +1,4 @@
+import fnmatch
 import logging
 import os
 from typing import Any, Hashable, List, TYPE_CHECKING
@@ -351,6 +352,8 @@ class context:
                         self.__weather = event
 
         self.__custom_context_values = custom_context_values
+        if custom_ingame_events and self.__config.ingame_events_filter:
+            custom_ingame_events = [e for e in custom_ingame_events if not any(fnmatch.fnmatchcase(str(e).strip().lower(), p) for p in self.__config.ingame_events_filter)]
         if custom_ingame_events:
             _apply_structured_context_events(custom_ingame_events)
 

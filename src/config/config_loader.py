@@ -529,6 +529,7 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
             
             self.max_count_events = self.__definitions.get_int_value("max_count_events")
             self.events_refresh_time = self.__definitions.get_int_value("events_refresh_time")
+            self.ingame_events_filter: list[str] = [p.strip().lower() for p in self.__definitions.get_string_value("ingame_events_filter").split(",") if p.strip()]
             self.hourly_time = self.__definitions.get_bool_value("hourly_time")
             self.player_character_description: str = self.__definitions.get_string_value("player_character_description")
             self.voice_player_input: bool = self.__definitions.get_bool_value("voice_player_input")

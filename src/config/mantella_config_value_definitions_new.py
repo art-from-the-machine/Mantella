@@ -374,6 +374,7 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_real_world_timestamp_config_value())
         other_category.add_config_value(OtherDefinitions.get_max_count_events_config_value())
         other_category.add_config_value(OtherDefinitions.get_events_refresh_time_config_value())
+        other_category.add_config_value(OtherDefinitions.get_ingame_events_filter_config_value())
         other_category.add_config_value(OtherDefinitions.get_hourly_time_config_value())
         other_category.add_config_value(OtherDefinitions.get_player_character_description())
         other_category.add_config_value(OtherDefinitions.get_voice_player_input())

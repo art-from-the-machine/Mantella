@@ -41,6 +41,31 @@ class OtherDefinitions:
         return ConfigValueInt("events_refresh_time","Time to Wait before Updating Events",max_count_events_description,10,0,999999,tags=[ConfigValueTag.advanced,ConfigValueTag.share_row])
     
     @staticmethod
+    def get_ingame_events_filter_config_value() -> ConfigValue:
+        description = """In-game events from the game that NPCs should never hear about, e.g. spells cast by other mods. Separate multiple patterns with commas.
+                        IMPORTANT: Just typing a spell name like Flame Cloak does NOT work. Write *Flame Cloak* instead.
+                        How patterns work:
+                        - A pattern is compared to the WHOLE event text, ignoring upper / lower case. Events are full sentences, for example:
+                            Lydia casted the spell Flame Cloak
+                            A bandit hit Lydia with Flame Cloak
+                        - * stands for any text (including none), so put * on both sides of a name to match it anywhere in the event.
+                        - ? stands for exactly one character.
+                        How * and ? match, using the event Lydia casted the spell Flame Cloak:
+                        - *Cloak* matches: Cloak is somewhere in the event.
+                        - *Flame Cloak matches: the event ends with Flame Cloak.
+                        - Lydia* matches: the event starts with Lydia.
+                        - *Flame Cl?ak* matches: ? stands for the o.
+                        - Flame* does NOT match: the event starts with Lydia, not Flame.
+                        - *Frost Cloak* does NOT match: the event does not contain Frost Cloak.
+                        Examples:
+                        - *Flame Cloak* ignores every event that mentions Flame Cloak (casting it, getting hit by it, etc).
+                        - *Flame* ignores every event that mentions anything with Flame in its name (Flames, Flame Cloak, Conjure Flame Atronach, etc).
+                        - Flame Cloak (no *) ignores NOTHING, because no event is only the words Flame Cloak.
+                        - *Flame Cloak*, *Oakflesh* ignores both spells.
+                        To see the exact text of events, look for the lines after In-game events since previous exchange in Mantella's log."""
+        return ConfigValueString("ingame_events_filter","Ignored In-Game Events",description,"",tags=[ConfigValueTag.advanced])
+
+    @staticmethod
     def get_hourly_time_config_value() -> ConfigValue:
         description = """If enabled, NPCs will be made aware of the time every in-game hour. Otherwise, time updates will be less granular (eg 'The conversation now takes place in the morning' / 'at night' etc).
                         To remove mentions of the hour entirely, prompts also need to be edited from 'The time is {time} {time_group}.' to 'The conversation takes place {time_group}.'"""
