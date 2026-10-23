@@ -1,7 +1,7 @@
 """Readable table view of the live conversation JSON.
 
-Each row is one line of the conversation: a player message, one NPC sentence
-(speech, narration or thought), or an NPC joining/leaving. Only the Text column
+Each row is one line of the conversation: a player message, one of its in-game
+events, one NPC sentence (speech, narration or thought), or an NPC joining/leaving. Only the Text column
 is written back; everything else stays as it is in the JSON.
 """
 import json
@@ -194,27 +194,29 @@ def _user_kind(item: dict) -> str:
     return "Player"
 
 
-def _rows_with_targets(messages: list) -> list[tuple[list[str], dict]]:
-    """Pairs each table row with the JSON dict holding its text."""
+def _rows_with_targets(messages: list) -> list[tuple[list[str], tuple]]:
+    """Pairs each table row with the (container, key) in the JSON holding its text.
+
+    The in-game events of a player message come first, one row each, as they are sent before the player's text.
+    """
     result = []
     for i, item in enumerate(messages, start=1):
         msg_type = item.get("type")
         if msg_type == "user":
+            events = item.get("ingame_events") or []
+            for k, event in enumerate(events):
+                result.append(([f"{i}.e{k + 1}", "", "Event", str(event)], (events, k)))
             who = item.get("player_character_name") or "Player"
-            result.append(([str(i), who, _user_kind(item), item.get("text", "")], item))
+            result.append(([str(i), who, _user_kind(item), item.get("text", "")], (item, "text")))
         elif msg_type == "assistant":
             for j, sentence in enumerate(item.get("sentences", []), start=1):
                 kind = _SENTENCE_KINDS.get(str(sentence.get("sentence_type", "SPEECH")).upper(), "Speech")
-                result.append(([f"{i}.{j}", sentence.get("speaker_name", ""), kind, sentence.get("text", "")], sentence))
+                result.append(([f"{i}.{j}", sentence.get("speaker_name", ""), kind, sentence.get("text", "")], (sentence, "text")))
         elif msg_type in ("join", "leave"):
             who = item.get("character", {}).get("name", "")
             kind = "Joined" if msg_type == "join" else "Left"
-            result.append(([str(i), who, kind, item.get("content", "")], item))
+            result.append(([str(i), who, kind, item.get("content", "")], (item, "content")))
     return result
-
-
-def _text_key(target: dict) -> str:
-    return "content" if target.get("type") in ("join", "leave") else "text"
 
 
 def json_to_rows(json_str: str) -> list[list[str]]:
@@ -224,8 +226,8 @@ def json_to_rows(json_str: str) -> list[list[str]]:
     return [row for row, _ in _rows_with_targets(json.loads(json_str))]
 
 
-def _load_with_targets(json_str: str, rows: list[list]) -> tuple[list, list[tuple[list, dict]]]:
-    """Parses the JSON and pairs each table row with the JSON dict holding its text.
+def _load_with_targets(json_str: str, rows: list[list]) -> tuple[list, list[tuple[list, tuple]]]:
+    """Parses the JSON and pairs each table row with the (container, key) in the JSON holding its text.
 
     Raises ValueError if rows were added, removed or reordered, since the table
     only supports editing text and deleting rows.
@@ -247,8 +249,8 @@ def apply_rows_to_json(json_str: str, rows: list[list]) -> str:
     Raises ValueError if rows were added, removed or reordered.
     """
     messages, pairs = _load_with_targets(json_str, rows)
-    for row, target in pairs:
-        target[_text_key(target)] = str(row[3])
+    for row, (container, key) in pairs:
+        container[key] = str(row[3])
     return json.dumps(messages, indent=2, ensure_ascii=False)
 
 
@@ -257,23 +259,28 @@ def delete_selected_rows(json_str: str, rows: list[list], selected_numbers: list
 
     An NPC message whose sentences are all deleted is removed. NPC messages left
     next to each other by a deletion are merged, as the conversation never holds two in a row.
+    Deleting a player row also removes its events.
 
     Raises:
         ValueError: if rows were added, removed or reordered, or a Joined/Left row is selected
     """
     messages, pairs = _load_with_targets(json_str, rows)
-    for row, target in pairs:
-        target[_text_key(target)] = str(row[3])
+    for row, (container, key) in pairs:
+        container[key] = str(row[3])
     selected = [target for row, target in pairs if str(row[0]) in selected_numbers]
-    if any(target.get("type") in ("join", "leave") for target in selected):
+    if any(isinstance(container, dict) and container.get("type") in ("join", "leave") for container, _ in selected):
         raise ValueError("Joined and Left rows can't be deleted: they tell the conversation who is in it.")
-    selected_ids = {id(target) for target in selected}
+    selected_ids = {id(container) for container, _ in selected if isinstance(container, dict)}
+    selected_events = {(id(container), key) for container, key in selected if isinstance(container, list)}
     kept: list[dict] = []
     removed_since_last_kept = False
     for item in messages:
         if id(item) in selected_ids:
             removed_since_last_kept = True
             continue
+        if item.get("type") == "user" and item.get("ingame_events"):
+            events = item["ingame_events"]
+            item["ingame_events"] = [event for k, event in enumerate(events) if (id(events), k) not in selected_events]
         if item.get("type") == "assistant":
             sentences = item.get("sentences", [])
             remaining = [sentence for sentence in sentences if id(sentence) not in selected_ids]

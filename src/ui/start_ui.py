@@ -99,6 +99,7 @@ class StartUI(routeable):
         gr.Markdown(
             "Edit the active conversation in real time. When the model returns gibberish, click **Reload** to fetch the current history, fix the bad line in the **Text** column, then click **Save** to apply. "
             "**💭 Thought** rows are an NPC's private thoughts: they are never spoken aloud. "
+            "**Event** rows are the in-game events sent with the player message below them, numbered after it (e.g. 4.e1). Deleting a player message also deletes its events. "
             "To delete rows, click their **#** to select them, then click **Delete selected**. This also saves your text edits. Click outside the table to clear the selection. "
             "Use **Undo last round** to remove the last player turn and everything after it, **Undo NPC reply** to keep the player line and drop only the reply (in Game Master Mode, only the last NPC's turn), or **Remove last user message** to drop the last player line when it is the most recent message."
         )
