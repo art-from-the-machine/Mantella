@@ -5,6 +5,10 @@ import re
 import pandas as pd
 from typing import Dict, List, Optional, Tuple
 import src.utils as utils
+from src.config.definitions.llm_definitions import AutoQuestTagOutcomesEnum
+
+# Number of quest outcome columns (`potential_paste_N` / `code_N`) a bio template CSV can have
+OUTCOME_SLOTS = 5
 
 # Pattern to match dynamic event lines in tag descriptions: "- <timestamp>: <text>"
 _DYNAMIC_EVENT_RE = re.compile(r'^-\s+(\d+):\s+(.+)$')
@@ -42,6 +46,10 @@ class BioTemplateManager:
         self.config_loader = config_loader
         self.game_name = game_name
         self.templates: Dict[str, str] = {}
+        # Quest outcomes per tag, by outcome number (see docs/quest_tags_1_user_edits.md)
+        self.outcome_texts: Dict[str, Dict[int, str]] = {}
+        self.outcome_codes: Dict[str, Dict[int, str]] = {}
+        self.no_announce: set[str] = set()
         self._load_templates()
     
     def _load_templates(self):
@@ -100,11 +108,26 @@ class BioTemplateManager:
                         if 'tag' in df.columns and 'description' in df.columns:
                             templates_loaded = 0
                             for _, row in df.iterrows():
-                                tag = str(row['tag']).strip()
-                                description = str(row['description']).strip()
-                                if tag and description and tag != 'nan' and description != 'nan':
+                                tag = self._get_cell(row, 'tag')
+                                if not tag:
+                                    continue
+                                # Cell by cell: a later file only replaces the cells it fills in
+                                description = self._get_cell(row, 'description')
+                                if description:
                                     self.templates[tag] = description
                                     templates_loaded += 1
+                                for slot in range(1, OUTCOME_SLOTS + 1):
+                                    text = self._get_cell(row, f'potential_paste_{slot}')
+                                    if text:
+                                        self.outcome_texts.setdefault(tag, {})[slot] = text
+                                    code = self._get_cell(row, f'code_{slot}')
+                                    if code:
+                                        self.outcome_codes.setdefault(tag, {})[slot] = code
+                                announce = self._get_cell(row, 'announce').lower()
+                                if announce == 'no':
+                                    self.no_announce.add(tag)
+                                elif announce:
+                                    self.no_announce.discard(tag)
                             logging.info(f"Loaded {templates_loaded} bio templates from {folder_type} file: {filename}")
                         else:
                             logging.warning(f"CSV file {filename} in {folder_type} folder missing required columns 'tag' and 'description'")
@@ -113,6 +136,13 @@ class BioTemplateManager:
         except Exception as e:
             logging.warning(f"Could not access {folder_type} bio templates folder '{templates_folder}'. Error: {e}")
     
+    @staticmethod
+    def _get_cell(row: pd.Series, column: str) -> str:
+        if column not in row.index or pd.isna(row[column]):
+            return ""
+        value = str(row[column]).strip()
+        return "" if value == 'nan' else value
+
     def _create_default_templates(self, filepath: str):
         """Create default bio templates CSV file"""
         default_templates = [
@@ -180,6 +210,29 @@ class BioTemplateManager:
     def get_template(self, tag: str) -> Optional[str]:
         """Get bio template for a specific tag"""
         return self.templates.get(tag)
+
+    def get_outcome_text(self, tag: str, slot: int) -> Optional[str]:
+        """The text of one quest outcome. Placeholders like `custom` are never used"""
+        text = self.outcome_texts.get(tag, {}).get(slot)
+        if not text or text.lower() == 'custom':
+            return None
+        return text
+
+    def get_outcome_codes(self) -> Dict[str, Dict[int, str]]:
+        """Conditions of tags whose `description` is empty. A filled-in description turns automatic outcomes off"""
+        return {tag: codes for tag, codes in self.outcome_codes.items() if not self.templates.get(tag)}
+
+    def _get_auto_outcomes_mode(self) -> AutoQuestTagOutcomesEnum:
+        return getattr(self.config_loader, 'auto_quest_tag_outcomes', AutoQuestTagOutcomesEnum.STATIC)
+
+    def _get_auto_outcome_text(self, tag: str, tag_outcomes: Optional[Dict[str, Tuple[int, int]]]) -> Optional[str]:
+        if not tag_outcomes or tag not in tag_outcomes:
+            return None
+        slot = tag_outcomes[tag][0]
+        text = self.get_outcome_text(tag, slot)
+        if text is None:
+            logging.debug(f"Quest tag {tag}: slot {slot} has no text in the bio templates - ignoring")
+        return text
     
     def _get_effective_tags_list(self, tags_string: str) -> List[str]:
         """Parse and validate tags_string, returning a list of tag names.
@@ -214,12 +267,16 @@ class BioTemplateManager:
             deduped_tags.append(tag)
         return deduped_tags
 
-    def expand_bio_with_tags(self, base_bio: str, tags_string: str) -> str:
+    def expand_bio_with_tags(self, base_bio: str, tags_string: str, tag_outcomes: Optional[Dict[str, Tuple[int, int]]] = None) -> str:
         """Expand base bio with tag templates.
 
         Dynamic event lines (``- <timestamp>: text``) inside a tag
         description are **excluded** from the bio expansion so they can be
         injected into the chronological memory timeline instead.
+
+        *tag_outcomes* maps a quest tag to its current ``(outcome, time first seen)``
+        in the playthrough. With Auto Quest Tag Outcomes set to Static, the outcome's
+        text is added for tags whose description is empty.
         """
         tags = self._get_effective_tags_list(tags_string)
         if not tags:
@@ -234,6 +291,11 @@ class BioTemplateManager:
                 static_text, _ = _split_static_and_dynamic(template)
                 if static_text:
                     tag_expansions.append(static_text)
+            elif tag in self.outcome_codes or tag in self.outcome_texts:
+                if self._get_auto_outcomes_mode() == AutoQuestTagOutcomesEnum.STATIC:
+                    outcome_text = self._get_auto_outcome_text(tag, tag_outcomes)
+                    if outcome_text:
+                        tag_expansions.append(outcome_text)
             elif template is None:
                 logging.warning(f"Tag '{tag}' not found in bio_templates.csv - ignoring")
             elif not template.strip():
@@ -246,12 +308,15 @@ class BioTemplateManager:
 
         return base_bio
 
-    def extract_dynamic_events(self, tags_string: str) -> List[Tuple[int, str]]:
+    def extract_dynamic_events(self, tags_string: str, tag_outcomes: Optional[Dict[str, Tuple[int, int]]] = None) -> List[Tuple[int, str]]:
         """Return all dynamic events from the tags assigned to a character.
 
         Each dynamic event is a ``(timestamp, event_text)`` tuple extracted
         from tag descriptions that contain lines matching
         ``- <timestamp>: text``.
+
+        With Auto Quest Tag Outcomes set to Dynamic, the current outcome of each
+        quest tag in *tag_outcomes* is added too, dated when it was first seen.
 
         The returned list is sorted by timestamp (ascending).
         """
@@ -265,6 +330,10 @@ class BioTemplateManager:
             if template and template.strip():
                 _, dynamic_events = _split_static_and_dynamic(template)
                 all_events.extend(dynamic_events)
+            elif tag in self.outcome_codes and self._get_auto_outcomes_mode() == AutoQuestTagOutcomesEnum.DYNAMIC:
+                outcome_text = self._get_auto_outcome_text(tag, tag_outcomes)
+                if outcome_text:
+                    all_events.append((tag_outcomes[tag][1], outcome_text))
 
         # Sort by timestamp ascending
         all_events.sort(key=lambda ev: ev[0])
@@ -273,6 +342,9 @@ class BioTemplateManager:
     def reload_templates(self):
         """Reload templates from disk (useful for live updating)"""
         self.templates.clear()
+        self.outcome_texts.clear()
+        self.outcome_codes.clear()
+        self.no_announce.clear()
         self._load_templates()
         logging.info(f"Reloaded {len(self.templates)} bio templates")
     

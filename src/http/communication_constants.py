@@ -36,6 +36,16 @@ class communication_constants:
     KEY_NPCEVENT_ADDACTOR_REFID: str = PREFIX + "npc_event_add_actor_refid"
     KEY_NPCEVENT_ADDFAILED_REFID: str = PREFIX + "npc_event_add_failed_refid"
     KEY_NPCEVENT_NEARBY_REFIDS: str = PREFIX + "npc_event_nearby_refids"
+
+    # Quest tags: the game answers the checks of the quest tag conditions
+    KEY_REQUESTTYPE_QUESTCHECKLIST: str = PREFIX + "quest_check_list_request" # Sent once when a save loads
+    KEY_REPLYTYPE_QUESTCHECKLIST: str = PREFIX + "quest_check_list_result"
+    KEY_QUESTCHECKS_LIST: str = PREFIX + "quest_check_list" # In the list reply, and in the start reply when the game's list is out of date
+    KEY_QUESTCHECKS_FUNCTIONS: str = PREFIX + "quest_check_functions"
+    KEY_QUESTCHECKS_SUBJECTS: str = PREFIX + "quest_check_subjects"
+    KEY_QUESTCHECKS_ARGUMENTS: str = PREFIX + "quest_check_arguments"
+    KEY_QUESTCHECKS_VERSION: str = PREFIX + "quest_check_version" # In the list, and with every set of answers
+    KEY_QUESTCHECKS_RESULTS: str = PREFIX + "quest_check_results" # In the context (start, player input), or top-level on the catch-up continue request
     KEY_NPCEVENT_PLAYERNOTICEABLE: str = PREFIX + "npc_event_player_noticeable"
 
     KEY_STARTCONVERSATION_WORLDID: str = PREFIX + "worldid"

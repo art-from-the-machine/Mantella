@@ -8,6 +8,7 @@ Trying my best to explain why I added these features and how to make the most of
 
 - [Character Tags](#character-tags)
 - [Dynamic Events (tag feature)](#dynamic-events-tag-feature)
+- [Quest Tags (tag feature)](#quest-tags-tag-feature)
 - [Lorebook](#lorebook)
 - [Bio Sections to Exclude](#bio-sections-to-exclude)
 - [Send Only Bios](#send-only-bios)
@@ -380,6 +381,64 @@ New developments since last meeting:
 He can change tone — respect, flattery, sudden politeness — because the memory clearly shows: insults first, *then* you became Thane.
 
 After you talk again and a newer summary is saved, the Thane line stays in the chronological timeline but drops out of **New developments** (only events newer than the latest summary show there).
+
+## Quest Tags (tag feature)
+
+### What are quest tags?
+
+The community bio templates CSV (Nexus mod 174770) lists possible quest outcomes for many tags. Besides `tag` and `description`, it has up to five pairs of columns:
+
+| Column | What it holds |
+| --- | --- |
+| `code_N` | A condition, written like a Skyrim console command, e.g. `getstagedone CWObj 100=1 AND GetKeywordDataForLocation 16772 CWOwner=1` |
+| `potential_paste_N` | The text the tag gets when that condition is true |
+
+Before, you copied the right text into `description` by hand once a quest was done. Now Mantella checks the conditions in the game and gives NPCs who have the tag the text of the outcome that is true now. If several are true, the highest number wins. You don't edit any files.
+
+When a quest moves on **while you're talking to someone**, everyone in the conversation hears about it with your next line, as a narration line before what you say. NPCs elsewhere who have the tag learn it in their next conversation.
+
+### What you need
+
+- **The community package** from Nexus, installed with your mod manager. Its characters CSV says which NPCs have which tags; its bio templates CSV holds the outcomes. It isn't shipped with Mantella.
+- **Mantella-Spell with `MantellaQuestChecks.dll`** in `SKSE/Plugins/`. This small plugin answers the conditions inside the game. It needs SKSE and the Address Library, like the other Mantella plugins. Without it, quest tags add nothing, as before.
+
+### The setting: Auto Quest Tag Outcomes
+
+Next to **Enable Character Tag Reading** in the LLM settings:
+
+| Option | What NPCs with the tag get |
+| --- | --- |
+| **Off** | Nothing from outcomes. Normal tags keep working |
+| **Static** (default) | The outcome text in their bio, under `## Additional info`. They know it, but aren't nudged to bring it up |
+| **Dynamic** | The outcome as a dated memory, in order with their conversation summaries, like [dynamic events](#dynamic-events-tag-feature). It's listed under "New developments since last meeting" until they have a newer summary |
+
+Hand-written `- <timestamp>: text` lines are not affected by this setting.
+
+### Editing outcomes
+
+Put edits in your personal folder, `Documents/My Games/Mantella/data/Skyrim/bio_templates/`, so updates never overwrite them. Files are combined **cell by cell**: a later file only replaces the cells it fills in.
+
+| What you want | What to do in your personal CSV |
+| --- | --- |
+| Different wording for one outcome | A row with the tag name, and only `potential_paste_N` filled in. The author's condition still decides when it happens |
+| Take over the tag completely | Fill in `description`. The conditions are then ignored for this tag |
+| Add your own outcome | Fill an empty pair: `code_N` and `potential_paste_N` |
+| Never announce a tag to the people present | Add an `announce` column and write `no` |
+
+Rewording an outcome never makes it news again. Outcomes whose only condition is a death are never announced; they're still recorded.
+
+### Where the record is kept
+
+`conversations/<playthrough>/tag_outcomes.json` says which outcome each tag is at in that playthrough, and when Mantella first saw it. Loading an older save is noticed: outcomes that aren't true in that save are forgotten, and announced again when they happen again. Deleting the file starts the record from scratch; outcomes already true then count as background, not news.
+
+### Writing conditions
+
+- Join checks with `AND` / `OR` (`AND` first), use brackets when mixing them. Line breaks are fine.
+- Comparisons: `=`, `<`, `<=`, `>`, `>=`. Without one, `=1` is meant.
+- Commands: `getstagedone`, `getquestcompleted`, `getstage`, `getdead`, `getav`, `getfactionrank`, `getinfaction`, `GetKeywordDataForLocation`, `show <Global>`, `getrelationshiprank`, `ishostiletoactor`, `hasspell`.
+- Quests by their editor ID (`MQ104`). NPCs in quotes before the dot (`"0D7505".getdead`). Other things from Skyrim by the hex FormID the console shows; DLC forms with their load order prefix (`02` Dawnguard, `03` Hearthfire, `04` Dragonborn).
+- Factions, keywords and globals by name (`CWOwner`, `PlayerIsVampire`) can't be checked yet: the game forgets those names after loading. Use their FormID.
+- Conditions Mantella can't read are listed in `logging.log` at startup, and that outcome never happens.
 
 ## Lorebook
 

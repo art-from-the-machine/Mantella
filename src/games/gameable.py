@@ -10,6 +10,7 @@ from src.conversation.context import context as Context
 from src.config.config_loader import ConfigLoader
 from src.llm.sentence import Sentence
 from src.games.external_character_info import external_character_info
+from src.quest_tags.conditions import CheckList
 import src.utils as utils
 import sounddevice as sd
 import soundfile as sf
@@ -84,7 +85,20 @@ class Gameable(ABC):
     @property
     def reflections_folder_path(self) -> str:
         return self.__reflections_folder_path
-    
+
+    @property
+    def quest_check_list(self) -> CheckList:
+        """The checks the game answers for quest tags. Empty for games without them"""
+        return CheckList({})
+
+    def get_quest_outcome_text(self, tag: str, slot: int) -> str | None:
+        """The text of one quest tag outcome, or None if there is none"""
+        return None
+
+    def is_quest_tag_announced(self, tag: str) -> bool:
+        """Whether a change of this quest tag is announced to everyone in a conversation (the `announce` column)"""
+        return False
+
     @property
     @abstractmethod
     def image_path(self) -> str:
@@ -99,7 +113,7 @@ class Gameable(ABC):
         return character_df
     
     @abstractmethod
-    def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, actor_voice_model_name: str)-> external_character_info:
+    def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, actor_voice_model_name: str, tag_outcomes: dict[str, tuple[int, int]] | None = None)-> external_character_info:
         """This loads extra information about a character that can not be gained from the game. i.e. bios or voice_model_names for TTS
 
         Args:
@@ -108,6 +122,7 @@ class Gameable(ABC):
             race (str): the race of the character to get the extra information from
             gender (int): the gender of the character to get the extra information from
             actor_voice_model_name (str): the ingame voice model name of the character to get the extra information from
+            tag_outcomes (dict[str, tuple[int, int]] | None): the current outcome of each quest tag in the playthrough, and when it was first seen
 
         Returns:
             external_character_info: the missing information

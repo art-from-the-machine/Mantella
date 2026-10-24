@@ -42,6 +42,8 @@ class Characters:
             self.__active_characters[new_character.name].relationship_rank = new_character.relationship_rank
             self.__active_characters[new_character.name].custom_character_values = new_character.custom_character_values
             self.__active_characters[new_character.name].equipment = new_character.equipment
+            # Unchanged unless the bio was rebuilt, e.g. after quest tags changed in a catch-up
+            self.__active_characters[new_character.name].bio = new_character.bio
     
     @utils.time_it
     def remove_character(self, character_to_remove: Character):

@@ -23,6 +23,19 @@ class NarrationHandlingEnum(Enum):
             self.DEACTIVATE_HANDLING_OF_NARRATIONS: "Deactivate handling of narrations",
         }[self]
 
+class AutoQuestTagOutcomesEnum(Enum):
+    OFF = auto()
+    STATIC = auto()
+    DYNAMIC = auto()
+
+    @property
+    def display_name(self) -> str:
+        return {
+            self.OFF: "Off",
+            self.STATIC: "Static",
+            self.DYNAMIC: "Dynamic",
+        }[self]
+
 class NarrationIndicatorsEnum(Enum):
     PARANTHESES = auto()
     ASTERISKS = auto()
@@ -200,6 +213,18 @@ class LLMDefinitions:
                         - Tags are case-sensitive and must match exactly between the template file and character CSV
                         - Bios and bio templates may contain the exact placeholder {player_name}; it will be replaced with the current player's name, or with "the player" if no player is present."""
         return ConfigValueBool("enable_character_tag_reading", "Enable Character Tag Reading", description, True, tags=[ConfigValueTag.share_row, ConfigValueTag.advanced])
+
+    @staticmethod
+    def get_auto_quest_tag_outcomes_config_value() -> ConfigValue:
+        description = """Bio template tags can list possible quest outcomes (the 'code_N' and 'potential_paste_N' columns, e.g. in the community bio templates CSV on Nexus).
+                        Mantella checks these conditions in the game and gives NPCs who have the tag the text of the outcome that is true now.
+                        Requires the MantellaQuestChecks.dll that comes with Mantella-Spell. A tag whose 'description' is filled in uses that text instead.
+                        - Off: outcomes are not checked. Normal tags keep working.
+                        - Static: the outcome becomes part of the NPC's bio (under 'Additional info'). The NPC knows it, but isn't nudged to bring it up.
+                        - Dynamic: the outcome becomes a dated memory, in order with the NPC's conversation summaries, and is listed as news until the NPC has a newer summary.
+                        Hand-written '- <timestamp>: text' lines in tag descriptions are not affected by this setting."""
+        options = [e.display_name for e in AutoQuestTagOutcomesEnum]
+        return ConfigValueSelection("auto_quest_tag_outcomes", "Auto Quest Tag Outcomes", description, AutoQuestTagOutcomesEnum.STATIC.display_name, options, corresponding_enums=list(AutoQuestTagOutcomesEnum), tags=[ConfigValueTag.share_row, ConfigValueTag.advanced])
 
     @staticmethod
     def get_apply_profile_one_on_one_config_value() -> ConfigValue:

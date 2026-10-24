@@ -220,6 +220,7 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_enable_bio_section_filter_for_memory_config_value())
         llm_category.add_config_value(LLMDefinitions.get_allow_per_character_llm_overrides_config_value())
         llm_category.add_config_value(LLMDefinitions.get_enable_character_tag_reading_config_value())
+        llm_category.add_config_value(LLMDefinitions.get_auto_quest_tag_outcomes_config_value())
         llm_category.add_config_value(LLMDefinitions.get_wait_time_buffer_config_value())
         llm_category.add_config_value(LLMDefinitions.get_custom_token_count_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_custom_token_count_config_value())

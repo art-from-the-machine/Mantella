@@ -15,6 +15,7 @@ from src.llm.llm_client import LLMClient
 from src.llm.message_thread import message_thread
 from src.llm.messages import UserMessage
 from src.bio_section_filter import apply_bio_section_filter, should_filter_memory_bios
+from src.quest_tags import history as quest_tag_history
 from src.prompt_profile_manager import PromptSectionError
 from src.remember.inner_monologue import format_thought_history_text
 from src.remember.summaries import (
@@ -261,11 +262,11 @@ class PersonalReflection:
             return ""
         # Bio Editor shows the raw summary file; merge in dynamic tag events like in-game memory does.
         summary_text = build_memory_text(
-            *parse_summary_blocks(summary_text), self.__tag_dynamic_events(tags), dedupe_legacy=True
+            *parse_summary_blocks(summary_text), self.__tag_dynamic_events(tags, world_id), dedupe_legacy=True
         )
         ts = save_timestamp if save_timestamp is not None else int(time.time())
         dummy = _NameOnlyCharacter(npc_name)
-        source_bio = self.__append_tag_templates(bio or "", tags)
+        source_bio = self.__append_tag_templates(bio or "", tags, world_id)
         resolved_bio = utils.resolve_player_name_placeholder(source_bio, player_name)
         filtered_bio = apply_bio_section_filter(
             resolved_bio,
@@ -290,35 +291,49 @@ class PersonalReflection:
         self.__append_reflection(reflection, dummy, world_id, ts)
         return reflection
 
-    def __append_tag_templates(self, bio: str, tags: str) -> str:
+    def __append_tag_templates(self, bio: str, tags: str, world_id: str) -> str:
         """Append tag-template text the same way an in-game character bio is expanded.
 
         Bio Editor stores the raw bio and tags separately. Gameplay already expands
         tags onto ``Character.bio`` before a reflection is written.
+        Quest tags use their outcomes in the playthrough *world_id*.
         """
         cleaned_tags = (tags or "").strip()
         if not cleaned_tags:
             return bio
+        extra_args = self.__tag_outcomes_args(world_id)
         game = self.__game
         expander = getattr(game, "expand_bio_with_tags", None) if game is not None else None
         if callable(expander):
-            return expander(bio, cleaned_tags)
+            return expander(bio, cleaned_tags, *extra_args)
         if self.__config.game.base_game == GameEnum.FALLOUT4:
             return bio
-        return self.__load_bio_template_manager().expand_bio_with_tags(bio, cleaned_tags)
+        return self.__load_bio_template_manager().expand_bio_with_tags(bio, cleaned_tags, *extra_args)
 
-    def __tag_dynamic_events(self, tags: str) -> List[Tuple[int, str]]:
+    def __tag_dynamic_events(self, tags: str, world_id: str) -> List[Tuple[int, str]]:
         """Dynamic tag events, matching what in-game character load merges into the summary timeline."""
         cleaned_tags = (tags or "").strip()
         if not cleaned_tags:
             return []
+        extra_args = self.__tag_outcomes_args(world_id)
         game = self.__game
         extractor = getattr(game, "extract_dynamic_events", None) if game is not None else None
         if callable(extractor):
-            return extractor(cleaned_tags)
+            return extractor(cleaned_tags, *extra_args)
         if self.__config.game.base_game == GameEnum.FALLOUT4:
             return []
-        return self.__load_bio_template_manager().extract_dynamic_events(cleaned_tags)
+        return self.__load_bio_template_manager().extract_dynamic_events(cleaned_tags, *extra_args)
+
+    def __tag_outcomes_args(self, world_id: str) -> tuple:
+        """The playthrough's quest tag outcomes as an extra argument, or no argument when it has none"""
+        if self.__config.game.base_game == GameEnum.FALLOUT4:
+            return ()
+        if self.__game is not None:
+            conversations_folder = self.__game.conversation_folder_path
+        else:
+            conversations_folder = self.__config.save_folder + "data/Skyrim/conversations"
+        outcomes = quest_tag_history.current_outcomes(quest_tag_history.load(quest_tag_history.record_path(conversations_folder, world_id)))
+        return (outcomes,) if outcomes else ()
 
     def __load_bio_template_manager(self):
         from src.bio_template_manager import BioTemplateManager

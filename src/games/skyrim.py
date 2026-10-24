@@ -13,6 +13,8 @@ from src.games.gameable import Gameable
 import src.utils as utils
 from src.config.definitions.tts_definitions import TTSEnum
 from src.bio_template_manager import BioTemplateManager
+from src.config.definitions.llm_definitions import AutoQuestTagOutcomesEnum
+from src.quest_tags.conditions import CheckList, build_ref_to_base_map
 
 
 class Skyrim(Gameable):
@@ -37,6 +39,12 @@ class Skyrim(Gameable):
         bio_templates_path = os.path.join(utils.resolve_path(), 'data', 'Skyrim', 'bio_templates')
         logging.info(f"Skyrim: Initializing BioTemplateManager with path: {bio_templates_path}")
         self.__bio_template_manager = BioTemplateManager(bio_templates_path, config)
+        self.__config = config
+
+        # Quest tag conditions, turned into the list of checks the game answers
+        self.__check_list = CheckList(self.__bio_template_manager.get_outcome_codes(), build_ref_to_base_map(self.character_df))
+        self.__check_list.log_unreadable()
+        self.__empty_check_list = CheckList({})
 
         try:
             weather_file = 'data/Skyrim/skyrim_weather.csv'
@@ -66,16 +74,29 @@ class Skyrim(Gameable):
         else:
             return text
 
-    def expand_bio_with_tags(self, base_bio: str, tags_string: str) -> str:
+    def expand_bio_with_tags(self, base_bio: str, tags_string: str, tag_outcomes: dict[str, tuple[int, int]] | None = None) -> str:
         """Append static tag-template text to a raw bio, matching in-game character load."""
-        return self.__bio_template_manager.expand_bio_with_tags(base_bio, tags_string)
+        return self.__bio_template_manager.expand_bio_with_tags(base_bio, tags_string, tag_outcomes)
 
-    def extract_dynamic_events(self, tags_string: str) -> List[Tuple[int, str]]:
+    def extract_dynamic_events(self, tags_string: str, tag_outcomes: dict[str, tuple[int, int]] | None = None) -> List[Tuple[int, str]]:
         """Timestamped tag-event lines, matching what in-game character load stores for the memory timeline."""
-        return self.__bio_template_manager.extract_dynamic_events(tags_string)
+        return self.__bio_template_manager.extract_dynamic_events(tags_string, tag_outcomes)
+
+    @property
+    def quest_check_list(self) -> CheckList:
+        """Empty when Auto Quest Tag Outcomes is Off or tag reading is disabled, so the game checks nothing"""
+        if self.__config.enable_character_tag_reading and self.__config.auto_quest_tag_outcomes != AutoQuestTagOutcomesEnum.OFF:
+            return self.__check_list
+        return self.__empty_check_list
+
+    def get_quest_outcome_text(self, tag: str, slot: int) -> str | None:
+        return self.__bio_template_manager.get_outcome_text(tag, slot)
+
+    def is_quest_tag_announced(self, tag: str) -> bool:
+        return tag not in self.__bio_template_manager.no_announce
 
     @utils.time_it
-    def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str) -> external_character_info:
+    def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str, tag_outcomes: dict[str, tuple[int, int]] | None = None) -> external_character_info:
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
         actor_voice_model_name = ingame_voice_model.split('<')[1].split(' ')[0]
 
@@ -102,10 +123,10 @@ class Skyrim(Gameable):
         # If `tags_overwrite` is set (non-empty), it fully replaces accumulated `tags`.
         effective_tags = tags_overwrite_s if tags_overwrite_s else tags_s
 
-        expanded_bio = self.expand_bio_with_tags(base_bio, effective_tags)
+        expanded_bio = self.expand_bio_with_tags(base_bio, effective_tags, tag_outcomes)
 
         # Extract dynamic tag events (timestamped event lines) for the memory timeline
-        dynamic_tag_events = self.__bio_template_manager.extract_dynamic_events(effective_tags)
+        dynamic_tag_events = self.__bio_template_manager.extract_dynamic_events(effective_tags, tag_outcomes)
 
         # Handle pandas NaN values in CSV
         tts_service_value = character_info.get('tts_service', '')
@@ -272,6 +293,7 @@ class Skyrim(Gameable):
             
             # Update Skyrim specific settings
             self.__tts_service = config.tts_service
+            self.__config = config
             # Note: __image_analysis_filepath is empty for Skyrim, no update needed
             
             logging.info("Skyrim hot-swap completed successfully")

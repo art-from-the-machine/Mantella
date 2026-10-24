@@ -24,6 +24,7 @@ from src.config.definitions.game_definitions import GameEnum
 from src.games.fallout4 import Fallout4
 from src.games.skyrim import Skyrim
 from src.llm.sonnet_cache_connector import SonnetCacheConnector
+from src.quest_tags.tracker import QuestTagTracker
 
 if TYPE_CHECKING:
     from src.conversation.npc_event import NpcEvent
@@ -160,6 +161,8 @@ class GameStateManager:
         self.__automatic_greeting: bool = config.automatic_greeting
         self.__conv_has_narrator: bool = config.narration_handling == NarrationHandlingEnum.USE_NARRATOR
         self.__should_reload: bool = False
+        self.__quest_tags: QuestTagTracker = QuestTagTracker()
+        self.__reload_present_npcs: bool = False # Set while a catch-up changed quest tags, so NPCs in the conversation get their bios rebuilt
 
     @property
     def game(self) -> Gameable:
@@ -551,13 +554,20 @@ class GameStateManager:
             self.__chat_manager.update_primary_client(conversation_llm_client)
         
         self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, conversation_llm_client, self.__stt, self.__mic_input, self.__mic_ptt)
+        # Quest tag changes are recorded before the NPCs are loaded, so NPCs with the tag know them in this conversation
+        start_context: dict[str, Any] = input_json.get(comm_consts.KEY_CONTEXT, {})
+        self.__quest_tags.apply_report(self.__game, world_id, start_context, QuestTagTracker.MOMENT_START)
         self.__update_context(input_json)
         self.__try_preload_voice_model()
         self.__talk.start_conversation()
             
-        return {
+        reply: dict[str, Any] = {
             comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED,
             comm_consts.KEY_STARTCONVERSATION_USENARRATOR: self.__conv_has_narrator}
+        if self.__quest_tags.is_game_list_out_of_date(self.__game, start_context):
+            # The game hands the list to its check plugin and sends fresh answers with its next continue request (the catch-up)
+            reply[comm_consts.KEY_QUESTCHECKS_LIST] = self.__quest_tags.get_check_list_payload(self.__game)
+        return reply
         
     
     @utils.time_it
@@ -581,7 +591,13 @@ class GameStateManager:
             event.apply_game_update(input_json.get(comm_consts.KEY_NPCEVENT_NEARBY_REFIDS),
                                     input_json.get(comm_consts.KEY_NPCEVENT_PLAYERNOTICEABLE),
                                     int(input_json.get(comm_consts.KEY_NPCEVENT_ADDFAILED_REFID, 0)))
-        self.__update_context(input_json)
+        # The catch-up: answers to a check list the start reply just sent. Recorded, never announced
+        changes, _ = self.__quest_tags.apply_report(self.__game, self.__talk.context.world_id, input_json, QuestTagTracker.MOMENT_CATCHUP)
+        self.__reload_present_npcs = len(changes) > 0
+        try:
+            self.__update_context(input_json)
+        finally:
+            self.__reload_present_npcs = False
 
         while True:
             replyType, sentence_to_play = self.__talk.continue_conversation()
@@ -626,6 +642,7 @@ class GameStateManager:
         self.__first_line = True
         
         player_text: str = input_json.get(comm_consts.KEY_REQUESTTYPE_PLAYERINPUT, '')
+        self.__add_quest_tag_announcements(input_json)
         self.__update_context(input_json)
         updated_player_text, update_events, player_spoken_sentence = self.__talk.process_player_input(player_text)
         if update_events:
@@ -652,6 +669,12 @@ class GameStateManager:
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK, comm_consts.KEY_REPLYTYPE_NPCTALK: self.sentence_to_json(player_spoken_sentence, topicInfoID)}
         else:
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCTALK}
+
+    def quest_check_list(self) -> dict[str, Any]:
+        """The quest tag checks the game should answer. Requested once when a save loads"""
+        payload = self.__quest_tags.get_check_list_payload(self.__game)
+        logging.debug(f"Quest tags: sent {len(payload[comm_consts.KEY_QUESTCHECKS_FUNCTIONS])} checks (version {payload[comm_consts.KEY_QUESTCHECKS_VERSION]})")
+        return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_QUESTCHECKLIST, comm_consts.KEY_QUESTCHECKS_LIST: payload}
 
     def interrupt_conversation(self):
         """Interrupt hotkey. Called while another request may still be running"""
@@ -687,7 +710,7 @@ class GameStateManager:
             for actor_json in input_json.get(comm_consts.KEY_ACTORS, []):
                 if is_cancelled():
                     break
-                character = self.load_character(actor_json)
+                character = self.load_character(actor_json, world_id)
                 if not character:
                     continue
                 if character.is_player_character:
@@ -756,7 +779,7 @@ class GameStateManager:
             for actor_json in input_json.get(comm_consts.KEY_ACTORS, []):
                 if is_cancelled():
                     break
-                character = self.load_character(actor_json)
+                character = self.load_character(actor_json, world_id)
                 if not character:
                     continue
                 refid = int(actor_json[comm_consts.KEY_ACTOR_REFID])
@@ -1154,6 +1177,18 @@ class GameStateManager:
 
     ##### utils #######
 
+    def __add_quest_tag_announcements(self, input_json: dict[str, Any]):
+        """Records quest tag changes found when the player speaks, and adds the announced ones to the in-game events.
+        They are added last, so the Max Count Events limit never cuts them, and they go through the Ignored In-Game Events filter"""
+        if not self.__talk or comm_consts.KEY_CONTEXT not in input_json:
+            return
+        context_json: dict[str, Any] = input_json[comm_consts.KEY_CONTEXT]
+        _, announced = self.__quest_tags.apply_report(self.__game, self.__talk.context.world_id, context_json, QuestTagTracker.MOMENT_PLAYER_INPUT)
+        player = self.__talk.context.npcs_in_conversation.get_player_character()
+        texts = self.__quest_tags.get_announcements(self.__game, announced, player.name if player else None)
+        if texts:
+            context_json[comm_consts.KEY_CONTEXT_INGAMEEVENTS] = list(context_json.get(comm_consts.KEY_CONTEXT_INGAMEEVENTS) or []) + texts
+
     @utils.time_it
     def __update_context(self,  json: dict[str, Any]):
         if self.__talk:
@@ -1161,7 +1196,7 @@ class GameStateManager:
                 actors_in_json: list[Character] = []
                 for actorJson in json[comm_consts.KEY_ACTORS]:
                     if comm_consts.KEY_ACTOR_BASEID in actorJson:
-                        actor: Character | None = self.load_character(actorJson)                
+                        actor: Character | None = self.load_character(actorJson, self.__talk.context.world_id)
                         if actor:
                             actors_in_json.append(actor)
                 self.__talk.add_or_update_character(actors_in_json)
@@ -1189,7 +1224,8 @@ class GameStateManager:
             self.__talk.update_context(location, time, ingame_events, weather, custom_context_values)
     
     @utils.time_it
-    def load_character(self, json: dict[str, Any]) -> Character | None:
+    def load_character(self, json: dict[str, Any], world_id: str | None = None) -> Character | None:
+        """Loads a character from the game's actor JSON. *world_id* is the playthrough, for its quest tag outcomes"""
         try:
             base_id: str = utils.convert_to_skyrim_hex_format(str(json[comm_consts.KEY_ACTOR_BASEID]))
             ref_id: str = utils.convert_to_skyrim_hex_format(str(json[comm_consts.KEY_ACTOR_REFID]))
@@ -1230,7 +1266,7 @@ class GameStateManager:
             llm_service: str = ""
             llm_model: str = ""
             is_player_character: bool = bool(json[comm_consts.KEY_ACTOR_ISPLAYER])
-            if self.__talk and self.__talk.contains_character(ref_id):
+            if self.__talk and self.__talk.contains_character(ref_id) and not (self.__reload_present_npcs and not is_player_character):
                 already_loaded_character: Character | None = self.__talk.get_character(ref_id)
                 if already_loaded_character:
                     bio = already_loaded_character.bio
@@ -1248,7 +1284,8 @@ class GameStateManager:
                     if prev_dynamic is not None:
                         custom_values['mantella_dynamic_tag_events'] = prev_dynamic
             elif not is_player_character :#If this is not the player and the character has not already been loaded. Also used by the NPC Initiative check, outside a conversation
-                external_info: external_character_info = self.__game.load_external_character_info(base_id, character_name, race, gender, actor_voice_model)
+                tag_outcomes = self.__quest_tags.get_outcomes(self.__game, world_id) if world_id else None
+                external_info: external_character_info = self.__game.load_external_character_info(base_id, character_name, race, gender, actor_voice_model, tag_outcomes)
                 
                 bio = external_info.bio
                 tts_voice_model = external_info.tts_voice_model
@@ -1260,7 +1297,7 @@ class GameStateManager:
                 llm_model = external_info.llm_model
                 is_generic_npc = external_info.is_generic_npc
                 # Store dynamic tag events so the memory system can merge them into the timeline
-                if external_info.dynamic_tag_events:
+                if external_info.dynamic_tag_events or self.__reload_present_npcs:
                     custom_values['mantella_dynamic_tag_events'] = external_info.dynamic_tag_events
                 if is_generic_npc:
                     character_name = external_info.name
