@@ -8,6 +8,7 @@ import logging
 import os
 import tempfile
 import threading
+import time
 from dataclasses import dataclass
 
 FILE_NAME = "tag_outcomes.json"
@@ -47,10 +48,22 @@ def save(path: str, tags: dict[str, dict]):
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as f:
             json.dump({"tags": tags}, f, indent=2, sort_keys=True)
-        os.replace(temp_path, path)
+        _replace(temp_path, path)
     except Exception:
         os.remove(temp_path)
         raise
+
+
+def _replace(source: str, target: str, attempts: int = 5):
+    """os.replace, retried briefly: Windows refuses it while another reader (an NPC being loaded, a virus scanner) has the target open"""
+    for attempt in range(attempts):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.05)
 
 
 def apply_outcomes(tags: dict[str, dict] | None, outcomes: dict[str, int | None], now: int) -> tuple[dict[str, dict], list[OutcomeChange]]:

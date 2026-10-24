@@ -60,6 +60,14 @@ class QuestTagTracker:
             report: the dictionary holding the version and the results, or None when the request carried none
             moment: when the report was sent, for the log; only MOMENT_PLAYER_INPUT changes can be announced
         """
+        # A quest tag problem never stops a conversation: the record stays as it is, and the next report tries again
+        try:
+            return self.__apply_report(game, world_id, report, moment)
+        except Exception as e:
+            logging.warning(f"Quest tags: could not apply the game's answers, keeping the record as it is. Error: {e}")
+            return [], []
+
+    def __apply_report(self, game: Gameable, world_id: str, report: dict[str, Any] | None, moment: str) -> tuple[list[history.OutcomeChange], list[history.OutcomeChange]]:
         if not report or comm_consts.KEY_QUESTCHECKS_VERSION not in report:
             return [], []
         check_list = game.quest_check_list

@@ -96,6 +96,15 @@ class TestApplyReport:
     def test_request_without_a_report_changes_nothing(self, tracker, game):
         assert tracker.apply_report(game, "Player1", {}, QuestTagTracker.MOMENT_PLAYER_INPUT) == ([], [])
 
+    def test_a_record_that_cant_be_saved_doesnt_stop_the_conversation(self, tracker, game, monkeypatch):
+        _first_check(tracker, game)
+        def refuse(source, target):
+            raise PermissionError("[WinError 5] Access is denied")
+        monkeypatch.setattr(history.os, "replace", refuse)
+        monkeypatch.setattr(history.time, "sleep", lambda seconds: None)
+        assert tracker.apply_report(game, "Player1", _report(game, {BATTLE_DONE: 1}), QuestTagTracker.MOMENT_PLAYER_INPUT) == ([], [])
+        assert tracker.get_outcomes(game, "Player1") == {}  # Still the first check's record
+
 
 class TestCheckListDelivery:
     def test_list_sent_when_the_game_holds_another_or_none(self, tracker, game):

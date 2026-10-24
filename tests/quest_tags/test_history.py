@@ -82,5 +82,20 @@ class TestFile:
         history.update(path, {"dragon": 1}, now=500)
         assert [p.name for p in (tmp_path / "Player1").iterdir()] == [history.FILE_NAME]
 
+    def test_save_retries_while_the_file_is_held_open(self, tmp_path, monkeypatch):
+        path = history.record_path(str(tmp_path), "Player1")
+        real_replace = history.os.replace
+        calls = []
+        def replace_refused_once(source, target):
+            calls.append(target)
+            if len(calls) == 1:
+                raise PermissionError("[WinError 5] Access is denied")
+            real_replace(source, target)
+        monkeypatch.setattr(history.os, "replace", replace_refused_once)
+        monkeypatch.setattr(history.time, "sleep", lambda seconds: None)
+        history.update(path, {"dragon": 1}, now=500)
+        assert len(calls) == 2
+        assert history.current_outcomes(history.load(path)) == {"dragon": (1, 0)}
+
     def test_current_outcomes_skips_zero(self):
         assert history.current_outcomes(_record(battle=(0, {}), dragon=(1, {1: 0}))) == {"dragon": (1, 0)}
