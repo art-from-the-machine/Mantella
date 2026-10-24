@@ -14,6 +14,7 @@ from src.characters_manager import Characters
 from src.character_manager import Character, get_genders_text, get_races_text, get_genders_and_races_text
 from src.remember.remembering import Remembering
 from src import utils
+from src.llm import model_capabilities
 
 logger = utils.get_logger()
 
@@ -337,7 +338,7 @@ class Summaries(Remembering):
         else:
             conversation_summaries = previous_conversation_summaries
 
-        summary_limit = int(self.__client.token_limit * self.__summary_limit_pct)
+        summary_limit = model_capabilities.summary_token_threshold(self.__client.token_limit, self.__summary_limit_pct, getattr(self.__config, 'summary_condense_token_limit', 0))
 
         count_tokens_summaries = self.__client.get_count_tokens(conversation_summaries)
         # if summaries token limit is reached, summarize the summaries

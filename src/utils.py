@@ -341,33 +341,10 @@ def get_openai_model_list():
     At the time of this function creation, OpenAI models do not pass the same level of information as OpenRouter
     such as cost and context length, so these details need to be maintained manually.
     Prices are not stored to avoid sharing outdated information.
+    Model ids, context lengths and capabilities are maintained in src/llm/model_capabilities.py.
     '''
-    openai_models = [
-        {
-            "id": "gpt-4o-mini",
-            "model_extra": {
-                "context_length": 128_000,
-                "pricing": {"prompt": -1, "completion": -1},
-                "architecture": {"modality": "text+image->text"}
-            }
-        },
-        {
-            "id": "gpt-4o",
-            "model_extra": {
-                "context_length": 128_000,
-                "pricing": {"prompt": -1, "completion": -1},
-                "architecture": {"modality": "text+image->text"}
-            }
-        },
-        {
-            "id": "gpt-4-turbo",
-            "model_extra": {
-                "context_length": 128_000,
-                "pricing": {"prompt": -1, "completion": -1},
-                "architecture": {"modality": "text+image->text"}
-            }
-        },
-    ]
+    from src.llm.model_capabilities import openai_model_catalog # imported here to avoid a circular import
+    openai_models = openai_model_catalog()
     
     # Convert the dictionary to a structure similar to what OpenRouter returns
     class Model:
@@ -548,4 +525,6 @@ def get_model_token_limits():
         'llama-3-8b-instruct:nitro': 8_192,
         'llama-3-70b-instruct:nitro': 8_192,
     }
+    from src.llm.model_capabilities import openai_token_limits
+    token_limit_dict.update(openai_token_limits())
     return token_limit_dict

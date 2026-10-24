@@ -17,6 +17,7 @@ import src.utils as utils
 from src.telemetry.telemetry import create_span_from_thread
 from src.actions.function_manager import FunctionManager
 from src.llm.claude_cache_connector import ClaudeCacheConnector
+from src.llm import model_capabilities
 
 logger = utils.get_logger()
 
@@ -198,6 +199,7 @@ class ClientBase(AIClient):
                 except Exception as e:
                     logger.debug(f"Claude caching transform failed: {e}")
 
+            request_params = model_capabilities.adapt_request_params(self.model_name, request_params, self._base_url)
             try:
                 chat_completion = sync_client.chat.completions.create(
                     model=self.model_name,
@@ -298,6 +300,7 @@ class ClientBase(AIClient):
                     
                     # Dict to track partial tool calls by index
                     accumulated_tool_calls = {}
+                    request_params = model_capabilities.adapt_request_params(self.model_name, request_params, self._base_url)
                     
                     async for chunk in await async_client.chat.completions.create(
                         model=self.model_name, 
@@ -471,6 +474,8 @@ For more information, see here: https://art-from-the-machine.github.io/Mantella/
 
         if llm in token_limit_dict:
             token_limit = token_limit_dict[llm]
+        elif model_capabilities.token_limit(llm): # e.g. dated snapshots of known OpenAI models
+            token_limit = model_capabilities.token_limit(llm)
         else:
             logger.log(23, f"Could not find number of available tokens for {llm}. Defaulting to token count of {custom_token_count}. This number can be changed via the `Large Language Model`->`Custom Token Count` / `Vision`->`Custom Vision Model Token Count` settings in the Mantella UI")
             try:

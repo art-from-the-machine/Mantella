@@ -98,6 +98,31 @@ class LLMDefinitions:
                         Note that available parameters can vary per LLM provider."""
         return ConfigValueString("llm_params", "Parameters", description, value, tags=[ConfigValueTag.advanced])
 
+    @staticmethod
+    def get_reasoning_effort_config_value() -> ConfigValue:
+        description = """(OpenAI reasoning models only: GPT-5.x / GPT-6.x) How much the model thinks before answering.
+                        Less thinking = faster first word, which matters for voice. 'none' / 'minimal' are recommended for NPC dialogue.
+                        - Model default: do not send the parameter (each model has its own default, often 'medium').
+                        Unsupported values are mapped to the closest supported one, and models that cannot reason ignore this setting.
+                        Note: in Chat Completions, GPT-5.4+ / GPT-5.5 / GPT-5.6 / GPT-6 Sol and Luna only allow actions (tools) with 'none', so calls with actions always use 'none' on those models.
+                        A "reasoning_effort" value in the Parameters JSON takes precedence."""
+        return ConfigValueSelection("reasoning_effort", "Reasoning Effort", description, "Model default", ["Model default", "none", "minimal", "low", "medium", "high", "xhigh"], allows_free_edit=False, tags=[ConfigValueTag.advanced, ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_verbosity_config_value() -> ConfigValue:
+        description = """(OpenAI GPT-5.x / GPT-6.x only) Hint for how long answers should be. 'low' keeps NPC replies short.
+                        - Model default: do not send the parameter. Ignored for models that do not support it.
+                        A "verbosity" value in the Parameters JSON takes precedence."""
+        return ConfigValueSelection("verbosity", "Verbosity", description, "Model default", ["Model default", "low", "medium", "high"], allows_free_edit=False, tags=[ConfigValueTag.advanced, ConfigValueTag.share_row])
+
+    @staticmethod
+    def get_summary_condense_token_limit_config_value() -> ConfigValue:
+        description = """Maximum size (in tokens) of an NPC's saved conversation summaries before Mantella condenses them into a shorter summary.
+                        All summaries are added to every prompt for that NPC, so a smaller limit keeps prompts cheaper and the persona sharper.
+                        - 0 (default, upstream behaviour): 30% of the model's context window. For 1M-token models (gpt-4.1, GPT-5.4+, GPT-6) that is ~315,000 tokens, so memories are effectively never condensed.
+                        - Recommended: 4000-8000."""
+        return ConfigValueInt("summary_condense_token_limit", "Memory Condense Threshold (tokens)", description, 0, 0, 9999999, tags=[ConfigValueTag.advanced])
+
     #LLM output parsing options
 
     @staticmethod

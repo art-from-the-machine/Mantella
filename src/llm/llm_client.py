@@ -4,6 +4,7 @@ from src.config.config_loader import ConfigLoader
 from src.llm.image_client import ImageClient
 from src.llm.function_client import FunctionClient
 from src.llm.client_base import ClientBase
+from src.llm import model_capabilities
 from src.model_profile_manager import get_profile_manager
 
 logger = utils.get_logger()
@@ -22,6 +23,7 @@ class LLMClient(ClientBase):
             apply_profile=config.apply_model_profiles,
             log_context="LLMClient",
         )
+        llm_params = model_capabilities.merge_config_params(llm_params, config.reasoning_effort, config.verbosity)
         super().__init__(config.llm_api, config.llm, llm_params, config.custom_token_count, config.claude_prompt_caching_enabled)
 
         if self._is_local:

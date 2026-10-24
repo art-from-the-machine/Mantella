@@ -285,6 +285,10 @@ class ConfigLoader:
 LLM parameter list must be valid JSON""")
                 self.llm_params = None
 
+            self.reasoning_effort: str = self.__definitions.get_string_value("reasoning_effort")
+            self.verbosity: str = self.__definitions.get_string_value("verbosity")
+            self.summary_condense_token_limit: int = self.__definitions.get_int_value("summary_condense_token_limit")
+
             # self.stop_llm_generation_on_assist_keyword: bool = self.__definitions.get_bool_value("stop_llm_generation_on_assist_keyword")
             
             self.narration_handling: NarrationHandlingEnum = self.__definitions.get_enum_value("narration_handling", NarrationHandlingEnum)
