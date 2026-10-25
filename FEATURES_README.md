@@ -384,61 +384,302 @@ After you talk again and a newer summary is saved, the Thane line stays in the c
 
 ## Quest Tags (tag feature)
 
+### What it's for
+
+Out of the box, NPCs don't know what you've done in your game. You finish the Civil War, kill Alduin or join the Thieves Guild, and the people of Skyrim talk to you as if none of it happened. With tags you could tell them, but you had to update the tag text by hand after every quest.
+
+Quest tags keep track of your quest progress for you:
+
+- **NPCs keep up with your playthrough.** When a quest ends a certain way, every NPC with that tag knows about it in their next conversation.
+- **The people you're with react as it happens.** If a quest moves on while you're talking to someone, they hear about it with your next line.
+- **Each playthrough is tracked separately,** and loading an older save puts NPCs back to what was true in that save.
+- **No manual upkeep.** You don't edit any files when quests move on. You only edit if you want to change the wording.
+
+### Where to find it
+
+**LLM** tab → **Advanced** → **Auto Quest Tag Outcomes**, next to **Enable Character Tag Reading**.
+
 ### What are quest tags?
 
-The community bio templates CSV (Nexus mod 174770) lists possible quest outcomes for many tags. Besides `tag` and `description`, it has up to five pairs of columns:
+Many tags are about a quest that can end in different ways: who won the Battle for Whiterun, whether Saadia is still alive, whether you became the Thane. The community bio templates CSV (see [Recommended files](#recommended-files-nexus)) lists the possible outcomes for these tags. Besides `tag` and `description`, it has up to five pairs of columns:
 
-| Column | What it holds |
-| --- | --- |
-| `code_N` | A condition, written like a Skyrim console command, e.g. `getstagedone CWObj 100=1 AND GetKeywordDataForLocation 16772 CWOwner=1` |
-| `potential_paste_N` | The text the tag gets when that condition is true |
 
-Before, you copied the right text into `description` by hand once a quest was done. Now Mantella checks the conditions in the game and gives NPCs who have the tag the text of the outcome that is true now. If several are true, the highest number wins. You don't edit any files.
+| Column              | What it holds                                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `code_N`            | A condition, written like a Skyrim console command, e.g. `getstagedone MQ104 160=1 AND "0D7505".getdead=0` |
+| `potential_paste_N` | The text NPCs with the tag get when that condition is true                                                          |
 
-When a quest moves on **while you're talking to someone**, everyone in the conversation hears about it with your next line, as a narration line before what you say. NPCs elsewhere who have the tag learn it in their next conversation.
+
+Mantella checks these conditions in your game and gives every NPC with the tag the text of the outcome that is true **right now**.
+
+Example: the `whiterun_hold_civil_war` tag (179 NPCs have it):
+
+
+| Outcome | Condition (`code_N`)                                                     | Text (`potential_paste_N`)                                                          |
+| ------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| 1       | `GetKeywordDataForLocation 16772 2A456=2`                                | Events Update: The Stormcloaks have successfully attacked Whiterun, taking control of the city… |
+| 2       | `GetKeywordDataForLocation 16772 2A456=1 AND "FC90B".getdisabled=1`      | Events Update: The Stormcloaks have attacked Whiterun, but failed to take the city. |
+
+
+In plain words: outcome 1 is "the Stormcloaks own Whiterun now" (`16772` is Whiterun, `2A456` is the keyword for who owns it); outcome 2 is "the battle is over and the Imperials still own Whiterun". Once you win the defence, every NPC with the tag knows that the attack failed.
+
+### What to expect
+
+**Who learns what, and when**
+
+
+| Who                                     | When                                       | How                                                                                         |
+| --------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Everyone in the conversation            | The next time you speak after the change   | One narration line with the outcome's text, right before your line                          |
+| NPCs elsewhere who have the tag         | Their next conversation                    | In their bio (Static) or as news in their memories (Dynamic). See the setting below        |
+| NPCs who don't have the tag             | Never from the tag                         | They only know it if they were there when it was announced (it's then in their summary)     |
+
+
+**Example: the quest moves on while you talk**
+
+You and Lydia are outside Whiterun during the battle. The battle is won. Skyrim shows its quest update; Mantella hears nothing yet, because the game only sends news when you speak. You type your next line, and Lydia's AI sees:
+
+```
+(Events Update: The Stormcloaks have attacked Whiterun, but failed to take the city.) We did it, Lydia!
+```
+
+She can react to it. The log says `Quest tag whiterun_hold_civil_war: outcome 0 -> 2 (announced)`. The next day, Adrianne Avenicci (who has the tag but wasn't there) knows about it in her next conversation.
+
+**What is not announced**
+
+Some changes are only recorded, without a narration line. NPCs with the tag still learn them in their next conversation.
+
+- **Changes that happened between conversations.** Mantella can't tell whether the people present were there, so it doesn't announce them. For example, you won the battle, then started a conversation with Lydia.
+- **Deaths.** An outcome whose condition only checks that someone is dead (e.g. `saadia_status`: "Saadia has died.") is never announced. The people present weren't there, and if the person who died *is* present, the game already says so itself.
+- **Tags marked `announce = no`.** Some texts are written for one NPC and read wrong as narration (e.g. `alchemy_trainer`: "This individual is aware that {player_name} has become a master of alchemy."). See [Editing outcomes](#editing-outcomes).
+
+### Saves and playthroughs
+
+**What counts as one playthrough**
+
+A playthrough is your character's name plus the **World ID** in **MCM → Mantella → Player** (default `1`), for example `Ado1`. It's the same folder your conversation summaries use: `conversations/Ado1/`. Every save of that character shares one record of quest outcomes, `conversations/Ado1/tag_outcomes.json`.
+
+The record always follows the save you're playing. At each conversation start, the game reports where every quest stands in the loaded save, and Mantella updates the record to match. Nothing is checked between conversations, so after loading a save the record catches up at your next conversation (with anyone).
+
+**What happens when**
+
+
+| You…                                                                    | What happens                                                                                                                                                                                                                                   |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Start your first conversation in a playthrough                          | Everything already true counts as **background**: NPCs with the tag know it, but it's never news and never announced. So turning this on mid-playthrough doesn't make every NPC bring up everything you've ever done. This includes existing saves the first time you use the feature |
+| Load an **older** save of the same character                            | Outcomes that aren't true in that save are forgotten. NPCs with the tag no longer know them. When they happen again, they're new again: announced if you're talking to someone, and news to NPCs with the tag                                |
+| Go back to the **newer** save                                           | Those outcomes are true again. They're recorded at the next conversation start, dated then, and not announced. With Dynamic, NPCs with the tag get them as news                                                                              |
+| Play another character (different name)                                 | A separate record. Its first conversation is a first check, as above                                                                                                                                                                           |
+| Start a new game with the **same name and World ID** as an old character | Mantella can't tell it apart from loading an older save: the old record is rolled back to match the new game. Conversation summaries are shared too. To keep the two apart, set a different **World ID** before your first conversation     |
+
+
+Example: in your latest save you won the Battle for Whiterun. You load a save from before the battle and talk to Adrianne: she no longer knows about it, and the log says `Quest tag whiterun_hold_civil_war: outcome 2 -> 0 (no longer true)`. Win the battle again while talking to Lydia, and it's announced again.
+
+Only quest outcomes follow the loaded save. Conversation summaries, private thoughts and personal reflections are never rolled back, so an NPC who was there may still remember it from their summary.
+
+To start the record of a playthrough from scratch, delete its `tag_outcomes.json`. The next conversation is a first check again.
 
 ### What you need
 
-- **The community package** from Nexus, installed with your mod manager. Its characters CSV says which NPCs have which tags; its bio templates CSV holds the outcomes. It isn't shipped with Mantella.
-- **Mantella-Spell with `MantellaQuestChecks.dll`** in `SKSE/Plugins/`. This small plugin answers the conditions inside the game. It needs SKSE and the Address Library, like the other Mantella plugins. Without it, quest tags add nothing, as before.
+- **The community package** from Nexus (see [Recommended files](#recommended-files-nexus)), installed with your mod manager. Its characters CSV says which NPCs have which tags; its bio templates CSV holds the outcomes and conditions. It doesn't come with Mantella.
+- **Mantella-Spell with `MantellaQuestChecks.dll`** in `SKSE/Plugins/`. This small plugin answers the conditions inside the game. It's included in Mantella-Spell and needs SKSE and the Address Library, like Mantella-Spell's other plugins. It's built for Skyrim SE, AE and VR. Without it, quest tags add nothing, as before.
+- **Enable Character Tag Reading** on (it is by default).
 
 ### The setting: Auto Quest Tag Outcomes
 
-Next to **Enable Character Tag Reading** in the LLM settings:
 
-| Option | What NPCs with the tag get |
-| --- | --- |
-| **Off** | Nothing from outcomes. Normal tags keep working |
-| **Static** (default) | The outcome text in their bio, under `## Additional info`. They know it, but aren't nudged to bring it up |
-| **Dynamic** | The outcome as a dated memory, in order with their conversation summaries, like [dynamic events](#dynamic-events-tag-feature). It's listed under "New developments since last meeting" until they have a newer summary |
+| Option               | What NPCs with the tag get                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Off**              | Nothing from outcomes, and nothing is checked in the game. Normal tags like `whiterun_hold` keep working                                                                                               |
+| **Static** (default) | The outcome text in their bio, under `## Additional info`. They know it, but aren't nudged to bring it up                                                                                              |
+| **Dynamic**          | The outcome as a dated memory, in order with their conversation summaries, like [dynamic events](#dynamic-events-tag-feature). It's listed under "New developments since last meeting" until they have a newer summary, so they're likely to bring it up |
 
-Hand-written `- <timestamp>: text` lines are not affected by this setting.
+
+Announcements during a conversation work the same with Static and Dynamic. Hand-written `- <timestamp>: text` lines are not affected by this setting.
+
+With Dynamic, Adrianne from the example above sees:
+
+```
+Below is a summary of past events:
+<her earlier summaries>
+
+New developments since last meeting:
+- Events Update: The Stormcloaks have attacked Whiterun, but failed to take the city.
+```
+
+### Quick start
+
+1. Install the community package and Mantella-Spell (with `MantellaQuestChecks.dll`) with your mod manager.
+2. In Mantella, **LLM** tab → **Advanced** → set **Auto Quest Tag Outcomes** to **Static** or **Dynamic**.
+3. Load a save and start a conversation. Mantella's log should show the first check:
+
+```
+Quest tags: 842 of 842 conditions readable
+Quest tags: first check for Ado1: 37 outcomes already true, recorded as background
+```
+
+4. To see it work, finish a quest step while talking to someone, then say something. Or use the console during a conversation, e.g. `setstage FreeformRiverwood01 240` (the letter quest in Riverwood), then speak. The log shows `Quest tag a_lovely_letter_quest: outcome 0 -> 1 (announced)`.
+
+### How it works
+
+1. **At startup** (and after **Reload Character Data**), Mantella reads every condition and turns it into a list of small questions for the game, like "who owns Whiterun?" and "is Saadia dead?".
+2. **When you load a save**, Mantella-Spell fetches this list and hands it to the plugin. If Mantella isn't running yet, the list comes with the first conversation instead.
+3. **When a conversation starts, and each time you speak**, the plugin answers every question in about one frame, and the answers go to Mantella with what the game already sends. Nothing runs in the background or between conversations.
+4. **Mantella decides** which outcome each tag is at (the highest true one wins), records it, announces new changes found when you speak, and gives NPCs with the tag the current outcome's text.
+
+**NPCs far away.** Skyrim only keeps many NPCs in memory while you're near them. A question about such an NPC (e.g. "does Rorlund in Solitude like you?") can't be answered while you're elsewhere, so that tag keeps its current outcome until you're near them again. Deaths are the exception: Mantella asks for the game's death count, which works wherever you are.
 
 ### Editing outcomes
 
-Put edits in your personal folder, `Documents/My Games/Mantella/data/Skyrim/bio_templates/`, so updates never overwrite them. Files are combined **cell by cell**: a later file only replaces the cells it fills in.
+Put edits in your personal folder, `Documents/My Games/Mantella/data/Skyrim/bio_templates/`, so updates to the community package never overwrite them. Files are combined **cell by cell**: a later file only replaces the cells it fills in.
 
-| What you want | What to do in your personal CSV |
-| --- | --- |
-| Different wording for one outcome | A row with the tag name, and only `potential_paste_N` filled in. The author's condition still decides when it happens |
-| Take over the tag completely | Fill in `description`. The conditions are then ignored for this tag |
-| Add your own outcome | Fill an empty pair: `code_N` and `potential_paste_N` |
-| Never announce a tag to the people present | Add an `announce` column and write `no` |
 
-Rewording an outcome never makes it news again. Outcomes whose only condition is a death are never announced; they're still recorded.
+| What you want                              | What to do in your personal CSV                                                                          |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Different wording for one outcome          | A row with the tag name, and only `potential_paste_N` filled in. The author's condition still decides when it happens |
+| Take over the tag completely               | Fill in `description`. The conditions are then ignored for this tag                                     |
+| Add your own outcome                       | Fill an empty pair: `code_N` and `potential_paste_N`                                                     |
+| Never announce a tag to the people present | Add an `announce` column and write `no`                                                                  |
 
-### Where the record is kept
 
-`conversations/<playthrough>/tag_outcomes.json` says which outcome each tag is at in that playthrough, and when Mantella first saw it. Loading an older save is noticed: outcomes that aren't true in that save are forgotten, and announced again when they happen again. Deleting the file starts the record from scratch; outcomes already true then count as background, not news.
+Example personal CSV that rewords outcome 2 of the battle and turns off announcements for the alchemy trainer:
+
+```
+tag,potential_paste_2,announce
+whiterun_hold_civil_war,"Events Update: Whiterun held. The Stormcloak assault broke at the gates.",
+alchemy_trainer,,no
+```
+
+Then **Other → Reload Character Data → Reload**.
+
+- Rewording an outcome never makes it news again: NPCs get the new wording, with the original date.
+- To silence all announcements instead, add a pattern like `Events Update:*` to **Ignored In-Game Events** (see [In-Game Events](#in-game-events)). They're still recorded.
+- `{player_name}` works in outcome texts.
 
 ### Writing conditions
 
-- Join checks with `AND` / `OR` (`AND` first), use brackets when mixing them. Line breaks are fine.
-- Comparisons: `=`, `<`, `<=`, `>`, `>=`. Without one, `=1` is meant.
-- Commands: `getstagedone`, `getquestcompleted`, `getstage`, `getdead`, `getav`, `getfactionrank`, `getinfaction`, `GetKeywordDataForLocation`, `show <Global>`, `getrelationshiprank`, `ishostiletoactor`, `hasspell`.
-- Quests by their editor ID (`MQ104`). NPCs in quotes before the dot (`"0D7505".getdead`). Other things from Skyrim by the hex FormID the console shows; DLC forms with their load order prefix (`02` Dawnguard, `03` Hearthfire, `04` Dragonborn).
-- Factions, keywords and globals by name (`CWOwner`, `PlayerIsVampire`) can't be checked yet: the game forgets those names after loading. Use their FormID.
-- Conditions Mantella can't read are listed in `logging.log` at startup, and that outcome never happens.
+For CSV authors and anyone adding their own outcomes.
+
+**Shape**
+
+- One condition per `code_N` cell. Line breaks are fine.
+- Join checks with `AND` / `OR` (any case). `AND` is worked out first, so use brackets when mixing them:
+  `getstagedone T01 60=0 AND ("1E766".ishostiletoactor player=1 OR "1E766".getdead=1)`
+- Comparisons: `=`, `<`, `<=`, `>`, `>=`. Without one, `=1` is meant: `getstagedone FreeformRiverwood01 240` is `getstagedone FreeformRiverwood01 240=1`.
+- At most two values after a command.
+- The highest true outcome wins. Never reorder or reuse outcome numbers; put new outcomes in the next free number.
+
+**Commands**
+
+Any of the game's condition commands works (the ones quest dialogue uses). A new command needs no Mantella update. Some common ones:
+
+
+| Command                     | Example                                       | What it checks                                         |
+| --------------------------- | --------------------------------------------- | ------------------------------------------------------ |
+| `getstagedone`              | `getstagedone MQ104 160=1`                    | A quest has reached a step                             |
+| `getquestcompleted`         | `getquestcompleted MQ305=1`                   | A quest is finished                                    |
+| `getstage`                  | `getstage DBDestroy>=10`                      | Which step a quest is on now                           |
+| `getdead`                   | `"0D7505".getdead=1`                          | An NPC is dead (uses the game's death count)           |
+| `getav`                     | `"14".getav alchemy>=100`                     | A skill; potions and enchantments don't count          |
+| `getinfaction`              | `getinfaction 28186=1`                        | In a faction; with no NPC given, the player            |
+| `getfactionrank`            | `getfactionrank 28186>=2`                     | Rank in a faction                                      |
+| `GetKeywordDataForLocation` | `GetKeywordDataForLocation 16772 2A456=1`     | A place's value for a keyword (e.g. who owns a city)   |
+| `show`                      | `show 3A>=30`                                 | A game-wide value (a global)                           |
+| `getrelationshiprank`       | `"01A66A".getrelationshiprank 14>=1`          | How much an NPC likes the player, from -4 to 4         |
+| `ishostiletoactor`          | `"1E766".ishostiletoactor player=1`           | An NPC is hostile to the player                        |
+| `hasspell`                  | `"14".hasspell 0201462A=0`                    | Has a spell                                            |
+| `haskeyword`                | `"14".haskeyword A82BB=1`                     | Has a keyword, e.g. `A82BB` (vampire)                  |
+| `getequipped`               | `"14".getequipped C891B=1`                    | Is wearing or holding an item                          |
+| `getdisabled`               | `"FC90B".getdisabled=1`                       | Something placed in the world is switched off          |
+
+
+Skills can use the console's names (`archery`, `speech`) or the game's (`Marksman`, `Speechcraft`). Commands that only make sense inside a dialogue or scene (quest aliases, the current speaker) can't be checked this way.
+
+**Naming things**
+
+
+| What                                   | How to write it                                                                                    | Example                       |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------- |
+| The player                             | `"14"` or `player`                                                                                 | `"14".getav alchemy`          |
+| An NPC or object before the dot        | Its reference FormID in quotes, as the console shows it. Skyrim and DLC only                        | `"0D7505".getdead`            |
+| A quest                                | Its editor ID. Works for quests from any mod                                                        | `MQ104`                       |
+| Anything else from Skyrim              | The hex FormID; leading zeros are optional                                                          | `28186`                       |
+| From a DLC                             | The full FormID with the usual load order prefix: `01` Update, `02` Dawnguard, `03` Hearthfire, `04` Dragonborn | `0201462A`                    |
+| From a mod (after the command)         | `Plugin.esp\|` and the FormID without its load order prefix                                         | `getinfaction MyMod.esp\|000800` |
+
+
+- Factions, keywords and globals **by name** (`CWSonsFaction`, `CWOwner`, `PlayerIsVampire`) don't work: the game forgets those names after loading. Use the FormID instead, e.g. `2A456` for `CWOwner`.
+- If the thing a condition refers to doesn't exist in the player's game (its mod isn't installed), that check is simply not true. You can rely on this for outcomes that need a mod.
+- An outcome with no condition, or with the text `custom`, is never used.
+
+### Troubleshooting
+
+Mantella's log (`Documents/My Games/Mantella/logging.log`) is the main place to look. Turn on **Other** tab → **Advanced** → **Debug Mode** to see the debug lines below.
+
+**Files that help**
+
+
+| File                                                             | What it shows                                                                                                |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `Mantella/data/Skyrim/conversations/<playthrough>/tag_outcomes.json`        | Which outcome each tag is at in that playthrough (`current`), and when Mantella first saw it (`seen`, `0` = background) |
+| `Mantella/data/Skyrim/conversations/<playthrough>/quest_check_answers.json` | The game's latest raw answers to every question, at the conversation start and at your last line           |
+| `Documents/My Games/Skyrim Special Edition/SKSE/MantellaQuestChecks.log`    | The plugin's own log: whether it got the list, and exactly why a check can't be run                        |
+| `Documents/My Games/Skyrim Special Edition/SKSE/skse64.log`                 | Whether `MantellaQuestChecks.dll` loaded at all (VR: `Skyrim VR/SKSE/sksevr.log`)                          |
+
+
+Example `tag_outcomes.json`:
+
+```json
+"whiterun_hold_civil_war": { "current": 2, "seen": { "2": 1792700000 } },
+"alchemy_trainer":         { "current": 1, "seen": { "1": 0 } }
+```
+
+Deleting this file starts the record from scratch: everything already true becomes background again.
+
+**Log lines**
+
+
+| Log line                                                                                           | Meaning                                                                                                                                           |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Quest tags: 842 of 842 conditions readable`                                                       | At startup. The rest are listed one by one, below                                                                                                 |
+| `Quest tag temba_wide-arm_status slot 1: can't read ""'065AB3".getdead=1" (...)`                    | Warning. The condition's shape is wrong (a stray quote, three values…). That outcome never happens                                               |
+| `Quest tags: the game can't run getstagedone DA08 in the_whispering_door_quest slot 1 (...)`       | Warning. A misspelled command, too few or too many values, a name where a FormID is needed, or a FormID that's wrong. The check is not true. `MantellaQuestChecks.log` says which, e.g. `GetStageDone takes 2 value(s), got 1` |
+| `Quest tags: NPC not found for a death count: ... (check base_id in the characters CSV)`            | Warning. A `getdead` NPC's `base_id` in the characters CSV is wrong                                                                               |
+| `Quest tags: not found: getquestcompleted masquest in MaS_main_quest slot 1 (...)`                  | Debug. Its mod isn't installed (normal), or a typo in a quest name                                                                                 |
+| `Quest tags: not loaded: "Skyrim.esm\|0198A5".getrelationshiprank 14 in ... (...)`                  | Debug. An NPC who isn't near you. The tag keeps its outcome until you are. A wrong FormID looks the same                                          |
+| `Quest tags: first check for <playthrough>: 37 outcomes already true, recorded as background`      | The first check in a playthrough                                                                                                                  |
+| `Quest tag whiterun_hold_civil_war: outcome 0 -> 2 (announced)`                                    | An outcome changed. Instead of `(announced)`: `(found at conversation start)`, `(found in catch-up)`, `(announce = no)`, `(death, not announced)` |
+| `Quest tag paarthurnax_quest: outcome 2 -> 1 (no longer true)`                                     | You loaded an older save, or a quest restarted                                                                                                    |
+| `Quest tags: the game sent no results. Update Mantella-Spell, and check that MantellaQuestChecks.dll loaded (see SKSE's log).` | Once per session. The plugin isn't working; nothing is checked                                                    |
+
+
+(The log says "slot" for the outcome number.)
+
+**What to check**
+
+
+| Problem                                         | What to check                                                                                                                                                                                                                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nothing ever changes                            | Look for `the game sent no results` in the log. Then check `skse64.log` for `MantellaQuestChecks.dll`: if it didn't load, update SKSE / Address Library or check your game version. Also make sure Mantella-Spell is up to date and **Auto Quest Tag Outcomes** isn't **Off** |
+| An NPC doesn't know an outcome                  | 1. Does the NPC have the tag? Check **Runtime Tags** in the **Bio Editor**; remember `tags_overwrite` replaces `tags`. 2. Is `current` in `tag_outcomes.json` the outcome you expect? If not, search the log for the tag name. 3. Is the tag's `description` filled in? That turns automatic outcomes off for it. 4. Static: is `Additional info` excluded in [Bio Sections to Exclude](#bio-sections-to-exclude)? Dynamic: does your prompt leave out `{conversation_summary}`? |
+| The wrong outcome                               | Two outcomes are true at once (the higher one wins), or a check is not true because something is missing or can't be run. `quest_check_answers.json` shows each answer                                                                                            |
+| An outcome is stuck after travelling            | A check is about an NPC who isn't near you (`not loaded` in the debug log). It updates when you're near them again                                                                                                                                                 |
+| An outcome is news again                        | You loaded an older save; that's expected                                                                                                                                                                                                                           |
+| An NPC forgot an outcome                        | You loaded an older save, or a repeatable errand quest started again. Look for `no longer true` in the log                                                                                                                                                         |
+| An announcement doesn't fit the people present  | Set `announce` to `no` for the tag, or silence it with **Ignored In-Game Events**                                                                                                                                                                                  |
+| You edited a CSV and nothing changed            | **Other → Reload Character Data → Reload**. The new list reaches the game at the next conversation start                                                                                                                                                           |
+
+
+In `quest_check_answers.json`, three special numbers mean the game couldn't answer: `-9999901` = not found (not true), `-9999902` = not loaded right now (unknown, nothing changes), `-9999903` = can't be run (not true).
+
+**Notes**
+
+- Skyrim only.
+- An announcement comes with your next line, not the moment the quest changes. Conversations where you don't speak (radiant conversations, [NPC Events](#npc-events) before you join) only check at the start.
+- After **Reload Character Data** or a Mantella update, the game catches up at the next conversation start. The NPC's first line may still use the old picture; every line after it is up to date.
+- More than five announcements on one line can be cut by **Max Count Events**. They're still recorded, so NPCs with the tag still learn them.
+- Quests that can be done more than once (some small "Favor" errands) clear their steps when they start again. The tag then goes back, as if you'd loaded an older save.
+- A death count never goes down, so an NPC brought back with the console `resurrect` command still counts as dead.
 
 ## Lorebook
 
