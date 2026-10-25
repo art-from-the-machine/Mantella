@@ -2,15 +2,20 @@
 
 See docs/quest_tags_1_user_edits.md, Parts 1, 3, 4 and 7.
 """
+import json
 import logging
+import os
+import threading
 import time
 from typing import Any
 
 from src.games.gameable import Gameable
 from src.http.communication_constants import communication_constants as comm_consts
 from src.quest_tags import history
-from src.quest_tags.conditions import ANSWER_MISSING, ANSWER_NOT_LOADED, CheckList
+from src.quest_tags.conditions import ANSWER_MISSING, ANSWER_NOT_LOADED, ANSWER_UNREADABLE, Check, CheckList
 import src.utils as utils
+
+ANSWERS_FILE_NAME = "quest_check_answers.json"
 
 
 class QuestTagTracker:
@@ -22,19 +27,21 @@ class QuestTagTracker:
 
     def __init__(self):
         self.__logged_once: set[str] = set()  # Messages that are only logged once per session
+        self.__answers_lock = threading.Lock()
 
     def get_outcomes(self, game: Gameable, world_id: str) -> dict[str, tuple[int, int]]:
         """Tag -> (current outcome, time first seen) in this playthrough, for what NPCs are told"""
         return history.current_outcomes(history.load(history.record_path(game.conversation_folder_path, world_id)))
 
     def get_check_list_payload(self, game: Gameable) -> dict[str, Any]:
-        """The check list as the game receives it: a version and three parallel arrays"""
+        """The check list as the game receives it: a version and four parallel arrays"""
         check_list = game.quest_check_list
         return {
             comm_consts.KEY_QUESTCHECKS_VERSION: check_list.version,
             comm_consts.KEY_QUESTCHECKS_FUNCTIONS: [c.function for c in check_list.checks],
-            comm_consts.KEY_QUESTCHECKS_SUBJECTS: [c.subject for c in check_list.checks],
-            comm_consts.KEY_QUESTCHECKS_ARGUMENTS: [c.argument for c in check_list.checks],
+            comm_consts.KEY_QUESTCHECKS_REFERENCES: [c.reference for c in check_list.checks],
+            comm_consts.KEY_QUESTCHECKS_PARAMS1: [c.param1 for c in check_list.checks],
+            comm_consts.KEY_QUESTCHECKS_PARAMS2: [c.param2 for c in check_list.checks],
         }
 
     def is_game_list_out_of_date(self, game: Gameable, start_context: dict[str, Any]) -> bool:
@@ -80,6 +87,7 @@ class QuestTagTracker:
             logging.warning(f"Quest tags: the game sent {len(answers)} results for {len(check_list.checks)} checks - ignoring them")
             return [], []
         self.__log_unanswered(check_list, answers)
+        self.__save_answers(game, world_id, moment, check_list, answers)
 
         outcomes = check_list.evaluate(answers)
         for tag, outcome in outcomes.items():
@@ -121,17 +129,42 @@ class QuestTagTracker:
     def __log_unanswered(self, check_list: CheckList, answers: list[float]):
         """Checks the game couldn't answer, once per session each (Part 7)"""
         for check, answer in zip(check_list.checks, answers):
-            if answer == ANSWER_MISSING:
-                if check.function in ("getstagedone", "getquestcompleted", "getstage"):
-                    self.__log_once(f"missing:{check}", logging.DEBUG, f"Quest tags: quest {check.subject} not found (mod not installed, or a typo)")
-                elif check.function == "getdeadcount":
-                    self.__log_once(f"missing:{check}", logging.WARNING, f"Quest tags: NPC {check.subject} from Skyrim/DLCs not found for a death count (check base_id in the characters CSV)")
-                else:
-                    self.__log_once(f"missing:{check}", logging.WARNING, f"Quest tags: a form in {check.function} {check.subject} {check.argument} was not found or is the wrong kind (typo?)")
+            tag, slot = check_list.first_use[check]
+            where = f"{_describe(check)} in {tag} slot {slot}"
+            if answer == ANSWER_UNREADABLE and check.function == "getdeadcount":
+                self.__log_once(f"unreadable:{check}", logging.WARNING, f"Quest tags: NPC not found for a death count: {where} (check base_id in the characters CSV)")
+            elif answer == ANSWER_UNREADABLE:
+                self.__log_once(f"unreadable:{check}", logging.WARNING, f"Quest tags: the game can't run {where} (misspelled command, wrong values, or a FormID that's wrong or the wrong kind; MantellaQuestChecks.log in SKSE's log folder says which)")
+            elif answer == ANSWER_MISSING:
+                self.__log_once(f"missing:{check}", logging.DEBUG, f"Quest tags: not found: {where} (mod not installed, or a typo in a quest name)")
             elif answer == ANSWER_NOT_LOADED:
-                self.__log_once(f"notloaded:{check}", logging.DEBUG, f"Quest tags: {check.function} {check.subject} {check.argument}: not loaded (not nearby, or a typo)")
+                self.__log_once(f"notloaded:{check}", logging.DEBUG, f"Quest tags: not loaded: {where} (not nearby, or a typo)")
+
+    def __save_answers(self, game: Gameable, world_id: str, moment: str, check_list: CheckList, answers: list[float]):
+        """The game's latest raw answers, per moment, in conversations/<world_id>/quest_check_answers.json.
+        For troubleshooting, and for the in-game test (tests/ingame/quest_checks)"""
+        path = os.path.join(game.conversation_folder_path, world_id, ANSWERS_FILE_NAME)
+        with self.__answers_lock:
+            try:
+                with open(path, encoding="utf-8") as f:
+                    saved: dict[str, Any] = json.load(f)
+            except (OSError, ValueError):
+                saved = {}
+            if saved.get("version") != check_list.version:
+                saved = {"version": check_list.version, "moments": {}}
+            saved["moments"][moment] = [[c.function, c.reference, c.param1, c.param2, a] for c, a in zip(check_list.checks, answers)]
+            try:
+                history.write_json(path, saved)
+            except Exception as e:  # Only for troubleshooting: never stops the record from being updated
+                logging.debug(f"Quest tags: could not write {path}. Error: {e}")
 
     def __log_once(self, key: str, level: int, message: str):
         if key not in self.__logged_once:
             self.__logged_once.add(key)
             logging.log(level, message)
+
+
+def _describe(check: Check) -> str:
+    """A check as the console would show it, e.g. `"Skyrim.esm|0D7505".getdead`"""
+    call = " ".join(p for p in (check.function, check.param1, check.param2) if p)
+    return f'"{check.reference}".{call}' if check.reference else call

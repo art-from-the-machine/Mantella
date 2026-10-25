@@ -42,8 +42,9 @@ class communication_constants:
     KEY_REPLYTYPE_QUESTCHECKLIST: str = PREFIX + "quest_check_list_result"
     KEY_QUESTCHECKS_LIST: str = PREFIX + "quest_check_list" # In the list reply, and in the start reply when the game's list is out of date
     KEY_QUESTCHECKS_FUNCTIONS: str = PREFIX + "quest_check_functions"
-    KEY_QUESTCHECKS_SUBJECTS: str = PREFIX + "quest_check_subjects"
-    KEY_QUESTCHECKS_ARGUMENTS: str = PREFIX + "quest_check_arguments"
+    KEY_QUESTCHECKS_REFERENCES: str = PREFIX + "quest_check_references" # What each check runs on; empty: the player
+    KEY_QUESTCHECKS_PARAMS1: str = PREFIX + "quest_check_params1"
+    KEY_QUESTCHECKS_PARAMS2: str = PREFIX + "quest_check_params2"
     KEY_QUESTCHECKS_VERSION: str = PREFIX + "quest_check_version" # In the list, and with every set of answers
     KEY_QUESTCHECKS_RESULTS: str = PREFIX + "quest_check_results" # In the context (start, player input), or top-level on the catch-up continue request
     KEY_NPCEVENT_PLAYERNOTICEABLE: str = PREFIX + "npc_event_player_noticeable"

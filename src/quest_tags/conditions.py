@@ -2,6 +2,8 @@
 
 A condition is written like a Skyrim console command, e.g. ``getstagedone CWObj 100=1 AND "0D7505".getdead=1``.
 Each function call in a condition becomes a check: one question the game answers with a plain number.
+Any of the game's condition functions can be used: the check plugin reads what kind of values each one takes
+from the game, so the values are passed on as written. Only the reference before the dot is read here.
 The game only answers checks; comparing, combining and picking each tag's outcome happens here.
 See docs/quest_tags_1_user_edits.md, Parts 4 and 5.
 """
@@ -17,41 +19,22 @@ import pandas as pd
 # Reserved answers. Integers this small are exact in Papyrus' 32-bit floats
 ANSWER_MISSING = -9999901.0     # What the check is about doesn't exist in this game: not true
 ANSWER_NOT_LOADED = -9999902.0  # Exists, but isn't in memory right now (e.g. an NPC far away): unknown
+ANSWER_UNREADABLE = -9999903.0  # The game can't run the check (unknown function, wrong values, a wrong FormID): not true
 
 PLAYER = "player"
 
 # Load order prefixes of the master files every Skyrim install has
 _MASTER_FILES = {0x00: "Skyrim.esm", 0x01: "Update.esm", 0x02: "Dawnguard.esm", 0x03: "HearthFires.esm", 0x04: "Dragonborn.esm"}
 
-# Console skill names -> the game's actor value names
-_SKILLS = {
-    "onehanded": "OneHanded", "twohanded": "TwoHanded", "archery": "Marksman", "marksman": "Marksman",
-    "block": "Block", "smithing": "Smithing", "heavyarmor": "HeavyArmor", "lightarmor": "LightArmor",
-    "pickpocket": "Pickpocket", "lockpicking": "Lockpicking", "sneak": "Sneak", "alchemy": "Alchemy",
-    "speech": "Speechcraft", "speechcraft": "Speechcraft", "alteration": "Alteration", "conjuration": "Conjuration",
-    "destruction": "Destruction", "illusion": "Illusion", "restoration": "Restoration", "enchanting": "Enchanting",
+# Console commands that aren't condition functions, or that are read differently here -> the condition function asked instead
+_RENAMED_FUNCTIONS = {
+    "show": "getglobalvalue",
+    "getav": "getbaseactorvalue",  # Potions and enchantments don't count
 }
-
-# How each console function is written: what comes before the dot, and what its arguments are.
-# "ref": an NPC in quotes before the dot. "ref_or_player": the same, or the player when left out.
-# Argument kinds: "quest" (editor ID), "int", "form", "skill"
-_FUNCTIONS: dict[str, tuple[str | None, list[str]]] = {
-    "getstagedone": (None, ["quest", "int"]),
-    "getquestcompleted": (None, ["quest"]),
-    "getstage": (None, ["quest"]),
-    "getdead": ("ref", []),
-    "getav": ("ref", ["skill"]),
-    "getfactionrank": ("ref_or_player", ["form"]),
-    "getinfaction": ("ref_or_player", ["form"]),
-    "getkeyworddataforlocation": (None, ["form", "form"]),
-    "show": (None, ["form"]),
-    "getrelationshiprank": ("ref", ["form"]),
-    "ishostiletoactor": ("ref", ["form"]),
-    "hasspell": ("ref", ["form"]),
-}
+_MAX_PARAMS = 2  # Condition functions take at most two values
 
 _ATOM_RE = re.compile(
-    r'^(?:"(?P<ref>[^"]*)"\s*\.\s*)?(?P<func>[A-Za-z]+)(?P<args>(?:\s+[^\s<>=]+)*)\s*(?:(?P<op><=|>=|=|<|>)\s*(?P<value>-?\d+(?:\.\d+)?))?$'
+    r'^(?:"(?P<ref>[^"]*)"\s*\.\s*)?(?P<func>[A-Za-z]\w*)(?P<args>(?:\s+[^\s<>=]+)*)\s*(?:(?P<op><=|>=|=|<|>)\s*(?P<value>-?\d+(?:\.\d+)?))?$'
 )
 _TOKEN_RE = re.compile(r'(\(|\)|\bAND\b|\bOR\b)', re.IGNORECASE)
 _HEX_RE = re.compile(r'^[0-9A-Fa-f]{1,8}$')
@@ -63,10 +46,12 @@ class UnreadableCondition(ValueError):
 
 @dataclass(frozen=True)
 class Check:
-    """One question for the game. `subject` and `argument` are a form ("Skyrim.esm|0D7505"), `player`, a quest editor ID, a number or a skill name"""
+    """One question for the game: a condition function, run on `reference` (empty: the player), with up to two values.
+    `reference` is a form ("Skyrim.esm|0D7505") or `player`. The values are passed on as written in the condition"""
     function: str
-    subject: str
-    argument: str = ""
+    reference: str = ""
+    param1: str = ""
+    param2: str = ""
 
 
 @dataclass(frozen=True)
@@ -99,10 +84,10 @@ def _compare(answer: float, op: str, value: float) -> bool:
 
 
 def evaluate_expression(expression: Expression, answers: dict[Check, float]) -> bool | None:
-    """True, False, or None when unknown. A missing form is not true; a form that isn't loaded is unknown"""
+    """True, False, or None when unknown. A missing form or a check the game can't run is not true; a form that isn't loaded is unknown"""
     if isinstance(expression, Atom):
         answer = answers[expression.check]
-        if answer == ANSWER_MISSING:
+        if answer in (ANSWER_MISSING, ANSWER_UNREADABLE):
             return False
         if answer == ANSWER_NOT_LOADED:
             return None
@@ -224,59 +209,29 @@ class _ConditionParser:
         if not match:
             raise UnreadableCondition(f"can't read '{text}'")
         function = match.group("func").lower()
-        if function not in _FUNCTIONS:
-            raise UnreadableCondition(f"unknown function {match.group('func')}")
-        subject_kind, argument_kinds = _FUNCTIONS[function]
-        ref = match.group("ref")
-        arguments = match.group("args").split()
-        if len(arguments) != len(argument_kinds):
-            raise UnreadableCondition(f"{function} takes {len(argument_kinds)} argument(s), got {len(arguments)}")
-        if subject_kind is None and ref is not None:
-            raise UnreadableCondition(f"{function} doesn't take a reference before the dot")
-        if subject_kind == "ref" and ref is None:
-            raise UnreadableCondition(f"{function} needs a reference before the dot")
+        function = _RENAMED_FUNCTIONS.get(function, function)
+        params = match.group("args").split()
+        if len(params) > _MAX_PARAMS:
+            raise UnreadableCondition(f"{function} has {len(params)} values; condition functions take at most {_MAX_PARAMS}")
+        reference = _parse_form(match.group("ref")) if match.group("ref") is not None else ""
 
-        values: list[str] = []
-        if ref is not None:
-            values.append(_parse_form(ref))
-        elif subject_kind == "ref_or_player":
-            values.append(PLAYER)
-        for argument, kind in zip(arguments, argument_kinds):
-            if kind == "quest":
-                values.append(argument)
-            elif kind == "int":
-                if not argument.isdigit():
-                    raise UnreadableCondition(f"'{argument}' is not a number")
-                values.append(str(int(argument)))
-            elif kind == "skill":
-                if argument.lower() not in _SKILLS:
-                    raise UnreadableCondition(f"unknown skill '{argument}'")
-                values.append(_SKILLS[argument.lower()])
-            else:
-                values.append(_parse_form(argument))
-
-        if function == "show":
-            function = "getglobalvalue"
         is_death = function == "getdead"
+        check = Check(function, reference, *params)
         if is_death:
-            values[0] = self.__to_death_count(values[0])
-            if values[0].startswith("deadcount:"):
-                function, values[0] = "getdeadcount", values[0][len("deadcount:"):]
-
-        check = Check(function, values[0], values[1] if len(values) > 1 else "")
+            check = self.__to_death_count(check)
         op = match.group("op") or "="
         value = float(match.group("value")) if match.group("value") is not None else 1.0
         return Atom(check, op, value, is_death)
 
-    def __to_death_count(self, reference: str) -> str:
+    def __to_death_count(self, check: Check) -> Check:
         """Deaths are checked on the base NPC's death count, which works wherever the player is (Part 4)"""
-        if reference == PLAYER:
-            return reference
-        file_name, local_id = reference.split("|")
+        if check.reference in ("", PLAYER):
+            return check
+        file_name, local_id = check.reference.split("|")
         base_id = self.__ref_to_base.get(int(local_id, 16))
         if base_id is None:
-            return reference
-        return f"deadcount:{file_name}|{base_id:06X}"
+            return check
+        return Check("getdeadcount", "", f"{file_name}|{base_id:06X}")
 
 
 @dataclass
@@ -311,6 +266,7 @@ class CheckList:
         self.checks: list[Check] = []
         self.tags: dict[str, TagConditions] = {}
         self.unreadable: list[UnreadableOutcome] = []
+        self.first_use: dict[Check, tuple[str, int]] = {}  # The tag and slot that first uses each check, for the log
         self.__index: dict[Check, int] = {}
         for tag, codes in tag_codes.items():
             conditions = TagConditions()
@@ -321,23 +277,24 @@ class CheckList:
                     self.unreadable.append(UnreadableOutcome(tag, slot, code, str(e)))
                     continue
                 conditions.outcomes[slot] = expression
-                self.__add_checks(expression)
+                self.__add_checks(expression, tag, slot)
                 if _is_death_only(expression):
                     conditions.death_only.add(slot)
             if conditions.outcomes:
                 self.tags[tag] = conditions
         self.version = self.__make_version()
 
-    def __add_checks(self, expression: Expression):
+    def __add_checks(self, expression: Expression, tag: str, slot: int):
         if isinstance(expression, Junction):
             for part in expression.parts:
-                self.__add_checks(part)
+                self.__add_checks(part, tag, slot)
         elif expression.check not in self.__index:
             self.__index[expression.check] = len(self.checks)
             self.checks.append(expression.check)
+            self.first_use[expression.check] = (tag, slot)
 
     def __make_version(self) -> str:
-        payload = json.dumps([[c.function, c.subject, c.argument] for c in self.checks])
+        payload = json.dumps([[c.function, c.reference, c.param1, c.param2] for c in self.checks])
         return hashlib.sha1(payload.encode("utf-8")).hexdigest()[:8]
 
     def evaluate(self, answers: list[float]) -> dict[str, int | None]:

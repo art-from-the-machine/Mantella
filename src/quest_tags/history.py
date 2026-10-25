@@ -41,13 +41,17 @@ def load(path: str) -> dict[str, dict] | None:
 
 
 def save(path: str, tags: dict[str, dict]):
+    write_json(path, {"tags": tags})
+
+
+def write_json(path: str, data: dict):
     """Write a new file first, then swap it in, so a crash never leaves a half-written file"""
     folder = os.path.dirname(path)
     os.makedirs(folder, exist_ok=True)
-    handle, temp_path = tempfile.mkstemp(dir=folder, prefix=FILE_NAME, suffix=".tmp")
+    handle, temp_path = tempfile.mkstemp(dir=folder, prefix=os.path.basename(path), suffix=".tmp")
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as f:
-            json.dump({"tags": tags}, f, indent=2, sort_keys=True)
+            json.dump(data, f, indent=2, sort_keys=True)
         _replace(temp_path, path)
     except Exception:
         os.remove(temp_path)
