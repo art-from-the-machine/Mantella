@@ -418,7 +418,7 @@ Example: the `whiterun_hold_civil_war` tag (179 NPCs have it):
 | Outcome | Condition (`code_N`)                                                     | Text (`potential_paste_N`)                                                          |
 | ------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
 | 1       | `GetKeywordDataForLocation 16772 2A456=2`                                | Events Update: The Stormcloaks have successfully attacked Whiterun, taking control of the city… |
-| 2       | `GetKeywordDataForLocation 16772 2A456=1 AND "FC90B".getdisabled=1`      | Events Update: The Stormcloaks have attacked Whiterun, but failed to take the city. |
+| 2       | `GetKeywordDataForLocation 16772 2A456=1 AND "FC90B".getdisabled=0`      | Events Update: The Stormcloaks have attacked Whiterun, but failed to take the city. |
 
 
 In plain words: outcome 1 is "the Stormcloaks own Whiterun now" (`16772` is Whiterun, `2A456` is the keyword for who owns it); outcome 2 is "the battle is over and the Imperials still own Whiterun". Once you win the defence, every NPC with the tag knows that the attack failed.
@@ -527,7 +527,7 @@ Quest tags: first check for Ado1: 37 outcomes already true, recorded as backgrou
 3. **When a conversation starts, and each time you speak**, the plugin answers every question in about one frame, and the answers go to Mantella with what the game already sends. Nothing runs in the background or between conversations.
 4. **Mantella decides** which outcome each tag is at (the highest true one wins), records it, announces new changes found when you speak, and gives NPCs with the tag the current outcome's text.
 
-**NPCs far away.** Skyrim only keeps many NPCs in memory while you're near them. A question about such an NPC (e.g. "does Rorlund in Solitude like you?") can't be answered while you're elsewhere, so that tag keeps its current outcome until you're near them again. Deaths are the exception: Mantella asks for the game's death count, which works wherever you are.
+**NPCs far away.** A few NPCs aren't kept in memory while you're far from them. A question about one of them can't be answered while you're elsewhere, so that tag keeps its current outcome until you're near them again. Deaths are the exception: Mantella asks for the game's death count, which works wherever you are.
 
 ### Editing outcomes
 
@@ -646,10 +646,10 @@ Deleting this file starts the record from scratch: everything already true becom
 | `Quest tags: the game can't run getstagedone DA08 in the_whispering_door_quest slot 1 (...)`       | Warning. A misspelled command, too few or too many values, a name where a FormID is needed, or a FormID that's wrong. The check is not true. `MantellaQuestChecks.log` says which, e.g. `GetStageDone takes 2 value(s), got 1` |
 | `Quest tags: NPC not found for a death count: ... (check base_id in the characters CSV)`            | Warning. A `getdead` NPC's `base_id` in the characters CSV is wrong                                                                               |
 | `Quest tags: not found: getquestcompleted masquest in MaS_main_quest slot 1 (...)`                  | Debug. Its mod isn't installed (normal), or a typo in a quest name                                                                                 |
-| `Quest tags: not loaded: "Skyrim.esm\|0198A5".getrelationshiprank 14 in ... (...)`                  | Debug. An NPC who isn't near you. The tag keeps its outcome until you are. A wrong FormID looks the same                                          |
+| `Quest tags: not loaded: "Skyrim.esm\|0198B5".getdead in ... (...)`                                 | Debug. An NPC who isn't near you. The tag keeps its outcome until you are. A wrong FormID looks the same                                          |
 | `Quest tags: first check for <playthrough>: 37 outcomes already true, recorded as background`      | The first check in a playthrough                                                                                                                  |
 | `Quest tag whiterun_hold_civil_war: outcome 0 -> 2 (announced)`                                    | An outcome changed. Instead of `(announced)`: `(found at conversation start)`, `(found in catch-up)`, `(announce = no)`, `(death, not announced)` |
-| `Quest tag paarthurnax_quest: outcome 2 -> 1 (no longer true)`                                     | You loaded an older save, or a quest restarted                                                                                                    |
+| `Quest tag paarthurnax_quest: outcome 2 -> 1 (no longer true)`                                     | You loaded an older save, a quest restarted, or an NPC was resurrected                                                                            |
 | `Quest tags: the game sent no results. Update Mantella-Spell, and check that MantellaQuestChecks.dll loaded (see SKSE's log).` | Once per session. The plugin isn't working; nothing is checked                                                    |
 
 
@@ -665,7 +665,7 @@ Deleting this file starts the record from scratch: everything already true becom
 | The wrong outcome                               | Two outcomes are true at once (the higher one wins), or a check is not true because something is missing or can't be run. `quest_check_answers.json` shows each answer                                                                                            |
 | An outcome is stuck after travelling            | A check is about an NPC who isn't near you (`not loaded` in the debug log). It updates when you're near them again                                                                                                                                                 |
 | An outcome is news again                        | You loaded an older save; that's expected                                                                                                                                                                                                                           |
-| An NPC forgot an outcome                        | You loaded an older save, or a repeatable errand quest started again. Look for `no longer true` in the log                                                                                                                                                         |
+| An NPC forgot an outcome                        | You loaded an older save, a repeatable errand quest started again, or an NPC was resurrected. Look for `no longer true` in the log                                                                                                                                  |
 | An announcement doesn't fit the people present  | Set `announce` to `no` for the tag, or silence it with **Ignored In-Game Events**                                                                                                                                                                                  |
 | You edited a CSV and nothing changed            | **Other → Reload Character Data → Reload**. The new list reaches the game at the next conversation start                                                                                                                                                           |
 
@@ -679,7 +679,7 @@ In `quest_check_answers.json`, three special numbers mean the game couldn't answ
 - After **Reload Character Data** or a Mantella update, the game catches up at the next conversation start. The NPC's first line may still use the old picture; every line after it is up to date.
 - More than five announcements on one line can be cut by **Max Count Events**. They're still recorded, so NPCs with the tag still learn them.
 - Quests that can be done more than once (some small "Favor" errands) clear their steps when they start again. The tag then goes back, as if you'd loaded an older save.
-- A death count never goes down, so an NPC brought back with the console `resurrect` command still counts as dead.
+- An NPC brought back with the console `resurrect` command counts as alive again. The outcome goes back, as if you'd loaded an older save.
 
 ## Lorebook
 
