@@ -226,8 +226,7 @@ class ImageManager:
         '''
 
         if platform.system() != "Windows":
-            logger.warning("Vision LLM is supported only on Windows")
-            return None
+            return self._get_image_non_windows()
 
         try:
             params = self.capture_params
@@ -262,6 +261,25 @@ class ImageManager:
             self.reset_capture_params() # reset the window capture coordinates
             return None
         
+
+
+    def _get_image_non_windows(self) -> str | None:
+        '''macOS/Linux: capture the main display (where the game runs borderless) with mss'''
+        try:
+            import mss
+            import numpy as np
+            with mss.mss() as sct:
+                shot = sct.grab(sct.monitors[1])
+            screenshot = cv2.cvtColor(np.array(shot), cv2.COLOR_BGRA2BGR)
+            height, width = screenshot.shape[:2]
+            screenshot = self._resize_image(screenshot, width, height)
+            buffer = self._encode_image_to_jpeg(screenshot)
+            if self.__save_screenshot:
+                self._save_screenshot_to_file(buffer)
+            return base64.b64encode(buffer).decode()
+        except Exception as e:
+            logger.error(f"Screen capture failed (grant Screen Recording to Terminal): {e}")
+            return None
 
     @utils.time_it
     def _save_screenshot_to_file(self, screenshot: bytes):
