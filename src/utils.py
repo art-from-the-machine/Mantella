@@ -37,6 +37,15 @@ def remove_extra_whitespace(text):
     return re.sub('\\s+', ' ', text).strip()
 
 
+_CURLY_APOSTROPHES = str.maketrans({"’": "'", "‘": "'"})
+
+
+def normalize_apostrophes(text: str) -> str:
+    """Turn curly apostrophes (’ ‘) into straight ones ('), so names typed in a spreadsheet that
+    auto-corrects quotes still match names typed elsewhere"""
+    return text.translate(_CURLY_APOSTROPHES)
+
+
 def remove_trailing_number(s):
     try:
         return re.sub(r'\d+$', '', s).strip()

@@ -108,7 +108,7 @@ class BioTemplateManager:
                         if 'tag' in df.columns and 'description' in df.columns:
                             templates_loaded = 0
                             for _, row in df.iterrows():
-                                tag = self._get_cell(row, 'tag')
+                                tag = utils.normalize_apostrophes(self._get_cell(row, 'tag'))
                                 if not tag:
                                     continue
                                 # Cell by cell: a later file only replaces the cells it fills in
@@ -209,11 +209,11 @@ class BioTemplateManager:
     
     def get_template(self, tag: str) -> Optional[str]:
         """Get bio template for a specific tag"""
-        return self.templates.get(tag)
+        return self.templates.get(utils.normalize_apostrophes(tag))
 
     def get_outcome_text(self, tag: str, slot: int) -> Optional[str]:
         """The text of one quest outcome. Placeholders like `custom` are never used"""
-        text = self.outcome_texts.get(tag, {}).get(slot)
+        text = self.outcome_texts.get(utils.normalize_apostrophes(tag), {}).get(slot)
         if not text or text.lower() == 'custom':
             return None
         return text
@@ -256,9 +256,10 @@ class BioTemplateManager:
 
         # Deduplicate while preserving input order so repeated tags do not
         # duplicate bio sections or dynamic events.
+        # Curly apostrophes become straight ones, as in the templates, so `risaad’s_caravan` finds `risaad's_caravan`
         deduped_tags: List[str] = []
         seen: set[str] = set()
-        for tag in (tag.strip() for tag in tags_string.split(',')):
+        for tag in (utils.normalize_apostrophes(tag.strip()) for tag in tags_string.split(',')):
             if not tag:
                 continue
             if tag in seen:
