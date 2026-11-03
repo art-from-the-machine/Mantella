@@ -42,7 +42,7 @@ class OtherDefinitions:
     
     @staticmethod
     def get_ingame_events_filter_config_value() -> ConfigValue:
-        description = """In-game events from the game that NPCs should never hear about, e.g. spells cast by other mods. Separate multiple patterns with commas.
+        description = """In-game events that NPCs should never hear about, e.g. spells cast by other mods, or combat notices like *now in combat*. Separate multiple patterns with commas.
                         IMPORTANT: Just typing a spell name like Flame Cloak does NOT work. Write *Flame Cloak* instead.
                         How patterns work:
                         - A pattern is compared to the WHOLE event text, ignoring upper / lower case. Events are full sentences, for example:

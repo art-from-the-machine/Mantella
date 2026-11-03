@@ -249,6 +249,20 @@ class context:
             return self.__custom_context_values[key]
         return None
 
+    def __is_ignored_event(self, event: Any) -> bool:
+        """True if the event matches a pattern in the Ignored In-Game Events setting"""
+        patterns = self.__config.ingame_events_filter
+        if not patterns:
+            return False
+        text = str(event).strip().lower()
+        return any(fnmatch.fnmatchcase(text, p) for p in patterns)
+
+    def __add_ingame_event(self, event: str):
+        """Adds an event unless the Ignored In-Game Events setting filters it out.
+        This covers events Mantella creates itself (combat, location, time, etc), not only the ones sent by the game"""
+        if not self.__is_ignored_event(event):
+            self.__ingame_events.append(event)
+
     @utils.time_it
     def get_context_ingame_events(self) -> list[str]:
         return self.__ingame_events
@@ -284,7 +298,7 @@ class context:
     @utils.time_it
     def __remove_character(self, npc: Character):
         self.__npcs_in_conversation.remove_character(npc)
-        self.__ingame_events.append(f"{npc.name} has left the conversation.")
+        self.__add_ingame_event(f"{npc.name} has left the conversation.")
         self.__have_actors_changed = True
 
     @utils.time_it
@@ -353,7 +367,7 @@ class context:
 
         self.__custom_context_values = custom_context_values
         if custom_ingame_events and self.__config.ingame_events_filter:
-            custom_ingame_events = [e for e in custom_ingame_events if not any(fnmatch.fnmatchcase(str(e).strip().lower(), p) for p in self.__config.ingame_events_filter)]
+            custom_ingame_events = [e for e in custom_ingame_events if not self.__is_ignored_event(e)]
         if custom_ingame_events:
             _apply_structured_context_events(custom_ingame_events)
 
@@ -368,10 +382,10 @@ class context:
             if self.__prev_location is None:
                 # Emit initial location so it appears in conversation history.
                 self.__prev_location = self.__location
-                self.__ingame_events.append(f"The location is now {self.__location}.")
+                self.__add_ingame_event(f"The location is now {self.__location}.")
             elif self.__location != self.__prev_location:
                 self.__prev_location = self.__location
-                self.__ingame_events.append(f"The location is now {location}.")
+                self.__add_ingame_event(f"The location is now {location}.")
         
         if in_game_time is not None:
             self.__ingame_time = in_game_time
@@ -384,13 +398,13 @@ class context:
             if (current_time != self.__prev_game_time) and (self.__prev_game_time != None):
                 self.__prev_game_time = current_time
                 if self.__hourly_time:
-                    self.__ingame_events.append(f"The time is {current_time[0]} {current_time[1]}.")
+                    self.__add_ingame_event(f"The time is {current_time[0]} {current_time[1]}.")
                 else:
-                    self.__ingame_events.append(f"The conversation now takes place {current_time[1]}.")
+                    self.__add_ingame_event(f"The conversation now takes place {current_time[1]}.")
 
         if weather != self.__weather:
             if self.__weather != "":
-                self.__ingame_events.append(weather)
+                self.__add_ingame_event(weather)
             self.__weather = weather
 
         self.__vision_hints = ''
@@ -398,7 +412,7 @@ class context:
             self.set_vision_hints(
                 str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY)), 
                 str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY)))
-            self.__ingame_events.append(self.__vision_hints)
+            self.__add_ingame_event(self.__vision_hints)
 
         if custom_ingame_events:
             self.__ingame_events.extend(custom_ingame_events)
@@ -410,9 +424,9 @@ class context:
         if current_stats.is_in_combat != npc.is_in_combat:
             name = 'The player' if npc.is_player_character else npc.name
             if npc.is_in_combat:
-                self.__ingame_events.append(f"{name} is now in combat!")
+                self.__add_ingame_event(f"{name} is now in combat!")
             else:
-                self.__ingame_events.append(f"{name} is no longer in combat.")
+                self.__add_ingame_event(f"{name} is no longer in combat.")
         #update custom  values
         try:
             if (current_stats.get_custom_character_value("mantella_actor_pos_x") is not None and
@@ -435,13 +449,13 @@ class context:
             if current_stats.is_enemy != npc.is_enemy:
                 if npc.is_enemy: 
                     # TODO: review if pronouns can be replaced with "they"
-                    self.__ingame_events.append(f"{npc.name} is attacking {player_name}. This is either because {npc.personal_pronoun_subject} is an enemy or {player_name} has attacked {npc.personal_pronoun_object} first.")
+                    self.__add_ingame_event(f"{npc.name} is attacking {player_name}. This is either because {npc.personal_pronoun_subject} is an enemy or {player_name} has attacked {npc.personal_pronoun_object} first.")
                 else:
-                    self.__ingame_events.append(f"{npc.name} is no longer attacking {player_name}.")
+                    self.__add_ingame_event(f"{npc.name} is no longer attacking {player_name}.")
             #Relationship rank
             if current_stats.relationship_rank != npc.relationship_rank:
                 trust = self.__get_trust(npc)
-                self.__ingame_events.append(f"{player_name} is now {trust} to {npc.name}.")
+                self.__add_ingame_event(f"{player_name} is now {trust} to {npc.name}.")
     
     @staticmethod
     def format_listing(listing: list[str]) -> str:
