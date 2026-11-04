@@ -37,6 +37,19 @@ class communication_constants:
     KEY_NPCEVENT_ADDFAILED_REFID: str = PREFIX + "npc_event_add_failed_refid"
     KEY_NPCEVENT_NEARBY_REFIDS: str = PREFIX + "npc_event_nearby_refids"
 
+    # Shout: sent with every continue and player input request. The rest only while the player shouts
+    KEY_SHOUT_ENABLED: str = PREFIX + "shout_enabled"
+    KEY_SHOUT_NEARBY_REFIDS: str = PREFIX + "shout_nearby_refids"
+    KEY_SHOUT_NEARBY_NAMES: str = PREFIX + "shout_nearby_names" # In the same order as the refids
+    KEY_SHOUT_NEARBY_ACTORS: str = PREFIX + "shout_nearby_actors" # Full actor settings, sent once for each person who is new to the list
+    KEY_SHOUT_LINESBETWEENJOINS: str = PREFIX + "shout_lines_between_joins"
+    KEY_SHOUT_MAXDESCRIBED: str = PREFIX + "shout_max_described" # How many of the nearest people the Game Master gets the bios and memories of
+    KEY_SHOUT_MAXPEOPLE: str = PREFIX + "shout_max_people"
+    KEY_SHOUT_ADDFAILED_REFID: str = PREFIX + "shout_add_failed_refid"
+    KEY_REPLYTYPE_SHOUT_ADDACTOR: str = PREFIX + "shout_add_actor"
+    KEY_SHOUT_ADDACTOR_REFID: str = PREFIX + "shout_add_actor_refid"
+    KEY_SHOUT_UNAVAILABLE: str = PREFIX + "shout_unavailable" # In the reply: Shout can't be used, as no Game Master model is set up
+
     # Quest tags: the game answers the checks of the quest tag conditions
     KEY_REQUESTTYPE_QUESTCHECKLIST: str = PREFIX + "quest_check_list_request" # Sent once when a save loads
     KEY_REPLYTYPE_QUESTCHECKLIST: str = PREFIX + "quest_check_list_result"

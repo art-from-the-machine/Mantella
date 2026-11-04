@@ -16,10 +16,11 @@ from src.remember.summaries import Summaries
 from src.llm.client_base import ClientBase
 from src.llm.llm_client import LLMClient
 from src.output_manager import ChatManager
-from src.llm.messages import AssistantMessage, join_message, leave_message, SystemMessage, UserMessage
+from src.llm.messages import AssistantMessage, join_message, leave_message, overheard_message, SystemMessage, UserMessage
 from src.conversation.context import add_or_update_result, context as Context
 from src.llm.message_thread import message_thread
-from src.conversation.conversation_type import conversation_type, multi_npc, multi_npc_game_master, npc_event, pc_to_npc, radiant
+from src.conversation.conversation_type import conversation_type, multi_npc, multi_npc_game_master, npc_event, pc_to_npc, radiant, shout
+from src.conversation.bystanders import ShoutState
 from src.conversation.game_master import GameMasterTurns
 from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
@@ -37,6 +38,8 @@ class Conversation:
     TOKEN_LIMIT_PERCENT: float = 0.9
     TOKEN_LIMIT_RELOAD_MESSAGES: float = 0.1
     DIRECTOR_CONTINUE_TEXT: str = "The scene continues."
+    __shout_count: int = 0 # Each time Shout is switched on gets its own marker token
+    __announce_private: bool = False # Shout was switched off: says who is left, once the game's updated list of people has arrived
     """Controls the flow of a conversation."""
     def __init__(self, context_for_conversation: Context, output_manager: ChatManager, rememberer: Remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool) -> None:
         
@@ -176,6 +179,12 @@ class Conversation:
         if self.__context.npc_event:
             for npc in update_result.added_npcs:
                 self.__context.npc_event.on_joined(npc.ref_id, npc.is_player_character)
+        overheard_npcs: list[Character] = []
+        shout_state = self.__context.shout
+        if isinstance(shout_state, ShoutState):
+            for npc in update_result.added_npcs:
+                if not npc.is_player_character and shout_state.on_npc_joined(npc.ref_id):
+                    overheard_npcs.append(npc) # Joined by shouting: heard everything since the player started shouting
         # If a non-player NPC joined, log the prompt the next time we regenerate it.
         # (Prompt regeneration itself happens in update_context() when have_actors_changed is true.)
         if any((not npc.is_player_character) for npc in update_result.added_npcs):
@@ -187,7 +196,43 @@ class Conversation:
             
         # mark the joining / leaving of an npc in the message_thread
         for update_message in self.generate_add_or_remove_messages(update_result):
+            if isinstance(update_message, join_message) and update_message.character.ref_id in [npc.ref_id for npc in overheard_npcs]:
+                continue
             self.__messages.add_message(update_message)
+        for npc in overheard_npcs:
+            self.__add_overheard_message(npc)
+
+    def __add_overheard_message(self, npc: Character):
+        """Shout: puts the join note of someone who joined by shouting where the player started shouting, so they heard everything
+        from there on. The prompts, the Game Master's history for each NPC and the summaries all go by where the join note is"""
+        shout_state = self.__context.shout
+        token = shout_state.start_marker if isinstance(shout_state, ShoutState) else None
+        self.__messages.insert_overheard_message(overheard_message(npc, self.__context.config), token)
+
+    def start_shout(self, settings: dict[str, Any] | None):
+        """Shout was switched on: anyone nearby can answer or join in. The conversation becomes a Shout conversation"""
+        self.__shout_count += 1
+        token = self.__shout_count
+        shout_state = ShoutState(start_marker=token if self.__messages.mark_last_persistent_message(token) else None)
+        shout_state.apply_settings(settings)
+        self.__context.shout = shout_state
+        self.__context.have_actors_changed = True # Selects the conversation type again
+        logging.log(26, "Shout: the player is shouting. Anyone nearby can answer or join in")
+
+    def __add_private_event(self):
+        """Shout was switched off: an in-game event telling who is still in the now private conversation"""
+        player = self.__context.npcs_in_conversation.get_player_character()
+        npc_names = self.__context.get_character_names_as_text(False)
+        if not player or not npc_names:
+            return
+        self.__context.add_ingame_event(f"{player.name} is now speaking privately with {npc_names}.")
+
+    def stop_shout(self):
+        """Shout was switched off (Private). The game removes the people who joined by shouting"""
+        self.__context.shout = None
+        self.__context.have_actors_changed = True
+        self.__announce_private = True # The people who joined by shouting leave in the same request, so who is left is known after the actor update
+        logging.log(26, "Shout: private again. Only the people the player added can speak")
 
     @utils.time_it
     def generate_add_or_remove_messages(self, update_result: add_or_update_result) -> list[str]:
@@ -305,6 +350,8 @@ class Conversation:
                     return comm_consts.KEY_REPLYTYPE_NPCTALK, None
                 if isinstance(self.__conversation_type, npc_event):
                     return self.__continue_npc_event()
+                if isinstance(self.__conversation_type, shout):
+                    return self.__continue_shout()
                 return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
             else:
                 #If not ended, ask the conversation type for an automatic user message. If there is None, signal the game that the player must provide it 
@@ -335,6 +382,20 @@ class Conversation:
         self.__start_generating_npc_sentences()
         return comm_consts.KEY_REPLYTYPE_NPCTALK, None
 
+    def __continue_shout(self) -> tuple[str, Sentence | None]:
+        """Shout: what happens once the NPCs' turn is over"""
+        shout_state = self.__context.shout
+        if not isinstance(shout_state, ShoutState):
+            return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
+        if shout_state.pending_add:
+            # The game adds them first, as only actors in the conversation can speak in game
+            return comm_consts.KEY_REPLYTYPE_SHOUT_ADDACTOR, None
+        if shout_state.forced_speaker_ref_id or shout_state.answer_again:
+            # The person who joined speaks next, or the person picked to answer the player could not be added and someone else answers
+            self.__start_generating_npc_sentences()
+            return comm_consts.KEY_REPLYTYPE_NPCTALK, None
+        return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
+
     @utils.time_it
     def process_player_input(self, player_text: str) -> tuple[str, bool, Sentence|None]:
         """Submit the input of the player to the conversation
@@ -354,6 +415,9 @@ class Conversation:
         with self.__generation_start_lock: #This lock makes sure no new generation by the LLM is started while we clear this
             self.__cancel_game_master_turn() # Before stopping, so a running Game Master turn sees it was discarded
             self.__game_master_turns.on_player_input()
+            if isinstance(self.__conversation_type, shout) and isinstance(self.__context.shout, ShoutState):
+                self.__context.shout.count_line()
+                self.__context.shout.clear_pick() # A pick from the turn thrown away is not added
             self.__stop_generation() # Stop generation of additional sentences right now
             self.__sentences.clear() # Clear any remaining sentences from the list
             self.__context.npc_initiative = False # Once the player answers, the NPC Initiative Prompt gives way to the normal prompt
@@ -446,6 +510,9 @@ class Conversation:
         old_player_equipment = self.__context.get_player_equipment_snapshot()
 
         self.__context.update_context(location, time, custom_ingame_events, weather, custom_context_values)
+        if self.__announce_private:
+            self.__announce_private = False
+            self.__add_private_event()
 
         # Keep {location}/{time}/{weather}/{equipment}/{player_equipment} in the system prompt aligned with current game state.
         # Do NOT remove system-generated messages here; that is reserved for actor/type changes.
@@ -522,9 +589,11 @@ class Conversation:
             removed_messages_thread = message_thread(self.__context.config, None)
             for message in removed_messages:
                 removed_messages_thread.add_message(message)
+            characters = self.__context.npcs_in_conversation.get_all_characters()
+            # Log the removed messages. The kept ones are logged when the conversation ends, so they are not logged here
+            self.__save_conversation_log_for_characters(characters, removed_messages_thread)
             # Summarize the removed messages
-            self.__save_summary_for_characters(removed_messages_thread, self.__context.npcs_in_conversation.get_all_characters(), True)
-            conversation_log.save_conversation_log(self.__context.npcs_in_conversation.get_all_characters(), removed_messages, self.__context.world_id)
+            self.__save_summary_for_characters(removed_messages_thread, characters, True, save_log=False)
         
 
     @utils.time_it
@@ -655,6 +724,9 @@ class Conversation:
             return npc_event(config)
         if not characters.contains_player_character():
             return radiant(config)
+        if isinstance(self.__context.shout, ShoutState) and shout.is_enabled(config) and self.__output_manager.game_master_client:
+            # Shout always runs with a Game Master, whether or not Game Master Mode is enabled
+            return shout(config)
         if characters.active_character_count() >= 3:
             return self.__create_multi_npc_type(config)
         return pc_to_npc(config)
@@ -914,11 +986,12 @@ class Conversation:
             return True
 
     @utils.time_it
-    def __save_conversation_log_for_characters(self, characters_to_save_for: list[Character] ):
-        """Saves all messages of the conversation to a json file for each NPC in the conversation"""
+    def __save_conversation_log_for_characters(self, characters_to_save_for: list[Character], messages: message_thread | None = None):
+        """Saves the messages (by default all messages of the conversation) to a json file for each NPC in the conversation"""
+        messages = messages if messages is not None else self.__messages
         for npc in characters_to_save_for:
             if not npc.is_player_character:
-                conversation_log.save_conversation_log(npc, self.__messages.transform_to_openai_messages(self.__messages.get_talk_only()), self.__context.world_id)
+                conversation_log.save_conversation_log(npc, message_thread.transform_to_openai_messages(messages.get_talk_only()), self.__context.world_id)
                 
     @utils.time_it
     def __save_summary_for_characters(
@@ -929,6 +1002,7 @@ class Conversation:
         force: bool = False,
         save_thoughts: bool | None = None,
         save_reflections: bool | None = None,
+        save_log: bool = True,
     ):
         characters_object = Characters()
         for npc in characters_to_save_for:
@@ -954,7 +1028,8 @@ class Conversation:
                 conversation_start_ts=self.__conversation_start_ts,
             )
             # Save the log
-            self.__save_conversation_log_for_characters(characters_to_save_for)
+            if save_log:
+                self.__save_conversation_log_for_characters(characters_to_save_for)
 
     @utils.time_it
     def __initiate_reload_conversation(self):
@@ -982,7 +1057,8 @@ class Conversation:
             if isinstance(self.__conversation_type, radiant):
                 self.__conversation_type.mark_prompt_unusable()
             return
-        self.__messages.reload_message_thread(new_prompt, self.__llm_client.is_too_long, self.TOKEN_LIMIT_RELOAD_MESSAGES)
+        # Like a cut after an actor change: the dropped lines become memories and go into the conversation log
+        self.reload_and_cull_thread(new_prompt)
 
     @utils.time_it
     def __has_conversation_ended(self, last_user_text: str) -> bool:

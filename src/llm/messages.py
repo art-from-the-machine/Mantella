@@ -119,6 +119,16 @@ class join_message(Message):
         dictionary = {"role":"system", "content": self.get_formatted_content(),}
         return f"{dictionary}"
     
+SHOUT_MARKER_ATTRIBUTE = "shout_marker" # Set on the last message before the player started shouting. Kept when the message is copied
+
+
+class overheard_message(join_message):
+    """Shout: someone nearby who joined later, placed where the player started shouting. From there on they heard everything (for system use only)"""
+    def __init__(self, character: Character, config: ConfigLoader):
+        super().__init__(character, config)
+        self.text = f"*{character.name} is nearby and can hear the conversation*"
+
+
 class leave_message(Message):
     """  A internal message logging that a certain actor has left the conversation this point (for system use only) """
     def __init__(self, character: Character, config: ConfigLoader):

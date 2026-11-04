@@ -320,8 +320,8 @@ class GameStateManager:
             chat_manager.update_game_master_client(GameStateManager.create_game_master_client(config, secret_key_file, log_prefix="Hot-swap: "))
             self.__npc_initiative_client = None # Recreated with the new settings on the next check
             self.__npc_event_clients = {}
-            if self.__talk and self.__talk.context.npc_event:
-                self.__ensure_event_game_master_client()
+            if self.__talk and (self.__talk.context.npc_event or self.__talk.context.shout):
+                self.__ensure_game_master_client()
             
             # Clear per-character client cache to force recreation with new settings
             chat_manager.clear_per_character_client_cache()
@@ -469,7 +469,7 @@ class GameStateManager:
         event_id = int(input_json.get(comm_consts.KEY_NPCEVENT_ID, 0))
         pending_event, self.__pending_npc_event = self.__pending_npc_event, None
         if event_id:
-            if pending_event and pending_event.id == event_id and self.__ensure_event_game_master_client():
+            if pending_event and pending_event.id == event_id and self.__ensure_game_master_client():
                 context_for_conversation.npc_event = pending_event
                 logging.log(26, f"NPC Event {event_id} starts: {pending_event.text}")
             else:
@@ -591,6 +591,7 @@ class GameStateManager:
             event.apply_game_update(input_json.get(comm_consts.KEY_NPCEVENT_NEARBY_REFIDS),
                                     input_json.get(comm_consts.KEY_NPCEVENT_PLAYERNOTICEABLE),
                                     int(input_json.get(comm_consts.KEY_NPCEVENT_ADDFAILED_REFID, 0)))
+        is_shout_unavailable = not self.__apply_shout(input_json)
         # The catch-up: answers to a check list the start reply just sent. Recorded, never announced
         changes, _ = self.__quest_tags.apply_report(self.__game, self.__talk.context.world_id, input_json, QuestTagTracker.MOMENT_CATCHUP)
         self.__reload_present_npcs = len(changes) > 0
@@ -610,6 +611,11 @@ class GameStateManager:
                 reply: dict[str, Any] = {comm_consts.KEY_REPLYTYPE: replyType}
                 break
 
+        if is_shout_unavailable:
+            reply[comm_consts.KEY_SHOUT_UNAVAILABLE] = True
+        shout_state = self.__talk.context.shout
+        if replyType == comm_consts.KEY_REPLYTYPE_SHOUT_ADDACTOR and shout_state and shout_state.pending_add:
+            reply[comm_consts.KEY_SHOUT_ADDACTOR_REFID] = shout_state.pending_add.refid
         if event and replyType == comm_consts.KEY_REPLYTYPE_NPCEVENT_ADDACTOR and event.pending_add:
             reply[comm_consts.KEY_NPCEVENT_ADDACTOR_REFID] = event.pending_add.refid
         elif event and replyType == comm_consts.KEY_REPLYTYPE_ENDCONVERSATION:
@@ -638,6 +644,14 @@ class GameStateManager:
     def player_input(self, input_json: dict[str, Any]) -> dict[str, Any]:
         if(not self.__talk ):
             return self.error_message("No running conversation.")
+        # Shout can't be used without a Game Master: the line is still handled as a private one, and the game switches Shout off again
+        is_shout_unavailable = not self.__apply_shout(input_json)
+        reply = self.__handle_player_input(input_json)
+        if is_shout_unavailable:
+            reply[comm_consts.KEY_SHOUT_UNAVAILABLE] = True
+        return reply
+
+    def __handle_player_input(self, input_json: dict[str, Any]) -> dict[str, Any]:
         
         self.__first_line = True
         
@@ -748,8 +762,8 @@ class GameStateManager:
                 logging.error(f"Could not create the NPC Initiative client from the Game Master settings: {e}")
         return self.__npc_initiative_client
 
-    def __ensure_event_game_master_client(self) -> bool:
-        """NPC Events always run with a Game Master. While Game Master Mode is disabled, the chat manager has no Game Master client,
+    def __ensure_game_master_client(self) -> bool:
+        """NPC Events and Shout always run with a Game Master. While Game Master Mode is disabled, the chat manager has no Game Master client,
         so it gets the one NPC Initiative uses. Other conversations still check Game Master Mode before using it
 
         Returns:
@@ -758,6 +772,52 @@ class GameStateManager:
         if not self.__chat_manager.game_master_client:
             self.__chat_manager.update_game_master_client(self.__get_npc_initiative_client())
         return self.__chat_manager.game_master_client is not None
+
+    def __apply_shout(self, input_json: dict[str, Any]) -> bool:
+        """Shout: what the game sends with each continue and player input request. Switches Shout on or off,
+        and passes on the Shout Mode settings and the people the game sees near the player
+
+        Returns:
+            bool: False if the player switched Shout on but it can't be used, as no Game Master client could be created
+        """
+        if not self.__talk or comm_consts.KEY_SHOUT_ENABLED not in input_json:
+            return True
+        from src.conversation.bystanders import EventPerson
+        from src.conversation.npc_initiative import InitiativeCandidate, label_candidates
+        context = self.__talk.context
+        settings = {
+            "lines_between_joins": input_json.get(comm_consts.KEY_SHOUT_LINESBETWEENJOINS),
+            "max_people": input_json.get(comm_consts.KEY_SHOUT_MAXPEOPLE),
+            "max_described": input_json.get(comm_consts.KEY_SHOUT_MAXDESCRIBED),
+        }
+        if bool(input_json[comm_consts.KEY_SHOUT_ENABLED]):
+            if not context.shout:
+                if not self.__ensure_game_master_client():
+                    logging.error("Shout needs the Game Master model. Set up the Game Master LLM Service and Game Master Model.")
+                    return False
+                self.__talk.start_shout(settings)
+        elif context.shout:
+            self.__talk.stop_shout()
+        shout_state = context.shout
+        if not shout_state:
+            return True
+        shout_state.apply_settings(settings)
+        # Their bios and memories go into the Game Master's prompt. The game sends each person once, when they first come near
+        loaded_names: list[str] = []
+        for actor_json in input_json.get(comm_consts.KEY_SHOUT_NEARBY_ACTORS, []):
+            character = self.load_character(actor_json, context.world_id)
+            if character:
+                shout_state.characters[int(actor_json[comm_consts.KEY_ACTOR_REFID])] = character
+                loaded_names.append(character.name)
+        if loaded_names:
+            logging.log(26, f"Shout: got the bios and memories of {', '.join(loaded_names)}")
+        # The game starts both lists with a 0 and an empty name, so they are never empty and "nobody nearby" still arrives
+        pairs = zip(input_json.get(comm_consts.KEY_SHOUT_NEARBY_REFIDS, []), input_json.get(comm_consts.KEY_SHOUT_NEARBY_NAMES, []))
+        candidates = [InitiativeCandidate(str(name), int(refid)) for refid, name in pairs if int(refid) != 0]
+        ref_ids = {c.refid: utils.mask_load_order(utils.convert_to_skyrim_hex_format(str(c.refid))) for c in candidates}
+        shout_state.update_nearby([EventPerson(label, c.refid, ref_ids[c.refid]) for label, c in label_candidates(candidates).items()])
+        shout_state.apply_add_failed(int(input_json.get(comm_consts.KEY_SHOUT_ADDFAILED_REFID, 0)))
+        return True
 
     def npc_event_check(self, input_json: dict[str, Any]) -> dict[str, Any]:
         """Asks the event generator to invent a scene between some of the nearby NPCs in the request.
@@ -810,7 +870,7 @@ class GameStateManager:
             participants, text = result
             self.__npc_event_count += 1
             nearby = [person for person in people if person not in participants]
-            self.__pending_npc_event = NpcEvent(self.__npc_event_count, text, player, nearby)
+            self.__pending_npc_event = NpcEvent(id=self.__npc_event_count, text=text, player=player, nearby=nearby)
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCEVENT, comm_consts.KEY_NPCEVENT_ID: self.__npc_event_count,
                     comm_consts.KEY_NPCEVENT_PARTICIPANT_REFIDS: [person.refid for person in participants]}
         except Exception as e:
@@ -1231,14 +1291,8 @@ class GameStateManager:
             ref_id: str = utils.convert_to_skyrim_hex_format(str(json[comm_consts.KEY_ACTOR_REFID]))
 
             # ignore plugin ID at the start of the ref ID as this can vary by load order
-            if ref_id.startswith('FE'):             #Item from lite mod, statically placed in CK, has 'FEXXX' prefix. 
-                ref_id = ref_id[-3:].rjust(6,"0")   #Mask off prefix, pad w/'0'
-            else:
-                ref_id = ref_id[-6:]
-            if base_id.startswith('FE'):
-                base_id = base_id[-3:].rjust(6,"0")
-            else:
-                base_id = base_id[-6:]
+            ref_id = utils.mask_load_order(ref_id)
+            base_id = utils.mask_load_order(base_id)
 
             character_name: str = str(json[comm_consts.KEY_ACTOR_NAME])
             gender: int = int(json[comm_consts.KEY_ACTOR_GENDER])

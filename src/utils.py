@@ -187,6 +187,12 @@ def convert_to_skyrim_hex_format(identifier: str) -> str:
     hex_format = f'{intID:x}'.upper()
     return hex_format.rjust(8,"0")
 
+def mask_load_order(hex_id: str) -> str:
+    """Drops the plugin's load order index at the start of a form id in Skyrim hex format, as it can vary between load orders"""
+    if hex_id.startswith('FE'): # Item from a light plugin, statically placed in CK, has an 'FEXXX' prefix
+        return hex_id[-3:].rjust(6, "0") # Mask off the prefix, pad with '0'
+    return hex_id[-6:]
+
 def get_time_group(in_game_time):
     in_game_time = int(in_game_time)
 

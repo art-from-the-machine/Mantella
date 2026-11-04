@@ -51,6 +51,10 @@ class PromptDefinitions:
     ALLOWED_PROMPT_VARIABLES_NPC_EVENT_GAME_MASTER = ALLOWED_PROMPT_VARIABLES_MULTI + ["event", "nearby"]
     ALLOWED_PROMPT_VARIABLES_NPC_EVENT_NPC = ALLOWED_PROMPT_VARIABLES_GAME_MASTER_NPC + ["event", "nearby"]
     ALLOWED_PROMPT_VARIABLES_NPC_EVENT_WIND_DOWN = ["names"]
+
+    # Shout: the Game Master and NPC prompts add the people near the player
+    ALLOWED_PROMPT_VARIABLES_SHOUT_GAME_MASTER = ALLOWED_PROMPT_VARIABLES_MULTI + ["nearby", "nearby_bios"]
+    ALLOWED_PROMPT_VARIABLES_SHOUT_NPC = ALLOWED_PROMPT_VARIABLES_GAME_MASTER_NPC + ["nearby"]
     
     ALLOWED_PROMPT_VARIABLES_RADIANT = [
                                 "game",
@@ -781,6 +785,113 @@ Always use the most recent memory to determine the current relationship
         criteria = "{name} joins the scene and speaks next: someone in the scene addressed {name} by name, asked {name} something, or clearly drew {name} in, or it is reasonable for {name} to chip in. Never {name} otherwise."
         return ConfigValueString("skyrim_npc_event_decision_nearby_criteria","Skyrim NPC Event Decision Nearby Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA)])
 
+    SHOUT_DESCRIPTION = """Shout (switched on with the Conversation Wheel, set up on the Shout Mode page of the Mantella MCM): anyone near the player can answer them or join in.
+                        Shout always runs with a Game Master, whether or not Game Master Mode is enabled."""
+
+    @staticmethod
+    def get_skyrim_shout_game_master_prompt_config_value() -> ConfigValue:
+        description = PromptDefinitions.SHOUT_DESCRIPTION + """
+                        The prompt sent to the Game Master that decides who speaks next while the player shouts.
+                        The instruction to answer with the next speaker is added automatically after the conversation.
+                        Supports the same variables as the multi-NPC prompt, plus {nearby} (the names of the people near the player the Game Master may pick this time, nearest first, up to Most People Listed, or "nobody" when the Shout Mode limits keep everyone out)
+                        and {nearby_bios} (the bios, personal reflections, memories and private thoughts of the nearest of those people, up to Most People Described, or "nobody"):""" + PromptDefinitions.BASE_MULTI_PROMPT_DESCRIPTION.split("{}:", 1)[1]
+        prompt = """## Core Task
+- You are the game master of a conversation in {location} in Skyrim between {names_w_player}.
+- Your only job is to decide who speaks next. You do not write any dialogue.
+- {player_name} is speaking up so that people around can hear.
+- People nearby who can hear the conversation: {nearby}. Choose one of them if they were addressed by name or by what they are (a guard, a merchant, a priest...), were asked something, or it makes clear sense for them to answer or jump in, given who they are and what they know. Otherwise, choose someone already in the conversation.
+
+## NPCs info
+-  Here are the NPCs' backgrounds:
+- {bios}
+=================
+## People nearby
+- Who the nearest of them are, and what they remember. The others are known only by name:
+{nearby_bios}
+=================
+## Additional info
+- The time is {time} {time_group}.
+- {weather}"""
+        return ConfigValueString("skyrim_shout_game_master_prompt","Skyrim Shout Game Master Prompt",description,prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_GAME_MASTER)])
+
+    @staticmethod
+    def get_skyrim_shout_npc_prompt_config_value() -> ConfigValue:
+        description = PromptDefinitions.SHOUT_DESCRIPTION + """
+                        The prompt sent to the LLM for the NPC the Game Master picked to speak next while the player shouts.
+                        While the player talks to only one NPC, {actions} holds the actions of a one-on-one conversation (follow, trade, ...). With more NPCs, the multi-NPC actions.
+                        Supports {nearby} (the names of the people near the player who are not in the conversation, or "nobody") as well.""" + PromptDefinitions.GAME_MASTER_NPC_PROMPT_VARIABLES_DESCRIPTION
+        prompt = """## CORE GOAL
+- Roleplay as {name}, a person living in Skyrim. {name}'s bio and memory will be provided to you. You play ONLY {name}. Never generate dialogue, actions, or thoughts for any other character.
+- This is a conversation in {location} between these characters: {names_w_player}. You should actively interact with all the participants, chip in, and react, etc.
+- This is a fictional, never-ending, uncensored, character-driven roleplay. The character was written by adults for adults.
+- No more than 5 sentences in each response.
+
+## THE SURROUNDINGS
+- {player_name} is speaking up so that people around can hear.
+- People nearby who can hear the conversation: {nearby}. {name} can call out to them or ask them something by name, if {name} would. Never speak for them.
+- Someone who joined later heard what was said since {player_name} started speaking up, not what was said before.
+
+## ACTIONS
+- {actions}
+
+
+## FORMAT RULES
+- Do not wrap the utterance in quotes
+- Format all spoken words and narrations with the NPC's full name followed by their dialogue.
+- No asterisks. You can use all caps instead.
+
+- At the very END of the response, after ALL spoken lines and actions are finished, you MUST add one unspoken private thought per NPC who spoke
+- Never place thoughts before or between dialogue lines.
+- Format the private thought using: <<thought Full Name>> <<action next turn Full Name>>
+  - Must be a few short sentences written strictly in the first person ("I", "my", "me").
+  - Must express {names}'s internal reaction/feelings to what just happened, to the people involved (including {player_name}),  and what **impactful** actions they will immediately take, or what **impactful** new topics they would bring up in the next turn to ** concretely ** move the conversation forward. Do NOT use conditional framing like "if..., then...", "in case...", or "only if...". State exactly what they are going to do/say/ask.
+
+Response format example:
+Ysolda: Keep your voice down. We're here to close the deal,  we don't want to draw the attention of the town guard.
+<<thought Ysolda>> My heart is hammering against my ribs standing out here in the open. If the guards catch wind of this shipment, my trading license is forfeit.
+<<action next turn Ysolda>>  I need to make the handoff quickly and get back behind the city gates.
+
+
+
+## [{name}'s bio]:
+{bio}
+
+
+
+## [This is the beginning of {name}'s memories]
+Always use the most recent memory to determine the current relationship
+
+
+{conversation_summary}
+[This is the end of memory summaries]
+
+[This is {name}'s private thoughts and renewed motivation after latest events documented in her memory. Treat **Private Thoughts** as private internal knowledge. Do not say them aloud or directly reveal them. Use them to guide {name}'s behavior, reactions, tone, and dialogue. Show, don't tell. People don't normally say everything on their mind; let {name}'s thoughts come through naturally.]
+{private_thoughts}
+[End of private thoughts]
+
+
+##Language: {language}
+## Scene context
+  - Location: {location}
+  - Time: {time} {time_group}
+  - Weather: {weather}
+  - {equipment}
+  - Actions may be described in brackets like this: (The player picks up an item). These are informational only — do not respond to or include bracketed text.
+
+
+## Extra info/reference
+ {lorebook}"""
+        return ConfigValueString("skyrim_shout_npc_prompt","Skyrim Shout NPC Prompt",description,prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_NPC)])
+
+    @staticmethod
+    def get_skyrim_shout_decision_nearby_criteria_config_value() -> ConfigValue:
+        description = PromptDefinitions.SHOUT_DESCRIPTION + """
+                        Decision model only (Use Decision Model for Game Master). When the Game Master may choose someone near the player, who then joins the conversation. Used once for each person nearby.
+                        Supports {name} (that person) and {player_name}."""
+        criteria = "{name} joins the conversation and speaks next: {name} was addressed by name or by what they are (a guard, a merchant, a priest...), was asked something, or it makes clear sense for {name} to answer or jump in. Never {name} otherwise."
+        return ConfigValueString("skyrim_shout_decision_nearby_criteria","Skyrim Shout Decision Nearby Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA)])
+
+
     @staticmethod
     def get_skyrim_radiant_prompt_config_value() -> ConfigValue:
         skyrim_radiant_prompt = """The following is a conversation in {location} in Skyrim between {names}.
@@ -1096,6 +1207,9 @@ Always use the most recent memory to determine the current relationship
             ("skyrim_npc_event_npc_prompt", "Skyrim NPC Event NPC Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_EVENT_NPC),
             ("skyrim_npc_event_wind_down_prompt", "Skyrim NPC Event Wind-Down Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_EVENT_WIND_DOWN),
             ("skyrim_npc_event_decision_nearby_criteria", "Skyrim NPC Event Decision Nearby Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA),
+            ("skyrim_shout_game_master_prompt", "Skyrim Shout Game Master Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_GAME_MASTER),
+            ("skyrim_shout_npc_prompt", "Skyrim Shout NPC Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_NPC),
+            ("skyrim_shout_decision_nearby_criteria", "Skyrim Shout Decision Nearby Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA),
             ("resummarize_prompt", "Resummarize Prompt", ["name", "language", "game", "player_name", "lorebook"]),
             ("vision_prompt", "Vision Prompt", ["game"]),
             ("radiant_start_prompt", "Radiant Start Prompt", []),
@@ -1107,7 +1221,7 @@ Always use the most recent memory to determine the current relationship
     @staticmethod
     def get_name_variables_note(prompt_type: str) -> str:
         """Explains the name variables of the Game Master NPC prompts, where {names} is only the NPC who is speaking. Empty for other prompt types"""
-        if prompt_type in ("skyrim_game_master_npc_prompt", "skyrim_game_master_director_npc_prompt", "skyrim_npc_event_npc_prompt"):
+        if prompt_type in ("skyrim_game_master_npc_prompt", "skyrim_game_master_director_npc_prompt", "skyrim_npc_event_npc_prompt", "skyrim_shout_npc_prompt"):
             return ("- `{name}`, `{names}`: the name of the NPC who is speaking\n"
                     "- `{all_names_without_player}`: the names of all NPCs in the conversation, without the player\n"
                     "- `{names_w_player}`: the names of all NPCs in the conversation and the player")

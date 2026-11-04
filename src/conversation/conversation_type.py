@@ -216,6 +216,33 @@ class npc_event(multi_npc_game_master):
     def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:
         return None # No greeting: the first speaker opens the scene from the event
 
+class shout(multi_npc_game_master):
+    """Shout: anyone near the player can answer them or join in. Always runs with a Game Master, also when Game Master Mode
+    is disabled and when the player talks to only one NPC. The Game Master may pick someone nearby, who joins and speaks next. Skyrim only."""
+    def __init__(self, config: ConfigLoader) -> None:
+        super().__init__(config)
+
+    @staticmethod
+    def is_enabled(config: ConfigLoader) -> bool:
+        return config.game.base_game != GameEnum.FALLOUT4
+
+    def is_director_mode(self) -> bool:
+        return False
+
+    @utils.time_it
+    def generate_npc_prompt(self, context_for_conversation: Context, speaker: Character, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
+        if context_for_conversation.npcs_in_conversation.contains_multiple_npcs():
+            actions = [a for a in self._config.actions if a.use_in_multi_npc]
+        else:
+            # Talking to one person: they keep the actions of a one-on-one conversation (follow, trade, ...)
+            actions = [a for a in self._config.actions if a.use_in_on_on_one]
+        return context_for_conversation.generate_system_message(self._config.shout_npc_prompt, actions, should_log, messages_for_lorebook, "skyrim_shout_npc_prompt", focus_character=speaker)
+
+    @utils.time_it
+    def generate_game_master_prompt(self, context_for_conversation: Context, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
+        actions = [a for a in self._config.actions if a.use_in_multi_npc]
+        return context_for_conversation.generate_system_message(self._config.shout_game_master_prompt, actions, should_log, messages_for_lorebook, "skyrim_shout_game_master_prompt")
+
 class radiant(conversation_type):
     """ Conversation between two NPCs without the player"""
     def __init__(self, config: ConfigLoader) -> None:

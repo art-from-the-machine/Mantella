@@ -618,6 +618,9 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.npc_event_npc_prompt = self.__overlay_prompt("skyrim_npc_event_npc_prompt", self.__definitions.get_string_value("skyrim_npc_event_npc_prompt"))
             self.npc_event_wind_down_prompt = self.__overlay_prompt("skyrim_npc_event_wind_down_prompt", self.__definitions.get_string_value("skyrim_npc_event_wind_down_prompt"))
             self.npc_event_decision_nearby_criteria = self.__overlay_prompt("skyrim_npc_event_decision_nearby_criteria", self.__definitions.get_string_value("skyrim_npc_event_decision_nearby_criteria"))
+            self.shout_game_master_prompt = self.__overlay_prompt("skyrim_shout_game_master_prompt", self.__definitions.get_string_value("skyrim_shout_game_master_prompt"))
+            self.shout_npc_prompt = self.__overlay_prompt("skyrim_shout_npc_prompt", self.__definitions.get_string_value("skyrim_shout_npc_prompt"))
+            self.shout_decision_nearby_criteria = self.__overlay_prompt("skyrim_shout_decision_nearby_criteria", self.__definitions.get_string_value("skyrim_shout_decision_nearby_criteria"))
             self.radiant_prompt = self.__overlay_prompt("skyrim_radiant_prompt", self.__definitions.get_string_value("skyrim_radiant_prompt"))
 
         self.radiant_start_prompt = self.__overlay_prompt("radiant_start_prompt", self.__definitions.get_string_value("radiant_start_prompt"))

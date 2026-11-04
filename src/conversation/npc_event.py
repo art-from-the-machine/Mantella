@@ -2,9 +2,10 @@ import json
 import logging
 import re
 import time
-from dataclasses import dataclass, field
-from typing import Callable
+from dataclasses import dataclass
+from typing import Callable, ClassVar
 from src.config.config_loader import ConfigLoader
+from src.conversation.bystanders import NOBODY_NEARBY, Bystanders, EventPerson
 from src.llm.ai_client import AIClient
 from src.llm.message_thread import message_thread
 from src.llm.messages import UserMessage
@@ -15,46 +16,34 @@ GENERATOR_PROMPT = "skyrim_npc_event_generator_prompt"
 WIND_DOWN_PROMPT = "skyrim_npc_event_wind_down_prompt"
 NEARBY_CRITERIA = "skyrim_npc_event_decision_nearby_criteria"
 MIN_PARTICIPANTS = 2
-NOBODY_NEARBY = "nobody"
 
 
-@dataclass
-class EventPerson:
-    """Someone near the scene: a nearby NPC who is not part of it yet, or the player"""
-    name: str # The label shown to the LLMs. People with the same name get 'Name (2)', 'Name (3)', ...
-    refid: int # As sent by the game, so it can be sent back unchanged
-    ref_id: str # Character.ref_id, to recognise them when they join the conversation
-
-
-@dataclass
-class NpcEvent:
+@dataclass(kw_only=True)
+class NpcEvent(Bystanders):
     """A scene the event generator invented, acted out by its participants while the player is a bystander.
-    Once the player joins, by stepping in or by being pulled in, it becomes a normal conversation"""
+    Once the player joins, by stepping in or by being pulled in, it becomes a normal conversation.
+    nearby holds the candidates from the check who are not part of the scene"""
+    LOG_PREFIX: ClassVar[str] = "NPC Event"
     id: int
     text: str
     player: EventPerson | None
-    nearby: list[EventPerson] # The candidates from the check who are not part of the scene
     present_refids: set[int] | None = None # The nearby people the game still sees near the scene. None until the game first reports them
     player_noticeable: bool = False # The player is close enough, in sight and not sneaking
     player_joined: bool = False
     npc_lines: int = 0 # NPC lines written while the player was a bystander
-    pending_add: EventPerson | None = None # Picked by the Game Master. Can only speak once the game has added them
-    forced_speaker_ref_id: str = "" # Has just joined, so speaks next without asking the Game Master
     has_failed: bool = False # An NPC turn produced nothing, so the scene ends instead of trying again forever
-    logged_nearby: list[str] = field(default_factory=list)
+
+    def present_nearby(self) -> list[EventPerson]:
+        """The nearby NPCs who are still near the scene, and the player once they can be noticed"""
+        return [p for p in self.nearby if self.present_refids is None or p.refid in self.present_refids]
 
     def nearby_people(self, config: ConfigLoader, participant_names: list[str]) -> list[EventPerson]:
         """The nearby NPCs who are still near the scene, and the player once they can be noticed.
-        Someone with the same name as a participant is left out, as the LLMs could not tell the two apart
-        (e.g. the scene's 'Whiterun Guard' was labelled 'Whiterun Guard (2)' in the check, so the other guard nearby is 'Whiterun Guard' too)
-
-        Args:
-            participant_names (list[str]): the names of everyone in the conversation, as in game
-        """
-        taken_names = {name.lower() for name in participant_names}
-        people = [p for p in self.nearby if self.present_refids is None or p.refid in self.present_refids]
+        Someone with the same name as a participant is left out (see Bystanders.nearby_people)"""
+        people = self.present_nearby()
         if self.can_notice_player(config) and self.player:
             people.append(self.player)
+        taken_names = {name.lower() for name in participant_names}
         return [p for p in people if p.name.lower() not in taken_names]
 
     def nearby_choices(self, config: ConfigLoader, participant_names: list[str], npc_count: int) -> list[EventPerson]:
@@ -62,13 +51,8 @@ class NpcEvent:
         is_full = npc_count >= config.npc_event_max_scene_size
         return [p for p in self.nearby_people(config, participant_names) if not is_full or p is self.player]
 
-    def nearby_text(self, config: ConfigLoader, participant_names: list[str]) -> str:
-        """The {nearby} prompt variable"""
-        names = [p.name for p in self.nearby_people(config, participant_names)]
-        if names != self.logged_nearby:
-            self.logged_nearby = names
-            logging.log(26, f"NPC Event: nearby now: {', '.join(names) or NOBODY_NEARBY}")
-        return ", ".join(names) or NOBODY_NEARBY
+    def nearby_criteria(self, config: ConfigLoader) -> tuple[str, str]:
+        return NEARBY_CRITERIA, config.npc_event_decision_nearby_criteria
 
     def can_notice_player(self, config: ConfigLoader) -> bool:
         """The scene has gone on long enough for the participants to notice the bystander player, and the player can be noticed now"""
@@ -88,22 +72,15 @@ class NpcEvent:
             self.present_refids = {int(refid) for refid in present_refids}
         if player_noticeable is not None:
             self.player_noticeable = bool(player_noticeable)
-        if add_failed_refid and self.pending_add and self.pending_add.refid == add_failed_refid:
-            logging.log(26, f"NPC Event: {self.pending_add.name} could not be added to the scene")
-            self.nearby = [p for p in self.nearby if p.refid != add_failed_refid]
-            self.pending_add = None
+        self.apply_add_failed(add_failed_refid)
 
     def on_joined(self, ref_id: str, is_player: bool):
         """Someone joined the conversation: the person the Game Master picked, or anyone the player added"""
         if is_player:
             self.player_joined = True
             self.pending_add = None # The player gets the turn first
-        else:
-            self.nearby = [p for p in self.nearby if p.ref_id != ref_id]
-        if self.pending_add and self.pending_add.ref_id == ref_id:
-            self.pending_add = None
-            if not is_player:
-                self.forced_speaker_ref_id = ref_id
+            return
+        self.on_npc_joined(ref_id)
 
 
 def wind_down_text(event: NpcEvent | None, config: ConfigLoader, names: str) -> str:

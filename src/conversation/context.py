@@ -19,6 +19,7 @@ from src.prompt_profile_manager import PromptSectionError
 from src.bio_section_filter import apply_bio_section_filter, should_filter_conversation_bios
 
 if TYPE_CHECKING:
+    from src.conversation.bystanders import Bystanders, ShoutState
     from src.conversation.npc_event import NpcEvent
 
 
@@ -117,6 +118,7 @@ class context:
         self.__have_actors_changed: bool = False
         self.npc_initiative: bool = False # The NPC walked up to the player: their first reply uses the NPC Initiative Prompt until the player answers
         self.npc_event: "NpcEvent | None" = None # The conversation acts out an NPC Event. Kept for the whole conversation, whoever joins
+        self.shout: "ShoutState | None" = None # The player is shouting: anyone nearby can answer or join in. Set while Shout is on
         self.__game: GameEnum = config.game
         game_folder_name = "Fallout4" if self.__game.base_game == GameEnum.FALLOUT4 else "Skyrim"
         lorebook_base_path = os.path.join(utils.resolve_path(), "data", game_folder_name, "lorebook")
@@ -211,6 +213,11 @@ class context:
         self.__ingame_time = value       
 
     @property
+    def bystanders(self) -> "Bystanders | None":
+        """The people near the conversation the Game Master may draw in: the NPC Event's, otherwise Shout's"""
+        return self.npc_event or self.shout
+
+    @property
     def have_actors_changed(self) -> bool:
         return self.__have_actors_changed
     
@@ -262,6 +269,10 @@ class context:
         This covers events Mantella creates itself (combat, location, time, etc), not only the ones sent by the game"""
         if not self.__is_ignored_event(event):
             self.__ingame_events.append(event)
+
+    def add_ingame_event(self, event: str):
+        """Adds an event Mantella creates itself, unless the Ignored In-Game Events setting filters it out"""
+        self.__add_ingame_event(event)
 
     @utils.time_it
     def get_context_ingame_events(self) -> list[str]:
@@ -774,7 +785,8 @@ class context:
                     private_thoughts = self._resolve_bio_player_name(private_thoughts)
         actions = self.__get_action_texts(actions_for_prompt)
         event = self.npc_event.text if self.npc_event else ""
-        nearby = self.npc_event.nearby_text(self.__config, [c.name for c in self.__npcs_in_conversation.get_all_characters()]) if self.npc_event else ""
+        bystanders = self.bystanders
+        nearby = bystanders.nearby_text(self.__config, [c.name for c in self.__npcs_in_conversation.get_all_characters()]) if bystanders else ""
         variable_values = {
             "player_name": player_name,
             "player_description": player_description,
@@ -805,6 +817,8 @@ class context:
         lorebook_text = self.__build_lorebook_text(prompt, variable_values, messages_for_lorebook)
         if prompt_type:
             prompt = self.__config.prompt_profile_manager.resolve_prompt(prompt_type, prompt)
+        # Reads every nearby person's memories, so it is only built for a prompt that uses it (the Shout Game Master Prompt)
+        nearby_bios = self.__get_nearby_bios_text(player_name) if "{nearby_bios}" in prompt else ""
 
         game_name = variable_values["game"]
         removal_content: list[tuple[str, str, str, str]] = [
@@ -845,6 +859,7 @@ class context:
                 lorebook=lorebook_text,
                 event=event,
                 nearby=nearby,
+                nearby_bios=nearby_bios if content[2] != "" else "", # Dropped along with the memories when the prompt is too long
                 )
             if self.__client.is_too_long(result, self.TOKEN_LIMIT_PERCENT):
                 if content[0] != "":
@@ -863,6 +878,19 @@ class context:
             logging.log(logging.WARNING, f'The summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations.')
         return result
     
+    def __get_nearby_bios_text(self, player_name: str) -> str:
+        """Shout: the bios and memories of the people nearby the Game Master may pick, the text of the {nearby_bios} prompt variable"""
+        from src.conversation.bystanders import ShoutState
+        shout_state = self.shout
+        if not isinstance(shout_state, ShoutState):
+            return ""
+        participant_names = [c.name for c in self.__npcs_in_conversation.get_all_characters()]
+        characters = shout_state.characters_for_game_master(self.__config, participant_names)
+        if not characters:
+            return "nobody"
+        return build_bios_and_summaries_text(characters, self.__config, self.__rememberer, self.__world_id, player_name or None,
+                                             contains_player=True, include_memories=True, always_multi_npc=True)
+
     @utils.time_it
     def get_characters_excluding_player(self) -> Characters:
         new_characters = Characters()

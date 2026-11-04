@@ -545,6 +545,7 @@ class LLMDefinitions:
     def get_game_master_history_message_count_config_value() -> ConfigValue:
         description = """Game Master Mode only. How many of the latest conversation messages are sent to the Game Master when it decides who speaks next. 0 sends the whole conversation.
                         Each player line and each NPC's reply is one message.
+                        Only what was said counts: notes about people joining or leaving, lines with only in-game events and scene directions are sent along for free, as long as they come after the oldest message sent.
                         Lines that do not fit the Game Master model's token limit are still dropped, oldest first."""
         return ConfigValueInt("game_master_history_message_count", "Game Master Message Limit", description, 0, 0, 999, tags=[ConfigValueTag.share_row])
 
