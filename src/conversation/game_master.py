@@ -289,6 +289,11 @@ def is_spoken_message(message: Message) -> bool:
     return True
 
 
+def is_player_line(message: Message) -> bool:
+    """Something the player said or directed. Not narration Mantella adds itself, nor a line with only in-game events"""
+    return isinstance(message, UserMessage) and not message.is_system_generated_message and is_spoken_message(message)
+
+
 def add_reply_to_history(history: list[Message], sentences: list[Sentence], config: ConfigLoader, is_multi_npc: bool):
     """Adds a reply's sentences to the history the same way the conversation does when they are played:
     to the last assistant message, or to a new one if the last message is not an assistant message"""

@@ -9,6 +9,12 @@ if TYPE_CHECKING:
 NOBODY_NEARBY = "nobody"
 SHOUT_NEARBY_CRITERIA = "skyrim_shout_decision_nearby_criteria"
 
+# Newcomers Remember (Shout Mode MCM page): what someone who joins by shouting heard before they joined. The values the game sends
+NEWCOMERS_REMEMBER_SINCE_SHOUT = 0 # Everything since the player started shouting
+NEWCOMERS_REMEMBER_LAST_LINE = 1 # Only the player's last line and what was said after it
+NEWCOMERS_REMEMBER_EVERYTHING = 2 # The whole conversation
+NEWCOMERS_REMEMBER_CHOICES = (NEWCOMERS_REMEMBER_SINCE_SHOUT, NEWCOMERS_REMEMBER_LAST_LINE, NEWCOMERS_REMEMBER_EVERYTHING)
+
 
 @dataclass
 class EventPerson:
@@ -101,9 +107,10 @@ class ShoutState(Bystanders):
     game_master_offer: list[EventPerson] | None = field(default=None, repr=False) # While the Game Master's prompt is built: who it may pick this time
     characters: dict[int, "Character"] = field(default_factory=dict, repr=False) # The nearby people the game sent in full, by refid. Kept while Shout is on
     max_described: int = 6 # Most People Described: how many of the nearest people the Game Master gets the bios and memories of
+    newcomers_remember: int = NEWCOMERS_REMEMBER_SINCE_SHOUT # What someone who joins by shouting heard before they joined
 
     def apply_settings(self, settings: dict[str, Any] | None):
-        """The Shout Mode settings from the MCM, sent with each request. Keys: lines_between_joins, max_people, max_described"""
+        """The Shout Mode settings from the MCM, sent with each request. Keys: lines_between_joins, max_people, max_described, newcomers_remember"""
         if not settings:
             return
         if settings.get("lines_between_joins") is not None:
@@ -112,6 +119,9 @@ class ShoutState(Bystanders):
             self.max_people = int(settings["max_people"])
         if settings.get("max_described") is not None:
             self.max_described = max(0, int(settings["max_described"]))
+        if settings.get("newcomers_remember") is not None:
+            choice = int(settings["newcomers_remember"])
+            self.newcomers_remember = choice if choice in NEWCOMERS_REMEMBER_CHOICES else NEWCOMERS_REMEMBER_SINCE_SHOUT
 
     def update_nearby(self, people: list[EventPerson]):
         """The people the game sees near the player now, nearest first. Replaces the list from the last request"""

@@ -311,15 +311,22 @@ class message_thread():
                 return True
         return False
 
-    def insert_overheard_message(self, new_message: join_message, token: int | None):
+    def insert_overheard_message(self, new_message: join_message, token: int | None, from_last: Callable[[Message], bool] | None = None):
         """Shout: puts the join note of someone who joined by shouting right after the message marked with the token, so they
         heard everything from there on. Without the marked message (nothing was said before, or it was dropped when a long
         conversation was shortened), it goes before the first message that persists over turns.
         If they left the conversation after that point, it goes after the last time they left, as they did not hear what was
-        said while they were gone"""
+        said while they were gone
+
+        Args:
+            token (int | None): the mark of where the player started shouting. None: they heard the whole conversation
+            from_last (Callable[[Message], bool] | None): if given, they only heard from the last message it accepts on
+                (e.g. the player's last line). Never from before the marked message. Without such a message, from the marked message
+        """
         position: int | None = None
         last_leave = 0
         first_persistent: int | None = None
+        last_accepted: int | None = None
         for i, message in enumerate(self.__messages):
             if first_persistent is None and isinstance(message, (AssistantMessage, UserMessage, join_message, leave_message)):
                 first_persistent = i
@@ -327,8 +334,12 @@ class message_thread():
                 position = i + 1
             if isinstance(message, leave_message) and message.character.name == new_message.character.name:
                 last_leave = i + 1
+            if from_last is not None and from_last(message):
+                last_accepted = i
         if position is None:
             position = first_persistent if first_persistent is not None else len(self.__messages)
+        if last_accepted is not None:
+            position = max(position, last_accepted)
         self.__messages.insert(max(position, last_leave), new_message)
 
     @utils.time_it

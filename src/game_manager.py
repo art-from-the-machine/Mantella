@@ -789,6 +789,7 @@ class GameStateManager:
             "lines_between_joins": input_json.get(comm_consts.KEY_SHOUT_LINESBETWEENJOINS),
             "max_people": input_json.get(comm_consts.KEY_SHOUT_MAXPEOPLE),
             "max_described": input_json.get(comm_consts.KEY_SHOUT_MAXDESCRIBED),
+            "newcomers_remember": input_json.get(comm_consts.KEY_SHOUT_NEWCOMERSREMEMBER),
         }
         if bool(input_json[comm_consts.KEY_SHOUT_ENABLED]):
             if not context.shout:

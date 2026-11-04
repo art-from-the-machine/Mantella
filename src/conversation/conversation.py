@@ -20,8 +20,8 @@ from src.llm.messages import AssistantMessage, join_message, leave_message, over
 from src.conversation.context import add_or_update_result, context as Context
 from src.llm.message_thread import message_thread
 from src.conversation.conversation_type import conversation_type, multi_npc, multi_npc_game_master, npc_event, pc_to_npc, radiant, shout
-from src.conversation.bystanders import ShoutState
-from src.conversation.game_master import GameMasterTurns
+from src.conversation.bystanders import NEWCOMERS_REMEMBER_EVERYTHING, NEWCOMERS_REMEMBER_LAST_LINE, ShoutState
+from src.conversation.game_master import GameMasterTurns, is_player_line
 from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
@@ -203,11 +203,17 @@ class Conversation:
             self.__add_overheard_message(npc)
 
     def __add_overheard_message(self, npc: Character):
-        """Shout: puts the join note of someone who joined by shouting where the player started shouting, so they heard everything
-        from there on. The prompts, the Game Master's history for each NPC and the summaries all go by where the join note is"""
+        """Shout: puts the join note of someone who joined by shouting where their memory of the conversation starts, as set by
+        Newcomers Remember: where the player started shouting, the player's last line, or the start of the conversation.
+        The prompts, the Game Master's history for each NPC and the summaries all go by where the join note is"""
         shout_state = self.__context.shout
-        token = shout_state.start_marker if isinstance(shout_state, ShoutState) else None
-        self.__messages.insert_overheard_message(overheard_message(npc, self.__context.config), token)
+        if not isinstance(shout_state, ShoutState):
+            self.__messages.insert_overheard_message(overheard_message(npc, self.__context.config), None)
+            return
+        remember = shout_state.newcomers_remember
+        token = None if remember == NEWCOMERS_REMEMBER_EVERYTHING else shout_state.start_marker
+        from_last = is_player_line if remember == NEWCOMERS_REMEMBER_LAST_LINE else None
+        self.__messages.insert_overheard_message(overheard_message(npc, self.__context.config), token, from_last)
 
     def start_shout(self, settings: dict[str, Any] | None):
         """Shout was switched on: anyone nearby can answer or join in. The conversation becomes a Shout conversation"""
