@@ -18,6 +18,8 @@ from src.lorebook_manager import LorebookManager
 from src.prompt_profile_manager import PromptSectionError
 from src.bio_section_filter import apply_bio_section_filter, should_filter_conversation_bios
 
+NOBODY_DESCRIBED = "nobody" # {nearby_bios} when none of the people nearby the Game Master may pick are described
+
 if TYPE_CHECKING:
     from src.conversation.bystanders import Bystanders, ShoutState
     from src.conversation.npc_event import NpcEvent
@@ -830,7 +832,7 @@ class context:
         have_bios_been_dropped = False
         have_summaries_been_dropped = False
         logging.log(23, f'Maximum size of prompt is {self.__client.token_limit} x {self.TOKEN_LIMIT_PERCENT} = {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens.')
-        for content in removal_content:
+        for step, content in enumerate(removal_content):
             result = self.__fill_prompt(
                 prompt,
                 player_name = player_name,
@@ -859,7 +861,7 @@ class context:
                 lorebook=lorebook_text,
                 event=event,
                 nearby=nearby,
-                nearby_bios=nearby_bios if content[2] != "" else "", # Dropped along with the memories when the prompt is too long
+                nearby_bios=nearby_bios if step < 2 else "", # Dropped along with the memories when the prompt is too long, also when nobody is in the conversation yet
                 )
             if self.__client.is_too_long(result, self.TOKEN_LIMIT_PERCENT):
                 if content[0] != "":
@@ -876,6 +878,8 @@ class context:
             logging.log(logging.WARNING, f'Both the bios and summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations and will have limited knowledge of who they are.')
         elif have_summaries_been_dropped:
             logging.log(logging.WARNING, f'The summaries of the NPCs selected could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. NPCs will not remember previous conversations.')
+        if nearby_bios and nearby_bios != NOBODY_DESCRIBED and step >= 2:
+            logging.log(logging.WARNING, f'The bios and memories of the people nearby could not fit into the maximum prompt size of {int(round(self.__client.token_limit * self.TOKEN_LIMIT_PERCENT, 0))} tokens. The Game Master only knows their names.')
         return result
     
     def __get_nearby_bios_text(self, player_name: str) -> str:
@@ -887,7 +891,7 @@ class context:
         participant_names = [c.name for c in self.__npcs_in_conversation.get_all_characters()]
         characters = shout_state.characters_for_game_master(self.__config, participant_names)
         if not characters:
-            return "nobody"
+            return NOBODY_DESCRIBED
         return build_bios_and_summaries_text(characters, self.__config, self.__rememberer, self.__world_id, player_name or None,
                                              contains_player=True, include_memories=True, always_multi_npc=True)
 

@@ -554,6 +554,12 @@ class GameStateManager:
             self.__chat_manager.update_primary_client(conversation_llm_client)
         
         self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, conversation_llm_client, self.__stt, self.__mic_input, self.__mic_ptt)
+        # Just saying something: the conversation starts with only the player, already shouting. Applied before the first
+        # conversation type is chosen, so it starts as a Shout conversation
+        if not self.__apply_shout(input_json):
+            self.__talk.end()
+            self.__talk = None
+            return self.error_message("Saying something to the room needs the Game Master model. Set it up in Mantella's settings")
         # Quest tag changes are recorded before the NPCs are loaded, so NPCs with the tag know them in this conversation
         start_context: dict[str, Any] = input_json.get(comm_consts.KEY_CONTEXT, {})
         self.__quest_tags.apply_report(self.__game, world_id, start_context, QuestTagTracker.MOMENT_START)
@@ -623,6 +629,11 @@ class GameStateManager:
             logging.log(26, "NPC Event ended")
             if not self.__talk.has_already_ended:
                 self.__talk.end()
+            self.__talk = None
+            return reply
+        if replyType == comm_consts.KEY_REPLYTYPE_ENDCONVERSATION and self.__talk.ended_unanswered:
+            # Just saying something and nobody answered. The game only cleans up on its side, so the conversation ends here
+            self.__talk.end()
             self.__talk = None
             return reply
 

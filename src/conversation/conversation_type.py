@@ -238,10 +238,23 @@ class shout(multi_npc_game_master):
             actions = [a for a in self._config.actions if a.use_in_on_on_one]
         return context_for_conversation.generate_system_message(self._config.shout_npc_prompt, actions, should_log, messages_for_lorebook, "skyrim_shout_npc_prompt", focus_character=speaker)
 
+    @staticmethod
+    def is_said_to_room(context_for_conversation: Context) -> bool:
+        """Just saying something: the player is alone in the conversation, so what they say is said to whoever is around"""
+        return len(context_for_conversation.get_characters_excluding_player()) == 0
+
     @utils.time_it
     def generate_game_master_prompt(self, context_for_conversation: Context, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
         actions = [a for a in self._config.actions if a.use_in_multi_npc]
+        if shout.is_said_to_room(context_for_conversation):
+            return context_for_conversation.generate_system_message(self._config.shout_room_game_master_prompt, actions, should_log, messages_for_lorebook, "skyrim_shout_room_game_master_prompt")
         return context_for_conversation.generate_system_message(self._config.shout_game_master_prompt, actions, should_log, messages_for_lorebook, "skyrim_shout_game_master_prompt")
+
+    @utils.time_it
+    def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:
+        if shout.is_said_to_room(context_for_conversation):
+            return None # Nobody to greet: the player says something to the room first
+        return super().get_user_message(context_for_conversation, messages)
 
 class radiant(conversation_type):
     """ Conversation between two NPCs without the player"""

@@ -108,6 +108,8 @@ def post_decision_with_retry(url: str, headers: dict[str, str], body: dict[str, 
 DECISION_INSTRUCTIONS = "skyrim_game_master_decision_instructions"
 DECISION_NPC_CRITERIA = "skyrim_game_master_decision_npc_criteria"
 DECISION_PLAYER_CRITERIA = "skyrim_game_master_decision_player_criteria"
+SHOUT_NOBODY_CRITERIA = "skyrim_shout_decision_nobody_criteria"
+NOBODY_ANSWERS = "Nobody" # Just saying something: the Game Master's choice when nobody nearby answers the player
 
 
 def resolve_decision_prompts(config: ConfigLoader) -> dict[str, str]:
@@ -349,6 +351,10 @@ class GameMaster:
         bystanders = self.__bystanders()
         participant_names = [npc.name for npc in npcs] + ([player_name] if player_name else [])
         nearby = bystanders.nearby_choices(config, participant_names, len(npcs)) if bystanders and allow_nearby else []
+        is_said_to_room = isinstance(self.__conversation_type, shout) and isinstance(bystanders, ShoutState) and not npcs
+        if is_said_to_room and not nearby:
+            logging.log(26, "Game Master: nobody nearby can answer")
+            return None
         if isinstance(self.__conversation_type, shout) and not nearby and len(npcs) == 1:
             # Shout with one NPC and nobody nearby offered: like a one-on-one conversation, the NPC answers and then the player speaks
             return None if allow_player else npcs[0]
@@ -371,10 +377,12 @@ class GameMaster:
         if wind_down:
             prompt += "\n\n" + wind_down
         if config.game_master_use_decision_model:
-            return self.__choose_with_decision_model(prompt, history, allow_player, npcs, player_name, nearby)
+            return self.__choose_with_decision_model(prompt, history, allow_player, npcs, player_name, nearby, is_said_to_room)
 
         choices = [npc.name for npc in npcs] + [person.name for person in nearby]
-        if allow_player and player_name:
+        if is_said_to_room:
+            choices.append(NOBODY_ANSWERS)
+        elif allow_player and player_name:
             choices.append(player_name)
         history_lines = game_master_history_lines(history, config)
         header ="The conversation so far:\n"
@@ -402,6 +410,8 @@ class GameMaster:
         decision = read_decision(reply)
         if decision and (person := match_nearby(decision[0], nearby)):
             return self.__request_join(person, decision[1])
+        if is_said_to_room:
+            return self.__nobody_answers(decision[0] if decision else "", decision[1] if decision else "", reply)
         is_valid, speaker, reason = parse_decision(reply, npcs, player_name, allow_player)
         if not is_valid:
             logging.warning(f"Game Master gave no valid choice: {reply}")
@@ -423,8 +433,17 @@ class GameMaster:
         logging.log(26, f"Game Master: {person.name} joins the conversation and speaks next ({reason})")
         return person
 
+    def __nobody_answers(self, choice: str, reason: str, reply: str | None) -> None:
+        """Just saying something: the Game Master picked nobody nearby. Anything else it answered also means nobody"""
+        if choice.strip().lower() == NOBODY_ANSWERS.lower():
+            logging.log(26, f"Game Master: nobody answers ({reason})")
+        else:
+            logging.warning(f"Game Master gave no valid choice, so nobody answers: {reply}")
+        return None
+
     def __choose_with_decision_model(self, prompt: str, history: list[Message], allow_player: bool,
-                                     npcs: list[Character], player_name: str, nearby: list[EventPerson]) -> Character | EventPerson | None:
+                                     npcs: list[Character], player_name: str, nearby: list[EventPerson],
+                                     is_said_to_room: bool = False) -> Character | EventPerson | None:
         """Asks a decision model (e.g. typesafe/jev-1.13) who speaks next through the OpenRouter or NanoGPT Decisions API"""
         config = self.__context.config
         client = cast(ClientBase, self.__client)
@@ -442,6 +461,9 @@ class GameMaster:
                 event_player_name = player_name or (event.player.name if event and event.player else "")
                 criteria = config.prompt_profile_manager.resolve_prompt(*bystanders.nearby_criteria(config))
                 nearby_criteria = {p.name: fill_prompt_variables(criteria, {"name": p.name, "player_name": event_player_name}) for p in nearby}
+            if is_said_to_room:
+                nobody_criteria = config.prompt_profile_manager.resolve_prompt(SHOUT_NOBODY_CRITERIA, config.shout_decision_nobody_criteria)
+                nearby_criteria[NOBODY_ANSWERS] = fill_prompt_variables(nobody_criteria, {"player_name": player_name or "Player"})
         except PromptSectionError as e:
             logging.error(str(e))
             logging.error("Game Master could not decide who speaks next. Fix the active Game Master Decision prompt profile.")
@@ -485,6 +507,8 @@ class GameMaster:
         person = match_nearby(choice, nearby)
         if person:
             return self.__request_join(person, format_confidence(answer))
+        if is_said_to_room:
+            return self.__nobody_answers(choice, format_confidence(answer), choice)
         is_valid, speaker = match_speaker(choice, npcs, player_name, allow_player)
         if not is_valid:
             logging.warning(f"Game Master gave no valid choice: {choice}")

@@ -338,6 +338,8 @@ class MantellaConfigValueDefinitionsNew:
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_shout_game_master_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_shout_npc_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_shout_decision_nearby_criteria_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_shout_room_game_master_prompt_config_value())
+        prompts_category.add_config_value(PromptDefinitions.get_skyrim_shout_decision_nobody_criteria_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_skyrim_radiant_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_prompt_config_value())
         prompts_category.add_config_value(PromptDefinitions.get_fallout4_multi_npc_prompt_config_value())

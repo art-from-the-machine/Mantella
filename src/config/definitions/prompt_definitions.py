@@ -891,6 +891,40 @@ Always use the most recent memory to determine the current relationship
         criteria = "{name} joins the conversation and speaks next: {name} was addressed by name or by what they are (a guard, a merchant, a priest...), was asked something, or it makes clear sense for {name} to answer or jump in. Never {name} otherwise."
         return ConfigValueString("skyrim_shout_decision_nearby_criteria","Skyrim Shout Decision Nearby Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA)])
 
+    SAY_TO_ROOM_DESCRIPTION = """Just saying something (Say on the Conversation Wheel, or the talk hotkey with no conversation running): the player says something to whoever is around.
+                        It starts as a Shout conversation with only the player in it. Someone nearby may answer and join, or nobody does and it ends."""
+
+    @staticmethod
+    def get_skyrim_shout_room_game_master_prompt_config_value() -> ConfigValue:
+        description = PromptDefinitions.SAY_TO_ROOM_DESCRIPTION + """
+                        The prompt sent to the Game Master that decides whether anyone nearby answers the player, used while nobody is in the conversation yet.
+                        The instruction to answer with the next speaker (one of the people nearby, or Nobody) is added automatically after what the player said.
+                        Supports the same variables as the Skyrim Shout Game Master Prompt."""
+        prompt = """## Core Task
+- You are the game master of a scene in {location} in Skyrim.
+- {player_name} has just said something out loud. {player_name} is not talking with anyone yet, so it was said to whoever is around.
+- Your only job is to decide whether anyone answers {player_name}. You do not write any dialogue.
+- People nearby who heard it: {nearby}. Choose one of them if they were addressed by name or by what they are (a guard, a merchant, a priest...), were asked something they would answer, or it would be odd for them not to react, given who they are and what they know.
+- Otherwise, choose Nobody. People often let a remark made to nobody in particular go without an answer.
+
+## People nearby
+- Who the nearest of them are, and what they remember. The others are known only by name:
+{nearby_bios}
+=================
+## Additional info
+- The time is {time} {time_group}.
+- {weather}"""
+        return ConfigValueString("skyrim_shout_room_game_master_prompt","Skyrim Say To Room Game Master Prompt",description,prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_GAME_MASTER)])
+
+    @staticmethod
+    def get_skyrim_shout_decision_nobody_criteria_config_value() -> ConfigValue:
+        description = PromptDefinitions.SAY_TO_ROOM_DESCRIPTION + """
+                        Decision model only (Use Decision Model for Game Master). When nobody nearby answers what the player said to the room.
+                        The people nearby are chosen with the Skyrim Shout Decision Nearby Criteria.
+                        Supports {player_name}."""
+        criteria = "Nobody answers: {player_name} did not address anyone nearby, ask them anything, or say something they would clearly react to."
+        return ConfigValueString("skyrim_shout_decision_nobody_criteria","Skyrim Say To Room Decision Nobody Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA)])
+
 
     @staticmethod
     def get_skyrim_radiant_prompt_config_value() -> ConfigValue:
@@ -1210,6 +1244,8 @@ Always use the most recent memory to determine the current relationship
             ("skyrim_shout_game_master_prompt", "Skyrim Shout Game Master Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_GAME_MASTER),
             ("skyrim_shout_npc_prompt", "Skyrim Shout NPC Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_NPC),
             ("skyrim_shout_decision_nearby_criteria", "Skyrim Shout Decision Nearby Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA),
+            ("skyrim_shout_room_game_master_prompt", "Skyrim Say To Room Game Master Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_GAME_MASTER),
+            ("skyrim_shout_decision_nobody_criteria", "Skyrim Say To Room Decision Nobody Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA),
             ("resummarize_prompt", "Resummarize Prompt", ["name", "language", "game", "player_name", "lorebook"]),
             ("vision_prompt", "Vision Prompt", ["game"]),
             ("radiant_start_prompt", "Radiant Start Prompt", []),

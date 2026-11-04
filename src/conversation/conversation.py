@@ -76,6 +76,8 @@ class Conversation:
         self.__conversation_start_ts: int = int(time.time())
         self.__end_conversation_keywords = utils.parse_keywords(context_for_conversation.config.end_conversation_keyword)
         self.__game_master_turns: GameMasterTurns = GameMasterTurns(self.__context, self.__sentences)
+        self.__is_waiting_for_room_answer: bool = False # Just saying something: the player said something to the room and nobody has answered yet
+        self.__ended_unanswered: bool = False
 
     def update_summary_client(self, summary_client: ClientBase | None, fallback_client: LLMClient, thoughts_client: ClientBase | None, reflection_client: ClientBase | None) -> None:
         """Update the summary, thoughts and reflection LLM clients on the active rememberer, if it supports it."""
@@ -86,6 +88,11 @@ class Conversation:
     def has_already_ended(self) -> bool:
         return self.__has_already_ended
     
+    @property
+    def ended_unanswered(self) -> bool:
+        """Just saying something: the player said something to the room, nobody answered, and the conversation ended"""
+        return self.__ended_unanswered
+
     @property
     def context(self) -> Context:
         return self.__context
@@ -400,7 +407,20 @@ class Conversation:
             # The person who joined speaks next, or the person picked to answer the player could not be added and someone else answers
             self.__start_generating_npc_sentences()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, None
+        if self.__is_waiting_for_room_answer and shout.is_said_to_room(self.__context):
+            return self.__end_unanswered()
+        self.__is_waiting_for_room_answer = False
         return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
+
+    def __end_unanswered(self) -> tuple[str, Sentence | None]:
+        """Just saying something: nobody nearby answered what the player said to the room, so the conversation ends"""
+        logging.log(26, "Nobody answers. The conversation ends")
+        self.__has_already_ended = True
+        self.__ended_unanswered = True
+        if self.__stt:
+            self.__stt.stop_listening()
+            self.__allow_mic_input = False
+        return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None
 
     @utils.time_it
     def process_player_input(self, player_text: str) -> tuple[str, bool, Sentence|None]:
@@ -468,7 +488,13 @@ class Conversation:
             player_voiceline = None if is_director or is_continue else self.__get_player_voiceline(player_character, player_text)
             text = "" if is_continue else new_message.text
             logging.log(23, f"Text passed to NPC: {text}")
+            is_said_to_room = isinstance(self.__conversation_type, shout) and shout.is_said_to_room(self.__context)
 
+        if is_said_to_room:
+            # Nobody to dismiss or say goodbye to. The Game Master decides whether someone nearby answers
+            self.__is_waiting_for_room_answer = True
+            self.__start_generating_npc_sentences()
+            return player_text, events_need_updating, player_voiceline
         ejected_npc = self.__does_dismiss_npc_from_conversation(text)
         if ejected_npc:
             self.__prepare_eject_npc_from_conversation(ejected_npc)
