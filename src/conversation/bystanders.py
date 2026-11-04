@@ -64,15 +64,19 @@ class Bystanders:
         """The decision model's criteria for choosing someone nearby: (prompt type, text)"""
         raise NotImplementedError
 
-    def apply_add_failed(self, refid: int) -> bool:
+    def apply_add_failed(self, refid: int, reason: str = "") -> bool:
         """The game could not add the person picked
+
+        Args:
+            reason (str): why, as the game sent it (e.g. "in a scene"). Only logged
 
         Returns:
             bool: True if it was the pending pick
         """
         if not refid or not self.pending_add or self.pending_add.refid != refid:
             return False
-        logging.log(26, f"{self.LOG_PREFIX}: {self.pending_add.name} could not be added to the conversation")
+        because = f": {reason}" if reason else ""
+        logging.log(26, f"{self.LOG_PREFIX}: {self.pending_add.name} could not be added to the conversation{because}")
         self.nearby = [p for p in self.nearby if p.refid != refid]
         self.pending_add = None
         return True
@@ -129,9 +133,9 @@ class ShoutState(Bystanders):
         self.failed_refids &= present
         self.nearby = [p for p in people if p.refid not in self.failed_refids]
 
-    def apply_add_failed(self, refid: int) -> bool:
+    def apply_add_failed(self, refid: int, reason: str = "") -> bool:
         was_answering = self.answering_pick
-        if not super().apply_add_failed(refid):
+        if not super().apply_add_failed(refid, reason):
             return False
         self.failed_refids.add(refid)
         self.answering_pick = False

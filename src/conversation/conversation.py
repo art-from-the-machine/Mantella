@@ -16,7 +16,7 @@ from src.remember.summaries import Summaries
 from src.llm.client_base import ClientBase
 from src.llm.llm_client import LLMClient
 from src.output_manager import ChatManager
-from src.llm.messages import AssistantMessage, join_message, leave_message, overheard_message, SystemMessage, UserMessage
+from src.llm.messages import AssistantMessage, join_message, leave_message, nearby_join_message, overheard_message, SystemMessage, UserMessage
 from src.conversation.context import add_or_update_result, context as Context
 from src.llm.message_thread import message_thread
 from src.conversation.conversation_type import conversation_type, multi_npc, multi_npc_game_master, npc_event, pc_to_npc, radiant, shout
@@ -208,19 +208,23 @@ class Conversation:
             self.__messages.add_message(update_message)
         for npc in overheard_npcs:
             self.__add_overheard_message(npc)
+            # Where they actually join: who is already in the conversation, so they know they walked up to people already talking
+            already_there = [name for name in self.__context.npcs_in_conversation.get_all_names() if name != npc.name]
+            self.__messages.add_message(nearby_join_message(npc, self.__context.config, already_there))
 
     def __add_overheard_message(self, npc: Character):
         """Shout: puts the join note of someone who joined by shouting where their memory of the conversation starts, as set by
         Newcomers Remember: where the player started shouting, the player's last line, or the start of the conversation.
         The prompts, the Game Master's history for each NPC and the summaries all go by where the join note is"""
+        note = overheard_message(npc, self.__context.config)
         shout_state = self.__context.shout
         if not isinstance(shout_state, ShoutState):
-            self.__messages.insert_overheard_message(overheard_message(npc, self.__context.config), None)
+            self.__messages.insert_overheard_message(note, None)
             return
         remember = shout_state.newcomers_remember
         token = None if remember == NEWCOMERS_REMEMBER_EVERYTHING else shout_state.start_marker
         from_last = is_player_line if remember == NEWCOMERS_REMEMBER_LAST_LINE else None
-        self.__messages.insert_overheard_message(overheard_message(npc, self.__context.config), token, from_last)
+        self.__messages.insert_overheard_message(note, token, from_last)
 
     def start_shout(self, settings: dict[str, Any] | None):
         """Shout was switched on: anyone nearby can answer or join in. The conversation becomes a Shout conversation"""
@@ -241,11 +245,11 @@ class Conversation:
         self.__context.add_ingame_event(f"{player.name} is now speaking privately with {npc_names}.")
 
     def stop_shout(self):
-        """Shout was switched off (Private). The game removes the people who joined by shouting"""
+        """Shout was switched off (Private). Nobody new joins. Everyone already in the conversation stays, the people who joined by shouting too"""
         self.__context.shout = None
         self.__context.have_actors_changed = True
-        self.__announce_private = True # The people who joined by shouting leave in the same request, so who is left is known after the actor update
-        logging.log(26, "Shout: private again. Only the people the player added can speak")
+        self.__announce_private = True # Says who the conversation is with, after the actor update of the same request
+        logging.log(26, "Shout: private again. Nobody new joins")
 
     @utils.time_it
     def generate_add_or_remove_messages(self, update_result: add_or_update_result) -> list[str]:

@@ -47,6 +47,7 @@ class communication_constants:
     KEY_SHOUT_MAXPEOPLE: str = PREFIX + "shout_max_people"
     KEY_SHOUT_NEWCOMERSREMEMBER: str = PREFIX + "shout_newcomers_remember" # What someone who joins by shouting heard before: 0 since shouting, 1 the player's last line, 2 everything
     KEY_SHOUT_ADDFAILED_REFID: str = PREFIX + "shout_add_failed_refid"
+    KEY_SHOUT_ADDFAILED_REASON: str = PREFIX + "shout_add_failed_reason" # Why the game could not add them, e.g. "in a scene". Only logged
     KEY_REPLYTYPE_SHOUT_ADDACTOR: str = PREFIX + "shout_add_actor"
     KEY_SHOUT_ADDACTOR_REFID: str = PREFIX + "shout_add_actor_refid"
     KEY_SHOUT_UNAVAILABLE: str = PREFIX + "shout_unavailable" # In the reply: Shout can't be used, as no Game Master model is set up

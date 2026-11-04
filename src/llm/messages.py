@@ -123,10 +123,25 @@ SHOUT_MARKER_ATTRIBUTE = "shout_marker" # Set on the last message before the pla
 
 
 class overheard_message(join_message):
-    """Shout: someone nearby who joined later, placed where the player started shouting. From there on they heard everything (for system use only)"""
+    """Shout: someone nearby who joined later, placed where the player started shouting. From there on they heard everything (for system use only).
+    The moment they actually join is a nearby_join_message"""
     def __init__(self, character: Character, config: ConfigLoader):
         super().__init__(character, config)
-        self.text = f"*{character.name} is nearby and can hear the conversation*"
+        self.text = f"*{character.name} is nearby now and can hear the conversation*" # "now": they weren't nearby before this point
+
+
+class nearby_join_message(join_message):
+    """Shout: the moment someone who was listening nearby joins the conversation. Names who is already in it, so they know they
+    walked up to people already talking and didn't arrive with them (for system use only).
+    Comes after their overheard_message, so it doesn't change what they heard"""
+    def __init__(self, character: Character, config: ConfigLoader, already_there: list[str]):
+        super().__init__(character, config)
+        if len(already_there) >= 2:
+            self.text = f"*{character.name} joins the conversation that {', '.join(already_there[:-1])} and {already_there[-1]} were already having*"
+        elif len(already_there) == 1:
+            self.text = f"*{character.name} joins the conversation that {already_there[0]} had already started*"
+        else:
+            self.text = f"*{character.name} joins the conversation*"
 
 
 class leave_message(Message):

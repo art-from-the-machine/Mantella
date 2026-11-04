@@ -828,7 +828,7 @@ class GameStateManager:
         candidates = [InitiativeCandidate(str(name), int(refid)) for refid, name in pairs if int(refid) != 0]
         ref_ids = {c.refid: utils.mask_load_order(utils.convert_to_skyrim_hex_format(str(c.refid))) for c in candidates}
         shout_state.update_nearby([EventPerson(label, c.refid, ref_ids[c.refid]) for label, c in label_candidates(candidates).items()])
-        shout_state.apply_add_failed(int(input_json.get(comm_consts.KEY_SHOUT_ADDFAILED_REFID, 0)))
+        shout_state.apply_add_failed(int(input_json.get(comm_consts.KEY_SHOUT_ADDFAILED_REFID, 0)), str(input_json.get(comm_consts.KEY_SHOUT_ADDFAILED_REASON, "")))
         return True
 
     def npc_event_check(self, input_json: dict[str, Any]) -> dict[str, Any]:
