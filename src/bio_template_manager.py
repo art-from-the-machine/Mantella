@@ -233,7 +233,16 @@ class BioTemplateManager:
         if text is None:
             logging.debug(f"Quest tag {tag}: slot {slot} has no text in the bio templates - ignoring")
         return text
-    
+
+    def _outcome_goes_to_bio(self, tag: str, tag_outcomes: Optional[Dict[str, Tuple[int, int]]]) -> bool:
+        """Static: always. Dynamic: only outcomes with time 0 (already true when tracking started), which have no place in the timeline"""
+        mode = self._get_auto_outcomes_mode()
+        if mode == AutoQuestTagOutcomesEnum.STATIC:
+            return True
+        if mode == AutoQuestTagOutcomesEnum.DYNAMIC:
+            return bool(tag_outcomes) and tag in tag_outcomes and tag_outcomes[tag][1] == 0
+        return False
+
     def _get_effective_tags_list(self, tags_string: str) -> List[str]:
         """Parse and validate tags_string, returning a list of tag names.
 
@@ -277,7 +286,8 @@ class BioTemplateManager:
 
         *tag_outcomes* maps a quest tag to its current ``(outcome, time first seen)``
         in the playthrough. With Auto Quest Tag Outcomes set to Static, the outcome's
-        text is added for tags whose description is empty.
+        text is added for tags whose description is empty. With Dynamic, only outcomes
+        with time 0 are added here; the rest go to the memory timeline.
         """
         tags = self._get_effective_tags_list(tags_string)
         if not tags:
@@ -293,7 +303,7 @@ class BioTemplateManager:
                 if static_text:
                     tag_expansions.append(static_text)
             elif tag in self.outcome_codes or tag in self.outcome_texts:
-                if self._get_auto_outcomes_mode() == AutoQuestTagOutcomesEnum.STATIC:
+                if self._outcome_goes_to_bio(tag, tag_outcomes):
                     outcome_text = self._get_auto_outcome_text(tag, tag_outcomes)
                     if outcome_text:
                         tag_expansions.append(outcome_text)
@@ -318,6 +328,7 @@ class BioTemplateManager:
 
         With Auto Quest Tag Outcomes set to Dynamic, the current outcome of each
         quest tag in *tag_outcomes* is added too, dated when it was first seen.
+        Outcomes with time 0 (already true when tracking started) go to the bio instead.
 
         The returned list is sorted by timestamp (ascending).
         """
@@ -331,7 +342,8 @@ class BioTemplateManager:
             if template and template.strip():
                 _, dynamic_events = _split_static_and_dynamic(template)
                 all_events.extend(dynamic_events)
-            elif tag in self.outcome_codes and self._get_auto_outcomes_mode() == AutoQuestTagOutcomesEnum.DYNAMIC:
+            elif (tag in self.outcome_codes and self._get_auto_outcomes_mode() == AutoQuestTagOutcomesEnum.DYNAMIC
+                  and not self._outcome_goes_to_bio(tag, tag_outcomes)):
                 outcome_text = self._get_auto_outcome_text(tag, tag_outcomes)
                 if outcome_text:
                     all_events.append((tag_outcomes[tag][1], outcome_text))

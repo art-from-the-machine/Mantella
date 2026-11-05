@@ -495,6 +495,8 @@ To start the record of a playthrough from scratch, delete its `tag_outcomes.json
 | **Dynamic**          | The outcome as a dated memory, in order with their conversation summaries, like [dynamic events](#dynamic-events-tag-feature). It's listed under "New developments since last meeting" until they have a newer summary, so they're likely to bring it up |
 
 
+With Dynamic, outcomes that were already true the first time Mantella checked (for example, quests you finished before installing this) still go in the bio, as with Static. Mantella doesn't know when those happened, so it can't put them in order with the conversation summaries.
+
 Announcements during a conversation work the same with Static and Dynamic. Hand-written `- <timestamp>: text` lines are not affected by this setting.
 
 With Dynamic, Adrianne from the example above sees:

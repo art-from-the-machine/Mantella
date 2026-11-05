@@ -1962,11 +1962,10 @@ class StartUI(routeable):
                                             raw_bio = ch.bio
                                         if bio_tmpl_mgr:
                                             ch.bio = bio_tmpl_mgr.expand_bio_with_tags(raw_bio, effective_tags, tag_outcomes)
-                                        # Update dynamic tag events
+                                        # Update dynamic tag events. Also when there are none now, so removed or moved-to-bio events don't linger
                                         if bio_tmpl_mgr and hasattr(bio_tmpl_mgr, 'extract_dynamic_events'):
                                             dyn = bio_tmpl_mgr.extract_dynamic_events(effective_tags, tag_outcomes)
-                                            if dyn:
-                                                ch.set_custom_character_value('mantella_dynamic_tag_events', dyn)
+                                            ch.set_custom_character_value('mantella_dynamic_tag_events', dyn)
                     except Exception as e:
                         logging.debug(f"Bio Editor: in-conversation tag refresh skipped: {e}")
                 except Exception as e:

@@ -222,6 +222,7 @@ class LLMDefinitions:
                         - Off: outcomes are not checked. Normal tags keep working.
                         - Static: the outcome becomes part of the NPC's bio (under 'Additional info'). The NPC knows it, but isn't nudged to bring it up.
                         - Dynamic: the outcome becomes a dated memory, in order with the NPC's conversation summaries, and is listed as news until the NPC has a newer summary.
+                          Outcomes that were already true the first time Mantella checked (e.g. quests finished before you installed this) go in the bio, as with Static.
                         Hand-written '- <timestamp>: text' lines in tag descriptions are not affected by this setting."""
         options = [e.display_name for e in AutoQuestTagOutcomesEnum]
         return ConfigValueSelection("auto_quest_tag_outcomes", "Auto Quest Tag Outcomes", description, AutoQuestTagOutcomesEnum.STATIC.display_name, options, corresponding_enums=list(AutoQuestTagOutcomesEnum), tags=[ConfigValueTag.share_row, ConfigValueTag.advanced])
