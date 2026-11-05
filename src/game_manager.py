@@ -822,7 +822,7 @@ class GameStateManager:
                 shout_state.characters[int(actor_json[comm_consts.KEY_ACTOR_REFID])] = character
                 loaded_names.append(character.name)
         if loaded_names:
-            logging.log(26, f"Shout: got the bios and memories of {', '.join(loaded_names)}")
+            logging.log(26, f"Shout: new nearby, the game sent the bios and memories of {', '.join(loaded_names)}. Kept until Shout is switched off, so they are not sent again")
         # The game starts both lists with a 0 and an empty name, so they are never empty and "nobody nearby" still arrives
         pairs = zip(input_json.get(comm_consts.KEY_SHOUT_NEARBY_REFIDS, []), input_json.get(comm_consts.KEY_SHOUT_NEARBY_NAMES, []))
         candidates = [InitiativeCandidate(str(name), int(refid)) for refid, name in pairs if int(refid) != 0]

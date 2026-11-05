@@ -112,6 +112,7 @@ class ShoutState(Bystanders):
     characters: dict[int, "Character"] = field(default_factory=dict, repr=False) # The nearby people the game sent in full, by refid. Kept while Shout is on
     max_described: int = 6 # Most People Described: how many of the nearest people the Game Master gets the bios and memories of
     newcomers_remember: int = NEWCOMERS_REMEMBER_SINCE_SHOUT # What someone who joins by shouting heard before they joined
+    logged_described: list[str] | None = field(default=None, repr=False) # Whose bios the Game Master used, as last logged
 
     def apply_settings(self, settings: dict[str, Any] | None):
         """The Shout Mode settings from the MCM, sent with each request. Keys: lines_between_joins, max_people, max_described, newcomers_remember"""
@@ -187,4 +188,22 @@ class ShoutState(Bystanders):
         Most People Described. It knows the others by name only"""
         people = self.game_master_offer if self.game_master_offer is not None else self.nearby_people(config, participant_names)
         described = {p.refid for p in self.nearby[:self.max_described]} # The game lists the nearest first
-        return [self.characters[p.refid] for p in people if p.refid in described and p.refid in self.characters]
+        characters = [self.characters[p.refid] for p in people if p.refid in described and p.refid in self.characters]
+        if self.game_master_offer and characters:
+            self.__log_described(characters, len(people))
+        return characters
+
+    def __log_described(self, characters: list["Character"], offered: int):
+        """Logs whose bios and memories the Game Master uses to decide, when that changes. Most of them may have been sent earlier"""
+        names = [c.name for c in characters]
+        if sorted(names) == self.logged_described:
+            return
+        self.logged_described = sorted(names)
+        others = offered - len(names)
+        nearest = "the nearest person" if len(names) == 1 else f"the {len(names)} nearest people"
+        by_name = ""
+        if others == 1:
+            by_name = " The 1 other person nearby is known by name only."
+        elif others > 1:
+            by_name = f" The {others} other people nearby are known by name only."
+        logging.log(26, f"{self.LOG_PREFIX}: the Game Master is using the bios and memories of {nearest}: {', '.join(names)}.{by_name}")
