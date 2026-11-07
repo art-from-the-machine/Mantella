@@ -1,0 +1,227 @@
+"""Tests for the Tag Editor's file handling (docs/tag_editor.md, "Where your changes are saved")."""
+import os
+from datetime import datetime
+
+import pandas as pd
+import pytest
+
+from src.bio_template_manager import LAYER_BASE, LAYER_MOD, LAYER_PERSONAL, _split_static_and_dynamic
+from src.ui.tag_editor_files import (
+    TAG_EDITOR_FILE,
+    changed_cells,
+    choose_target_file,
+    clean_event_text,
+    current_source,
+    format_event_date,
+    has_base_or_mod_rows,
+    join_description,
+    npcs_by_tag,
+    parse_event_date,
+    personal_files,
+    personal_files_with_value,
+    remove_tag_rows,
+    source_underneath,
+    split_description,
+    write_cells,
+)
+
+
+def _read_raw(path) -> str:
+    with open(path, "r", encoding="utf-8") as file:
+        return file.read()
+
+
+def _read(path) -> pd.DataFrame:
+    return pd.read_csv(path, dtype=str, keep_default_na=False)
+
+
+# --- Description and events ---
+
+def test_split_and_join_round_trip():
+    description = "Knows the Dragonborn.\nLikes mead.\n- 2000: {player_name} defeated Alduin\n- 1000: {player_name} became Thane"
+    text, events = split_description(description)
+
+    assert text == "Knows the Dragonborn.\nLikes mead."
+    joined = join_description(text, events)
+    assert joined == "Knows the Dragonborn.\nLikes mead.\n- 1000: {player_name} became Thane\n- 2000: {player_name} defeated Alduin"
+    assert _split_static_and_dynamic(joined) == (text, sorted(events))
+
+
+def test_join_drops_empty_events_and_puts_events_on_one_line():
+    joined = join_description("", [(5, "first\nline"), (6, "   ")])
+
+    assert joined == "- 5: first line"
+    assert clean_event_text("a\r\n  b") == "a b"
+
+
+def test_event_dates_round_trip_to_the_second():
+    timestamp = 1739270421
+    assert parse_event_date(format_event_date(timestamp)) == timestamp
+
+
+def test_event_dates_accept_minutes_or_a_bare_date():
+    assert parse_event_date("2026-11-06 14:30") == int(datetime(2026, 11, 6, 14, 30).timestamp())
+    assert parse_event_date("2026-11-06") == int(datetime(2026, 11, 6).timestamp())
+    with pytest.raises(ValueError):
+        parse_event_date("next tuesday")
+
+
+# --- Where values come from ---
+
+SOURCES = {
+    "whiterun_hold": {
+        "description": [(LAYER_BASE, "base.csv", "Base."), (LAYER_MOD, "mod.csv", "Mod."), (LAYER_PERSONAL, "a.csv", "Mine.")],
+        "notes": [(LAYER_PERSONAL, "a.csv", "x"), (LAYER_PERSONAL, "b.csv", "y")],
+    }
+}
+FILES = {
+    "whiterun_hold": [(LAYER_BASE, "base.csv"), (LAYER_MOD, "mod.csv"), (LAYER_PERSONAL, "a.csv"), (LAYER_PERSONAL, "b.csv")],
+    "mine_only": [(LAYER_PERSONAL, "a.csv")],
+}
+
+
+def test_current_source_and_what_is_underneath():
+    assert current_source(SOURCES, "whiterun_hold", "description") == (LAYER_PERSONAL, "a.csv", "Mine.")
+    assert source_underneath(SOURCES, "whiterun_hold", "description") == (LAYER_MOD, "mod.csv", "Mod.")
+    assert source_underneath(SOURCES, "whiterun_hold", "notes") is None
+    assert current_source(SOURCES, "whiterun_hold", "code_1") is None
+
+
+def test_personal_files_and_layers():
+    assert personal_files(FILES, "whiterun_hold") == ["a.csv", "b.csv"]
+    assert has_base_or_mod_rows(FILES, "whiterun_hold") is True
+    assert has_base_or_mod_rows(FILES, "mine_only") is False
+    assert personal_files_with_value(SOURCES, "whiterun_hold", "notes") == ["a.csv", "b.csv"]
+    assert personal_files_with_value(SOURCES, "whiterun_hold", "code_1") == []
+
+
+def test_target_is_the_last_personal_file_with_the_tag(tmp_path):
+    assert choose_target_file(FILES, "whiterun_hold", str(tmp_path)) == "b.csv"
+
+
+def test_target_is_tag_editor_csv_when_no_personal_file_has_the_tag(tmp_path):
+    files = {"base_only": [(LAYER_BASE, "base.csv")]}
+    assert choose_target_file(files, "base_only", str(tmp_path)) == os.path.join(str(tmp_path), TAG_EDITOR_FILE)
+    assert choose_target_file(files, "brand_new", str(tmp_path)) == os.path.join(str(tmp_path), TAG_EDITOR_FILE)
+
+
+def test_changed_cells_ignores_unchanged_and_end_spaces():
+    before = {"description": "Same.", "notes": "", "code_1": "old"}
+    after = {"description": "Same.  ", "notes": "new note", "code_1": ""}
+    assert changed_cells(before, after) == {"notes": "new note", "code_1": ""}
+
+
+# --- Writing ---
+
+def test_write_cells_creates_tag_editor_csv(tmp_path):
+    path = str(tmp_path / "bio_templates" / TAG_EDITOR_FILE)
+
+    write_cells(path, "new_tag", {"notes": "hello"})
+
+    df = _read(path)
+    assert list(df.columns[:2]) == ["tag", "description"]
+    assert df.to_dict("records") == [{"tag": "new_tag", "description": "", "notes": "hello"}]
+    assert not os.path.exists(path + ".bak")
+
+
+def test_write_cells_changes_only_the_given_cells_and_keeps_the_rest(tmp_path):
+    path = str(tmp_path / "my_tags.csv")
+    with open(path, "w", encoding="utf-8", newline="") as file:
+        file.write("tag,description,code_1,my_column\nwhiterun_hold,Old text.,1,keep me\nother,NA,,\n")
+
+    write_cells(path, "whiterun_hold", {"description": "New text.", "announce": "no"})
+
+    df = _read(path)
+    assert df.to_dict("records") == [
+        {"tag": "whiterun_hold", "description": "New text.", "code_1": "1", "my_column": "keep me", "announce": "no"},
+        {"tag": "other", "description": "NA", "code_1": "", "my_column": "", "announce": ""},
+    ]
+
+
+def test_write_cells_keeps_a_backup_of_the_file_before_the_change(tmp_path):
+    path = str(tmp_path / "my_tags.csv")
+    original = "tag,description\nwhiterun_hold,Old text.\n"
+    with open(path, "w", encoding="utf-8", newline="") as file:
+        file.write(original)
+
+    write_cells(path, "whiterun_hold", {"description": "New text."})
+
+    assert _read_raw(path + ".bak") == original
+
+
+def test_write_cells_reads_the_file_fresh(tmp_path):
+    path = str(tmp_path / "my_tags.csv")
+    write_cells(path, "a", {"description": "A."})
+    with open(path, "a", encoding="utf-8") as file:
+        file.write("added_by_hand,By hand.\n")
+
+    write_cells(path, "a", {"description": "A2."})
+
+    assert _read(path)["tag"].tolist() == ["a", "added_by_hand"]
+
+
+def test_write_cells_updates_the_last_row_with_the_tag_and_matches_curly_apostrophes(tmp_path):
+    path = str(tmp_path / "my_tags.csv")
+    with open(path, "w", encoding="utf-8", newline="") as file:
+        file.write("tag,description\nrisaad's_caravan,First.\nrisaad’s_caravan,Second.\n")
+
+    write_cells(path, "risaad's_caravan", {"description": "Changed."})
+
+    assert _read(path)["description"].tolist() == ["First.", "Changed."]
+
+
+def test_write_cells_turns_an_ascii_file_into_utf8_for_new_characters(tmp_path):
+    path = str(tmp_path / "my_tags.csv")
+    with open(path, "w", encoding="ascii", newline="") as file:
+        file.write("tag,description\nwhiterun_hold,Old.\n")
+
+    write_cells(path, "whiterun_hold", {"description": "Café ’quoted’."})
+
+    assert _read(path)["description"].tolist() == ["Café ’quoted’."]
+
+
+def test_write_cells_keeps_multi_line_descriptions(tmp_path):
+    path = str(tmp_path / "my_tags.csv")
+    description = join_description("Line one.\nLine two.", [(100, "event, with comma")])
+
+    write_cells(path, "t", {"description": description})
+
+    assert _read(path)["description"].tolist() == [description]
+
+
+def test_remove_tag_rows_only_touches_the_given_files(tmp_path):
+    first = str(tmp_path / "a.csv")
+    second = str(tmp_path / "b.csv")
+    untouched = str(tmp_path / "c.csv")
+    for path in (first, second, untouched):
+        with open(path, "w", encoding="utf-8", newline="") as file:
+            file.write("tag,description\ngone,Bye.\nstays,Hi.\n")
+
+    changed = remove_tag_rows([first, second, first], "gone")
+
+    assert changed == [first, second]
+    assert _read(first)["tag"].tolist() == ["stays"]
+    assert _read(second)["tag"].tolist() == ["stays"]
+    assert _read(untouched)["tag"].tolist() == ["gone", "stays"]
+    assert os.path.exists(first + ".bak")
+    assert not os.path.exists(untouched + ".bak")
+
+
+# --- NPCs with a tag ---
+
+def test_npcs_by_tag_uses_tags_overwrite_when_set():
+    df = pd.DataFrame([
+        {"name": "Lydia", "base_id": "A2C94", "tags": "whiterun_hold,housecarl", "tags_overwrite": ""},
+        {"name": "Mjoll", "base_id": "1336A", "tags": "riften_hold", "tags_overwrite": "  "},
+        {"name": "Aela", "base_id": "1A696", "tags": "whiterun_hold", "tags_overwrite": "companion"},
+        {"name": "Saadia", "base_id": "13BA4", "tags": "risaad’s_caravan", "tags_overwrite": float("nan")},
+        {"name": "Nobody", "base_id": "1", "tags": float("nan"), "tags_overwrite": float("nan")},
+    ])
+
+    result = npcs_by_tag(df)
+
+    assert result["whiterun_hold"] == ["Lydia (A2C94)"]
+    assert result["companion"] == ["Aela (1A696)"]
+    assert result["riften_hold"] == ["Mjoll (1336A)"]
+    assert result["risaad's_caravan"] == ["Saadia (13BA4)"]
+    assert npcs_by_tag(None) == {}

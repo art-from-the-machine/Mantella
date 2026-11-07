@@ -169,6 +169,11 @@ class GameStateManager:
         """Get the current game instance"""
         return self.__game
 
+    @property
+    def active_conversation(self) -> Conversation | None:
+        """The running conversation, or None"""
+        return self.__talk
+
     def _attach_sonnet_cache(self, client: Any, config: ConfigLoader, client_context: str) -> None:
         """Attach the Sonnet cache connector to a client when applicable."""
         if not client or not getattr(config, 'sonnet_prompt_caching_enabled', False):

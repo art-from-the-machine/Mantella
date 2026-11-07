@@ -80,8 +80,14 @@ class QuestTagTracker:
         check_list = game.quest_check_list
         if not check_list.tags:
             return [], []
-        if str(report[comm_consts.KEY_QUESTCHECKS_VERSION] or "") != check_list.version:
-            return [], []  # Answers to another list: unknown. The catch-up brings answers to this one
+        game_version = str(report[comm_consts.KEY_QUESTCHECKS_VERSION] or "")
+        if game_version != check_list.version:
+            # Answers to another list: unknown. The catch-up brings answers to this one. After a Tag Editor save
+            # during a conversation, that's only at the next conversation start (docs/tag_editor.md)
+            self.__log_once(f"version_mismatch_{game_version}_{check_list.version}", logging.INFO,
+                            f"Quest tags: the game answered list version {game_version or '(none)'}, Mantella has {check_list.version}. "
+                            "Those answers are ignored until the game has the new list, which is sent at a conversation start.")
+            return [], []
         answers = [float(a) for a in (report.get(comm_consts.KEY_QUESTCHECKS_RESULTS) or [])]
         if len(answers) != len(check_list.checks):
             logging.warning(f"Quest tags: the game sent {len(answers)} results for {len(check_list.checks)} checks - ignoring them")

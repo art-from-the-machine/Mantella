@@ -12,7 +12,7 @@ from src.games.external_character_info import external_character_info
 from src.games.gameable import Gameable
 import src.utils as utils
 from src.config.definitions.tts_definitions import TTSEnum
-from src.bio_template_manager import BioTemplateManager
+from src.bio_template_manager import BioTemplateManager, effective_tags, split_tags
 from src.config.definitions.llm_definitions import AutoQuestTagOutcomesEnum
 from src.quest_tags.conditions import CheckList, build_ref_to_base_map
 
@@ -38,6 +38,7 @@ class Skyrim(Gameable):
         # Use resolve_path() to handle packaged exe correctly
         bio_templates_path = os.path.join(utils.resolve_path(), 'data', 'Skyrim', 'bio_templates')
         logging.info(f"Skyrim: Initializing BioTemplateManager with path: {bio_templates_path}")
+        self.__bio_templates_path = bio_templates_path
         self.__bio_template_manager = BioTemplateManager(bio_templates_path, config)
         self.__config = config
 
@@ -95,6 +96,49 @@ class Skyrim(Gameable):
     def is_quest_tag_announced(self, tag: str) -> bool:
         return tag not in self.__bio_template_manager.no_announce
 
+    def reload_bio_templates(self) -> tuple[str, str]:
+        """Read the bio template files again and rebuild the quest checks, without ending a conversation (the Tag Editor's Save).
+
+        The new manager and check list replace the old ones in one step each, so a conversation running
+        on another thread never sees a half-loaded tag list. The game gets the new check list at the next
+        conversation start, like after Reload Character Data. Unreadable conditions aren't logged again here.
+
+        Returns:
+            The version of the check list the game should have, before and after
+        """
+        old_version = self.quest_check_list.version
+        manager = BioTemplateManager(self.__bio_templates_path, self.__config)
+        check_list = CheckList(manager.get_outcome_codes(), build_ref_to_base_map(self.character_df))
+        self.__bio_template_manager = manager
+        self.__check_list = check_list
+        return old_version, self.quest_check_list.version
+
+    def refresh_characters_with_tag(self, characters: list[Character], tag: str, tag_outcomes: dict[str, tuple[int, int]] | None = None) -> list[str]:
+        """Rebuild the bio and dated events of the NPCs here who have this tag, from the tag files as they are now.
+
+        Used after the Tag Editor saves, so NPCs in a running conversation use the new text from their next reply.
+        Returns the names of the NPCs that were rebuilt.
+        """
+        refreshed: list[str] = []
+        for character in characters:
+            if character.is_player_character or character.is_generic_npc:
+                continue
+            try:
+                character_info, is_generic_npc = self.find_character_info(character.base_id, character.name, character.race, character.gender, character.in_game_voice_model)
+            except Exception as e:
+                logging.debug(f"Tag Editor: could not look up {character.name} to refresh their tags: {e}")
+                continue
+            if is_generic_npc:
+                continue
+            npc_tags = effective_tags(character_info.get("tags", ""), character_info.get("tags_overwrite", ""))
+            if tag not in split_tags(npc_tags):
+                continue
+            character.bio = self.expand_bio_with_tags(character_info["bio"], npc_tags, tag_outcomes)
+            # Also when there are none now, so removed events don't linger
+            character.set_custom_character_value('mantella_dynamic_tag_events', self.extract_dynamic_events(npc_tags, tag_outcomes))
+            refreshed.append(character.name)
+        return refreshed
+
     @utils.time_it
     def load_external_character_info(self, base_id: str, name: str, race: str, gender: int, ingame_voice_model: str, tag_outcomes: dict[str, tuple[int, int]] | None = None) -> external_character_info:
         character_info, is_generic_npc = self.find_character_info(base_id, name, race, gender, ingame_voice_model)
@@ -102,31 +146,13 @@ class Skyrim(Gameable):
 
         # Process bio with tags if they exist
         base_bio = character_info["bio"]
-        tags_overwrite = character_info.get("tags_overwrite", "")
-        tags = character_info.get("tags", "")
+        # `tags` accumulates across overrides; `tags_overwrite`, when set, fully replaces it
+        npc_tags = effective_tags(character_info.get("tags", ""), character_info.get("tags_overwrite", ""))
 
-        # Compute effective tags at runtime:
-        # - `tags_overwrite` may be overwritten by overrides
-        # - `tags` accumulates across overrides
-        def _clean(v: Any) -> str:
-            if v is None:
-                return ""
-            if pd.isna(v):
-                return ""
-            s = v if isinstance(v, str) else str(v)
-            return s.strip()
-
-        tags_overwrite_s = _clean(tags_overwrite)
-        tags_s = _clean(tags)
-
-        # Precedence rule:
-        # If `tags_overwrite` is set (non-empty), it fully replaces accumulated `tags`.
-        effective_tags = tags_overwrite_s if tags_overwrite_s else tags_s
-
-        expanded_bio = self.expand_bio_with_tags(base_bio, effective_tags, tag_outcomes)
+        expanded_bio = self.expand_bio_with_tags(base_bio, npc_tags, tag_outcomes)
 
         # Extract dynamic tag events (timestamped event lines) for the memory timeline
-        dynamic_tag_events = self.__bio_template_manager.extract_dynamic_events(effective_tags, tag_outcomes)
+        dynamic_tag_events = self.__bio_template_manager.extract_dynamic_events(npc_tags, tag_outcomes)
 
         # Handle pandas NaN values in CSV
         tts_service_value = character_info.get('tts_service', '')
