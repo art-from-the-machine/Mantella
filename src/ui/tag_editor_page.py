@@ -333,6 +333,16 @@ def build_tag_editor_page(config: ConfigLoader):
             return {message_line: "Nothing to save."}
 
         m = load_manager()
+        # Someone changed these fields in the files since the tag was opened (e.g. by hand): saving would overwrite that
+        changed_on_disk = [
+            column for column in changes
+            if (files.current_source(m.sources, tag, column) or ("", "", ""))[2].strip() != (before.get(column) or "").strip()
+        ]
+        if changed_on_disk:
+            fields = ", ".join(_column_name(column) for column in changed_on_disk)
+            return {message_line: f"Not saved: `{tag}` was changed in its files since you opened it ({fields}). "
+                                  "Saving now would overwrite that. Copy your edits somewhere if you need them, click "
+                                  "**Discard changes** to load the new version, then make your edits again."}
         folder = files.personal_folder(config.save_folder)
         target = files.choose_target_file(m.files_with_tag, tag, folder)
         written: List[str] = []
@@ -466,7 +476,7 @@ def build_tag_editor_page(config: ConfigLoader):
     def on_search(query: str):
         """Find text in every tag's current values, like Ctrl+F across the tag files"""
         if not (query or "").strip():
-            return {search_results: pd.DataFrame([], columns=SEARCH_HEADERS), search_result_tags: [], search_summary: ""}
+            return {search_results: pd.DataFrame([], columns=SEARCH_HEADERS), search_result_rows: [], search_summary: ""}
         m = load_manager()
         results = files.search_tags(m.sources, m.files_with_tag, query)
         shown = results[:SEARCH_RESULT_LIMIT]
@@ -481,16 +491,35 @@ def build_tag_editor_page(config: ConfigLoader):
             if len(results) > len(shown):
                 summary += f" Showing the first {len(shown)}; type more to narrow it down."
             summary += " Click a row to open the tag."
-        return {search_results: pd.DataFrame(rows, columns=SEARCH_HEADERS), search_result_tags: [result["tag"] for result in shown], search_summary: summary}
+        return {search_results: pd.DataFrame(rows, columns=SEARCH_HEADERS), search_result_rows: rows, search_summary: summary}
 
-    def on_result_select(result_tags: List[str], evt: gr.SelectData):
-        """The tag of the clicked row. Opening it is the next step, with the usual unsaved-changes check"""
-        row = evt.index[0] if isinstance(evt.index, (list, tuple)) else evt.index
-        return result_tags[row] if isinstance(row, int) and 0 <= row < len(result_tags or []) else None
+    def on_result_select(result_rows: List[List[str]], evt: gr.SelectData):
+        """The tag of the clicked row. Opening it is the next step, with the usual unsaved-changes check.
+
+        The table can be re-sorted on screen, and the click then reports the row's position in the sorted table,
+        not in the results as they were found. So the clicked cell's text decides, and the position is only
+        used when it agrees with that text.
+        """
+        rows = result_rows or []
+        if isinstance(evt.index, (list, tuple)) and len(evt.index) == 2:
+            row, col = evt.index
+        else:
+            row, col = evt.index, 0
+        value = _cell_text(evt.value)
+        if not isinstance(row, int) or not isinstance(col, int) or not 0 <= col < len(SEARCH_HEADERS):
+            return None
+        if col == 0:
+            return value if any(r[0] == value for r in rows) else None
+        tags = {r[0] for r in rows if r[col] == value}
+        if len(tags) == 1:
+            return tags.pop()
+        if 0 <= row < len(rows) and rows[row][col] == value:
+            return rows[row][0]
+        return None
 
     def on_open_result(tag: str | None, snapshot: Dict[str, Any], *field_values):
         if not tag:
-            return {}
+            return {message_line: "Couldn't tell which tag that row is. Click its tag name in the results."}
         return on_pick(tag, snapshot, *field_values)
 
     # --- Layout ---
@@ -508,7 +537,7 @@ def build_tag_editor_page(config: ConfigLoader):
         search_summary = gr.Markdown()
         search_results = gr.Dataframe(headers=SEARCH_HEADERS, datatype=["str"] * 4, col_count=(4, "fixed"), interactive=False,
                                       wrap=True, value=pd.DataFrame([], columns=SEARCH_HEADERS), label="Results")
-        search_result_tags = gr.State([])
+        search_result_rows = gr.State([])
         opened_result_tag = gr.State(None)
     with gr.Row():
         tag_dropdown = gr.Dropdown(choices=all_tags(), value=None, label="Tag", filterable=True, allow_custom_value=False, scale=3)
@@ -568,10 +597,10 @@ def build_tag_editor_page(config: ConfigLoader):
     ]
 
     tag_dropdown.input(on_pick, inputs=[tag_dropdown, snapshot_state, *field_inputs], outputs=outputs)
-    search_outputs = [search_results, search_result_tags, search_summary]
+    search_outputs = [search_results, search_result_rows, search_summary]
     search_btn.click(on_search, inputs=[search_box], outputs=search_outputs)
     search_box.submit(on_search, inputs=[search_box], outputs=search_outputs)
-    search_results.select(on_result_select, inputs=[search_result_tags], outputs=[opened_result_tag]).then(
+    search_results.select(on_result_select, inputs=[search_result_rows], outputs=[opened_result_tag]).then(
         on_open_result, inputs=[opened_result_tag, snapshot_state, *field_inputs], outputs=outputs)
     create_btn.click(on_create, inputs=[new_tag_name, snapshot_state, *field_inputs], outputs=outputs)
     add_event_btn.click(on_add_event, inputs=[events_table, new_event_text, new_event_date], outputs=outputs)

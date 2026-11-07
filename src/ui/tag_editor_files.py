@@ -241,8 +241,18 @@ def _write_csv(df: pd.DataFrame, path: str, encoding: str):
         data = text.encode(encoding)
     except (UnicodeEncodeError, LookupError):
         data = text.encode("utf-8")
-    with open(path, "wb") as file:
-        file.write(data)
+    # Write a temporary file next to it, then swap it in: if writing fails halfway (disk full, Mantella closed),
+    # the tag file is never left empty or cut off
+    temporary = path + ".tmp"
+    try:
+        with open(temporary, "wb") as file:
+            file.write(data)
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.remove(temporary)
 
 
 def backup(path: str):

@@ -267,8 +267,9 @@ def test_saving_keeps_the_exact_timestamp_of_an_untouched_event(page, tmp_path):
 
 
 class _Selected:
-    def __init__(self, row: int):
-        self.index = [row, 2]
+    def __init__(self, row: int, col: int, value: str):
+        self.index = [row, col]
+        self.value = value
 
 
 def test_search_then_click_a_result_opens_the_tag(page, tmp_path):
@@ -276,22 +277,70 @@ def test_search_then_click_a_result_opens_the_tag(page, tmp_path):
     personal.mkdir(parents=True, exist_ok=True)
     (personal / "mine.csv").write_text("tag,description,notes\ntag_editor_search_a,Knows about the Zebra Cult.,\ntag_editor_search_b,,zebra notes\n", encoding="utf-8")
     search = page.handlers["on_search"]
-    results_table, result_tags, summary = search.outputs
+    results_table, result_rows, summary = search.outputs
 
     found = page.call("on_search", "ZEBRA")
 
-    assert found[result_tags] == ["tag_editor_search_a", "tag_editor_search_b"]
-    assert found[results_table].values.tolist() == [
+    rows = [
         ["tag_editor_search_a", "Tag text", "Knows about the Zebra Cult.", "Personal, mine.csv"],
         ["tag_editor_search_b", "Notes", "zebra notes", "Personal, mine.csv"],
     ]
+    assert found[result_rows] == rows
+    assert found[results_table].values.tolist() == rows
     assert "2 matches in 2 tags" in found[summary]
 
-    clicked = page.call("on_result_select", found[result_tags], _Selected(1))
+    clicked = page.call("on_result_select", found[result_rows], _Selected(1, 2, "zebra notes"))
     assert clicked == "tag_editor_search_b"
     opened = page.call("on_open_result", clicked, {}, *_fields())
     assert _snapshot(page, opened)["tag"] == "tag_editor_search_b"
-    assert page.call("on_open_result", None, {}, *_fields()) == {}
+    assert "Click its tag name" in page.call("on_open_result", None, {}, *_fields())[page.message]
+
+
+def test_clicking_a_result_after_sorting_the_table_opens_the_clicked_tag(page):
+    rows = [
+        ["b_tag", "Tag text", "text of b", "Base, x.csv"],
+        ["a_tag", "Notes", "text of a", "Base, x.csv"],
+        ["c_tag", "Tag text", "text of c", "Base, x.csv"],
+    ]
+    # Sorted by tag on screen: a_tag is now the first row
+    assert page.call("on_result_select", rows, _Selected(0, 0, "a_tag")) == "a_tag"
+    assert page.call("on_result_select", rows, _Selected(0, 2, "text of a")) == "a_tag"
+    assert page.call("on_result_select", rows, _Selected(0, 1, "Notes")) == "a_tag"
+    # "Tag text" is on two rows, and position 1 shows "Notes" in the found order: can't tell which was clicked
+    assert page.call("on_result_select", rows, _Selected(1, 1, "Tag text")) is None
+    # Not sorted: the position agrees with the clicked text
+    assert page.call("on_result_select", rows, _Selected(2, 1, "Tag text")) == "c_tag"
+
+
+def test_save_refuses_to_overwrite_a_field_changed_in_the_file_since_opening(page, tmp_path):
+    personal = tmp_path / "data" / "Skyrim" / "bio_templates"
+    personal.mkdir(parents=True, exist_ok=True)
+    path = personal / "mine.csv"
+    path.write_text("tag,description\ntag_editor_conflict,\"Text.\n- 1739270400: Old event\"\n", encoding="utf-8")
+    snapshot = _snapshot(page, page.call("on_pick", "tag_editor_conflict", {}, *_fields()))
+    by_hand = "tag,description\ntag_editor_conflict,\"Text, edited by hand.\n- 1739270400: Old event\"\n"
+    path.write_text(by_hand, encoding="utf-8")
+
+    result = page.call("on_save", snapshot, *_fields(text="Text.", events=snapshot["events"] + [["2026-11-06 14:30", "New event"]]))
+
+    assert "Not saved" in result[page.message] and "tag text and events" in result[page.message]
+    assert path.read_text(encoding="utf-8") == by_hand
+    assert not os.path.exists(str(path) + ".bak")
+
+
+def test_save_still_works_when_another_field_changed_in_the_file(page, tmp_path):
+    personal = tmp_path / "data" / "Skyrim" / "bio_templates"
+    personal.mkdir(parents=True, exist_ok=True)
+    path = personal / "mine.csv"
+    path.write_text("tag,description,notes\ntag_editor_conflict,Text.,\n", encoding="utf-8")
+    snapshot = _snapshot(page, page.call("on_pick", "tag_editor_conflict", {}, *_fields()))
+    path.write_text("tag,description,notes\ntag_editor_conflict,Text.,note by hand\n", encoding="utf-8")
+
+    result = page.call("on_save", snapshot, *_fields(text="Text. More."))
+
+    assert "Saved" in result[page.message]
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    assert df.to_dict("records") == [{"tag": "tag_editor_conflict", "description": "Text. More.", "notes": "note by hand"}]
 
 
 def test_search_with_nothing_found(page):

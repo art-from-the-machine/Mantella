@@ -241,6 +241,23 @@ def test_clearing_a_cell_clears_it_on_every_row_with_the_tag(tmp_path):
     ]
 
 
+def test_a_write_that_fails_leaves_the_file_as_it_was(tmp_path, monkeypatch):
+    path = str(tmp_path / "my_tags.csv")
+    original = "tag,description\nwhiterun_hold,Old.\n"
+    with open(path, "w", encoding="utf-8", newline="") as file:
+        file.write(original)
+
+    def fail(*_):
+        raise OSError("disk full")
+    monkeypatch.setattr(os, "replace", fail)
+
+    with pytest.raises(OSError):
+        write_cells(path, "whiterun_hold", {"description": "New."})
+
+    assert _read_raw(path) == original
+    assert not os.path.exists(path + ".tmp")
+
+
 def test_write_cells_keeps_multi_line_descriptions(tmp_path):
     path = str(tmp_path / "my_tags.csv")
     description = join_description("Line one.\nLine two.", [(100, "event, with comma")])
