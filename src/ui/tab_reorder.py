@@ -1,6 +1,7 @@
 PROMPT_PROFILES_TAB = "Prompt Profiles"
 LIVE_CONVERSATION_TAB = "Live Conversation"
 BIO_EDITOR_TAB = "Bio Editor"
+TAG_EDITOR_TAB = "Tag Editor"
 DOCUMENTATION_TAB = "Documentation"
 
 TAB_REORDER_JS = r"""
@@ -306,6 +307,7 @@ def default_tab_names(base_groups) -> list[str]:
         if group.name == PROMPT_PROFILES_TAB:
             names.append(LIVE_CONVERSATION_TAB)
     names.append(BIO_EDITOR_TAB)
+    names.append(TAG_EDITOR_TAB)
     names.append(DOCUMENTATION_TAB)
     return names
 
