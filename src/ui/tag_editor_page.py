@@ -23,6 +23,8 @@ EVENT_HEADERS = ["Date", "Event"]
 NEW_EVENT_DATE_FORMAT = "%Y-%m-%d %H:%M"
 OUTCOME_COLUMNS = [column for slot in range(1, OUTCOME_SLOTS + 1) for column in (f"potential_paste_{slot}", f"code_{slot}")]
 NPC_LIST_NEEDS_GAME = "Shown once Mantella has connected to the game."
+SEARCH_HEADERS = ["Tag", "Where", "Text", "From"]
+SEARCH_RESULT_LIMIT = 200
 
 
 def _column_name(column: str) -> str:
@@ -459,6 +461,38 @@ def build_tag_editor_page(config: ConfigLoader):
         load_manager()
         return render(tag, message="\n\n".join(lines))
 
+    # --- Search ---
+
+    def on_search(query: str):
+        """Find text in every tag's current values, like Ctrl+F across the tag files"""
+        if not (query or "").strip():
+            return {search_results: pd.DataFrame([], columns=SEARCH_HEADERS), search_result_tags: [], search_summary: ""}
+        m = load_manager()
+        results = files.search_tags(m.sources, m.files_with_tag, query)
+        shown = results[:SEARCH_RESULT_LIMIT]
+        rows = [[result["tag"], result["where"], result["snippet"],
+                 f"{LAYER_NAMES.get(result['layer'], result['layer'])}, {os.path.basename(result['file'])}" if result["file"] else ""]
+                for result in shown]
+        tag_count = len({result["tag"] for result in results})
+        if not results:
+            summary = f"Nothing found for `{query.strip()}`."
+        else:
+            summary = f"{len(results)} match{'es' if len(results) != 1 else ''} in {tag_count} tag{'s' if tag_count != 1 else ''}."
+            if len(results) > len(shown):
+                summary += f" Showing the first {len(shown)}; type more to narrow it down."
+            summary += " Click a row to open the tag."
+        return {search_results: pd.DataFrame(rows, columns=SEARCH_HEADERS), search_result_tags: [result["tag"] for result in shown], search_summary: summary}
+
+    def on_result_select(result_tags: List[str], evt: gr.SelectData):
+        """The tag of the clicked row. Opening it is the next step, with the usual unsaved-changes check"""
+        row = evt.index[0] if isinstance(evt.index, (list, tuple)) else evt.index
+        return result_tags[row] if isinstance(row, int) and 0 <= row < len(result_tags or []) else None
+
+    def on_open_result(tag: str | None, snapshot: Dict[str, Any], *field_values):
+        if not tag:
+            return {}
+        return on_pick(tag, snapshot, *field_values)
+
     # --- Layout ---
 
     gr.Markdown(
@@ -467,6 +501,15 @@ def build_tag_editor_page(config: ConfigLoader):
         "including to NPCs in a running conversation. Base and mod files are never changed."
     )
     tag_note = gr.Markdown(tag_reading_note())
+    with gr.Accordion(label="Search", open=True):
+        with gr.Row():
+            search_box = gr.Text(label="Find text in all tags", placeholder="e.g. Thane", max_lines=1, scale=4)
+            search_btn = gr.Button("Search", variant="secondary", scale=1)
+        search_summary = gr.Markdown()
+        search_results = gr.Dataframe(headers=SEARCH_HEADERS, datatype=["str"] * 4, col_count=(4, "fixed"), interactive=False,
+                                      wrap=True, value=pd.DataFrame([], columns=SEARCH_HEADERS), label="Results")
+        search_result_tags = gr.State([])
+        opened_result_tag = gr.State(None)
     with gr.Row():
         tag_dropdown = gr.Dropdown(choices=all_tags(), value=None, label="Tag", filterable=True, allow_custom_value=False, scale=3)
         new_tag_name = gr.Text(label="New tag", max_lines=1, placeholder="new_tag_name", scale=2)
@@ -525,6 +568,11 @@ def build_tag_editor_page(config: ConfigLoader):
     ]
 
     tag_dropdown.input(on_pick, inputs=[tag_dropdown, snapshot_state, *field_inputs], outputs=outputs)
+    search_outputs = [search_results, search_result_tags, search_summary]
+    search_btn.click(on_search, inputs=[search_box], outputs=search_outputs)
+    search_box.submit(on_search, inputs=[search_box], outputs=search_outputs)
+    search_results.select(on_result_select, inputs=[search_result_tags], outputs=[opened_result_tag]).then(
+        on_open_result, inputs=[opened_result_tag, snapshot_state, *field_inputs], outputs=outputs)
     create_btn.click(on_create, inputs=[new_tag_name, snapshot_state, *field_inputs], outputs=outputs)
     add_event_btn.click(on_add_event, inputs=[events_table, new_event_text, new_event_date], outputs=outputs)
     save_btn.click(on_save, inputs=[snapshot_state, *field_inputs], outputs=outputs)

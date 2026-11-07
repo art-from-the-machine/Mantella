@@ -14,7 +14,7 @@ from typing import Dict, List, Tuple
 import pandas as pd
 
 import src.utils as utils
-from src.bio_template_manager import LAYER_PERSONAL, _split_static_and_dynamic, effective_tags, file_encoding, split_tags
+from src.bio_template_manager import LAYER_PERSONAL, OUTCOME_SLOTS, _split_static_and_dynamic, effective_tags, file_encoding, split_tags
 
 TAG_EDITOR_FILE = "tag_editor.csv"
 BACKUP_SUFFIX = ".bak"
@@ -157,6 +157,63 @@ def changed_cells(before: Dict[str, str], after: Dict[str, str]) -> Dict[str, st
         for column, value in after.items()
         if (value or "").strip() != (before.get(column) or "").strip()
     }
+
+
+# --- Search ---
+
+SEARCH_SNIPPET_CONTEXT = 40
+
+
+def _field_name(column: str) -> str:
+    """A column as the search results call it"""
+    if column.startswith("potential_paste_"):
+        return f"Outcome {column.rsplit('_', 1)[1]} text"
+    if column.startswith("code_"):
+        return f"Condition {column.rsplit('_', 1)[1]}"
+    return {"notes": "Notes"}.get(column, column)
+
+
+def _snippet(text: str, start: int, length: int) -> str:
+    """The match with some text around it, on one line"""
+    begin = max(0, start - SEARCH_SNIPPET_CONTEXT)
+    end = min(len(text), start + length + SEARCH_SNIPPET_CONTEXT)
+    snippet = " ".join(text[begin:end].split())
+    return ("…" if begin > 0 else "") + snippet + ("…" if end < len(text) else "")
+
+
+def search_tags(sources: Dict[str, Dict[str, List[Source]]], files_with_tag: Dict[str, List[Tuple[str, str]]], query: str) -> List[Dict[str, str]]:
+    """Every place the query appears in the tags' current values, ignoring upper and lower case.
+
+    Searches tag names, tag text, dated events, outcome texts, conditions and notes. Values that a later
+    layer overrides aren't searched: only what the game uses. Each result has `tag`, `where`, `snippet`,
+    `layer` and `file` (the file the matching value comes from).
+    """
+    needle = (query or "").strip().lower()
+    if not needle:
+        return []
+    results: List[Dict[str, str]] = []
+
+    def add(tag: str, where: str, text: str, source: Source | Tuple[str, str] | None):
+        position = text.lower().find(needle)
+        if position < 0:
+            return
+        layer, path = (source[0], source[1]) if source else ("", "")
+        results.append({"tag": tag, "where": where, "snippet": _snippet(text, position, len(needle)), "layer": layer, "file": path})
+
+    for tag in sorted(files_with_tag, key=str.lower):
+        files = files_with_tag[tag]
+        add(tag, "Tag name", tag, files[-1] if files else None)
+        description = current_source(sources, tag, "description")
+        if description:
+            text, events = split_description(description[2])
+            add(tag, "Tag text", text, description)
+            for timestamp, event in sorted(events):
+                add(tag, f"Event {format_event_date(timestamp)}", event, description)
+        for column in [f"{prefix}_{slot}" for slot in range(1, OUTCOME_SLOTS + 1) for prefix in ("potential_paste", "code")] + ["notes"]:
+            source = current_source(sources, tag, column)
+            if source:
+                add(tag, _field_name(column), source[2], source)
+    return results
 
 
 # --- Reading and writing ---

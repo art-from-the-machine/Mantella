@@ -21,6 +21,7 @@ from src.ui.tag_editor_files import (
     personal_files,
     personal_files_with_value,
     remove_tag_rows,
+    search_tags,
     source_underneath,
     split_description,
     write_cells,
@@ -265,6 +266,55 @@ def test_remove_tag_rows_only_touches_the_given_files(tmp_path):
     assert _read(untouched)["tag"].tolist() == ["gone", "stays"]
     assert os.path.exists(first + ".bak")
     assert not os.path.exists(untouched + ".bak")
+
+
+# --- Search ---
+
+SEARCH_SOURCES = {
+    "whiterun_hold": {
+        "description": [(LAYER_BASE, "base.csv", "Old thane text."), (LAYER_PERSONAL, "mine.csv", "Knows the Dragonborn.\n- 1739270400: {player_name} became Thane of Whiterun")],
+        "code_2": [(LAYER_MOD, "mod.csv", "getstagedone Favor250 20=1")],
+        "notes": [(LAYER_PERSONAL, "mine.csv", "check the THANE quests")],
+    },
+    "thane_of_riften": {
+        "potential_paste_1": [(LAYER_MOD, "mod.csv", "The player is now a Thane.")],
+    },
+}
+SEARCH_FILES = {
+    "whiterun_hold": [(LAYER_BASE, "base.csv"), (LAYER_MOD, "mod.csv"), (LAYER_PERSONAL, "mine.csv")],
+    "thane_of_riften": [(LAYER_MOD, "mod.csv")],
+}
+
+
+def test_search_finds_every_field_ignoring_case():
+    results = search_tags(SEARCH_SOURCES, SEARCH_FILES, "thane")
+
+    found = [(result["tag"], result["where"]) for result in results]
+    assert found == [
+        ("thane_of_riften", "Tag name"),
+        ("thane_of_riften", "Outcome 1 text"),
+        ("whiterun_hold", f"Event {format_event_date(1739270400)}"),
+        ("whiterun_hold", "Notes"),
+    ]
+    riften_text = results[1]
+    assert riften_text["snippet"] == "The player is now a Thane."
+    assert (riften_text["layer"], riften_text["file"]) == (LAYER_MOD, "mod.csv")
+
+
+def test_search_only_looks_at_current_values():
+    # "Old thane text." is overridden by the personal description, so the game never uses it
+    assert all(result["where"] != "Tag text" for result in search_tags(SEARCH_SOURCES, SEARCH_FILES, "old thane"))
+
+
+def test_search_finds_conditions_and_trims_long_text():
+    assert [r["where"] for r in search_tags(SEARCH_SOURCES, SEARCH_FILES, "favor250")] == ["Condition 2"]
+    long_sources = {"long": {"description": [(LAYER_BASE, "b.csv", "a" * 100 + " needle " + "b" * 100)]}}
+    snippet = search_tags(long_sources, {"long": [(LAYER_BASE, "b.csv")]}, "NEEDLE")[0]["snippet"]
+    assert snippet.startswith("…") and snippet.endswith("…") and "needle" in snippet and len(snippet) < 100
+
+
+def test_empty_search_finds_nothing():
+    assert search_tags(SEARCH_SOURCES, SEARCH_FILES, "   ") == []
 
 
 # --- NPCs with a tag ---

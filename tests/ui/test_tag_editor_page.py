@@ -266,6 +266,40 @@ def test_saving_keeps_the_exact_timestamp_of_an_untouched_event(page, tmp_path):
     assert description == f"New.\n- {timestamp}: Event"
 
 
+class _Selected:
+    def __init__(self, row: int):
+        self.index = [row, 2]
+
+
+def test_search_then_click_a_result_opens_the_tag(page, tmp_path):
+    personal = tmp_path / "data" / "Skyrim" / "bio_templates"
+    personal.mkdir(parents=True, exist_ok=True)
+    (personal / "mine.csv").write_text("tag,description,notes\ntag_editor_search_a,Knows about the Zebra Cult.,\ntag_editor_search_b,,zebra notes\n", encoding="utf-8")
+    search = page.handlers["on_search"]
+    results_table, result_tags, summary = search.outputs
+
+    found = page.call("on_search", "ZEBRA")
+
+    assert found[result_tags] == ["tag_editor_search_a", "tag_editor_search_b"]
+    assert found[results_table].values.tolist() == [
+        ["tag_editor_search_a", "Tag text", "Knows about the Zebra Cult.", "Personal, mine.csv"],
+        ["tag_editor_search_b", "Notes", "zebra notes", "Personal, mine.csv"],
+    ]
+    assert "2 matches in 2 tags" in found[summary]
+
+    clicked = page.call("on_result_select", found[result_tags], _Selected(1))
+    assert clicked == "tag_editor_search_b"
+    opened = page.call("on_open_result", clicked, {}, *_fields())
+    assert _snapshot(page, opened)["tag"] == "tag_editor_search_b"
+    assert page.call("on_open_result", None, {}, *_fields()) == {}
+
+
+def test_search_with_nothing_found(page):
+    search = page.handlers["on_search"]
+    found = page.call("on_search", "no tag says this 12345")
+    assert "Nothing found" in found[search.outputs[2]]
+
+
 def test_bad_event_date_is_reported_not_raised(page):
     result = page.call("on_add_event", pd.DataFrame(columns=["Date", "Event"]), "Something", "someday")
 
