@@ -58,18 +58,27 @@ def join_description(text: str, events: List[Tuple[int, str]]) -> str:
 
 
 def format_event_date(timestamp: int) -> str:
-    """Unix seconds as a date in local time"""
-    return datetime.fromtimestamp(int(timestamp)).strftime(EVENT_DATE_FORMAT)
+    """Unix seconds as a date in local time. A timestamp Windows can't show as a date (e.g. before 1970) stays a number"""
+    try:
+        return datetime.fromtimestamp(int(timestamp)).strftime(EVENT_DATE_FORMAT)
+    except (OSError, OverflowError, ValueError):
+        return str(int(timestamp))
 
 
 def parse_event_date(text: str) -> int:
-    """A date in local time as Unix seconds. Raises ValueError with a readable message"""
+    """A date in local time as Unix seconds, or a plain number of seconds. Raises ValueError with a readable message"""
     value = str(text or "").strip()
+    if value.isdigit():
+        return int(value)
     for date_format in _EVENT_DATE_INPUT_FORMATS:
         try:
-            return int(datetime.strptime(value, date_format).timestamp())
+            parsed = datetime.strptime(value, date_format)
         except ValueError:
             continue
+        try:
+            return int(parsed.timestamp())
+        except (OSError, OverflowError, ValueError):
+            raise ValueError(f"'{value}' can't be used as a date. Use a date from 1970 on")
     raise ValueError(f"'{value}' isn't a date. Write it like 2026-11-06 14:30")
 
 
@@ -124,9 +133,23 @@ def changed_cells(before: Dict[str, str], after: Dict[str, str]) -> Dict[str, st
 
 # --- Reading and writing ---
 
+def _file_encoding(path: str) -> str:
+    """A file that is valid UTF-8 is read as UTF-8. Encoding guesses can mistake short UTF-8 files for another
+    encoding, and writing back after such a guess would garble their accented text for good"""
+    with open(path, "rb") as file:
+        data = file.read()
+    if data.startswith(b"\xef\xbb\xbf"):
+        return "utf-8-sig"
+    try:
+        data.decode("utf-8")
+        return "utf-8"
+    except UnicodeDecodeError:
+        return utils.get_file_encoding(path) or "utf-8"
+
+
 def _read_csv(path: str) -> Tuple[pd.DataFrame, str]:
     """Every cell as the text it is in the file (`1` stays `1`, `NA` stays `NA`), and the file's encoding"""
-    encoding = utils.get_file_encoding(path) or "utf-8"
+    encoding = _file_encoding(path)
     if os.path.getsize(path) == 0:
         return pd.DataFrame(columns=["tag", "description"]), encoding
     df = pd.read_csv(path, dtype=str, keep_default_na=False, engine="python", encoding=encoding)
@@ -164,6 +187,8 @@ def write_cells(path: str, tag: str, cells: Dict[str, str]):
     """Write these cells of the tag's row, keeping everything else in the file as it is.
 
     The row is the last one with this tag in the file (the one that wins), or a new row at the end.
+    An emptied cell is emptied on every row with the tag: Mantella reads every row, so a value left
+    on an earlier row would come back.
     A new file gets the `tag` and `description` columns Mantella needs to read it.
     """
     if os.path.exists(path):
@@ -187,7 +212,8 @@ def write_cells(path: str, tag: str, cells: Dict[str, str]):
         index = df.index[-1]
 
     for column, value in cells.items():
-        df.at[index, column] = value
+        for row in (rows or [index]) if value == "" else [index]:
+            df.at[row, column] = value
     _write_csv(df, path, encoding)
 
 

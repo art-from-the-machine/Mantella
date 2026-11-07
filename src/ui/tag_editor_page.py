@@ -81,6 +81,8 @@ def build_tag_editor_page(config: ConfigLoader):
     # The tab's own view of the tag files. The running game has its own, which Save brings up to date
     state: Dict[str, Any] = {"manager": None, "npcs": None}
 
+    # The files are read again whenever a tag is picked and before anything is written (about 0.1 s for ~1,000 tags),
+    # so CSVs edited by hand while Mantella runs are never acted on from an old copy
     def load_manager() -> BioTemplateManager:
         state["manager"] = BioTemplateManager(templates_folder, config, "Skyrim")
         state["npcs"] = None
@@ -164,6 +166,7 @@ def build_tag_editor_page(config: ConfigLoader):
             events_table: _events_table_value(event_rows),
             announce_box: announce,
             notes_box: values["notes"],
+            new_event_text: "",
             new_event_date: _now_for_new_event(),
             confirm_delete_btn: gr.update(visible=False),
             confirm_back_btn: gr.update(visible=False),
@@ -271,6 +274,7 @@ def build_tag_editor_page(config: ConfigLoader):
             return {}
         if has_unsaved_changes(snapshot, field_values):
             return unsaved_message(snapshot)
+        load_manager()
         return render(tag)
 
     def on_create(name: str, snapshot: Dict[str, Any], *field_values):
@@ -281,7 +285,7 @@ def build_tag_editor_page(config: ConfigLoader):
             return {message_line: "Type a name for the new tag first."}
         if "," in tag:
             return {message_line: "A tag name can't contain commas: an NPC's tags are written as a comma-separated list."}
-        if tag in manager().files_with_tag:
+        if tag in load_manager().files_with_tag:
             return {message_line: f"`{tag}` already exists. Pick it from the list to change it."}
         update = render(tag, is_new=True, message=f"New tag `{tag}`. Fill it in and click **Save**; it's only written to a file then. After that, give it to NPCs in the Bio Editor.")
         update[new_tag_name] = ""
@@ -324,7 +328,7 @@ def build_tag_editor_page(config: ConfigLoader):
         if not changes and not snapshot.get("is_new"):
             return {message_line: "Nothing to save."}
 
-        m = manager()
+        m = load_manager()
         folder = files.personal_folder(config.save_folder)
         target = files.choose_target_file(m.files_with_tag, tag, folder)
         written: List[str] = []
@@ -399,7 +403,7 @@ def build_tag_editor_page(config: ConfigLoader):
         tag = (snapshot or {}).get("tag")
         if not tag:
             return {message_line: "Pick a tag first."}
-        paths = files.personal_files(manager().files_with_tag, tag)
+        paths = files.personal_files(load_manager().files_with_tag, tag)
         names = ", ".join(f"`{os.path.basename(path)}`" for path in paths)
         return {
             confirm_delete_btn: gr.update(visible=True),
@@ -409,10 +413,11 @@ def build_tag_editor_page(config: ConfigLoader):
 
     def on_confirm_delete(snapshot: Dict[str, Any]):
         tag = (snapshot or {}).get("tag")
-        if not tag or files.has_base_or_mod_rows(manager().files_with_tag, tag):
+        files_with_tag = load_manager().files_with_tag
+        if not tag or not files.personal_files(files_with_tag, tag) or files.has_base_or_mod_rows(files_with_tag, tag):
             return {message_line: "Only a tag that exists only in your personal files can be deleted.", confirm_delete_btn: gr.update(visible=False)}
         try:
-            changed = files.remove_tag_rows(files.personal_files(manager().files_with_tag, tag), tag)
+            changed = files.remove_tag_rows(files.personal_files(files_with_tag, tag), tag)
         except Exception as e:
             logging.warning(f"Tag Editor: could not delete {tag}: {e}")
             return {message_line: f"Couldn't delete `{tag}`: {e}", confirm_delete_btn: gr.update(visible=False)}
@@ -425,7 +430,7 @@ def build_tag_editor_page(config: ConfigLoader):
         tag = (snapshot or {}).get("tag")
         if not tag:
             return {message_line: "Pick a tag first."}
-        paths = files.personal_files(manager().files_with_tag, tag)
+        paths = files.personal_files(load_manager().files_with_tag, tag)
         names = ", ".join(f"`{os.path.basename(path)}`" for path in paths)
         return {
             confirm_back_btn: gr.update(visible=True),
@@ -435,10 +440,11 @@ def build_tag_editor_page(config: ConfigLoader):
 
     def on_confirm_back(snapshot: Dict[str, Any]):
         tag = (snapshot or {}).get("tag")
-        if not tag or not files.has_base_or_mod_rows(manager().files_with_tag, tag):
-            return {message_line: "Back to original only works for a tag that's also in a base or mod file.", confirm_back_btn: gr.update(visible=False)}
+        files_with_tag = load_manager().files_with_tag
+        if not tag or not files.personal_files(files_with_tag, tag) or not files.has_base_or_mod_rows(files_with_tag, tag):
+            return {message_line: "Back to original only works for a tag that's in a base or mod file and that you've changed.", confirm_back_btn: gr.update(visible=False)}
         try:
-            changed = files.remove_tag_rows(files.personal_files(manager().files_with_tag, tag), tag)
+            changed = files.remove_tag_rows(files.personal_files(files_with_tag, tag), tag)
         except Exception as e:
             logging.warning(f"Tag Editor: could not undo the changes to {tag}: {e}")
             return {message_line: f"Couldn't undo your changes to `{tag}`: {e}", confirm_back_btn: gr.update(visible=False)}

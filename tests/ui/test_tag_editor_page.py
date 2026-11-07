@@ -200,6 +200,41 @@ def test_save_during_a_conversation_refreshes_npcs_and_warns_when_checks_pause(p
     assert saved[npc_list] == "Lydia (0A2C94)"
 
 
+def test_delete_sees_files_edited_by_hand_after_the_tab_loaded(page, tmp_path):
+    snapshot = _snapshot(page, page.call("on_create", "tag_editor_page_test", {}, *_fields()))
+    snapshot = _snapshot(page, page.call("on_save", snapshot, *_fields(text="Text.")))
+    by_hand = tmp_path / "data" / "Skyrim" / "bio_templates" / "by_hand.csv"
+    by_hand.write_text("tag,description\ntag_editor_page_test,Also here.\n", encoding="utf-8")
+
+    asked = page.call("on_delete", snapshot)
+    assert "`by_hand.csv`" in asked[page.message]
+    page.call("on_confirm_delete", snapshot)
+
+    assert "tag_editor_page_test" not in pd.read_csv(by_hand, dtype=str, keep_default_na=False)["tag"].tolist()
+
+
+def test_picking_a_tag_shows_files_edited_by_hand_and_clears_a_half_typed_event(page, tmp_path):
+    personal = tmp_path / "data" / "Skyrim" / "bio_templates"
+    personal.mkdir(parents=True, exist_ok=True)
+    (personal / "by_hand.csv").write_text("tag,description\ntag_editor_by_hand,Written by hand.\n", encoding="utf-8")
+
+    picked = page.call("on_pick", "tag_editor_by_hand", {}, *_fields())
+
+    assert _snapshot(page, picked)["text"] == "Written by hand."
+    new_event_text = page.handlers["on_add_event"].inputs[1]
+    assert picked[new_event_text] == ""
+
+
+def test_an_event_line_with_a_timestamp_windows_cant_show_still_opens(page, tmp_path):
+    personal = tmp_path / "data" / "Skyrim" / "bio_templates"
+    personal.mkdir(parents=True, exist_ok=True)
+    (personal / "odd.csv").write_text("tag,description\ntag_editor_odd,\"Text.\n- 99999999999: Far future\"\n", encoding="utf-8")
+
+    picked = page.call("on_pick", "tag_editor_odd", {}, *_fields())
+
+    assert _snapshot(page, picked)["events"] == [["99999999999", "Far future"]]
+
+
 def test_bad_event_date_is_reported_not_raised(page):
     result = page.call("on_add_event", pd.DataFrame(columns=["Date", "Event"]), "Something", "someday")
 

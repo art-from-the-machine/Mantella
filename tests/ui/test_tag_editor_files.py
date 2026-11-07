@@ -59,6 +59,13 @@ def test_event_dates_round_trip_to_the_second():
     assert parse_event_date(format_event_date(timestamp)) == timestamp
 
 
+def test_dates_windows_cant_handle_give_a_readable_error_or_stay_a_number():
+    with pytest.raises(ValueError, match="from 1970 on"):
+        parse_event_date("1960-01-01")
+    assert format_event_date(99999999999) == "99999999999"
+    assert parse_event_date("99999999999") == 99999999999
+
+
 def test_event_dates_accept_minutes_or_a_bare_date():
     assert parse_event_date("2026-11-06 14:30") == int(datetime(2026, 11, 6, 14, 30).timestamp())
     assert parse_event_date("2026-11-06") == int(datetime(2026, 11, 6).timestamp())
@@ -178,6 +185,33 @@ def test_write_cells_turns_an_ascii_file_into_utf8_for_new_characters(tmp_path):
     write_cells(path, "whiterun_hold", {"description": "Café ’quoted’."})
 
     assert _read(path)["description"].tolist() == ["Café ’quoted’."]
+
+
+def test_a_valid_utf8_file_stays_utf8_whatever_the_guess(tmp_path, monkeypatch):
+    path = str(tmp_path / "my_tags.csv")
+    with open(path, "w", encoding="utf-8", newline="") as file:
+        file.write("tag,description\nother,Café.\nwhiterun_hold,Old.\n")
+    monkeypatch.setattr("src.utils.get_file_encoding", lambda _: "Windows-1252")
+
+    write_cells(path, "whiterun_hold", {"description": "’quoted’ 中"})
+
+    with open(path, "r", encoding="utf-8") as file:
+        df = pd.read_csv(file, dtype=str, keep_default_na=False)
+    assert df["description"].tolist() == ["Café.", "’quoted’ 中"]
+
+
+def test_clearing_a_cell_clears_it_on_every_row_with_the_tag(tmp_path):
+    path = str(tmp_path / "my_tags.csv")
+    with open(path, "w", encoding="utf-8", newline="") as file:
+        file.write("tag,description,notes\nt,First.,a\nother,Keep.,b\nt,Second.,c\n")
+
+    write_cells(path, "t", {"description": "", "notes": "new"})
+
+    assert _read(path).to_dict("records") == [
+        {"tag": "t", "description": "", "notes": "a"},
+        {"tag": "other", "description": "Keep.", "notes": "b"},
+        {"tag": "t", "description": "", "notes": "new"},
+    ]
 
 
 def test_write_cells_keeps_multi_line_descriptions(tmp_path):
