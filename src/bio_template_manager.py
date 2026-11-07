@@ -50,6 +50,21 @@ def _split_static_and_dynamic(description: str) -> Tuple[str, List[Tuple[int, st
     return static_text, dynamic_events
 
 
+def file_encoding(path: str) -> str:
+    """The encoding to read a tag file with. A file that is valid UTF-8 is UTF-8 (`utf-8-sig` with a BOM):
+    encoding guesses can mistake a short UTF-8 file for another encoding and show its accented text garbled.
+    Only other files use the guess"""
+    with open(path, "rb") as file:
+        data = file.read()
+    if data.startswith(b"\xef\xbb\xbf"):
+        return "utf-8-sig"
+    try:
+        data.decode("utf-8")
+        return "utf-8"
+    except UnicodeDecodeError:
+        return utils.get_file_encoding(path) or "utf-8"
+
+
 def _clean_tags_cell(value) -> str:
     if value is None:
         return ""
@@ -147,9 +162,10 @@ class BioTemplateManager:
                 if filename.endswith('.csv'):
                     filepath = os.path.join(templates_folder, filename)
                     try:
-                        encoding = utils.get_file_encoding(filepath)
+                        # The same encoding the Tag Editor writes with, so what it shows is what it saves
+                        encoding = file_encoding(filepath)
                         df = pd.read_csv(filepath, engine='python', encoding=encoding)
-                        
+
                         # Expected columns: 'tag' and 'description'
                         if 'tag' in df.columns and 'description' in df.columns:
                             templates_loaded = 0

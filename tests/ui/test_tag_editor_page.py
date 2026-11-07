@@ -235,6 +235,37 @@ def test_an_event_line_with_a_timestamp_windows_cant_show_still_opens(page, tmp_
     assert _snapshot(page, picked)["events"] == [["99999999999", "Far future"]]
 
 
+def test_clearing_several_fields_in_another_personal_file_keeps_its_backup_intact(page, tmp_path):
+    personal = tmp_path / "data" / "Skyrim" / "bio_templates"
+    personal.mkdir(parents=True, exist_ok=True)
+    original = "tag,description,potential_paste_1,notes\ntag_editor_two_files,,Outcome text.,A note.\n"
+    (personal / "a.csv").write_text(original, encoding="utf-8")
+    (personal / "b.csv").write_text("tag,description\ntag_editor_two_files,Text from b.\n", encoding="utf-8")
+    snapshot = _snapshot(page, page.call("on_pick", "tag_editor_two_files", {}, *_fields()))
+    outcomes = [""] * 10
+
+    page.call("on_save", snapshot, *_fields(text="Text from b.", outcomes=outcomes, notes=""))
+
+    assert (personal / "a.csv.bak").read_text(encoding="utf-8") == original
+    assert pd.read_csv(personal / "a.csv", dtype=str, keep_default_na=False).to_dict("records") == [
+        {"tag": "tag_editor_two_files", "description": "", "potential_paste_1": "", "notes": ""}
+    ]
+
+
+def test_saving_keeps_the_exact_timestamp_of_an_untouched_event(page, tmp_path):
+    personal = tmp_path / "data" / "Skyrim" / "bio_templates"
+    personal.mkdir(parents=True, exist_ok=True)
+    # 01:30 local time in the hour repeated when clocks go back; its shown date maps back to a different moment
+    timestamp = 1793518200
+    (personal / "dst.csv").write_text(f"tag,description\ntag_editor_dst,\"Old.\n- {timestamp}: Event\"\n", encoding="utf-8")
+    snapshot = _snapshot(page, page.call("on_pick", "tag_editor_dst", {}, *_fields()))
+
+    page.call("on_save", snapshot, *_fields(text="New.", events=snapshot["events"]))
+
+    description = pd.read_csv(personal / "dst.csv", dtype=str, keep_default_na=False)["description"][0]
+    assert description == f"New.\n- {timestamp}: Event"
+
+
 def test_bad_event_date_is_reported_not_raised(page):
     result = page.call("on_add_event", pd.DataFrame(columns=["Date", "Event"]), "Something", "someday")
 

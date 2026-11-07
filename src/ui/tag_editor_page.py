@@ -156,8 +156,10 @@ def build_tag_editor_page(config: ConfigLoader):
         text, events = files.split_description(values["description"])
         event_rows = [[files.format_event_date(ts), files.clean_event_text(event)] for ts, event in sorted(events)]
         announce = values["announce"].strip().lower() != "no"
+        # Each event's exact timestamp, so saving doesn't turn an untouched event's shown local time back into a different one
+        event_timestamps = [[date, event, ts] for (date, event), (ts, _) in zip(event_rows, sorted(events))]
         snapshot = {"tag": tag or "", "is_new": is_new, "text": text, "events": event_rows, "announce": announce,
-                    "cells": values}
+                    "cells": values, "event_timestamps": event_timestamps}
 
         update: Dict[Any, Any] = {
             tag_dropdown: gr.update(choices=tags + ([tag] if is_new and tag not in tags else []), value=tag or None),
@@ -313,7 +315,7 @@ def build_tag_editor_page(config: ConfigLoader):
             return {message_line: "Pick a tag first."}
         current = form_values(field_values)
         try:
-            events = [(files.parse_event_date(date), text) for date, text in current["events"]]
+            events = files.event_timestamps(current["events"], [tuple(entry) for entry in snapshot.get("event_timestamps", [])])
         except ValueError as e:
             return {message_line: f"An event date can't be read: {e}"}
 
@@ -334,15 +336,16 @@ def build_tag_editor_page(config: ConfigLoader):
         written: List[str] = []
         notes: List[str] = []
         try:
+            # Clearing a field: empty it in every personal file that fills it in. One write per file,
+            # so each file's backup is the version from before this save
+            cleared_elsewhere: Dict[str, Dict[str, str]] = {}
             for column, value in list(changes.items()):
                 if value:
                     continue
-                # Clearing a field: empty it in every personal file that fills it in
                 personal_with_value = files.personal_files_with_value(m.sources, tag, column)
                 for path in personal_with_value:
                     if path != target:
-                        files.write_cells(path, tag, {column: ""})
-                        written.append(path)
+                        cleared_elsewhere.setdefault(path, {})[column] = ""
                 underneath = files.source_underneath(m.sources, tag, column)
                 if underneath:
                     layer = LAYER_NAMES.get(underneath[0], underneath[0])
@@ -351,6 +354,9 @@ def build_tag_editor_page(config: ConfigLoader):
                     else:
                         notes.append(f"{_column_name(column).capitalize()} comes from a {layer} file and can't be blanked.")
                         del changes[column]
+            for path, cells in cleared_elsewhere.items():
+                files.write_cells(path, tag, cells)
+                written.append(path)
             if changes or snapshot.get("is_new"):
                 files.write_cells(target, tag, changes)
                 written.append(target)

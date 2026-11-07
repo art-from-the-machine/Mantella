@@ -12,6 +12,7 @@ from src.ui.tag_editor_files import (
     choose_target_file,
     clean_event_text,
     current_source,
+    event_timestamps,
     format_event_date,
     has_base_or_mod_rows,
     join_description,
@@ -64,6 +65,31 @@ def test_dates_windows_cant_handle_give_a_readable_error_or_stay_a_number():
         parse_event_date("1960-01-01")
     assert format_event_date(99999999999) == "99999999999"
     assert parse_event_date("99999999999") == 99999999999
+
+
+def test_a_year_or_short_number_is_not_taken_as_seconds():
+    for text in ("2026", "20261106", "²"):
+        with pytest.raises(ValueError, match="isn't a date"):
+            parse_event_date(text)
+    assert parse_event_date("1739270400") == 1739270400
+
+
+def test_untouched_events_keep_their_exact_timestamp():
+    # Two different moments can show as the same local time (the hour repeated when clocks go back)
+    loaded = [("2026-11-01 01:30:00", "first", 1793514600), ("2026-11-01 01:30:00", "second", 1793518200)]
+    rows = [["2026-11-01 01:30:00", "second"], ["2026-11-01 01:30:00", "first"]]
+
+    assert event_timestamps(rows, loaded) == [(1793518200, "second"), (1793514600, "first")]
+
+
+def test_edited_event_text_keeps_its_timestamp_and_a_new_date_is_read():
+    loaded = [("2026-11-01 01:30:00", "old text", 1793518200)]
+    rows = [["2026-11-01 01:30:00", "new text"], ["2026-11-06 14:30", "added"]]
+
+    assert event_timestamps(rows, loaded) == [
+        (1793518200, "new text"),
+        (int(datetime(2026, 11, 6, 14, 30).timestamp()), "added"),
+    ]
 
 
 def test_event_dates_accept_minutes_or_a_bare_date():

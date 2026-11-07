@@ -14,7 +14,7 @@ from typing import Dict, List, Tuple
 import pandas as pd
 
 import src.utils as utils
-from src.bio_template_manager import LAYER_PERSONAL, _split_static_and_dynamic, effective_tags, split_tags
+from src.bio_template_manager import LAYER_PERSONAL, _split_static_and_dynamic, effective_tags, file_encoding, split_tags
 
 TAG_EDITOR_FILE = "tag_editor.csv"
 BACKUP_SUFFIX = ".bak"
@@ -22,6 +22,7 @@ BACKUP_SUFFIX = ".bak"
 # Seconds are shown so an event nobody touched keeps its exact timestamp when the tag is saved again
 EVENT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 _EVENT_DATE_INPUT_FORMATS = (EVENT_DATE_FORMAT, "%Y-%m-%d %H:%M", "%Y-%m-%d")
+_MIN_TIMESTAMP_DIGITS = 9
 
 # (layer, file, value), as BioTemplateManager.sources keeps them
 Source = Tuple[str, str, str]
@@ -66,9 +67,13 @@ def format_event_date(timestamp: int) -> str:
 
 
 def parse_event_date(text: str) -> int:
-    """A date in local time as Unix seconds, or a plain number of seconds. Raises ValueError with a readable message"""
+    """A date in local time as Unix seconds, or a plain number of seconds. Raises ValueError with a readable message.
+
+    A plain number is only taken as seconds with 9 or more digits (from 1973 on), so a year like `2026`
+    or `20261106` isn't silently read as a moment in 1970.
+    """
     value = str(text or "").strip()
-    if value.isdigit():
+    if value.isascii() and value.isdigit() and len(value) >= _MIN_TIMESTAMP_DIGITS:
         return int(value)
     for date_format in _EVENT_DATE_INPUT_FORMATS:
         try:
@@ -80,6 +85,29 @@ def parse_event_date(text: str) -> int:
         except (OSError, OverflowError, ValueError):
             raise ValueError(f"'{value}' can't be used as a date. Use a date from 1970 on")
     raise ValueError(f"'{value}' isn't a date. Write it like 2026-11-06 14:30")
+
+
+def event_timestamps(rows: List[List[str]], loaded: List[Tuple[str, str, int]]) -> List[Tuple[int, str]]:
+    """The events to save, as (timestamp, text).
+
+    An event whose date text you didn't change keeps the exact timestamp it was loaded with. Turning the shown
+    local time back into a timestamp would be off by an hour for events in the repeated hour when clocks go back.
+    `loaded` holds (date text, event text, timestamp) for each event as it was shown. Raises ValueError for a date
+    that can't be read.
+    """
+    unused = list(loaded)
+    matches: List[Tuple[int, str] | None] = [None] * len(rows)
+    # Same date and text first, then same date with edited text
+    for same_text in (True, False):
+        for index, (date, text) in enumerate(rows):
+            if matches[index] is not None:
+                continue
+            for entry in unused:
+                if entry[0] == date and (not same_text or entry[1] == text):
+                    matches[index] = (entry[2], text)
+                    unused.remove(entry)
+                    break
+    return [match if match is not None else (parse_event_date(date), text) for match, (date, text) in zip(matches, rows)]
 
 
 # --- Where values come from ---
@@ -133,23 +161,12 @@ def changed_cells(before: Dict[str, str], after: Dict[str, str]) -> Dict[str, st
 
 # --- Reading and writing ---
 
-def _file_encoding(path: str) -> str:
-    """A file that is valid UTF-8 is read as UTF-8. Encoding guesses can mistake short UTF-8 files for another
-    encoding, and writing back after such a guess would garble their accented text for good"""
-    with open(path, "rb") as file:
-        data = file.read()
-    if data.startswith(b"\xef\xbb\xbf"):
-        return "utf-8-sig"
-    try:
-        data.decode("utf-8")
-        return "utf-8"
-    except UnicodeDecodeError:
-        return utils.get_file_encoding(path) or "utf-8"
-
-
 def _read_csv(path: str) -> Tuple[pd.DataFrame, str]:
-    """Every cell as the text it is in the file (`1` stays `1`, `NA` stays `NA`), and the file's encoding"""
-    encoding = _file_encoding(path)
+    """Every cell as the text it is in the file (`1` stays `1`, `NA` stays `NA`), and the file's encoding.
+
+    Uses the same encoding rule as the tag loader, so the text the tab shows is the text it writes back.
+    """
+    encoding = file_encoding(path)
     if os.path.getsize(path) == 0:
         return pd.DataFrame(columns=["tag", "description"]), encoding
     df = pd.read_csv(path, dtype=str, keep_default_na=False, engine="python", encoding=encoding)

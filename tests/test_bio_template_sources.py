@@ -86,6 +86,17 @@ def test_a_row_with_no_cells_still_counts_as_a_file_with_the_tag(tmp_path):
     assert "new_tag" not in manager.sources
 
 
+def test_a_valid_utf8_file_is_read_as_utf8_whatever_the_guess(tmp_path, monkeypatch):
+    base = tmp_path / "base"
+    base.mkdir()
+    (base / "bio_templates.csv").write_text("tag,description\ncafe,Café ’quoted’.\n", encoding="utf-8")
+    monkeypatch.setattr("src.utils.get_file_encoding", lambda _: "Windows-1252")
+
+    manager = BioTemplateManager(str(base), None, "Skyrim")
+
+    assert manager.templates["cafe"] == "Café ’quoted’."
+
+
 def test_reload_starts_over(tmp_path):
     manager, paths = _make_manager(tmp_path)
     os.remove(paths["personal"])
