@@ -21,9 +21,11 @@ from src.ui.tab_reorder import (
     DOCUMENTATION_TAB,
     LIVE_CONVERSATION_TAB,
     TAB_REORDER_JS,
+    TAG_EDITOR_TAB,
     default_tab_names,
     merge_tab_order,
 )
+from src.ui.tag_editor_page import build_tag_editor_page
 from src.ui.conversation_table import DELETE_BUTTON_ELEM_ID, HEADERS, TABLE_JS, TABLE_ELEM_ID, apply_rows_to_json, delete_selected_rows, json_to_rows
 from src.ui.bio_editor_memory_files import (
     conversations_base_dir,
@@ -71,6 +73,8 @@ class StartUI(routeable):
                     self.__generate_live_conversation_page()
                 elif name == BIO_EDITOR_TAB:
                     self.__generate_bio_editor_page()
+                elif name == TAG_EDITOR_TAB:
+                    build_tag_editor_page(self._config)
                 elif name == DOCUMENTATION_TAB:
                     self.__generate_documentation_page()
                 else:

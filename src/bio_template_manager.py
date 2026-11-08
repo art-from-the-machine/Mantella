@@ -10,6 +10,18 @@ from src.config.definitions.llm_definitions import AutoQuestTagOutcomesEnum
 # Number of quest outcome columns (`potential_paste_N` / `code_N`) a bio template CSV can have
 OUTCOME_SLOTS = 5
 
+# The three layers bio template files are loaded from, in load order (a later layer wins)
+LAYER_BASE = "base"
+LAYER_MOD = "mod override"
+LAYER_PERSONAL = "personal override"
+
+# Every column a tag row can fill in. `notes` is for people editing the files; nothing at runtime reads it
+TAG_COLUMNS = (
+    ['description']
+    + [f'{prefix}_{slot}' for slot in range(1, OUTCOME_SLOTS + 1) for prefix in ('potential_paste', 'code')]
+    + ['announce', 'notes']
+)
+
 # Pattern to match dynamic event lines in tag descriptions: "- <timestamp>: <text>"
 _DYNAMIC_EVENT_RE = re.compile(r'^-\s+(\d+):\s+(.+)$')
 
@@ -38,6 +50,50 @@ def _split_static_and_dynamic(description: str) -> Tuple[str, List[Tuple[int, st
     return static_text, dynamic_events
 
 
+def file_encoding(path: str) -> str:
+    """The encoding to read a tag file with. A file that is valid UTF-8 is UTF-8 (`utf-8-sig` with a BOM):
+    encoding guesses can mistake a short UTF-8 file for another encoding and show its accented text garbled.
+    Only other files use the guess"""
+    with open(path, "rb") as file:
+        data = file.read()
+    if data.startswith(b"\xef\xbb\xbf"):
+        return "utf-8-sig"
+    try:
+        data.decode("utf-8")
+        return "utf-8"
+    except UnicodeDecodeError:
+        return utils.get_file_encoding(path) or "utf-8"
+
+
+def _clean_tags_cell(value) -> str:
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    return str(value).strip()
+
+
+def effective_tags(tags, tags_overwrite) -> str:
+    """An NPC's tags at runtime: `tags_overwrite` when it's set (it replaces the accumulated `tags`), otherwise `tags`"""
+    overwrite = _clean_tags_cell(tags_overwrite)
+    return overwrite if overwrite else _clean_tags_cell(tags)
+
+
+def split_tags(tags_string: str) -> List[str]:
+    """The tag names in a comma-separated list: trimmed, each once, in order.
+
+    Curly apostrophes become straight ones, as in the templates, so `risaad’s_caravan` finds `risaad's_caravan`.
+    """
+    tags: List[str] = []
+    for tag in (utils.normalize_apostrophes(part.strip()) for part in str(tags_string or "").split(',')):
+        if tag and tag not in tags:
+            tags.append(tag)
+    return tags
+
+
 class BioTemplateManager:
     """Manages bio templates for tag-based dynamic bio injection"""
     
@@ -50,12 +106,17 @@ class BioTemplateManager:
         self.outcome_texts: Dict[str, Dict[int, str]] = {}
         self.outcome_codes: Dict[str, Dict[int, str]] = {}
         self.no_announce: set[str] = set()
+        # Where each value came from, for the Tag Editor (see docs/tag_editor.md)
+        # tag -> column -> every (layer, file, value) that filled the cell, in load order; the last one wins
+        self.sources: Dict[str, Dict[str, List[Tuple[str, str, str]]]] = {}
+        # tag -> every (layer, file) with a row for the tag, in load order
+        self.files_with_tag: Dict[str, List[Tuple[str, str]]] = {}
         self._load_templates()
-    
+
     def _load_templates(self):
         """Load bio templates from CSV files with override support"""
         # 1. Load base templates first
-        self._load_templates_from_folder(self.base_templates_folder, "base")
+        self._load_templates_from_folder(self.base_templates_folder, LAYER_BASE)
         
         # 2. Load mod override templates (if config is available)
         if self.config_loader:
@@ -71,7 +132,7 @@ class BioTemplateManager:
                 self.game_name, 
                 "bio_templates"
             )
-            self._load_templates_from_folder(mod_overrides_folder, "mod override")
+            self._load_templates_from_folder(mod_overrides_folder, LAYER_MOD)
             
             # 3. Load personal override templates
             personal_overrides_folder = os.path.join(
@@ -80,12 +141,12 @@ class BioTemplateManager:
                 self.game_name, 
                 "bio_templates"
             )
-            self._load_templates_from_folder(personal_overrides_folder, "personal override")
-    
+            self._load_templates_from_folder(personal_overrides_folder, LAYER_PERSONAL)
+
     def _load_templates_from_folder(self, templates_folder: str, folder_type: str):
         """Load bio templates from a specific folder"""
         if not os.path.exists(templates_folder):
-            if folder_type == "base":
+            if folder_type == LAYER_BASE:
                 # Only create base folder and default templates
                 os.makedirs(templates_folder, exist_ok=True)
                 default_templates_file = os.path.join(templates_folder, "bio_templates.csv")
@@ -101,9 +162,10 @@ class BioTemplateManager:
                 if filename.endswith('.csv'):
                     filepath = os.path.join(templates_folder, filename)
                     try:
-                        encoding = utils.get_file_encoding(filepath)
+                        # The same encoding the Tag Editor writes with, so what it shows is what it saves
+                        encoding = file_encoding(filepath)
                         df = pd.read_csv(filepath, engine='python', encoding=encoding)
-                        
+
                         # Expected columns: 'tag' and 'description'
                         if 'tag' in df.columns and 'description' in df.columns:
                             templates_loaded = 0
@@ -111,6 +173,7 @@ class BioTemplateManager:
                                 tag = utils.normalize_apostrophes(self._get_cell(row, 'tag'))
                                 if not tag:
                                     continue
+                                self._record_sources(row, tag, folder_type, filepath)
                                 # Cell by cell: a later file only replaces the cells it fills in
                                 description = self._get_cell(row, 'description')
                                 if description:
@@ -136,6 +199,16 @@ class BioTemplateManager:
         except Exception as e:
             logging.warning(f"Could not access {folder_type} bio templates folder '{templates_folder}'. Error: {e}")
     
+    def _record_sources(self, row: pd.Series, tag: str, folder_type: str, filepath: str):
+        """Remember which file has a row for the tag, and which file filled each of its cells"""
+        files = self.files_with_tag.setdefault(tag, [])
+        if (folder_type, filepath) not in files:
+            files.append((folder_type, filepath))
+        for column in TAG_COLUMNS:
+            value = self._get_cell(row, column)
+            if value:
+                self.sources.setdefault(tag, {}).setdefault(column, []).append((folder_type, filepath, value))
+
     @staticmethod
     def _get_cell(row: pd.Series, column: str) -> str:
         if column not in row.index or pd.isna(row[column]):
@@ -263,19 +336,8 @@ class BioTemplateManager:
         if not tags_string or not tags_string.strip():
             return []
 
-        # Deduplicate while preserving input order so repeated tags do not
-        # duplicate bio sections or dynamic events.
-        # Curly apostrophes become straight ones, as in the templates, so `risaad’s_caravan` finds `risaad's_caravan`
-        deduped_tags: List[str] = []
-        seen: set[str] = set()
-        for tag in (utils.normalize_apostrophes(tag.strip()) for tag in tags_string.split(',')):
-            if not tag:
-                continue
-            if tag in seen:
-                continue
-            seen.add(tag)
-            deduped_tags.append(tag)
-        return deduped_tags
+        # Deduplicated, so repeated tags do not duplicate bio sections or dynamic events
+        return split_tags(tags_string)
 
     def expand_bio_with_tags(self, base_bio: str, tags_string: str, tag_outcomes: Optional[Dict[str, Tuple[int, int]]] = None) -> str:
         """Expand base bio with tag templates.
@@ -358,6 +420,8 @@ class BioTemplateManager:
         self.outcome_texts.clear()
         self.outcome_codes.clear()
         self.no_announce.clear()
+        self.sources.clear()
+        self.files_with_tag.clear()
         self._load_templates()
         logging.info(f"Reloaded {len(self.templates)} bio templates")
     
