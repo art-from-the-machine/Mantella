@@ -12,6 +12,7 @@ from src import utils
 from src.utils import get_time_group
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
+from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.llm.llm_client import LLMClient
 from src.config.definitions.game_definitions import GameEnum
 from src.lorebook_manager import LorebookManager
@@ -21,7 +22,7 @@ from src.bio_section_filter import apply_bio_section_filter, should_filter_conve
 NOBODY_DESCRIBED = "nobody" # {nearby_bios} when none of the people nearby the Game Master may pick are described
 
 if TYPE_CHECKING:
-    from src.conversation.bystanders import Bystanders, ShoutState
+    from src.conversation.bystanders import ShoutState
     from src.conversation.npc_event import NpcEvent
 
 
@@ -214,10 +215,15 @@ class context:
     def ingame_time(self, value: int):
         self.__ingame_time = value       
 
-    @property
-    def bystanders(self) -> "Bystanders | None":
-        """The people near the conversation the Game Master may draw in: the NPC Event's, otherwise Shout's"""
-        return self.npc_event or self.shout
+    def __get_nearby_text(self) -> str:
+        """The {nearby} prompt variable: the people near the conversation the Game Master may draw in, Shout's (NPC Events run in Shout too).
+        While the player watches an NPC Event, the player too, once the people in the scene can notice them"""
+        shout_state = self.shout
+        if not shout_state:
+            return ""
+        participant_names = [c.name for c in self.__npcs_in_conversation.get_all_characters()]
+        noticed_player = self.npc_event.noticed_player(self.__config, participant_names) if self.npc_event else None
+        return shout_state.nearby_text(self.__config, participant_names, [noticed_player] if noticed_player else None)
 
     @property
     def have_actors_changed(self) -> bool:
@@ -598,8 +604,11 @@ class context:
         return "\n\n==========\n\n".join(bio_descriptions)
     
     @utils.time_it
-    def __get_bios_and_summaries_text(self, include_memories: bool = True, characters: Characters | None = None) -> str:
+    def __get_bios_and_summaries_text(self, include_memories: bool = True, characters: Characters | None = None, always_multi_npc: bool = False) -> str:
         """Gets the bios and summaries combined for each character in the conversation
+
+        Args:
+            always_multi_npc (bool): uses the multi-NPC layout even for a single character, so private thoughts are included
 
         Returns:
             str: the bios and summaries paired together for each character
@@ -613,6 +622,7 @@ class context:
             player.name if player else None,
             self.__npcs_in_conversation.contains_player_character(),
             include_memories,
+            always_multi_npc,
         )
     
     @utils.time_it
@@ -762,7 +772,9 @@ class context:
         names_w_player = self.get_character_names_as_text(True)
         bios = self.__get_bios_text(prompt_characters)
         include_memories = not self.__config.multi_npc_bios_only
-        bios_and_summaries = self.__get_bios_and_summaries_text(include_memories=include_memories, characters=prompt_characters)
+        # The Game Master's prompts have no {private_thoughts}, so they get each NPC's private thoughts this way, also with one NPC in the conversation
+        is_game_master_prompt = prompt_type in PromptDefinitions.GAME_MASTER_PROMPT_TYPES
+        bios_and_summaries = self.__get_bios_and_summaries_text(include_memories=include_memories, characters=prompt_characters, always_multi_npc=is_game_master_prompt)
         trusts = self.__get_trusts(prompt_characters)
         equipment = self.__get_npc_equipment_text()
         location = self.__location
@@ -787,8 +799,7 @@ class context:
                     private_thoughts = self._resolve_bio_player_name(private_thoughts)
         actions = self.__get_action_texts(actions_for_prompt)
         event = self.npc_event.text if self.npc_event else ""
-        bystanders = self.bystanders
-        nearby = bystanders.nearby_text(self.__config, [c.name for c in self.__npcs_in_conversation.get_all_characters()]) if bystanders else ""
+        nearby = self.__get_nearby_text()
         variable_values = {
             "player_name": player_name,
             "player_description": player_description,

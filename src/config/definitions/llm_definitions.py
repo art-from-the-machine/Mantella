@@ -614,14 +614,9 @@ class LLMDefinitions:
     @staticmethod
     def get_npc_event_max_participants_config_value() -> ConfigValue:
         description = LLMDefinitions.NPC_EVENT_DESCRIPTION + """
-                        The most NPCs the event generator may put in a scene when it starts. Others nearby can still be drawn in later."""
+                        The most NPCs the event generator may put in a scene when it starts. Others nearby can still be drawn in later, as long as
+                        the Shout Mode page's limits allow it (Most People in Conversation, Lines Between Joins)."""
         return ConfigValueInt("npc_event_max_participants", "NPC Event Max Participants", description, 3, 2, 10, tags=[ConfigValueTag.share_row])
-
-    @staticmethod
-    def get_npc_event_max_scene_size_config_value() -> ConfigValue:
-        description = LLMDefinitions.NPC_EVENT_DESCRIPTION + """
-                        The most NPCs in a scene, including the ones drawn in later. Once reached, nearby NPCs are no longer drawn in. The player still can be."""
-        return ConfigValueInt("npc_event_max_scene_size", "NPC Event Max Scene Size", description, 5, 2, 20, tags=[ConfigValueTag.share_row])
 
     @staticmethod
     def get_npc_event_player_notice_delay_config_value() -> ConfigValue:

@@ -81,7 +81,7 @@ class PromptProfileManager:
         if not allowed:
             return "**Supported variables:** none. This type does not accept `{variables}`."
         names = ", ".join(f"`{{{name}}}`" for name in allowed)
-        note = PromptDefinitions.get_name_variables_note(prompt_type)
+        note = PromptDefinitions.get_variables_note(prompt_type)
         if note:
             return f"**Supported variables:** {names}\n\n{note}"
         return f"**Supported variables:** {names}"

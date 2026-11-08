@@ -20,8 +20,8 @@ from src.llm.messages import AssistantMessage, join_message, leave_message, near
 from src.conversation.context import add_or_update_result, context as Context
 from src.llm.message_thread import message_thread
 from src.conversation.conversation_type import conversation_type, multi_npc, multi_npc_game_master, npc_event, pc_to_npc, radiant, shout
-from src.conversation.bystanders import NEWCOMERS_REMEMBER_EVERYTHING, NEWCOMERS_REMEMBER_LAST_LINE, ShoutState
-from src.conversation.game_master import GameMasterTurns, is_player_line
+from src.conversation.bystanders import NEWCOMERS_REMEMBER_EVERYTHING, NEWCOMERS_REMEMBER_LAST_LINE, EventPerson, ShoutState
+from src.conversation.game_master import GameMaster, GameMasterTurns, game_master_history_lines, is_player_line
 from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
@@ -40,6 +40,8 @@ class Conversation:
     DIRECTOR_CONTINUE_TEXT: str = "The scene continues."
     __shout_count: int = 0 # Each time Shout is switched on gets its own marker token
     __announce_private: bool = False # Shout was switched off: says who is left, once the game's updated list of people has arrived
+    __event_count: int = 0 # Each Conversation, Nearby or Random Event gets its own marker, so someone who joins right after it is known to react to it
+    EVENT_MARKER_ATTRIBUTE: str = "event_marker" # Set on the event's message. Kept when the thread is reloaded, which copies every message
     """Controls the flow of a conversation."""
     def __init__(self, context_for_conversation: Context, output_manager: ChatManager, rememberer: Remembering, llm_client: AIClient, stt: Transcriber | None, mic_input: bool, mic_ptt: bool) -> None:
         
@@ -78,6 +80,9 @@ class Conversation:
         self.__game_master_turns: GameMasterTurns = GameMasterTurns(self.__context, self.__sentences)
         self.__is_waiting_for_room_answer: bool = False # Just saying something: the player said something to the room and nobody has answered yet
         self.__ended_unanswered: bool = False
+        self.__is_waiting_for_speech: bool = False # A player input request waits for the player to speak into the mic
+        self.__is_event_picked: bool = False # An event was picked on the Conversation Wheel and its request has not arrived yet. See stop_waiting_for_player
+        self.__speech_wait_lock: Lock = Lock() # Keeps the two flags above together, as the event is picked from the thread of another request
 
     def update_summary_client(self, summary_client: ClientBase | None, fallback_client: LLMClient, thoughts_client: ClientBase | None, reflection_client: ClientBase | None) -> None:
         """Update the summary, thoughts and reflection LLM clients on the active rememberer, if it supports it."""
@@ -183,9 +188,8 @@ class Conversation:
             new_character (Character): the character to add or update
         """
         update_result = self.__context.add_or_update_characters(new_character)
-        if self.__context.npc_event:
-            for npc in update_result.added_npcs:
-                self.__context.npc_event.on_joined(npc.ref_id, npc.is_player_character)
+        if self.__context.npc_event and any(npc.is_player_character for npc in update_result.added_npcs):
+            self.__context.npc_event.on_player_joined()
         overheard_npcs: list[Character] = []
         shout_state = self.__context.shout
         if isinstance(shout_state, ShoutState):
@@ -206,11 +210,14 @@ class Conversation:
             if isinstance(update_message, join_message) and update_message.character.ref_id in [npc.ref_id for npc in overheard_npcs]:
                 continue
             self.__messages.add_message(update_message)
+        # Picked to react first to the event that was just added: they speak up about it, they don't walk over to the people talking
+        reacts_to_event = (self.__event_count > 0 and len(self.__messages) > 0
+                           and getattr(self.__messages.get_last_message(), self.EVENT_MARKER_ATTRIBUTE, None) == self.__event_count)
         for npc in overheard_npcs:
             self.__add_overheard_message(npc)
             # Where they actually join: who is already in the conversation, so they know they walked up to people already talking
             already_there = [name for name in self.__context.npcs_in_conversation.get_all_names() if name != npc.name]
-            self.__messages.add_message(nearby_join_message(npc, self.__context.config, already_there))
+            self.__messages.add_message(nearby_join_message(npc, self.__context.config, already_there, reacts_to_event))
 
     def __add_overheard_message(self, npc: Character):
         """Shout: puts the join note of someone who joined by shouting where their memory of the conversation starts, as set by
@@ -251,6 +258,66 @@ class Conversation:
         self.__announce_private = True # Says who the conversation is with, after the actor update of the same request
         logging.log(26, "Shout: private again. Nobody new joins")
 
+    def event_history_lines(self) -> list[str]:
+        """Conversation, Nearby and Random Events: the recent lines of the conversation for the event generator, the same ones the Game Master sees"""
+        return game_master_history_lines(self.__messages.get_persistent_messages(), self.__context.config)
+
+    def add_event(self, text: str, kind: str, shout_settings: dict[str, Any] | None, nearby: list[EventPerson], nearby_characters: dict[int, Character]):
+        """Conversation, Nearby and Random Events: something happened. It is added as narration, so everyone in the conversation knows it
+        and it ends up in their memories. Then the Game Master picks who reacts first, the player included.
+        Called during the player's turn, so no NPC turn is running
+
+        Args:
+            kind (str): "conversation", "nearby" or "random". Nearby and Random switch Shout on, so the people nearby can join in
+            shout_settings (dict[str, Any] | None): the Shout Mode settings, for switching Shout on
+            nearby (list[EventPerson]): Nearby and Random: the people nearby who are not in the conversation, nearest first. Who the Game Master
+                may bring in right away, if Shout was off until now (the game sends Shout's own list with its next request)
+            nearby_characters (dict[int, Character]): Nearby and Random: by refid, the people nearby the game sent in full
+        """
+        with self.__generation_start_lock:
+            self.__cancel_game_master_turn()
+            self.__game_master_turns.on_player_input() # Like a player line: the NPCs' turn starts again from the event
+            self.__stop_generation()
+            self.__sentences.clear()
+            self.__is_interrupt_requested = False # Sent when the event was picked, to stop the NPCs before it. Not meant for the reaction
+        if kind in ("nearby", "random"):
+            if not isinstance(self.__context.shout, ShoutState):
+                # Before the narration, so Newcomers Remember's Since Shout starts at the event
+                self.start_shout(shout_settings)
+                self.__context.shout.update_nearby(nearby)
+            self.__context.shout.characters.update(nearby_characters)
+        event_message = self.__event_message(text)
+        self.__event_count += 1
+        setattr(event_message, self.EVENT_MARKER_ATTRIBUTE, self.__event_count)
+        self.__messages.add_message(event_message)
+        if self.__context.have_actors_changed: # Shout was switched on
+            self.__update_conversation_type()
+            self.__context.have_actors_changed = False
+        if isinstance(self.__conversation_type, multi_npc_game_master):
+            self.__start_generating_npc_sentences(allow_player_first=True)
+        elif self.__does_npc_react_first():
+            self.__start_generating_npc_sentences()
+
+    def __event_message(self, text: str) -> UserMessage:
+        """Something that happened, as an in-game event, like a custom game event. Its message has no text, as when the NPCs go on
+        without the player saying anything. It comes after the in-game events since the last line, which would go with the player's next line"""
+        message = UserMessage(self.__context.config, "", "", False)
+        message.is_director_message = True # The player says nothing
+        message.is_multi_npc_message = self.__context.npcs_in_conversation.contains_multiple_npcs()
+        self.update_game_events(message)
+        message.add_event([text])
+        return message
+
+    def __does_npc_react_first(self) -> bool:
+        """A one-on-one conversation has no Game Master: the NPC always answers. After an event, the Game Master is asked once
+        who reacts first, the NPC or the player. An NPC also reacts if there is no Game Master or no valid choice"""
+        client = self.__output_manager.game_master_client
+        if not isinstance(self.__conversation_type, pc_to_npc) or not client:
+            return True
+        game_master = GameMaster(self.__context, multi_npc_game_master(self.__context.config), client)
+        game_master.choose_next_speaker(self.__messages, self.__messages.get_persistent_messages(), allow_player=True, after_event=True)
+        return not game_master.picked_player
+
     @utils.time_it
     def generate_add_or_remove_messages(self, update_result: add_or_update_result) -> list[str]:
         add_or_remove_messages = []
@@ -272,9 +339,7 @@ class Conversation:
         if isinstance(self.__conversation_type, npc_event):
             # The scene starts as an in-game event, which the first speaker reacts to
             if self.__context.npc_event:
-                scene = UserMessage(self.__context.config, self.__context.npc_event.text, "", False)
-                scene.is_director_message = True # Shown as narration, without the player's name
-                self.__messages.add_message(scene)
+                self.__messages.add_message(self.__event_message(self.__context.npc_event.text))
             self.__start_generating_npc_sentences()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, None
         greeting: UserMessage | None = self.__conversation_type.get_user_message(self.__context, self.__messages)
@@ -381,14 +446,18 @@ class Conversation:
                     return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
 
     def __continue_npc_event(self) -> tuple[str, Sentence | None]:
-        """NPC Events: what happens once the NPCs' turn is over. Without the player, the scene goes on until its line limit"""
+        """NPC Events: what happens once the NPCs' turn is over. Without the player, the scene goes on until its line limit.
+        The scene runs in Shout, so the people nearby the Game Master picks are added by Shout. Only the player is added by the event"""
         event = self.__context.npc_event
         if not event:
             return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
         if event.pending_add:
             # The game adds them first, as only actors in the conversation can speak in game
             return comm_consts.KEY_REPLYTYPE_NPCEVENT_ADDACTOR, None
-        if event.forced_speaker_ref_id:
+        shout_state = self.__context.shout
+        if isinstance(shout_state, ShoutState) and shout_state.pending_add:
+            return comm_consts.KEY_REPLYTYPE_SHOUT_ADDACTOR, None
+        if isinstance(shout_state, ShoutState) and shout_state.forced_speaker_ref_id:
             self.__start_generating_npc_sentences()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, None
         if event.player_joined:
@@ -426,15 +495,30 @@ class Conversation:
             self.__allow_mic_input = False
         return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None
 
+    def stop_waiting_for_player(self):
+        """An event was picked on the Conversation Wheel. A player input request that waits for the player to speak returns without a line,
+        so the game can send the event. Called while that request may still be running, also just before it starts waiting:
+        then it does not wait at all. Remembered until the wait or the event request (forget_event_picked)"""
+        with self.__speech_wait_lock:
+            self.__is_event_picked = True
+            if self.__is_waiting_for_speech and self.__stt:
+                self.__stt.cancel_wait()
+
+    def forget_event_picked(self):
+        """The event request arrived, so a pick no wait for speech used is forgotten (the NPCs were talking, or the player types)"""
+        with self.__speech_wait_lock:
+            self.__is_event_picked = False
+
     @utils.time_it
-    def process_player_input(self, player_text: str) -> tuple[str, bool, Sentence|None]:
+    def process_player_input(self, player_text: str) -> tuple[str | None, bool, Sentence|None]:
         """Submit the input of the player to the conversation
 
         Args:
             player_text (str): The input text / voice transcribe of what the player character is supposed to say. Can be empty if mic input has not yet been parsed
 
         Returns:
-            tuple[str, bool]: Returns a tuple consisting of updated player text (if using mic input) and whether or not in-game events need to be refreshed (depending on how much time has passed)
+            tuple[str | None, bool]: Returns a tuple consisting of updated player text (if using mic input) and whether or not in-game events need to be refreshed (depending on how much time has passed).
+                The text is None if the player picked an event instead of speaking (see stop_waiting_for_player)
         """
         player_character = self.__context.npcs_in_conversation.get_player_character()
         if not player_character:
@@ -460,8 +544,21 @@ class Conversation:
                 
                 # Start tracking how long it has taken to receive a player response
                 input_wait_start_time = time.time()
-                while not player_text:
-                    player_text = self.__stt.get_latest_transcription()
+                with self.__speech_wait_lock:
+                    self.__is_waiting_for_speech = not self.__is_event_picked # An event picked just before: no wait
+                    if self.__is_waiting_for_speech:
+                        self.__stt.reset_cancel_wait()
+                try:
+                    # Empty only if stop_waiting_for_player stopped the wait
+                    player_text = self.__stt.get_latest_transcription() if self.__is_waiting_for_speech else ""
+                finally:
+                    with self.__speech_wait_lock:
+                        self.__is_waiting_for_speech = False
+                        self.__is_event_picked = False
+                if not player_text:
+                    # The player picked an event instead of speaking. It is still their turn
+                    self.__stt.stop_listening()
+                    return None, False, None
                 if time.time() - input_wait_start_time >= self.__events_refresh_time:
                     # If too much time has passed, in-game events need to be updated
                     events_need_updating = True
@@ -755,8 +852,9 @@ class Conversation:
     def __select_conversation_type(self, config: ConfigLoader) -> conversation_type:
         """The conversation type for the people in the conversation now"""
         characters = self.__context.npcs_in_conversation
-        if self.__context.npc_event and npc_event.is_enabled(config) and self.__output_manager.game_master_client:
-            # Before the radiant check: the event usually runs without the player
+        event = self.__context.npc_event
+        if event and not event.player_joined and npc_event.is_enabled(config) and self.__output_manager.game_master_client:
+            # Before the radiant check: the event runs without the player. Once they join, it is a normal Shout conversation
             return npc_event(config)
         if not characters.contains_player_character():
             return radiant(config)
@@ -774,11 +872,15 @@ class Conversation:
         return multi_npc(config)
 
     @utils.time_it
-    def __start_generating_npc_sentences(self):
-        """Starts a background Thread to generate sentences into the SentenceQueue"""
+    def __start_generating_npc_sentences(self, allow_player_first: bool = False):
+        """Starts a background Thread to generate sentences into the SentenceQueue
+
+        Args:
+            allow_player_first (bool): Game Master Mode: the Game Master may give the player the turn right away, e.g. who reacts first to an event
+        """
         if isinstance(self.__conversation_type, multi_npc_game_master):
             with self.__generation_start_lock:
-                turn_id = self.__game_master_turns.start_turn()
+                turn_id = self.__game_master_turns.start_turn(allow_player_first)
                 self.__sentences.is_more_to_come = True
                 Thread(None, self.__game_master_turns.run_turn, None, [turn_id, lambda: self.__conversation_type, lambda: self.__output_manager, self.__messages]).start()
             return

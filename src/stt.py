@@ -134,6 +134,7 @@ class Transcriber:
         self._last_update_time = 0
         self._current_transcription = ""
         self._transcription_ready = threading.Event()
+        self._is_wait_cancelled = False # See cancel_wait
         self._consecutive_empty_count = 0
         self._max_consecutive_empty = 10
 
@@ -659,12 +660,28 @@ If you would prefer to run speech-to-text locally, please ensure the `Speech-to-
             return False
 
 
+    def cancel_wait(self) -> None:
+        """Makes get_latest_transcription return an empty text instead of waiting for speech, e.g. when the player picks an event
+        on the Conversation Wheel during their turn. Also a call that comes later, until reset_cancel_wait"""
+        with self._lock:
+            self._is_wait_cancelled = True
+        self._transcription_ready.set()
+
+    def reset_cancel_wait(self) -> None:
+        """Forgets a cancel_wait that came while nobody was waiting"""
+        with self._lock:
+            self._is_wait_cancelled = False
+
     @utils.time_it
     def get_latest_transcription(self) -> str:
-        """Get the latest transcription, blocking until speech ends."""
+        """Get the latest transcription, blocking until speech ends. Empty if the wait was cancelled (see cancel_wait)"""
         while True:
             self._transcription_ready.wait()
             with self._lock:
+                if self._is_wait_cancelled:
+                    self._is_wait_cancelled = False
+                    self._transcription_ready.clear()
+                    return ""
                 transcription = self._current_transcription
                 self._current_transcription = ''
                 if transcription:

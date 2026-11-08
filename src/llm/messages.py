@@ -133,10 +133,14 @@ class overheard_message(join_message):
 class nearby_join_message(join_message):
     """Shout: the moment someone who was listening nearby joins the conversation. Names who is already in it, so they know they
     walked up to people already talking and didn't arrive with them (for system use only).
-    Comes after their overheard_message, so it doesn't change what they heard"""
-    def __init__(self, character: Character, config: ConfigLoader, already_there: list[str]):
+    Comes after their overheard_message, so it doesn't change what they heard.
+    With reacts_to_event, they were picked to react first to a Nearby or Random Event. They react to it from where they are,
+    instead of turning to the people already talking as if they had walked over to them"""
+    def __init__(self, character: Character, config: ConfigLoader, already_there: list[str], reacts_to_event: bool = False):
         super().__init__(character, config)
-        if len(already_there) >= 2:
+        if reacts_to_event:
+            self.text = f"*{character.name} reacts to what just happened*"
+        elif len(already_there) >= 2:
             self.text = f"*{character.name} joins the conversation that {', '.join(already_there[:-1])} and {already_there[-1]} were already having*"
         elif len(already_there) == 1:
             self.text = f"*{character.name} joins the conversation that {already_there[0]} had already started*"

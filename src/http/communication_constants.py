@@ -33,9 +33,25 @@ class communication_constants:
     KEY_REPLYTYPE_NPCEVENT_ADDACTOR: str = PREFIX + "npc_event_add_actor"
     KEY_NPCEVENT_ID: str = PREFIX + "npc_event_id" # In the result, and in the start request of the conversation that acts the event out
     KEY_NPCEVENT_PARTICIPANT_REFIDS: str = PREFIX + "npc_event_participant_refids"
-    KEY_NPCEVENT_ADDACTOR_REFID: str = PREFIX + "npc_event_add_actor_refid"
-    KEY_NPCEVENT_ADDFAILED_REFID: str = PREFIX + "npc_event_add_failed_refid"
+    KEY_NPCEVENT_ADDACTOR_REFID: str = PREFIX + "npc_event_add_actor_refid" # Only the player watching: anyone else joins by Shout
+    # In the check: everyone nearby, nearest first. Only the nearest are also in the actors, in full
     KEY_NPCEVENT_NEARBY_REFIDS: str = PREFIX + "npc_event_nearby_refids"
+    KEY_NPCEVENT_NEARBY_NAMES: str = PREFIX + "npc_event_nearby_names" # In the same order as the refids
+    KEY_EVENT_HINT: str = PREFIX + "event_hint" # What the player would like to happen (Ask for a Hint). Only for the event generator
+
+    # Conversation, Nearby and Random Events (Conversation Wheel). Sent during the player's turn, queued like player input
+    KEY_REQUESTTYPE_CONVERSATIONEVENT: str = PREFIX + "conversation_event"
+    KEY_REPLYTYPE_CONVERSATIONEVENT: str = PREFIX + "conversation_event_result"
+    KEY_EVENT_KIND: str = PREFIX + "event_kind" # "conversation", "nearby" or "random". In an interrupt request: an event was picked, so a wait for the player to speak ends
+    KEY_EVENT_SENDHISTORY: str = PREFIX + "event_send_history" # Send the Conversation So Far
+    KEY_EVENT_INCLUDEPLAYER: str = PREFIX + "event_include_player" # Include Me
+    KEY_EVENT_NEARBY_REFIDS: str = PREFIX + "event_nearby_refids" # Nearby and Random: who the event can be about, nearest first. Random: the NPCs in the conversation too
+    KEY_EVENT_NEARBY_NAMES: str = PREFIX + "event_nearby_names" # In the same order as the refids
+    KEY_EVENT_NEARBY_ACTORS: str = PREFIX + "event_nearby_actors" # Full actor settings of the nearest who are not in the conversation (Most People Described)
+    KEY_EVENT_MAXDESCRIBED: str = PREFIX + "event_max_described" # Most People Described
+    KEY_EVENT_RESULT: str = PREFIX + "event_result" # In the reply: True if something happened
+    KEY_EVENT_CANCEL: str = PREFIX + "event_cancel" # In an interrupt request: the player ended the conversation while the event was being generated
+    KEY_GAMEMASTERMODE: str = PREFIX + "game_master_mode" # In the start, continue and event replies: whether Game Master Mode is on
 
     # Shout: sent with every continue and player input request. The rest only while the player shouts
     KEY_SHOUT_ENABLED: str = PREFIX + "shout_enabled"

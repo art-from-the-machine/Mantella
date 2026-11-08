@@ -149,7 +149,7 @@ class mantella_route(routeable):
             if received_json and received_json.get(comm_consts.KEY_REQUESTTYPE) == comm_consts.KEY_REQUESTTYPE_INTERRUPT:
                 # Handled right away, while the continue request that is still running picks the interruption up
                 if self.__game:
-                    self.__game.interrupt_conversation()
+                    self.__game.interrupt_conversation(received_json)
                 return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_INTERRUPTRECEIVED}
             if received_json and received_json.get(comm_consts.KEY_REQUESTTYPE) == comm_consts.KEY_REQUESTTYPE_NPCINITIATIVE:
                 # Not queued with the other requests, so a slow check never delays a conversation the player starts
@@ -206,23 +206,30 @@ class mantella_route(routeable):
                 if self._show_debug_messages:
                     logging.log(self._log_level_http_in, json.dumps(received_json, indent=4))
                 request_type: str = received_json[comm_consts.KEY_REQUESTTYPE]
-                match request_type:
-                    case comm_consts.KEY_REQUESTTYPE_INIT:
-                        # nothing needs to be done for this request aside from self._can_route_be_used() being triggered
-                        logging.debug('Mantella settings initialized')
-                        reply = {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_INITCOMPLETED}
-                    case comm_consts.KEY_REQUESTTYPE_STARTCONVERSATION:
-                        reply = self.__game.start_conversation(received_json)
-                    case comm_consts.KEY_REQUESTTYPE_CONTINUECONVERSATION:
-                        reply = self.__game.continue_conversation(received_json)
-                    case comm_consts.KEY_REQUESTTYPE_PLAYERINPUT:
-                        reply = self.__game.player_input(received_json)
-                    case comm_consts.KEY_REQUESTTYPE_ENDCONVERSATION:
-                        reply = self.__game.end_conversation(received_json)
-                    case comm_consts.KEY_REQUESTTYPE_QUESTCHECKLIST:
-                        reply = self.__game.quest_check_list()
-                    case _:
-                        reply = self.error_message(f"Request type '{request_type}' was not recognized")
+                try:
+                    match request_type:
+                        case comm_consts.KEY_REQUESTTYPE_INIT:
+                            # nothing needs to be done for this request aside from self._can_route_be_used() being triggered
+                            logging.debug('Mantella settings initialized')
+                            reply = {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_INITCOMPLETED}
+                        case comm_consts.KEY_REQUESTTYPE_STARTCONVERSATION:
+                            reply = self.__game.start_conversation(received_json)
+                        case comm_consts.KEY_REQUESTTYPE_CONTINUECONVERSATION:
+                            reply = self.__game.continue_conversation(received_json)
+                        case comm_consts.KEY_REQUESTTYPE_PLAYERINPUT:
+                            reply = self.__game.player_input(received_json)
+                        case comm_consts.KEY_REQUESTTYPE_CONVERSATIONEVENT:
+                            reply = self.__game.conversation_event(received_json)
+                        case comm_consts.KEY_REQUESTTYPE_ENDCONVERSATION:
+                            reply = self.__game.end_conversation(received_json)
+                        case comm_consts.KEY_REQUESTTYPE_QUESTCHECKLIST:
+                            reply = self.__game.quest_check_list()
+                        case _:
+                            reply = self.error_message(f"Request type '{request_type}' was not recognized")
+                except Exception:
+                    # Otherwise the failure only reaches the game, as an HTTP error that ends the conversation, and never this log
+                    logging.exception(f"Request '{request_type}' failed")
+                    raise
             else:
                 reply = self.error_message(f"Request did not contain properly formatted json!")
 

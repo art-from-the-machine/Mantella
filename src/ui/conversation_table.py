@@ -206,6 +206,8 @@ def _rows_with_targets(messages: list) -> list[tuple[list[str], tuple]]:
             events = item.get("ingame_events") or []
             for k, event in enumerate(events):
                 result.append(([f"{i}.e{k + 1}", "", "Event", str(event)], (events, k)))
+            if events and item.get("is_director") and not item.get("text"):
+                continue # Only carries the events: the NPCs went on without the player, or something happened (an event or NPC Event)
             who = item.get("player_character_name") or "Player"
             result.append(([str(i), who, _user_kind(item), item.get("text", "")], (item, "text")))
         elif msg_type == "assistant":
@@ -259,7 +261,7 @@ def delete_selected_rows(json_str: str, rows: list[list], selected_numbers: list
 
     An NPC message whose sentences are all deleted is removed. NPC messages left
     next to each other by a deletion are merged, as the conversation never holds two in a row.
-    Deleting a player row also removes its events.
+    Deleting a player row also removes its events. A message that only carried events (no row of its own) is removed with its last event.
 
     Raises:
         ValueError: if rows were added, removed or reordered, or a Joined/Left row is selected
@@ -281,6 +283,9 @@ def delete_selected_rows(json_str: str, rows: list[list], selected_numbers: list
         if item.get("type") == "user" and item.get("ingame_events"):
             events = item["ingame_events"]
             item["ingame_events"] = [event for k, event in enumerate(events) if (id(events), k) not in selected_events]
+            if not item["ingame_events"] and item.get("is_director") and not item.get("text"):
+                removed_since_last_kept = True # It only carried the events deleted
+                continue
         if item.get("type") == "assistant":
             sentences = item.get("sentences", [])
             remaining = [sentence for sentence in sentences if id(sentence) not in selected_ids]

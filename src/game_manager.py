@@ -15,6 +15,7 @@ from src.remember.personal_reflection import PersonalReflection
 from src.config.config_loader import ConfigLoader
 from src.llm.llm_client import LLMClient
 from src.conversation.conversation import Conversation
+from src.conversation.conversation_type import multi_npc_game_master
 from src.conversation.context import context as Context
 from src.character_manager import Character
 import src.utils as utils
@@ -27,6 +28,7 @@ from src.llm.sonnet_cache_connector import SonnetCacheConnector
 from src.quest_tags.tracker import QuestTagTracker
 
 if TYPE_CHECKING:
+    from src.conversation.bystanders import EventPerson
     from src.conversation.npc_event import NpcEvent
     from src.llm.ai_client import AIClient
 
@@ -152,6 +154,7 @@ class GameStateManager:
         self.__npc_event_count: int = 0 # Gives each event its id
         self.__pending_npc_event: "NpcEvent | None" = None # The latest event, until the game starts the conversation that acts it out
         self.__conversation_start_count: int = 0 # A change cancels the NPC Initiative and NPC Event checks that are still running
+        self.__event_cancel_count: int = 0 # A change cancels a Conversation, Nearby or Random Event being generated (the player ended the conversation)
         self.__mic_input: bool = False
         self.__mic_ptt: bool = False # push-to-talk
         self.__stt_api_file: str = stt_api_file
@@ -473,7 +476,7 @@ class GameStateManager:
                 context_for_conversation.npc_event = pending_event
                 logging.log(26, f"NPC Event {event_id} starts: {pending_event.text}")
             else:
-                logging.warning(f"NPC Event {event_id} could not be started. The NPCs have a radiant conversation instead.")
+                logging.warning(f"NPC Event {event_id} could not be started. Without the Game Master model the start fails, otherwise the NPCs have a radiant conversation instead.")
         
         # Determine LLM client to use based on random selection settings
         conversation_llm_client = self.__client  # Default to main client
@@ -554,12 +557,12 @@ class GameStateManager:
             self.__chat_manager.update_primary_client(conversation_llm_client)
         
         self.__talk = Conversation(context_for_conversation, self.__chat_manager, self.__rememberer, conversation_llm_client, self.__stt, self.__mic_input, self.__mic_ptt)
-        # Just saying something: the conversation starts with only the player, already shouting. Applied before the first
-        # conversation type is chosen, so it starts as a Shout conversation
+        # Just saying something and NPC Events: the conversation starts already shouting. Applied before the first
+        # conversation type is chosen, so it starts as a Shout conversation, and before anything is said, so people who join heard it all
         if not self.__apply_shout(input_json):
             self.__talk.end()
             self.__talk = None
-            return self.error_message("Saying something to the room needs the Game Master model. Set it up in Mantella's settings")
+            return self.error_message("This conversation needs the Game Master model. Set it up in Mantella's settings")
         # Quest tag changes are recorded before the NPCs are loaded, so NPCs with the tag know them in this conversation
         start_context: dict[str, Any] = input_json.get(comm_consts.KEY_CONTEXT, {})
         self.__quest_tags.apply_report(self.__game, world_id, start_context, QuestTagTracker.MOMENT_START)
@@ -569,7 +572,8 @@ class GameStateManager:
             
         reply: dict[str, Any] = {
             comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTTYPE_STARTCONVERSATIONCOMPLETED,
-            comm_consts.KEY_STARTCONVERSATION_USENARRATOR: self.__conv_has_narrator}
+            comm_consts.KEY_STARTCONVERSATION_USENARRATOR: self.__conv_has_narrator,
+            comm_consts.KEY_GAMEMASTERMODE: multi_npc_game_master.is_enabled(self.__config)}
         if self.__quest_tags.is_game_list_out_of_date(self.__game, start_context):
             # The game hands the list to its check plugin and sends fresh answers with its next continue request (the catch-up)
             reply[comm_consts.KEY_QUESTCHECKS_LIST] = self.__quest_tags.get_check_list_payload(self.__game)
@@ -594,9 +598,7 @@ class GameStateManager:
 
         event = self.__talk.context.npc_event
         if event:
-            event.apply_game_update(input_json.get(comm_consts.KEY_NPCEVENT_NEARBY_REFIDS),
-                                    input_json.get(comm_consts.KEY_NPCEVENT_PLAYERNOTICEABLE),
-                                    int(input_json.get(comm_consts.KEY_NPCEVENT_ADDFAILED_REFID, 0)))
+            event.apply_game_update(input_json.get(comm_consts.KEY_NPCEVENT_PLAYERNOTICEABLE))
         is_shout_unavailable = not self.__apply_shout(input_json)
         # The catch-up: answers to a check list the start reply just sent. Recorded, never announced
         changes, _ = self.__quest_tags.apply_report(self.__game, self.__talk.context.world_id, input_json, QuestTagTracker.MOMENT_CATCHUP)
@@ -649,6 +651,7 @@ class GameStateManager:
             else:
                 self.__talk.end()
                 return self.error_message(sentence_to_play.error_message)        
+        reply[comm_consts.KEY_GAMEMASTERMODE] = multi_npc_game_master.is_enabled(self.__config) # The game needs it for the events, and it can change mid-conversation
         return reply
 
     @utils.time_it
@@ -662,6 +665,88 @@ class GameStateManager:
             reply[comm_consts.KEY_SHOUT_UNAVAILABLE] = True
         return reply
 
+    def conversation_event(self, input_json: dict[str, Any]) -> dict[str, Any]:
+        """Conversation, Nearby and Random Events, picked on the Conversation Wheel during the player's turn. The event generator writes
+        something that happens, which is added to the conversation as narration. Then the Game Master picks who reacts first.
+        Needs Game Master Mode. Uses the NPC Event Generator model, also when NPC Events are off.
+        Never replies with an error: any failure means nothing happened, and it is the player's turn again"""
+        nothing = {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_CONVERSATIONEVENT, comm_consts.KEY_EVENT_RESULT: False,
+                   comm_consts.KEY_GAMEMASTERMODE: multi_npc_game_master.is_enabled(self.__config)}
+        talk = self.__talk
+        if not talk:
+            return nothing
+        talk.forget_event_picked()
+        cancel_count = self.__event_cancel_count
+        is_cancelled = lambda: self.__event_cancel_count != cancel_count or self.__talk is not talk
+        try:
+            from src.conversation.context import build_bios_and_summaries_text
+            from src.conversation.npc_event import generate_conversation_event
+            from src.conversation.bystanders import ShoutState
+            self.__apply_shout(input_json)
+            self.__update_context(input_json)
+            kind = str(input_json.get(comm_consts.KEY_EVENT_KIND, "")).lower() # Papyrus can change a string's case: "random" arrives as "Random"
+            if not multi_npc_game_master.is_enabled(self.__config):
+                logging.warning("Events need Game Master Mode")
+                return nothing
+            if not self.__ensure_game_master_client():
+                logging.error("Events need the Game Master model. Set up the Game Master LLM Service and Game Master Model.")
+                return nothing
+            context = talk.context
+            player = context.npcs_in_conversation.get_player_character()
+            player_name = player.name if player else ""
+            player_description = self.__config.player_character_description
+            if player and player.get_custom_character_value(comm_consts.KEY_ACTOR_PC_DESCRIPTION):
+                player_description = player.get_custom_character_value(comm_consts.KEY_ACTOR_PC_DESCRIPTION)
+            members = context.get_characters_excluding_player().get_all_characters()
+            # Nearby and Random: the people nearby the game found, nearest first (Random: the NPCs in the conversation too). Only the nearest
+            # (Most People Described) get their bios and memories: those in the conversation are loaded already, Shout has those it was sent
+            # (the game sends them only once), and the game sent the others in full
+            shout_characters = context.shout.characters if isinstance(context.shout, ShoutState) else {}
+            loaded: dict[int, Character] = {}
+            for actor_json in input_json.get(comm_consts.KEY_EVENT_NEARBY_ACTORS, []):
+                character = self.load_character(actor_json, context.world_id)
+                if character:
+                    loaded[int(actor_json[comm_consts.KEY_ACTOR_REFID])] = character
+            members_by_ref_id = {npc.ref_id: npc for npc in members}
+            refids = input_json.get(comm_consts.KEY_EVENT_NEARBY_REFIDS, [])
+            for refid in refids:
+                member = members_by_ref_id.get(utils.mask_load_order(utils.convert_to_skyrim_hex_format(str(refid))))
+                if member:
+                    loaded[int(refid)] = member
+                elif int(refid) not in loaded and int(refid) in shout_characters:
+                    loaded[int(refid)] = shout_characters[int(refid)]
+            people = self.__label_nearby(refids, input_json.get(comm_consts.KEY_EVENT_NEARBY_NAMES, []), {refid: c.name for refid, c in loaded.items()})
+            if kind == "conversation":
+                names = [npc.name for npc in members]
+                described = members
+            else:
+                names = [person.name for person in people]
+                max_described = max(0, int(input_json.get(comm_consts.KEY_EVENT_MAXDESCRIBED, 6)))
+                described = [loaded[person.refid] for person in people[:max_described] if person.refid in loaded]
+            if bool(input_json.get(comm_consts.KEY_EVENT_INCLUDEPLAYER, False)) and player_name:
+                names.append(player_name)
+            bios_and_summaries = build_bios_and_summaries_text(described, self.__config, self.__rememberer, context.world_id, player_name or None,
+                                                               contains_player=True, always_multi_npc=True)
+            history_lines = talk.event_history_lines() if bool(input_json.get(comm_consts.KEY_EVENT_SENDHISTORY, False)) else []
+            hint = str(input_json.get(comm_consts.KEY_EVENT_HINT, "")).strip()
+            logging.log(26, f"Event ({kind}) about: {', '.join(names) or 'nobody'}. With bios and memories: {', '.join(c.name for c in described) or 'nobody'}."
+                            + (f" Hint: {hint}" if hint else ""))
+            text = generate_conversation_event(self.__config, self.__get_npc_event_client(), kind, names, player_name, player_description,
+                                               context.location, context.ingame_time, context.weather, bios_and_summaries, hint, history_lines, is_cancelled)
+            if is_cancelled():
+                logging.log(26, "Event cancelled: the conversation ended")
+                return nothing
+            if not text:
+                return nothing
+            members_ref_ids = set(members_by_ref_id)
+            nearby = [person for person in people if person.ref_id not in members_ref_ids]
+            nearby_characters = {refid: character for refid, character in loaded.items() if character.ref_id not in members_ref_ids}
+            talk.add_event(text, kind, self.__shout_settings(input_json), nearby, nearby_characters)
+            return {**nothing, comm_consts.KEY_EVENT_RESULT: True}
+        except Exception as e:
+            logging.error(f"Event failed: {e}")
+            return nothing
+
     def __handle_player_input(self, input_json: dict[str, Any]) -> dict[str, Any]:
         
         self.__first_line = True
@@ -670,6 +755,9 @@ class GameStateManager:
         self.__add_quest_tag_announcements(input_json)
         self.__update_context(input_json)
         updated_player_text, update_events, player_spoken_sentence = self.__talk.process_player_input(player_text)
+        if updated_player_text is None:
+            # The player picked an event on the Conversation Wheel instead of speaking. Still their turn: the game sends the event now
+            return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_PLAYERTALK}
         if update_events:
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REQUESTTYPE_TTS, comm_consts.KEY_TRANSCRIBE: updated_player_text}
 
@@ -701,11 +789,18 @@ class GameStateManager:
         logging.debug(f"Quest tags: sent {len(payload[comm_consts.KEY_QUESTCHECKS_FUNCTIONS])} checks (version {payload[comm_consts.KEY_QUESTCHECKS_VERSION]})")
         return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_QUESTCHECKLIST, comm_consts.KEY_QUESTCHECKS_LIST: payload}
 
-    def interrupt_conversation(self):
-        """Interrupt hotkey. Called while another request may still be running"""
+    def interrupt_conversation(self, input_json: dict[str, Any] | None = None):
+        """Interrupt hotkey. Called while another request may still be running.
+        Also sent when the player picks a Conversation, Nearby or Random Event: the NPCs stop and a wait for the player to speak ends,
+        so the game can send the event during the player's turn. And when the player ends the conversation while one is being generated"""
+        input_json = input_json or {}
+        if input_json.get(comm_consts.KEY_EVENT_CANCEL):
+            self.__event_cancel_count += 1
         talk = self.__talk # Can be set to None by a request that ends the conversation
         if talk:
             talk.request_interrupt()
+            if input_json.get(comm_consts.KEY_EVENT_KIND):
+                talk.stop_waiting_for_player()
 
     @utils.time_it
     def end_conversation(self, input_json: dict[str, Any]) -> dict[str, Any]:
@@ -784,6 +879,16 @@ class GameStateManager:
             self.__chat_manager.update_game_master_client(self.__get_npc_initiative_client())
         return self.__chat_manager.game_master_client is not None
 
+    @staticmethod
+    def __shout_settings(input_json: dict[str, Any]) -> dict[str, Any]:
+        """The Shout Mode settings the game sends with each request (see ShoutState.apply_settings)"""
+        return {
+            "lines_between_joins": input_json.get(comm_consts.KEY_SHOUT_LINESBETWEENJOINS),
+            "max_people": input_json.get(comm_consts.KEY_SHOUT_MAXPEOPLE),
+            "max_described": input_json.get(comm_consts.KEY_SHOUT_MAXDESCRIBED),
+            "newcomers_remember": input_json.get(comm_consts.KEY_SHOUT_NEWCOMERSREMEMBER),
+        }
+
     def __apply_shout(self, input_json: dict[str, Any]) -> bool:
         """Shout: what the game sends with each continue and player input request. Switches Shout on or off,
         and passes on the Shout Mode settings and the people the game sees near the player
@@ -793,15 +898,8 @@ class GameStateManager:
         """
         if not self.__talk or comm_consts.KEY_SHOUT_ENABLED not in input_json:
             return True
-        from src.conversation.bystanders import EventPerson
-        from src.conversation.npc_initiative import InitiativeCandidate, label_candidates
         context = self.__talk.context
-        settings = {
-            "lines_between_joins": input_json.get(comm_consts.KEY_SHOUT_LINESBETWEENJOINS),
-            "max_people": input_json.get(comm_consts.KEY_SHOUT_MAXPEOPLE),
-            "max_described": input_json.get(comm_consts.KEY_SHOUT_MAXDESCRIBED),
-            "newcomers_remember": input_json.get(comm_consts.KEY_SHOUT_NEWCOMERSREMEMBER),
-        }
+        settings = self.__shout_settings(input_json)
         if bool(input_json[comm_consts.KEY_SHOUT_ENABLED]):
             if not context.shout:
                 if not self.__ensure_game_master_client():
@@ -824,16 +922,31 @@ class GameStateManager:
         if loaded_names:
             logging.log(26, f"Shout: new nearby, the game sent the bios and memories of {', '.join(loaded_names)}. Kept until Shout is switched off, so they are not sent again")
         # The game starts both lists with a 0 and an empty name, so they are never empty and "nobody nearby" still arrives
-        pairs = zip(input_json.get(comm_consts.KEY_SHOUT_NEARBY_REFIDS, []), input_json.get(comm_consts.KEY_SHOUT_NEARBY_NAMES, []))
-        candidates = [InitiativeCandidate(str(name), int(refid)) for refid, name in pairs if int(refid) != 0]
-        ref_ids = {c.refid: utils.mask_load_order(utils.convert_to_skyrim_hex_format(str(c.refid))) for c in candidates}
-        shout_state.update_nearby([EventPerson(label, c.refid, ref_ids[c.refid]) for label, c in label_candidates(candidates).items()])
+        shout_state.update_nearby(self.__label_nearby(input_json.get(comm_consts.KEY_SHOUT_NEARBY_REFIDS, []), input_json.get(comm_consts.KEY_SHOUT_NEARBY_NAMES, [])))
         shout_state.apply_add_failed(int(input_json.get(comm_consts.KEY_SHOUT_ADDFAILED_REFID, 0)), str(input_json.get(comm_consts.KEY_SHOUT_ADDFAILED_REASON, "")))
         return True
 
+    @staticmethod
+    def __label_nearby(refids: list[Any], names: list[Any], known_names: dict[int, str] | None = None) -> "list[EventPerson]":
+        """The people nearby the game sent, nearest first, each with a unique label: people with the same name get 'Name (2)', 'Name (3)', ...
+        A refid of 0 matches nobody and is left out
+
+        Args:
+            known_names (dict[int, str] | None): by refid, the names of the people loaded from their full actor settings, used instead of the
+                game's name so they match their bios
+        """
+        from src.conversation.bystanders import EventPerson
+        from src.conversation.npc_initiative import InitiativeCandidate, label_candidates
+        known_names = known_names or {}
+        candidates = [InitiativeCandidate(known_names.get(int(refid), str(name)), int(refid)) for refid, name in zip(refids, names) if int(refid) != 0]
+        return [EventPerson(label, c.refid, utils.mask_load_order(utils.convert_to_skyrim_hex_format(str(c.refid))))
+                for label, c in label_candidates(candidates).items()]
+
     def npc_event_check(self, input_json: dict[str, Any]) -> dict[str, Any]:
-        """Asks the event generator to invent a scene between some of the nearby NPCs in the request.
-        The game then starts a conversation with them and the event's id, and they act the scene out.
+        """Asks the event generator to invent a scene between some of the NPCs near the player.
+        The request names everyone nearby (NPC Event Hearing Distance, at most Most People Listed), nearest first. Only the nearest
+        (Most People Described) are also sent in full, so only they get their bios and memories in the generator's prompt.
+        The game then starts a conversation with the participants and the event's id, and they act the scene out.
         Runs alongside the other requests. Starting a conversation cancels it.
         Never replies with an error: any failure means no event (id 0)"""
         no_event = {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCEVENT, comm_consts.KEY_NPCEVENT_ID: 0, comm_consts.KEY_NPCEVENT_PARTICIPANT_REFIDS: []}
@@ -842,12 +955,13 @@ class GameStateManager:
         try:
             from src.conversation.context import build_bios_and_summaries_text
             from src.conversation.npc_event import EventPerson, NpcEvent, generate_event
-            from src.conversation.npc_initiative import InitiativeCandidate, label_candidates
+            if not (self.__chat_manager.game_master_client or self.__get_npc_initiative_client()):
+                # The scene runs in Shout, which needs a Game Master, so it could not start. No event is generated for nothing
+                logging.error("NPC Events need the Game Master model. Set up the Game Master LLM Service and Game Master Model.")
+                return no_event
             world_id = self.__get_world_id(input_json)
             player: EventPerson | None = None
-            candidates: list[InitiativeCandidate] = []
-            ref_ids: dict[int, str] = {}
-            characters: list[Character] = []
+            described: dict[int, Character] = {} # The nearest people, sent in full. By refid
             for actor_json in input_json.get(comm_consts.KEY_ACTORS, []):
                 if is_cancelled():
                     break
@@ -858,22 +972,25 @@ class GameStateManager:
                 if character.is_player_character:
                     player = EventPerson(character.name, refid, character.ref_id)
                     continue
-                candidates.append(InitiativeCandidate(character.name, refid))
-                ref_ids[refid] = character.ref_id
-                characters.append(character)
-            people = [EventPerson(label, candidate.refid, ref_ids[candidate.refid]) for label, candidate in label_candidates(candidates).items()]
+                described[refid] = character
+            people = self.__label_nearby(input_json.get(comm_consts.KEY_NPCEVENT_NEARBY_REFIDS, []), input_json.get(comm_consts.KEY_NPCEVENT_NEARBY_NAMES, []),
+                                         {refid: character.name for refid, character in described.items()})
             # The same text as {bios_and_summaries} in the Skyrim Multi-NPC Prompt. The player is not part of the scene, so bios are filtered as without them
-            bios_and_summaries = build_bios_and_summaries_text(characters, self.__config, self.__rememberer, world_id, player.name if player else None,
+            bios_and_summaries = build_bios_and_summaries_text(list(described.values()), self.__config, self.__rememberer, world_id, player.name if player else None,
                                                                contains_player=False, always_multi_npc=True)
             context_json: dict[str, Any] = input_json.get(comm_consts.KEY_CONTEXT, {})
             location = str(context_json.get(comm_consts.KEY_CONTEXT_LOCATION, "Skyrim"))
             hour = int(context_json.get(comm_consts.KEY_CONTEXT_TIME, 12))
             weather = self.__game.get_weather_description(context_json[comm_consts.KEY_CONTEXT_WEATHER]) if comm_consts.KEY_CONTEXT_WEATHER in context_json else ""
-            logging.log(26, f"NPC Event check in {location}: {', '.join(p.name for p in people) or 'no candidates'}")
+            logging.log(26, f"NPC Event check in {location}: {', '.join(p.name for p in people) or 'no candidates'}. "
+                            f"With bios and memories: {', '.join(c.name for c in described.values()) or 'nobody'}")
             result = None
+            hint = str(input_json.get(comm_consts.KEY_EVENT_HINT, "")).strip()
+            if hint:
+                logging.log(26, f"NPC Event hint: {hint}")
             if not is_cancelled():
                 result = generate_event(self.__config, self.__get_npc_event_client(), people, player.name if player else "", location, hour,
-                                        weather, bios_and_summaries, is_cancelled)
+                                        weather, bios_and_summaries, is_cancelled, hint)
             if is_cancelled():
                 logging.log(26, "NPC Event check cancelled: a conversation was started")
                 return no_event
@@ -881,8 +998,7 @@ class GameStateManager:
                 return no_event
             participants, text = result
             self.__npc_event_count += 1
-            nearby = [person for person in people if person not in participants]
-            self.__pending_npc_event = NpcEvent(id=self.__npc_event_count, text=text, player=player, nearby=nearby)
+            self.__pending_npc_event = NpcEvent(id=self.__npc_event_count, text=text, player=player)
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCEVENT, comm_consts.KEY_NPCEVENT_ID: self.__npc_event_count,
                     comm_consts.KEY_NPCEVENT_PARTICIPANT_REFIDS: [person.refid for person in participants]}
         except Exception as e:

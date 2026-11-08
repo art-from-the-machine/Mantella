@@ -27,7 +27,7 @@ class EventPerson:
 @dataclass(kw_only=True)
 class Bystanders:
     """The people near a conversation who are not part of it, any of whom the Game Master may draw in.
-    Shared by NPC Events and Shout. The Game Master picks one, the game adds them, and they speak next"""
+    The Game Master picks one, the game adds them, and they speak next"""
     LOG_PREFIX: ClassVar[str] = "Nearby"
     nearby: list[EventPerson] = field(default_factory=list)
     pending_add: EventPerson | None = None # Picked by the Game Master. Can only speak once the game has added them
@@ -48,13 +48,21 @@ class Bystanders:
         taken_names = {name.lower() for name in participant_names}
         return [p for p in self.present_nearby() if p.name.lower() not in taken_names]
 
-    def nearby_choices(self, config: ConfigLoader, participant_names: list[str], npc_count: int) -> list[EventPerson]:
-        """The nearby people the Game Master may draw in right now"""
+    def nearby_choices(self, config: ConfigLoader, participant_names: list[str], npc_count: int, has_player: bool = True) -> list[EventPerson]:
+        """The nearby people the Game Master may draw in right now
+
+        Args:
+            has_player (bool): the player is in the conversation (not while they watch an NPC Event)
+        """
         return self.nearby_people(config, participant_names)
 
-    def nearby_text(self, config: ConfigLoader, participant_names: list[str]) -> str:
-        """The {nearby} prompt variable"""
-        names = [p.name for p in self.nearby_people(config, participant_names)]
+    def nearby_text(self, config: ConfigLoader, participant_names: list[str], extra: list[EventPerson] | None = None) -> str:
+        """The {nearby} prompt variable
+
+        Args:
+            extra (list[EventPerson] | None): named after the people nearby, e.g. the player watching an NPC Event once the scene's people can notice them
+        """
+        names = [p.name for p in self.nearby_people(config, participant_names) + (extra or [])]
         if sorted(names) != self.logged_nearby: # Logged when someone comes or goes, not each time people move and the order changes
             self.logged_nearby = sorted(names)
             logging.log(26, f"{self.LOG_PREFIX}: nearby now: {', '.join(names) or NOBODY_NEARBY}")
@@ -98,7 +106,8 @@ class Bystanders:
 @dataclass(kw_only=True)
 class ShoutState(Bystanders):
     """Shout: anyone near the player can answer them or join in. The game sends who is nearby with each request,
-    and the limits below decide when the Game Master may draw one of them in"""
+    and the limits below decide when the Game Master may draw one of them in.
+    NPC Events run in Shout from the start, so it is also who can join a scene the player watches (the game finds them with the NPC Event's rules)"""
     LOG_PREFIX: ClassVar[str] = "Shout"
     lines_between_joins: int = 3 # Lines spoken after someone joined before the next person can join
     max_people: int = 6 # Nobody new joins once the conversation has this many people, the player included
@@ -160,24 +169,24 @@ class ShoutState(Bystanders):
         self.answering_pick = False
         self.answer_again = False
 
-    def nearby_choices(self, config: ConfigLoader, participant_names: list[str], npc_count: int) -> list[EventPerson]:
+    def nearby_choices(self, config: ConfigLoader, participant_names: list[str], npc_count: int, has_player: bool = True) -> list[EventPerson]:
         """The nearby people the Game Master may draw in right now. Nobody unless every limit allows it"""
         people = self.nearby_people(config, participant_names)
         if not people or self.pending_add:
             return []
-        if npc_count + 1 >= self.max_people: # The player counts
+        if npc_count + (1 if has_player else 0) >= self.max_people: # The player counts while in the conversation
             return []
         if self.has_joined and self.lines_since_join < self.lines_between_joins:
             return []
         return people
 
-    def nearby_text(self, config: ConfigLoader, participant_names: list[str]) -> str:
+    def nearby_text(self, config: ConfigLoader, participant_names: list[str], extra: list[EventPerson] | None = None) -> str:
         """The {nearby} prompt variable. In the Game Master's prompt, only the people it may pick this time,
         so it is not told about someone the limits keep out"""
         offer = self.game_master_offer
         if offer is not None:
             return ", ".join(p.name for p in offer) or NOBODY_NEARBY
-        return super().nearby_text(config, participant_names)
+        return super().nearby_text(config, participant_names, extra)
 
     def nearby_criteria(self, config: ConfigLoader) -> tuple[str, str]:
         return SHOUT_NEARBY_CRITERIA, config.shout_decision_nearby_criteria
