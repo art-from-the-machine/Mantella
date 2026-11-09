@@ -377,8 +377,7 @@ class BioTemplateManager:
 
         *tag_outcomes* maps a quest tag to its current ``(outcome, time first seen)``
         in the playthrough. When the tag's outcome mode (``get_outcome_mode``) is Static,
-        the outcome's text is added right after the tag's own text, in the same paragraph
-        (on its own line when that text has several lines).
+        the outcome's text is added on its own line right before the tag's own text, in the same paragraph.
         With Dynamic, only outcomes with time 0 are added here; the rest go to the memory timeline.
         """
         tags = self._get_effective_tags_list(tags_string)
@@ -390,21 +389,20 @@ class BioTemplateManager:
         for tag in tags:
             template = self.get_template(tag)
             is_quest_tag = tag in self.outcome_codes or tag in self.outcome_texts
-            # The tag's own text first, then its current quest outcome: the latest state on top of the background
+            # The current quest outcome first, then the tag's own text
             parts: List[str] = []
+            if is_quest_tag and self._outcome_goes_to_bio(tag, tag_outcomes):
+                outcome_text = self._get_auto_outcome_text(tag, tag_outcomes)
+                if outcome_text:
+                    parts.append(outcome_text)
             if template and template.strip():
                 # Separate static text from dynamic events
                 static_text, _ = _split_static_and_dynamic(template)
                 if static_text:
                     parts.append(static_text)
-            if is_quest_tag and self._outcome_goes_to_bio(tag, tag_outcomes):
-                outcome_text = self._get_auto_outcome_text(tag, tag_outcomes)
-                if outcome_text:
-                    parts.append(outcome_text)
             if parts:
-                # Same paragraph as the tag's text. After a text of several lines (e.g. a list) it gets its own line,
-                # so it doesn't read as part of the last one
-                tag_expansions.append(("\n" if "\n" in parts[0] else " ").join(parts))
+                # One paragraph, each text on its own line
+                tag_expansions.append("\n".join(parts))
             elif template is None and not is_quest_tag:
                 logging.warning(f"Tag '{tag}' not found in bio_templates.csv - ignoring")
 

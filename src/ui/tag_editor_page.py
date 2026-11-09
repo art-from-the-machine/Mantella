@@ -32,7 +32,7 @@ BLANK_SNAPSHOT = {"tag": "", "text": "", "events": [], "announce": True, "mode":
 # The `outcome_mode` column as a list to pick from: (what the tab shows, what the file holds)
 OUTCOME_MODE_CHOICES = [
     ("Follow the Auto Quest Tag Outcomes setting", OUTCOME_MODE_DEFAULT),
-    ("Static: in the NPC's bio, right after the tag text", "static"),
+    ("Static: in the NPC's bio, right before the tag text", "static"),
     ("Dynamic: a dated memory, brought up as news once", "dynamic"),
     ("Off: this tag's outcomes aren't checked, only the tag text is used", "off"),
 ]
