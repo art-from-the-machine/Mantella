@@ -26,8 +26,6 @@ OUTCOME_COLUMNS = [column for slot in range(1, OUTCOME_SLOTS + 1) for column in 
 NPC_LIST_NEEDS_GAME = "Shown once Mantella has connected to the game."
 SEARCH_HEADERS = ["Tag", "Column", "Text", "From"]
 SEARCH_RESULT_LIMIT = 200
-NO_TAG_HEADER = ("**No tag open.** Pick one from the list to change it, or fill in the fields below, type a name for "
-                 "the new tag and click **Create**.")
 # What the form compares against when no tag is open: typing into the empty form counts as unsaved changes too
 BLANK_SNAPSHOT = {"tag": "", "text": "", "events": [], "announce": True, "mode": OUTCOME_MODE_DEFAULT,
                   "cells": {column: "" for column in TAG_COLUMNS}}
@@ -307,7 +305,6 @@ def build_tag_editor_page(config: ConfigLoader):
             several = in_several_files(tag)
             # Opened from Global search while Choose or create a tag is folded: unfold it, or nothing seems to happen
             update[choose_section] = gr.update(open=True)
-            update[no_tag_note] = gr.update(value="", visible=False)
             update[header] = gr.update(value=where_line(tag), visible=True)
             update[text_source] = source_label(tag, "description") if several else ""
             update[announce_source] = source_label(tag, "announce") if several else ""
@@ -328,7 +325,6 @@ def build_tag_editor_page(config: ConfigLoader):
         else:
             for component in [text_source, announce_source, mode_source, notes_source, source_from, npc_list, remove_note, *outcome_labels]:
                 update[component] = ""
-            update[no_tag_note] = gr.update(value=NO_TAG_HEADER, visible=True)
             update[header] = gr.update(value="", visible=False)
             update[npc_section] = gr.update(visible=False)
             update[remove_btn] = gr.update(visible=False)
@@ -883,9 +879,7 @@ def build_tag_editor_page(config: ConfigLoader):
         picker_message = gr.Markdown(elem_id="tag-editor-picker-message")
         new_tag_message = gr.Markdown(elem_id="tag-editor-new-tag-message")
         with gr.Column():
-            # Only with no tag open: how to start. The open tag's files and NPCs are further down, after Dynamic events
-            no_tag_note = gr.Markdown(NO_TAG_HEADER, elem_classes="tag-editor-header")
-
+            # The open tag's NPCs are further down, after Dynamic events; its files are above Save
             text_box = gr.Text(label="Tag text", lines=6)
             text_source = gr.Markdown(elem_classes="tag-editor-source")
             quest_warning = gr.Markdown(visible=False)
@@ -913,8 +907,7 @@ def build_tag_editor_page(config: ConfigLoader):
                     new_event_timestamp = gr.Text(label="Timestamp", placeholder="e.g. 1762435800", scale=1)
                     add_event_btn = gr.Button("Add event", variant="secondary", scale=0, min_width=120)
 
-            # The open tag's files, where a save goes, and the NPCs who have it
-            header = gr.Markdown("", visible=False, elem_classes="tag-editor-header")
+            # The NPCs who have the open tag
             with gr.Accordion(label="NPCs with this tag", open=False, visible=False, elem_id="tag-editor-npc-section", elem_classes="tag-editor-subsection") as npc_section:
                 npc_list = gr.Markdown(elem_id="tag-editor-npc-list")
 
@@ -942,6 +935,8 @@ def build_tag_editor_page(config: ConfigLoader):
                 notes_box = gr.Text(show_label=False, lines=2)
                 notes_source = gr.Markdown(elem_classes="tag-editor-source")
 
+            # The open tag's files and where a save goes, right above Save
+            header = gr.Markdown("", visible=False, elem_classes="tag-editor-header")
             with gr.Row(elem_classes="tag-editor-actions"):
                 save_btn = gr.Button("Save", variant="primary", scale=2)
                 discard_btn = gr.Button("Discard changes", variant="secondary", scale=2)
@@ -967,7 +962,7 @@ def build_tag_editor_page(config: ConfigLoader):
 
     field_inputs = [text_box, events_table, *outcome_boxes, announce_box, mode_box, notes_box, source_box]
     outputs = [
-        tag_dropdown, snapshot_state, tag_note, choose_section, no_tag_note, header, npc_section, new_tag_message, source_box, source_from,
+        tag_dropdown, snapshot_state, tag_note, choose_section, header, npc_section, new_tag_message, source_box, source_from,
         text_box, text_source, quest_warning, events_table, events_shown, selected_event, remove_event_btn, remove_event_row, no_events, new_event_text, new_event_date, new_event_timestamp,
         *outcome_boxes, *outcome_labels, outcomes_section, announce_box, announce_source, mode_box, mode_source,
         notes_section, notes_box, notes_source, npc_list,
