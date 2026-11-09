@@ -15,11 +15,12 @@ LAYER_BASE = "base"
 LAYER_MOD = "mod override"
 LAYER_PERSONAL = "personal override"
 
-# Every column a tag row can fill in. `notes` is for people editing the files; nothing at runtime reads it
+# Every column a tag row can fill in. `notes` and `source` (which mod the tag is for) are for people editing the files;
+# nothing at runtime reads them
 TAG_COLUMNS = (
     ['description']
     + [f'{prefix}_{slot}' for slot in range(1, OUTCOME_SLOTS + 1) for prefix in ('potential_paste', 'code')]
-    + ['announce', 'outcome_mode', 'notes']
+    + ['announce', 'outcome_mode', 'notes', 'source']
 )
 
 # What a tag's `outcome_mode` cell can hold, besides nothing: where that tag's quest outcome goes, whatever the

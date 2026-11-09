@@ -223,7 +223,7 @@ def _snippet(text: str, start: int, length: int) -> str:
 def search_tags(sources: Dict[str, Dict[str, List[Source]]], files_with_tag: Dict[str, List[Tuple[str, str]]], query: str) -> List[Dict[str, str]]:
     """Every place the query appears in the tags' current values, ignoring upper and lower case.
 
-    Searches tag names, tag text, dynamic events, outcome texts, conditions and notes. Values that a later
+    Searches tag names, tag text, dynamic events, outcome texts, conditions, notes and source. Values that a later
     layer overrides aren't searched: only what the game uses. Each result has `tag`, `where` (the CSV column
     the match is in, as written in the files), `snippet`, `layer` and `file` (the file the matching value comes from).
     """
@@ -249,7 +249,7 @@ def search_tags(sources: Dict[str, Dict[str, List[Source]]], files_with_tag: Dic
             add(tag, "description", text, description)
             for _, event in sorted(events):
                 add(tag, "description", event, description)
-        for column in [f"{prefix}_{slot}" for slot in range(1, OUTCOME_SLOTS + 1) for prefix in ("potential_paste", "code")] + ["notes"]:
+        for column in [f"{prefix}_{slot}" for slot in range(1, OUTCOME_SLOTS + 1) for prefix in ("potential_paste", "code")] + ["notes", "source"]:
             source = current_source(sources, tag, column)
             if source:
                 add(tag, column, source[2], source)
@@ -309,7 +309,7 @@ def _rows_for_tag(df: pd.DataFrame, tag: str) -> List[int]:
 
 def _ordered_columns(original: List[str], present: List[str]) -> List[str]:
     """The file's columns with the tag columns in their usual order (tag, description, potential_paste_1, code_1, ...
-    announce, notes), so a column added later lands in its place instead of at the end.
+    announce, outcome_mode, notes, source), so a column added later lands in its place instead of at the end.
 
     Any other column stays right after the tag column it followed in the file (or at the start if it came first).
     """
