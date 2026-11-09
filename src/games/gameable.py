@@ -104,7 +104,7 @@ class Gameable(ABC):
         return "", ""
 
     def refresh_characters_with_tag(self, characters: list, tag: str, tag_outcomes: dict[str, tuple[int, int]] | None = None) -> list[str]:
-        """Rebuild the bio and dated events of the NPCs here who have this tag. Returns their names. Nothing to do for games without tags"""
+        """Rebuild the bio and dynamic events of the NPCs here who have this tag. Returns their names. Nothing to do for games without tags"""
         return []
 
     @property

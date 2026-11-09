@@ -367,12 +367,6 @@ class MantellaConfigValueDefinitionsNew:
         )
         result.add_base_group(prompt_profiles_category)
 
-        startup_category = ConfigValueGroup("Startup", "Startup", "Startup settings.", on_value_change_callback)
-        startup_category.add_config_value(StartupDefinitions.get_auto_launch_ui_config_value())
-        startup_category.add_config_value(StartupDefinitions.get_play_startup_sound_config_value())
-        startup_category.add_config_value(StartupDefinitions.get_remove_mei_folders_config_value())
-        result.add_base_group(startup_category)
-
         other_category = ConfigValueGroup("Other", "Other", "Other settings.", on_value_change_callback)
         other_category.add_config_value(OtherDefinitions.get_automatic_greeting_config_value())
         other_category.add_config_value(OtherDefinitions.get_active_actions(actions))
@@ -395,6 +389,10 @@ class MantellaConfigValueDefinitionsNew:
         other_category.add_config_value(OtherDefinitions.get_port_config_value())
         other_category.add_config_value(OtherDefinitions.get_show_http_debug_messages_config_value())
         other_category.add_config_value(OtherDefinitions.get_advanced_logs_config_value())
+        # Startup settings (they used to have their own tab). config.ini values are read by name, so old [Startup] sections still load
+        other_category.add_config_value(StartupDefinitions.get_auto_launch_ui_config_value())
+        other_category.add_config_value(StartupDefinitions.get_play_startup_sound_config_value())
+        other_category.add_config_value(StartupDefinitions.get_remove_mei_folders_config_value())
         # other_category.add_config_value(OtherDefinitions.get_debugging_config_value())
         # other_category.add_config_value(OtherDefinitions.get_play_audio_from_script_config_value())
         # other_category.add_config_value(OtherDefinitions.get_debugging_npc_config_value())

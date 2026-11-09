@@ -238,8 +238,10 @@
 .tab-nav button {
     white-space: nowrap !important;
     flex-shrink: 0 !important;
-    padding-left: 10px !important;
-    padding-right: 10px !important;
+    /* Smaller tab names, so more tabs fit on the one row */
+    font-size: 13px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
     cursor: pointer !important;
     user-select: none !important;
     touch-action: pan-y !important;
@@ -250,11 +252,97 @@
     opacity: 0.55 !important;
 }
 
-/* Live Conversation table: Gradio always shows both scrollbars. Text wraps, so only scroll vertically, and only when needed */
-#live-conversation-table table {
+/* Live Conversation and Tag Editor tables: Gradio always shows both scrollbars, in bright browser colours.
+   Text wraps, so only scroll vertically, only when needed, with a thin scrollbar in the theme's colours */
+#live-conversation-table table,
+.mantella-quiet-table table {
     overflow-x: hidden !important;
     overflow-y: auto !important;
     scrollbar-width: thin;
+    scrollbar-color: var(--border-color-primary) transparent;
+}
+
+/* Tag Editor: small grey notes under fields (where a value comes from, hints), so they don't compete with the fields */
+.tag-editor-source,
+.tag-editor-source p {
+    font-size: var(--text-sm) !important;
+    color: var(--body-text-color-subdued) !important;
+}
+
+/* Tag Editor: the foldable parts inside "Choose or create a tag" (NPCs, Dynamic events, Quest outcomes, Notes) as visible boxes,
+   so it's clear where each one starts and ends */
+.tag-editor-subsection {
+    border: 1px solid var(--border-color-primary) !important;
+    border-radius: var(--radius-lg) !important;
+    background: var(--background-fill-secondary) !important;
+    padding: var(--size-2) var(--size-3) !important;
+}
+
+/* Tag Editor: the tag list without its own label, and a small Reload files button beside it */
+.tag-editor-picker {
+    align-items: center !important;
+}
+
+.tag-editor-picker button {
+    align-self: center !important;
+}
+
+/* Tag Editor: Save and Discard are the main pair; the spacer pushes the remove button to the right */
+.tag-editor-actions {
+    align-items: center !important;
+}
+
+/* Remove event names the event it removes, so it sizes to its label on one line instead of wrapping */
+#tag-editor-remove-event {
+    width: auto !important;
+    flex: none !important;
+    white-space: nowrap !important;
+}
+
+/* What Delete tag / Reset will do: a short, narrow note right under the button, not a line across the whole page */
+.tag-editor-remove-note {
+    max-width: 440px !important;
+    margin-left: auto !important;
+    margin-top: -6px !important;
+}
+
+.tag-editor-remove-note,
+.tag-editor-remove-note p {
+    text-align: right !important;
+    line-height: 1.35 !important;
+}
+
+/* Tag Editor: while an event runs (picking a tag, Save, Create, Reload files...), Gradio greys out every text block it
+   will update (opacity 0.2) and stretches each one, even an empty one, to 96px tall, whatever show_progress says.
+   The form updates ~20 of them at once, so the whole page faded and jumped apart until the answer came. Keep them as they are */
+.tag-editor-page div.pending {
+    opacity: 1 !important;
+}
+
+.tag-editor-page .prose.min {
+    min-height: 0 !important;
+}
+
+.tag-editor-spacer {
+    flex-grow: 1 !important;
+    min-width: 0 !important;
+}
+
+/* Delete tag / Reset: red outline, so it stands out as removing something without looking like the main action */
+#tag-editor-remove {
+    background: transparent !important;
+    border: 1px solid #dc2626 !important;
+    color: #ef4444 !important;
+}
+
+#tag-editor-remove:hover {
+    background: rgba(220, 38, 38, 0.12) !important;
+}
+
+#tag-editor-confirm-remove {
+    background: #dc2626 !important;
+    border: 1px solid #dc2626 !important;
+    color: #ffffff !important;
 }
 
 /* Laid over a Live Conversation cell while it is edited, so long text stays wrapped. Lines up with the cell's text */

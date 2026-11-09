@@ -14,7 +14,7 @@ from typing import Dict, List, Tuple
 import pandas as pd
 
 import src.utils as utils
-from src.bio_template_manager import LAYER_PERSONAL, OUTCOME_SLOTS, _split_static_and_dynamic, effective_tags, file_encoding, split_tags
+from src.bio_template_manager import LAYER_PERSONAL, OUTCOME_SLOTS, TAG_COLUMNS, _split_static_and_dynamic, effective_tags, file_encoding, split_tags
 
 TAG_EDITOR_FILE = "tag_editor.csv"
 BACKUP_SUFFIX = ".bak"
@@ -33,10 +33,10 @@ def personal_folder(save_folder: str, game_folder: str = "Skyrim") -> str:
     return os.path.join(save_folder, "data", game_folder, "bio_templates")
 
 
-# --- Description and dated events ---
+# --- Description and dynamic events ---
 
 def split_description(description: str) -> Tuple[str, List[Tuple[int, str]]]:
-    """The ordinary text (goes into the bio) and the dated events (go into the memory timeline)"""
+    """The ordinary text (goes into the bio) and the dynamic events (go into the memory timeline)"""
     return _split_static_and_dynamic(description or "")
 
 
@@ -87,27 +87,75 @@ def parse_event_date(text: str) -> int:
     raise ValueError(f"'{value}' isn't a date. Write it like 2026-11-06 14:30")
 
 
-def event_timestamps(rows: List[List[str]], loaded: List[Tuple[str, str, int]]) -> List[Tuple[int, str]]:
-    """The events to save, as (timestamp, text).
+def parse_timestamp(text: str) -> int:
+    """The Timestamp box or column: a whole number of seconds since 1970, exactly as saved in the file"""
+    value = str(text or "").strip()
+    if value.isascii() and value.isdigit():
+        return int(value)
+    raise ValueError(f"'{value}' isn't a timestamp. Write a whole number of seconds, like 1762435800")
 
-    An event whose date text you didn't change keeps the exact timestamp it was loaded with. Turning the shown
-    local time back into a timestamp would be off by an hour for events in the repeated hour when clocks go back.
-    `loaded` holds (date text, event text, timestamp) for each event as it was shown. Raises ValueError for a date
-    that can't be read.
+
+def _date_matches(date: str, timestamp: int) -> bool:
+    """Whether a date text shows this timestamp. The exact text is checked first: in the hour repeated when clocks
+    go back, reading the shown date back gives a different moment"""
+    if date == format_event_date(timestamp):
+        return True
+    try:
+        return parse_event_date(date) == timestamp
+    except ValueError:
+        return False
+
+
+def event_timestamp(date: str, timestamp: str) -> int:
+    """The timestamp to save for one event row of [date, timestamp, text]. The Timestamp is saved as it is, so an
+    event nobody touched keeps its exact moment. The date is only read when the Timestamp is empty.
+    Raises ValueError when neither can be read, or when they show different moments"""
+    date, timestamp = (date or "").strip(), (timestamp or "").strip()
+    if not timestamp:
+        if not date:
+            raise ValueError("an event needs a date or a timestamp")
+        return parse_event_date(date)
+    seconds = parse_timestamp(timestamp)
+    if date and not _date_matches(date, seconds):
+        raise ValueError(f"the date {date} and the timestamp {timestamp} are different moments. Change only one of them")
+    return seconds
+
+
+def sync_event_rows(rows: List[List[str]], shown: List[List[str]]) -> Tuple[List[List[str]], str]:
+    """After an edit in the events table, fill in the other half of each changed row: a changed date gives the
+    timestamp, a changed timestamp gives the date. Rows are [date, timestamp, text]; `shown` is the table as it
+    was last shown. Returns the rows and a message for the first one that can't be read ("" when all can).
+
+    The table can be re-sorted on screen, so which cell was changed is found from the shown rows: a row whose
+    timestamp was shown before had its date changed, and a row whose date was shown before had its timestamp changed.
     """
-    unused = list(loaded)
-    matches: List[Tuple[int, str] | None] = [None] * len(rows)
-    # Same date and text first, then same date with edited text
-    for same_text in (True, False):
-        for index, (date, text) in enumerate(rows):
-            if matches[index] is not None:
-                continue
-            for entry in unused:
-                if entry[0] == date and (not same_text or entry[1] == text):
-                    matches[index] = (entry[2], text)
-                    unused.remove(entry)
-                    break
-    return [match if match is not None else (parse_event_date(date), text) for match, (date, text) in zip(matches, rows)]
+    synced: List[List[str]] = []
+    problem = ""
+    shown_dates = {row[0] for row in shown}
+    shown_timestamps = {row[1] for row in shown}
+    for index, row in enumerate(rows):
+        date, timestamp, text = (list(row) + ["", "", ""])[:3]
+        date, timestamp = date.strip(), timestamp.strip()
+        try:
+            if timestamp and (not date or not _date_matches(date, parse_timestamp(timestamp))):
+                date_changed = bool(date) and timestamp in shown_timestamps
+                timestamp_changed = not date or date in shown_dates
+                if date_changed and timestamp_changed:
+                    # Both were shown before (e.g. two events swapped values): the row's own place decides
+                    same_place = shown[index] if index < len(shown) else ["", ""]
+                    date_changed = same_place[1] == timestamp
+                if date_changed:
+                    timestamp = str(parse_event_date(date))
+                elif not timestamp_changed:
+                    raise ValueError(f"the date {date} and the timestamp {timestamp} are different moments. Change only one of them")
+                date = format_event_date(int(timestamp))
+            elif date and not timestamp:
+                timestamp = str(parse_event_date(date))
+                date = format_event_date(int(timestamp))
+        except ValueError as e:
+            problem = problem or str(e)
+        synced.append([date, timestamp, text])
+    return synced, problem
 
 
 # --- Where values come from ---
@@ -164,15 +212,6 @@ def changed_cells(before: Dict[str, str], after: Dict[str, str]) -> Dict[str, st
 SEARCH_SNIPPET_CONTEXT = 40
 
 
-def _field_name(column: str) -> str:
-    """A column as the search results call it"""
-    if column.startswith("potential_paste_"):
-        return f"Outcome {column.rsplit('_', 1)[1]} text"
-    if column.startswith("code_"):
-        return f"Condition {column.rsplit('_', 1)[1]}"
-    return {"notes": "Notes"}.get(column, column)
-
-
 def _snippet(text: str, start: int, length: int) -> str:
     """The match with some text around it, on one line"""
     begin = max(0, start - SEARCH_SNIPPET_CONTEXT)
@@ -184,9 +223,9 @@ def _snippet(text: str, start: int, length: int) -> str:
 def search_tags(sources: Dict[str, Dict[str, List[Source]]], files_with_tag: Dict[str, List[Tuple[str, str]]], query: str) -> List[Dict[str, str]]:
     """Every place the query appears in the tags' current values, ignoring upper and lower case.
 
-    Searches tag names, tag text, dated events, outcome texts, conditions and notes. Values that a later
-    layer overrides aren't searched: only what the game uses. Each result has `tag`, `where`, `snippet`,
-    `layer` and `file` (the file the matching value comes from).
+    Searches tag names, tag text, dynamic events, outcome texts, conditions and notes. Values that a later
+    layer overrides aren't searched: only what the game uses. Each result has `tag`, `where` (the CSV column
+    the match is in, as written in the files), `snippet`, `layer` and `file` (the file the matching value comes from).
     """
     needle = (query or "").strip().lower()
     if not needle:
@@ -202,17 +241,18 @@ def search_tags(sources: Dict[str, Dict[str, List[Source]]], files_with_tag: Dic
 
     for tag in sorted(files_with_tag, key=str.lower):
         files = files_with_tag[tag]
-        add(tag, "Tag name", tag, files[-1] if files else None)
+        add(tag, "tag", tag, files[-1] if files else None)
         description = current_source(sources, tag, "description")
         if description:
+            # Text and each dynamic event are searched apart, so a match's snippet doesn't run from one into the next
             text, events = split_description(description[2])
-            add(tag, "Tag text", text, description)
-            for timestamp, event in sorted(events):
-                add(tag, f"Event {format_event_date(timestamp)}", event, description)
+            add(tag, "description", text, description)
+            for _, event in sorted(events):
+                add(tag, "description", event, description)
         for column in [f"{prefix}_{slot}" for slot in range(1, OUTCOME_SLOTS + 1) for prefix in ("potential_paste", "code")] + ["notes"]:
             source = current_source(sources, tag, column)
             if source:
-                add(tag, _field_name(column), source[2], source)
+                add(tag, column, source[2], source)
     return results
 
 
@@ -267,13 +307,39 @@ def _rows_for_tag(df: pd.DataFrame, tag: str) -> List[int]:
     return [index for index, value in df["tag"].items() if utils.normalize_apostrophes(str(value).strip()) == tag]
 
 
+def _ordered_columns(original: List[str], present: List[str]) -> List[str]:
+    """The file's columns with the tag columns in their usual order (tag, description, potential_paste_1, code_1, ...
+    announce, notes), so a column added later lands in its place instead of at the end.
+
+    Any other column stays right after the tag column it followed in the file (or at the start if it came first).
+    """
+    known = ["tag", *TAG_COLUMNS]
+    leading: List[str] = []
+    following: Dict[str, List[str]] = {}
+    previous = None
+    for column in original:
+        if column in known:
+            previous = column
+        elif previous is None:
+            leading.append(column)
+        else:
+            following.setdefault(previous, []).append(column)
+    ordered = list(leading)
+    for column in known:
+        if column in present:
+            ordered += [column, *following.get(column, [])]
+    # Anything not placed above (a column added that isn't a tag column) goes at the end, as before
+    return ordered + [column for column in present if column not in ordered]
+
+
 def write_cells(path: str, tag: str, cells: Dict[str, str]):
     """Write these cells of the tag's row, keeping everything else in the file as it is.
 
     The row is the last one with this tag in the file (the one that wins), or a new row at the end.
     An emptied cell is emptied on every row with the tag: Mantella reads every row, so a value left
     on an earlier row would come back.
-    A new file gets the `tag` and `description` columns Mantella needs to read it.
+    A new file gets the `tag` and `description` columns Mantella needs to read it. The tag columns are kept in
+    their usual order (see `_ordered_columns`), which also tidies a file whose columns were added out of order.
     """
     if os.path.exists(path):
         backup(path)
@@ -282,9 +348,11 @@ def write_cells(path: str, tag: str, cells: Dict[str, str]):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         df, encoding = pd.DataFrame(columns=["tag", "description"]), "utf-8"
 
+    original_columns = list(df.columns)
     for column in ["tag", "description", *cells]:
         if column not in df.columns:
             df[column] = ""
+    df = df[_ordered_columns(original_columns, list(df.columns))]
 
     rows = _rows_for_tag(df, tag)
     if rows:

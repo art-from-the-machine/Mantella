@@ -2,9 +2,10 @@
 
 See docs/tag_editor.md. File handling lives in tag_editor_files.py; this module is the UI and applying changes to the running game.
 """
+import functools
 import logging
 import os
-from datetime import datetime
+import time
 from typing import Any, Dict, List, Tuple
 
 import gradio as gr
@@ -19,27 +20,23 @@ from src.quest_tags.conditions import CheckList
 from src.ui import tag_editor_files as files
 
 LAYER_NAMES = {LAYER_BASE: "Base", LAYER_MOD: "Mod", LAYER_PERSONAL: "Personal"}
-EVENT_HEADERS = ["Date", "Event"]
-NEW_EVENT_DATE_FORMAT = "%Y-%m-%d %H:%M"
+EVENT_HEADERS = ["Date", "Timestamp", "Event"]
 OUTCOME_COLUMNS = [column for slot in range(1, OUTCOME_SLOTS + 1) for column in (f"potential_paste_{slot}", f"code_{slot}")]
 NPC_LIST_NEEDS_GAME = "Shown once Mantella has connected to the game."
-SEARCH_HEADERS = ["Tag", "Where", "Text", "From"]
+SEARCH_HEADERS = ["Tag", "Column", "Text", "From"]
 SEARCH_RESULT_LIMIT = 200
+NO_TAG_HEADER = ("**No tag open.** Pick one from the list to change it, or fill in the fields below, type a name for "
+                 "the new tag and click **Create**.")
+# What the form compares against when no tag is open: typing into the empty form counts as unsaved changes too
+BLANK_SNAPSHOT = {"tag": "", "text": "", "events": [], "announce": True, "cells": {column: "" for column in TAG_COLUMNS}}
 
 
 def _column_name(column: str) -> str:
     """A column as the tab calls it"""
     if column == "description":
         return "tag text and events"
-    if column.startswith("potential_paste_"):
-        return f"outcome {column.rsplit('_', 1)[1]} text"
-    if column.startswith("code_"):
-        return f"condition {column.rsplit('_', 1)[1]}"
+    # Outcome fields are labelled with their column names, so messages use them too
     return column
-
-
-def _now_for_new_event() -> str:
-    return datetime.now().strftime(NEW_EVENT_DATE_FORMAT)
 
 
 def _cell_text(value: Any) -> str:
@@ -53,8 +50,15 @@ def _cell_text(value: Any) -> str:
     return str(value)
 
 
-def _event_rows(table: Any) -> List[List[str]]:
-    """The events table as [date, text] rows. Rows without text are dropped: clearing the text deletes the event"""
+def _timestamp_text(value: Any) -> str:
+    """A Timestamp cell as text. The table can hand a number back, e.g. 1762435800.0"""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return _cell_text(value).strip()
+
+
+def _all_event_rows(table: Any) -> List[List[str]]:
+    """The events table as [date, timestamp, text] rows, including rows whose text was cleared"""
     if isinstance(table, pd.DataFrame):
         raw_rows = table.values.tolist()
     elif isinstance(table, dict):
@@ -63,11 +67,27 @@ def _event_rows(table: Any) -> List[List[str]]:
         raw_rows = table or []
     rows: List[List[str]] = []
     for row in raw_rows:
-        cells = list(row) + ["", ""]
-        date, text = _cell_text(cells[0]).strip(), files.clean_event_text(_cell_text(cells[1]))
-        if text:
-            rows.append([date, text])
+        cells = list(row) + ["", "", ""]
+        rows.append([_cell_text(cells[0]).strip(), _timestamp_text(cells[1]), files.clean_event_text(_cell_text(cells[2]))])
     return rows
+
+
+def _event_rows(table: Any) -> List[List[str]]:
+    """The events as [date, timestamp, text] rows. Rows without text are dropped: clearing the text deletes the event"""
+    return [row for row in _all_event_rows(table) if row[2]]
+
+
+def _event_row(timestamp: int, text: str) -> List[str]:
+    return [files.format_event_date(timestamp), str(int(timestamp)), text]
+
+
+def _sentence(problem: Any) -> str:
+    """A problem message as a sentence: capital first letter, full stop at the end"""
+    text = str(problem).strip()
+    if not text:
+        return ""
+    text = text[0].upper() + text[1:]
+    return text if text.endswith((".", "!", "?")) else text + "."
 
 
 def _events_table_value(rows: List[List[str]]) -> pd.DataFrame:
@@ -110,6 +130,20 @@ def build_tag_editor_page(config: ConfigLoader):
             state["npcs"] = files.npcs_by_tag(game.character_df)
         return state["npcs"]
 
+    def folders_list() -> str:
+        """The three folders tags are read from, as the "From" names call them, so the names point somewhere real"""
+        mod_folder = os.path.join(config.mod_path_base, "SKSE", "Plugins", "MantellaSoftware", "data", "Skyrim", "bio_templates")
+        folders = [
+            ("Base", "the tags that come with Mantella", templates_folder),
+            ("Mod", "tags from Skyrim mods you've installed", mod_folder),
+            ("Personal", "your own tags and changes", files.personal_folder(config.save_folder)),
+        ]
+        lines = []
+        for number, (name, what, folder) in enumerate(folders, start=1):
+            missing = "" if os.path.isdir(folder) else " (folder not found)"
+            lines.append(f"{number}. **{name}**, {what}: `{os.path.normpath(folder)}`{missing}")
+        return "\n".join(lines)
+
     def tag_reading_note() -> str:
         if getattr(config, "enable_character_tag_reading", True):
             return ""
@@ -135,50 +169,112 @@ def build_tag_editor_page(config: ConfigLoader):
             return {}
         return {outcome.slot: outcome.reason for outcome in CheckList({tag: codes}).unreadable}
 
+    def in_several_files(tag: str) -> bool:
+        """Only then does each field say where it comes from: otherwise the line under the tag name already does"""
+        return len({path for _, path in manager().files_with_tag.get(tag, [])}) > 1
+
+    def where_line(tag: str) -> str:
+        """Which files the tag is in, with full paths and the folder names from the intro, and where a save goes"""
+        files_with_tag = manager().files_with_tag
+        target = f"`{os.path.normpath(files.choose_target_file(files_with_tag, tag, files.personal_folder(config.save_folder)))}`"
+
+        def described(layer: str, path: str) -> str:
+            name = LAYER_NAMES.get(layer, layer)
+            what = "where your changes are saved" if layer == LAYER_PERSONAL else "never changed"
+            return f"`{os.path.normpath(path)}` ({name} folder, {what})"
+
+        rows = list(dict.fromkeys(files_with_tag.get(tag, [])))
+        if len(rows) == 1:
+            line = f"**File:** {described(*rows[0])}"
+        else:
+            line = "**Files** (a value in a later file wins):\n" + "\n".join(f"- {described(layer, path)}" for layer, path in rows)
+        if not files.personal_files(files_with_tag, tag):
+            line += f"\n\n**Your changes will be saved to:** {target} (Personal folder)"
+        return line
+
+    def remove_action(tag: str) -> str | None:
+        """What the remove button does for this tag: "delete" (only in your files), "back" (you changed a base or mod tag), or nothing"""
+        files_with_tag = manager().files_with_tag
+        if not files.personal_files(files_with_tag, tag):
+            return None
+        return "back" if files.has_base_or_mod_rows(files_with_tag, tag) else "delete"
+
+    def original_name(tag: str) -> str:
+        """"mod version", "base version", or "original": what Reset brings a tag back to"""
+        layers = [layer for layer, _ in manager().files_with_tag.get(tag, []) if layer != LAYER_PERSONAL]
+        return f"{LAYER_NAMES.get(layers[-1], 'original').lower()} version" if layers else "original"
+
+    def back_label(tag: str) -> str:
+        return f"Reset to {original_name(tag)}"
+
+    def remove_note_text(tag: str, action: str | None) -> str:
+        """What the remove button will do, shown under it before it's clicked"""
+        if action == "delete":
+            return ("Deletes the whole tag: its row in the personal file is removed. "
+                    "NPCs who were given this tag get nothing from it anymore. Asks to confirm first.")
+        if action == "back":
+            return f"Drops your changes, so every field goes back to the {original_name(tag)}. Asks to confirm first."
+        return ""
+
+    def npc_lines(tag: str) -> Tuple[str, str]:
+        """The label and the content of the NPC list"""
+        npcs = npcs_by_tag()
+        if npcs is None:
+            return "NPCs with this tag", NPC_LIST_NEEDS_GAME
+        with_tag = npcs.get(tag, [])
+        if not with_tag:
+            return "Used by no NPC yet", "Give it to NPCs in the Bio Editor."
+        return f"Used by {len(with_tag)} NPC{'s' if len(with_tag) != 1 else ''}", ", ".join(with_tag)
+
     def outcome_label(tag: str, slot: int, code: str) -> str:
         parts = []
-        text_source = source_label(tag, f"potential_paste_{slot}")
-        code_source = source_label(tag, f"code_{slot}")
-        if text_source:
-            parts.append(f"Text {text_source[0].lower()}{text_source[1:]}")
-        if code_source:
-            parts.append(f"Condition {code_source[0].lower()}{code_source[1:]}")
+        if in_several_files(tag):
+            text_source = source_label(tag, f"potential_paste_{slot}")
+            code_source = source_label(tag, f"code_{slot}")
+            if text_source:
+                parts.append(f"potential_paste_{slot} {text_source[0].lower()}{text_source[1:]}")
+            if code_source:
+                parts.append(f"code_{slot} {code_source[0].lower()}{code_source[1:]}")
         reason = unreadable_reasons(tag, {slot: code}).get(slot)
         if reason:
-            parts.append(f"**Condition {slot} can't be read: {reason}**")
+            parts.append(f"**code_{slot} can't be read: {reason}**")
         return " · ".join(parts)
 
-    def render(tag: str | None, is_new: bool = False, message: str = "") -> Dict[Any, Any]:
-        """Every component showing this tag, as loaded from the files. No tag clears the form"""
+    def render(tag: str | None, message: str = "", fold: bool = True) -> Dict[Any, Any]:
+        """Every component showing this tag, as loaded from the files. No tag empties the form, ready for a new tag"""
         tags = all_tags()
         if not tag:
             values = {column: "" for column in TAG_COLUMNS}
         else:
             values = {column: (files.current_source(manager().sources, tag, column) or ("", "", ""))[2] for column in TAG_COLUMNS}
         text, events = files.split_description(values["description"])
-        event_rows = [[files.format_event_date(ts), files.clean_event_text(event)] for ts, event in sorted(events)]
+        event_rows = [_event_row(ts, files.clean_event_text(event)) for ts, event in sorted(events)]
         announce = values["announce"].strip().lower() != "no"
-        # Each event's exact timestamp, so saving doesn't turn an untouched event's shown local time back into a different one
-        event_timestamps = [[date, event, ts] for (date, event), (ts, _) in zip(event_rows, sorted(events))]
-        snapshot = {"tag": tag or "", "is_new": is_new, "text": text, "events": event_rows, "announce": announce,
-                    "cells": values, "event_timestamps": event_timestamps}
+        snapshot = {"tag": tag or "", "text": text, "events": event_rows, "announce": announce, "cells": values}
 
         update: Dict[Any, Any] = {
-            tag_dropdown: gr.update(choices=tags + ([tag] if is_new and tag not in tags else []), value=tag or None),
+            tag_dropdown: gr.update(choices=tags, value=tag or None),
             snapshot_state: snapshot,
             text_box: text,
-            events_table: _events_table_value(event_rows),
+            **events_updates(event_rows),
             announce_box: announce,
             notes_box: values["notes"],
             new_event_text: "",
-            new_event_date: _now_for_new_event(),
-            confirm_delete_btn: gr.update(visible=False),
-            confirm_back_btn: gr.update(visible=False),
+            new_event_date: "",
+            new_event_timestamp: "",
+            confirm_remove_btn: gr.update(visible=False),
+            new_tag_message: "",
+            picker_message: "",
             tag_note: tag_reading_note(),
             message_line: message,
         }
         for column, box in zip(OUTCOME_COLUMNS, outcome_boxes):
             update[box] = values[column]
+        # Folded each time a tag opens, even when they have something in them. Not when the same tag is shown again
+        # (Save, Reload files, Discard, Reset): folding what you had open then made the page jump while it redrew
+        if fold:
+            update[outcomes_section] = gr.update(open=False)
+            update[notes_section] = gr.update(open=False)
 
         has_conditions = bool(tag) and any(values[f"code_{slot}"] for slot in range(1, OUTCOME_SLOTS + 1))
         update[quest_warning] = gr.update(
@@ -186,28 +282,41 @@ def build_tag_editor_page(config: ConfigLoader):
             value="This tag has quest outcomes. **Filling in the tag text turns its automatic outcomes off.**",
         )
         if tag:
-            update[text_source] = source_label(tag, "description")
-            update[announce_source] = source_label(tag, "announce")
-            update[notes_source] = source_label(tag, "notes")
+            several = in_several_files(tag)
+            # Opened from Global search while Choose or create a tag is folded: unfold it, or nothing seems to happen
+            update[choose_section] = gr.update(open=True)
+            update[header] = where_line(tag)
+            update[text_source] = source_label(tag, "description") if several else ""
+            update[announce_source] = source_label(tag, "announce") if several else ""
+            update[notes_source] = source_label(tag, "notes") if several else ""
             for slot, label in enumerate(outcome_labels, start=1):
                 update[label] = outcome_label(tag, slot, values[f"code_{slot}"])
-            npcs = npcs_by_tag()
-            if npcs is None:
-                update[npc_list] = NPC_LIST_NEEDS_GAME
-            else:
-                with_tag = npcs.get(tag, [])
-                update[npc_list] = ", ".join(with_tag) if with_tag else "No NPC has this tag. Give it to NPCs in the Bio Editor."
-            in_files = manager().files_with_tag.get(tag, [])
-            personal = files.personal_files(manager().files_with_tag, tag)
-            base_or_mod = files.has_base_or_mod_rows(manager().files_with_tag, tag)
-            update[delete_btn] = gr.update(interactive=bool(in_files) and not base_or_mod)
-            update[back_btn] = gr.update(interactive=bool(personal) and base_or_mod)
+            npc_label, npc_text = npc_lines(tag)
+            update[npc_section] = gr.update(label=npc_label, visible=True, **({"open": False} if fold else {}))
+            update[npc_list] = npc_text
+            action = remove_action(tag)
+            update[remove_btn] = gr.update(visible=action is not None, value="Delete tag" if action == "delete" else back_label(tag))
+            update[remove_note] = remove_note_text(tag, action)
         else:
-            for component in [text_source, announce_source, notes_source, npc_list, *outcome_labels]:
+            for component in [text_source, announce_source, notes_source, npc_list, remove_note, *outcome_labels]:
                 update[component] = ""
-            update[delete_btn] = gr.update(interactive=False)
-            update[back_btn] = gr.update(interactive=False)
+            update[header] = NO_TAG_HEADER
+            update[npc_section] = gr.update(visible=False)
+            update[remove_btn] = gr.update(visible=False)
         return update
+
+    def events_updates(rows: List[List[str]]) -> Dict[Any, Any]:
+        """The table only shows when there are events: an empty one looks broken"""
+        return {
+            # row_count is the number of rows the table shows and sends back: "fixed" hides the New row button, but
+            # left at 1 it cut the table to its first event, so Add event seemed to do nothing and Save dropped the rest
+            events_table: gr.update(value=_events_table_value(rows), visible=bool(rows), row_count=(max(len(rows), 1), "fixed")),
+            events_shown: rows,
+            selected_event: None,
+            remove_event_btn: remove_button(None),
+            remove_event_row: gr.update(visible=bool(rows)),
+            no_events: gr.update(visible=not rows),
+        }
 
     # --- What's on screen vs what was loaded ---
 
@@ -227,7 +336,7 @@ def build_tag_editor_page(config: ConfigLoader):
 
     def has_unsaved_changes(snapshot: Dict[str, Any], field_values: Tuple[Any, ...]) -> bool:
         if not snapshot or not snapshot.get("tag"):
-            return False
+            snapshot = BLANK_SNAPSHOT
         current = form_values(field_values)
         cells = snapshot["cells"]
         if current["text"] != snapshot["text"].strip() or current["events"] != snapshot["events"]:
@@ -237,9 +346,17 @@ def build_tag_editor_page(config: ConfigLoader):
         return any(current[column] != cells[column].strip() for column in OUTCOME_COLUMNS)
 
     def unsaved_message(snapshot: Dict[str, Any]) -> Dict[Any, Any]:
+        """Shown right under the tag list, where you just tried to switch, not under the Save button at the end of the form"""
+        tag = (snapshot or {}).get("tag")
+        if not tag:
+            return {
+                tag_dropdown: gr.update(value=None),
+                picker_message: "The fields have text that isn't saved anywhere yet. Give it a name and click **Create** to keep "
+                              "it as a new tag, or click **Discard changes**, then pick the tag again.",
+            }
         return {
-            tag_dropdown: gr.update(value=snapshot["tag"]),
-            message_line: f"You have unsaved changes to `{snapshot['tag']}`. Save them, or click **Discard changes**, then pick the tag again.",
+            tag_dropdown: gr.update(value=tag),
+            picker_message: f"You have unsaved changes to `{tag}`. Save them, or click **Discard changes**, then pick the tag again.",
         }
 
     # --- Applying a change to the running game ---
@@ -275,51 +392,176 @@ def build_tag_editor_page(config: ConfigLoader):
 
     def on_pick(tag: str, snapshot: Dict[str, Any], *field_values):
         if snapshot and tag == snapshot.get("tag"):
-            return {}
+            # Already open: keep the form, edits included. Gradio 4 reads an empty dict as one output value and fails,
+            # so return a real update. Unfolding Choose or create a tag shows the tag when it came from a Global search click
+            return {choose_section: gr.update(open=True)}
         if has_unsaved_changes(snapshot, field_values):
             return unsaved_message(snapshot)
         load_manager()
         return render(tag)
 
+    def read_events(event_rows: List[List[str]], opened_rows: List[List[str]]) -> Tuple[List[Tuple[int, str]], str]:
+        """The events as (timestamp, text) for the file, or a problem. Save and Create can be clicked before the table has
+        filled in the other half of an edited date or timestamp (the edit and the click arrive together), so that's
+        filled in here, judged against the events as they were shown when the tag opened"""
+        rows, _ = files.sync_event_rows(event_rows, opened_rows)
+        events = []
+        for date, timestamp, text in rows:
+            try:
+                events.append((files.event_timestamp(date, timestamp), text))
+            except ValueError as e:
+                return [], _sentence(f"The event \"{text}\" can't be read: {e}")
+        return events, ""
+
     def on_create(name: str, snapshot: Dict[str, Any], *field_values):
-        if has_unsaved_changes(snapshot, field_values):
-            return unsaved_message(snapshot)
+        """A new tag from what the fields show now: an empty form filled in, or a copy of the open tag with any edits.
+        It's written to the personal folder straight away and opens in the form. The tag that was open isn't changed.
+        Everything about it is said under the name box, where Create was clicked"""
         tag = utils.normalize_apostrophes((name or "").strip())
         if not tag:
-            return {message_line: "Type a name for the new tag first."}
+            return {new_tag_message: "Type a name for the new tag first."}
         if "," in tag:
-            return {message_line: "A tag name can't contain commas: an NPC's tags are written as a comma-separated list."}
-        if tag in load_manager().files_with_tag:
-            return {message_line: f"`{tag}` already exists. Pick it from the list to change it."}
-        update = render(tag, is_new=True, message=f"New tag `{tag}`. Fill it in and click **Save**; it's only written to a file then. After that, give it to NPCs in the Bio Editor.")
+            return {new_tag_message: "A tag name can't contain commas: an NPC's tags are written as a comma-separated list."}
+        m = load_manager()
+        if tag in m.files_with_tag:
+            return {new_tag_message: f"`{tag}` already exists. Pick it from the list to change it."}
+        current = form_values(field_values)
+        events, problem = read_events(current["events"], (snapshot or {}).get("events") or [])
+        if problem:
+            return {new_tag_message: f"Not created. {problem}"}
+        cells = {column: current[column] for column in OUTCOME_COLUMNS if current[column]}
+        description = files.join_description(current["text"], events)
+        if description:
+            cells["description"] = description
+        if current["notes"]:
+            cells["notes"] = current["notes"]
+        if not current["announce"]:
+            cells["announce"] = "no"
+        target = files.choose_target_file(m.files_with_tag, tag, files.personal_folder(config.save_folder))
+        created_file = not os.path.exists(target)
+        try:
+            files.write_cells(target, tag, cells)
+        except Exception as e:
+            logging.warning(f"Tag Editor: could not create {tag}: {e}")
+            return {new_tag_message: f"Couldn't create `{tag}`: {e}"}
+
+        lines = [f"Created `{tag}` in `{os.path.basename(target)}`.{'' if created_file else backup_note([target])} "
+                 "Give it to NPCs in the Bio Editor."]
+        old_tag = (snapshot or {}).get("tag")
+        if old_tag and has_unsaved_changes(snapshot, field_values):
+            lines.append(f"`{old_tag}` wasn't changed: your edits went into the new tag.")
+        reasons = unreadable_reasons(tag, {slot: current[f"code_{slot}"] for slot in range(1, OUTCOME_SLOTS + 1)})
+        for slot, reason in sorted(reasons.items()):
+            lines.append(f"code_{slot} can't be read: {reason}. It's saved, but that outcome won't happen automatically until it's fixed.")
+        lines += apply_to_game(tag)
+        load_manager()
+        update = render(tag)
         update[new_tag_name] = ""
+        update[new_tag_message] = "\n\n".join(lines)
         return update
 
-    def on_add_event(table, text: str, date: str):
+    def on_add_event(table, text: str, date: str, timestamp: str):
         event_text = files.clean_event_text(text)
         if not event_text:
             return {message_line: "Type what happened first."}
         try:
-            timestamp = files.parse_event_date(date)
+            # Both boxes empty means the moment Add event is clicked, not when the page or tag was opened
+            if (date or "").strip() or (timestamp or "").strip():
+                seconds = files.event_timestamp(date, timestamp)
+            else:
+                seconds = int(time.time())
         except ValueError as e:
-            return {message_line: str(e)}
-        rows = _event_rows(table) + [[files.format_event_date(timestamp), event_text]]
+            return {message_line: _sentence(e)}
+        rows = [row for row in _all_event_rows(table) if row[2]] + [_event_row(seconds, event_text)]
+        # Oldest first, as the table is shown when a tag opens. A timestamp that can't be read keeps its place at the end
+        rows.sort(key=lambda row: int(row[1]) if row[1].isdigit() else float("inf"))
         return {
-            events_table: _events_table_value(rows),
+            **events_updates(rows),
             new_event_text: "",
-            new_event_date: _now_for_new_event(),
+            new_event_date: "",
+            new_event_timestamp: "",
             message_line: "Event added. Click **Save** to keep it.",
         }
+
+    def on_new_event_date(date: str):
+        """Typing a date fills in its timestamp, so both boxes always show the same moment"""
+        try:
+            return str(files.parse_event_date(date)) if (date or "").strip() else ""
+        except ValueError:
+            return ""
+
+    def on_new_event_timestamp(timestamp: str):
+        """Typing a timestamp fills in its date"""
+        try:
+            return files.format_event_date(files.parse_timestamp(timestamp)) if (timestamp or "").strip() else ""
+        except ValueError:
+            return ""
+
+    def on_events_edited(table, shown: List[List[str]]):
+        """An edited date gets its timestamp filled in, and an edited timestamp its date"""
+        before = _all_event_rows(table)
+        rows, problem = files.sync_event_rows(before, shown or [])
+        # A row whose text was cleared isn't taken out here: a stale report (below) can look like that, e.g. the empty
+        # row Gradio puts in an empty table, and taking it out would drop an event just added. It goes on Save
+        # Gradio 4.28's table can report an "edit" right after the page sets it (e.g. when a tag opens), sometimes
+        # with the value from before. Answering that with the table again made it report again, forever. So the
+        # table (and what was shown) is only sent back when a date or timestamp was actually filled in
+        update: Dict[Any, Any] = {message_line: _sentence(problem) if problem else gr.update()}
+        if rows != before:
+            update[events_table] = gr.update(value=_events_table_value(rows))
+            update[events_shown] = rows
+        return update
+
+    def remove_button(row: List[str] | None) -> Dict[str, Any]:
+        """The Remove event button names the event it will remove, so it's clear which row goes. Off until one is clicked"""
+        if not row or not row[2]:
+            return gr.update(value="Click an event to remove it", interactive=False)
+        text = row[2] if len(row[2]) <= 40 else row[2][:39].rstrip() + "…"
+        return gr.update(value=f"Remove \"{text}\" ({row[0]})", interactive=True)
+
+    def clicked_event(table, evt: gr.SelectData) -> List[str] | None:
+        """The clicked event, as its [date, timestamp, text] row. The table can be re-sorted on screen, and the click
+        then reports the row's place in the sorted table, so the clicked cell's text decides, as in Global search"""
+        rows = _all_event_rows(table)
+        if isinstance(evt.index, (list, tuple)) and len(evt.index) == 2:
+            row, col = evt.index
+        else:
+            row, col = evt.index, 0
+        if not isinstance(row, int) or not isinstance(col, int) or not 0 <= col < len(EVENT_HEADERS):
+            return None
+        value = _timestamp_text(evt.value) if col == 1 else _cell_text(evt.value).strip()
+        if col == 2:
+            value = files.clean_event_text(value)
+        matching = [r for r in rows if r[col] == value]
+        if len(matching) == 1:
+            return matching[0]
+        if 0 <= row < len(rows) and rows[row][col] == value:
+            return rows[row]
+        return None
+
+    def on_event_select(table, evt: gr.SelectData):
+        row = clicked_event(table, evt)
+        return {selected_event: row, remove_event_btn: remove_button(row)}
+
+    def on_remove_event(table, selected: List[str] | None):
+        rows = _all_event_rows(table)
+        if not selected:
+            return {remove_event_btn: remove_button(None), message_line: "Click an event in the table first."}
+        if list(selected) not in rows:
+            return {selected_event: None, remove_event_btn: remove_button(None),
+                    message_line: "That event changed since you clicked it. Click it again to remove it."}
+        rows.remove(list(selected))
+        return {**events_updates([row for row in rows if row[2]]), message_line: "Event removed. Click **Save** to keep the change."}
 
     def on_save(snapshot: Dict[str, Any], *field_values):
         tag = (snapshot or {}).get("tag")
         if not tag:
-            return {message_line: "Pick a tag first."}
+            return {message_line: "No tag is open, so there's nothing to save to. To keep these fields as a new tag, "
+                                  "give it a name and click **Create**."}
         current = form_values(field_values)
-        try:
-            events = files.event_timestamps(current["events"], [tuple(entry) for entry in snapshot.get("event_timestamps", [])])
-        except ValueError as e:
-            return {message_line: f"An event date can't be read: {e}"}
+        events, problem = read_events(current["events"], snapshot.get("events") or [])
+        if problem:
+            return {message_line: f"Not saved. {problem}"}
 
         before = snapshot["cells"]
         after: Dict[str, str] = {column: current[column] for column in OUTCOME_COLUMNS}
@@ -329,7 +571,7 @@ def build_tag_editor_page(config: ConfigLoader):
         changes = files.changed_cells({column: before.get(column, "") for column in after}, after)
         if current["announce"] != snapshot["announce"]:
             changes["announce"] = "yes" if current["announce"] else "no"
-        if not changes and not snapshot.get("is_new"):
+        if not changes:
             return {message_line: "Nothing to save."}
 
         m = load_manager()
@@ -346,6 +588,7 @@ def build_tag_editor_page(config: ConfigLoader):
         folder = files.personal_folder(config.save_folder)
         target = files.choose_target_file(m.files_with_tag, tag, folder)
         written: List[str] = []
+        new_files: List[str] = []
         notes: List[str] = []
         try:
             # Clearing a field: empty it in every personal file that fills it in. One write per file,
@@ -369,9 +612,13 @@ def build_tag_editor_page(config: ConfigLoader):
             for path, cells in cleared_elsewhere.items():
                 files.write_cells(path, tag, cells)
                 written.append(path)
-            if changes or snapshot.get("is_new"):
+            if changes:
+                # A file this save creates has nothing to back up
+                created = not os.path.exists(target)
                 files.write_cells(target, tag, changes)
                 written.append(target)
+                if created:
+                    new_files.append(target)
         except Exception as e:
             logging.warning(f"Tag Editor: could not save {tag}: {e}")
             return {message_line: f"Couldn't save `{tag}`: {e}"}
@@ -379,16 +626,16 @@ def build_tag_editor_page(config: ConfigLoader):
         lines = []
         if written:
             names = ", ".join(f"`{os.path.basename(path)}`" for path in dict.fromkeys(written))
-            what = ", ".join(_column_name(column) for column in changes) or "the new tag"
-            lines.append(f"Saved {what} to {names} (the previous version is in the `.bak` file next to it).")
+            what = ", ".join(_column_name(column) for column in changes)
+            lines.append(f"Saved {what} to {names}.{backup_note([path for path in written if path not in new_files])}")
         lines += notes
         reasons = unreadable_reasons(tag, {slot: current[f"code_{slot}"] for slot in range(1, OUTCOME_SLOTS + 1)})
         for slot, reason in sorted(reasons.items()):
-            lines.append(f"Condition {slot} can't be read: {reason}. It's saved, but that outcome won't happen automatically until it's fixed.")
+            lines.append(f"code_{slot} can't be read: {reason}. It's saved, but that outcome won't happen automatically until it's fixed.")
         if written:
             lines += apply_to_game(tag)
         load_manager()
-        return render(tag, message="\n\n".join(lines))
+        return render(tag, message="\n\n".join(lines), fold=False)
 
     def on_refresh(snapshot: Dict[str, Any], *field_values):
         if has_unsaved_changes(snapshot, field_values):
@@ -397,16 +644,25 @@ def build_tag_editor_page(config: ConfigLoader):
         tag = (snapshot or {}).get("tag")
         if tag and tag not in manager().files_with_tag:
             tag = None
-        return render(tag, message="Read all tag files again.")
+        return render(tag, message="Read all tag files again.", fold=False)
 
-    def on_discard(snapshot: Dict[str, Any]):
+    def on_discard(snapshot: Dict[str, Any], *field_values):
         tag = (snapshot or {}).get("tag")
         if not tag:
-            return {message_line: "Nothing to discard."}
-        if snapshot.get("is_new"):
-            return render(None, message=f"Dropped the new tag `{tag}`.")
+            if not has_unsaved_changes(snapshot, field_values):
+                return {message_line: "Nothing to discard."}
+            return render(None, message="Fields emptied.")
         load_manager()
-        return render(tag if tag in manager().files_with_tag else None, message="Unsaved changes dropped.")
+        return render(tag if tag in manager().files_with_tag else None, message="Unsaved changes dropped.", fold=False)
+
+    def backup_note(paths: List[str]) -> str:
+        """Each changed file was copied to `<name>.csv.bak` just before the change. Says so, naming the copies"""
+        backups = [f"`{os.path.basename(path)}{files.BACKUP_SUFFIX}`" for path in dict.fromkeys(paths)]
+        if not backups:
+            return ""
+        if len(backups) == 1:
+            return f" A copy of the file from before this change is kept as {backups[0]}, in the same folder."
+        return f" Copies of the files from before this change are kept as {', '.join(backups)}, in the same folder."
 
     def npc_count_line(tag: str) -> str:
         npcs = npcs_by_tag()
@@ -415,61 +671,69 @@ def build_tag_editor_page(config: ConfigLoader):
         count = len(npcs.get(tag, []))
         if not count:
             return " No NPC has it."
-        return f" {count} NPC{'s' if count != 1 else ''} still {'have' if count != 1 else 'has'} it: they keep the tag name, but it won't add anything."
+        return f" {count} NPC{'s' if count != 1 else ''} {'have' if count != 1 else 'has'} this tag and will stop getting its text."
 
-    def on_delete(snapshot: Dict[str, Any]):
+    def on_remove(snapshot: Dict[str, Any]):
+        """First click of the one remove button: Delete tag for a tag only in your files, Reset for a base or mod tag you changed.
+        Says what will change and shows the confirm button. What it offered is kept, so the confirm click can't do the other one"""
         tag = (snapshot or {}).get("tag")
         if not tag:
             return {message_line: "Pick a tag first."}
-        paths = files.personal_files(load_manager().files_with_tag, tag)
-        names = ", ".join(f"`{os.path.basename(path)}`" for path in paths)
+        load_manager()
+        action = remove_action(tag)
+        if action is None:
+            return {message_line: f"`{tag}` has nothing in your personal files to remove."}
+        names = ", ".join(f"`{os.path.basename(path)}`" for path in files.personal_files(manager().files_with_tag, tag))
+        if action == "delete":
+            confirm, message = "Confirm delete", (f"Delete `{tag}`? This removes its row from {names} in your personal folder.{npc_count_line(tag)} "
+                                                  "Click **Confirm delete** to go ahead.")
+        else:
+            confirm, message = "Confirm reset", (f"Remove your changes to `{tag}`? This removes its row from {names} in your personal folder, "
+                                                 "so every field goes back to the base or mod version. Base and mod files aren't touched. "
+                                                 "Click **Confirm reset** to go ahead.")
         return {
-            confirm_delete_btn: gr.update(visible=True),
-            confirm_back_btn: gr.update(visible=False),
-            message_line: f"Delete `{tag}`? This removes its row from {names} in your personal folder.{npc_count_line(tag)} Click **Confirm delete** to go ahead.",
+            snapshot_state: {**snapshot, "remove": action},
+            confirm_remove_btn: gr.update(visible=True, value=confirm),
+            message_line: message,
         }
 
-    def on_confirm_delete(snapshot: Dict[str, Any]):
+    def on_confirm_remove(snapshot: Dict[str, Any]):
+        action = (snapshot or {}).get("remove")
+        if action == "delete":
+            return confirm_delete(snapshot)
+        if action == "back":
+            return confirm_back(snapshot)
+        return {message_line: "Click the remove button first.", confirm_remove_btn: gr.update(visible=False)}
+
+    def confirm_delete(snapshot: Dict[str, Any]):
         tag = (snapshot or {}).get("tag")
         files_with_tag = load_manager().files_with_tag
         if not tag or not files.personal_files(files_with_tag, tag) or files.has_base_or_mod_rows(files_with_tag, tag):
-            return {message_line: "Only a tag that exists only in your personal files can be deleted.", confirm_delete_btn: gr.update(visible=False)}
+            return {message_line: "Only a tag that exists only in your personal files can be deleted.", confirm_remove_btn: gr.update(visible=False)}
         try:
             changed = files.remove_tag_rows(files.personal_files(files_with_tag, tag), tag)
         except Exception as e:
             logging.warning(f"Tag Editor: could not delete {tag}: {e}")
-            return {message_line: f"Couldn't delete `{tag}`: {e}", confirm_delete_btn: gr.update(visible=False)}
-        lines = [f"Deleted `{tag}` from {', '.join(f'`{os.path.basename(path)}`' for path in changed)} (the previous version is in the `.bak` file next to it)."]
+            return {message_line: f"Couldn't delete `{tag}`: {e}", confirm_remove_btn: gr.update(visible=False)}
+        lines = [f"Deleted `{tag}` from {', '.join(f'`{os.path.basename(path)}`' for path in changed)}.{backup_note(changed)}"]
         lines += apply_to_game(tag)
         load_manager()
         return render(None, message="\n\n".join(lines))
 
-    def on_back(snapshot: Dict[str, Any]):
-        tag = (snapshot or {}).get("tag")
-        if not tag:
-            return {message_line: "Pick a tag first."}
-        paths = files.personal_files(load_manager().files_with_tag, tag)
-        names = ", ".join(f"`{os.path.basename(path)}`" for path in paths)
-        return {
-            confirm_back_btn: gr.update(visible=True),
-            confirm_delete_btn: gr.update(visible=False),
-            message_line: f"Remove your changes to `{tag}`? This removes its row from {names} in your personal folder, so every field goes back to the base or mod version. Base and mod files aren't touched. Click **Confirm** to go ahead.",
-        }
-
-    def on_confirm_back(snapshot: Dict[str, Any]):
+    def confirm_back(snapshot: Dict[str, Any]):
         tag = (snapshot or {}).get("tag")
         files_with_tag = load_manager().files_with_tag
         if not tag or not files.personal_files(files_with_tag, tag) or not files.has_base_or_mod_rows(files_with_tag, tag):
-            return {message_line: "Back to original only works for a tag that's in a base or mod file and that you've changed.", confirm_back_btn: gr.update(visible=False)}
+            return {message_line: "Reset only works for a tag that's in a base or mod file and that you've changed.", confirm_remove_btn: gr.update(visible=False)}
         try:
             changed = files.remove_tag_rows(files.personal_files(files_with_tag, tag), tag)
         except Exception as e:
             logging.warning(f"Tag Editor: could not undo the changes to {tag}: {e}")
-            return {message_line: f"Couldn't undo your changes to `{tag}`: {e}", confirm_back_btn: gr.update(visible=False)}
-        lines = [f"`{tag}` is back to the original. Removed its row from {', '.join(f'`{os.path.basename(path)}`' for path in changed)} (the previous version is in the `.bak` file next to it)."]
+            return {message_line: f"Couldn't undo your changes to `{tag}`: {e}", confirm_remove_btn: gr.update(visible=False)}
+        lines = [f"`{tag}` is back to the original. Removed its row from {', '.join(f'`{os.path.basename(path)}`' for path in changed)}.{backup_note(changed)}"]
         lines += apply_to_game(tag)
         load_manager()
-        return render(tag, message="\n\n".join(lines))
+        return render(tag, message="\n\n".join(lines), fold=False)
 
     # --- Search ---
 
@@ -522,92 +786,176 @@ def build_tag_editor_page(config: ConfigLoader):
             return {message_line: "Couldn't tell which tag that row is. Click its tag name in the results."}
         return on_pick(tag, snapshot, *field_values)
 
+    # --- Showing that something is happening, and when it's done ---
+
+    def working(text: str):
+        """A first step for a button: puts `text` (e.g. "Saving…") in the message line the moment it's clicked. The page
+        doesn't grey out while the real work runs (see style.css), so this is what shows it's running"""
+        def show(*_):
+            return text
+        return show
+
+    def finished(handler, line):
+        """`handler` with the time it finished at the start of its message in `line`, so saving twice gives two different
+        messages and you can tell the second one went through. A result that says nothing there clears the working text"""
+        @functools.wraps(handler)
+        def run(*args):
+            result = handler(*args)
+            text = result.get(line)
+            if isinstance(text, str) and text:
+                result[line] = f"**{time.strftime('%H:%M:%S')}** · {text}"
+            elif line not in result:
+                result[line] = ""
+            return result
+        return run
+
+    def opening_text(tag: str | None) -> str:
+        return f"Opening `{tag}`…" if tag else ""
+
+    def confirm_text(snapshot: Dict[str, Any]) -> str:
+        return "Deleting…" if (snapshot or {}).get("remove") == "delete" else "Resetting…"
+
     # --- Layout ---
 
     gr.Markdown(
-        "Change what a tag says, add dated events, and create new tags. "
-        "Changes are saved to your personal files (`Documents\\My Games\\Mantella\\data\\Skyrim\\bio_templates`) and apply right away, "
-        "including to NPCs in a running conversation. Base and mod files are never changed."
+        "Change what a tag says, add dynamic events, and create new tags. "
+        "Changes apply right away, including to NPCs in a running conversation.\n\n"
+        f"Tags are read from three folders. If a tag is in more than one, the later folder wins.\n\n{folders_list()}\n\n"
+        "Your changes are always saved to the Personal folder. Base and Mod files are never changed."
     )
     tag_note = gr.Markdown(tag_reading_note())
-    with gr.Accordion(label="Search", open=True):
-        with gr.Row():
+
+    # Three foldable sections, like the Bio Editor's: choose (and edit) a tag, search, create
+    # Choosing a tag, or creating one: one form for both. With no tag open it's empty, ready to fill in for a new tag
+    with gr.Accordion(label="Choose or create a tag", open=True) as choose_section:
+        with gr.Row(equal_height=True, elem_classes="tag-editor-picker"):
+            tag_dropdown = gr.Dropdown(choices=all_tags(), value=None, label="Tag", show_label=False, container=False,
+                                       filterable=True, allow_custom_value=False, scale=4)
+            refresh_btn = gr.Button("Reload files", variant="secondary", size="sm", scale=0, min_width=110)
+        picker_message = gr.Markdown(elem_id="tag-editor-picker-message")
+        # A new tag is made from whatever the fields below show, so it can also start as a copy of the open tag
+        with gr.Row(equal_height=True, elem_classes="tag-editor-picker"):
+            new_tag_name = gr.Text(label="Name of the new tag", show_label=False, container=False, max_lines=1,
+                                   placeholder="Name for a new tag made from the fields below", scale=4)
+            create_btn = gr.Button("Create", variant="secondary", size="sm", scale=0, min_width=110)
+        new_tag_message = gr.Markdown(elem_id="tag-editor-new-tag-message")
+        with gr.Column():
+            header = gr.Markdown(NO_TAG_HEADER, elem_classes="tag-editor-header")
+            with gr.Accordion(label="NPCs with this tag", open=False, visible=False, elem_id="tag-editor-npc-section", elem_classes="tag-editor-subsection") as npc_section:
+                npc_list = gr.Markdown(elem_id="tag-editor-npc-list")
+
+            text_box = gr.Text(label="Tag text", lines=6)
+            text_source = gr.Markdown(elem_classes="tag-editor-source")
+            quest_warning = gr.Markdown(visible=False)
+
+            with gr.Accordion(label="Dynamic events", open=True, elem_classes="tag-editor-subsection"):
+                no_events = gr.Markdown("This tag has no events yet.")
+                events_table = gr.Dataframe(
+                    headers=EVENT_HEADERS, datatype=["str", "str", "str"], col_count=(3, "fixed"), row_count=(1, "fixed"),
+                    interactive=True, wrap=True, column_widths=["20%", "15%", "65%"],
+                    label="Events (date in your local time; the timestamp is what the file stores). "
+                          "Change either one and the other follows. To remove an event, click it, then the Remove button below",
+                    value=_events_table_value([]), visible=False, elem_classes="mantella-quiet-table",
+                )
+                # The table as last shown, to tell which cell of a row was edited
+                events_shown = gr.State([])
+                # The event last clicked, as its [date, timestamp, text] row, for Remove event
+                selected_event = gr.State(None)
+                with gr.Row(visible=False, elem_classes="tag-editor-actions") as remove_event_row:
+                    gr.HTML("", elem_classes="tag-editor-spacer")
+                    remove_event_btn = gr.Button("Click an event to remove it", variant="secondary", size="sm", scale=0,
+                                                 min_width=200, interactive=False, elem_id="tag-editor-remove-event")
+                with gr.Row():
+                    new_event_text = gr.Text(label="What happened", placeholder="{player_name} became Thane of Whiterun", scale=3)
+                    new_event_date = gr.Text(label="When (YYYY-MM-DD HH:MM)", placeholder="Empty = the exact time you click Add event", scale=1)
+                    new_event_timestamp = gr.Text(label="Timestamp", placeholder="e.g. 1762435800", scale=1)
+                    add_event_btn = gr.Button("Add event", variant="secondary", scale=0, min_width=120)
+
+            outcome_boxes: List[gr.Text] = []
+            outcome_labels: List[gr.Markdown] = []
+            with gr.Accordion(label="Quest outcomes", open=False, elem_classes="tag-editor-subsection") as outcomes_section:
+                for slot in range(1, OUTCOME_SLOTS + 1):
+                    with gr.Row():
+                        outcome_boxes.append(gr.Text(label=f"potential_paste_{slot}", lines=2, scale=3))
+                        outcome_boxes.append(gr.Text(label=f"code_{slot}", lines=2, scale=2))
+                    outcome_labels.append(gr.Markdown(elem_classes="tag-editor-source"))
+                announce_box = gr.Checkbox(label="Announce changes of this tag to NPCs during a conversation", value=True)
+                announce_source = gr.Markdown(elem_classes="tag-editor-source")
+                gr.Markdown("Changed conditions reach the game when the next conversation starts.", elem_classes="tag-editor-source")
+
+            with gr.Accordion(label="Notes (for people editing the files; never sent to the AI)", open=False, elem_classes="tag-editor-subsection") as notes_section:
+                notes_box = gr.Text(show_label=False, lines=2)
+                notes_source = gr.Markdown(elem_classes="tag-editor-source")
+
+            with gr.Row(elem_classes="tag-editor-actions"):
+                save_btn = gr.Button("Save", variant="primary", scale=2)
+                discard_btn = gr.Button("Discard changes", variant="secondary", scale=2)
+                gr.HTML("", elem_classes="tag-editor-spacer")
+                remove_btn = gr.Button("Delete tag", variant="stop", size="sm", visible=False, scale=0, min_width=170,
+                                       elem_id="tag-editor-remove")
+                confirm_remove_btn = gr.Button("Confirm", variant="stop", size="sm", visible=False, scale=0, min_width=150,
+                                               elem_id="tag-editor-confirm-remove")
+            remove_note = gr.Markdown(elem_classes=["tag-editor-source", "tag-editor-remove-note"])
+        message_line = gr.Markdown()
+    snapshot_state = gr.State({})
+
+    with gr.Accordion(label="Global search", open=False):
+        with gr.Row(equal_height=True):
             search_box = gr.Text(label="Find text in all tags", placeholder="e.g. Thane", max_lines=1, scale=4)
-            search_btn = gr.Button("Search", variant="secondary", scale=1)
+            search_btn = gr.Button("Search", variant="secondary", scale=0, min_width=120)
         search_summary = gr.Markdown()
         search_results = gr.Dataframe(headers=SEARCH_HEADERS, datatype=["str"] * 4, col_count=(4, "fixed"), interactive=False,
-                                      wrap=True, value=pd.DataFrame([], columns=SEARCH_HEADERS), label="Results")
+                                      wrap=True, value=pd.DataFrame([], columns=SEARCH_HEADERS), label="Results",
+                                      elem_classes="mantella-quiet-table")
         search_result_rows = gr.State([])
         opened_result_tag = gr.State(None)
-    with gr.Row():
-        tag_dropdown = gr.Dropdown(choices=all_tags(), value=None, label="Tag", filterable=True, allow_custom_value=False, scale=3)
-        new_tag_name = gr.Text(label="New tag", max_lines=1, placeholder="new_tag_name", scale=2)
-        create_btn = gr.Button("Create", variant="secondary", scale=1)
-
-    text_box = gr.Text(label="Tag text (added to the bio of every NPC with this tag)", lines=6)
-    text_source = gr.Markdown()
-    quest_warning = gr.Markdown(visible=False)
-
-    with gr.Accordion(label="Dated events", open=True):
-        events_table = gr.Dataframe(
-            headers=EVENT_HEADERS, datatype=["str", "str"], col_count=(2, "fixed"), row_count=(1, "dynamic"),
-            interactive=True, wrap=True, label="Events (your local time). Clear an event's text to delete it", value=_events_table_value([]),
-        )
-        with gr.Row():
-            new_event_text = gr.Text(label="What happened", placeholder="{player_name} became Thane of Whiterun", scale=3)
-            new_event_date = gr.Text(label="Date (YYYY-MM-DD HH:MM)", value=_now_for_new_event(), scale=1)
-            add_event_btn = gr.Button("Add", variant="secondary", scale=0)
-        gr.Markdown(
-            "An event dated after an NPC's last conversation shows up as **New developments since last meeting** "
-            "the next time you talk to them, so an event dated now is new for every NPC with this tag."
-        )
-
-    outcome_boxes: List[gr.Text] = []
-    outcome_labels: List[gr.Markdown] = []
-    with gr.Accordion(label="Quest outcomes", open=False):
-        for slot in range(1, OUTCOME_SLOTS + 1):
-            with gr.Row():
-                outcome_boxes.append(gr.Text(label=f"Outcome {slot} text", lines=2, scale=3))
-                outcome_boxes.append(gr.Text(label=f"Outcome {slot} condition", lines=2, scale=2))
-            outcome_labels.append(gr.Markdown())
-        announce_box = gr.Checkbox(label="Announce changes of this tag to NPCs during a conversation", value=True)
-        announce_source = gr.Markdown()
-        gr.Markdown("Changed conditions reach the game when the next conversation starts.")
-
-    notes_box = gr.Text(label="Notes (for people editing the files; never sent to the AI)", lines=2)
-    notes_source = gr.Markdown()
-    npc_list = gr.Text(label="NPCs with this tag", lines=2, interactive=False, value="")
-
-    with gr.Row():
-        save_btn = gr.Button("Save", variant="primary")
-        refresh_btn = gr.Button("Refresh", variant="secondary")
-        discard_btn = gr.Button("Discard changes", variant="secondary")
-        delete_btn = gr.Button("Delete tag", variant="stop", interactive=False)
-        confirm_delete_btn = gr.Button("Confirm delete", variant="stop", visible=False)
-        back_btn = gr.Button("Back to original", variant="secondary", interactive=False)
-        confirm_back_btn = gr.Button("Confirm", variant="stop", visible=False)
-    message_line = gr.Markdown()
-    snapshot_state = gr.State({})
 
     field_inputs = [text_box, events_table, *outcome_boxes, announce_box, notes_box]
     outputs = [
-        tag_dropdown, snapshot_state, tag_note, text_box, text_source, quest_warning, events_table, new_event_text, new_event_date,
-        *outcome_boxes, *outcome_labels, announce_box, announce_source, notes_box, notes_source, npc_list,
-        delete_btn, confirm_delete_btn, back_btn, confirm_back_btn, new_tag_name, message_line,
+        tag_dropdown, snapshot_state, tag_note, choose_section, header, npc_section, new_tag_message,
+        text_box, text_source, quest_warning, events_table, events_shown, selected_event, remove_event_btn, remove_event_row, no_events, new_event_text, new_event_date, new_event_timestamp,
+        *outcome_boxes, *outcome_labels, outcomes_section, announce_box, announce_source,
+        notes_section, notes_box, notes_source, npc_list,
+        remove_btn, remove_note, confirm_remove_btn, new_tag_name, picker_message, message_line,
     ]
 
-    tag_dropdown.input(on_pick, inputs=[tag_dropdown, snapshot_state, *field_inputs], outputs=outputs)
+    # No loading animation on the events that refresh the whole form: Gradio puts one on every output, so Save and
+    # the others filled each box of the form with its own copy (and style.css stops the greying out it does anyway).
+    # So instead, each one first puts a short "Saving…" line where its result will appear (queue=False: shown at once,
+    # not behind other events), and the result starts with the time it finished (finished())
+    def with_working_line(trigger, text_fn, text_inputs, line, handler, inputs):
+        trigger(text_fn, inputs=text_inputs, outputs=[line], queue=False, show_progress="hidden").then(
+            finished(handler, line), inputs=inputs, outputs=outputs, show_progress="hidden")
+
+    form_inputs = [snapshot_state, *field_inputs]
+    with_working_line(tag_dropdown.input, opening_text, [tag_dropdown], picker_message, on_pick, [tag_dropdown, *form_inputs])
     search_outputs = [search_results, search_result_rows, search_summary]
     search_btn.click(on_search, inputs=[search_box], outputs=search_outputs)
     search_box.submit(on_search, inputs=[search_box], outputs=search_outputs)
     search_results.select(on_result_select, inputs=[search_result_rows], outputs=[opened_result_tag]).then(
-        on_open_result, inputs=[opened_result_tag, snapshot_state, *field_inputs], outputs=outputs)
-    create_btn.click(on_create, inputs=[new_tag_name, snapshot_state, *field_inputs], outputs=outputs)
-    add_event_btn.click(on_add_event, inputs=[events_table, new_event_text, new_event_date], outputs=outputs)
-    save_btn.click(on_save, inputs=[snapshot_state, *field_inputs], outputs=outputs)
-    refresh_btn.click(on_refresh, inputs=[snapshot_state, *field_inputs], outputs=outputs)
-    discard_btn.click(on_discard, inputs=[snapshot_state], outputs=outputs)
-    delete_btn.click(on_delete, inputs=[snapshot_state], outputs=outputs)
-    confirm_delete_btn.click(on_confirm_delete, inputs=[snapshot_state], outputs=outputs)
-    back_btn.click(on_back, inputs=[snapshot_state], outputs=outputs)
-    confirm_back_btn.click(on_confirm_back, inputs=[snapshot_state], outputs=outputs)
+        opening_text, inputs=[opened_result_tag], outputs=[picker_message], queue=False, show_progress="hidden").then(
+        finished(on_open_result, picker_message), inputs=[opened_result_tag, *form_inputs], outputs=outputs, show_progress="hidden")
+    for trigger in (create_btn.click, new_tag_name.submit):
+        with_working_line(trigger, working("Creating…"), None, new_tag_message, on_create, [new_tag_name, *form_inputs])
+    add_event_btn.click(finished(on_add_event, message_line), inputs=[events_table, new_event_text, new_event_date, new_event_timestamp],
+                        outputs=outputs, show_progress="hidden")
+    # Only typing triggers these (.input), so filling one box from the other doesn't loop back. "always_last": the
+    # default ("once") ignores keystrokes while a call is running, so the other box would keep the value for a
+    # half-typed date and Add event would then find two different moments
+    new_event_date.input(on_new_event_date, inputs=[new_event_date], outputs=[new_event_timestamp],
+                         show_progress="hidden", trigger_mode="always_last")
+    new_event_timestamp.input(on_new_event_timestamp, inputs=[new_event_timestamp], outputs=[new_event_date],
+                              show_progress="hidden", trigger_mode="always_last")
+    # Small events with only the components they change, and no loading animation: Gradio shows one on every
+    # output while an event runs, so listing the whole form made the page flicker
+    events_outputs = [events_table, events_shown, selected_event, remove_event_btn, remove_event_row, no_events, message_line]
+    events_table.input(on_events_edited, inputs=[events_table, events_shown], outputs=events_outputs,
+                       show_progress="hidden", trigger_mode="always_last")
+    events_table.select(on_event_select, inputs=[events_table], outputs=[selected_event, remove_event_btn], show_progress="hidden")
+    remove_event_btn.click(finished(on_remove_event, message_line), inputs=[events_table, selected_event], outputs=events_outputs,
+                           show_progress="hidden")
+    with_working_line(save_btn.click, working("Saving…"), None, message_line, on_save, form_inputs)
+    with_working_line(refresh_btn.click, working("Reading the tag files…"), None, message_line, on_refresh, form_inputs)
+    with_working_line(discard_btn.click, working("Discarding…"), None, message_line, on_discard, form_inputs)
+    remove_btn.click(finished(on_remove, message_line), inputs=[snapshot_state], outputs=outputs, show_progress="hidden")
+    with_working_line(confirm_remove_btn.click, confirm_text, [snapshot_state], message_line, on_confirm_remove, [snapshot_state])

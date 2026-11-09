@@ -65,11 +65,20 @@ TAB_REORDER_JS = r"""
         seen[name] = true;
       }
     });
-    current.forEach(function (name) {
-      if (!seen[name]) {
-        ordered.push(name);
-        seen[name] = true;
+    // A tab the saved order doesn't know goes right after the tab before it in the page's own order, not at the end
+    current.forEach(function (name, index) {
+      if (seen[name]) {
+        return;
       }
+      let position = 0;
+      for (let i = index - 1; i >= 0; i--) {
+        if (seen[current[i]]) {
+          position = ordered.indexOf(current[i]) + 1;
+          break;
+        }
+      }
+      ordered.splice(position, 0, name);
+      seen[name] = true;
     });
     return ordered;
   }
@@ -313,12 +322,18 @@ def default_tab_names(base_groups) -> list[str]:
 
 
 def merge_tab_order(defaults: list[str], saved: list[str]) -> list[str]:
+    """The saved order, with tabs it doesn't know (e.g. added by an update) placed right after the tab that comes
+    before them by default, not at the end. Keep in sync with desiredOrder() in TAB_REORDER_JS"""
     default_set = set(defaults)
-    ordered = [name for name in saved if name in default_set]
-    seen = set(ordered)
-    for name in defaults:
-        if name not in seen:
+    ordered: list[str] = []
+    for name in saved:
+        if name in default_set and name not in ordered:
             ordered.append(name)
+    for index, name in enumerate(defaults):
+        if name in ordered:
+            continue
+        previous = next((defaults[i] for i in range(index - 1, -1, -1) if defaults[i] in ordered), None)
+        ordered.insert(ordered.index(previous) + 1 if previous is not None else 0, name)
     return ordered
 
 

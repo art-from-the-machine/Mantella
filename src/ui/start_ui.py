@@ -68,7 +68,8 @@ class StartUI(routeable):
             self._config.get_ui_tab_order(),
         )
         for name in ordered_names:
-            with gr.Tab(name):
+            # The Tag Editor's tab has a class so style.css can turn off Gradio's loading look on its text (see there)
+            with gr.Tab(name, elem_classes="tag-editor-page" if name == TAG_EDITOR_TAB else None):
                 if name == LIVE_CONVERSATION_TAB:
                     self.__generate_live_conversation_page()
                 elif name == BIO_EDITOR_TAB:

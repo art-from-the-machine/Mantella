@@ -114,7 +114,7 @@ class Skyrim(Gameable):
         return old_version, self.quest_check_list.version
 
     def refresh_characters_with_tag(self, characters: list[Character], tag: str, tag_outcomes: dict[str, tuple[int, int]] | None = None) -> list[str]:
-        """Rebuild the bio and dated events of the NPCs here who have this tag, from the tag files as they are now.
+        """Rebuild the bio and dynamic events of the NPCs here who have this tag, from the tag files as they are now.
 
         Used after the Tag Editor saves, so NPCs in a running conversation use the new text from their next reply.
         Returns the names of the NPCs that were rebuilt.
