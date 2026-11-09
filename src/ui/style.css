@@ -287,6 +287,13 @@
     align-self: center !important;
 }
 
+/* Tag Editor: the two message lines under the tag list are empty most of the time, but each still took a row of
+   spacing, leaving a big gap above Tag text. Take them out of the layout while they have nothing to say */
+#tag-editor-picker-message:has(.md:empty),
+#tag-editor-new-tag-message:has(.md:empty) {
+    display: none !important;
+}
+
 /* Tag Editor: Save and Discard are the main pair; the spacer pushes the remove button to the right */
 .tag-editor-actions {
     align-items: center !important;

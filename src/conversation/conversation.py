@@ -252,7 +252,7 @@ class Conversation:
         self.__context.add_ingame_event(f"{player.name} is now speaking privately with {npc_names}.")
 
     def stop_shout(self):
-        """Shout was switched off (Private). Nobody new joins. Everyone already in the conversation stays, the people who joined by shouting too"""
+        """Shout was switched off (Private). Nobody new joins. The game removes the people who joined by shouting itself, in the same request's actor update"""
         self.__context.shout = None
         self.__context.have_actors_changed = True
         self.__announce_private = True # Says who the conversation is with, after the actor update of the same request

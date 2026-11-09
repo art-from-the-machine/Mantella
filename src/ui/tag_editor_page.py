@@ -279,6 +279,7 @@ def build_tag_editor_page(config: ConfigLoader):
             announce_box: announce,
             mode_box: mode,
             notes_box: values["notes"],
+            source_box: values["source"],
             new_event_text: "",
             new_event_date: "",
             new_event_timestamp: "",
@@ -306,7 +307,8 @@ def build_tag_editor_page(config: ConfigLoader):
             several = in_several_files(tag)
             # Opened from Global search while Choose or create a tag is folded: unfold it, or nothing seems to happen
             update[choose_section] = gr.update(open=True)
-            update[header] = where_line(tag)
+            update[no_tag_note] = gr.update(value="", visible=False)
+            update[header] = gr.update(value=where_line(tag), visible=True)
             update[text_source] = source_label(tag, "description") if several else ""
             update[announce_source] = source_label(tag, "announce") if several else ""
             update[mode_source] = source_label(tag, "outcome_mode") if several else ""
@@ -314,6 +316,7 @@ def build_tag_editor_page(config: ConfigLoader):
                 update[mode_source] = (f"**The file says `{unknown_mode}`, which isn't static, dynamic, off or default, so this tag "
                                        f"follows the setting.** Pick what you want and click **Save** to replace it. {update[mode_source]}").strip()
             update[notes_source] = source_label(tag, "notes") if several else ""
+            update[source_from] = source_label(tag, "source") if several else ""
             for slot, label in enumerate(outcome_labels, start=1):
                 update[label] = outcome_label(tag, slot, values[f"code_{slot}"])
             npc_label, npc_text = npc_lines(tag)
@@ -323,9 +326,10 @@ def build_tag_editor_page(config: ConfigLoader):
             update[remove_btn] = gr.update(visible=action is not None, value="Delete tag" if action == "delete" else back_label(tag))
             update[remove_note] = remove_note_text(tag, action)
         else:
-            for component in [text_source, announce_source, mode_source, notes_source, npc_list, remove_note, *outcome_labels]:
+            for component in [text_source, announce_source, mode_source, notes_source, source_from, npc_list, remove_note, *outcome_labels]:
                 update[component] = ""
-            update[header] = NO_TAG_HEADER
+            update[no_tag_note] = gr.update(value=NO_TAG_HEADER, visible=True)
+            update[header] = gr.update(value="", visible=False)
             update[npc_section] = gr.update(visible=False)
             update[remove_btn] = gr.update(visible=False)
         return update
@@ -348,13 +352,14 @@ def build_tag_editor_page(config: ConfigLoader):
     def form_values(field_values: Tuple[Any, ...]) -> Dict[str, Any]:
         text, table, *rest = field_values
         outcome_values = rest[:len(OUTCOME_COLUMNS)]
-        announce, mode, notes = rest[len(OUTCOME_COLUMNS):]
+        announce, mode, notes, source = rest[len(OUTCOME_COLUMNS):]
         values = {
             "text": (text or "").strip(),
             "events": _event_rows(table),
             "announce": bool(announce),
             "mode": _outcome_mode(mode),
             "notes": (notes or "").strip(),
+            "source": (source or "").strip(),
         }
         for column, value in zip(OUTCOME_COLUMNS, outcome_values):
             values[column] = (value or "").strip()
@@ -368,6 +373,8 @@ def build_tag_editor_page(config: ConfigLoader):
         if current["text"] != snapshot["text"].strip() or current["events"] != snapshot["events"]:
             return True
         if current["announce"] != snapshot["announce"] or current["notes"] != cells["notes"].strip():
+            return True
+        if current["source"] != cells.get("source", "").strip():
             return True
         if current["mode"] != snapshot.get("mode", OUTCOME_MODE_DEFAULT):
             return True
@@ -463,6 +470,8 @@ def build_tag_editor_page(config: ConfigLoader):
             cells["description"] = description
         if current["notes"]:
             cells["notes"] = current["notes"]
+        if current["source"]:
+            cells["source"] = current["source"]
         if not current["announce"]:
             cells["announce"] = "no"
         if current["mode"] != OUTCOME_MODE_DEFAULT:
@@ -596,6 +605,7 @@ def build_tag_editor_page(config: ConfigLoader):
         before = snapshot["cells"]
         after: Dict[str, str] = {column: current[column] for column in OUTCOME_COLUMNS}
         after["notes"] = current["notes"]
+        after["source"] = current["source"]
         if current["text"] != snapshot["text"].strip() or current["events"] != snapshot["events"]:
             after["description"] = files.join_description(current["text"], events)
         changes = files.changed_cells({column: before.get(column, "") for column in after}, after)
@@ -861,21 +871,20 @@ def build_tag_editor_page(config: ConfigLoader):
     # Three foldable sections, like the Bio Editor's: choose (and edit) a tag, search, create
     # Choosing a tag, or creating one: one form for both. With no tag open it's empty, ready to fill in for a new tag
     with gr.Accordion(label="Choose or create a tag", open=True) as choose_section:
+        # The tag list and the new-tag name box share one row.
+        # A new tag is made from whatever the fields below show, so it can also start as a copy of the open tag
         with gr.Row(equal_height=True, elem_classes="tag-editor-picker"):
             tag_dropdown = gr.Dropdown(choices=all_tags(), value=None, label="Tag", show_label=False, container=False,
                                        filterable=True, allow_custom_value=False, scale=4)
             refresh_btn = gr.Button("Reload files", variant="secondary", size="sm", scale=0, min_width=110)
-        picker_message = gr.Markdown(elem_id="tag-editor-picker-message")
-        # A new tag is made from whatever the fields below show, so it can also start as a copy of the open tag
-        with gr.Row(equal_height=True, elem_classes="tag-editor-picker"):
             new_tag_name = gr.Text(label="Name of the new tag", show_label=False, container=False, max_lines=1,
-                                   placeholder="Name for a new tag made from the fields below", scale=4)
+                                   placeholder="Name for a new tag made from the fields below", scale=3)
             create_btn = gr.Button("Create", variant="secondary", size="sm", scale=0, min_width=110)
+        picker_message = gr.Markdown(elem_id="tag-editor-picker-message")
         new_tag_message = gr.Markdown(elem_id="tag-editor-new-tag-message")
         with gr.Column():
-            header = gr.Markdown(NO_TAG_HEADER, elem_classes="tag-editor-header")
-            with gr.Accordion(label="NPCs with this tag", open=False, visible=False, elem_id="tag-editor-npc-section", elem_classes="tag-editor-subsection") as npc_section:
-                npc_list = gr.Markdown(elem_id="tag-editor-npc-list")
+            # Only with no tag open: how to start. The open tag's files and NPCs are further down, after Dynamic events
+            no_tag_note = gr.Markdown(NO_TAG_HEADER, elem_classes="tag-editor-header")
 
             text_box = gr.Text(label="Tag text", lines=6)
             text_source = gr.Markdown(elem_classes="tag-editor-source")
@@ -904,6 +913,11 @@ def build_tag_editor_page(config: ConfigLoader):
                     new_event_timestamp = gr.Text(label="Timestamp", placeholder="e.g. 1762435800", scale=1)
                     add_event_btn = gr.Button("Add event", variant="secondary", scale=0, min_width=120)
 
+            # The open tag's files, where a save goes, and the NPCs who have it
+            header = gr.Markdown("", visible=False, elem_classes="tag-editor-header")
+            with gr.Accordion(label="NPCs with this tag", open=False, visible=False, elem_id="tag-editor-npc-section", elem_classes="tag-editor-subsection") as npc_section:
+                npc_list = gr.Markdown(elem_id="tag-editor-npc-list")
+
             outcome_boxes: List[gr.Text] = []
             outcome_labels: List[gr.Markdown] = []
             with gr.Accordion(label="Quest outcomes", open=False, elem_classes="tag-editor-subsection") as outcomes_section:
@@ -918,6 +932,11 @@ def build_tag_editor_page(config: ConfigLoader):
                                        label="Where this tag's quest outcome goes")
                 mode_source = gr.Markdown(elem_classes="tag-editor-source")
                 gr.Markdown("Changed conditions reach the game when the next conversation starts.", elem_classes="tag-editor-source")
+
+            # The `source` column: which mod the tag is for. For people editing the files, like notes; never sent to the AI
+            source_box = gr.Text(label="Source (which mod this tag is for; never sent to the AI)", max_lines=1,
+                                 placeholder="e.g. Interesting NPCs")
+            source_from = gr.Markdown(elem_classes="tag-editor-source")
 
             with gr.Accordion(label="Notes (for people editing the files; never sent to the AI)", open=False, elem_classes="tag-editor-subsection") as notes_section:
                 notes_box = gr.Text(show_label=False, lines=2)
@@ -946,9 +965,9 @@ def build_tag_editor_page(config: ConfigLoader):
         search_result_rows = gr.State([])
         opened_result_tag = gr.State(None)
 
-    field_inputs = [text_box, events_table, *outcome_boxes, announce_box, mode_box, notes_box]
+    field_inputs = [text_box, events_table, *outcome_boxes, announce_box, mode_box, notes_box, source_box]
     outputs = [
-        tag_dropdown, snapshot_state, tag_note, choose_section, header, npc_section, new_tag_message,
+        tag_dropdown, snapshot_state, tag_note, choose_section, no_tag_note, header, npc_section, new_tag_message, source_box, source_from,
         text_box, text_source, quest_warning, events_table, events_shown, selected_event, remove_event_btn, remove_event_row, no_events, new_event_text, new_event_date, new_event_timestamp,
         *outcome_boxes, *outcome_labels, outcomes_section, announce_box, announce_source, mode_box, mode_source,
         notes_section, notes_box, notes_source, npc_list,
