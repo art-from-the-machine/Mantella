@@ -19,8 +19,18 @@ LAYER_PERSONAL = "personal override"
 TAG_COLUMNS = (
     ['description']
     + [f'{prefix}_{slot}' for slot in range(1, OUTCOME_SLOTS + 1) for prefix in ('potential_paste', 'code')]
-    + ['announce', 'notes']
+    + ['announce', 'outcome_mode', 'notes']
 )
+
+# What a tag's `outcome_mode` cell can hold, besides nothing: where that tag's quest outcome goes, whatever the
+# Auto Quest Tag Outcomes setting says (see docs/quest_tags_1_user_edits.md, Part 2)
+OUTCOME_MODES = {
+    'static': AutoQuestTagOutcomesEnum.STATIC,
+    'dynamic': AutoQuestTagOutcomesEnum.DYNAMIC,
+    'off': AutoQuestTagOutcomesEnum.OFF,
+}
+# Follows the setting, like an empty cell. It's how a later file undoes an earlier file's choice
+OUTCOME_MODE_DEFAULT = 'default'
 
 # Pattern to match dynamic event lines in tag descriptions: "- <timestamp>: <text>"
 _DYNAMIC_EVENT_RE = re.compile(r'^-\s+(\d+):\s+(.+)$')
@@ -106,6 +116,8 @@ class BioTemplateManager:
         self.outcome_texts: Dict[str, Dict[int, str]] = {}
         self.outcome_codes: Dict[str, Dict[int, str]] = {}
         self.no_announce: set[str] = set()
+        # Tags with their own `outcome_mode` (a key of OUTCOME_MODES). Tags that follow the setting aren't in here
+        self.outcome_modes: Dict[str, str] = {}
         # Where each value came from, for the Tag Editor (see docs/tag_editor.md)
         # tag -> column -> every (layer, file, value) that filled the cell, in load order; the last one wins
         self.sources: Dict[str, Dict[str, List[Tuple[str, str, str]]]] = {}
@@ -191,6 +203,13 @@ class BioTemplateManager:
                                     self.no_announce.add(tag)
                                 elif announce:
                                     self.no_announce.discard(tag)
+                                outcome_mode = self._get_cell(row, 'outcome_mode').lower()
+                                if outcome_mode in OUTCOME_MODES:
+                                    self.outcome_modes[tag] = outcome_mode
+                                elif outcome_mode == OUTCOME_MODE_DEFAULT:
+                                    self.outcome_modes.pop(tag, None)
+                                elif outcome_mode:
+                                    logging.warning(f"Tag '{tag}' in {filename}: outcome_mode '{outcome_mode}' is not static, dynamic, off or default - ignoring it")
                             logging.info(f"Loaded {templates_loaded} bio templates from {folder_type} file: {filename}")
                         else:
                             logging.warning(f"CSV file {filename} in {folder_type} folder missing required columns 'tag' and 'description'")
@@ -292,11 +311,19 @@ class BioTemplateManager:
         return text
 
     def get_outcome_codes(self) -> Dict[str, Dict[int, str]]:
-        """Conditions of tags whose `description` is empty. A filled-in description turns automatic outcomes off"""
-        return {tag: codes for tag, codes in self.outcome_codes.items() if not self.templates.get(tag)}
+        """Conditions of every tag the game should check: all but the tags whose `outcome_mode` is `off`"""
+        return {tag: codes for tag, codes in self.outcome_codes.items() if self.outcome_modes.get(tag) != 'off'}
 
     def _get_auto_outcomes_mode(self) -> AutoQuestTagOutcomesEnum:
         return getattr(self.config_loader, 'auto_quest_tag_outcomes', AutoQuestTagOutcomesEnum.STATIC)
+
+    def get_outcome_mode(self, tag: str) -> AutoQuestTagOutcomesEnum:
+        """Where this tag's quest outcome goes: its own `outcome_mode`, otherwise the Auto Quest Tag Outcomes setting.
+        With the setting Off, nothing is checked in the game, so every tag is Off"""
+        setting = self._get_auto_outcomes_mode()
+        if setting == AutoQuestTagOutcomesEnum.OFF:
+            return AutoQuestTagOutcomesEnum.OFF
+        return OUTCOME_MODES.get(self.outcome_modes.get(utils.normalize_apostrophes(tag), ''), setting)
 
     def _get_auto_outcome_text(self, tag: str, tag_outcomes: Optional[Dict[str, Tuple[int, int]]]) -> Optional[str]:
         if not tag_outcomes or tag not in tag_outcomes:
@@ -308,8 +335,9 @@ class BioTemplateManager:
         return text
 
     def _outcome_goes_to_bio(self, tag: str, tag_outcomes: Optional[Dict[str, Tuple[int, int]]]) -> bool:
-        """Static: always. Dynamic: only outcomes with time 0 (already true when tracking started), which have no place in the timeline"""
-        mode = self._get_auto_outcomes_mode()
+        """Static: always. Dynamic: only outcomes with time 0 (already true when tracking started), which have no place in the timeline.
+        Off: never. Which of the three applies is the tag's own choice, or the setting (`get_outcome_mode`)"""
+        mode = self.get_outcome_mode(tag)
         if mode == AutoQuestTagOutcomesEnum.STATIC:
             return True
         if mode == AutoQuestTagOutcomesEnum.DYNAMIC:
@@ -347,9 +375,10 @@ class BioTemplateManager:
         injected into the chronological memory timeline instead.
 
         *tag_outcomes* maps a quest tag to its current ``(outcome, time first seen)``
-        in the playthrough. With Auto Quest Tag Outcomes set to Static, the outcome's
-        text is added for tags whose description is empty. With Dynamic, only outcomes
-        with time 0 are added here; the rest go to the memory timeline.
+        in the playthrough. When the tag's outcome mode (``get_outcome_mode``) is Static,
+        the outcome's text is added right after the tag's own text, in the same paragraph
+        (on its own line when that text has several lines).
+        With Dynamic, only outcomes with time 0 are added here; the rest go to the memory timeline.
         """
         tags = self._get_effective_tags_list(tags_string)
         if not tags:
@@ -359,20 +388,24 @@ class BioTemplateManager:
         tag_expansions: List[str] = []
         for tag in tags:
             template = self.get_template(tag)
+            is_quest_tag = tag in self.outcome_codes or tag in self.outcome_texts
+            # The tag's own text first, then its current quest outcome: the latest state on top of the background
+            parts: List[str] = []
             if template and template.strip():
                 # Separate static text from dynamic events
                 static_text, _ = _split_static_and_dynamic(template)
                 if static_text:
-                    tag_expansions.append(static_text)
-            elif tag in self.outcome_codes or tag in self.outcome_texts:
-                if self._outcome_goes_to_bio(tag, tag_outcomes):
-                    outcome_text = self._get_auto_outcome_text(tag, tag_outcomes)
-                    if outcome_text:
-                        tag_expansions.append(outcome_text)
-            elif template is None:
+                    parts.append(static_text)
+            if is_quest_tag and self._outcome_goes_to_bio(tag, tag_outcomes):
+                outcome_text = self._get_auto_outcome_text(tag, tag_outcomes)
+                if outcome_text:
+                    parts.append(outcome_text)
+            if parts:
+                # Same paragraph as the tag's text. After a text of several lines (e.g. a list) it gets its own line,
+                # so it doesn't read as part of the last one
+                tag_expansions.append(("\n" if "\n" in parts[0] else " ").join(parts))
+            elif template is None and not is_quest_tag:
                 logging.warning(f"Tag '{tag}' not found in bio_templates.csv - ignoring")
-            elif not template.strip():
-                logging.warning(f"Tag '{tag}' found in bio_templates.csv but has empty description - ignoring")
 
         # Combine base bio with tag expansions, adding newlines between descriptions
         if tag_expansions:
@@ -388,9 +421,10 @@ class BioTemplateManager:
         from tag descriptions that contain lines matching
         ``- <timestamp>: text``.
 
-        With Auto Quest Tag Outcomes set to Dynamic, the current outcome of each
-        quest tag in *tag_outcomes* is added too, dated when it was first seen.
-        Outcomes with time 0 (already true when tracking started) go to the bio instead.
+        The current outcome of each quest tag in *tag_outcomes* whose outcome mode
+        (``get_outcome_mode``) is Dynamic is added too, dated when it was first seen,
+        next to the tag's hand-written events. Outcomes with time 0 (already true when
+        tracking started) go to the bio instead.
 
         The returned list is sorted by timestamp (ascending).
         """
@@ -404,8 +438,8 @@ class BioTemplateManager:
             if template and template.strip():
                 _, dynamic_events = _split_static_and_dynamic(template)
                 all_events.extend(dynamic_events)
-            elif (tag in self.outcome_codes and self._get_auto_outcomes_mode() == AutoQuestTagOutcomesEnum.DYNAMIC
-                  and not self._outcome_goes_to_bio(tag, tag_outcomes)):
+            if (tag in self.outcome_codes and self.get_outcome_mode(tag) == AutoQuestTagOutcomesEnum.DYNAMIC
+                    and not self._outcome_goes_to_bio(tag, tag_outcomes)):
                 outcome_text = self._get_auto_outcome_text(tag, tag_outcomes)
                 if outcome_text:
                     all_events.append((tag_outcomes[tag][1], outcome_text))
@@ -420,6 +454,7 @@ class BioTemplateManager:
         self.outcome_texts.clear()
         self.outcome_codes.clear()
         self.no_announce.clear()
+        self.outcome_modes.clear()
         self.sources.clear()
         self.files_with_tag.clear()
         self._load_templates()

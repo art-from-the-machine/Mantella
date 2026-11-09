@@ -12,7 +12,8 @@ import gradio as gr
 import pandas as pd
 
 import src.utils as utils
-from src.bio_template_manager import LAYER_BASE, LAYER_MOD, LAYER_PERSONAL, OUTCOME_SLOTS, TAG_COLUMNS, BioTemplateManager
+from src.bio_template_manager import (LAYER_BASE, LAYER_MOD, LAYER_PERSONAL, OUTCOME_MODE_DEFAULT, OUTCOME_MODES, OUTCOME_SLOTS,
+                                      TAG_COLUMNS, BioTemplateManager)
 from src.config.config_loader import ConfigLoader
 from src.config.definitions.game_definitions import GameEnum
 from src.quest_tags import history as quest_tag_history
@@ -28,7 +29,15 @@ SEARCH_RESULT_LIMIT = 200
 NO_TAG_HEADER = ("**No tag open.** Pick one from the list to change it, or fill in the fields below, type a name for "
                  "the new tag and click **Create**.")
 # What the form compares against when no tag is open: typing into the empty form counts as unsaved changes too
-BLANK_SNAPSHOT = {"tag": "", "text": "", "events": [], "announce": True, "cells": {column: "" for column in TAG_COLUMNS}}
+BLANK_SNAPSHOT = {"tag": "", "text": "", "events": [], "announce": True, "mode": OUTCOME_MODE_DEFAULT,
+                  "cells": {column: "" for column in TAG_COLUMNS}}
+# The `outcome_mode` column as a list to pick from: (what the tab shows, what the file holds)
+OUTCOME_MODE_CHOICES = [
+    ("Follow the Auto Quest Tag Outcomes setting", OUTCOME_MODE_DEFAULT),
+    ("Static: in the NPC's bio, right after the tag text", "static"),
+    ("Dynamic: a dated memory, brought up as news once", "dynamic"),
+    ("Off: this tag's outcomes aren't checked, only the tag text is used", "off"),
+]
 
 
 def _column_name(column: str) -> str:
@@ -37,6 +46,12 @@ def _column_name(column: str) -> str:
         return "tag text and events"
     # Outcome fields are labelled with their column names, so messages use them too
     return column
+
+
+def _outcome_mode(value: Any) -> str:
+    """An `outcome_mode` cell, or the list's value, as one of the list's choices. Empty or unknown follows the setting, as at runtime"""
+    mode = str(value or "").strip().lower()
+    return mode if mode in OUTCOME_MODES else OUTCOME_MODE_DEFAULT
 
 
 def _cell_text(value: Any) -> str:
@@ -250,7 +265,11 @@ def build_tag_editor_page(config: ConfigLoader):
         text, events = files.split_description(values["description"])
         event_rows = [_event_row(ts, files.clean_event_text(event)) for ts, event in sorted(events)]
         announce = values["announce"].strip().lower() != "no"
-        snapshot = {"tag": tag or "", "text": text, "events": event_rows, "announce": announce, "cells": values}
+        mode = _outcome_mode(values["outcome_mode"])
+        # A value typed by hand that isn't one of the choices, e.g. `dynamc`: shown under the list, and replaced by the next Save
+        unknown_mode = values["outcome_mode"].strip() if values["outcome_mode"].strip().lower() not in (*OUTCOME_MODES, OUTCOME_MODE_DEFAULT) else ""
+        snapshot = {"tag": tag or "", "text": text, "events": event_rows, "announce": announce, "mode": mode,
+                    "unknown_mode": unknown_mode, "cells": values}
 
         update: Dict[Any, Any] = {
             tag_dropdown: gr.update(choices=tags, value=tag or None),
@@ -258,6 +277,7 @@ def build_tag_editor_page(config: ConfigLoader):
             text_box: text,
             **events_updates(event_rows),
             announce_box: announce,
+            mode_box: mode,
             notes_box: values["notes"],
             new_event_text: "",
             new_event_date: "",
@@ -279,7 +299,8 @@ def build_tag_editor_page(config: ConfigLoader):
         has_conditions = bool(tag) and any(values[f"code_{slot}"] for slot in range(1, OUTCOME_SLOTS + 1))
         update[quest_warning] = gr.update(
             visible=has_conditions,
-            value="This tag has quest outcomes. **Filling in the tag text turns its automatic outcomes off.**",
+            value="This tag has quest outcomes. NPCs get the tag text **and** the text of the outcome that's true now. "
+                  "To use only the tag text, set **Where this tag's quest outcome goes** to **Off**, under Quest outcomes.",
         )
         if tag:
             several = in_several_files(tag)
@@ -288,6 +309,10 @@ def build_tag_editor_page(config: ConfigLoader):
             update[header] = where_line(tag)
             update[text_source] = source_label(tag, "description") if several else ""
             update[announce_source] = source_label(tag, "announce") if several else ""
+            update[mode_source] = source_label(tag, "outcome_mode") if several else ""
+            if unknown_mode:
+                update[mode_source] = (f"**The file says `{unknown_mode}`, which isn't static, dynamic, off or default, so this tag "
+                                       f"follows the setting.** Pick what you want and click **Save** to replace it. {update[mode_source]}").strip()
             update[notes_source] = source_label(tag, "notes") if several else ""
             for slot, label in enumerate(outcome_labels, start=1):
                 update[label] = outcome_label(tag, slot, values[f"code_{slot}"])
@@ -298,7 +323,7 @@ def build_tag_editor_page(config: ConfigLoader):
             update[remove_btn] = gr.update(visible=action is not None, value="Delete tag" if action == "delete" else back_label(tag))
             update[remove_note] = remove_note_text(tag, action)
         else:
-            for component in [text_source, announce_source, notes_source, npc_list, remove_note, *outcome_labels]:
+            for component in [text_source, announce_source, mode_source, notes_source, npc_list, remove_note, *outcome_labels]:
                 update[component] = ""
             update[header] = NO_TAG_HEADER
             update[npc_section] = gr.update(visible=False)
@@ -323,11 +348,12 @@ def build_tag_editor_page(config: ConfigLoader):
     def form_values(field_values: Tuple[Any, ...]) -> Dict[str, Any]:
         text, table, *rest = field_values
         outcome_values = rest[:len(OUTCOME_COLUMNS)]
-        announce, notes = rest[len(OUTCOME_COLUMNS):]
+        announce, mode, notes = rest[len(OUTCOME_COLUMNS):]
         values = {
             "text": (text or "").strip(),
             "events": _event_rows(table),
             "announce": bool(announce),
+            "mode": _outcome_mode(mode),
             "notes": (notes or "").strip(),
         }
         for column, value in zip(OUTCOME_COLUMNS, outcome_values):
@@ -342,6 +368,8 @@ def build_tag_editor_page(config: ConfigLoader):
         if current["text"] != snapshot["text"].strip() or current["events"] != snapshot["events"]:
             return True
         if current["announce"] != snapshot["announce"] or current["notes"] != cells["notes"].strip():
+            return True
+        if current["mode"] != snapshot.get("mode", OUTCOME_MODE_DEFAULT):
             return True
         return any(current[column] != cells[column].strip() for column in OUTCOME_COLUMNS)
 
@@ -437,6 +465,8 @@ def build_tag_editor_page(config: ConfigLoader):
             cells["notes"] = current["notes"]
         if not current["announce"]:
             cells["announce"] = "no"
+        if current["mode"] != OUTCOME_MODE_DEFAULT:
+            cells["outcome_mode"] = current["mode"]
         target = files.choose_target_file(m.files_with_tag, tag, files.personal_folder(config.save_folder))
         created_file = not os.path.exists(target)
         try:
@@ -571,6 +601,9 @@ def build_tag_editor_page(config: ConfigLoader):
         changes = files.changed_cells({column: before.get(column, "") for column in after}, after)
         if current["announce"] != snapshot["announce"]:
             changes["announce"] = "yes" if current["announce"] else "no"
+        # Written out even when it's back to following the setting: an empty cell wouldn't undo a base or mod file's choice
+        if current["mode"] != snapshot.get("mode", OUTCOME_MODE_DEFAULT) or snapshot.get("unknown_mode"):
+            changes["outcome_mode"] = current["mode"]
         if not changes:
             return {message_line: "Nothing to save."}
 
@@ -881,6 +914,9 @@ def build_tag_editor_page(config: ConfigLoader):
                     outcome_labels.append(gr.Markdown(elem_classes="tag-editor-source"))
                 announce_box = gr.Checkbox(label="Announce changes of this tag to NPCs during a conversation", value=True)
                 announce_source = gr.Markdown(elem_classes="tag-editor-source")
+                mode_box = gr.Dropdown(choices=OUTCOME_MODE_CHOICES, value=OUTCOME_MODE_DEFAULT, filterable=False,
+                                       label="Where this tag's quest outcome goes")
+                mode_source = gr.Markdown(elem_classes="tag-editor-source")
                 gr.Markdown("Changed conditions reach the game when the next conversation starts.", elem_classes="tag-editor-source")
 
             with gr.Accordion(label="Notes (for people editing the files; never sent to the AI)", open=False, elem_classes="tag-editor-subsection") as notes_section:
@@ -910,11 +946,11 @@ def build_tag_editor_page(config: ConfigLoader):
         search_result_rows = gr.State([])
         opened_result_tag = gr.State(None)
 
-    field_inputs = [text_box, events_table, *outcome_boxes, announce_box, notes_box]
+    field_inputs = [text_box, events_table, *outcome_boxes, announce_box, mode_box, notes_box]
     outputs = [
         tag_dropdown, snapshot_state, tag_note, choose_section, header, npc_section, new_tag_message,
         text_box, text_source, quest_warning, events_table, events_shown, selected_event, remove_event_btn, remove_event_row, no_events, new_event_text, new_event_date, new_event_timestamp,
-        *outcome_boxes, *outcome_labels, outcomes_section, announce_box, announce_source,
+        *outcome_boxes, *outcome_labels, outcomes_section, announce_box, announce_source, mode_box, mode_source,
         notes_section, notes_box, notes_source, npc_list,
         remove_btn, remove_note, confirm_remove_btn, new_tag_name, picker_message, message_line,
     ]

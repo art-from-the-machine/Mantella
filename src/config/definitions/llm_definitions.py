@@ -218,11 +218,12 @@ class LLMDefinitions:
     def get_auto_quest_tag_outcomes_config_value() -> ConfigValue:
         description = """Bio template tags can list possible quest outcomes (the 'code_N' and 'potential_paste_N' columns, e.g. in the community bio templates CSV on Nexus).
                         Mantella checks these conditions in the game and gives NPCs who have the tag the text of the outcome that is true now.
-                        Requires the MantellaQuestChecks.dll that comes with Mantella-Spell. A tag whose 'description' is filled in uses that text instead.
+                        Requires the MantellaQuestChecks.dll that comes with Mantella-Spell. A tag's 'description' is always used as well: the outcome is added to it.
                         - Off: outcomes are not checked. Normal tags keep working.
                         - Static: the outcome becomes part of the NPC's bio (under 'Additional info'). The NPC knows it, but isn't nudged to bring it up.
                         - Dynamic: the outcome becomes a dated memory, in order with the NPC's conversation summaries, and is listed as news until the NPC has a newer summary.
                           Outcomes that were already true the first time Mantella checked (e.g. quests finished before you installed this) go in the bio, as with Static.
+                        A single tag can choose for itself with the 'outcome_mode' column ('static', 'dynamic' or 'off'; empty follows this setting), also in the Tag Editor. With this setting Off, no tag is checked.
                         Hand-written '- <timestamp>: text' lines in tag descriptions are not affected by this setting."""
         options = [e.display_name for e in AutoQuestTagOutcomesEnum]
         return ConfigValueSelection("auto_quest_tag_outcomes", "Auto Quest Tag Outcomes", description, AutoQuestTagOutcomesEnum.STATIC.display_name, options, corresponding_enums=list(AutoQuestTagOutcomesEnum), tags=[ConfigValueTag.share_row, ConfigValueTag.advanced])
