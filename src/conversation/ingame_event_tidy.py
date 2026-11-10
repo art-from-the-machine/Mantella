@@ -1,7 +1,8 @@
 """Tidies the in-game events of one player message before they are sent to the LLM.
 
 A fight with a big party produces dozens of lines that differ only by who was affected ('Yulia hit Gorr with MassHealing',
-'Yulia hit Kak with MassHealing', ...). tidy_events merges those into one line each and drops repeats, without losing who did what.
+'Yulia hit Kak with MassHealing', ...), or by who was killed. tidy_events merges those into one line each and drops repeats,
+without losing who did what.
 The sentences matched here are the ones written by MantellaListenerScript.psc and MantellaTargetListenerScript.psc in Mantella-Spell,
 plus the combat notices of context.py. Any other event is passed on as it is.
 """
@@ -12,6 +13,7 @@ _HIT = "hit"
 _USED = "used"
 _PUNCHED = "punched"
 _CAST = "cast"
+_KILLED = "killed"
 _ENTERED_COMBAT = "entered_combat"
 _NOW_IN_COMBAT = "now_in_combat"
 _LEFT_COMBAT = "left_combat"
@@ -27,6 +29,7 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     (_NOW_IN_COMBAT, re.compile(r"^(?P<member>.+?) is now in combat!$")),
     (_LEFT_COMBAT, re.compile(r"^(?P<member>.+?) is no longer in combat\.?$")),
     (_SEARCHING, re.compile(r"^(?P<member>.+?) is searching for (?P<what>.+)$")),
+    (_KILLED, re.compile(r"^(?P<member>.+?) was killed by (?P<who>.+)$")), # The victim is what differs, so clearing a room is one line
 ]
 
 
@@ -52,6 +55,8 @@ class _Group:
             return f"{self.who} punched {names}"
         if self.kind == _CAST:
             return f"{self.who} casted the spells {self.what}{names}"
+        if self.kind == _KILLED:
+            return f"{names} were killed by {self.who}"
         if self.kind == _ENTERED_COMBAT:
             return f"{names} have entered combat with {self.what}"
         if self.kind == _NOW_IN_COMBAT:
@@ -69,6 +74,7 @@ def tidy_events(events: list[str]) -> list[str]:
     """Merges events that only differ by who was affected, and drops repeats.
 
     - 'A hit B with X' + 'A hit C with X' -> 'A hit B and C with X'. Same for 'used X on', 'punched' and the combat notices
+    - 'B was killed by A' + 'C was killed by A' -> 'B and C were killed by A'
     - Several spells cast by the same person become one line
     - 'A casted the spell X' is dropped when the same events already say who A hit with X
     - A merged line stands where its first event stood. Events that are not recognised keep their place and text

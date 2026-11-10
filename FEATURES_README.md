@@ -2339,9 +2339,33 @@ A pattern is compared to the **whole** event text, ignoring upper / lower case. 
 
 To see the exact text of events, look for the lines after `In-game events since previous exchange` in Mantella's log.
 
+**Tidying up repeated events**
+
+In a fight with a big party, one area spell touches everyone and each person entering combat is its own event. Before the events are sent with your line, Mantella tidies them. There is no setting for this; it always happens.
+
+- Events that differ only by who was affected become one line: `Yulia hit Tigra, Kak and Gorr with Black Hand`, `Serana and Gorr have entered combat with Cave Bear`.
+- The same event twice is listed once.
+- Several spells cast by the same person become one line: `Yulia casted the spells Heal Cloak and Black Hand`.
+- `Serana casted the spell Orc Strength` is left out when another line already says who Serana used it on.
+- Enemies killed by the same person become one line: `Bandit, Bandit Outlaw and Draugr were killed by Serana`.
+- **Max Count Events** counts the tidied lines, so far more of what happened fits under the limit.
+- **Ignored In-Game Events** is checked before the tidying, against each event as the game sent it. The log shows the tidied lines, so write patterns for the single form (`*Black Hand*` still works).
+
+Heals and buffs are worded as `Yulia used MassHealing on Gorr`, not `Yulia hit Gorr with MassHealing`, so the NPCs don't take them for an attack. Harmful spells and weapons still say `hit`. This wording needs the Mantella game plugin version that includes it; with an older plugin every spell still says `hit`.
+
+For developers: the tidying is `tidy_events` in `src/conversation/ingame_event_tidy.py`, called from `Conversation.update_game_events`. It matches the sentences written by `MantellaListenerScript.psc` and `MantellaTargetListenerScript.psc`, so a change of wording there needs the patterns updated. The friendly wording comes from `IsFriendlySpell` in those two scripts (`Spell.IsHostile()`).
+
 **When an NPC dies**
 
 An NPC dying no longer ends the conversation. The others get an event (`Lydia died`, or `Lydia was killed by <killer>`), the dead NPC leaves the conversation, and the rest keep talking. The conversation only ends if fewer than two participants are left.
+
+**Who finished off the enemy**
+
+When your party brings down an enemy, the NPCs hear who landed the killing blow: `The dragon was killed by Serana`. Only the final blow gets a line, so a long fight doesn't fill the events, and only a kill by you or by someone in the conversation counts, so a battle going on nearby stays out of it. A follower who is knocked down and gets back up is not reported as a kill.
+
+This one needs an extra mod, [powerofthree's Papyrus Extender](https://www.nexusmods.com/skyrimspecialedition/mods/22854), because Skyrim only tells a mod about a death when the one who died is being watched, and enemies aren't. It is optional: without it, everything else works the same and only these lines are missing.
+
+For developers: the add-on signs up for the extender's `OnActorKilled` through `MantellaKillEvents.psc`, which holds every reference to the extender so no always-loaded script names its types; the handler is in `MantellaListenerScript.psc`. The install check is `SKSE.GetPluginVersion`. A downed NPC is told apart from a dead one with `IsEssential() || (IsBleedingOut() && !IsDead())`: `IsDead()` alone isn't set yet when the kill is reported, and `IsBleedingOut()` alone would drop the real deaths that pass through bleedout, which is how dragons die. The handler words the line exactly as the `OnDying` handlers do, so that a death reported by both is merged into one line. Compiling the add-on needs the extender's `PO3_*.psc` sources on the build machine (see the imports in `build-addon.ps1`); players don't need them.
 
 ### Quick start
 
