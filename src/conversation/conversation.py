@@ -22,6 +22,7 @@ from src.llm.message_thread import message_thread
 from src.conversation.conversation_type import conversation_type, multi_npc, multi_npc_game_master, npc_event, pc_to_npc, radiant, shout
 from src.conversation.bystanders import NEWCOMERS_REMEMBER_EVERYTHING, NEWCOMERS_REMEMBER_LAST_LINE, EventPerson, ShoutState
 from src.conversation.game_master import GameMaster, GameMasterTurns, game_master_history_lines, is_player_line
+from src.conversation.ingame_event_tidy import tidy_events
 from src.character_manager import Character
 from src.http.communication_constants import communication_constants as comm_consts
 from src.stt import Transcriber
@@ -216,7 +217,8 @@ class Conversation:
         for npc in overheard_npcs:
             self.__add_overheard_message(npc)
             # Where they actually join: who is already in the conversation, so they know they walked up to people already talking
-            already_there = [name for name in self.__context.npcs_in_conversation.get_all_names() if name != npc.name]
+            joined_together = [other.name for other in overheard_npcs]
+            already_there = [name for name in self.__context.npcs_in_conversation.get_all_names() if name not in joined_together]
             self.__messages.add_message(nearby_join_message(npc, self.__context.config, already_there, reacts_to_event))
 
     def __add_overheard_message(self, npc: Character):
@@ -277,6 +279,8 @@ class Conversation:
         with self.__generation_start_lock:
             self.__cancel_game_master_turn()
             self.__game_master_turns.on_player_input() # Like a player line: the NPCs' turn starts again from the event
+            if isinstance(self.__context.shout, ShoutState):
+                self.__context.shout.clear_pick() # Whoever still had to join or answer reacts to the event instead, if they are part of it
             self.__stop_generation()
             self.__sentences.clear()
             self.__is_interrupt_requested = False # Sent when the event was picked, to stop the NPCs before it. Not meant for the reaction
@@ -457,7 +461,7 @@ class Conversation:
         shout_state = self.__context.shout
         if isinstance(shout_state, ShoutState) and shout_state.pending_add:
             return comm_consts.KEY_REPLYTYPE_SHOUT_ADDACTOR, None
-        if isinstance(shout_state, ShoutState) and shout_state.forced_speaker_ref_id:
+        if isinstance(shout_state, ShoutState) and (shout_state.forced_speaker_ref_id or shout_state.answer_first_ref_id):
             self.__start_generating_npc_sentences()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, None
         if event.player_joined:
@@ -476,14 +480,21 @@ class Conversation:
         if shout_state.pending_add:
             # The game adds them first, as only actors in the conversation can speak in game
             return comm_consts.KEY_REPLYTYPE_SHOUT_ADDACTOR, None
-        if shout_state.forced_speaker_ref_id or shout_state.answer_again:
-            # The person who joined speaks next, or the person picked to answer the player could not be added and someone else answers
+        if shout_state.forced_speaker_ref_id or shout_state.answer_again or shout_state.answer_first_ref_id or self.__is_answer_due(shout_state):
+            # The person who joined speaks next, or the person picked to answer the player could not be added and someone else answers,
+            # or someone a line was aimed at has not answered it yet
             self.__start_generating_npc_sentences()
             return comm_consts.KEY_REPLYTYPE_NPCTALK, None
         if self.__is_waiting_for_room_answer and shout.is_said_to_room(self.__context):
             return self.__end_unanswered()
         self.__is_waiting_for_room_answer = False
         return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
+
+    def __is_answer_due(self, shout_state: ShoutState) -> bool:
+        """Someone in the conversation a line was aimed at has not answered it yet, e.g. the turn ended to add someone who then could not join"""
+        if not shout_state.still_to_answer:
+            return False
+        return any(npc.ref_id in shout_state.still_to_answer for npc in self.__context.get_characters_excluding_player().get_all_characters())
 
     def __end_unanswered(self) -> tuple[str, Sentence | None]:
         """Just saying something: nobody nearby answered what the player said to the room, so the conversation ends"""
@@ -530,7 +541,6 @@ class Conversation:
             self.__cancel_game_master_turn() # Before stopping, so a running Game Master turn sees it was discarded
             self.__game_master_turns.on_player_input()
             if isinstance(self.__conversation_type, shout) and isinstance(self.__context.shout, ShoutState):
-                self.__context.shout.count_line()
                 self.__context.shout.clear_pick() # A pick from the turn thrown away is not added
             self.__stop_generation() # Stop generation of additional sentences right now
             self.__sentences.clear() # Clear any remaining sentences from the list
@@ -733,7 +743,8 @@ class Conversation:
     def update_game_events(self, message: UserMessage) -> UserMessage:
         """Add in-game events to player's response"""
 
-        all_ingame_events = self.__context.get_context_ingame_events()
+        # Merged before the limit below, so the limit counts the tidied lines
+        all_ingame_events = tidy_events(self.__context.get_context_ingame_events())
         if self.__is_player_interrupting:
             if not message.is_director_message: # Director mode or a continue: the player says nothing, so there is nobody interrupting
                 all_ingame_events.append('Interrupting...')

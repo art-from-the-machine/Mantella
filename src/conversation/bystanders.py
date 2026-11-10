@@ -24,15 +24,46 @@ class EventPerson:
     ref_id: str # Character.ref_id, to recognise them when they join the conversation
 
 
+@dataclass
+class AnswerDue:
+    """Someone a line was spoken to, or who is part of an event, and who has not answered it yet"""
+    name: str
+    speaker: str # Who said the line. Empty for an event
+    is_protected: bool # Spoken to by the player, or part of an event: they still answer once the NPCs have reached their limit of replies in a row
+    others: list[str] = field(default_factory=list) # The others the same line was aimed at. Empty unless it was aimed at several people
+
+
 @dataclass(kw_only=True)
 class Bystanders:
     """The people near a conversation who are not part of it, any of whom the Game Master may draw in.
-    The Game Master picks one, the game adds them, and they speak next"""
+    The Game Master picks who a line is aimed at, the game adds them in one step, and the first of them speaks next"""
     LOG_PREFIX: ClassVar[str] = "Nearby"
     nearby: list[EventPerson] = field(default_factory=list)
-    pending_add: EventPerson | None = None # Picked by the Game Master. Can only speak once the game has added them
+    pending_add: EventPerson | None = None # Picked by the Game Master. Can only speak once the game has added them. None: nobody waits to be added
+    pending_others: list[EventPerson] = field(default_factory=list) # The others the same line was aimed at, added in the same step as pending_add
+    join_order: list[str] = field(default_factory=list) # The ref ids of the last people asked for, the first speaker first
     forced_speaker_ref_id: str = "" # Has just joined, so speaks next without asking the Game Master
     logged_nearby: list[str] | None = None # None until first logged, so "nobody" is logged too
+
+    def pending_adds(self) -> list[EventPerson]:
+        """Everyone who waits to be added by the game, the one who speaks first at the front"""
+        return ([self.pending_add] if self.pending_add else []) + self.pending_others
+
+    def request_adds(self, people: list[EventPerson]):
+        """The game is asked to add these people in one step. The first of them who joins speaks next"""
+        self.pending_add = people[0] if people else None
+        self.pending_others = list(people[1:])
+        self.join_order = [p.ref_id for p in people]
+
+    def _drop_pending(self, person: EventPerson):
+        """They no longer wait to be added. The next one waiting moves up, so pending_add is only None when nobody waits"""
+        if self.pending_add is person:
+            self.pending_add = self.pending_others.pop(0) if self.pending_others else None
+        else:
+            self.pending_others = [p for p in self.pending_others if p is not person]
+
+    def _join_rank(self, ref_id: str) -> int:
+        return self.join_order.index(ref_id) if ref_id in self.join_order else len(self.join_order)
 
     def present_nearby(self) -> list[EventPerson]:
         """The nearby people who are still near the conversation"""
@@ -79,28 +110,31 @@ class Bystanders:
             reason (str): why, as the game sent it (e.g. "in a scene"). Only logged
 
         Returns:
-            bool: True if it was the pending pick
+            bool: True if they were waiting to be added
         """
-        if not refid or not self.pending_add or self.pending_add.refid != refid:
+        person = next((p for p in self.pending_adds() if p.refid == refid), None) if refid else None
+        if not person:
             return False
         because = f": {reason}" if reason else ""
-        logging.log(26, f"{self.LOG_PREFIX}: {self.pending_add.name} could not be added to the conversation{because}")
+        logging.log(26, f"{self.LOG_PREFIX}: {person.name} could not be added to the conversation{because}")
         self.nearby = [p for p in self.nearby if p.refid != refid]
-        self.pending_add = None
+        self._drop_pending(person)
         return True
 
     def on_npc_joined(self, ref_id: str) -> bool:
         """An NPC joined the conversation: the person the Game Master picked, or anyone the player added
 
         Returns:
-            bool: True if it was the pending pick, who then speaks next
+            bool: True if they were waiting to be added. The first of the people asked for who joins speaks next
         """
         self.nearby = [p for p in self.nearby if p.ref_id != ref_id]
-        if self.pending_add and self.pending_add.ref_id == ref_id:
-            self.pending_add = None
+        person = next((p for p in self.pending_adds() if p.ref_id == ref_id), None)
+        if not person:
+            return False
+        self._drop_pending(person)
+        if not self.forced_speaker_ref_id or self._join_rank(ref_id) < self._join_rank(self.forced_speaker_ref_id):
             self.forced_speaker_ref_id = ref_id
-            return True
-        return False
+        return True
 
 
 @dataclass(kw_only=True)
@@ -109,26 +143,27 @@ class ShoutState(Bystanders):
     and the limits below decide when the Game Master may draw one of them in.
     NPC Events run in Shout from the start, so it is also who can join a scene the player watches (the game finds them with the NPC Event's rules)"""
     LOG_PREFIX: ClassVar[str] = "Shout"
-    lines_between_joins: int = 3 # Lines spoken after someone joined before the next person can join
     max_people: int = 6 # Nobody new joins once the conversation has this many people, the player included
     start_marker: int | None = None # The token marking the last message before Shout was turned on. Newcomers hear everything after it. None if nothing was said
-    lines_since_join: int = 0
-    has_joined: bool = False # Someone joined by shouting, so Lines Between Joins applies
     answering_pick: bool = False # The pending pick answers the player's line
     answer_again: bool = False # The person picked to answer the player could not be added: the turn starts again without anyone nearby
     failed_refids: set[int] = field(default_factory=set) # Could not be added. Left out until they drop off the game's nearby list
     game_master_offer: list[EventPerson] | None = field(default=None, repr=False) # While the Game Master's prompt is built: who it may pick this time
     characters: dict[int, "Character"] = field(default_factory=dict, repr=False) # The nearby people the game sent in full, by refid. Kept while Shout is on
     max_described: int = 6 # Most People Described: how many of the nearest people the Game Master gets the bios and memories of
+    max_answering: int = 5 # Most People Answering at Once: how many answer a line aimed at a group. People the line names always answer
+    still_to_answer: dict[str, AnswerDue] = field(default_factory=dict) # By ref id: who a line was aimed at and has not answered it yet
+    answer_first_ref_id: str = "" # Someone in the conversation who speaks first once the others the line was aimed at have been added
+    analysed_line: tuple[int, str] | None = field(default=None, repr=False) # The last line the Game Master was asked about (who it was aimed at), so it is asked once
     newcomers_remember: int = NEWCOMERS_REMEMBER_SINCE_SHOUT # What someone who joins by shouting heard before they joined
     logged_described: list[str] | None = field(default=None, repr=False) # Whose bios the Game Master used, as last logged
 
     def apply_settings(self, settings: dict[str, Any] | None):
-        """The Shout Mode settings from the MCM, sent with each request. Keys: lines_between_joins, max_people, max_described, newcomers_remember"""
+        """The Shout Mode settings from the MCM, sent with each request. Keys: max_people, max_described, newcomers_remember, max_answering"""
         if not settings:
             return
-        if settings.get("lines_between_joins") is not None:
-            self.lines_between_joins = int(settings["lines_between_joins"])
+        if settings.get("max_answering") is not None:
+            self.max_answering = max(1, int(settings["max_answering"]))
         if settings.get("max_people") is not None:
             self.max_people = int(settings["max_people"])
         if settings.get("max_described") is not None:
@@ -145,29 +180,65 @@ class ShoutState(Bystanders):
 
     def apply_add_failed(self, refid: int, reason: str = "") -> bool:
         was_answering = self.answering_pick
+        person = next((p for p in self.pending_adds() if p.refid == refid), None) if refid else None
         if not super().apply_add_failed(refid, reason):
             return False
         self.failed_refids.add(refid)
-        self.answering_pick = False
-        self.answer_again = was_answering
+        if person:
+            self.still_to_answer.pop(person.ref_id, None) # They can no longer answer
+        if not self.pending_add: # Nobody else waits to be added
+            self.answering_pick = False
+            # Unless someone else the line was aimed at has joined, or someone in the conversation answers first
+            self.answer_again = was_answering and not self.forced_speaker_ref_id and not self.answer_first_ref_id
         return True
 
     def on_npc_joined(self, ref_id: str) -> bool:
         if not super().on_npc_joined(ref_id):
             return False
-        self.has_joined = True
-        self.lines_since_join = 0
-        self.answering_pick = False
+        if not self.pending_add:
+            self.answering_pick = False
+        self.answer_again = False # Someone the line was aimed at has joined, so they answer
         return True
 
-    def count_line(self):
-        self.lines_since_join += 1
-
     def clear_pick(self):
-        """Forgets the pending pick and a pending retry, e.g. when the player speaks again and the turn is thrown away"""
+        """Forgets the pending picks, a pending retry and who still has to answer, e.g. when the player speaks again and the turn is thrown away"""
         self.pending_add = None
+        self.pending_others = []
         self.answering_pick = False
         self.answer_again = False
+        self.answer_first_ref_id = ""
+        self.still_to_answer.clear()
+
+    def free_places(self, npc_count: int, has_player: bool = True) -> int:
+        """How many more people Most People in Conversation lets in. The player counts while in the conversation"""
+        return max(0, self.max_people - npc_count - (1 if has_player else 0))
+
+    def add_still_to_answer(self, people: list[tuple[str, str]], speaker: str, is_protected: bool):
+        """A line was aimed at these people. Each of them answers before the player gets the turn
+
+        Args:
+            people (list[tuple[str, str]]): the (ref id, name) of each
+            speaker (str): who said the line. Empty for an event
+            is_protected (bool): the player said it, or it is an event: they answer even once the NPCs have reached their limit of replies in a row
+        """
+        names = [name for _ref_id, name in people]
+        for ref_id, name in people:
+            known = self.still_to_answer.get(ref_id)
+            others = [n for n in names if n != name]
+            self.still_to_answer[ref_id] = AnswerDue(name, speaker, is_protected or bool(known and known.is_protected), others)
+
+    def take_still_to_answer(self, ref_id: str) -> AnswerDue | None:
+        """They speak now, so they no longer have to answer. None if they did not have to"""
+        return self.still_to_answer.pop(ref_id, None)
+
+    def drop_unprotected_answers(self) -> list[str]:
+        """The NPCs have reached their limit of replies in a row: only the people the player spoke to, or who are part of an event, still answer
+
+        Returns:
+            list[str]: the names of the people who no longer have to answer
+        """
+        dropped = [ref_id for ref_id, due in self.still_to_answer.items() if not due.is_protected]
+        return [self.still_to_answer.pop(ref_id).name for ref_id in dropped]
 
     def nearby_choices(self, config: ConfigLoader, participant_names: list[str], npc_count: int, has_player: bool = True) -> list[EventPerson]:
         """The nearby people the Game Master may draw in right now. Nobody unless every limit allows it"""
@@ -175,8 +246,6 @@ class ShoutState(Bystanders):
         if not people or self.pending_add:
             return []
         if npc_count + (1 if has_player else 0) >= self.max_people: # The player counts while in the conversation
-            return []
-        if self.has_joined and self.lines_since_join < self.lines_between_joins:
             return []
         return people
 

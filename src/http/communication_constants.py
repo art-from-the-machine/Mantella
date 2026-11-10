@@ -58,14 +58,14 @@ class communication_constants:
     KEY_SHOUT_NEARBY_REFIDS: str = PREFIX + "shout_nearby_refids"
     KEY_SHOUT_NEARBY_NAMES: str = PREFIX + "shout_nearby_names" # In the same order as the refids
     KEY_SHOUT_NEARBY_ACTORS: str = PREFIX + "shout_nearby_actors" # Full actor settings, sent once for each person who is new to the list
-    KEY_SHOUT_LINESBETWEENJOINS: str = PREFIX + "shout_lines_between_joins"
     KEY_SHOUT_MAXDESCRIBED: str = PREFIX + "shout_max_described" # How many of the nearest people the Game Master gets the bios and memories of
     KEY_SHOUT_MAXPEOPLE: str = PREFIX + "shout_max_people"
     KEY_SHOUT_NEWCOMERSREMEMBER: str = PREFIX + "shout_newcomers_remember" # What someone who joins by shouting heard before: 0 since shouting, 1 the player's last line, 2 everything
-    KEY_SHOUT_ADDFAILED_REFID: str = PREFIX + "shout_add_failed_refid"
-    KEY_SHOUT_ADDFAILED_REASON: str = PREFIX + "shout_add_failed_reason" # Why the game could not add them, e.g. "in a scene". Only logged
+    KEY_SHOUT_MAXANSWERING: str = PREFIX + "shout_max_answering" # Most People Answering at Once: how many answer a line aimed at a group
+    KEY_SHOUT_ADDFAILED_REFIDS: str = PREFIX + "shout_add_failed_refids" # Who of the people asked for the game could not add
+    KEY_SHOUT_ADDFAILED_REASONS: str = PREFIX + "shout_add_failed_reasons" # In the same order: why, e.g. "in a scene". Only logged
     KEY_REPLYTYPE_SHOUT_ADDACTOR: str = PREFIX + "shout_add_actor"
-    KEY_SHOUT_ADDACTOR_REFID: str = PREFIX + "shout_add_actor_refid"
+    KEY_SHOUT_ADDACTOR_REFIDS: str = PREFIX + "shout_add_actor_refids" # Everyone the line was aimed at, added in one step. The first speaker first
     KEY_SHOUT_UNAVAILABLE: str = PREFIX + "shout_unavailable" # In the reply: Shout can't be used, as no Game Master model is set up
 
     # Quest tags: the game answers the checks of the quest tag conditions

@@ -130,6 +130,12 @@ class LLMDefinitions:
         return ConfigValueInt("turn_thoughts_to_keep", "Turn Thoughts to Keep", description, 1, 0, 999, tags=[ConfigValueTag.advanced])
 
     @staticmethod
+    def get_replace_braille_blank_config_value() -> ConfigValue:
+        description = """When enabled, any Braille Blank character (U+2800) in the LLM's reply is replaced with a normal space.
+                    Some models use this invisible character instead of a space, which can break sentence splitting and text-to-speech."""
+        return ConfigValueBool("replace_braille_blank", "Replace Braille Blanks", description, False, tags=[ConfigValueTag.advanced])
+
+    @staticmethod
     def get_drop_last_sentences_single_config_value() -> ConfigValue:
         description = """Number of sentences to drop from the end of each NPC response in a player<->NPC conversation.
                     Dropped sentences are not spoken and are not added to conversation history.
@@ -609,6 +615,15 @@ class LLMDefinitions:
                         Ignored when Use Decision Model for Game Master is disabled: the Game Master LLM then picks an NPC or nobody directly."""
         return ConfigValueFloat("npc_initiative_threshold","NPC Initiative Threshold",description, 0.6, 0, 1, tags=[ConfigValueTag.advanced])
 
+    @staticmethod
+    def get_game_master_addressed_threshold_config_value() -> ConfigValue:
+        description = """Shout: several people can answer one line. With each decision, the decision model is also asked about each person whether the latest line was spoken to them
+                        (or, after an event, whether they are part of what happened). It answers with a number from 0 to 1 for how sure it is.
+                        Everyone at or above this value counts as spoken to: they join the conversation and answer before the player gets the turn.
+                        Raise it if people answer who were not spoken to. Lower it if people who were spoken to are missed.
+                        Ignored when Use Decision Model for Game Master is disabled: the Game Master LLM then lists who was spoken to directly."""
+        return ConfigValueFloat("game_master_addressed_threshold","Game Master Spoken To Threshold",description, 0.5, 0, 1, tags=[ConfigValueTag.advanced])
+
     NPC_EVENT_DESCRIPTION = """NPC Events (enabled in the Mantella MCM): every so often, an event generator invents a scene between some of the NPCs near the player, who then act it out while the player is a bystander.
                         The scene always runs with the Game Master (Game Master Decision Service and Model, or the Game Master LLM), also when Multi-NPC Game Master Mode is disabled."""
 
@@ -616,7 +631,7 @@ class LLMDefinitions:
     def get_npc_event_max_participants_config_value() -> ConfigValue:
         description = LLMDefinitions.NPC_EVENT_DESCRIPTION + """
                         The most NPCs the event generator may put in a scene when it starts. Others nearby can still be drawn in later, as long as
-                        the Shout Mode page's limits allow it (Most People in Conversation, Lines Between Joins)."""
+                        the Shout Mode page's Most People in Conversation allows it."""
         return ConfigValueInt("npc_event_max_participants", "NPC Event Max Participants", description, 3, 2, 10, tags=[ConfigValueTag.share_row])
 
     @staticmethod

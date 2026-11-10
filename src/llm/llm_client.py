@@ -41,6 +41,7 @@ class LLMClient(ClientBase):
                 logging.error(f"Error applying profile for one-on-one conversations: {e}")
                 llm_params = config.llm_params
         
+        ClientBase.replace_braille_blank = config.replace_braille_blank
         super().__init__(config.llm_api, config.llm, llm_params, config.custom_token_count, secret_key_files, response_timeout=config.llm_response_timeout)
 
         # Enable Sonnet prompt caching via OpenRouter if configured
@@ -72,6 +73,7 @@ class LLMClient(ClientBase):
         Returns:
             bool: True if hot-swap was successful, False otherwise
         """
+        ClientBase.replace_braille_blank = config.replace_braille_blank
         try:
             # Choose appropriate secret key files based on the LLM service
             if config.llm_api.lower().strip() == 'nanogpt':

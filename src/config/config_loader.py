@@ -383,6 +383,7 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
             self.read_thoughts_after_sentence_cap = self.__definitions.get_bool_value("read_thoughts_after_sentence_cap")
             self.turn_thoughts_to_keep = self.__definitions.get_int_value("turn_thoughts_to_keep")
             self.drop_last_sentences_single = self.__definitions.get_int_value("drop_last_sentences_single")
+            self.replace_braille_blank = self.__definitions.get_bool_value("replace_braille_blank")
             self.llm = self.__definitions.get_string_value("model")
             self.llm = self.llm.split(' |')[0] if ' |' in self.llm else self.llm
             self.wait_time_buffer = self.__definitions.get_float_value("wait_time_buffer")
@@ -442,6 +443,7 @@ Game Master LLM parameter list must follow the Python dictionary format: https:/
             self.game_master_decision_model = self.__definitions.get_string_value("game_master_decision_model")
             self.game_master_decision_model = self.game_master_decision_model.split(' |')[0] if ' |' in self.game_master_decision_model else self.game_master_decision_model
             self.npc_initiative_threshold = self.__definitions.get_float_value("npc_initiative_threshold")
+            self.game_master_addressed_threshold = self.__definitions.get_float_value("game_master_addressed_threshold")
 
             # NPC Events. The generator always uses its own model: the Summary model is not meant for writing scenes
             (_, self.apply_profile_npc_event, self.npc_event_llm_api,
@@ -627,6 +629,11 @@ LLM parameter list must follow the Python dictionary format: https://www.w3schoo
             self.shout_decision_nearby_criteria = self.__overlay_prompt("skyrim_shout_decision_nearby_criteria", self.__definitions.get_string_value("skyrim_shout_decision_nearby_criteria"))
             self.shout_room_game_master_prompt = self.__overlay_prompt("skyrim_shout_room_game_master_prompt", self.__definitions.get_string_value("skyrim_shout_room_game_master_prompt"))
             self.shout_decision_nobody_criteria = self.__overlay_prompt("skyrim_shout_decision_nobody_criteria", self.__definitions.get_string_value("skyrim_shout_decision_nobody_criteria"))
+            self.shout_decision_addressed_criteria = self.__overlay_prompt("skyrim_shout_decision_addressed_criteria", self.__definitions.get_string_value("skyrim_shout_decision_addressed_criteria"))
+            self.shout_decision_not_addressed_criteria = self.__overlay_prompt("skyrim_shout_decision_not_addressed_criteria", self.__definitions.get_string_value("skyrim_shout_decision_not_addressed_criteria"))
+            self.shout_decision_event_part_criteria = self.__overlay_prompt("skyrim_shout_decision_event_part_criteria", self.__definitions.get_string_value("skyrim_shout_decision_event_part_criteria"))
+            self.shout_decision_event_not_part_criteria = self.__overlay_prompt("skyrim_shout_decision_event_not_part_criteria", self.__definitions.get_string_value("skyrim_shout_decision_event_not_part_criteria"))
+            self.shout_group_answer_note = self.__overlay_prompt("skyrim_shout_group_answer_note", self.__definitions.get_string_value("skyrim_shout_group_answer_note"))
             self.radiant_prompt = self.__overlay_prompt("skyrim_radiant_prompt", self.__definitions.get_string_value("skyrim_radiant_prompt"))
 
         self.radiant_start_prompt = self.__overlay_prompt("radiant_start_prompt", self.__definitions.get_string_value("radiant_start_prompt"))

@@ -628,7 +628,7 @@ class GameStateManager:
             reply[comm_consts.KEY_SHOUT_UNAVAILABLE] = True
         shout_state = self.__talk.context.shout
         if replyType == comm_consts.KEY_REPLYTYPE_SHOUT_ADDACTOR and shout_state and shout_state.pending_add:
-            reply[comm_consts.KEY_SHOUT_ADDACTOR_REFID] = shout_state.pending_add.refid
+            reply[comm_consts.KEY_SHOUT_ADDACTOR_REFIDS] = [person.refid for person in shout_state.pending_adds()]
         if event and replyType == comm_consts.KEY_REPLYTYPE_NPCEVENT_ADDACTOR and event.pending_add:
             reply[comm_consts.KEY_NPCEVENT_ADDACTOR_REFID] = event.pending_add.refid
         elif event and replyType == comm_consts.KEY_REPLYTYPE_ENDCONVERSATION:
@@ -888,10 +888,10 @@ class GameStateManager:
     def __shout_settings(input_json: dict[str, Any]) -> dict[str, Any]:
         """The Shout Mode settings the game sends with each request (see ShoutState.apply_settings)"""
         return {
-            "lines_between_joins": input_json.get(comm_consts.KEY_SHOUT_LINESBETWEENJOINS),
             "max_people": input_json.get(comm_consts.KEY_SHOUT_MAXPEOPLE),
             "max_described": input_json.get(comm_consts.KEY_SHOUT_MAXDESCRIBED),
             "newcomers_remember": input_json.get(comm_consts.KEY_SHOUT_NEWCOMERSREMEMBER),
+            "max_answering": input_json.get(comm_consts.KEY_SHOUT_MAXANSWERING),
         }
 
     def __apply_shout(self, input_json: dict[str, Any]) -> bool:
@@ -928,7 +928,10 @@ class GameStateManager:
             logging.log(26, f"Shout: new nearby, the game sent the bios and memories of {', '.join(loaded_names)}. Kept until Shout is switched off, so they are not sent again")
         # The game starts both lists with a 0 and an empty name, so they are never empty and "nobody nearby" still arrives
         shout_state.update_nearby(self.__label_nearby(input_json.get(comm_consts.KEY_SHOUT_NEARBY_REFIDS, []), input_json.get(comm_consts.KEY_SHOUT_NEARBY_NAMES, [])))
-        shout_state.apply_add_failed(int(input_json.get(comm_consts.KEY_SHOUT_ADDFAILED_REFID, 0)), str(input_json.get(comm_consts.KEY_SHOUT_ADDFAILED_REASON, "")))
+        failed_refids = input_json.get(comm_consts.KEY_SHOUT_ADDFAILED_REFIDS, [])
+        failed_reasons = input_json.get(comm_consts.KEY_SHOUT_ADDFAILED_REASONS, [])
+        for index, refid in enumerate(failed_refids):
+            shout_state.apply_add_failed(int(refid), str(failed_reasons[index]) if index < len(failed_reasons) else "")
         return True
 
     @staticmethod

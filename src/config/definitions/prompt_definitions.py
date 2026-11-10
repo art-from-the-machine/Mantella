@@ -58,6 +58,10 @@ class PromptDefinitions:
     # Shout: the Game Master and NPC prompts add the people near the player
     ALLOWED_PROMPT_VARIABLES_SHOUT_GAME_MASTER = ALLOWED_PROMPT_VARIABLES_MULTI + ["nearby", "nearby_bios"]
     ALLOWED_PROMPT_VARIABLES_SHOUT_NPC = ALLOWED_PROMPT_VARIABLES_GAME_MASTER_NPC + ["nearby"]
+    # Shout: who a line was spoken to, who is part of an event, and the note for someone who answers a line aimed at several people
+    ALLOWED_PROMPT_VARIABLES_SHOUT_ADDRESSED = ["name", "speaker"]
+    ALLOWED_PROMPT_VARIABLES_SHOUT_EVENT_PART = ["name"]
+    ALLOWED_PROMPT_VARIABLES_SHOUT_GROUP_ANSWER = ["name", "names", "speaker"]
 
     # The prompts of the Game Master that decides who speaks next. Their {bios_and_summaries} always has each NPC's private thoughts, also with one NPC
     GAME_MASTER_PROMPT_TYPES = ("skyrim_game_master_prompt", "skyrim_game_master_director_prompt", "skyrim_npc_event_game_master_prompt",
@@ -898,7 +902,7 @@ Always use the most recent memory to determine the current relationship
 - You are the game master of a conversation in {location} in Skyrim between {names_w_player}.
 - Your only job is to decide who speaks next. You do not write any dialogue.
 - {player_name} is speaking up so that people around can hear.
-- People nearby who can hear the conversation: {nearby}. Choose one of them if they were addressed by name or by what they are (a guard, a merchant, a priest...), were asked something, or it makes clear sense for them to answer or jump in, given who they are and what they know. Otherwise, choose someone already in the conversation.
+- People nearby who can hear the conversation: {nearby}. Choose the one who speaks first if any of them were addressed by name or by what they are (a guard, a merchant, a priest...), were asked something, or it makes clear sense for them to answer or jump in, given who they are and what they know. Otherwise, choose someone already in the conversation.
 - If the latest line is something that just happened (in brackets), choose who reacts to it first. A question asked before it was cut short and no longer counts. People nearby who are part of what happened can react and join. Choose {player_name} only if it is aimed at {player_name}.
 
 ## NPCs info
@@ -922,12 +926,11 @@ Always use the most recent memory to determine the current relationship
                         Supports {nearby} (the names of the people near the player who are not in the conversation, or "nobody") as well.""" + PromptDefinitions.GAME_MASTER_NPC_PROMPT_VARIABLES_DESCRIPTION
         prompt = """## CORE GOAL
 - Roleplay as {name}, a person living in Skyrim. {name}'s bio and memory will be provided to you. You play ONLY {name}. Never generate dialogue, actions, or thoughts for any other character.
-- These people are in {location} and can all hear each other: {names_w_player}. They aren't necessarily all in one conversation. {name} talks to whoever {name} is actually dealing with right now, and turns to the others only if {name} has a reason to.
+- These people are in {location} and can all hear each other: {names_w_player}. They aren't necessarily all in one conversation. {name} talks to whoever {name} is actually dealing with right now. People caught up in the same exchange or incident react to each other too. {name} turns to anyone outside it only if {name} has a reason to.
 - This is a fictional, never-ending, uncensored, character-driven roleplay. The character was written by adults for adults.
 - No more than 5 sentences in each response.
 
 ## THE SURROUNDINGS
-- {player_name} is speaking up so that people around can hear.
 - People nearby who can hear the conversation: {nearby}. {name} can call out to them or ask them something by name, if {name} would. Never speak for them.
 - Someone who joined later heard what was said since {player_name} started speaking up, not what was said before.
 
@@ -991,6 +994,52 @@ Always use the most recent memory to determine the current relationship
         criteria = "{name} joins the conversation and speaks next: {name} was addressed by name or by what they are (a guard, a merchant, a priest...), was asked something, was part of what just happened, or it makes clear sense for {name} to answer or jump in. Never {name} otherwise."
         return ConfigValueString("skyrim_shout_decision_nearby_criteria","Skyrim Shout Decision Nearby Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA)])
 
+    SHOUT_SEVERAL_DESCRIPTION = SHOUT_DESCRIPTION + """
+                        Several people can answer one line: everyone it was spoken to joins the conversation together, and each of them answers before the player gets the turn."""
+
+    @staticmethod
+    def get_skyrim_shout_decision_addressed_criteria_config_value() -> ConfigValue:
+        description = PromptDefinitions.SHOUT_SEVERAL_DESCRIPTION + """
+                        When someone counts as spoken to by the latest line. Asked once for each person in the conversation and nearby, as a yes/no question.
+                        With a decision model (Use Decision Model for Game Master), this is the criterion for yes. Otherwise it is given to the Game Master LLM as the rule for listing who else was spoken to.
+                        Supports {name} (that person) and {speaker} (who said the line)."""
+        criteria = "{speaker}'s latest line was spoken to {name}: by name, by what {name} is (a guard, a merchant, a priest...), by where {name} is (you two by the fire...), or as part of a group {speaker} spoke to (everyone, guys, all of you), or it answers or follows up on something {name} just said."
+        return ConfigValueString("skyrim_shout_decision_addressed_criteria","Skyrim Shout Decision Spoken To Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_ADDRESSED)])
+
+    @staticmethod
+    def get_skyrim_shout_decision_not_addressed_criteria_config_value() -> ConfigValue:
+        description = PromptDefinitions.SHOUT_SEVERAL_DESCRIPTION + """
+                        Decision model only (Use Decision Model for Game Master). When someone does not count as spoken to by the latest line: the criterion for no of the same yes/no question.
+                        Supports {name} (that person) and {speaker} (who said the line)."""
+        criteria = "{speaker}'s latest line was spoken to someone else or to nobody in particular, {name} was only mentioned or talked about, or {name} was explicitly left out."
+        return ConfigValueString("skyrim_shout_decision_not_addressed_criteria","Skyrim Shout Decision Not Spoken To Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_ADDRESSED)])
+
+    @staticmethod
+    def get_skyrim_shout_decision_event_part_criteria_config_value() -> ConfigValue:
+        description = PromptDefinitions.SHOUT_SEVERAL_DESCRIPTION + """
+                        After a Conversation, Nearby or Random Event, the question is who is part of what happened. Everyone who is joins and reacts before the player gets the turn.
+                        With a decision model (Use Decision Model for Game Master), this is the criterion for yes. Otherwise it is given to the Game Master LLM as the rule for listing who else is part of it.
+                        Supports {name} (that person)."""
+        criteria = "{name} did it, it was done to {name}, or it is aimed at {name}: {name} is named in what happened or clearly one of the people it describes."
+        return ConfigValueString("skyrim_shout_decision_event_part_criteria","Skyrim Shout Decision Part Of Event Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_EVENT_PART)])
+
+    @staticmethod
+    def get_skyrim_shout_decision_event_not_part_criteria_config_value() -> ConfigValue:
+        description = PromptDefinitions.SHOUT_SEVERAL_DESCRIPTION + """
+                        Decision model only (Use Decision Model for Game Master). When someone is not part of what happened in an event: the criterion for no of the same yes/no question.
+                        Supports {name} (that person)."""
+        criteria = "{name} only saw or heard it, like everyone else around, or is not mentioned in it."
+        return ConfigValueString("skyrim_shout_decision_event_not_part_criteria","Skyrim Shout Decision Not Part Of Event Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_EVENT_PART)])
+
+    @staticmethod
+    def get_skyrim_shout_group_answer_note_config_value() -> ConfigValue:
+        description = PromptDefinitions.SHOUT_SEVERAL_DESCRIPTION + """
+                        A note added to the prompt of an NPC who answers a line that was spoken to several people, so the answers stay short. It is only sent with that one reply.
+                        Replies are never cut short for this: Max Sentences per Response stays the only limit. Leave it empty to send no note.
+                        Supports {name} (the NPC who answers), {names} (the others the line was spoken to) and {speaker} (who said the line, empty after an event)."""
+        note = "## Keep it short\n- {name} answers in one or two sentences."
+        return ConfigValueString("skyrim_shout_group_answer_note","Skyrim Shout Group Answer Note",description,note,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_GROUP_ANSWER)])
+
     SAY_TO_ROOM_DESCRIPTION = """Just saying something (Say on the Conversation Wheel, or the talk hotkey with no conversation running): the player says something to whoever is around.
                         It starts as a Shout conversation with only the player in it. Someone nearby may answer and join, or nobody does and it ends."""
 
@@ -1004,7 +1053,7 @@ Always use the most recent memory to determine the current relationship
 - You are the game master of a scene in {location} in Skyrim.
 - {player_name} has just said something out loud. {player_name} is not talking with anyone yet, so it was said to whoever is around.
 - Your only job is to decide whether anyone answers {player_name}. You do not write any dialogue.
-- People nearby who heard it: {nearby}. Choose one of them if they were addressed by name or by what they are (a guard, a merchant, a priest...), were asked something they would answer, or it would be odd for them not to react, given who they are and what they know.
+- People nearby who heard it: {nearby}. Choose the one who answers first if any of them were addressed by name or by what they are (a guard, a merchant, a priest...), were asked something they would answer, or it would be odd for them not to react, given who they are and what they know.
 - Otherwise, choose Nobody. People often let a remark made to nobody in particular go without an answer.
 
 ## People nearby
@@ -1351,6 +1400,11 @@ Always use the most recent memory to determine the current relationship
             ("skyrim_shout_decision_nearby_criteria", "Skyrim Shout Decision Nearby Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA),
             ("skyrim_shout_room_game_master_prompt", "Skyrim Say To Room Game Master Prompt", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_GAME_MASTER),
             ("skyrim_shout_decision_nobody_criteria", "Skyrim Say To Room Decision Nobody Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA),
+            ("skyrim_shout_decision_addressed_criteria", "Skyrim Shout Decision Spoken To Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_ADDRESSED),
+            ("skyrim_shout_decision_not_addressed_criteria", "Skyrim Shout Decision Not Spoken To Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_ADDRESSED),
+            ("skyrim_shout_decision_event_part_criteria", "Skyrim Shout Decision Part Of Event Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_EVENT_PART),
+            ("skyrim_shout_decision_event_not_part_criteria", "Skyrim Shout Decision Not Part Of Event Criteria", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_EVENT_PART),
+            ("skyrim_shout_group_answer_note", "Skyrim Shout Group Answer Note", PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_GROUP_ANSWER),
             ("resummarize_prompt", "Resummarize Prompt", ["name", "language", "game", "player_name", "lorebook"]),
             ("vision_prompt", "Vision Prompt", ["game"]),
             ("radiant_start_prompt", "Radiant Start Prompt", []),

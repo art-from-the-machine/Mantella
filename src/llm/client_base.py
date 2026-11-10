@@ -16,6 +16,8 @@ from src.llm.llm_model_list import LLMModelList
 import src.utils as utils
 from src.llm.sonnet_cache_connector import SonnetCacheConnector
 
+BRAILLE_BLANK = "⠀"
+
 class FirstTokenTimeout(Exception):
     """The first spoken token did not arrive within the response timeout."""
 
@@ -42,6 +44,16 @@ class ClientBase(AIClient):
     Handles API key management, client generation (sync/async), request execution,
     token counting, endpoint resolution, and model list retrieval
     '''
+    # Set from the "Replace Braille Blanks" setting. Shared by every LLM client.
+    replace_braille_blank: bool = False
+
+    @staticmethod
+    def clean_response_text(text: str) -> str:
+        """Replaces Braille Blank characters (U+2800) with standard spaces when the setting is on."""
+        if ClientBase.replace_braille_blank and BRAILLE_BLANK in text:
+            return text.replace(BRAILLE_BLANK, " ")
+        return text
+
     api_token_limits = {}
     tiktoken_cache_dir = "data"
     os.environ["TIKTOKEN_CACHE_DIR"] = tiktoken_cache_dir
@@ -236,7 +248,7 @@ class ClientBase(AIClient):
                 logging.info(f"LLM Response failed")
                 return None
             
-            reply = chat_completion.choices[0].message.content
+            reply = self.clean_response_text(chat_completion.choices[0].message.content)
             logging.log(15, f"LLM response from {self.model_name}:\n{reply}")
             return reply
         
@@ -339,7 +351,7 @@ class ClientBase(AIClient):
                     try:
                         if chunk and chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                             received_content = True
-                            yield chunk.choices[0].delta.content
+                            yield self.clean_response_text(chunk.choices[0].delta.content)
                     except Exception as e:
                         logging.error(f"LLM API Connection Error: {e}")
                         break

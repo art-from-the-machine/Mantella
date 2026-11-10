@@ -131,8 +131,8 @@ class overheard_message(join_message):
 
 
 class nearby_join_message(join_message):
-    """Shout: the moment someone who was listening nearby joins the conversation. Names who is already in it, so they know they
-    walked up to people already talking and didn't arrive with them (for system use only).
+    """Shout: the moment someone who was listening nearby joins the conversation. Says it had already started, so they know they
+    walked up to people already talking and didn't arrive with them, without making it anyone's conversation (for system use only).
     Comes after their overheard_message, so it doesn't change what they heard.
     With reacts_to_event, they were picked to react first to a Nearby or Random Event. They react to it from where they are,
     instead of turning to the people already talking as if they had walked over to them"""
@@ -140,10 +140,8 @@ class nearby_join_message(join_message):
         super().__init__(character, config)
         if reacts_to_event:
             self.text = f"*{character.name} reacts to what just happened*"
-        elif len(already_there) >= 2:
-            self.text = f"*{character.name} joins the conversation that {', '.join(already_there[:-1])} and {already_there[-1]} were already having*"
-        elif len(already_there) == 1:
-            self.text = f"*{character.name} joins the conversation that {already_there[0]} had already started*"
+        elif already_there:
+            self.text = f"*{character.name} joins the conversation that had already started*"
         else:
             self.text = f"*{character.name} joins the conversation*"
 
@@ -216,6 +214,10 @@ class AssistantMessage(Message):
 
     def has_sentences(self) -> bool:
         return len(self.__sentences) > 0
+
+    def last_speaker_name(self) -> str:
+        """The name of whoever said the last sentence. Empty without sentences"""
+        return self.__sentences[-1].speaker.name if self.__sentences else ""
 
     def get_formatted_content(self, include_thoughts: bool = True) -> str:
         return self.__format_sentences(self.__sentences, include_thoughts)
