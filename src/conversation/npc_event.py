@@ -48,7 +48,11 @@ class NpcEvent:
         return NEARBY_CRITERIA, config.shout_decision_nearby_criteria, {"npc_event"}
 
     def can_notice_player(self, config: ConfigLoader) -> bool:
-        """The scene has gone on long enough for the participants to notice the bystander player, and the player can be noticed now"""
+        """The scene has gone on long enough for the participants to notice the bystander player, and the player can be noticed now.
+        Never with Director Mode on: the player is not part of the scene, also while watching it"""
+        from src.conversation.conversation_type import multi_npc # Here, as conversation_type imports context, which knows NPC Events
+        if multi_npc.is_director_enabled(config):
+            return False
         return not self.player_joined and self.player_noticeable and self.npc_lines >= config.npc_event_player_notice_delay
 
     def has_reached_limit(self, config: ConfigLoader) -> bool:
@@ -118,7 +122,7 @@ def generate_event(config: ConfigLoader, client: AIClient | None, candidates: li
 
 def generate_conversation_event(config: ConfigLoader, client: AIClient | None, kind: str, names: list[str], player_name: str, player_description: str,
                                 location: str, hour: int, weather: str, bios_and_summaries: str, hint: str, history_lines: list[str],
-                                is_cancelled: Callable[[], bool] = lambda: False) -> str | None:
+                                is_cancelled: Callable[[], bool] = lambda: False, hides_player: bool = False) -> str | None:
     """Conversation, Nearby and Random Events: asks the event generator what happens now. It has only that one job: who reacts is up to
     the Game Master, so the participants in the reply are ignored and there is no minimum number of people
 
@@ -129,6 +133,7 @@ def generate_conversation_event(config: ConfigLoader, client: AIClient | None, k
         hint (str): what the player would like to happen, as they typed it. Empty for a surprise
         history_lines (list[str]): the recent lines of the conversation (Send the Conversation So Far), added after the prompt. Empty to send none
         is_cancelled (Callable[[], bool]): True once the event is no longer needed (the player ended the conversation)
+        hides_player (bool): Director Mode: the player is not part of the scene. The prompt's {if director} parts are used
 
     Returns:
         str | None: the event. None for no event, or if anything goes wrong
@@ -139,7 +144,7 @@ def generate_conversation_event(config: ConfigLoader, client: AIClient | None, k
     values = event_prompt_values(config, player_name, names, location, hour, weather, hint)
     values["player_description"] = player_description
     reply = request_event(config, client, EVENT_GENERATOR_PROMPT, config.conversation_event_generator_prompt, values, bios_and_summaries, history_lines,
-                          log_name, is_cancelled, conditions={condition})
+                          log_name, is_cancelled, conditions={condition, "director"} if hides_player else {condition})
     if reply is None:
         return None
     data = read_event_json(reply, log_name)

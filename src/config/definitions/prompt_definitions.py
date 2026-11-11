@@ -71,10 +71,12 @@ class PromptDefinitions:
     PROMPT_CONDITIONS: dict[str, tuple[str, ...]] = {
         "skyrim_game_master_prompt": ("director", "shout", "say_to_room", "npc_event"),
         "skyrim_game_master_npc_prompt": ("director", "shout", "npc_event"),
-        "skyrim_conversation_event_generator_prompt": ("talk_event", "nearby_event", "random_event"),
+        "skyrim_conversation_event_generator_prompt": ("talk_event", "nearby_event", "random_event", "director"),
         "skyrim_game_master_decision_instructions": ("after_event",),
         "skyrim_game_master_decision_player_criteria": ("after_event",),
         "skyrim_shout_decision_nearby_criteria": ("shout", "say_to_room", "npc_event"),
+        "skyrim_shout_decision_nobody_criteria": ("director",),
+        "memory_prompt": ("director",),
     }
     # Why a condition other prompts know can never be true in this one
     CONDITION_EXPLANATIONS: dict[str, dict[str, str]] = {
@@ -88,19 +90,33 @@ class PromptDefinitions:
             ("Group conversation", frozenset()),
             ("Group conversation, Director Mode", frozenset({"director"})),
             ("Shout", frozenset({"shout"})),
+            ("Shout, Director Mode", frozenset({"shout", "director"})),
             ("Saying something to the room", frozenset({"say_to_room"})),
+            ("Saying something to the room, Director Mode", frozenset({"say_to_room", "director"})),
             ("Watching an NPC Event", frozenset({"npc_event"})),
         ],
         "skyrim_game_master_npc_prompt": [
             ("Group conversation", frozenset()),
             ("Group conversation, Director Mode", frozenset({"director"})),
             ("Shout", frozenset({"shout"})),
+            ("Shout, Director Mode", frozenset({"shout", "director"})),
             ("Watching an NPC Event", frozenset({"npc_event"})),
+        ],
+        "skyrim_shout_decision_nobody_criteria": [
+            ("Saying something to the room", frozenset()),
+            ("Saying something to the room, Director Mode", frozenset({"director"})),
+        ],
+        "memory_prompt": [
+            ("Not Director Mode", frozenset()),
+            ("Director Mode", frozenset({"director"})),
         ],
         "skyrim_conversation_event_generator_prompt": [
             ("Talk Event", frozenset({"talk_event"})),
             ("Nearby Event", frozenset({"nearby_event"})),
             ("Random Event", frozenset({"random_event"})),
+            ("Talk Event, Director Mode", frozenset({"talk_event", "director"})),
+            ("Nearby Event, Director Mode", frozenset({"nearby_event", "director"})),
+            ("Random Event, Director Mode", frozenset({"random_event", "director"})),
         ],
         "skyrim_game_master_decision_instructions": [
             ("Who speaks next", frozenset()),
@@ -128,7 +144,7 @@ class PromptDefinitions:
         conditions = PromptDefinitions.get_conditions(prompt_type)
         if conditions is None:
             if has_condition_tags(text):
-                return "Conditional blocks like {if ...} only work in the Game Master, Game Master NPC, Talk/Nearby/Random Event Generator, Game Master Decision Instructions, Game Master Decision Player Criteria and Decision Nearby Criteria prompts."
+                return "Conditional blocks like {if ...} only work in the Game Master, Game Master NPC, Talk/Nearby/Random Event Generator, Game Master Decision Instructions, Game Master Decision Player Criteria, Decision Nearby Criteria, Say To Room Decision Nobody Criteria and Memory prompts."
             return None
         return find_condition_error(text, set(conditions), PromptDefinitions.CONDITION_EXPLANATIONS.get(prompt_type or ""))
 
@@ -338,6 +354,7 @@ class PromptDefinitions:
 - **Scene Directions:** Lines in the conversation without a speaker name, written as narration, are **scene directions or new events** from the director. They are not said by anyone in the scene.
 - **Always integrate scene directions as canon truth** in the world, and have the NPCs react to them naturally.
 - **If the scene direction is "The scene continues."** the NPCs keep talking naturally without new events.
+- **Actions:** {actions}
 - **All NPCs Speak:** Generate responses for **all relevant NPCs** in the conversation, not just one. NPCs should talk to each other directly, interject, argue, or react freely. This is a natural group dynamic, not a turn-by-turn script. NPCs can speak multiple times in a row if it fits the flow.
 
 
@@ -418,24 +435,33 @@ Content Guidelines:
 
     @staticmethod
     def get_skyrim_game_master_prompt_config_value() -> ConfigValue:
-        description = """The prompt sent to the Game Master that decides who speaks next: in a group conversation with Game Master Mode on, in Shout, when you say something to the room, and in NPC Events.
+        description = """The prompt sent to the Game Master that decides who speaks next: in a group conversation with Game Master Mode on (or one NPC you direct), in Shout, when you say something to the room, and in NPC Events.
                         The instruction to answer with the next speaker is added automatically after the conversation.
                         Use conditional blocks for what differs: {if director}, {if shout}, {if say_to_room} and {if npc_event}, with {else if ...}, {else} and {end if}.
+                        {if director} can be true together with {if shout} or {if say_to_room}, so keep it in its own blocks.
                         Supports the same variables as the multi-NPC prompt, plus {nearby} (the people nearby the Game Master may pick, or "nobody"),
                         {nearby_bios} (who the nearest of them are and what they remember) and {event} (the NPC Event's scene):""" + PromptDefinitions.BASE_MULTI_PROMPT_DESCRIPTION.split("{}:", 1)[1]
         skyrim_game_master_prompt = """## Core Task
 {if say_to_room}
 - You are the game master of a scene in {location} in Skyrim.
+{if director}
+- A scene direction was just given: something that now happens or is true in the scene. Nobody is talking yet.
+- Your only job is to decide whether anyone reacts to it. You do not write any dialogue.
+- People nearby: {nearby}. Choose the one who reacts first if the direction involves them or is aimed at them, or it would be odd for them not to react, given who they are and what they know.
+{else}
 - {player_name} has just said something out loud. {player_name} is not talking with anyone yet, so it was said to whoever is around.
 - Your only job is to decide whether anyone answers {player_name}. You do not write any dialogue.
 - People nearby who heard it: {nearby}. Choose the one who answers first if any of them were addressed by name or by what they are (a guard, a merchant, a priest...), were asked something they would answer, or it would be odd for them not to react, given who they are and what they know.
-- Otherwise, choose Nobody. People often let a remark made to nobody in particular go without an answer.
+{end if}
+- Otherwise, choose Nobody.{if not director} People often let a remark made to nobody in particular go without an answer.{end if}
 {else if shout}
-- You are the game master of a conversation in {location} in Skyrim between {names_w_player}.
+- You are the game master of a conversation in {location} in Skyrim between {if director}{names}{else}{names_w_player}{end if}.
 - Your only job is to decide who speaks next. You do not write any dialogue.
+{if not director}
 - {player_name} is speaking up so that people around can hear.
+{end if}
 - People nearby who can hear the conversation: {nearby}. Choose the one who speaks first if any of them were addressed by name or by what they are (a guard, a merchant, a priest...), were asked something, or it makes clear sense for them to answer or jump in, given who they are and what they know. Otherwise, choose someone already in the conversation.
-- If the latest line is something that just happened (in brackets), choose who reacts to it first. A question asked before it was cut short and no longer counts. People nearby who are part of what happened can react and join. Choose {player_name} only if it is aimed at {player_name}.
+- If the latest line is something that just happened (in brackets){if director} or a scene direction{end if}, choose who reacts to it first. A question asked before it was cut short and no longer counts. People nearby who are part of what happened can react and join.{if not director} Choose {player_name} only if it is aimed at {player_name}.{end if}
 {else if npc_event}
 - You are the game master of a scene in {location} in Skyrim. Currently, these people are in the conversation: {names_w_player}.
 - Your only job is to decide who speaks next. You do not write any dialogue.
@@ -450,12 +476,13 @@ Content Guidelines:
 - Your only job is to decide who speaks next: one of {names_w_player}. You do not write any dialogue.
 {end if}
 - You should encourage {names} to interact with each other and chip in.
+{if not director}
+- If the latest line is something that just happened (in brackets), choose who reacts to it first. A question asked before it was cut short and no longer counts. Choose {player_name} only if it is aimed at {player_name}.
+{end if}
+{end if}
 {if director}
 - **User Input as Instruction:** If the user types something, treat it as a **scene instruction or new event** that becomes canon truth in the world.
 
-{else}
-- If the latest line is something that just happened (in brackets), choose who reacts to it first. A question asked before it was cut short and no longer counts. Choose {player_name} only if it is aimed at {player_name}.
-{end if}
 {end if}
 
 {if not say_to_room}
@@ -505,12 +532,13 @@ Content Guidelines:
     def get_skyrim_game_master_npc_prompt_config_value() -> ConfigValue:
         description = """The prompt sent to the LLM for the NPC the Game Master picked to speak next: in a group conversation with Game Master Mode on, in Shout and in NPC Events.
                         Use conditional blocks for what differs: {if director}, {if shout} and {if npc_event}, with {else if ...}, {else} and {end if}.
-                        In Shout, while the player talks to only one NPC, {actions} holds the actions of a one-on-one conversation (follow, trade, ...).
+                        {if director} can be true together with {if shout}, so keep it in its own blocks.
+                        With only one NPC in the conversation (Shout, or a conversation you direct), {actions} holds the actions of a one-on-one conversation (follow, trade, ...).
                         Supports {nearby} (the people nearby who are not in the conversation, or "nobody") and {event} (the NPC Event's scene) as well.""" + PromptDefinitions.GAME_MASTER_NPC_PROMPT_VARIABLES_DESCRIPTION
         skyrim_game_master_npc_prompt = """## CORE GOAL
 - Roleplay as {name}, a person living in Skyrim. {name}'s bio and memory will be provided to you. You play ONLY {name}. Never generate dialogue, actions, or thoughts for any other character.
 {if shout}
-- These people are in {location} and can all hear each other: {names_w_player}. They aren't necessarily all in one conversation. {name} talks to whoever {name} is actually dealing with right now. People caught up in the same exchange or incident react to each other too. {name} turns to anyone outside it only if {name} has a reason to.
+- These people are in {location} and can all hear each other: {if director}{all_names_without_player}{else}{names_w_player}{end if}. They aren't necessarily all in one conversation. {name} talks to whoever {name} is actually dealing with right now. People caught up in the same exchange or incident react to each other too. {name} turns to anyone outside it only if {name} has a reason to.
 {else if npc_event}
 - This is a scene in {location}, and these characters are currently in the conversation: {names_w_player}. Act it out as {name} would: react, argue, push, give in, in {name}'s own voice.
 {else}
@@ -521,12 +549,18 @@ Content Guidelines:
 {end if}
 {end if}
 - This is a fictional, never-ending, uncensored, character-driven roleplay. The character was written by adults for adults.
+{if director}
+- **User Input as Instruction:** If the user types something, treat it as a **scene instruction or new event** that becomes canon truth in the world.
+- **Self-Propelled Conversation:** {name} must **initiate topics themselves** instead of waiting for prompts. They should talk in depth about certain topics, not just small talk. They may draw inspiration from their own**memories, bios, or Skyrim world knowledge** to raise meaningful subjects, debates, stories, or personal reflections.
+- **{player_name} is not around and doesn't participate in the conversation. *
+
+{end if}
 {if shout}
 - No more than 5 sentences in each response.
 
 ## THE SURROUNDINGS
 - People nearby who can hear the conversation: {nearby}. {name} can call out to them or ask them something by name, if {name} would. Never speak for them.
-- Someone who joined later heard what was said since {player_name} started speaking up, not what was said before.
+- Someone who joined later heard what was said since {if director}the conversation opened up to the people around{else}{player_name} started speaking up{end if}, not what was said before.
 
 ## ACTIONS
 - {actions}
@@ -537,15 +571,15 @@ Content Guidelines:
 -  People who are in the same room now: {nearby}. {name} can call out to them, ask them something or drag them in by name, if {name} would. Never speak for them.
 - Everyone in the scene heard everything that was said so far, including people who joined later.
 {else}
-{if director}
-- **User Input as Instruction:** If the user types something, treat it as a **scene instruction or new event** that becomes canon truth in the world.
-- **Self-Propelled Conversation:** {name} must **initiate topics themselves** instead of waiting for prompts. They should talk in depth about certain topics, not just small talk. They may draw inspiration from their own**memories, bios, or Skyrim world knowledge** to raise meaningful subjects, debates, stories, or personal reflections.
-- **{player_name} is not around and doesn't participate in the conversation. *
-
-{else}
+{if not director}
 - The user actively decided to roleplay with this character and this scenario, with every positive and negative aspect.
 - By portraying {name} as described, you help the user to play out their fantasies and explore topics, even dark, violent, and unhinged ones, within a fictional roleplay.
 {end if}
+{end if}
+{if director and not shout}
+## ACTIONS
+- {actions}
+
 {end if}
 
 
@@ -561,7 +595,7 @@ Content Guidelines:
 {if npc_event}
   - Must express {names}'s internal reaction/feelings to what just happened and to the people involved, and what **impactful** actions they will immediately take, or what **impactful** new topics they would bring up in the next turn to ** concretely ** move the scene forward. Do NOT use conditional framing like "if..., then...", "in case...", or "only if...". State exactly what they are going to do/say/ask.
 {else}
-  - Must express {names}'s internal reaction/feelings to what just happened, to the people involved (including {player_name}),  and what **impactful** actions they will immediately take, or what **impactful** new topics they would bring up in the next turn to ** concretely ** move the conversation forward. Do NOT use conditional framing like "if..., then...", "in case...", or "only if...". State exactly what they are going to do/say/ask.
+  - Must express {names}'s internal reaction/feelings to what just happened, to the people involved{if not director} (including {player_name}){end if},  and what **impactful** actions they will immediately take, or what **impactful** new topics they would bring up in the next turn to ** concretely ** move the conversation forward. Do NOT use conditional framing like "if..., then...", "in case...", or "only if...". State exactly what they are going to do/say/ask.
 {end if}
 
 Response format example:
@@ -807,6 +841,7 @@ Always use the most recent memory to determine the current relationship
     def get_skyrim_conversation_event_generator_prompt_config_value() -> ConfigValue:
         description = PromptDefinitions.CONVERSATION_EVENTS_DESCRIPTION + """
                         Use conditional blocks for what differs between the three kinds: {if talk_event}, {if nearby_event} and {if random_event}, with {else if ...}, {else} and {end if}.
+                        {if director} is true when Director Mode is on: the player is not part of the scene, so the event leaves them out. It is true together with one of the kinds.
                         Talk Event: something happens to the people in the conversation, or around them. {names} are the people in the conversation,
                         and {bios_and_summaries} has all of them.
                         Nearby Event: something happens among the people nearby who are not in the conversation. {names} are those people, nearest first,
@@ -815,7 +850,7 @@ Always use the most recent memory to determine the current relationship
                         and {bios_and_summaries} has the nearest of them (Most People Described). Shout is switched on afterwards, so people nearby can join in."""
         prompt = """## Core Task
 {if nearby_event}
-- You are a live event generator for Skyrim. {player_name} is in a conversation in {location}. You write something that happens right now among the people nearby who are not in that conversation.
+- You are a live event generator for Skyrim. {if director}There is a conversation{else}{player_name} is in a conversation{end if} in {location}. You write something that happens right now among the people nearby who are not in that conversation.
 - The people nearby are {names}. The time is {time} {time_group}. {weather}
 - Invent an event between some of these people that the people in the conversation would notice: an argument, a fight breaking out, a theft, a merchant shouting, a drunk making a scene, a secret coming out. It can grow out of who they are: their bios, memories, relationships and jobs.
 {else}
@@ -829,11 +864,15 @@ Always use the most recent memory to determine the current relationship
 {end if}
 {end if}
 - What {player_name} would like to happen, if anything (if this is empty, it is up to you): {hint}
+{if director}
+- {player_name} is not around: leave {player_name} out of the event.
+{else}
 {if nearby_event}
 - Never write what {player_name} does, says, thinks or feels.
 {else}
 - The event can happen to {player_name}, but never write what {player_name} does, says, thinks or feels.
 - What {player_name} looks like: {player_description}
+{end if}
 {end if}
 {if talk_event}
 - Describe the event in two or three sentences from an outside point of view. Include only what everyone present could see or hear. Never reveal private thoughts or motives.
@@ -892,6 +931,7 @@ Always use the most recent memory to determine the current relationship
     def get_skyrim_shout_decision_event_part_criteria_config_value() -> ConfigValue:
         description = PromptDefinitions.SHOUT_SEVERAL_DESCRIPTION + """
                         After a Conversation, Nearby or Random Event, the question is who is part of what happened. Everyone who is joins and reacts before the player gets the turn.
+                        Also after a scene direction in Director Mode, as nobody in the scene said it.
                         With a decision model (Use Decision Model for Game Master), this is the criterion for yes. Otherwise it is given to the Game Master LLM as the rule for listing who else is part of it.
                         Supports {name} (that person)."""
         criteria = "{name} did it, it was done to {name}, or it is aimed at {name}: {name} is named in what happened or clearly one of the people it describes."
@@ -922,9 +962,10 @@ Always use the most recent memory to determine the current relationship
         description = PromptDefinitions.SAY_TO_ROOM_DESCRIPTION + """
                         Decision model only (Use Decision Model for Game Master). When nobody nearby answers what the player said to the room.
                         The people nearby are chosen with the Skyrim Shout Decision Nearby Criteria.
+                        {if director} is true when Director Mode is on: what you typed is a scene direction, not something your character said.
                         Supports {player_name}."""
-        criteria = "Nobody answers: {player_name} did not address anyone nearby, ask them anything, or say something they would clearly react to."
-        return ConfigValueString("skyrim_shout_decision_nobody_criteria","Skyrim Say To Room Decision Nobody Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA)])
+        criteria = "{if director}Nobody reacts: the scene direction does not involve anyone nearby or anything they would clearly react to.{else}Nobody answers: {player_name} did not address anyone nearby, ask them anything, or say something they would clearly react to.{end if}"
+        return ConfigValueString("skyrim_shout_decision_nobody_criteria","Skyrim Say To Room Decision Nobody Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_PLAYER_CRITERIA, "skyrim_shout_decision_nobody_criteria")])
 
 
     @staticmethod
@@ -993,13 +1034,14 @@ Always use the most recent memory to determine the current relationship
                                                language = the selected language
                                                game = the game selected
                                                player_name = the name of the player character
-                                               lorebook = lorebook entries matched from non-bio/non-summary prompt context and conversation history""" 
-        memory_prompt = """You are tasked with summarizing the conversation between {name} (the assistant) and the player (the user) / other characters. Here are their backgrounds: 
+                                               lorebook = lorebook entries matched from non-bio/non-summary prompt context and conversation history
+                                            {if director} is true when the conversation was directed (Director Mode): the player was not part of it."""
+        memory_prompt = """You are tasked with summarizing the conversation between {name} (the assistant) and {if director}the other characters. {player_name} was not there and took no part in it{else}the player (the user) / other characters{end if}. Here are their backgrounds: 
                                             {bios} 
                                             And here are their conversation histories: {conversation_summaries}
                                             It is not necessary to comment on any mixups in communication such as mishearings. Text contained within brackets state in-game events. 
                                             Please summarize the conversation into a single paragraph in {language}. These conversations take place in {game}. """
-        return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MEMORY)])
+        return ConfigValueString("memory_prompt","Memory Prompt",memory_prompt_description,memory_prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_MEMORY, "memory_prompt")])
     
     @staticmethod
     def get_resummarize_prompt_config_value() -> ConfigValue:
@@ -1418,7 +1460,9 @@ Always use the most recent memory to determine the current relationship
 
     # When each condition of the conditional blocks is true, in the player's words
     CONDITION_MEANINGS: dict[str, str] = {
-        "director": "you are directing a group conversation (Director Mode on). Only in group conversations for now.",
+        "director": "you are directing the conversation (Director Mode on): what you type is a scene direction, and your character is not part of the scene. "
+                    "In every conversation you are in, also with one NPC, in Shout and when you say something to the room. Never in a conversation an NPC started (NPC Initiative). "
+                    "It can be true together with `shout` or `say_to_room`.",
         "shout": "Shout is on and you are talking with people. Also after someone answered what you said to the room, and after you joined an NPC Event.",
         "say_to_room": "you said something out loud while not talking to anyone yet.",
         "npc_event": "you are watching an NPC Event (before you join it).",
@@ -1429,8 +1473,10 @@ Always use the most recent memory to determine the current relationship
     }
     # What it means when none of a prompt's kinds of conversation is true
     CONDITION_NONE_MEANINGS: dict[str, str] = {
-        "skyrim_game_master_prompt": "None of `shout`, `say_to_room` and `npc_event`: a group conversation (you and two or more NPCs) with Game Master Mode on and Shout off.",
-        "skyrim_game_master_npc_prompt": "None of `shout` and `npc_event`: a group conversation (you and two or more NPCs) with Game Master Mode on and Shout off.",
+        "skyrim_game_master_prompt": "None of `shout`, `say_to_room` and `npc_event`: a group conversation (you and two or more NPCs, or one NPC you direct) with Game Master Mode on and Shout off.",
+        "skyrim_game_master_npc_prompt": "None of `shout` and `npc_event`: a group conversation (you and two or more NPCs, or one NPC you direct) with Game Master Mode on and Shout off.",
+        "skyrim_shout_decision_nobody_criteria": "Without `director`: you said something to the room.",
+        "memory_prompt": "Without `director`: a conversation you took part in, or one between NPCs.",
         "skyrim_game_master_decision_instructions": "Without `after_event`: every other choice of who speaks next.",
         "skyrim_game_master_decision_player_criteria": "Without `after_event`: every other choice of who speaks next.",
     }

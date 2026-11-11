@@ -59,7 +59,8 @@ class Conversation:
         if not self.__context.npcs_in_conversation.contains_player_character(): # TODO: fix this being set to a radiant conversation because of NPCs in conversation not yet being added
             self.__conversation_type: conversation_type = radiant(context_for_conversation.config)
         else:
-            self.__conversation_type: conversation_type = pc_to_npc(context_for_conversation.config)        
+            self.__conversation_type: conversation_type = pc_to_npc(context_for_conversation.config)
+        self.__context.is_directed = lambda: self.is_directed() # A function, not a bound method: copying a message must not copy the conversation
         self.__messages: message_thread = message_thread(self.__context.config, None, include_decensor_bypass=True)
         # When a new NPC joins mid-conversation, log the (updated) system prompt once.
         self.__log_prompt_on_next_regen: bool = False
@@ -251,6 +252,10 @@ class Conversation:
         npc_names = self.__context.get_character_names_as_text(False)
         if not player or not npc_names:
             return
+        if self.__can_be_directed(self.__context.config):
+            # Director Mode: the player is not part of the conversation, so they are not named
+            self.__context.add_ingame_event("Nobody else joins the conversation now.")
+            return
         self.__context.add_ingame_event(f"{player.name} is now speaking privately with {npc_names}.")
 
     def stop_shout(self):
@@ -259,6 +264,11 @@ class Conversation:
         self.__context.have_actors_changed = True
         self.__announce_private = True # Says who the conversation is with, after the actor update of the same request
         logging.log(26, "Shout: private again. Nobody new joins")
+
+    def is_directed(self) -> bool:
+        """The player directs the conversation (Director Mode) and is not part of the scene. Read from the current conversation type,
+        so it follows the settings and the people in the conversation"""
+        return self.__conversation_type.is_director_mode()
 
     def event_history_lines(self) -> list[str]:
         """Conversation, Nearby and Random Events: the recent lines of the conversation for the event generator, the same ones the Game Master sees"""
@@ -321,7 +331,8 @@ class Conversation:
         client = self.__output_manager.game_master_client
         if not isinstance(self.__conversation_type, pc_to_npc) or not client:
             return True
-        game_master = GameMaster(self.__context, multi_npc_game_master(self.__context.config), client)
+        # Only a one-on-one the player speaks in gets here (a directed one is never pc_to_npc), so the player may react first
+        game_master = GameMaster(self.__context, multi_npc_game_master(self.__context.config, can_direct=False), client)
         game_master.choose_next_speaker(self.__messages, self.__messages.get_persistent_messages(), allow_player=True, after_event=True)
         return not game_master.picked_player
 
@@ -872,18 +883,27 @@ class Conversation:
             return npc_event(config)
         if not characters.contains_player_character():
             return radiant(config)
+        can_direct = not self.__context.started_by_npc
         if isinstance(self.__context.shout, ShoutState) and shout.is_enabled(config) and self.__output_manager.game_master_client:
             # Shout always runs with a Game Master, whether or not Game Master Mode is enabled
-            return shout(config)
+            return shout(config, can_direct)
         if characters.active_character_count() >= 3:
+            return self.__create_multi_npc_type(config)
+        if self.__can_be_directed(config) and characters.active_character_count() >= 2:
+            # Director Mode: one NPC is directed too, with the director prompts of a group conversation
             return self.__create_multi_npc_type(config)
         return pc_to_npc(config)
 
+    def __can_be_directed(self, config: ConfigLoader) -> bool:
+        """Director Mode is on, and the player started this conversation (one an NPC started is never directed)"""
+        return multi_npc.is_director_enabled(config) and not self.__context.started_by_npc
+
     def __create_multi_npc_type(self, config: ConfigLoader) -> multi_npc:
         """Game Master Mode when it is enabled and its LLM client exists, otherwise the regular multi-NPC conversation"""
+        can_direct = not self.__context.started_by_npc
         if multi_npc_game_master.is_enabled(config) and self.__output_manager.game_master_client:
-            return multi_npc_game_master(config)
-        return multi_npc(config)
+            return multi_npc_game_master(config, can_direct)
+        return multi_npc(config, can_direct)
 
     @utils.time_it
     def __start_generating_npc_sentences(self, allow_player_first: bool = False):

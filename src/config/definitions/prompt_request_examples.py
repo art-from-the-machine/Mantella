@@ -158,7 +158,7 @@ Ragnar: Has anyone seen a big grey dog around here?
 Criteria:
   - Whiterun Guard: {{skyrim_shout_decision_nearby_criteria|for Whiterun Guard, who is nearby}}
   - Ysolda: {{skyrim_shout_decision_nearby_criteria|for Ysolda, who is nearby}}
-  - Nobody: {{skyrim_shout_decision_nobody_criteria}}
+  - Nobody: {{skyrim_shout_decision_nobody_criteria|as Saying something to the room}}
 
 ===== Question: addressed_1 (noul) =====
 Was Ragnar's latest line addressed to Whiterun Guard?
@@ -174,6 +174,28 @@ Criteria:
   - true: {{skyrim_shout_decision_addressed_criteria|for Ysolda}}
   - false: {{skyrim_shout_decision_not_addressed_criteria|for Ysolda}}""",
     "")
+
+DECISION_SAY_DIRECTOR = ("With a decision model, when you use Say while you direct (Director Mode)", """===== Scene =====
+{{skyrim_game_master_prompt|as Saying something to the room, Director Mode}}
+
+===== Conversation (1 lines) =====
+(A big grey dog runs through the market with a stolen ham.)
+
+===== Question: next_speaker (choice) =====
+{{skyrim_game_master_decision_instructions}}
+
+Criteria:
+  - Whiterun Guard: {{skyrim_shout_decision_nearby_criteria|for Whiterun Guard, who is nearby}}
+  - Ysolda: {{skyrim_shout_decision_nearby_criteria|for Ysolda, who is nearby}}
+  - Nobody: {{skyrim_shout_decision_nobody_criteria|as Saying something to the room, Director Mode}}
+
+===== Question: addressed_1 (noul) =====
+Is Whiterun Guard part of what just happened (the latest scene direction, the last line without a speaker)?
+
+Criteria:
+  - true: {{skyrim_shout_decision_event_part_criteria|for Whiterun Guard}}
+  - false: {{skyrim_shout_decision_event_not_part_criteria|for Whiterun Guard}}""",
+    "Your direction has no speaker, so the question for each person is whether they are part of it, as after a wheel event.")
 
 LLM_FOOTER = 'Reply only with JSON in this format: {"next": "<name>", "reason": "<a few words>"}'
 LLM_ALSO_FOOTER = ('Leave "also" empty if there is nobody else.\n'
@@ -288,9 +310,9 @@ EXAMPLES: dict[str, list[tuple[str, str, str]]] = {
     "skyrim_shout_decision_nearby_criteria": [DECISION_SHOUT, DECISION_SAY, DECISION_NPC_EVENT],
     "skyrim_shout_decision_addressed_criteria": [DECISION_SHOUT, LLM_SHOUT],
     "skyrim_shout_decision_not_addressed_criteria": [DECISION_SHOUT],
-    "skyrim_shout_decision_event_part_criteria": [DECISION_AFTER_EVENT, LLM_AFTER_EVENT],
-    "skyrim_shout_decision_event_not_part_criteria": [DECISION_AFTER_EVENT],
-    "skyrim_shout_decision_nobody_criteria": [DECISION_SAY],
+    "skyrim_shout_decision_event_part_criteria": [DECISION_AFTER_EVENT, LLM_AFTER_EVENT, DECISION_SAY_DIRECTOR],
+    "skyrim_shout_decision_event_not_part_criteria": [DECISION_AFTER_EVENT, DECISION_SAY_DIRECTOR],
+    "skyrim_shout_decision_nobody_criteria": [DECISION_SAY, DECISION_SAY_DIRECTOR],
 }
 
 

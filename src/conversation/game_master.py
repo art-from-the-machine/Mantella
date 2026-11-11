@@ -109,6 +109,7 @@ def post_decision_with_retry(url: str, headers: dict[str, str], body: dict[str, 
 ADDRESSED_QUESTION = "addressed_" # Followed by the person's number, as their label can be anything
 ADDRESSED_INSTRUCTIONS = "Was {speaker}'s latest line addressed to {name}?"
 EVENT_PART_INSTRUCTIONS = "Is {name} part of what just happened (the last line, in brackets)?"
+DIRECTION_PART_INSTRUCTIONS = "Is {name} part of what just happened (the latest scene direction, the last line without a speaker)?"
 ADDRESSED_CRITERIA = "skyrim_shout_decision_addressed_criteria"
 NOT_ADDRESSED_CRITERIA = "skyrim_shout_decision_not_addressed_criteria"
 EVENT_PART_CRITERIA = "skyrim_shout_decision_event_part_criteria"
@@ -158,7 +159,8 @@ def cap_answering(flagged: list[Any], line: str, max_answering: int, free_places
 
 
 def latest_line(history: list[Message], after_event: bool) -> tuple[str, str]:
-    """Who said the latest line, and its text without thoughts. No speaker for an event (the last message), or if nothing was said yet"""
+    """Who said the latest line, and its text without thoughts. No speaker for an event (the last message), for a direction
+    the player gave in Director Mode (nobody in the scene said it), or if nothing was said yet"""
     if after_event:
         return "", history_text(history[-1:], False).strip()
     for message in reversed(history):
@@ -167,8 +169,18 @@ def latest_line(history: list[Message], after_event: bool) -> tuple[str, str]:
         if isinstance(message, AssistantMessage):
             turns = [turn for turn in message.get_formatted_turns(include_thoughts=False) if turn.strip()]
             return message.last_speaker_name(), turns[-1].strip() if turns else ""
+        if is_direction(message):
+            return "", history_text([message], False).strip()
         return str(getattr(message, "player_character_name", "") or ""), history_text([message], False).strip()
     return "", ""
+
+
+def is_latest_line_a_direction(history: list[Message]) -> bool:
+    """The latest line is a direction the player gave in Director Mode, not something someone in the scene said"""
+    for message in reversed(history):
+        if is_spoken_message(message):
+            return is_direction(message)
+    return False
 
 
 DECISION_INSTRUCTIONS = "skyrim_game_master_decision_instructions"
@@ -366,6 +378,12 @@ def is_spoken_message(message: Message) -> bool:
     return True
 
 
+def is_direction(message: Message) -> bool:
+    """A direction the player typed in Director Mode: narration that becomes true in the scene, not a line anyone in the scene said"""
+    return (isinstance(message, UserMessage) and message.is_director_message and bool(message.player_character_name)
+            and not message.is_system_generated_message and bool(message.text.strip()))
+
+
 def is_player_line(message: Message) -> bool:
     """Something the player said or directed. Not narration Mantella adds itself, nor a line with only in-game events"""
     return isinstance(message, UserMessage) and not message.is_system_generated_message and is_spoken_message(message)
@@ -405,8 +423,11 @@ class GameMaster:
         # Shout: what the last choice found out about the latest line
         self.aimed_at: list[Character | EventPerson] = [] # Everyone it was spoken to (or who is part of the event), whoever speaks first at the front. Empty if nobody, or not asked
         self.scores: dict[str, float] = {} # How likely each person speaks next, by name. Only from a decision model
-        self.line_speaker: str = "" # Who said it. Empty for an event
-        self.is_line_protected: bool = False # The player said it, or it is an event: the people it is aimed at answer even past the limit of NPC replies in a row
+        self.line_speaker: str = "" # Who said it. Empty for an event or a direction (Director Mode)
+        self.is_line_protected: bool = False # The player said or directed it, or it is an event: the people it is aimed at answer even past the limit of NPC replies in a row
+        self.__is_direction: bool = False # The latest line is a direction the player gave in Director Mode
+        self.__is_director: bool = False # Director Mode: the player is not part of the scene, so they take no place in the conversation
+        self.__lone_npc_spoke_last: Character | None = None # Director Mode with one NPC, who said the latest line: not picked again
         self.__line: tuple[int, str] = (0, "") # The latest line: how many messages there are, and its text
         self.__free_places: int = 0
         self.__usual_free_places: int = 0 # What Most People in Conversation lets in without the exception for an event
@@ -431,7 +452,9 @@ class GameMaster:
         """
         self.picked_player = False
         self.aimed_at, self.scores, self.line_speaker, self.is_line_protected = [], {}, "", False
+        self.__is_direction = False
         self.__is_past_limit_allowed = False
+        self.__lone_npc_spoke_last = None
         if not self.__client:
             return None
         config = self.__context.config
@@ -439,13 +462,18 @@ class GameMaster:
         player = self.__context.npcs_in_conversation.get_player_character()
         player_name = player.name if player else ""
         allow_player = allow_player and player is not None # A bystander of an NPC Event can only be drawn in as someone nearby
+        is_director = self.__conversation_type.is_director_mode()
+        self.__is_director = is_director
+        # A direction (Director Mode) is asked about like an event: who is part of it, not who it was spoken to. The people it is about join past Most People
+        self.__is_direction = not after_event and is_latest_line_a_direction(history)
         event = self.__context.npc_event
         shout_state = self.__context.shout if isinstance(self.__context.shout, ShoutState) else None
         participant_names = [npc.name for npc in npcs] + ([player_name] if player_name else [])
         nearby: list[EventPerson] = []
         if allow_nearby:
             if shout_state:
-                nearby = shout_state.nearby_choices(config, participant_names, len(npcs), has_player=player is not None, after_event=after_event)
+                nearby = shout_state.nearby_choices(config, participant_names, len(npcs), has_player=player is not None and not is_director,
+                                                    after_event=after_event, is_direction=self.__is_direction)
             noticed_player = event.noticed_player(config, participant_names) if event else None
             if noticed_player:
                 nearby = nearby + [noticed_player] # Outside Shout's limits: the scene can always draw in the player watching it
@@ -453,9 +481,13 @@ class GameMaster:
         if is_said_to_room and not nearby:
             logging.log(26, "Game Master: nobody nearby can answer")
             return None
-        if isinstance(self.__conversation_type, shout) and not nearby and len(npcs) == 1 and not always_ask:
-            # Shout with one NPC and nobody nearby offered: like a one-on-one conversation, the NPC answers and then the player speaks
-            return None if allow_player else npcs[0]
+        if (isinstance(self.__conversation_type, shout) or is_director) and not nearby and len(npcs) == 1 and not always_ask:
+            # One NPC and nobody nearby offered: like a one-on-one conversation, the NPC answers and then the player speaks.
+            # Director Mode: the NPC answers the direction once (the first speaker falls back to them), then the player directs again
+            return None if allow_player or is_director else npcs[0]
+        if is_director and len(npcs) == 1 and latest_line(history, after_event)[0] == npcs[0].name:
+            # Director Mode with one NPC, who just answered: someone nearby may still join, but the NPC doesn't talk on alone
+            self.__lone_npc_spoke_last = npcs[0]
         should_log = should_log_prompt(self.__logged_prompts, "game master|" + self.__context.get_character_names_as_text(True))
         if should_log:
             logging.log(26, "===== Game Master prompt =====")
@@ -538,12 +570,13 @@ class GameMaster:
         if not shout_state:
             return []
         self.line_speaker, text = latest_line(history, after_event)
-        self.is_line_protected = after_event or (bool(player_name) and self.line_speaker == player_name)
+        self.is_line_protected = after_event or self.__is_direction or (bool(player_name) and self.line_speaker == player_name)
         self.__line = (len(history), text)
-        self.__free_places = shout_state.free_places(len(npcs), bool(player_name), after_event)
-        self.__usual_free_places = shout_state.free_places(len(npcs), bool(player_name))
-        self.__is_past_limit_allowed = shout_state.is_past_limit_allowed(after_event)
-        if not text or (not after_event and not self.line_speaker) or shout_state.analysed_line == self.__line:
+        has_player = bool(player_name) and not self.__is_director
+        self.__free_places = shout_state.free_places(len(npcs), has_player, after_event, self.__is_direction)
+        self.__usual_free_places = shout_state.free_places(len(npcs), has_player)
+        self.__is_past_limit_allowed = shout_state.is_past_limit_allowed(after_event, self.__is_direction)
+        if not text or (not after_event and not self.__is_direction and not self.line_speaker) or shout_state.analysed_line == self.__line:
             return []
         candidates: list[Character | EventPerson] = [npc for npc in npcs if npc.name != self.line_speaker] + list(nearby)
         return candidates if len(candidates) > 1 else []
@@ -554,7 +587,7 @@ class GameMaster:
             return ""
         config = self.__context.config
         try:
-            if after_event:
+            if after_event or self.__is_direction:
                 rule = config.prompt_profile_manager.resolve_prompt(EVENT_PART_CRITERIA, config.shout_decision_event_part_criteria)
             else:
                 rule = config.prompt_profile_manager.resolve_prompt(ADDRESSED_CRITERIA, config.shout_decision_addressed_criteria)
@@ -573,8 +606,8 @@ class GameMaster:
         """
         config = self.__context.config
         manager = config.prompt_profile_manager
-        if after_event:
-            instructions = EVENT_PART_INSTRUCTIONS
+        if after_event or self.__is_direction:
+            instructions = DIRECTION_PART_INSTRUCTIONS if self.__is_direction else EVENT_PART_INSTRUCTIONS
             yes = manager.resolve_prompt(EVENT_PART_CRITERIA, config.shout_decision_event_part_criteria)
             no = manager.resolve_prompt(EVENT_NOT_PART_CRITERIA, config.shout_decision_event_not_part_criteria)
         else:
@@ -604,6 +637,9 @@ class GameMaster:
                         listed: list[Character | EventPerson] | None = None) -> Character | EventPerson | None:
         """Shout: applies who the latest line was aimed at to the Game Master's own choice of who speaks next (see __apply_aimed_at)"""
         speaker = self.__apply_aimed_at(usual, flagged, listed)
+        if speaker is not None and speaker is self.__lone_npc_spoke_last:
+            logging.log(26, f"Game Master: {speaker.name} already answered the direction and is the only NPC, so the player directs again")
+            return None
         self.__log_past_limit(speaker)
         return speaker
 
@@ -617,7 +653,7 @@ class GameMaster:
         if len(joining) > self.__usual_free_places:
             shout_state = cast(ShoutState, self.__context.shout)
             logging.log(26, f"Game Master: {', '.join(person.name for person in joining)} join past Most People in Conversation "
-                            f"({shout_state.max_people}), as the event is about them")
+                            f"({shout_state.max_people}), as the {'direction' if self.__is_direction else 'event'} is about them")
 
     def __apply_aimed_at(self, usual: Character | EventPerson | None, flagged: list[Character | EventPerson] | None,
                          listed: list[Character | EventPerson] | None = None) -> Character | EventPerson | None:
@@ -716,7 +752,9 @@ class GameMaster:
                 criteria = PromptDefinitions.apply_prompt_conditions(criteria_type, config.prompt_profile_manager.resolve_prompt(criteria_type, criteria_text), conditions)
                 nearby_criteria = {p.name: fill_prompt_variables(criteria, {"name": p.name, "player_name": event_player_name}) for p in nearby}
             if is_said_to_room:
-                nobody_criteria = config.prompt_profile_manager.resolve_prompt(SHOUT_NOBODY_CRITERIA, config.shout_decision_nobody_criteria)
+                nobody_criteria = PromptDefinitions.apply_prompt_conditions(SHOUT_NOBODY_CRITERIA,
+                    config.prompt_profile_manager.resolve_prompt(SHOUT_NOBODY_CRITERIA, config.shout_decision_nobody_criteria),
+                    {"director"} if self.__conversation_type.is_director_mode() else set())
                 nearby_criteria[NOBODY_ANSWERS] = fill_prompt_variables(nobody_criteria, {"player_name": player_name or "Player"})
         except PromptSectionError as e:
             logging.error(str(e))

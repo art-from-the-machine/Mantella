@@ -124,17 +124,34 @@ class pc_to_npc(conversation_type):
         return message
 
 class multi_npc(conversation_type):
-    """Group conversation between the PC and multiple NPCs"""
-    def __init__(self, config: ConfigLoader) -> None:
+    """Group conversation between the PC and multiple NPCs. With Director Mode on, also a directed conversation with only one NPC"""
+    def __init__(self, config: ConfigLoader, can_direct: bool = True) -> None:
+        """
+        Args:
+            can_direct (bool): False for a conversation an NPC started (NPC Initiative): the player always speaks in it, also with Director Mode on
+        """
         super().__init__(config)
+        self._can_direct = can_direct
+
+    @staticmethod
+    def is_director_enabled(config: ConfigLoader) -> bool:
+        """Multi Conversation Director Mode is on. Skyrim only, as the director prompts only exist for Skyrim"""
+        return bool(config.multi_conversation_director_mode) and config.game.base_game != GameEnum.FALLOUT4
 
     def is_director_mode(self) -> bool:
-        """Multi Conversation Director Mode. Skyrim only, as the director prompts only exist for Skyrim"""
-        return bool(self._config.multi_conversation_director_mode) and self._config.game.base_game != GameEnum.FALLOUT4
+        """The player directs this conversation: Director Mode is on and an NPC didn't start it"""
+        return self._can_direct and multi_npc.is_director_enabled(self._config)
+
+    def npc_actions(self, context_for_conversation: Context) -> list:
+        """The actions an NPC can take in this conversation. With only one NPC (Shout, or a directed conversation),
+        they keep the actions of a one-on-one conversation (follow, trade, ...)"""
+        if context_for_conversation.npcs_in_conversation.contains_multiple_npcs():
+            return [a for a in self._config.actions if a.use_in_multi_npc]
+        return [a for a in self._config.actions if a.use_in_on_on_one]
 
     @utils.time_it
     def generate_prompt(self, context_for_conversation: Context, should_log: bool = False, messages_for_lorebook: message_thread | None = None) -> str:
-        actions = [a for a in self._config.actions if a.use_in_multi_npc]
+        actions = self.npc_actions(context_for_conversation)
         if self.is_director_mode():
             return context_for_conversation.generate_system_message(self._config.multi_npc_director_prompt, actions, should_log, messages_for_lorebook, "skyrim_multi_npc_director_prompt")
         prompt_type = None if self._config.game.base_game == GameEnum.FALLOUT4 else "skyrim_multi_npc_prompt"
@@ -161,8 +178,8 @@ class multi_npc(conversation_type):
 class multi_npc_game_master(multi_npc):
     """Group conversation between the PC and multiple NPCs where a Game Master LLM decides who speaks next.
     Each NPC's reply is generated with a prompt that only contains that NPC. Skyrim only."""
-    def __init__(self, config: ConfigLoader) -> None:
-        super().__init__(config)
+    def __init__(self, config: ConfigLoader, can_direct: bool = True) -> None:
+        super().__init__(config, can_direct)
 
     @staticmethod
     def is_enabled(config: ConfigLoader) -> bool:
@@ -184,10 +201,6 @@ class multi_npc_game_master(multi_npc):
                 Criteria get theirs from Shout or the NPC Event (nearby_criteria)
         """
         return {"director"} if self.is_director_mode() else set()
-
-    def npc_actions(self, context_for_conversation: Context) -> list:
-        """The actions an NPC can take in this conversation"""
-        return [a for a in self._config.actions if a.use_in_multi_npc]
 
     @utils.time_it
     def generate_npc_prompt(self, context_for_conversation: Context, speaker: Character, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
@@ -214,10 +227,13 @@ class npc_event(multi_npc_game_master):
         return config.game.base_game != GameEnum.FALLOUT4
 
     def is_director_mode(self) -> bool:
-        return False
+        return False # The player watches. Once they join, it is a Shout conversation, which follows Director Mode
 
     def prompt_conditions(self, context_for_conversation: Context, prompt_type: str) -> set[str]:
         return {"npc_event"}
+
+    def npc_actions(self, context_for_conversation: Context) -> list:
+        return [a for a in self._config.actions if a.use_in_multi_npc]
 
     @utils.time_it
     def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:
@@ -225,28 +241,24 @@ class npc_event(multi_npc_game_master):
 
 class shout(multi_npc_game_master):
     """Shout: anyone near the player can answer them or join in. Always runs with a Game Master, also when Game Master Mode
-    is disabled and when the player talks to only one NPC. The Game Master may pick someone nearby, who joins and speaks next. Skyrim only."""
-    def __init__(self, config: ConfigLoader) -> None:
-        super().__init__(config)
+    is disabled and when the player talks to only one NPC. The Game Master may pick someone nearby, who joins and speaks next.
+    Follows Director Mode, also with one NPC or nobody in the conversation yet (a direction said to the room). Skyrim only."""
+    def __init__(self, config: ConfigLoader, can_direct: bool = True) -> None:
+        super().__init__(config, can_direct)
 
     @staticmethod
     def is_enabled(config: ConfigLoader) -> bool:
         return config.game.base_game != GameEnum.FALLOUT4
 
-    def is_director_mode(self) -> bool:
-        return False
-
     def prompt_conditions(self, context_for_conversation: Context, prompt_type: str) -> set[str]:
         # The NPC prompt is always 'shout': whoever speaks has been added to the conversation by then, so nothing is said to the room
         if prompt_type != "skyrim_game_master_npc_prompt" and shout.is_said_to_room(context_for_conversation):
-            return {"say_to_room"}
-        return {"shout"}
-
-    def npc_actions(self, context_for_conversation: Context) -> list:
-        if context_for_conversation.npcs_in_conversation.contains_multiple_npcs():
-            return [a for a in self._config.actions if a.use_in_multi_npc]
-        # Talking to one person: they keep the actions of a one-on-one conversation (follow, trade, ...)
-        return [a for a in self._config.actions if a.use_in_on_on_one]
+            conditions = {"say_to_room"}
+        else:
+            conditions = {"shout"}
+        if self.is_director_mode():
+            conditions.add("director")
+        return conditions
 
     @staticmethod
     def is_said_to_room(context_for_conversation: Context) -> bool:

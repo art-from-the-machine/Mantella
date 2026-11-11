@@ -1,7 +1,7 @@
 import fnmatch
 import logging
 import os
-from typing import Any, Hashable, List, TYPE_CHECKING
+from typing import Any, Callable, Hashable, List, TYPE_CHECKING
 import re
 from src.conversation.action import Action
 from src.http.communication_constants import communication_constants
@@ -120,6 +120,10 @@ class context:
         self.__vision_hints: str = ''
         self.__have_actors_changed: bool = False
         self.npc_initiative: bool = False # The NPC walked up to the player: their first reply uses the NPC Initiative Prompt until the player answers
+        self.started_by_npc: bool = False # The NPC walked up to the player (NPC Initiative). Kept for the whole conversation: Director Mode never applies to it
+        # True while the player directs the conversation (Director Mode): the player is not part of the scene, so nothing about them is added.
+        # The conversation sets it, to read its current type each time
+        self.is_directed: Callable[[], bool] = lambda: False
         self.npc_event: "NpcEvent | None" = None # The conversation acts out an NPC Event. Kept for the whole conversation, whoever joins
         self.shout: "ShoutState | None" = None # The player is shouting: anyone nearby can answer or join in. Set while Shout is on
         self.__game: GameEnum = config.game
@@ -431,7 +435,8 @@ class context:
             self.set_vision_hints(
                 str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSNAMEARRAY)), 
                 str(self.get_custom_context_value(communication_constants.KEY_CONTEXT_CUSTOMVALUES_VISION_HINTSDISTANCEARRAY)))
-            self.__add_ingame_event(self.__vision_hints)
+            if not self.is_directed(): # Director Mode: what the player's character can see is not part of the scene
+                self.__add_ingame_event(self.__vision_hints)
 
         if custom_ingame_events:
             self.__ingame_events.extend(custom_ingame_events)
@@ -439,8 +444,9 @@ class context:
     @utils.time_it
     def __update_ingame_events_on_npc_change(self, npc: Character):
         current_stats: Character = self.__npcs_in_conversation.get_character_by_name(npc.name)
+        is_player_hidden = self.is_directed() # Director Mode: the player is not part of the scene, so no event is about them
         #Is in Combat
-        if current_stats.is_in_combat != npc.is_in_combat:
+        if current_stats.is_in_combat != npc.is_in_combat and not (npc.is_player_character and is_player_hidden):
             name = 'The player' if npc.is_player_character else npc.name
             if npc.is_in_combat:
                 self.__add_ingame_event(f"{name} is now in combat!")
@@ -459,7 +465,7 @@ class context:
                 current_stats.set_custom_character_value("mantella_actor_pos_y", npc.get_custom_character_value("mantella_actor_pos_y"))
         except Exception as e:
             logging.info(f"Updating custom values failed: {e}")
-        if not npc.is_player_character:
+        if not npc.is_player_character and not is_player_hidden:
             player_name = "the player"
             player = self.__npcs_in_conversation.get_player_character()
             if player:

@@ -214,14 +214,14 @@ class ShoutState(Bystanders):
         self.answer_first_ref_id = ""
         self.still_to_answer.clear()
 
-    def is_past_limit_allowed(self, after_event: bool) -> bool:
-        """The reaction to a Nearby or Random Event: the people it is about join even past Most People in Conversation"""
-        return after_event and self.event_ignores_max_people
+    def is_past_limit_allowed(self, after_event: bool, is_direction: bool = False) -> bool:
+        """The reaction to a Nearby or Random Event, or to a direction (Director Mode): the people it is about join even past Most People in Conversation"""
+        return (after_event and self.event_ignores_max_people) or is_direction
 
-    def free_places(self, npc_count: int, has_player: bool = True, after_event: bool = False) -> int:
-        """How many more people Most People in Conversation lets in. The player counts while in the conversation.
-        Everyone nearby while reacting to a Nearby or Random Event"""
-        if self.is_past_limit_allowed(after_event):
+    def free_places(self, npc_count: int, has_player: bool = True, after_event: bool = False, is_direction: bool = False) -> int:
+        """How many more people Most People in Conversation lets in. The player counts while in the conversation (not while directing it).
+        Everyone nearby while reacting to a Nearby or Random Event, or to a direction"""
+        if self.is_past_limit_allowed(after_event, is_direction):
             return len(self.nearby)
         return max(0, self.max_people - npc_count - (1 if has_player else 0))
 
@@ -254,13 +254,13 @@ class ShoutState(Bystanders):
         return [self.still_to_answer.pop(ref_id).name for ref_id in dropped]
 
     def nearby_choices(self, config: ConfigLoader, participant_names: list[str], npc_count: int, has_player: bool = True,
-                       after_event: bool = False) -> list[EventPerson]:
+                       after_event: bool = False, is_direction: bool = False) -> list[EventPerson]:
         """The nearby people the Game Master may draw in right now. Nobody unless every limit allows it.
-        Reacting to a Nearby or Random Event, Most People in Conversation does not apply: the event is about them"""
+        Reacting to a Nearby or Random Event, or to a direction, Most People in Conversation does not apply: it is about them"""
         people = self.nearby_people(config, participant_names)
         if not people or self.pending_add:
             return []
-        if self.free_places(npc_count, has_player, after_event) == 0:
+        if self.free_places(npc_count, has_player, after_event, is_direction) == 0:
             return []
         return people
 

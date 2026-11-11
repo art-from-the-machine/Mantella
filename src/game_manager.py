@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any, Hashable, TYPE_CHECKING
 import regex
 from src.config.definitions.llm_definitions import NarrationHandlingEnum
@@ -474,6 +475,7 @@ class GameStateManager:
         context_for_conversation = Context(world_id, self.__config, self.__client, self.__rememberer, self.__language_info)
         # Set before the first system prompt is built, which happens in __update_context below
         context_for_conversation.npc_initiative = bool(input_json.get(comm_consts.KEY_STARTCONVERSATION_NPCINITIATIVE, False))
+        context_for_conversation.started_by_npc = context_for_conversation.npc_initiative
         event_id = int(input_json.get(comm_consts.KEY_NPCEVENT_ID, 0))
         pending_event, self.__pending_npc_event = self.__pending_npc_event, None
         if event_id:
@@ -721,6 +723,9 @@ class GameStateManager:
                 elif int(refid) not in loaded and int(refid) in shout_characters:
                     loaded[int(refid)] = shout_characters[int(refid)]
             people = self.__label_nearby(refids, input_json.get(comm_consts.KEY_EVENT_NEARBY_NAMES, []), {refid: c.name for refid, c in loaded.items()})
+            hides_player = talk.is_directed() # Director Mode: the player is not part of the scene, so the event is never about them
+            if hides_player and player:
+                people = [person for person in people if person.ref_id != player.ref_id]
             if kind == "conversation":
                 names = [npc.name for npc in members]
                 described = members
@@ -728,7 +733,7 @@ class GameStateManager:
                 names = [person.name for person in people]
                 max_described = max(0, int(input_json.get(comm_consts.KEY_EVENT_MAXDESCRIBED, 6)))
                 described = [loaded[person.refid] for person in people[:max_described] if person.refid in loaded]
-            if bool(input_json.get(comm_consts.KEY_EVENT_INCLUDEPLAYER, False)) and player_name:
+            if bool(input_json.get(comm_consts.KEY_EVENT_INCLUDEPLAYER, False)) and player_name and not hides_player:
                 names.append(player_name)
             bios_and_summaries = build_bios_and_summaries_text(described, self.__config, self.__rememberer, context.world_id, player_name or None,
                                                                contains_player=True, always_multi_npc=True)
@@ -737,7 +742,8 @@ class GameStateManager:
             logging.log(26, f"Event ({kind}) about: {', '.join(names) or 'nobody'}. With bios and memories: {', '.join(c.name for c in described) or 'nobody'}."
                             + (f" Hint: {hint}" if hint else ""))
             text = generate_conversation_event(self.__config, self.__get_npc_event_client(), kind, names, player_name, player_description,
-                                               context.location, context.ingame_time, context.weather, bios_and_summaries, hint, history_lines, is_cancelled)
+                                               context.location, context.ingame_time, context.weather, bios_and_summaries, hint, history_lines, is_cancelled,
+                                               hides_player=hides_player)
             if is_cancelled():
                 logging.log(26, "Event cancelled: the conversation ended")
                 return nothing
@@ -757,8 +763,8 @@ class GameStateManager:
         self.__first_line = True
         
         player_text: str = input_json.get(comm_consts.KEY_REQUESTTYPE_PLAYERINPUT, '')
-        self.__add_quest_tag_announcements(input_json)
-        self.__update_context(input_json)
+        quest_events = self.__get_quest_tag_announcements(input_json)
+        self.__update_context(input_json, quest_events)
         updated_player_text, update_events, player_spoken_sentence = self.__talk.process_player_input(player_text)
         if updated_player_text is None:
             # The player picked an event on the Conversation Wheel instead of speaking. Still their turn: the game sends the event now
@@ -1373,20 +1379,36 @@ class GameStateManager:
 
     ##### utils #######
 
-    def __add_quest_tag_announcements(self, input_json: dict[str, Any]):
-        """Records quest tag changes found when the player speaks, and adds the announced ones to the in-game events.
-        They are added last, so the Max Count Events limit never cuts them, and they go through the Ignored In-Game Events filter"""
+    def __get_quest_tag_announcements(self, input_json: dict[str, Any]) -> list[str]:
+        """Records quest tag changes found when the player speaks, and returns the announced ones, for the in-game events.
+        __update_context adds them last, so the Max Count Events limit never cuts them, and they go through the Ignored In-Game Events filter"""
         if not self.__talk or comm_consts.KEY_CONTEXT not in input_json:
-            return
+            return []
         context_json: dict[str, Any] = input_json[comm_consts.KEY_CONTEXT]
         _, announced = self.__quest_tags.apply_report(self.__game, self.__talk.context.world_id, context_json, QuestTagTracker.MOMENT_PLAYER_INPUT)
         player = self.__talk.context.npcs_in_conversation.get_player_character()
-        texts = self.__quest_tags.get_announcements(self.__game, announced, player.name if player else None)
-        if texts:
-            context_json[comm_consts.KEY_CONTEXT_INGAMEEVENTS] = list(context_json.get(comm_consts.KEY_CONTEXT_INGAMEEVENTS) or []) + texts
+        return self.__quest_tags.get_announcements(self.__game, announced, player.name if player else None)
+
+    def __without_player_events(self, ingame_events: list[str]) -> list[str]:
+        """Director Mode: the player is not part of the scene, so the game's events about them are left out:
+        those naming the player's character, or "the player" (the game's wording when the MCM doesn't use the player's name)"""
+        player = self.__talk.context.npcs_in_conversation.get_player_character() if self.__talk else None
+        patterns = [r"\bthe player\b"] + ([rf"\b{re.escape(player.name)}\b"] if player and player.name.strip() else [])
+        kept = []
+        for event in ingame_events:
+            if any(re.search(pattern, str(event), re.IGNORECASE) for pattern in patterns):
+                logging.log(26, f"Director Mode: left out an event about the player: {event}")
+            else:
+                kept.append(event)
+        return kept
 
     @utils.time_it
-    def __update_context(self,  json: dict[str, Any]):
+    def __update_context(self,  json: dict[str, Any], quest_events: list[str] | None = None):
+        """Updates the conversation with what the game sent
+
+        Args:
+            quest_events (list[str] | None): quest tag announcements, added after the game's events. Kept in Director Mode too
+        """
         if self.__talk:
             if json.__contains__(comm_consts.KEY_ACTORS):
                 actors_in_json: list[Character] = []
@@ -1417,6 +1439,10 @@ class GameStateManager:
 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
                     custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
+            if ingame_events and self.__talk.is_directed():
+                ingame_events = self.__without_player_events(ingame_events)
+            if quest_events:
+                ingame_events = list(ingame_events or []) + quest_events
             self.__talk.update_context(location, time, ingame_events, weather, custom_context_values)
     
     @utils.time_it

@@ -5,6 +5,7 @@ import re
 import time
 from typing import Dict, List, Tuple
 from src.config.config_loader import ConfigLoader
+from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.games.gameable import Gameable
 from src.llm.summary_client import SummaryLLMCLient
 from src.llm.client_base import ClientBase
@@ -265,6 +266,21 @@ def thread_contains_player(messages: message_thread | None) -> bool:
                     return True
             character = getattr(message, "character", None)
             if character is not None and getattr(character, "is_player_character", False):
+                return True
+    except Exception:
+        return False
+    return False
+
+
+def thread_was_directed(messages: message_thread | None) -> bool:
+    """True when the player directed the conversation (Director Mode): it has scene directions the player typed.
+    The player was not part of it, so it is remembered as a conversation without them"""
+    if messages is None:
+        return False
+    try:
+        for message in messages.get_persistent_messages():
+            if (isinstance(message, UserMessage) and message.is_director_message and (message.player_character_name or "").strip()
+                    and not message.is_system_generated_message and message.text.strip()):
                 return True
     except Exception:
         return False
@@ -858,6 +874,9 @@ class Summaries(Remembering):
         memory_template = self.__config.memory_prompt
         try:
             memory_template = self.__config.prompt_profile_manager.resolve_prompt("memory_prompt", memory_template)
+            # Director Mode: the player was not part of the conversation, and their lines were scene directions
+            memory_template = PromptDefinitions.apply_prompt_conditions("memory_prompt", memory_template,
+                                                                        {"director"} if thread_was_directed(npcInfo.messages) else set())
         except PromptSectionError as e:
             logging.error(str(e))
             return ""
