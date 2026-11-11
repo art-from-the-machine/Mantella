@@ -278,6 +278,15 @@
     padding: var(--size-2) var(--size-3) !important;
 }
 
+/* Prompt Profiles: Shared sections as their own box below the profile editor, the same look as the Tag Editor's boxes */
+.prompt-editor-subsection {
+    border: 1px solid var(--border-color-primary) !important;
+    border-radius: var(--radius-lg) !important;
+    background: var(--background-fill-secondary) !important;
+    padding: var(--size-2) var(--size-3) !important;
+    margin-top: var(--size-4) !important;
+}
+
 /* Tag Editor: the tag list without its own label, and a small Reload files button beside it */
 .tag-editor-picker {
     align-items: center !important;
@@ -380,3 +389,56 @@
 #live-conversation-table tr.mantella-row-selected td:first-child {
     box-shadow: inset 3px 0 0 var(--color-accent);
 }
+
+/* Prompt text boxes coloured like an IDE (src/ui/prompt_highlight.py): a coloured copy of the text sits behind the box,
+   whose own text is transparent. The script sets the layout itself; here are only the colours. Only colours and backgrounds,
+   never bold or padding: the copy must keep the same widths as the typed text */
+.ph-line {
+    position: relative;
+}
+/* The bar of a block sits in the box's left padding, so it never covers the first letter */
+.ph-line[class*="ph-depth-"]::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--ph-bar);
+}
+.ph-textarea::selection {
+    background: rgba(100, 150, 255, 0.35);
+}
+.ph-textarea::placeholder {
+    -webkit-text-fill-color: var(--input-placeholder-color, #888) !important;
+}
+/* Light theme */
+.ph-tag { color: #7c3aed; background: rgba(124, 58, 237, 0.12); border-radius: 3px; }
+.ph-keyword { color: #7c3aed; }
+.ph-condition { color: #c2410c; }
+.ph-operator { color: #0369a1; }
+.ph-variable { color: #1d4ed8; }
+.ph-section { color: #15803d; }
+.ph-error, .ph-unknown { text-decoration: underline wavy #dc2626; text-decoration-skip-ink: none; }
+.ph-error { background: rgba(220, 38, 38, 0.15); }
+.ph-match { background: rgba(234, 179, 8, 0.35); box-shadow: 0 0 0 1px #ca8a04; }
+/* Nesting depth shows only as a coloured bar at the left edge, no background tint */
+.ph-depth-1 { --ph-bar: rgba(59, 130, 246, 0.45); }
+.ph-depth-2 { --ph-bar: rgba(124, 58, 237, 0.5); }
+.ph-depth-3 { --ph-bar: rgba(234, 88, 12, 0.5); }
+.ph-depth-4 { --ph-bar: rgba(22, 163, 74, 0.5); }
+/* Dark theme */
+.dark .ph-tag { color: #c792ea; background: rgba(199, 146, 234, 0.16); }
+.dark .ph-keyword { color: #c792ea; }
+.dark .ph-condition { color: #f78c6c; }
+.dark .ph-operator { color: #89ddff; }
+.dark .ph-variable { color: #82aaff; }
+.dark .ph-section { color: #c3e88d; }
+.dark .ph-error, .dark .ph-unknown { text-decoration-color: #ff5370; }
+.dark .ph-error { background: rgba(255, 83, 112, 0.22); }
+.dark .ph-match { background: rgba(255, 203, 107, 0.3); box-shadow: 0 0 0 1px #ffcb6b; }
+.dark .ph-depth-1 { --ph-bar: rgba(130, 170, 255, 0.5); }
+.dark .ph-depth-2 { --ph-bar: rgba(199, 146, 234, 0.55); }
+.dark .ph-depth-3 { --ph-bar: rgba(247, 140, 108, 0.55); }
+.dark .ph-depth-4 { --ph-bar: rgba(195, 232, 141, 0.55); }

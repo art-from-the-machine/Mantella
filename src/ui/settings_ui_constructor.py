@@ -6,6 +6,7 @@ import logging
 from src.llm.client_base import ClientBase
 from src.model_profile_manager import ModelProfileManager
 from src.prompt_profile_manager import PromptProfileManager
+from src.ui.prompt_highlight import prompt_box_classes
 from src.config.config_loader import ConfigLoader
 from src.config.types.config_value_path import ConfigValuePath
 from src.config.types.config_value_bool import ConfigValueBool
@@ -369,7 +370,9 @@ class SettingsUIConstructor(ConfigValueVisitor):
             setting.config_value, input_ui, error_message,
             setting.update_on_change, setting.update_on_submit, setting.update_on_blur
         )
-        
+        if isinstance(setting.config_value, ConfigValueString):
+            self.__embed_prompt_preview(setting.config_value, input_ui)
+
         return SettingUIComponents(input_ui, error_message)
 
     def __embed_save_summary_now_toggles(self) -> None:
@@ -795,9 +798,25 @@ class SettingsUIConstructor(ConfigValueVisitor):
             label="Prompt text",
             lines=16,
             max_lines=16,
-            elem_classes="multiline-textbox"
+            elem_classes=["multiline-textbox", *prompt_box_classes(initial_type)]
         )
         load_prompts_tab_btn = gr.Button("Load from Prompts tab", size="sm")
+        initial_situations = PromptProfileManager.preview_situation_labels(initial_type)
+        with gr.Accordion("Preview: the text sent in one situation", open=False, visible=bool(initial_situations)) as preview_accordion_ui:
+            preview_situation_ui = gr.Dropdown(
+                choices=initial_situations,
+                value=initial_situations[0] if initial_situations else None,
+                label="Show as",
+                allow_custom_value=False
+            )
+            preview_ui = gr.Textbox(
+                value=manager.preview_text(initial_type, initial_text or "", initial_situations[0]) if initial_situations else "",
+                label="Text sent in this situation (variables are filled in when it is sent)",
+                lines=12,
+                max_lines=12,
+                interactive=False,
+                elem_classes="multiline-textbox"
+            )
         initial_error_message, initial_error_visible = validation_result(initial_type, initial_text or "")
         error_ui = self.__construct_error_message_panel(initial_error_message, is_visible=initial_error_visible)
         active_ui = gr.Dropdown(
@@ -808,40 +827,43 @@ class SettingsUIConstructor(ConfigValueVisitor):
         )
         status_ui = gr.Markdown("")
 
-        gr.Markdown(
-            "**Shared sections**\n\n"
-            "Write a block of prompt text once, then reuse it in any profile. "
-            "In the prompt above, insert the section by name, for example `{roleplay_section}`. "
-            "Saving the section updates every active profile that uses it. The next request sends the new text.\n\n"
-            "- The name can use letters, digits, and underscores, such as `roleplay_section`.\n"
-            "- Inside the section, built-in variables such as `{name}` and `{player_name}` are filled in when the prompt is sent.\n"
-            "- A section cannot contain another shared section.\n"
-            "- If the expanded section uses a variable this prompt type does not allow, saving that profile is rejected."
-        )
-        with gr.Row():
-            section_edit_ui = gr.Dropdown(
-                choices=initial_section_names,
-                value=initial_section,
-                label="Edit shared section",
-                allow_custom_value=False
+        # Shared sections: their own box below the profiles, since a section is used by profiles of every prompt type
+        with gr.Column(elem_classes="prompt-editor-subsection"):
+            gr.Markdown("### Shared sections")
+            with gr.Accordion("How shared sections work", open=False):
+                gr.Markdown(
+                    "Write a block of prompt text once, then reuse it in any profile. "
+                    "In a profile's prompt text, insert the section by name, for example `{roleplay_section}`. "
+                    "Saving the section updates every active profile that uses it. The next request sends the new text.\n\n"
+                    "- The name can use letters, digits, and underscores, such as `roleplay_section`.\n"
+                    "- Inside the section, built-in variables such as `{name}` and `{player_name}` are filled in when the prompt is sent.\n"
+                    "- A section cannot contain another shared section.\n"
+                    "- If the expanded section uses a variable this prompt type does not allow, saving that profile is rejected."
+                )
+            with gr.Row():
+                section_edit_ui = gr.Dropdown(
+                    choices=initial_section_names,
+                    value=initial_section,
+                    label="Edit shared section",
+                    allow_custom_value=False
+                )
+                section_save_btn = gr.Button("Save", variant="primary", size="sm")
+                section_rename_btn = gr.Button("Rename", size="sm")
+                section_delete_btn = gr.Button("Delete", variant="secondary", size="sm")
+            section_name_ui = gr.Text(value=initial_section or "", label="Section name", max_lines=1)
+            section_text_ui = gr.Textbox(
+                value=initial_section_text or "",
+                label="Section text",
+                lines=8,
+                max_lines=8,
+                elem_classes=["multiline-textbox", *prompt_box_classes(None)] # A section can go into any prompt
             )
-            section_save_btn = gr.Button("Save", variant="primary", size="sm")
-            section_rename_btn = gr.Button("Rename", size="sm")
-            section_delete_btn = gr.Button("Delete", variant="secondary", size="sm")
-        section_name_ui = gr.Text(value=initial_section or "", label="Section name", max_lines=1)
-        section_text_ui = gr.Textbox(
-            value=initial_section_text or "",
-            label="Section text",
-            lines=8,
-            max_lines=8,
-            elem_classes="multiline-textbox"
-        )
-        initial_section_error = manager.validate_section_text(initial_section_text or "")
-        section_error_ui = self.__construct_error_message_panel(
-            "" if initial_section_error.is_success else initial_section_error.error_message,
-            is_visible=not initial_section_error.is_success
-        )
-        section_status_ui = gr.Markdown("")
+            initial_section_error = manager.validate_section_text(initial_section_text or "")
+            section_error_ui = self.__construct_error_message_panel(
+                "" if initial_section_error.is_success else initial_section_error.error_message,
+                is_visible=not initial_section_error.is_success
+            )
+            section_status_ui = gr.Markdown("")
 
         def on_type_change(type_display: str):
             prompt_type = type_id(type_display)
@@ -852,7 +874,8 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 manager.variables_markdown(prompt_type),
                 edit_dropdown(prompt_type, selected),
                 selected or "",
-                text or "",
+                # The text box's colouring follows the prompt type, for the conditions it may use
+                gr.update(value=text or "", elem_classes=["multiline-textbox", *prompt_box_classes(prompt_type)]),
                 validation_panel(prompt_type, text or ""),
                 active_dropdown(prompt_type),
                 ""
@@ -993,6 +1016,14 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 validation_panel(prompt_type, prompt_text or "")
             )
 
+        def on_preview_type_change(type_display: str):
+            situations = PromptProfileManager.preview_situation_labels(type_id(type_display))
+            return (gr.update(visible=bool(situations)),
+                    gr.update(choices=situations, value=situations[0] if situations else None))
+
+        def refresh_preview(type_display: str, text: str, situation: str):
+            return manager.preview_text(type_id(type_display), text or "", situation or "")
+
         def on_active_change(type_display: str, active_value: str):
             prompt_type = type_id(type_display)
             names = manager.get_profile_names(prompt_type)
@@ -1081,6 +1112,39 @@ class SettingsUIConstructor(ConfigValueVisitor):
             outputs=[status_ui],
             show_progress="hidden"
         )
+        # The preview follows the prompt type, the chosen situation and the text, also when the text is loaded or a section changes
+        type_ui.change(
+            on_preview_type_change,
+            inputs=[type_ui],
+            outputs=[preview_accordion_ui, preview_situation_ui],
+            show_progress="hidden"
+        )
+        preview_inputs = [type_ui, text_ui, preview_situation_ui]
+        for trigger in (preview_situation_ui.change, text_ui.change, section_save_btn.click, section_rename_btn.click, section_delete_btn.click):
+            trigger(refresh_preview, inputs=preview_inputs, outputs=[preview_ui], show_progress="hidden")
+
+    def __embed_prompt_preview(self, config_value: ConfigValue, input_ui: Any) -> None:
+        """The Prompts tab: under a merged prompt, the text it sends in one chosen situation. Shared sections are not expanded here,
+        since the Prompts tab text is sent as it is"""
+        prompt_type = config_value.identifier
+        situations = PromptProfileManager.preview_situation_labels(prompt_type)
+        if not situations:
+            return
+        manager = self.get_prompt_profile_manager()
+        with gr.Accordion("Preview: the text sent in one situation", open=False):
+            situation_ui = gr.Dropdown(choices=situations, value=situations[0], label="Show as", allow_custom_value=False)
+            preview_ui = gr.Textbox(
+                value=manager.preview_text(prompt_type, str(config_value.value), situations[0], expand_sections=False),
+                label="Text sent in this situation (variables are filled in when it is sent)",
+                lines=12,
+                max_lines=12,
+                interactive=False,
+                elem_classes="multiline-textbox"
+            )
+        def refresh(text: str, situation: str):
+            return manager.preview_text(prompt_type, text or "", situation or "", expand_sections=False)
+        for trigger in (situation_ui.change, input_ui.change):
+            trigger(refresh, inputs=[input_ui, situation_ui], outputs=[preview_ui], show_progress="hidden")
 
     def visit_ConfigValueGroup(self, config_value: ConfigValueGroup):
         if not config_value.is_hidden:
@@ -1258,6 +1322,14 @@ class SettingsUIConstructor(ConfigValueVisitor):
                 )
             
             count_rows = self.__count_rows_in_text(config_value.value)
+            if PromptProfileManager.is_known_type(config_value.identifier):
+                # A prompt: always a text area, so its tags, variables and sections can be coloured (also a one-line prompt, which grows as it wraps)
+                return gr.Text(value=config_value.value,
+                        show_label=False,
+                        container=False,
+                        lines=count_rows,
+                        max_lines=max(20, count_rows),
+                        elem_classes=["multiline-textbox", *prompt_box_classes(config_value.identifier)])
             if count_rows == 1:
                 return gr.Text(value=config_value.value,
                         show_label=False, 

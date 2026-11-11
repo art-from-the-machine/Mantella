@@ -8,6 +8,7 @@ from typing import Any, Callable, cast
 import requests
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
+from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.conversation.context import context as Context
 from src.conversation.bystanders import AnswerDue, EventPerson, ShoutState
 from src.conversation.conversation_type import multi_npc_game_master, shout
@@ -173,33 +174,28 @@ def latest_line(history: list[Message], after_event: bool) -> tuple[str, str]:
 DECISION_INSTRUCTIONS = "skyrim_game_master_decision_instructions"
 DECISION_NPC_CRITERIA = "skyrim_game_master_decision_npc_criteria"
 DECISION_PLAYER_CRITERIA = "skyrim_game_master_decision_player_criteria"
-DECISION_EVENT_INSTRUCTIONS = "skyrim_game_master_decision_event_instructions"
-DECISION_EVENT_PLAYER_CRITERIA = "skyrim_game_master_decision_event_player_criteria"
 SHOUT_NOBODY_CRITERIA = "skyrim_shout_decision_nobody_criteria"
 NOBODY_ANSWERS = "Nobody" # Just saying something: the Game Master's choice when nobody nearby answers the player
 
 
 def resolve_decision_prompts(config: ConfigLoader, after_event: bool = False) -> dict[str, str]:
-    """The decision prompts by prompt type, with an active prompt profile's shared sections expanded
+    """The decision prompts by prompt type, with an active prompt profile's shared sections expanded and their conditional blocks applied
 
     Args:
-        after_event (bool): the first choice after a Conversation, Nearby or Random Event. The event's question and player criteria
-            are returned in place of the usual ones
+        after_event (bool): the first choice after a Conversation, Nearby or Random Event: {if after_event} is true, so the question
+            and the player criteria are about who reacts to the event first
 
     Raises:
-        PromptSectionError: an active profile has a variable that is not allowed
+        PromptSectionError: an active profile has a variable that is not allowed, or the conditional blocks are broken
     """
     manager = config.prompt_profile_manager
-    if after_event:
-        instructions = manager.resolve_prompt(DECISION_EVENT_INSTRUCTIONS, config.game_master_decision_event_instructions)
-        player_criteria = manager.resolve_prompt(DECISION_EVENT_PLAYER_CRITERIA, config.game_master_decision_event_player_criteria)
-    else:
-        instructions = manager.resolve_prompt(DECISION_INSTRUCTIONS, config.game_master_decision_instructions)
-        player_criteria = manager.resolve_prompt(DECISION_PLAYER_CRITERIA, config.game_master_decision_player_criteria)
+    conditions = {"after_event"} if after_event else set()
+    def resolve(prompt_type: str, text: str) -> str:
+        return PromptDefinitions.apply_prompt_conditions(prompt_type, manager.resolve_prompt(prompt_type, text), conditions)
     return {
-        DECISION_INSTRUCTIONS: instructions,
-        DECISION_NPC_CRITERIA: manager.resolve_prompt(DECISION_NPC_CRITERIA, config.game_master_decision_npc_criteria),
-        DECISION_PLAYER_CRITERIA: player_criteria,
+        DECISION_INSTRUCTIONS: resolve(DECISION_INSTRUCTIONS, config.game_master_decision_instructions),
+        DECISION_NPC_CRITERIA: resolve(DECISION_NPC_CRITERIA, config.game_master_decision_npc_criteria),
+        DECISION_PLAYER_CRITERIA: resolve(DECISION_PLAYER_CRITERIA, config.game_master_decision_player_criteria),
     }
 
 
@@ -716,7 +712,8 @@ class GameMaster:
             if nearby and criteria_source:
                 event = self.__context.npc_event
                 event_player_name = player_name or (event.player.name if event and event.player else "")
-                criteria = config.prompt_profile_manager.resolve_prompt(*criteria_source.nearby_criteria(config))
+                criteria_type, criteria_text, conditions = criteria_source.nearby_criteria(config, is_said_to_room)
+                criteria = PromptDefinitions.apply_prompt_conditions(criteria_type, config.prompt_profile_manager.resolve_prompt(criteria_type, criteria_text), conditions)
                 nearby_criteria = {p.name: fill_prompt_variables(criteria, {"name": p.name, "player_name": event_player_name}) for p in nearby}
             if is_said_to_room:
                 nobody_criteria = config.prompt_profile_manager.resolve_prompt(SHOUT_NOBODY_CRITERIA, config.shout_decision_nobody_criteria)

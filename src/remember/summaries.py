@@ -856,17 +856,18 @@ class Summaries(Remembering):
             npcInfo.messages.get_talk_only(include_system_generated_messages=True)
         )
         memory_template = self.__config.memory_prompt
+        try:
+            memory_template = self.__config.prompt_profile_manager.resolve_prompt("memory_prompt", memory_template)
+        except PromptSectionError as e:
+            logging.error(str(e))
+            return ""
+        # Searched after the shared sections are expanded, so variables used only inside a section are searched too
         lorebook_text = self.__build_lorebook_text_for_prompt(
             memory_template,
             prompt_values,
             excluded_variables={"bios", "conversation_summaries"},
             extra_scan_texts=[talk_history_text],
         )
-        try:
-            memory_template = self.__config.prompt_profile_manager.resolve_prompt("memory_prompt", memory_template)
-        except PromptSectionError as e:
-            logging.error(str(e))
-            return ""
         prompt = memory_template.format(
                     name=names,
                     names=names,
@@ -959,12 +960,6 @@ class Summaries(Remembering):
                         "player_name": player_name,
                     }
                     resummarize_template = self.__config.resummarize_prompt
-                    lorebook_text = self.__build_lorebook_text_for_prompt(
-                        resummarize_template,
-                        resummarize_values,
-                        excluded_variables={"bios", "conversation_summaries"},
-                        extra_scan_texts=None,
-                    )
                     try:
                         resummarize_template = self.__config.prompt_profile_manager.resolve_prompt(
                             "resummarize_prompt", resummarize_template
@@ -972,6 +967,13 @@ class Summaries(Remembering):
                     except PromptSectionError as e:
                         logging.error(str(e))
                         return ""
+                    # Searched after the shared sections are expanded, so variables used only inside a section are searched too
+                    lorebook_text = self.__build_lorebook_text_for_prompt(
+                        resummarize_template,
+                        resummarize_values,
+                        excluded_variables={"bios", "conversation_summaries"},
+                        extra_scan_texts=None,
+                    )
                     prompt = resummarize_template.format(
                         name=npc.name,
                         language=self.__language_name,

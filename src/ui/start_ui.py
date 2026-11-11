@@ -26,6 +26,7 @@ from src.ui.tab_reorder import (
     merge_tab_order,
 )
 from src.ui.tag_editor_page import build_tag_editor_page
+from src.ui.prompt_highlight import PROMPT_HIGHLIGHT_JS
 from src.ui.conversation_table import DELETE_BUTTON_ELEM_ID, HEADERS, TABLE_JS, TABLE_ELEM_ID, apply_rows_to_json, delete_selected_rows, json_to_rows
 from src.ui.bio_editor_memory_files import (
     conversations_base_dir,
@@ -45,7 +46,7 @@ class StartUI(routeable):
         self.__constructor = SettingsUIConstructor(config)
 
     def create_main_block(self) -> gr.Blocks:
-        with gr.Blocks(title="Mantella", fill_height=True, analytics_enabled=False, theme= self.__get_theme(), css=self.__load_css(), js="() => {\n" + TAB_REORDER_JS + TABLE_JS + "\n}", head="<script>" + TAB_REORDER_JS + TABLE_JS + "</script>") as main_block:
+        with gr.Blocks(title="Mantella", fill_height=True, analytics_enabled=False, theme= self.__get_theme(), css=self.__load_css(), js="() => {\n" + TAB_REORDER_JS + TABLE_JS + PROMPT_HIGHLIGHT_JS + "\n}", head="<script>" + TAB_REORDER_JS + TABLE_JS + PROMPT_HIGHLIGHT_JS + "</script>") as main_block:
             # with gr.Tab("Settings") as tabs:
             self.__generate_tabs()
             # with gr.Tab("Chat with NPCs", interactive=False):

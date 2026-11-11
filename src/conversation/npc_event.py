@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable
 from src.config.config_loader import ConfigLoader
+from src.config.definitions.prompt_definitions import PromptDefinitions
 from src.conversation.bystanders import EventPerson
 from src.llm.ai_client import AIClient
 from src.llm.message_thread import message_thread
@@ -14,7 +15,7 @@ from src.utils import get_time_group
 
 GENERATOR_PROMPT = "skyrim_npc_event_generator_prompt"
 WIND_DOWN_PROMPT = "skyrim_npc_event_wind_down_prompt"
-NEARBY_CRITERIA = "skyrim_npc_event_decision_nearby_criteria"
+NEARBY_CRITERIA = "skyrim_shout_decision_nearby_criteria" # The Decision Nearby Criteria, shared with Shout
 MIN_PARTICIPANTS = 2
 
 
@@ -42,9 +43,9 @@ class NpcEvent:
             return None
         return self.player
 
-    def nearby_criteria(self, config: ConfigLoader) -> tuple[str, str]:
-        """The decision model's criteria for choosing someone nearby while the player watches: (prompt type, text)"""
-        return NEARBY_CRITERIA, config.npc_event_decision_nearby_criteria
+    def nearby_criteria(self, config: ConfigLoader, is_said_to_room: bool = False) -> tuple[str, str, set[str]]:
+        """The decision model's criteria for choosing someone nearby while the player watches: (prompt type, text, the conditions that are true)"""
+        return NEARBY_CRITERIA, config.shout_decision_nearby_criteria, {"npc_event"}
 
     def can_notice_player(self, config: ConfigLoader) -> bool:
         """The scene has gone on long enough for the participants to notice the bystander player, and the player can be noticed now"""
@@ -85,11 +86,12 @@ def wind_down_text(event: NpcEvent | None, config: ConfigLoader, names: str) -> 
 EVENT_REPLY_FORMAT = ('Reply only with JSON in this format: {"participants": ["<name>", "<name>"], "event": "<the event>"}\n'
                       'For no event, reply: {"participants": []}')
 
-# Conversation, Nearby and Random Events: the prompt of each kind, by the kind the game sends
-CONVERSATION_EVENT_PROMPTS: dict[str, tuple[str, str, str]] = { # kind: (prompt type, config attribute, name in the log)
-    "conversation": ("skyrim_conversation_event_generator_prompt", "conversation_event_generator_prompt", "Conversation Event"),
-    "nearby": ("skyrim_nearby_event_generator_prompt", "nearby_event_generator_prompt", "Nearby Event"),
-    "random": ("skyrim_random_event_generator_prompt", "random_event_generator_prompt", "Random Event"),
+# Conversation, Nearby and Random Events share one prompt, the Talk/Nearby/Random Event Generator Prompt. Its conditional blocks tell the kinds apart
+EVENT_GENERATOR_PROMPT = "skyrim_conversation_event_generator_prompt"
+CONVERSATION_EVENT_KINDS: dict[str, tuple[str, str]] = { # kind, as the game sends it: (condition, name in the log)
+    "conversation": ("talk_event", "Conversation Event"),
+    "nearby": ("nearby_event", "Nearby Event"),
+    "random": ("random_event", "Random Event"),
 }
 
 
@@ -131,12 +133,13 @@ def generate_conversation_event(config: ConfigLoader, client: AIClient | None, k
     Returns:
         str | None: the event. None for no event, or if anything goes wrong
     """
-    if not client or kind not in CONVERSATION_EVENT_PROMPTS:
+    if not client or kind not in CONVERSATION_EVENT_KINDS:
         return None
-    prompt_type, config_attribute, log_name = CONVERSATION_EVENT_PROMPTS[kind]
+    condition, log_name = CONVERSATION_EVENT_KINDS[kind]
     values = event_prompt_values(config, player_name, names, location, hour, weather, hint)
     values["player_description"] = player_description
-    reply = request_event(config, client, prompt_type, getattr(config, config_attribute), values, bios_and_summaries, history_lines, log_name, is_cancelled)
+    reply = request_event(config, client, EVENT_GENERATOR_PROMPT, config.conversation_event_generator_prompt, values, bios_and_summaries, history_lines,
+                          log_name, is_cancelled, conditions={condition})
     if reply is None:
         return None
     data = read_event_json(reply, log_name)
@@ -160,12 +163,17 @@ def event_prompt_values(config: ConfigLoader, player_name: str, names: list[str]
 
 
 def request_event(config: ConfigLoader, client: AIClient, prompt_type: str, prompt_text: str, values: dict[str, str], bios_and_summaries: str,
-                  history_lines: list[str], log_name: str, is_cancelled: Callable[[], bool]) -> str | None:
+                  history_lines: list[str], log_name: str, is_cancelled: Callable[[], bool], conditions: set[str] | None = None) -> str | None:
     """Fills the event generator prompt and asks for the event as JSON (EVENT_REPLY_FORMAT), after the conversation lines if there are any.
-    The oldest lines are dropped until the request fits the model. None if cancelled, or if anything goes wrong"""
+    The oldest lines are dropped until the request fits the model. None if cancelled, or if anything goes wrong
+
+    Args:
+        conditions (set[str] | None): for the Talk/Nearby/Random Event Generator Prompt, the kind of event ({if talk_event}, ...)
+    """
     from src.conversation.game_master import drop_oldest_lines, fill_prompt_variables, TOKEN_MARGIN
     try:
         prompt = config.prompt_profile_manager.resolve_prompt(prompt_type, prompt_text)
+        prompt = PromptDefinitions.apply_prompt_conditions(prompt_type, prompt, conditions)
         # The bios are filled last, so text in them that looks like a variable is left alone
         prompt = fill_prompt_variables(fill_prompt_variables(prompt, values), {"bios_and_summaries": bios_and_summaries}).strip()
         request_text = EVENT_REPLY_FORMAT

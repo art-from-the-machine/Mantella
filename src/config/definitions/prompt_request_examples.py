@@ -7,7 +7,8 @@ Keep them in step when those requests change."""
 
 import re
 
-# A slot is {{prompt_type}} or {{prompt_type|note}}, e.g. {{skyrim_game_master_decision_npc_criteria|for Lydia}}
+# A slot is {{prompt_type}} or {{prompt_type|note}}, e.g. {{skyrim_game_master_decision_npc_criteria|for Lydia}}.
+# For a merged prompt, the note starts with the situation, e.g. {{skyrim_game_master_prompt|as Shout}}
 SLOT = re.compile(r"\{\{([a-z_]+)(?:\|([^}]*))?\}\}")
 
 DECISION_GROUP = ("With a decision model, in a group conversation (Game Master Mode on)", """===== Scene =====
@@ -27,7 +28,7 @@ Criteria:
     "After your own line, you are not one of the options: an NPC answers first.")
 
 DECISION_DIRECTOR = ("With a decision model, while you direct the conversation (Director Mode)", """===== Scene =====
-{{skyrim_game_master_director_prompt}}
+{{skyrim_game_master_prompt|as Group conversation, Director Mode}}
 
 ===== Conversation (2 lines) =====
 (Lydia slams the letter on the table.)
@@ -42,7 +43,7 @@ Criteria:
     "You are never one of the options while you direct.")
 
 DECISION_SHOUT = ("With a decision model, in a Shout conversation", """===== Scene =====
-{{skyrim_shout_game_master_prompt}}
+{{skyrim_game_master_prompt|as Shout}}
 
 ===== Conversation (2 lines) =====
 Ragnar: Someone took my coin purse.
@@ -74,18 +75,18 @@ Criteria:
     "People nearby are only options while there is room for someone new. After your own line, you are not one of the options.")
 
 DECISION_AFTER_EVENT = ("With a decision model, right after a Talk, Nearby or Random Event (Shout on)", """===== Scene =====
-{{skyrim_shout_game_master_prompt}}
+{{skyrim_game_master_prompt|as Shout}}
 
 ===== Conversation (2 lines) =====
 Ragnar: Someone took my coin purse.
 (A boy darts past Ysolda and drops a coin purse at Lydia's feet.)
 
 ===== Question: next_speaker (choice) =====
-{{skyrim_game_master_decision_event_instructions}}
+{{skyrim_game_master_decision_instructions|as Who reacts first to a wheel event}}
 
 Criteria:
   - Lydia: {{skyrim_game_master_decision_npc_criteria|for Lydia}}
-  - Ragnar: {{skyrim_game_master_decision_event_player_criteria}}
+  - Ragnar: {{skyrim_game_master_decision_player_criteria|as Who reacts first to a wheel event}}
   - Ysolda: {{skyrim_shout_decision_nearby_criteria|for Ysolda, who is nearby}}
 
 ===== Question: addressed_1 (noul) =====
@@ -105,7 +106,7 @@ Criteria:
     "and the \"part of what just happened\" questions are not asked.")
 
 DECISION_NPC_EVENT = ("With a decision model, in an NPC Event scene you are watching", """===== Scene =====
-{{skyrim_npc_event_game_master_prompt}}
+{{skyrim_game_master_prompt|as Watching an NPC Event}}
 
 {{skyrim_npc_event_wind_down_prompt|only during the last lines before the scene's limit}}
 
@@ -119,8 +120,8 @@ Nazeem: You call this fair? I'll have the guard look at your scales.
 Criteria:
   - Nazeem: {{skyrim_game_master_decision_npc_criteria|for Nazeem}}
   - Ysolda: {{skyrim_game_master_decision_npc_criteria|for Ysolda}}
-  - Whiterun Guard: {{skyrim_npc_event_decision_nearby_criteria|for Whiterun Guard, who is nearby}}
-  - Ragnar: {{skyrim_npc_event_decision_nearby_criteria|for you, once the NPCs can notice you}}
+  - Whiterun Guard: {{skyrim_shout_decision_nearby_criteria|as Watching an NPC Event, for Whiterun Guard, who is nearby}}
+  - Ragnar: {{skyrim_shout_decision_nearby_criteria|as Watching an NPC Event, for you, once the NPCs can notice you}}
 
 ===== Question: addressed_1 (noul) =====
 Was Nazeem's latest line addressed to Ysolda?
@@ -146,7 +147,7 @@ Criteria:
     "Someone nearby who was spoken to joins the scene.")
 
 DECISION_SAY = ("With a decision model, when you use Say (nobody in the conversation yet)", """===== Scene =====
-{{skyrim_shout_room_game_master_prompt}}
+{{skyrim_game_master_prompt|as Saying something to the room}}
 
 ===== Conversation (1 lines) =====
 Ragnar: Has anyone seen a big grey dog around here?
@@ -190,7 +191,7 @@ Who speaks next? Choose one of: Lydia, Hulda, Ragnar.
 """ + LLM_FOOTER, "After your own line, you are not one of the choices.")
 
 LLM_DIRECTOR = ("With the Game Master LLM (no decision model), while you direct the conversation", """----- System message -----
-{{skyrim_game_master_director_prompt}}
+{{skyrim_game_master_prompt|as Group conversation, Director Mode}}
 
 ----- User message -----
 The conversation so far:
@@ -201,7 +202,7 @@ Who speaks next? Choose one of: Lydia, Hulda.
 """ + LLM_FOOTER, "")
 
 LLM_SHOUT = ("With the Game Master LLM (no decision model), in a Shout conversation", """----- System message -----
-{{skyrim_shout_game_master_prompt}}
+{{skyrim_game_master_prompt|as Shout}}
 
 ----- User message -----
 The conversation so far:
@@ -213,7 +214,7 @@ In "also", list everyone else of Whiterun Guard, Ysolda for whom this is true: {
 """ + LLM_ALSO_FOOTER, "The \"also\" lines are only there when more than one person could have been meant by the latest line.")
 
 LLM_AFTER_EVENT = ("With the Game Master LLM (no decision model), right after a Talk, Nearby or Random Event (Shout on)", """----- System message -----
-{{skyrim_shout_game_master_prompt}}
+{{skyrim_game_master_prompt|as Shout}}
 
 ----- User message -----
 The conversation so far:
@@ -225,7 +226,7 @@ In "also", list everyone else of Lydia, Ysolda for whom this is true: {{skyrim_s
 """ + LLM_ALSO_FOOTER, "Without Shout there are no \"also\" lines and nobody nearby is a choice.")
 
 LLM_NPC_EVENT = ("With the Game Master LLM (no decision model), in an NPC Event scene you are watching", """----- System message -----
-{{skyrim_npc_event_game_master_prompt}}
+{{skyrim_game_master_prompt|as Watching an NPC Event}}
 
 {{skyrim_npc_event_wind_down_prompt|only during the last lines before the scene's limit}}
 
@@ -239,7 +240,7 @@ In "also", list everyone else of Ysolda, Whiterun Guard, Ragnar for whom this is
 """ + LLM_ALSO_FOOTER, "You (Ragnar here) are only a choice once the NPCs can notice you. The wind-down text is also added to the prompt of the NPC who speaks.")
 
 LLM_SAY = ("With the Game Master LLM (no decision model), when you use Say", """----- System message -----
-{{skyrim_shout_room_game_master_prompt}}
+{{skyrim_game_master_prompt|as Saying something to the room}}
 
 ----- User message -----
 The conversation so far:
@@ -276,26 +277,19 @@ Reply only with JSON in this format: {"next": "<option>", "reason": "<a few word
 
 # The examples shown for each prompt type that goes into a Game Master request
 EXAMPLES: dict[str, list[tuple[str, str, str]]] = {
-    "skyrim_game_master_prompt": [DECISION_GROUP, LLM_GROUP],
-    "skyrim_game_master_director_prompt": [DECISION_DIRECTOR, LLM_DIRECTOR],
-    "skyrim_game_master_decision_instructions": [DECISION_GROUP, DECISION_SHOUT],
+    "skyrim_game_master_prompt": [DECISION_GROUP, LLM_GROUP, LLM_DIRECTOR, LLM_SHOUT, LLM_SAY, LLM_NPC_EVENT],
+    "skyrim_game_master_decision_instructions": [DECISION_GROUP, DECISION_SHOUT, DECISION_AFTER_EVENT],
     "skyrim_game_master_decision_npc_criteria": [DECISION_GROUP, DECISION_SHOUT],
-    "skyrim_game_master_decision_player_criteria": [DECISION_GROUP, DECISION_SHOUT],
-    "skyrim_game_master_decision_event_instructions": [DECISION_AFTER_EVENT],
-    "skyrim_game_master_decision_event_player_criteria": [DECISION_AFTER_EVENT],
+    "skyrim_game_master_decision_player_criteria": [DECISION_GROUP, DECISION_SHOUT, DECISION_AFTER_EVENT],
     "skyrim_npc_initiative_decision_instructions": [INITIATIVE_DECISION, INITIATIVE_LLM],
     "skyrim_npc_initiative_decision_npc_criteria": [INITIATIVE_DECISION, INITIATIVE_LLM],
     "skyrim_npc_initiative_decision_nobody_criteria": [INITIATIVE_DECISION, INITIATIVE_LLM],
-    "skyrim_npc_event_game_master_prompt": [DECISION_NPC_EVENT, LLM_NPC_EVENT],
     "skyrim_npc_event_wind_down_prompt": [DECISION_NPC_EVENT, LLM_NPC_EVENT],
-    "skyrim_npc_event_decision_nearby_criteria": [DECISION_NPC_EVENT],
-    "skyrim_shout_game_master_prompt": [DECISION_SHOUT, LLM_SHOUT],
-    "skyrim_shout_decision_nearby_criteria": [DECISION_SHOUT, DECISION_SAY],
+    "skyrim_shout_decision_nearby_criteria": [DECISION_SHOUT, DECISION_SAY, DECISION_NPC_EVENT],
     "skyrim_shout_decision_addressed_criteria": [DECISION_SHOUT, LLM_SHOUT],
     "skyrim_shout_decision_not_addressed_criteria": [DECISION_SHOUT],
     "skyrim_shout_decision_event_part_criteria": [DECISION_AFTER_EVENT, LLM_AFTER_EVENT],
     "skyrim_shout_decision_event_not_part_criteria": [DECISION_AFTER_EVENT],
-    "skyrim_shout_room_game_master_prompt": [DECISION_SAY, LLM_SAY],
     "skyrim_shout_decision_nobody_criteria": [DECISION_SAY],
 }
 

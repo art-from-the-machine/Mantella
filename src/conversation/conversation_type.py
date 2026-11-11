@@ -175,19 +175,33 @@ class multi_npc_game_master(multi_npc):
         # Not logged: the Game Master logs each prompt when it is sent, so logging it here too would log it twice
         return self.generate_game_master_prompt(context_for_conversation, messages_for_lorebook)
 
+    def prompt_conditions(self, context_for_conversation: Context, prompt_type: str) -> set[str]:
+        """The conditions that are true for the conditional blocks of this prompt now ({if director}, {if shout}, ...).
+        Each conversation type passes the situation as the player sees it, never how the code runs it
+
+        Args:
+            prompt_type (str): the prompt being built: the Game Master Prompt or the Game Master NPC Prompt. The Decision Nearby
+                Criteria get theirs from Shout or the NPC Event (nearby_criteria)
+        """
+        return {"director"} if self.is_director_mode() else set()
+
+    def npc_actions(self, context_for_conversation: Context) -> list:
+        """The actions an NPC can take in this conversation"""
+        return [a for a in self._config.actions if a.use_in_multi_npc]
+
     @utils.time_it
     def generate_npc_prompt(self, context_for_conversation: Context, speaker: Character, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
-        actions = [a for a in self._config.actions if a.use_in_multi_npc]
-        if self.is_director_mode():
-            return context_for_conversation.generate_system_message(self._config.game_master_director_npc_prompt, actions, should_log, messages_for_lorebook, "skyrim_game_master_director_npc_prompt", focus_character=speaker)
-        return context_for_conversation.generate_system_message(self._config.game_master_npc_prompt, actions, should_log, messages_for_lorebook, "skyrim_game_master_npc_prompt", focus_character=speaker)
+        prompt_type = "skyrim_game_master_npc_prompt"
+        return context_for_conversation.generate_system_message(self._config.game_master_npc_prompt, self.npc_actions(context_for_conversation), should_log,
+                                                                messages_for_lorebook, prompt_type, focus_character=speaker,
+                                                                conditions=self.prompt_conditions(context_for_conversation, prompt_type))
 
     @utils.time_it
     def generate_game_master_prompt(self, context_for_conversation: Context, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
         actions = [a for a in self._config.actions if a.use_in_multi_npc]
-        if self.is_director_mode():
-            return context_for_conversation.generate_system_message(self._config.game_master_director_prompt, actions, should_log, messages_for_lorebook, "skyrim_game_master_director_prompt")
-        return context_for_conversation.generate_system_message(self._config.game_master_prompt, actions, should_log, messages_for_lorebook, "skyrim_game_master_prompt")
+        prompt_type = "skyrim_game_master_prompt"
+        return context_for_conversation.generate_system_message(self._config.game_master_prompt, actions, should_log, messages_for_lorebook, prompt_type,
+                                                                conditions=self.prompt_conditions(context_for_conversation, prompt_type))
 
 class npc_event(multi_npc_game_master):
     """An NPC Event acted out by its participants, with or without the player. Always runs with a Game Master,
@@ -202,15 +216,8 @@ class npc_event(multi_npc_game_master):
     def is_director_mode(self) -> bool:
         return False
 
-    @utils.time_it
-    def generate_npc_prompt(self, context_for_conversation: Context, speaker: Character, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
-        actions = [a for a in self._config.actions if a.use_in_multi_npc]
-        return context_for_conversation.generate_system_message(self._config.npc_event_npc_prompt, actions, should_log, messages_for_lorebook, "skyrim_npc_event_npc_prompt", focus_character=speaker)
-
-    @utils.time_it
-    def generate_game_master_prompt(self, context_for_conversation: Context, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
-        actions = [a for a in self._config.actions if a.use_in_multi_npc]
-        return context_for_conversation.generate_system_message(self._config.npc_event_game_master_prompt, actions, should_log, messages_for_lorebook, "skyrim_npc_event_game_master_prompt")
+    def prompt_conditions(self, context_for_conversation: Context, prompt_type: str) -> set[str]:
+        return {"npc_event"}
 
     @utils.time_it
     def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:
@@ -229,26 +236,22 @@ class shout(multi_npc_game_master):
     def is_director_mode(self) -> bool:
         return False
 
-    @utils.time_it
-    def generate_npc_prompt(self, context_for_conversation: Context, speaker: Character, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
+    def prompt_conditions(self, context_for_conversation: Context, prompt_type: str) -> set[str]:
+        # The NPC prompt is always 'shout': whoever speaks has been added to the conversation by then, so nothing is said to the room
+        if prompt_type != "skyrim_game_master_npc_prompt" and shout.is_said_to_room(context_for_conversation):
+            return {"say_to_room"}
+        return {"shout"}
+
+    def npc_actions(self, context_for_conversation: Context) -> list:
         if context_for_conversation.npcs_in_conversation.contains_multiple_npcs():
-            actions = [a for a in self._config.actions if a.use_in_multi_npc]
-        else:
-            # Talking to one person: they keep the actions of a one-on-one conversation (follow, trade, ...)
-            actions = [a for a in self._config.actions if a.use_in_on_on_one]
-        return context_for_conversation.generate_system_message(self._config.shout_npc_prompt, actions, should_log, messages_for_lorebook, "skyrim_shout_npc_prompt", focus_character=speaker)
+            return [a for a in self._config.actions if a.use_in_multi_npc]
+        # Talking to one person: they keep the actions of a one-on-one conversation (follow, trade, ...)
+        return [a for a in self._config.actions if a.use_in_on_on_one]
 
     @staticmethod
     def is_said_to_room(context_for_conversation: Context) -> bool:
         """Just saying something: the player is alone in the conversation, so what they say is said to whoever is around"""
         return len(context_for_conversation.get_characters_excluding_player()) == 0
-
-    @utils.time_it
-    def generate_game_master_prompt(self, context_for_conversation: Context, messages_for_lorebook: message_thread | None = None, should_log: bool = False) -> str:
-        actions = [a for a in self._config.actions if a.use_in_multi_npc]
-        if shout.is_said_to_room(context_for_conversation):
-            return context_for_conversation.generate_system_message(self._config.shout_room_game_master_prompt, actions, should_log, messages_for_lorebook, "skyrim_shout_room_game_master_prompt")
-        return context_for_conversation.generate_system_message(self._config.shout_game_master_prompt, actions, should_log, messages_for_lorebook, "skyrim_shout_game_master_prompt")
 
     @utils.time_it
     def get_user_message(self, context_for_conversation: Context, messages: message_thread) -> UserMessage | None:

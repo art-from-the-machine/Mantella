@@ -16,12 +16,8 @@ _VARIABLE_RE = re.compile(r"\{(?P<variable>[^{}]+)\}")
 _SECTION_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
-class PromptSectionError(Exception):
-    """A prompt overlay references a shared section that cannot be expanded."""
-
-    def __init__(self, variable: str):
-        self.variable = variable
-        super().__init__(f"Refusing LLM call. Broken prompt variable '{{{variable}}}'.")
+from src.prompt_conditions import RESERVED_SECTION_NAMES, near_miss_problem, strip_condition_tags
+from src.prompt_errors import PromptConditionError, PromptSectionError # Re-exported: imported from here throughout
 
 
 class PromptProfileManager:
@@ -102,6 +98,28 @@ class PromptProfileManager:
         sections = ", ".join(f"`{{{name}}}`" for name in section_names)
         return base + f"\n\n**Shared sections:** {sections}"
 
+    @staticmethod
+    def preview_situation_labels(prompt_type: str) -> list[str]:
+        """The situations a merged prompt can be previewed as, in plain words. Empty for a prompt type without conditional blocks"""
+        return [label for label, _conditions in PromptDefinitions.PREVIEW_SITUATIONS.get(prompt_type, [])]
+
+    def preview_text(self, prompt_type: str, text: str, situation: str, expand_sections: bool = True) -> str:
+        """The prompt as it reads in one situation: shared sections expanded and only that situation's branches kept.
+        Variables stay as {name}, since there is no conversation to fill them from. Shared by the profile editor and the Prompts tab
+
+        Args:
+            situation (str): one of preview_situation_labels
+            expand_sections (bool): False for the Prompts tab, whose text is sent without expanding shared sections
+        """
+        conditions = dict(PromptDefinitions.PREVIEW_SITUATIONS.get(prompt_type, [])).get(situation)
+        if conditions is None:
+            return ""
+        expanded = self.expand_sections(text or "") if expand_sections else (text or "")
+        try:
+            return PromptDefinitions.apply_prompt_conditions(prompt_type, expanded, conditions)
+        except PromptConditionError as e:
+            return f"No preview: {e.problem}"
+
     def reload(self) -> None:
         self._load()
 
@@ -169,7 +187,7 @@ class PromptProfileManager:
         if allowed is None:
             return ConfigValueConstraintResult()
         expanded = self.expand_sections(text or "")
-        return PromptDefinitions.PromptChecker(allowed).apply_constraint(expanded)
+        return PromptDefinitions.PromptChecker(allowed, prompt_type).apply_constraint(expanded)
 
     def validate_name(self, name: str) -> ConfigValueConstraintResult:
         stripped = (name or "").strip()
@@ -334,11 +352,17 @@ class PromptProfileManager:
             )
         if stripped in self.builtin_variables():
             return ConfigValueConstraintResult(f"'{stripped}' is a built-in prompt variable. Choose another name.")
+        if stripped.lower() in RESERVED_SECTION_NAMES:
+            return ConfigValueConstraintResult(f"'{stripped}' is used by conditional blocks ({{else}}, {{end if}}). Choose another name.")
         return ConfigValueConstraintResult()
 
     def validate_section_text(self, text: str) -> ConfigValueConstraintResult:
         builtins = self.builtin_variables()
-        for match in _VARIABLE_RE.finditer(text or ""):
+        typo = near_miss_problem(text or "") # A tag that is almost right is named as a tag, not as an unknown variable
+        if typo:
+            return ConfigValueConstraintResult(typo)
+        # A section may hold conditional blocks: they are checked with the whole prompt, once the section is expanded into it
+        for match in _VARIABLE_RE.finditer(strip_condition_tags(text or "")):
             variable = match.group("variable")
             if variable in builtins:
                 continue
@@ -362,7 +386,7 @@ class PromptProfileManager:
         allowed = PromptDefinitions.get_allowed_variables_for_prompt_type(prompt_type)
         if allowed is None:
             return None
-        expanded = self.expand_sections(text or "")
+        expanded = strip_condition_tags(self.expand_sections(text or "")) # Every branch's variables are checked
         allowed_set = set(allowed)
         for match in _VARIABLE_RE.finditer(expanded):
             variable = match.group("variable")
@@ -377,10 +401,14 @@ class PromptProfileManager:
         """
         if not self.get_active_name(prompt_type):
             return text or ""
+        expanded = self.expand_sections(text or "")
+        problem = PromptDefinitions.find_condition_problem(prompt_type, expanded)
+        if problem:
+            raise PromptConditionError(problem)
         broken = self.first_broken_variable(prompt_type, text or "")
         if broken:
             raise PromptSectionError(broken)
-        return self.expand_sections(text or "")
+        return expanded
 
     def save_section(self, name: str, text: str) -> tuple[bool, str, bool]:
         """Create or update a shared section. Does not rewrite prompts that reference it.

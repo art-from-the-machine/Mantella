@@ -735,7 +735,8 @@ class context:
             raise PromptSectionError("unmatched brace")
 
     @utils.time_it
-    def generate_system_message(self, prompt: str, actions_for_prompt: list[Action], should_log: bool = False, messages_for_lorebook = None, prompt_type: str | None = None, focus_character: Character | None = None) -> str:
+    def generate_system_message(self, prompt: str, actions_for_prompt: list[Action], should_log: bool = False, messages_for_lorebook = None, prompt_type: str | None = None,
+                                focus_character: Character | None = None, conditions: set[str] | None = None) -> str:
         """Fills the variables in the prompt with the values calculated from the context
 
         Args:
@@ -745,6 +746,7 @@ class context:
                 The filled-in prompt is also logged after the active prompt profile changes.
             focus_character (Character | None): If set, name, names, bios, trust, summaries and private thoughts only cover this NPC.
                 all_names_without_player, names_w_player and equipment still cover everyone in the conversation.
+            conditions (set[str] | None): for a merged prompt, the conditions of its conditional blocks that are true now ({if shout}, ...)
 
         Returns:
             str: the filled prompt
@@ -827,10 +829,13 @@ class context:
             "event": event,
             "nearby": nearby,
         }
-        lorebook_text = self.__build_lorebook_text(prompt, variable_values, messages_for_lorebook)
         if prompt_type:
             prompt = self.__config.prompt_profile_manager.resolve_prompt(prompt_type, prompt)
-        # Reads every nearby person's memories, so it is only built for a prompt that uses it (the Shout Game Master Prompt)
+            # A merged prompt's conditional blocks are always applied, also when no conditions were passed, so no {if ...} tag reaches the LLM
+            prompt = PromptDefinitions.apply_prompt_conditions(prompt_type, prompt, conditions)
+        # Searched after the shared sections are expanded and the branches are chosen: the variables in the text that is actually sent
+        lorebook_text = self.__build_lorebook_text(prompt, variable_values, messages_for_lorebook)
+        # Reads every nearby person's memories, so it is only built for a prompt that uses it (the Game Master Prompt in Shout or when saying something to the room)
         nearby_bios = self.__get_nearby_bios_text(player_name) if "{nearby_bios}" in prompt else ""
 
         game_name = variable_values["game"]

@@ -99,8 +99,12 @@ class Bystanders:
             logging.log(26, f"{self.LOG_PREFIX}: nearby now: {', '.join(names) or NOBODY_NEARBY}")
         return ", ".join(names) or NOBODY_NEARBY
 
-    def nearby_criteria(self, config: ConfigLoader) -> tuple[str, str]:
-        """The decision model's criteria for choosing someone nearby: (prompt type, text)"""
+    def nearby_criteria(self, config: ConfigLoader, is_said_to_room: bool = False) -> tuple[str, str, set[str]]:
+        """The decision model's criteria for choosing someone nearby: (prompt type, text, the conditions of its conditional blocks that are true)
+
+        Args:
+            is_said_to_room (bool): the player said something out loud with nobody in the conversation yet
+        """
         raise NotImplementedError
 
     def apply_add_failed(self, refid: int, reason: str = "") -> bool:
@@ -268,8 +272,8 @@ class ShoutState(Bystanders):
             return ", ".join(p.name for p in offer) or NOBODY_NEARBY
         return super().nearby_text(config, participant_names, extra)
 
-    def nearby_criteria(self, config: ConfigLoader) -> tuple[str, str]:
-        return SHOUT_NEARBY_CRITERIA, config.shout_decision_nearby_criteria
+    def nearby_criteria(self, config: ConfigLoader, is_said_to_room: bool = False) -> tuple[str, str, set[str]]:
+        return SHOUT_NEARBY_CRITERIA, config.shout_decision_nearby_criteria, {"say_to_room"} if is_said_to_room else {"shout"}
 
     def characters_for_game_master(self, config: ConfigLoader, participant_names: list[str]) -> list["Character"]:
         """The characters whose bios and memories go into the Game Master's prompt ({nearby_bios}): of the people it may pick this time
