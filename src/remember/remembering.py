@@ -51,7 +51,7 @@ class Remembering(ABC):
         pass
 
     @abstractmethod
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, save_timestamp: int | None = None, save_thoughts: bool | None = None, save_reflections: bool | None = None, conversation_start_ts: int | None = None):
+    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, save_timestamp: int | None = None, save_thoughts: bool | None = None, save_reflections: bool | None = None, conversation_start_ts: int | None = None, was_directed: bool = False):
         """Saves the current state of the conversation.
 
         Args:
@@ -60,6 +60,7 @@ class Remembering(ABC):
             save_thoughts: If set, overrides Save Private Thoughts for this save.
             save_reflections: If set, overrides Save Personal Reflection for this save.
             conversation_start_ts: When set, requests ignore summaries/thoughts/reflections written since this time.
+            was_directed: The player directed the conversation (Director Mode), so the memory says they were not part of it.
         """
         pass
 

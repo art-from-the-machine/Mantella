@@ -60,7 +60,8 @@ class Conversation:
             self.__conversation_type: conversation_type = radiant(context_for_conversation.config)
         else:
             self.__conversation_type: conversation_type = pc_to_npc(context_for_conversation.config)
-        self.__context.is_directed = lambda: self.is_directed() # A function, not a bound method: copying a message must not copy the conversation
+        self.__context.hides_player = lambda: self.hides_player() # A function, not a bound method: copying a message must not copy the conversation
+        self.__was_directed: bool = False # The player directed the conversation at some point (Director Mode): its memory says they were not part of it
         self.__messages: message_thread = message_thread(self.__context.config, None, include_decensor_bypass=True)
         # When a new NPC joins mid-conversation, log the (updated) system prompt once.
         self.__log_prompt_on_next_regen: bool = False
@@ -156,6 +157,7 @@ class Conversation:
             
             # Update conversation type with new config
             self.__conversation_type = self.__select_conversation_type(config)
+            self.__was_directed = self.__was_directed or self.is_directed()
             # Game Master Mode was turned off: the reply generated ahead would never be played. The player gets the turn after the reply being played
             if was_game_master and not isinstance(self.__conversation_type, multi_npc_game_master) and self.__game_master_turns.drop_lookahead():
                 self.__stop_generation()
@@ -269,6 +271,11 @@ class Conversation:
         """The player directs the conversation (Director Mode) and is not part of the scene. Read from the current conversation type,
         so it follows the settings and the people in the conversation"""
         return self.__conversation_type.is_director_mode()
+
+    def hides_player(self) -> bool:
+        """Nothing about the player reaches the NPCs: the player directs the conversation, or watches an NPC Event with Director Mode on.
+        While watching, the scene isn't directed (it runs on its own), but the player is still not part of it"""
+        return self.is_directed() or (isinstance(self.__conversation_type, npc_event) and multi_npc.is_director_enabled(self.__context.config))
 
     def event_history_lines(self) -> list[str]:
         """Conversation, Nearby and Random Events: the recent lines of the conversation for the event generator, the same ones the Game Master sees"""
@@ -596,6 +603,7 @@ class Conversation:
             
             self.__is_interrupt_requested = False # Pressing the interrupt hotkey during the player's turn has nothing to interrupt
             is_director = self.__conversation_type.is_director_mode()
+            self.__was_directed = self.__was_directed or is_director # Also when only "." was sent: the player was still not part of it
             # Director mode and Game Master Mode: "." lets the NPCs keep talking without new player input
             is_continue = (is_director or isinstance(self.__conversation_type, multi_npc_game_master)) and player_text.strip() == "."
             new_message: UserMessage = UserMessage(self.__context.config, "" if is_continue else player_text, player_character.name, False)
@@ -712,6 +720,7 @@ class Conversation:
             self.__sentences.clear()
 
             self.__conversation_type = self.__select_conversation_type(self.__context.config)
+            self.__was_directed = self.__was_directed or self.is_directed()
 
             # Only log the prompt when creating the initial message thread (conversation start),
             # or when a new NPC has joined and we regenerated the prompt.
@@ -1198,6 +1207,7 @@ class Conversation:
                 save_thoughts=save_thoughts,
                 save_reflections=save_reflections,
                 conversation_start_ts=self.__conversation_start_ts,
+                was_directed=self.__was_directed,
             )
             # Save the log
             if save_log:

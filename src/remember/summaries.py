@@ -272,21 +272,6 @@ def thread_contains_player(messages: message_thread | None) -> bool:
     return False
 
 
-def thread_was_directed(messages: message_thread | None) -> bool:
-    """True when the player directed the conversation (Director Mode): it has scene directions the player typed.
-    The player was not part of it, so it is remembered as a conversation without them"""
-    if messages is None:
-        return False
-    try:
-        for message in messages.get_persistent_messages():
-            if (isinstance(message, UserMessage) and message.is_director_message and (message.player_character_name or "").strip()
-                    and not message.is_system_generated_message and message.text.strip()):
-                return True
-    except Exception:
-        return False
-    return False
-
-
 def format_character_bios_for_memory(characters, player_name: str, config, *, contains_player: bool) -> str:
     """Join character bios for memory prompts, optionally stripping excluded sections."""
     enabled = should_filter_memory_bios(config, contains_player=contains_player)
@@ -558,7 +543,7 @@ class Summaries(Remembering):
         return hadMissingMessages
 
     @utils.time_it
-    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, save_timestamp: int | None = None, save_thoughts: bool | None = None, save_reflections: bool | None = None, conversation_start_ts: int | None = None):
+    def save_conversation_state(self, messages: message_thread, npcs_in_conversation: Characters, world_id: str, is_reload=False, save_timestamp: int | None = None, save_thoughts: bool | None = None, save_reflections: bool | None = None, conversation_start_ts: int | None = None, was_directed: bool = False):
         self.may_add_missing_join_leave_messages(messages, npcs_in_conversation)
 
         characters = self.get_character_lookup_dict(messages, npcs_in_conversation)
@@ -568,7 +553,7 @@ class Summaries(Remembering):
         saved_summaries: Dict[str, str] = {}
 
         for npc_names in npcs_with_shared_threads:
-           summary = self.__create_new_conversation_summary(npc_message_threads[npc_names[0]], world_id, conversation_start_ts)
+           summary = self.__create_new_conversation_summary(npc_message_threads[npc_names[0]], world_id, conversation_start_ts, was_directed)
            for npc_name in npc_names:
                self.__append_new_conversation_summary(summary, characters[npc_name], world_id, ts)
                saved_summaries[npc_name] = summary
@@ -836,7 +821,7 @@ class Summaries(Remembering):
         return f"{target_folder}/{base_name}_summary_{latest_file_number}.txt"
     
     @utils.time_it
-    def __create_new_conversation_summary(self, npcInfo:CharacterSummaryParameters, world_id: str, conversation_start_ts: int | None = None) -> str:
+    def __create_new_conversation_summary(self, npcInfo:CharacterSummaryParameters, world_id: str, conversation_start_ts: int | None = None, was_directed: bool = False) -> str:
         if self.__config.game == "Fallout4" or self.__config.game == "Fallout4VR":
             location: str = 'the Commonwealth'
         else:
@@ -875,8 +860,7 @@ class Summaries(Remembering):
         try:
             memory_template = self.__config.prompt_profile_manager.resolve_prompt("memory_prompt", memory_template)
             # Director Mode: the player was not part of the conversation, and their lines were scene directions
-            memory_template = PromptDefinitions.apply_prompt_conditions("memory_prompt", memory_template,
-                                                                        {"director"} if thread_was_directed(npcInfo.messages) else set())
+            memory_template = PromptDefinitions.apply_prompt_conditions("memory_prompt", memory_template, {"director"} if was_directed else set())
         except PromptSectionError as e:
             logging.error(str(e))
             return ""

@@ -1392,8 +1392,10 @@ class GameStateManager:
     def __without_player_events(self, ingame_events: list[str]) -> list[str]:
         """Director Mode: the player is not part of the scene, so the game's events about them are left out:
         those naming the player's character, or "the player" (the game's wording when the MCM doesn't use the player's name)"""
-        player = self.__talk.context.npcs_in_conversation.get_player_character() if self.__talk else None
-        patterns = [r"\bthe player\b"] + ([rf"\b{re.escape(player.name)}\b"] if player and player.name.strip() else [])
+        context = self.__talk.context
+        player = context.npcs_in_conversation.get_player_character()
+        player_name = player.name if player else (context.npc_event.player.name if context.npc_event and context.npc_event.player else "") # Watching an NPC Event
+        patterns = [r"\bthe player\b"] + ([rf"\b{re.escape(player_name)}\b"] if player_name.strip() else [])
         kept = []
         for event in ingame_events:
             if any(re.search(pattern, str(event), re.IGNORECASE) for pattern in patterns):
@@ -1439,7 +1441,7 @@ class GameStateManager:
 
                 if json[comm_consts.KEY_CONTEXT].__contains__(comm_consts.KEY_CONTEXT_CUSTOMVALUES):
                     custom_context_values = json[comm_consts.KEY_CONTEXT][comm_consts.KEY_CONTEXT_CUSTOMVALUES]
-            if ingame_events and self.__talk.is_directed():
+            if ingame_events and self.__talk.hides_player():
                 ingame_events = self.__without_player_events(ingame_events)
             if quest_events:
                 ingame_events = list(ingame_events or []) + quest_events
