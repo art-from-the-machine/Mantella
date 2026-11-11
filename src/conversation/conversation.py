@@ -274,8 +274,12 @@ class Conversation:
 
     def hides_player(self) -> bool:
         """Nothing about the player reaches the NPCs: the player directs the conversation, or watches an NPC Event with Director Mode on.
-        While watching, the scene isn't directed (it runs on its own), but the player is still not part of it"""
-        return self.is_directed() or (isinstance(self.__conversation_type, npc_event) and multi_npc.is_director_enabled(self.__context.config))
+        While watching, the scene isn't directed (it runs on its own), but the player is still not part of it.
+        Read from the type for the people in the conversation now: when a request adds or removes someone (a start, stepping into an NPC Event),
+        its events are handled before the conversation switches to that type"""
+        config = self.__context.config
+        upcoming = self.__select_conversation_type(config)
+        return upcoming.is_director_mode() or (isinstance(upcoming, npc_event) and multi_npc.is_director_enabled(config))
 
     def event_history_lines(self) -> list[str]:
         """Conversation, Nearby and Random Events: the recent lines of the conversation for the event generator, the same ones the Game Master sees"""
