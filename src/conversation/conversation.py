@@ -290,6 +290,9 @@ class Conversation:
                 self.start_shout(shout_settings)
                 self.__context.shout.update_nearby(nearby)
             self.__context.shout.characters.update(nearby_characters)
+        if isinstance(self.__context.shout, ShoutState):
+            # The people a Nearby or Random Event is about react to it, even past Most People in Conversation. A Conversation Event is about the people in it
+            self.__context.shout.event_ignores_max_people = kind in ("nearby", "random")
         event_message = self.__event_message(text)
         self.__event_count += 1
         setattr(event_message, self.EVENT_MARKER_ATTRIBUTE, self.__event_count)

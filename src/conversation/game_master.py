@@ -137,16 +137,20 @@ def is_named_in(name: str, line: str) -> bool:
     return any(part in words for part in re.findall(r"[^\W_]+", name.lower()) if len(part) > 2 and part not in NAME_WORDS_IGNORED)
 
 
-def cap_answering(flagged: list[Any], line: str, max_answering: int, free_places: int) -> list[Any]:
+def cap_answering(flagged: list[Any], line: str, max_answering: int, free_places: int, nearby_first: bool = False) -> list[Any]:
     """Who of the people a line was aimed at answers it. People the line names always do. Of the others (a line to a group, like 'hello guys'),
     as many as Most People Answering at Once leaves room for. Of the people nearby, only as many as Most People in Conversation lets in
 
     Args:
         flagged (list[Any]): the people the line was aimed at: those in the conversation first, then those nearby, nearest first
         free_places (int): how many more people Most People in Conversation lets in
+        nearby_first (bool): after a Nearby or Random Event, the people nearby keep their places in the group before those in the conversation,
+            as the event is about them. The order of the result does not change
     """
     named = [person for person in flagged if is_named_in(person.name, line)]
     group = [person for person in flagged if not any(person is n for n in named)]
+    if nearby_first:
+        group = [person for person in group if isinstance(person, EventPerson)] + [person for person in group if not isinstance(person, EventPerson)]
     kept = named + group[:max(0, max_answering - len(named))]
     nearby = [person for person in kept if isinstance(person, EventPerson)][:max(0, free_places)] # Named people first
     return [person for person in flagged if any(person is k for k in kept) and (not isinstance(person, EventPerson) or any(person is n for n in nearby))]
@@ -409,6 +413,8 @@ class GameMaster:
         self.is_line_protected: bool = False # The player said it, or it is an event: the people it is aimed at answer even past the limit of NPC replies in a row
         self.__line: tuple[int, str] = (0, "") # The latest line: how many messages there are, and its text
         self.__free_places: int = 0
+        self.__usual_free_places: int = 0 # What Most People in Conversation lets in without the exception for an event
+        self.__is_past_limit_allowed: bool = False # Reacting to a Nearby or Random Event: its people join past Most People in Conversation
 
     def choose_next_speaker(self, live_messages: message_thread, history: list[Message], allow_player: bool, allow_nearby: bool = False,
                             always_ask: bool = False, after_event: bool = False) -> Character | EventPerson | None:
@@ -429,6 +435,7 @@ class GameMaster:
         """
         self.picked_player = False
         self.aimed_at, self.scores, self.line_speaker, self.is_line_protected = [], {}, "", False
+        self.__is_past_limit_allowed = False
         if not self.__client:
             return None
         config = self.__context.config
@@ -442,7 +449,7 @@ class GameMaster:
         nearby: list[EventPerson] = []
         if allow_nearby:
             if shout_state:
-                nearby = shout_state.nearby_choices(config, participant_names, len(npcs), has_player=player is not None)
+                nearby = shout_state.nearby_choices(config, participant_names, len(npcs), has_player=player is not None, after_event=after_event)
             noticed_player = event.noticed_player(config, participant_names) if event else None
             if noticed_player:
                 nearby = nearby + [noticed_player] # Outside Shout's limits: the scene can always draw in the player watching it
@@ -537,7 +544,9 @@ class GameMaster:
         self.line_speaker, text = latest_line(history, after_event)
         self.is_line_protected = after_event or (bool(player_name) and self.line_speaker == player_name)
         self.__line = (len(history), text)
-        self.__free_places = shout_state.free_places(len(npcs), bool(player_name))
+        self.__free_places = shout_state.free_places(len(npcs), bool(player_name), after_event)
+        self.__usual_free_places = shout_state.free_places(len(npcs), bool(player_name))
+        self.__is_past_limit_allowed = shout_state.is_past_limit_allowed(after_event)
         if not text or (not after_event and not self.line_speaker) or shout_state.analysed_line == self.__line:
             return []
         candidates: list[Character | EventPerson] = [npc for npc in npcs if npc.name != self.line_speaker] + list(nearby)
@@ -597,6 +606,25 @@ class GameMaster:
 
     def __with_aimed_at(self, usual: Character | EventPerson | None, flagged: list[Character | EventPerson] | None,
                         listed: list[Character | EventPerson] | None = None) -> Character | EventPerson | None:
+        """Shout: applies who the latest line was aimed at to the Game Master's own choice of who speaks next (see __apply_aimed_at)"""
+        speaker = self.__apply_aimed_at(usual, flagged, listed)
+        self.__log_past_limit(speaker)
+        return speaker
+
+    def __log_past_limit(self, speaker: Character | EventPerson | None):
+        """Logs when the people a Nearby or Random Event is about join past Most People in Conversation. Only then, not each time it is allowed"""
+        if not self.__is_past_limit_allowed:
+            return
+        joining = [person for person in self.aimed_at if isinstance(person, EventPerson)]
+        if isinstance(speaker, EventPerson) and not any(person is speaker for person in joining):
+            joining.append(speaker)
+        if len(joining) > self.__usual_free_places:
+            shout_state = cast(ShoutState, self.__context.shout)
+            logging.log(26, f"Game Master: {', '.join(person.name for person in joining)} join past Most People in Conversation "
+                            f"({shout_state.max_people}), as the event is about them")
+
+    def __apply_aimed_at(self, usual: Character | EventPerson | None, flagged: list[Character | EventPerson] | None,
+                         listed: list[Character | EventPerson] | None = None) -> Character | EventPerson | None:
         """Shout: applies who the latest line was aimed at to the Game Master's own choice of who speaks next.
         If it was aimed at anyone, the one of them most likely to speak next speaks first, also when the Game Master's own choice was someone else.
         While the player watches an NPC Event, the Game Master's own choice stands: the people it was aimed at only join
@@ -610,9 +638,10 @@ class GameMaster:
         if flagged is None or not shout_state:
             return usual
         shout_state.analysed_line = self.__line # Asked once for each line
-        aimed = cap_answering(flagged, self.__line[1], shout_state.max_answering, self.__free_places)
+        nearby_first = self.__is_past_limit_allowed
+        aimed = cap_answering(flagged, self.__line[1], shout_state.max_answering, self.__free_places, nearby_first)
         if len(aimed) < len(flagged):
-            capped = cap_answering(flagged, self.__line[1], shout_state.max_answering, len(flagged)) # Without the room limit
+            capped = cap_answering(flagged, self.__line[1], shout_state.max_answering, len(flagged), nearby_first) # Without the room limit
             too_many = [person.name for person in flagged if not any(person is c for c in capped)]
             no_room = [person.name for person in capped if not any(person is a for a in aimed)]
             if too_many:
