@@ -775,7 +775,10 @@ class SettingsUIConstructor(ConfigValueVisitor):
             label="Prompt type",
             allow_custom_value=False
         )
-        variables_ui = gr.Markdown(manager.variables_markdown(initial_type))
+        with gr.Accordion("About this prompt", open=False):
+            about_ui = gr.Markdown(manager.about_markdown(initial_type))
+        with gr.Accordion("Variables", open=False):
+            variables_ui = gr.Markdown(manager.variables_markdown(initial_type))
         with gr.Row():
             edit_ui = gr.Dropdown(
                 choices=initial_names,
@@ -845,6 +848,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
             selected = manager.get_default_edit_name(prompt_type)
             text = manager.get_profile_text(prompt_type, selected) if selected else ""
             return (
+                manager.about_markdown(prompt_type),
                 manager.variables_markdown(prompt_type),
                 edit_dropdown(prompt_type, selected),
                 selected or "",
@@ -1030,7 +1034,7 @@ class SettingsUIConstructor(ConfigValueVisitor):
         type_ui.change(
             on_type_change,
             inputs=[type_ui],
-            outputs=[variables_ui, edit_ui, name_ui, text_ui, error_ui, active_ui, status_ui],
+            outputs=[about_ui, variables_ui, edit_ui, name_ui, text_ui, error_ui, active_ui, status_ui],
             show_progress="hidden"
         )
         edit_ui.change(

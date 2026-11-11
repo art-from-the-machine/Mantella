@@ -1041,7 +1041,7 @@ Always use the most recent memory to determine the current relationship
         note = "## Keep it short\n- {name} answers in one or two sentences."
         return ConfigValueString("skyrim_shout_group_answer_note","Skyrim Shout Group Answer Note",description,note,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_SHOUT_GROUP_ANSWER)])
 
-    SAY_TO_ROOM_DESCRIPTION = """Just saying something (Say on the Conversation Wheel, or the talk hotkey with no conversation running): the player says something to whoever is around.
+    SAY_TO_ROOM_DESCRIPTION = """Just saying something (Say on the Conversation Wheel, or the Open Text Prompt hotkey with no conversation running): the player says something to whoever is around.
                         It starts as a Shout conversation with only the player in it. Someone nearby may answer and join, or nobody does and it ends."""
 
     @staticmethod
@@ -1414,169 +1414,214 @@ Always use the most recent memory to determine the current relationship
             ("decensor_assistant_prompt", "Decensor Assistant Prompt", []),
         ]
 
-    # Short notes for the prompt profile editor: (what the prompt does, when it is used).
-    # Written for users, so plain words only. The full details stay in each prompt's description.
-    USAGE_NOTES: dict[str, tuple[str, str]] = {
+    # (what it does, when it is used in game, which settings it needs). Each note has to make sense on its own:
+    # say in game terms what the player is doing when the prompt is sent, never just "together with" another prompt
+    USAGE_NOTES: dict[str, tuple[str, str, str]] = {
         # Normal conversations
         "skyrim_prompt": (
-            "Tells the NPC who they are and how to talk when you speak with them one-on-one.",
-            "For every reply in a conversation with one NPC, unless Shout is on."),
+            "Tells the NPC who they are and how to talk to you.",
+            "When you talk to a single NPC, for example by casting the Mantella spell on them. Used for every reply they give.",
+            "Nothing. Not used while Shout is on, or for the first line of an NPC who walks up to you on their own (NPC Initiative)."),
         "skyrim_multi_npc_prompt": (
-            "Writes the lines of all NPCs in a group conversation at once.",
-            "For every reply in a conversation with two or more NPCs, while Game Master Mode is off and Shout is off."),
+            "Writes the lines of all NPCs in a group conversation in one go.",
+            "When you talk to two or more NPCs at once. Used for every reply.",
+            "Game Master Mode off, Multi Conversation Director Mode off, Shout off."),
         "skyrim_multi_npc_director_prompt": (
-            "Like the Multi-NPC Prompt, but you direct the scene instead of taking part. What you type reaches the NPCs as a stage direction, not as something you say.",
-            "In place of the Multi-NPC Prompt, while Multi Conversation Director Mode is on and Game Master Mode is off."),
+            "Writes the lines of all NPCs in a group conversation while you direct it like a play. What you type is treated as a stage direction, not as something your character says.",
+            "When you talk to two or more NPCs at once with Director Mode on. Used for every reply.",
+            "Multi Conversation Director Mode on, Game Master Mode off."),
         "skyrim_radiant_prompt": (
-            "Tells the AI how to write a short conversation between two NPCs that you only overhear.",
-            "When two NPCs near you start talking to each other on their own. Needs radiant conversations enabled in the MCM."),
+            "Tells two NPCs who they are and how to talk to each other.",
+            "When two NPCs near you start a short chat with each other on their own. You only overhear it.",
+            "Radiant conversations enabled in the MCM."),
         "radiant_start_prompt": (
-            "Asks the two NPCs of an overheard conversation to pick a topic and talk about it.",
-            "Once, at the start of each overheard conversation."),
+            "Asks the two NPCs to pick a topic and start talking about it.",
+            "Once, at the start of every overheard chat between two NPCs (radiant conversation).",
+            "Radiant conversations enabled in the MCM."),
         "radiant_end_prompt": (
-            "Asks the two NPCs of an overheard conversation to wrap up their topic.",
-            "Once, after their first exchange, to bring the overheard conversation to a close."),
+            "Asks the two NPCs to wrap up what they are talking about.",
+            "Once, after the first exchange of an overheard chat between two NPCs (radiant conversation), so it ends naturally.",
+            "Radiant conversations enabled in the MCM."),
 
         # Game Master
         "skyrim_game_master_prompt": (
-            "The Game Master: picks who speaks next in a group conversation, an NPC or you. It writes no dialogue.",
-            "Before every turn in a group conversation while Game Master Mode is on. Also once after an event in a one-on-one conversation, to pick who reacts first."),
+            "The Game Master. It reads the conversation and picks who speaks next: one of the NPCs or you. It writes no dialogue.",
+            "In a group conversation (you and two or more NPCs), before every turn. Also once in a one-on-one conversation right after a Talk, Nearby or Random Event from the Conversation Wheel, to decide whether you or the NPC reacts first. With a decision model, it is sent as the description of the scene.",
+            "Game Master Mode on. Not used while Shout or Director Mode is on."),
         "skyrim_game_master_npc_prompt": (
-            "Writes the line of the one NPC the Game Master picked.",
-            "For every NPC line in a group conversation while Game Master Mode is on."),
+            "Writes the line of the one NPC the Game Master picked to speak.",
+            "In a group conversation (you and two or more NPCs), every time an NPC speaks.",
+            "Game Master Mode on. Not used while Shout or Director Mode is on."),
         "skyrim_game_master_director_prompt": (
-            "The Game Master while you direct the scene: picks which NPC speaks next. You are never picked.",
-            "In place of the Skyrim Game Master Prompt, while both Game Master Mode and Multi Conversation Director Mode are on."),
+            "The Game Master while you direct the conversation like a play. It picks which NPC speaks next. You are never picked, since you are directing, not taking part.",
+            "In a group conversation (two or more NPCs) with Director Mode on, before every turn.",
+            "Game Master Mode on and Multi Conversation Director Mode on."),
         "skyrim_game_master_director_npc_prompt": (
-            "Writes the line of the NPC the Game Master picked, while you direct the scene.",
-            "In place of the Skyrim Game Master NPC Prompt, while both Game Master Mode and Multi Conversation Director Mode are on."),
+            "Writes the line of the NPC the Game Master picked, while you direct the conversation like a play.",
+            "In a group conversation (two or more NPCs) with Director Mode on, every time an NPC speaks.",
+            "Game Master Mode on and Multi Conversation Director Mode on."),
         "skyrim_game_master_decision_instructions": (
-            "The question the decision model answers to pick who speaks next.",
-            "Each time the Game Master picks a speaker (group conversations, Shout, Say and NPC Events). Only with Use Decision Model for Game Master on."),
+            "The question put to the decision model when it picks who speaks next, for example \"Who speaks next in this conversation?\"",
+            "Every time a Game Master picks the next speaker: in group conversations, in Shout conversations, when you use Say, and in NPC Event scenes. Not right after a Talk, Nearby or Random Event (see Skyrim Game Master Decision Event Instructions).",
+            "Use Decision Model for Game Master on."),
         "skyrim_game_master_decision_npc_criteria": (
-            "The rule for when an NPC should be the next to speak.",
-            "Checked for each NPC each time the Game Master picks a speaker. Only with Use Decision Model for Game Master on."),
+            "The rule for when an NPC should speak next, for example \"they were named or asked something\". The decision model checks every NPC in the conversation against it.",
+            "Every time a Game Master picks the next speaker: in group conversations, in Shout conversations, and in NPC Event scenes.",
+            "Use Decision Model for Game Master on."),
         "skyrim_game_master_decision_player_criteria": (
-            "The rule for when it is your turn to speak.",
-            "Each time the Game Master picks a speaker and you could get the turn. Only with Use Decision Model for Game Master on."),
+            "The rule for when it is your turn to speak, for example \"someone asked you something\".",
+            "Every time a Game Master picks the next speaker and you could take the turn: in group conversations and Shout conversations. Not right after a Talk, Nearby or Random Event (see Skyrim Game Master Decision Event Player Criteria).",
+            "Use Decision Model for Game Master on."),
+        "skyrim_game_master_decision_event_instructions": (
+            "The question put to the decision model right after something happens in your conversation, for example \"Who reacts to it first?\"",
+            "Once, right after you pick Talk Event, Nearby Event or Random Event on the Conversation Wheel and the event is added to the conversation. Any kind of conversation: one-on-one, group or Shout. Every later turn uses the Skyrim Game Master Decision Instructions again.",
+            "Game Master Mode on (the events need it) and Use Decision Model for Game Master on."),
+        "skyrim_game_master_decision_event_player_criteria": (
+            "The rule for when you, and not an NPC, react first to what just happened, for example \"it is aimed at you alone\".",
+            "Once, right after you pick Talk Event, Nearby Event or Random Event on the Conversation Wheel and the event is added to the conversation. Every later turn uses the Skyrim Game Master Decision Player Criteria again.",
+            "Game Master Mode on (the events need it) and Use Decision Model for Game Master on."),
 
         # NPC Initiative
         "skyrim_npc_initiative_prompt": (
-            "For an NPC who walks up to you on their own: tells them to work out why they came and to open the conversation.",
-            "Only for that NPC's first line. Once you answer, the Skyrim Prompt takes over."),
+            "Tells an NPC who walks up to you on their own to work out why they came, and to open the conversation.",
+            "For the first line of an NPC who walks up to you on their own. Once you answer, the Skyrim Prompt takes over.",
+            "NPC Initiative enabled in the MCM for the automatic checks. Approach on the Conversation Wheel and the Check Now hotkey work even when it is off."),
         "skyrim_npc_initiative_opener": (
-            "The short narration that starts such a conversation, for example \"Lydia approaches Ragnar.\"",
-            "Once, in place of your greeting, when an NPC walks up to you."),
+            "The short narration line that starts the conversation, for example \"Lydia approaches Ragnar.\" The NPC replies to it.",
+            "Once, in place of your greeting, when an NPC walks up to you on their own.",
+            "NPC Initiative enabled in the MCM for the automatic checks. Approach on the Conversation Wheel and the Check Now hotkey work even when it is off."),
         "skyrim_npc_initiative_decision_instructions": (
-            "The question that decides whether someone near you should walk up to you, and who.",
-            "In each NPC Initiative check: on its own while NPC Initiative is enabled in the MCM (after you have been idle for a while, or when you enter a new place), or when you press its Check Now hotkey."),
+            "The question that decides whether one of the NPCs near you should walk up to you and start talking, and if so who. Also describes the NPCs.",
+            "Each time Mantella checks whether someone should walk up to you, with no conversation running: on its own after a while without a conversation (Idle Check) or when you enter a new place (Check on Location Change), or when you pick Approach on the Conversation Wheel or press the NPC Initiative Check Now hotkey.",
+            "NPC Initiative enabled in the MCM for the automatic checks. Approach and the Check Now hotkey work even when it is off."),
         "skyrim_npc_initiative_decision_npc_criteria": (
-            "The rule for when an NPC has a good enough reason to walk up to you.",
-            "Checked for each nearby NPC in each NPC Initiative check."),
+            "The rule for when an NPC has a good enough reason to walk up to you, for example \"something from their memories they need to tell you\". Every nearby NPC is checked against it.",
+            "Each time Mantella checks whether someone should walk up to you (after a while without a conversation, when you enter a new place, or with Approach on the Conversation Wheel or the Check Now hotkey).",
+            "NPC Initiative enabled in the MCM for the automatic checks. Approach and the Check Now hotkey work even when it is off."),
         "skyrim_npc_initiative_decision_nobody_criteria": (
-            "The rule for when nobody should walk up to you.",
-            "In each NPC Initiative check."),
+            "The rule for when nobody should walk up to you, for example \"no one has a real reason\".",
+            "Each time Mantella checks whether someone should walk up to you (after a while without a conversation, when you enter a new place, or with Approach on the Conversation Wheel or the Check Now hotkey).",
+            "NPC Initiative enabled in the MCM for the automatic checks. Approach and the Check Now hotkey work even when it is off."),
 
         # Shout and Say
         "skyrim_shout_game_master_prompt": (
-            "The Game Master while Shout is on: picks who speaks next, someone in the conversation, someone nearby who then joins, or you. It writes no dialogue.",
-            "Before every turn while Shout is on, whether Game Master Mode is on or off."),
+            "The Game Master of a Shout conversation, where anyone near you can answer or join in. It picks who speaks next: someone in the conversation, someone nearby (who then joins), or you. It writes no dialogue.",
+            "Before every turn of a Shout conversation, with one NPC or many. Shout is turned on with Shout on the Conversation Wheel, and turns on by itself after a Nearby or Random Event and when you use Say. NPC Event scenes also run in Shout: once you step into one, this prompt takes over.",
+            "Nothing. Shout always uses a Game Master, even with Game Master Mode off."),
         "skyrim_shout_npc_prompt": (
-            "Writes the line of the NPC picked to speak while Shout is on.",
-            "For every NPC line while Shout is on, also with only one NPC."),
+            "Writes the line of the NPC picked to speak in a Shout conversation, where anyone near you can answer or join in.",
+            "Every time an NPC speaks in a Shout conversation, with one NPC or many.",
+            "Nothing. Used whenever Shout is on."),
         "skyrim_shout_decision_nearby_criteria": (
-            "The rule for when someone nearby, not yet in the conversation, answers and joins it.",
-            "Checked for each person nearby each time the Game Master picks a speaker while Shout is on, and when you use Say. Only with Use Decision Model for Game Master on."),
+            "The rule for when someone standing nearby, who is not in the conversation yet, answers and joins it, for example \"they were called by name or by their job\". Everyone nearby is checked against it.",
+            "Every time the next speaker is picked in a Shout conversation while there is room for someone new (Most People in Conversation), and when you use Say to speak to whoever is around.",
+            "Use Decision Model for Game Master on."),
         "skyrim_shout_decision_addressed_criteria": (
-            "The rule for who the latest line was spoken to. Everyone you spoke to answers before you get the turn. For an NPC's line, the Game Master can still give you the turn first.",
-            "After each line while Shout is on, checked for each person in the conversation and nearby."),
+            "The rule for who a line was spoken to. When you speak to several people, each of them answers before it is your turn again. Example: you say \"Guards, both of you, over here\" and both guards answer. When an NPC speaks to someone, they answer too, unless the Game Master gives you the turn. How many answer is capped by Most People Answering at Once.",
+            "In a Shout conversation, after each line (yours or an NPC's) that more than one person could have been meant by. Everyone in the conversation and nearby, except the speaker, is checked against it. Also when you use Say, and in NPC Event scenes you are watching (NPC Events run in Shout), where someone nearby who is spoken to joins the scene.",
+            "Nothing. With a decision model it is a yes/no check for each person. Without one, the Game Master is told to use it to list who else the line was spoken to."),
         "skyrim_shout_decision_not_addressed_criteria": (
-            "The opposite rule: who the latest line was not spoken to.",
-            "Together with the Spoken To Criteria. Only with Use Decision Model for Game Master on."),
+            "The rule for who a line was NOT spoken to, for example someone who was only mentioned. Example: you tell the guard \"Lydia is with me\": Lydia was not spoken to, so she does not answer.",
+            "In a Shout conversation, after each line (yours or an NPC's) that more than one person could have been meant by. The decision model answers yes or no for each person in the conversation and nearby: the Skyrim Shout Decision Spoken To Criteria describes yes, this prompt describes no. Also when you use Say, and in NPC Event scenes you are watching (NPC Events run in Shout).",
+            "Use Decision Model for Game Master on. Without a decision model this prompt is not used."),
         "skyrim_shout_group_answer_note": (
-            "A short note that keeps answers brief when several people answer the same line, or react to the same event.",
-            "Added to the reply of each of those NPCs while Shout is on. Leave it empty to turn it off."),
+            "A short note that keeps answers brief when several people answer the same line or react to the same event, so the conversation does not drag on.",
+            "In a Shout conversation, added to the reply of each NPC when a line was spoken to several people at once, or several people are part of an event that just happened. Not while you are only watching an NPC Event scene.",
+            "Nothing. Used whenever Shout is on. Leave it empty to turn it off."),
         "skyrim_shout_room_game_master_prompt": (
-            "The Game Master when you say something out loud with nobody in the conversation: decides whether anyone near you answers, and who.",
-            "When you use Say on the Conversation Wheel, or the talk hotkey with no conversation running, until someone answers."),
+            "The Game Master when you say something out loud with nobody in the conversation yet. It decides whether anyone near you answers, and who.",
+            "When you use Say on the Conversation Wheel, or press the Open Text Prompt hotkey with no conversation running, until someone answers. If nobody does, it ends there.",
+            "Nothing. Always uses a Game Master, even with Game Master Mode off."),
         "skyrim_shout_decision_nobody_criteria": (
-            "The rule for when nobody answers what you said out loud.",
-            "When you use Say, until someone answers. Only with Use Decision Model for Game Master on."),
+            "The rule for when nobody answers what you said out loud, for example \"you did not speak to anyone in particular\".",
+            "When you use Say on the Conversation Wheel, or press the Open Text Prompt hotkey with no conversation running, until someone answers.",
+            "Use Decision Model for Game Master on."),
 
         # Memories and thoughts
         "memory_prompt": (
-            "Turns a finished conversation into a memory the NPC keeps for next time.",
-            "When a conversation ends, when a long conversation is reloaded to make room, and when you use Save Summary Now. Needs Enable Conversation Summaries on, except for Save Summary Now. Very short conversations are skipped."),
+            "Turns a conversation into a written memory the NPCs keep for next time.",
+            "When a conversation ends, when a long conversation is shortened midway to make room, and when you press Save Summary Now. Very short conversations are skipped.",
+            "Enable Conversation Summaries on (Save Summary Now works without it)."),
         "resummarize_prompt": (
-            "Shrinks an NPC's pile of memories into one shorter memory.",
-            "When an NPC's memories grow past about a third of what the summary model can read at once."),
+            "Shrinks an NPC's pile of memories into one shorter memory, so they still fit.",
+            "Right after a new memory is saved, if that NPC's memories have grown past about a third of what the summary model can read at once.",
+            "Enable Conversation Summaries on."),
         "inner_monologue_prompt": (
             "Writes the NPC's private thoughts about the conversation that just ended: how they feel and what they plan to do. They never say these aloud.",
-            "Right after each new memory is saved, for the NPCs who got one. Needs Save Private Thoughts on (Save Summary Now has its own switch)."),
+            "Right after a new memory is saved for an NPC (see the Memory Prompt).",
+            "Save Private Thoughts on. Save Summary Now has its own switch for it."),
         "personal_reflection_prompt": (
             "Writes the NPC's long-term view of themselves and the people in their life, based on all their memories.",
-            "Right after each new memory is saved. Needs Save Personal Reflection on (Save Summary Now has its own switch). Also when you use Save Personal Reflection Now or Generate in the Bio Editor."),
+            "Right after a new memory is saved for an NPC (see the Memory Prompt). Also when you press Save Personal Reflection Now or Generate in the Bio Editor.",
+            "Save Personal Reflection on. Save Summary Now has its own switch for it."),
 
         # Other
         "vision_prompt": (
-            "Asks a separate image AI to describe a screenshot of your game, so NPCs know what is around them.",
-            "With each of your lines, only while both Vision and Custom Vision Model are on."),
+            "Asks a separate image AI to describe a screenshot of your game, so the NPCs know what is around them.",
+            "With each of your lines, when a screenshot of your game is taken.",
+            "Vision on and Custom Vision Model on."),
         "decensor_handshake_prompt": (
-            "A short message that asks the AI to confirm it is ready to roleplay. It makes the Decensor Assistant Prompt work.",
-            "Only while Enable Decensor Bypass is on and Decensor Assistant Placement is After system prompt."),
+            "A short message asking the AI to confirm it is ready to roleplay. It comes right before the Decensor Assistant Prompt so that one can be sent.",
+            "With every NPC reply in any conversation.",
+            "Enable Decensor Bypass on and Decensor Assistant Placement set to After system prompt."),
         "decensor_assistant_prompt": (
             "A message written as if the AI had already agreed to stay in character, which makes it less likely to refuse.",
-            "Only while Enable Decensor Bypass is on. Decensor Assistant Placement sets where it goes."),
+            "With every NPC reply in any conversation. Decensor Assistant Placement sets where it goes.",
+            "Enable Decensor Bypass on."),
 
         # NPC Events
         "skyrim_npc_event_generator_prompt": (
-            "Invents an NPC Event: a short scene between some of the people near you, and picks who takes part.",
-            "Once at the start of each NPC Event: every so often while NPC Events are enabled in the MCM, or when you start one yourself with its Check Now hotkey or NPC Event on the Conversation Wheel."),
+            "Invents an NPC Event: a short scene between some of the NPCs near you, like an argument or a deal, and picks who takes part. They act it out while you watch.",
+            "Once, before each NPC Event starts: every so often on its own, or when you press the NPC Event Check Now hotkey or pick NPC Event on the Conversation Wheel.",
+            "NPC Events enabled in the MCM for the automatic ones. The hotkey and the wheel work even when it is off."),
         "skyrim_npc_event_game_master_prompt": (
-            "The Game Master of an NPC Event scene: picks who speaks next. It writes no dialogue.",
-            "Before every line of the scene, until you join it. After that the Shout prompts take over."),
+            "The Game Master of an NPC Event scene. It picks which NPC speaks next. It writes no dialogue.",
+            "Before every line of an NPC Event scene, while you are only watching. Once you step in, it becomes a Shout conversation and the Shout prompts take over.",
+            "Nothing. NPC Events always use a Game Master, even with Game Master Mode off."),
         "skyrim_npc_event_npc_prompt": (
             "Writes the line of the NPC picked to speak in an NPC Event scene.",
-            "For every line of the scene, until you join it. After that the Shout prompts take over."),
+            "Every time an NPC speaks in an NPC Event scene, while you are only watching. Once you step in, the Shout prompts take over.",
+            "Nothing. Used in every NPC Event."),
         "skyrim_npc_event_wind_down_prompt": (
-            "Tells everyone in an NPC Event scene to start wrapping it up.",
-            "Added to the last few lines (NPC Event Wind-Down Lines) before the scene reaches NPC Event Max Lines Without Player, if you have not joined. Set Wind-Down Lines to 0 to turn it off."),
+            "Tells the NPCs in an NPC Event scene to start wrapping it up.",
+            "Near the end of an NPC Event scene you are only watching: added to the last few lines (NPC Event Wind-Down Lines) before the scene reaches NPC Event Max Lines Without Player.",
+            "NPC Event Wind-Down Lines above 0."),
         "skyrim_npc_event_decision_nearby_criteria": (
-            "The rule for when someone standing near an NPC Event scene is pulled into it. That can be you, once they can notice you.",
-            "Checked for each person nearby before every line of the scene. Only with Use Decision Model for Game Master on."),
+            "The rule for when someone standing near an NPC Event scene gets pulled into it, for example \"someone in the scene called them\". That can be you, once the NPCs can notice you.",
+            "Before every line of an NPC Event scene you are only watching, while someone nearby could still join. Everyone nearby is checked against it.",
+            "Use Decision Model for Game Master on."),
 
         # Conversation Wheel events
         "skyrim_conversation_event_generator_prompt": (
-            "Writes something that happens to the people in your conversation, or right around them.",
-            "When you pick Conversation Event on the Conversation Wheel. Needs Game Master Mode on."),
+            "Writes something that suddenly happens to the people in your conversation, or right around them, for example a messenger arriving.",
+            "When you pick Talk Event on the Conversation Wheel during a conversation (Talk Event is the wheel's short name for the Conversation Event).",
+            "Game Master Mode on."),
         "skyrim_nearby_event_generator_prompt": (
-            "Writes something that happens among the people nearby who are not in your conversation.",
-            "When you pick Nearby Event on the Conversation Wheel. Needs Game Master Mode on. Shout is switched on afterwards, so those people can join in."),
+            "Writes something that suddenly happens among the people nearby who are not in your conversation, for example two of them starting a fight.",
+            "When you pick Nearby Event on the Conversation Wheel during a conversation. Shout turns on afterwards, so those people can join in.",
+            "Game Master Mode on."),
         "skyrim_random_event_generator_prompt": (
-            "Writes something that happens to anyone around: the people in your conversation, the people nearby, or both.",
-            "When you pick Random Event on the Conversation Wheel. Needs Game Master Mode on. Shout is switched on afterwards, so people nearby can join in."),
-        "skyrim_game_master_decision_event_instructions": (
-            "The question that decides who reacts first to a Conversation, Nearby or Random Event.",
-            "Once, right after the event. Later turns use the Skyrim Game Master Decision Instructions again. Only with Use Decision Model for Game Master on."),
-        "skyrim_game_master_decision_event_player_criteria": (
-            "The rule for when you, not an NPC, react first to a Conversation, Nearby or Random Event.",
-            "Once, right after the event. Later turns use the Skyrim Game Master Decision Player Criteria again. Only with Use Decision Model for Game Master on."),
+            "Writes something that suddenly happens and can involve anyone around: the people in your conversation, the people nearby, or both.",
+            "When you pick Random Event on the Conversation Wheel during a conversation. Shout turns on afterwards, so people nearby can join in.",
+            "Game Master Mode on."),
         "skyrim_shout_decision_event_part_criteria": (
-            "The rule for who is part of what happened in an event. Everyone who is joins the conversation and reacts before you get the turn.",
-            "Right after a Conversation, Nearby or Random Event while Shout is on, checked for each person in the conversation and nearby."),
+            "The rule for who is part of what just happened. Everyone who is gets to react before it is your turn. Example: \"A guard grabs Brenuin\": the guard and Brenuin react.",
+            "In a Shout conversation, right after you pick Talk Event, Nearby Event or Random Event on the Conversation Wheel (Nearby and Random turn Shout on by themselves). Everyone in the conversation and nearby is checked against it.",
+            "Game Master Mode on (the events need it). With a decision model it is a yes/no check for each person. Without one, the Game Master is told to use it to list who else is part of it."),
         "skyrim_shout_decision_event_not_part_criteria": (
-            "The opposite rule: who only saw or heard the event and stays out of it.",
-            "Together with the Part Of Event Criteria. Only with Use Decision Model for Game Master on."),
+            "The rule for who is NOT part of what just happened: they only saw or heard it. Example: \"A guard grabs Brenuin\": the shopkeeper watching does not react first.",
+            "In a Shout conversation, right after you pick Talk Event, Nearby Event or Random Event on the Conversation Wheel (Nearby and Random turn Shout on by themselves). The decision model answers yes or no for each person in the conversation and nearby: the Skyrim Shout Decision Part Of Event Criteria describes yes, this prompt describes no.",
+            "Game Master Mode on (the events need it) and Use Decision Model for Game Master on. Without a decision model this prompt is not used."),
     }
 
     @staticmethod
     def get_usage_note(prompt_type: str) -> str:
-        """What a prompt does and when it is used, shown above the supported variables in the prompt profile editor. Empty for prompt types without a note"""
+        """What a prompt does, when it is used in game and what it needs, shown above the supported variables in the prompt profile editor. Empty for prompt types without a note"""
         note = PromptDefinitions.USAGE_NOTES.get(prompt_type)
         if not note:
             return ""
-        what, when = note
-        return f"**What it does:** {what}\n\n**When it is used:** {when}"
+        what, when, needs = note
+        return f"**What it does:** {what}\n\n**When it is used:** {when}\n\n**Needs:** {needs}"
 
     @staticmethod
     def get_variables_note(prompt_type: str) -> str:
