@@ -9,7 +9,7 @@ import requests
 from src.character_manager import Character
 from src.config.config_loader import ConfigLoader
 from src.conversation.context import context as Context
-from src.conversation.bystanders import EventPerson, ShoutState
+from src.conversation.bystanders import AnswerDue, EventPerson, ShoutState
 from src.conversation.conversation_type import multi_npc_game_master, shout
 from src.conversation.npc_event import NpcEvent, wind_down_text
 from src.llm.ai_client import AIClient
@@ -1138,11 +1138,13 @@ class GameMasterTurns:
             logging.log(26, f"Game Master: {speaker.name} has not answered yet, so they speak before the player gets the turn")
         return speaker
 
-    def __group_answer_note(self, speaker: Character) -> str:
-        """Shout: the note for someone who answers a line that was aimed at several people (Skyrim Shout Group Answer Note). They no longer
-        have to answer. Empty if the line was only aimed at them, or the note is empty"""
-        bystanders = self.__bystanders()
-        due = bystanders.take_still_to_answer(speaker.ref_id) if bystanders else None
+    def __group_answer_note(self, speaker: Character, due: AnswerDue | None) -> str:
+        """Shout: the note for someone who answers a line that was aimed at several people (Skyrim Shout Group Answer Note).
+        Empty if the line was only aimed at them, or the note is empty
+
+        Args:
+            due (AnswerDue | None): the line they answer. None if they did not have to answer one
+        """
         if not due or not due.others:
             return ""
         config = self.__context.config
@@ -1218,7 +1220,9 @@ class GameMasterTurns:
         with self.__lock:
             if turn_id != self.__turn_id:
                 return None, None
-            group_answer_note = self.__group_answer_note(speaker)
+            bystanders = self.__bystanders()
+            due = bystanders.take_still_to_answer(speaker.ref_id) if bystanders else None # They speak now, so they no longer have to answer
+            group_answer_note = self.__group_answer_note(speaker, due)
         if group_answer_note:
             prompt += "\n\n" + group_answer_note # Only sent with this request. Never added to the conversation itself
         event = self.__context.npc_event
@@ -1246,6 +1250,11 @@ class GameMasterTurns:
         with self.__lock:
             if turn_id != self.__turn_id:
                 return None, None
+            if due and due.is_protected and not is_bystander_scene and self.__npc_turns_since_player >= self.__max_npc_turns(conversation_type):
+                # Shout: someone the player spoke to, or who is part of an event, only got to answer once the limit was reached.
+                # The count starts over with their reply, so the others can still respond to them before the player gets the turn
+                logging.log(26, f"Game Master: {speaker.name} answers after the limit of NPC replies in a row, so the count starts over")
+                self.__npc_turns_since_player = 0
             self.__npc_turns_since_player += 1
             npc_turns = self.__npc_turns_since_player
             if event and is_bystander_scene:
@@ -1258,7 +1267,7 @@ class GameMasterTurns:
         if isinstance(conversation_type, multi_npc_game_master): # Otherwise a settings change turned Game Master Mode off, and the player gets the turn
             # Director mode: the player is not part of the conversation, so they only get the turn back once the run ends
             is_director = conversation_type.is_director_mode()
-            max_npc_turns = config.multi_npc_game_master_director_max_npc_turns if is_director else config.multi_npc_game_master_max_npc_turns
+            max_npc_turns = self.__max_npc_turns(conversation_type)
             if event and is_bystander_scene and event.has_reached_limit(config):
                 logging.log(26, f"NPC Event: {event.npc_lines} lines without the player. The scene ends.")
             elif is_bystander_scene or npc_turns < max_npc_turns:
@@ -1267,7 +1276,7 @@ class GameMasterTurns:
                 allow_nearby = is_bystander_scene or self.__bystanders() is not None
                 next_speaker = game_master.choose_next_speaker(thread_for_lorebook(config, history), history, allow_player=not is_director, allow_nearby=allow_nearby)
             else:
-                logging.log(26, f"Game Master: {npc_turns} NPC replies in a row. The player gets the turn.")
+                logging.log(26, f"Game Master: {npc_turns} NPC replies in a row, the limit is reached")
                 is_at_reply_limit = True
                 game_master = None
         with self.__lock:
@@ -1278,6 +1287,8 @@ class GameMasterTurns:
                 next_speaker, joins = self.__apply_decision(game_master, next_speaker)
             elif is_at_reply_limit:
                 next_speaker = self.__after_reply_limit()
+                if not next_speaker and not self.__has_pending_adds():
+                    logging.log(26, "Game Master: nobody still has to answer. The player gets the turn.")
             if isinstance(next_speaker, EventPerson) or joins:
                 # Set only while the turn is current, so a turn thrown away meanwhile (e.g. the player stepped in) can't add anyone.
                 # The turn ends after this reply. Whoever was picked speaks once the game has added the people nearby
@@ -1296,6 +1307,16 @@ class GameMasterTurns:
                 return None, None
             time.sleep(0.05)
         return next_speaker, next_reply
+
+    def __has_pending_adds(self) -> bool:
+        """Shout: people nearby are still waiting to be added. Call while holding the lock"""
+        bystanders = self.__bystanders()
+        return bool(bystanders and bystanders.pending_adds())
+
+    def __max_npc_turns(self, conversation_type: multi_npc_game_master) -> int:
+        """The limit of NPC replies in a row before the player gets the turn"""
+        config = self.__context.config
+        return config.multi_npc_game_master_director_max_npc_turns if conversation_type.is_director_mode() else config.multi_npc_game_master_max_npc_turns
 
     def __end_turn_early(self, turn_id: int, reply: ReplyQueue | None, mark_failed: bool = True):
         """Hands the turn to the player after the reply when it could not be generated

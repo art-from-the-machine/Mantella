@@ -540,7 +540,9 @@ class LLMDefinitions:
     @staticmethod
     def get_multi_npc_game_master_max_npc_turns_config_value() -> ConfigValue:
         description = """Game Master Mode only. The maximum number of NPC replies in a row before the player gets the turn back.
-                        The Game Master can hand the turn to the player earlier."""
+                        The Game Master can hand the turn to the player earlier.
+                        In Shout Mode, if someone the player spoke to only gets to answer once the limit is reached, the count starts over with their reply,
+                        so the others can still respond to them."""
         return ConfigValueInt("multi_npc_game_master_max_npc_turns", "Game Master Max NPC Turns per Player Turn", description, 3, 1, 10, tags=[ConfigValueTag.share_row])
 
     @staticmethod
