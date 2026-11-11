@@ -747,7 +747,7 @@ class GameStateManager:
             nearby = [person for person in people if person.ref_id not in members_ref_ids]
             nearby_characters = {refid: character for refid, character in loaded.items() if character.ref_id not in members_ref_ids}
             talk.add_event(text, kind, self.__shout_settings(input_json), nearby, nearby_characters)
-            return {**nothing, comm_consts.KEY_EVENT_RESULT: True}
+            return {**nothing, comm_consts.KEY_EVENT_RESULT: True, comm_consts.KEY_EVENT_TEXT: text}
         except Exception as e:
             logging.error(f"Event failed: {e}")
             return nothing
@@ -1008,7 +1008,7 @@ class GameStateManager:
             self.__npc_event_count += 1
             self.__pending_npc_event = NpcEvent(id=self.__npc_event_count, text=text, player=player)
             return {comm_consts.KEY_REPLYTYPE: comm_consts.KEY_REPLYTYPE_NPCEVENT, comm_consts.KEY_NPCEVENT_ID: self.__npc_event_count,
-                    comm_consts.KEY_NPCEVENT_PARTICIPANT_REFIDS: [person.refid for person in participants]}
+                    comm_consts.KEY_NPCEVENT_PARTICIPANT_REFIDS: [person.refid for person in participants], comm_consts.KEY_EVENT_TEXT: text}
         except Exception as e:
             logging.error(f"NPC Event check failed: {e}")
             return no_event

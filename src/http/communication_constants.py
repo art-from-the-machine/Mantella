@@ -50,6 +50,7 @@ class communication_constants:
     KEY_EVENT_NEARBY_ACTORS: str = PREFIX + "event_nearby_actors" # Full actor settings of the nearest who are not in the conversation (Most People Described)
     KEY_EVENT_MAXDESCRIBED: str = PREFIX + "event_max_described" # Most People Described
     KEY_EVENT_RESULT: str = PREFIX + "event_result" # In the reply: True if something happened
+    KEY_EVENT_TEXT: str = PREFIX + "event_text" # In the event and NPC Event replies: what happened, so the game can show it
     KEY_EVENT_CANCEL: str = PREFIX + "event_cancel" # In an interrupt request: the player ended the conversation while the event was being generated
     KEY_GAMEMASTERMODE: str = PREFIX + "game_master_mode" # In the start, continue and event replies: whether Game Master Mode is on
 

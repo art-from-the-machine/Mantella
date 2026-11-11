@@ -88,6 +88,9 @@ class PromptProfileManager:
 
     def variables_markdown(self, prompt_type: str) -> str:
         base = PromptProfileManager.supported_variables_markdown(prompt_type)
+        usage = PromptDefinitions.get_usage_note(prompt_type)
+        if usage:
+            base = f"{usage}\n\n{base}"
         section_names = self.get_section_names()
         if not section_names:
             return base + "\n\n**Shared sections:** none yet. Add one below the prompt editor, then insert it as `{section_name}`."
