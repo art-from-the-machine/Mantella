@@ -622,6 +622,7 @@ class LLMDefinitions:
         description = """Shout: several people can answer one line. With each decision, the decision model is also asked about each person whether the latest line was spoken to them
                         (or, after an event, whether they are part of what happened). It answers with a number from 0 to 1 for how sure it is.
                         Everyone at or above this value counts as spoken to: they join the conversation and answer before the player gets the turn.
+                        If an NPC said the line and the Game Master gives the player the turn, the player gets it: only a line the player said, or an event, makes people answer first.
                         Raise it if people answer who were not spoken to. Lower it if people who were spoken to are missed.
                         Ignored when Use Decision Model for Game Master is disabled: the Game Master LLM then lists who was spoken to directly."""
         return ConfigValueFloat("game_master_addressed_threshold","Game Master Spoken To Threshold",description, 0.5, 0, 1, tags=[ConfigValueTag.advanced])

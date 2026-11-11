@@ -995,7 +995,8 @@ Always use the most recent memory to determine the current relationship
         return ConfigValueString("skyrim_shout_decision_nearby_criteria","Skyrim Shout Decision Nearby Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA)])
 
     SHOUT_SEVERAL_DESCRIPTION = SHOUT_DESCRIPTION + """
-                        Several people can answer one line: everyone it was spoken to joins the conversation together, and each of them answers before the player gets the turn."""
+                        Several people can answer one line: everyone it was spoken to joins the conversation together, and each of them answers before the player gets the turn.
+                        For a line an NPC said, the Game Master can still give the player the turn first."""
 
     @staticmethod
     def get_skyrim_shout_decision_addressed_criteria_config_value() -> ConfigValue:
@@ -1487,7 +1488,7 @@ Always use the most recent memory to determine the current relationship
             "The rule for when someone nearby, not yet in the conversation, answers and joins it.",
             "Checked for each person nearby each time the Game Master picks a speaker while Shout is on, and when you use Say. Only with Use Decision Model for Game Master on."),
         "skyrim_shout_decision_addressed_criteria": (
-            "The rule for who the latest line was spoken to. Everyone it was spoken to answers before you get the turn.",
+            "The rule for who the latest line was spoken to. Everyone you spoke to answers before you get the turn. For an NPC's line, the Game Master can still give you the turn first.",
             "After each line while Shout is on, checked for each person in the conversation and nearby."),
         "skyrim_shout_decision_not_addressed_criteria": (
             "The opposite rule: who the latest line was not spoken to.",

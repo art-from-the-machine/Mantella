@@ -29,7 +29,7 @@ class AnswerDue:
     """Someone a line was spoken to, or who is part of an event, and who has not answered it yet"""
     name: str
     speaker: str # Who said the line. Empty for an event
-    is_protected: bool # Spoken to by the player, or part of an event: they still answer once the NPCs have reached their limit of replies in a row
+    is_protected: bool # Spoken to by the player, or part of an event: they still answer once the NPCs have reached their limit of replies in a row, or the Game Master gives the player the turn
     others: list[str] = field(default_factory=list) # The others the same line was aimed at. Empty unless it was aimed at several people
 
 
@@ -240,7 +240,8 @@ class ShoutState(Bystanders):
         return self.still_to_answer.pop(ref_id, None)
 
     def drop_unprotected_answers(self) -> list[str]:
-        """The NPCs have reached their limit of replies in a row: only the people the player spoke to, or who are part of an event, still answer
+        """The NPCs have reached their limit of replies in a row, or the Game Master gives the player the turn: only the people the player spoke to,
+        or who are part of an event, still answer
 
         Returns:
             list[str]: the names of the people who no longer have to answer

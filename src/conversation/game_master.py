@@ -627,6 +627,7 @@ class GameMaster:
                          listed: list[Character | EventPerson] | None = None) -> Character | EventPerson | None:
         """Shout: applies who the latest line was aimed at to the Game Master's own choice of who speaks next.
         If it was aimed at anyone, the one of them most likely to speak next speaks first, also when the Game Master's own choice was someone else.
+        Except when an NPC said the line and the Game Master gives the player the turn: the player gets it, and nobody has to answer that line.
         While the player watches an NPC Event, the Game Master's own choice stands: the people it was aimed at only join
 
         Args:
@@ -638,6 +639,13 @@ class GameMaster:
         if flagged is None or not shout_state:
             return usual
         shout_state.analysed_line = self.__line # Asked once for each line
+        event = self.__context.npc_event
+        is_bystander_scene = bool(event and not event.player_joined)
+        if flagged and self.picked_player and not self.is_line_protected and not is_bystander_scene:
+            # An NPC spoke to someone, but the Game Master gives the player the turn: its pick stands, so NPCs talking to each other can't keep the player waiting.
+            # Only a line the player said, or an event, makes the people it was aimed at answer first
+            logging.log(26, f"Game Master: the player gets the turn, so nobody has to answer {self.line_speaker} first (spoken to: {', '.join(person.name for person in flagged)})")
+            return usual
         nearby_first = self.__is_past_limit_allowed
         aimed = cap_answering(flagged, self.__line[1], shout_state.max_answering, self.__free_places, nearby_first)
         if len(aimed) < len(flagged):
@@ -652,8 +660,7 @@ class GameMaster:
             return usual
         if listed:
             aimed.sort(key=lambda person: next((i for i, l in enumerate(listed) if l is person), len(listed)))
-        event = self.__context.npc_event
-        if event and not event.player_joined:
+        if is_bystander_scene:
             self.aimed_at = aimed
             return usual
         if any(person is usual for person in aimed):
@@ -1089,6 +1096,7 @@ class GameMasterTurns:
     def __apply_decision(self, game_master: GameMaster, speaker: Character | EventPerson | None) -> tuple[Character | EventPerson | None, list[EventPerson]]:
         """Shout: what follows from who the latest line was aimed at. Each of them has to answer before the player gets the turn, and those
         who are only nearby have to be added first. If the player would get the turn now, someone who has not answered yet speaks instead.
+        When the Game Master itself gives the player the turn, only answers owed to the player's line or to an event still come first.
         While the player watches an NPC Event, they only join: there is no turn to give back. Call while holding the lock
 
         Returns:
@@ -1105,6 +1113,12 @@ class GameMasterTurns:
         if aimed:
             bystanders.add_still_to_answer([(person.ref_id, person.name) for person in aimed], game_master.line_speaker, game_master.is_line_protected)
         if not speaker:
+            if game_master.picked_player:
+                # The Game Master gives the player the turn: answers owed to an NPC's line are dropped. Only the people the player spoke to,
+                # or who are part of an event, still answer first
+                dropped = bystanders.drop_unprotected_answers()
+                if dropped:
+                    logging.log(26, f"Game Master: the player gets the turn, so these people no longer have to answer an NPC's line: {', '.join(dropped)}")
             speaker = self.__next_still_to_answer(bystanders, game_master.scores)
             if speaker:
                 logging.log(26, f"Game Master: {speaker.name} has not answered yet, so they speak before the player gets the turn")
