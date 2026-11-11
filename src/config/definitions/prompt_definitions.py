@@ -631,7 +631,11 @@ Always use the most recent memory to determine the current relationship
   - Time: {time} {time_group}
   - Weather: {weather}
   - {equipment}
+{if director}
+  - Scene directions and events are shown in brackets like this: (A door slams shut). They are what is happening now: react to them, but never repeat the bracketed text.
+{else}
   - Actions may be described in brackets like this: (The player picks up an item). These are informational only — do not respond to or include bracketed text.
+{end if}
 {if not shout and not npc_event}
   - Pay attention to "New developments since last meeting", and react accordingly.
 
