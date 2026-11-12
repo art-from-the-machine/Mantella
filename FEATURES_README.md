@@ -9,6 +9,7 @@ Trying my best to explain why I added these features and how to make the most of
 - [Character Tags](#character-tags)
 - [Dynamic Events (tag feature)](#dynamic-events-tag-feature)
 - [Quest Tags (tag feature)](#quest-tags-tag-feature)
+- [Tag Editor](#tag-editor)
 - [Lorebook](#lorebook)
 - [Bio Sections to Exclude](#bio-sections-to-exclude)
 - [Send Only Bios](#send-only-bios)
@@ -23,6 +24,9 @@ Trying my best to explain why I added these features and how to make the most of
 
 - [Game Master Mode](#game-master-mode)
 - [Multi Conversation Director Mode](#multi-conversation-director-mode)
+- [Shout](#shout)
+- [Say Something to the Room](#say-something-to-the-room)
+- [Who Answers Before Your Turn](#who-answers-before-your-turn)
 - [bios_and_summaries Prompt Variable](#bios_and_summaries-prompt-variable)
 
 **NPCs that act on their own** — conversations you did not start
@@ -34,6 +38,7 @@ Trying my best to explain why I added these features and how to make the most of
 
 - [Multiple Profile System](#multiple-profile-system)
 - [Prompt Profiles](#prompt-profiles)
+- [Conditional blocks in prompts](#conditional-blocks)
 - [Sequential LLM Selection](#sequential-llm-selection)
 - [Fallback Model](#fallback-model)
 - [Decensor Bypass](#decensor-bypass)
@@ -41,9 +46,12 @@ Trying my best to explain why I added these features and how to make the most of
 
 **During a conversation**
 
+- [Conversation Wheel](#conversation-wheel)
+- [Talk, Nearby and Random Events](#talk-nearby-and-random-events)
 - [Drop Last Sentences](#drop-last-sentences)
 - [Interrupt Hotkey](#interrupt-hotkey)
 - [In-Game Events](#in-game-events)
+- [Tidier In-Game Events](#tidier-in-game-events)
 
 **Quality of life** — tools that save you time while testing and playing
 
@@ -129,6 +137,7 @@ Start a new conversation with that NPC, or open **Bio Editor**, select them, and
 Also:
 
 - Use the **Bio Editor** tab to edit a character's tags, see **Runtime Tags** (the merged effective list). It's a good place to debug.
+- Use the [Tag Editor](#tag-editor) tab to create or change what a tag says without editing CSV files. It saves to your personal folder and applies right away, without Reload Character Data.
 - Tags are **case-sensitive** and must match the template name exactly.
 - Duplicate tags are applied only once.
 - Bios, templates, summaries, private thoughts, and personal reflections may use `{player_name}`; it is replaced with the current player's name at runtime (or `"the player"` if none is present).
@@ -232,7 +241,7 @@ Format for an event line (must start the line):
 
 ### Quick Start: create a dynamic event in a tag
 
-Example tag description (static text + two dated event lines):
+Example tag description (static text + two dynamic event lines):
 
 
 | tag             | description                                                                                                                                                                                                             |
@@ -243,6 +252,8 @@ Example tag description (static text + two dated event lines):
 Need a Unix timestamp? Open the **Other** tab and use **Real World Timestamp** → **Get Timestamp** (see [Real World Timestamp](#real-world-timestamp)), then paste it into your event line.
 
 Assign the tag the same way as any other tag (`tags` / `tags_overwrite`). After editing templates, use **Other → Reload Character Data → Reload**.
+
+Or skip the CSV: in the [Tag Editor](#tag-editor), open the tag and use **Add event** under **Dynamic events**. You type a date (or leave it empty for "now") and the timestamp is filled in for you. A save there applies right away, without Reload Character Data.
 
 ---
 
@@ -286,7 +297,7 @@ When you talk to an NPC again, Mantella also checks whether any dynamic events h
 2. Any dynamic event whose timestamp is **strictly later** than that latest summary is treated as new.
 3. If the NPC has **no** timestamped summaries yet, every dynamic event counts as new (baseline is `0`).
 
-When the conversation starts, in runtime, those new events are listed in a separate block at the end of memory:
+When the conversation starts, in runtime, those new events are listed in a separate block at the end of memory (and left out of the timeline above it, so they aren't listed twice):
 
 ```
 New developments since last meeting:
@@ -362,7 +373,7 @@ He often stays rude. The model sees past contempt *and* “you are Thane” at t
 
 **What the LLM sees**
 
-Static tag text still goes to the bio. The dated line goes into memory, sorted after both summaries. Because its timestamp is later than the latest summary, it also appears under **New developments**:
+Static tag text still goes to the bio. The dated line belongs after both summaries. Because its timestamp is later than the latest summary, it is shown under **New developments** at the end of the memory (and only there, so it isn't listed twice):
 
 ```
 ## Additional info
@@ -380,7 +391,7 @@ New developments since last meeting:
 
 He can change tone — respect, flattery, sudden politeness — because the memory clearly shows: insults first, *then* you became Thane.
 
-After you talk again and a newer summary is saved, the Thane line stays in the chronological timeline but drops out of **New developments** (only events newer than the latest summary show there).
+After you talk again and a newer summary is saved, the Thane line moves into the chronological timeline and drops out of **New developments** (only events newer than the latest summary show there).
 
 ## Quest Tags (tag feature)
 
@@ -499,6 +510,10 @@ With Dynamic, outcomes that were already true the first time Mantella checked (f
 
 Announcements during a conversation work the same with Static and Dynamic. Hand-written `- <timestamp>: text` lines are not affected by this setting.
 
+A quest tag's `description` is always used as well. With Static, the outcome comes right before the description in the bio. With Dynamic, the description stays in the bio and the outcome is a dated memory.
+
+**One tag can choose for itself.** Add an `outcome_mode` column and write `static`, `dynamic` or `off` for that tag (or pick it in the [Tag Editor](#tag-editor), under Quest outcomes). An empty cell follows the setting. `off` means the tag isn't checked and only its `description` is used. With the setting on Off, no tag is checked.
+
 With Dynamic, Adrianne from the example above sees:
 
 ```
@@ -539,7 +554,9 @@ Put edits in your personal folder, `Documents/My Games/Mantella/data/Skyrim/bio_
 | What you want                              | What to do in your personal CSV                                                                          |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
 | Different wording for one outcome          | A row with the tag name, and only `potential_paste_N` filled in. The author's condition still decides when it happens |
-| Take over the tag completely               | Fill in `description`. The conditions are then ignored for this tag                                     |
+| Add your own background to a quest tag     | Fill in `description`. It's always in the bio, and the current outcome is added to it                    |
+| Take over the tag completely               | Fill in `description`, and write `off` in an `outcome_mode` column. The conditions are then ignored for this tag |
+| Bio or dated memory for one tag            | Write `static` or `dynamic` in an `outcome_mode` column. That tag then ignores the setting              |
 | Add your own outcome                       | Fill an empty pair: `code_N` and `potential_paste_N`                                                     |
 | Never announce a tag to the people present | Add an `announce` column and write `no`                                                                  |
 
@@ -553,6 +570,8 @@ alchemy_trainer,,no
 ```
 
 Then **Other → Reload Character Data → Reload**.
+
+The [Tag Editor](#tag-editor) does the same without a CSV: open the tag, change the texts under **Quest outcomes**, and click **Save**. It writes to your personal folder and applies right away.
 
 - Rewording an outcome never makes it news again: NPCs get the new wording, with the original date.
 - To silence all announcements instead, add a pattern like `Events Update:*` to **Ignored In-Game Events** (see [In-Game Events](#in-game-events)). They're still recorded.
@@ -587,6 +606,7 @@ Any of the game's condition commands works (the ones quest dialogue uses). A new
 | `getfactionrank`            | `getfactionrank 28186>=2`                     | Rank in a faction                                      |
 | `GetKeywordDataForLocation` | `GetKeywordDataForLocation 16772 2A456=1`     | A place's value for a keyword (e.g. who owns a city)   |
 | `show`                      | `show 3A>=30`                                 | A game-wide value (a global)                           |
+| `GetVMQuestVariable`        | `GetVMQuestVariable MQ302 ::CityToSwitch_var=2` | A number a quest's script keeps. Write the variable's name (`::Name_var`) or its property's name (`CityToSwitch`). Needs the add-on version with this check |
 | `getrelationshiprank`       | `"01A66A".getrelationshiprank 14>=1`          | How much an NPC likes the player, from -4 to 4         |
 | `ishostiletoactor`          | `"1E766".ishostiletoactor player=1`           | An NPC is hostile to the player                        |
 | `hasspell`                  | `"14".hasspell 0201462A=0`                    | Has a spell                                            |
@@ -663,7 +683,7 @@ Deleting this file starts the record from scratch: everything already true becom
 | Problem                                         | What to check                                                                                                                                                                                                                                                       |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Nothing ever changes                            | Look for `the game sent no results` in the log. Then check `skse64.log` for `MantellaQuestChecks.dll`: if it didn't load, update SKSE / Address Library or check your game version. Also make sure Mantella-Spell is up to date and **Auto Quest Tag Outcomes** isn't **Off** |
-| An NPC doesn't know an outcome                  | 1. Does the NPC have the tag? Check **Runtime Tags** in the **Bio Editor**; remember `tags_overwrite` replaces `tags`. 2. Is `current` in `tag_outcomes.json` the outcome you expect? If not, search the log for the tag name. 3. Is the tag's `description` filled in? That turns automatic outcomes off for it. 4. Static: is `Additional info` excluded in [Bio Sections to Exclude](#bio-sections-to-exclude)? Dynamic: does your prompt leave out `{conversation_summary}`? |
+| An NPC doesn't know an outcome                  | 1. Does the NPC have the tag? Check **Runtime Tags** in the **Bio Editor**; remember `tags_overwrite` replaces `tags`. 2. Is `current` in `tag_outcomes.json` the outcome you expect? If not, search the log for the tag name. 3. Is the tag's `outcome_mode` set to `off`? Then it isn't checked. 4. Static: is `Additional info` excluded in [Bio Sections to Exclude](#bio-sections-to-exclude)? Dynamic: does your prompt leave out `{conversation_summary}`? |
 | The wrong outcome                               | Two outcomes are true at once (the higher one wins), or a check is not true because something is missing or can't be run. `quest_check_answers.json` shows each answer                                                                                            |
 | An outcome is stuck after travelling            | A check is about an NPC who isn't near you (`not loaded` in the debug log). It updates when you're near them again                                                                                                                                                 |
 | An outcome is news again                        | You loaded an older save; that's expected                                                                                                                                                                                                                           |
@@ -682,6 +702,69 @@ In `quest_check_answers.json`, three special numbers mean the game couldn't answ
 - More than five announcements on one line can be cut by **Max Count Events**. They're still recorded, so NPCs with the tag still learn them.
 - Quests that can be done more than once (some small "Favor" errands) clear their steps when they start again. The tag then goes back, as if you'd loaded an older save.
 - An NPC brought back with the console `resurrect` command counts as alive again. The outcome goes back, as if you'd loaded an older save.
+
+## Tag Editor
+
+### Where to find it
+
+The **Tag Editor** tab in the Mantella UI. Skyrim only.
+
+### What it does
+
+[Character tags](#character-tags) live in CSV files. Before, changing what a tag says meant finding the right file and editing it by hand. The Tag Editor lets you read, change and create tags in the UI, the way the Bio Editor lets you change bios.
+
+Pick a tag from the list (type to search; the community file alone has about 1,000 tags), and its parts open below:
+
+| Part | What you can do |
+| --- | --- |
+| **Tag text** | The ordinary text that goes into the bio |
+| **Dynamic events** | A table of [dated events](#dynamic-events-tag-feature), oldest first. Change the **Date** or the **Timestamp** and the other follows. **Add event** adds one (leave both dates empty for "now"); click a row and **Remove** to drop one |
+| **NPCs with this tag** | Everyone who has the tag, in `tags` or `tags_overwrite`. Shown once Mantella has connected to the game |
+| **Quest outcomes** | For [quest tags](#quest-tags-tag-feature): the five outcome texts and their conditions, **announce**, and **Where this tag's quest outcome goes** (Follow the setting, Static, Dynamic or Off). A condition that can't be read says why next to it |
+| **Source** | Which mod the tag is for. Never sent to the LLM. Global search finds tags by it |
+| **Notes** | The tag's `notes` column, for yourself |
+
+Each part says which file its value comes from (Base, Mod or Personal) when the tag is in more than one file.
+
+**Buttons**
+
+| Button | What it does |
+| --- | --- |
+| **Save** | Writes your changes and applies them right away |
+| **Discard changes** | Loads the tag again from the files, dropping what you haven't saved |
+| **Create** | Makes a new tag from what the fields show: from empty fields, or as a copy of the open tag under a new name |
+| **Delete tag** | Only for a tag that exists only in your personal files. Asks to confirm first |
+| **Reset to base / mod version** | Only for a base or mod tag you changed: removes your changes. Asks to confirm first |
+| **Reload files** | Reads every tag file again, for CSVs you edited by hand |
+| **Global search** | Finds text in every tag: names, text, events, outcomes, conditions, notes and source. Click a result to open that tag |
+
+If you try to switch tags with unsaved changes, the editor stays on the current tag and tells you to save or discard first.
+
+**Where your changes are saved**
+
+- Base and mod files are never changed, so updates to Mantella or a mod can't overwrite your work.
+- If the tag already has a row in one of your personal files, the change goes there. Otherwise it goes to `tag_editor.csv` in your personal folder (`Documents/My Games/Mantella/data/Skyrim/bio_templates/`). New tags go there too.
+- Only the fields you changed are written, so later updates to the other fields still reach you.
+- Before a file is changed, a copy is kept next to it as `<name>.csv.bak`.
+- Clearing a field you changed brings back the base or mod value underneath.
+
+**When changes take effect**
+
+- Tag text, events, outcome texts, announce and outcome mode: new conversations use them, and the NPCs in a running conversation use them from their next reply.
+- Changed conditions reach the game when the next conversation starts. In a running conversation, quest progress isn't checked until it ends. The message after **Save** tells you when this happens.
+
+### Quick start
+
+1. Open the **Tag Editor** tab and pick a tag, for example `whiterun_hold`.
+2. Change the **Tag text**, or add an event under **Dynamic events**.
+3. Click **Save**. The message line says which file was written and which NPCs in the current conversation use the new version.
+4. To make a new tag: with no tag open, fill in the fields, type a name next to **Create** and click it. Give it to NPCs in the **Bio Editor**.
+
+**Notes**
+
+- If **Enable Character Tag Reading** is off, a note at the top of the tab says saved tags won't be used until it's turned back on.
+- Renaming a tag and giving a tag to NPCs from this tab are not supported yet. Use the Bio Editor to give tags.
+- The full design is in [docs/tag_editor.md](docs/tag_editor.md).
 
 ## Lorebook
 
@@ -703,7 +786,7 @@ Unlike character tags (which permanently expand an NPC's bio), lorebook entries 
 
 Note that there is no single "correct" lorebook. Keys and descriptions are up to your creativity and the story you want the LLM to know.
 
-**Important:** lorebook text only appears if your prompt includes `{lorebook}`. Default prompts do not include it — add the variable yourself (see below).
+**Important:** lorebook text only appears if your prompt includes `{lorebook}`. Of the default prompts, only the **Skyrim Game Master NPC Prompt** and the **Skyrim NPC Initiative Prompt** include it — add the variable yourself to the others (see below).
 
 ### Tags vs lorebook
 
@@ -900,9 +983,10 @@ There are two ways a slot is chosen:
 | Type                                                                | Apply toggle                                                                                   | Model whose profiles are used                                                                                         | Slot                         |
 | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
 | One-on-one conversations                                            | **Apply Profile for One-on-One Conversations**                                                 | The one-on-one model, a per-character model override, or the model picked from a one-on-one random / sequential pool | Weighted pick, each request  |
-| Multi-NPC conversations (also the NPCs acting out an NPC Event)     | **Apply Profile for Multi-NPC Conversations**                                                  | The multi-NPC model, or the model picked from a multi-NPC random / sequential pool                                   | Weighted pick, each request  |
-| NPC Event Generator (invents the scene)                             | **Apply Profile for NPC Event Generator** (on by default)                                      | The NPC Event Generator model                                                                                         | Weighted pick, each request  |
-| Game Master (also NPC Initiative and the Game Master of NPC Events) | **Apply Profile for Game Master**                                                              | The Game Master LLM. Ignored when the Game Master uses a decision model, see [Game Master Mode](#game-master-mode)    | Profile 1                    |
+| Multi-NPC conversations (also each NPC reply with the Game Master, when more than one NPC is present) | **Apply Profile for Multi-NPC Conversations**                                                  | The multi-NPC model, or the model picked from a multi-NPC random / sequential pool                                   | Weighted pick, each request  |
+| NPC Event Generator (invents NPC Events and Talk/Nearby/Random Events) | **Apply Profile for NPC Event Generator** (on by default)                                   | The NPC Event Generator model                                                                                         | Weighted pick, each request  |
+| [Fallback](#fallback-model) (a reply the service rejected)          | **Apply Profile for Fallback** (on by default)                                                 | The Fallback model                                                                                                    | Weighted pick, each request  |
+| Game Master (also Shout, NPC Initiative and NPC Events)             | **Apply Profile for Game Master**                                                              | The Game Master LLM. Ignored when the Game Master uses a decision model, see [Game Master Mode](#game-master-mode)    | Profile 1                    |
 | Summaries                                                           | **Apply Profile for Summaries**                                                                | The summary model                                                                                                     | Profile 1                    |
 | Private thoughts                                                    | **Apply Profile for Private Thoughts** (on by default)                                         | Its own model. While it follows the summary model, the summary client and **Apply Profile for Summaries** are used   | Profile 1                    |
 | Personal reflection                                                 | **Apply Profile for Personal Reflection** (on by default)                                      | Its own model. While it follows the summary model, the summary client and **Apply Profile for Summaries** are used   | Profile 1                    |
@@ -968,7 +1052,7 @@ Why a second system:
 
 Named prompt overlays, stored in `data/prompt_profiles.json`. Edited in the **Prompt Profiles** tab.
 
-They are **per prompt type**. Skyrim Prompt, Multi-NPC, Director, Radiant, the [Game Master](#game-master-mode) prompts (Game Master, Game Master NPC, the two Director versions, and the three Decision prompts), the five [NPC Initiative](#npc-initiative) prompts, the five [NPC Events](#npc-events) prompts, Memory, Inner Monologue, Personal Reflection, Resummarize, Vision, the radiant start/end prompts, and the two [Decensor Bypass](#decensor-bypass) prompts each have their own named set. Fallout 4 conversation prompts are not overlay types — those still come from the Prompts tab. Shared types (memory, thoughts, reflection, vision, radiant start/end, decensor) apply regardless of game.
+They are **per prompt type**. Skyrim Prompt, Multi-NPC, Multi-NPC Director, Radiant, the [Game Master](#game-master-mode) prompts (Game Master, Game Master NPC and the three Decision prompts), the five [NPC Initiative](#npc-initiative) prompts, the [NPC Event](#npc-events) Generator and Wind-Down prompts, the [Talk/Nearby/Random Event](#talk-nearby-and-random-events) Generator prompt, the [Shout](#shout) and [Say To Room](#say-something-to-the-room) prompts (Decision Nearby Criteria, Say To Room Decision Nobody Criteria, the four Spoken To / Part Of Event criteria and the Group Answer Note), Memory, Inner Monologue, Personal Reflection, Resummarize, Vision, the radiant start/end prompts, and the two [Decensor Bypass](#decensor-bypass) prompts each have their own named set. Fallout 4 conversation prompts are not overlay types — those still come from the Prompts tab. Shared types (memory, thoughts, reflection, vision, radiant start/end, decensor) apply regardless of game.
 
 Profiles can also reuse blocks of text through [shared sections](#shared-sections).
 
@@ -1038,6 +1122,78 @@ Edit the section once and every active profile that uses it sends the new text o
 
 - Renaming or deleting a section does not update the profiles that use it. Those profiles stop working until you fix the variable name — check the log if an NPC suddenly stops replying.
 - Saving a section updates every active profile that uses it right away (with [Hot Swap](#hot-swap) on, from the next request).
+- A section can hold conditional blocks (see below). They are checked with the prompt the section is put into.
+
+### Conditional blocks
+
+Some prompts do the same job in different situations. The Game Master works in a group conversation, in Shout, when you say something to the room and in an NPC Event, and most of what it is told is the same each time. Instead of one prompt per situation, there is one prompt, and the parts that differ go in **conditional blocks**:
+
+```text
+## Core Task
+{if shout}
+- People nearby can hear the conversation: {nearby}.
+{else if npc_event}
+- This is a scene you are only watching.
+{else}
+- This is a group conversation.
+{end if}
+- The time is {time} {time_group}.
+```
+
+Only the text for the situation at hand is sent. In Shout, the LLM reads the first and last lines and the line about people nearby, and nothing else.
+
+- **Tags:** `{if ...}`, `{else if ...}`, `{else}` and `{end if}`. Blocks can be inside other blocks.
+- **Combining:** `not`, `and` and `or`, for example `{if shout or say_to_room}` or `{if not director}`.
+- **Lines:** a tag on a line of its own takes that whole line with it, and so do the lines of a part that is left out, so no empty gaps are left. A tag can also sit inside a line: `You are in {location}{if shout}, where people can hear you{end if}.`
+- **Where they work:** only in the prompts below, in the Prompts tab and in prompt profiles. Anywhere else, a tag is an error.
+
+**Which prompts take conditions**
+
+| Prompt | Conditions |
+|---|---|
+| Skyrim Game Master Prompt | `director`, `shout`, `say_to_room`, `npc_event` |
+| Skyrim Game Master NPC Prompt | `director`, `shout`, `npc_event` |
+| Skyrim Talk/Nearby/Random Event Generator Prompt | `talk_event`, `nearby_event`, `random_event`, `director` |
+| Skyrim Game Master Decision Instructions | `after_event` |
+| Skyrim Game Master Decision Player Criteria | `after_event` |
+| Skyrim Decision Nearby Criteria | `shout`, `say_to_room`, `npc_event` |
+| Skyrim Say To Room Decision Nobody Criteria | `director` |
+| Memory Prompt | `director` |
+
+The first six used to be 18 separate prompts: the Director, Shout, Say To Room and NPC Event versions of the Game Master and Game Master NPC prompts, the Conversation, Nearby and Random Event Generator prompts (now the Talk/Nearby/Random Event Generator Prompt, not to be confused with the NPC Event Generator Prompt, which writes the scenes of NPC Events), the Decision Event Instructions and Event Player Criteria, and the Shout and NPC Event Decision Nearby Criteria. The built-in text of each situation is exactly what the old prompt said.
+
+**When each condition is true**
+
+| What is happening in game | Condition |
+|---|---|
+| A group conversation (you and two or more NPCs) with Game Master Mode on and Shout off | none |
+| Director Mode is on and you are in the conversation: with any number of NPCs, in Shout, saying something to the room, or in an NPC Event you joined. Never in a conversation an NPC started | `director` |
+| The memory of a conversation you directed is written | `director` (Memory Prompt) |
+| Shout is on and you are talking with one or more NPCs | `shout` |
+| You said something out loud while not talking to anyone yet | `say_to_room` |
+| You are watching an NPC Event | `npc_event` |
+| You picked Talk Event / Nearby Event / Random Event on the Conversation Wheel | `talk_event` / `nearby_event` / `random_event` (Talk/Nearby/Random Event Generator Prompt) |
+| The first choice of who speaks right after you picked a wheel event: who reacts to it first | `after_event` (the two Decision prompts) |
+
+- `shout`, `say_to_room` and `npc_event` are never true at the same time. Saying something to the room is never also `shout`.
+- Once someone answers what you said to the room, it is `shout`. Once you join an NPC Event, it is `shout` too.
+- `director` can be true together with `shout`, `say_to_room` or a wheel event's kind. It is never true while you watch an NPC Event.
+- One NPC without Director Mode or Shout, a group with Game Master Mode off, radiant conversations and Fallout 4 don't use the Game Master prompts. The Memory Prompt is used by every conversation.
+
+**Preview.** Under each of these prompts, in the Prompts tab and in the Prompt Profiles editor, **Preview** shows the text that is sent in a situation you pick from **Show as**. Variables are left as `{name}`, since there is no conversation to fill them from. In the profile editor, shared sections are filled in.
+
+**Broken blocks block the request.** A missing `{end if}`, an `{else}` with no `{if}`, or a condition the prompt doesn't know is rejected when you save, with a message that says what is wrong. So is a tag that is almost right, like `{endif}`, `{elif shout}` or `{If shout}`: the message says how to write it. Tags are lower case. A shared section can't be named `else`, `if`, `end`, `endif`, `elif`, `elseif` or `fi`, since it would be read as a tag. If one reaches a conversation anyway, Mantella refuses the LLM call and logs `Refusing LLM call. The prompt's conditional blocks are broken: ...`.
+
+**Colours.** The prompt text boxes (the Prompts tab, a profile's prompt text and a shared section's text) colour what you type, like a code editor:
+- `{if …}`, `{else if …}`, `{else}` and `{end if}` stand out as tags, with the condition names and `and` / `or` / `not` in their own colours.
+- Variables like `{name}` and shared sections like `{content_rules}` each have their own colour.
+- The lines inside a block get a tinted band and a bar on the left, a different colour for each level of nesting, so you can see where a block starts and ends.
+- A mistake is underlined in red as you type: a typo like `{endif}`, a condition this prompt doesn't know (like `{if after_event}` in the Game Master Prompt), an `{else}` with no `{if}`, an `{if}` with no `{end if}`, or any tag in a prompt that has no conditional blocks. The message under the box says what is wrong. A shared section can go into any prompt, so in its text box every condition is accepted; it is checked in the prompt that uses it.
+- With the cursor on a tag, its whole block lights up: the `{if}`, its `{else if}` and `{else}`, and its `{end if}`.
+
+Only the display changes: what is saved and sent is the plain text.
+
+**For developers.** The tags are applied by `apply_conditions` in `src/prompt_conditions.py`. Each merged prompt's conditions are in `PromptDefinitions.PROMPT_CONDITIONS`, the preview situations in `PREVIEW_SITUATIONS`. The conversation types pass the conditions (`prompt_conditions` in `src/conversation/conversation_type.py`), and `Context.generate_system_message` applies them after the shared sections are expanded and before the lorebook search. `tests/test_prompt_snapshots.py` holds the text sent in each situation, recorded before the merge. The colours come from `src/ui/prompt_highlight.py`: a script draws a coloured copy of the text behind each box with the `prompt-highlight` class, and makes the box's own text transparent. The box's `ph-type-<prompt type>` class (`prompt_box_classes`) tells it which conditions that prompt knows; the profile editor updates it with the chosen prompt type. If drawing fails, the box goes back to plain text, and the script sets its own layout styles, so it doesn't depend on style.css. Its tag patterns mirror `TAG_RE` and `_NEAR_MISS_RE`; `tests/ui/test_prompt_highlight.py` runs the script in Node.
 
 ## Sequential LLM Selection
 
@@ -1465,7 +1621,7 @@ The dedicated model is used everywhere reflections are generated: at conversatio
 
 ## Turn Thoughts
 
-> **⚠️ Turn thoughts need a custom prompt.** There is no on/off toggle. The NPC only writes turn thoughts if the conversation prompt tells it to, so you have to add the instructions yourself (see **Quick start** below). Only the default **Skyrim Game Master NPC Prompt**, **Skyrim Game Master Director NPC Prompt**, **Skyrim NPC Initiative Prompt**, and **Skyrim NPC Event NPC Prompt** already include them.
+> **⚠️ Turn thoughts need a custom prompt.** There is no on/off toggle. The NPC only writes turn thoughts if the conversation prompt tells it to, so you have to add the instructions yourself (see **Quick start** below). Only the default **Skyrim Game Master NPC Prompt** (in every situation: group, Director Mode, Shout and NPC Events) and **Skyrim NPC Initiative Prompt** already include them.
 
 ### Where to find it
 
@@ -1473,7 +1629,7 @@ The dedicated model is used everywhere reflections are generated: at conversatio
 
 **LLM** tab → **Advanced** → **Turn Thoughts to Keep** and **Read Turn Thoughts After Sentence Cap**.
 
-**Live Conversation** tab — turn thoughts show up as **💭 Thought** rows.
+**Conversation** tab — turn thoughts show up as **💭 Thought** rows.
 
 ### What it does
 
@@ -1568,7 +1724,7 @@ Ysolda: Come on, let's keep moving.
 
 **How many are sent back**
 
-**Turn Thoughts to Keep** (default **1**) is how many recent NPC replies keep their thoughts in the next request, counting back from the latest reply. Player lines do not count. **0** sends no turn thoughts. Older thoughts are left out of the request but stay in the history (and in the Live Conversation table). Keeping only the last few saves tokens and stops old plans from steering the NPC long after they stopped mattering.
+**Turn Thoughts to Keep** (default **1**) is how many recent NPC replies keep their thoughts in the next request, counting back from the latest reply. Player lines do not count. **0** sends no turn thoughts. Older thoughts are left out of the request but stay in the history (and in the live conversation table). Keeping only the last few saves tokens and stops old plans from steering the NPC long after they stopped mattering.
 
 **Thoughts and the sentence cap**
 
@@ -1603,7 +1759,7 @@ Thoughts come **after** the spoken lines, so **Max Sentences per Response** can 
 
 2. **Recommended:** **LLM** tab → **Advanced** → turn on **Read Turn Thoughts After Sentence Cap**, so the sentence cap does not cut off the thoughts.
 3. Talk to the NPC. The thought is not spoken.
-4. Open **Live Conversation** → **Reload**. The thought shows as a **💭 Thought** row under the reply.
+4. Open **Conversation** → **Reload**. The thought shows as a **💭 Thought** row under the reply.
 5. On the next turn, check the prompt log: the last reply ends with the `<<thought ...>>` line.
 
 **Notes**
@@ -1629,7 +1785,7 @@ Dropped sentences are:
 
 At least **one** sentence is always kept. Set to **0** to disable (default).
 
-**Only single-NPC conversations and each NPC reply in [Multi-NPC Game Master Mode](#game-master-mode).** Regular multi-NPC conversations are unchanged.
+**Only single-NPC conversations and each NPC reply with the Game Master** ([Game Master Mode](#game-master-mode), [Shout](#shout) and [NPC Events](#npc-events)). Regular multi-NPC conversations are unchanged.
 
 [Turn thoughts](#turn-thoughts) are not counted and are never dropped — only spoken sentences are.
 
@@ -1647,7 +1803,7 @@ If replies feel clipped, set it back to `0` or combine with a lower **Max Senten
 
 ### Where to find it
 
-**LLM** tab → **Send Only Bios (Single + Multi)**.
+**LLM** tab → **Advanced** → **Send Only Bios (Single + Multi)**.
 
 ### What it does
 
@@ -1775,7 +1931,7 @@ They are saved per save (world), in their own folder alongside the NPC's summari
 
 ### Where to find it
 
-**Other** tab → **Enable Hot-Swap Settings** (default: on).
+**Other** tab → **Advanced** → **Enable Hot-Swap Settings** (default: on).
 
 ### What it does
 
@@ -1788,7 +1944,7 @@ When you change settings in the UI while Mantella is running, those changes need
 | **Disabled**          | Settings changes fall back to classic behavior: the conversation is ended and the route restarts with the new config                                                                 |
 
 
-Character CSV / bio template / lorebook file edits are different — those still need **Reload Character Data** (or a restart), which ends an active conversation. Hot swap is for **config/UI settings**, not for reloading character files from disk.
+Character CSV / bio template / lorebook file edits are different — those still need **Reload Character Data** (or a restart), which ends an active conversation. Hot swap is for **config/UI settings**, not for reloading character files from disk. Tags you save in the [Tag Editor](#tag-editor) are the exception: they apply right away, without ending the conversation.
 
 ### Quick start
 
@@ -1813,11 +1969,11 @@ Character CSV / bio template / lorebook file edits are different — those still
 
 ### Where to find it
 
-The **Live Conversation** tab in the Mantella UI (not inside Settings).
+The **Conversation** tab in the Mantella UI (was Live Conversation). The settings for who answers before your turn are at the end of the same page (see [Who Answers Before Your Turn](#who-answers-before-your-turn)). The settings are in folded sections: click a title to open it. **All Conversations** explains what the Who Answers options mean and holds Game Master Spoken To Threshold, then each kind of conversation (Group Conversation, Shout, Director Mode, Events, Watched NPC Event) has its own section. Under each Who Answers dropdown, the option picked there is explained.
 
 ### What it does
 
-Shows the **active conversation as a table** so you can inspect it, edit a bad turn, or undo without ending the chat. Each row is one line: a player message, one NPC sentence, or an NPC joining/leaving. The **Kind** column tells them apart: **Speech**, **Narration**, **💭 Thought** (an NPC's private thoughts, never spoken aloud), **Player**, **Director**, **System**, **Joined**, **Left**. The **#** column groups sentences by reply (`3.1`, `3.2` are sentences of message 3).
+Shows the **active conversation as a table** so you can inspect it, edit a bad turn, or undo without ending the chat. Each row is one line: a player message, one NPC sentence, an in-game event, or an NPC joining/leaving. The **Kind** column tells them apart: **Speech**, **Narration**, **💭 Thought** (an NPC's [turn thought](#turn-thoughts), never spoken aloud), **Player**, **Director**, **System**, **Event** (an in-game event sent with that message, including the events picked on the [Conversation Wheel](#talk-nearby-and-random-events) and the opening scene of an [NPC Event](#npc-events)), **Joined**, **Left**. The **#** column groups sentences by reply (`3.1`, `3.2` are sentences of message 3; `3.e1` is the first event sent with message 3). Event rows can be edited and deleted like the others.
 
 When a model returns garbage, a duplicated line, or you misspoke, you do not have to live with that text in history (and later in the summary). Reload the current thread, fix it, save it back.
 
@@ -1835,13 +1991,13 @@ When a model returns garbage, a duplicated line, or you misspoke, you do not hav
 
 The game / Mantella must already be running with an **active** conversation that has at least some messages.
 
-Below the table, **Decensor bypass (read-only)** shows the handshake and commitment that are sent before the conversation when [Decensor Bypass](#decensor-bypass) is on. They are not part of the history, so they do not appear in the table.
+The handshake and commitment of [Decensor Bypass](#decensor-bypass) are not part of the history, so they do not appear in the table.
 
 ### Quick start
 
 **Example: the NPC just output nonsense**
 
-1. Open **Live Conversation**.
+1. Open **Conversation**.
 2. Click **Reload**.
 3. Either click **Undo NPC reply** (keeps your last line so they can answer again), or fix the text in the table and click **Save**.
 4. Continue in-game. The next request uses the cleaned history.
@@ -1979,14 +2135,15 @@ Character backgrounds:
 - The director-style multi-NPC prompt already uses `{bios_and_summaries}` by default — that is the recommended pattern for group chats.
 - In multi-NPC chats, do not add `{private_thoughts}`; thoughts ride along inside each NPC's memory half of `{bios_and_summaries}`. In single-NPC chats, use `{private_thoughts}` on the one-on-one prompt instead.
 - In the [Game Master](#game-master-mode) NPC prompts, `{bios_and_summaries}` holds only the **speaking** NPC's bio and memory. Each NPC reply is its own request, so the other NPCs' private info is never in the prompt at all.
+- In the prompt of the Game Master that decides who speaks next (the Skyrim Game Master Prompt, in every situation), `{bios_and_summaries}` always includes each NPC's private thoughts, even when only one NPC is in the conversation. These prompts have no `{private_thoughts}`, so this is how the Game Master gets them.
 
 ## Game Master Mode
 
 ### Where to find it
 
-**LLM** tab → **Multi-NPC Game Master Mode**, **Game Master Max NPC Turns per Player Turn**, **Game Master Message Limit**, and **Include Turn Thoughts for Game Master**, plus the Game Master model settings: **Use Decision Model for Game Master**, **Game Master Decision Service**, **Game Master Decision Model** — or, with the decision model off, **Game Master LLM Service**, **Game Master Model**, **Game Master LLM Parameters** (and **Game Master Custom Token Count** under **Advanced**).
+**LLM** tab → **Multi-NPC Game Master Mode**, **Game Master Message Limit**, and **Include Turn Thoughts for Game Master**, plus the Game Master model settings: **Use Decision Model for Game Master**, **Game Master Decision Service**, **Game Master Decision Model** — or, with the decision model off, **Game Master LLM Service**, **Game Master Model**, **Game Master LLM Parameters** (and **Game Master Custom Token Count** under **Advanced**). **Conversation** page (below the live conversation) → who answers before your turn in each situation, **Game Master Max NPC Turns per Player Turn**, **Game Master Director Max NPC Turns** and **Game Master Spoken To Threshold**.
 
-**Prompts** tab → **Skyrim Game Master Prompt**, **Skyrim Game Master NPC Prompt**, and the three decision prompts (**Skyrim Game Master Decision Instructions**, **Skyrim Game Master Decision NPC Criteria**, **Skyrim Game Master Decision Player Criteria**). All of them can be overlaid with [prompt profiles](#prompt-profiles).
+**Prompts** tab → **Skyrim Game Master Prompt**, **Skyrim Game Master NPC Prompt**, and the three decision prompts (**Skyrim Game Master Decision Instructions**, **Skyrim Game Master Decision NPC Criteria**, **Skyrim Game Master Decision Player Criteria**). Who a line was spoken to is asked with **Skyrim Shout Decision Spoken To Criteria**, **Skyrim Shout Decision Not Spoken To Criteria**, **Skyrim Shout Decision Part Of Event Criteria** and **Skyrim Shout Decision Not Part Of Event Criteria**, and **Skyrim Shout Group Answer Note** asks for a short answer; despite their names, these are used in every group conversation with the Game Master, not only in Shout. All of them can be overlaid with [prompt profiles](#prompt-profiles).
 
 **Model Profiles** tab → **Apply Profile for Game Master**.
 
@@ -1999,7 +2156,7 @@ Game Master Mode splits the job in two:
 1. **The Game Master decides who speaks next.** It sees the bios (whatever its prompt includes) and the whole conversation, but it never writes dialogue.
 2. **The chosen NPC replies on their own.** That reply is a separate request whose prompt contains **only that NPC's** bio, memory, and [private thoughts](#private-thoughts). The NPC also only sees the part of the conversation they were present for, and only their own [turn thoughts](#turn-thoughts).
 
-After every NPC reply the Game Master decides again: another NPC, or the player. After **Game Master Max NPC Turns per Player Turn** NPC replies in a row (default **3**), the player always gets the turn. When the player speaks, the Game Master picks who answers (never the player).
+After every NPC reply the Game Master decides again: another NPC, or the player. After **Game Master Max NPC Turns per Player Turn** NPC replies in a row (default **3**), the player gets the turn. Who still answers first depends on the situation's **Who Answers** rule on the Conversation page. By default, anyone the player spoke to (or who is part of an event) who hasn't answered yet still answers first, and the count starts over with their reply, so the others can respond to them. See [Who Answers Before Your Turn](#who-answers-before-your-turn). When the player speaks, the Game Master picks who answers (never the player).
 
 Send `.` to let the NPCs keep talking without saying anything yourself. It is not voiced and does not add an `Interrupting...` event. Nothing is added to the conversation except the in-game events since your last line, if there are any.
 
@@ -2050,7 +2207,7 @@ Game Master: Serana speaks next (confidence 0.81: Serana 0.81, Lydia 0.19)
 
 **Notes**
 
-- Skyrim multi-NPC conversations only. Single-NPC, radiant, and Fallout 4 conversations are not affected.
+- Skyrim multi-NPC conversations only. Single-NPC, radiant, and Fallout 4 conversations are not affected. [Shout](#shout), [Say Something to the Room](#say-something-to-the-room), [NPC Events](#npc-events) and [NPC Initiative](#npc-initiative) use the Game Master model even while this setting is off.
 - In the **Skyrim Game Master NPC Prompt**, `{name}`, `{names}`, `{bio}`, `{bios}`, `{conversation_summary}`, `{bios_and_summaries}`, and `{private_thoughts}` are all about the **speaking** NPC. Use `{all_names_without_player}` or `{names_w_player}` to list everyone in the conversation.
 - Each NPC reply follows the **single-NPC** rules: **Max Sentences per Response** for single NPCs and [Drop Last Sentences](#drop-last-sentences) apply to it.
 - The default NPC prompts ask for [turn thoughts](#turn-thoughts).
@@ -2059,7 +2216,7 @@ Game Master: Serana speaks next (confidence 0.81: Serana 0.81, Lydia 0.19)
 - The Game Master model settings are also used by [NPC Initiative](#npc-initiative) and [NPC Events](#npc-events), even while **Multi-NPC Game Master Mode** is off.
 - Can be combined with [Multi Conversation Director Mode](#multi-conversation-director-mode).
 - Can be switched on or off mid-conversation with [Hot Swap](#hot-swap).
-- **Live Conversation → Undo NPC reply** removes only the last NPC's turn, not every NPC reply since your last line.
+- **Conversation → Undo NPC reply** removes only the last NPC's turn, not every NPC reply since your last line.
 - The prompts are logged the first time they are used, and again when someone joins or leaves the conversation.
 
 ## Multi Conversation Director Mode
@@ -2068,37 +2225,252 @@ Game Master: Serana speaks next (confidence 0.81: Serana 0.81, Lydia 0.19)
 
 **LLM** tab → **Multi Conversation Director Mode**.
 
-**Prompts** tab → **Skyrim Multi-NPC Director Prompt**. With [Game Master Mode](#game-master-mode): **Skyrim Game Master Director Prompt** and **Skyrim Game Master Director NPC Prompt**, plus **Game Master Director Max NPC Turns** on the **LLM** tab.
+**Prompts** tab → **Skyrim Multi-NPC Director Prompt** (without Game Master Mode), and the `{if director}` parts of the **Skyrim Game Master Prompt** and **Skyrim Game Master NPC Prompt** (with [Game Master Mode](#game-master-mode), and always in Shout; see [Conditional blocks](#conditional-blocks)). **Game Master Director Max NPC Turns** and **Director Mode: Who Answers** on the **Conversation** page.
 
 ### What it does
 
-In Director Mode you are not **in** the scene — you **direct** it. The NPCs talk among themselves, and whatever you type or say is sent as a **scene direction** instead of dialogue.
+In Director Mode you are not **in** the scene — you **direct** it. Your character is treated as not being there, and whatever you type or say is sent as a **scene direction** instead of dialogue.
 
 - Your input is shown to the LLM as narration without your name, so NPCs treat it as something that happened, not something you said. Write it as an event: *A guard bursts in, shouting that a dragon is attacking the city.*
 - Send `.` to let the NPCs keep talking without a new direction.
 - Your input is not voiced, there is no automatic greeting, and an interruption does not add an `Interrupting...` event (nobody is interrupting — you are not there).
-- **Live Conversation** shows your directions with the **Director** kind.
+- **Conversation** shows your directions with the **Director** kind.
 
-**Without Game Master Mode:** one LLM call writes all NPC lines using the **Skyrim Multi-NPC Director Prompt**. `.` is sent to the LLM as `The scene continues.` (left out of summaries).
+**Where it applies**
 
-**With Game Master Mode:** the Game Master only picks NPCs (never you), using the **Skyrim Game Master Director Prompt**, and each NPC replies with the **Skyrim Game Master Director NPC Prompt**. The NPCs talk for **Game Master Director Max NPC Turns** replies in a row (default **6**), then you can direct again.
+With Director Mode on, it applies to every conversation you are in:
+
+| Conversation | What happens |
+| --- | --- |
+| With several NPCs | The NPCs talk among themselves. With Game Master Mode, they talk for **Game Master Director Max NPC Turns** replies in a row (default **6**), then you can direct again. |
+| With one NPC | The NPC answers each direction once, then you direct again. The NPC keeps the actions of a one-on-one conversation, so a direction like *Lydia decides to follow the Dragonborn* can make her follow. |
+| Shout | Your directions are heard by everyone around. People nearby join when a direction involves them or someone calls them over. |
+| Saying something to the room | What you type is a direction to whoever is around (*A guard spots a thief running past*). Someone nearby reacts and joins, or nobody does and it ends. |
+| An NPC Event you joined | Once you step in, you direct the scene instead of taking part in it. While you only watch, nothing changes. |
+| Switching to Private | Stays directed, also with only one NPC left. |
+
+**The NPCs never learn you are there**
+
+While you direct, nothing Mantella adds tells the NPCs or the Game Master about your character:
+
+- Game events about your character are left out: what you pick up, equip or cast, the damage you take, and what NPCs do to you. Quest events still come through. A custom event you type with the hotkey is left out too if it names your character.
+- Mantella doesn't add its own notes about you: that you are in combat, that someone is attacking you, or how much someone trusts you. Nor the list of who your character can see.
+- Talk, Nearby and Random Events are never about you: **Include Me** is ignored, and the event generator is told you are not around.
+- While you watch an NPC Event with Director Mode on, nobody in it notices you, and what you do isn't reported to the scene either. Stepping in only lets you direct it.
+- You take no place in the conversation: **Most People in Conversation** counts only NPCs. The people a direction is about can even join past it, like after a Nearby Event.
+- The memory of the conversation says you were not there.
+
+What your prompts say about you is up to them: variables like `{player_name}` or `{player_description}` are filled in as usual, and the default director prompts say you are not around.
+
+**Not directed:** a conversation an NPC started ([NPC Initiative](#npc-initiative)). The NPC came to talk to you, so you always speak in it, also after you switch Shout on or more people join.
+
+**Without Game Master Mode:** one LLM call writes the NPC lines using the **Skyrim Multi-NPC Director Prompt**. `.` is sent to the LLM as `The scene continues.` (left out of summaries).
+
+**With Game Master Mode (and always in Shout):** the Game Master only picks NPCs (never you), using the `{if director}` parts of the **Skyrim Game Master Prompt**, and each NPC replies with the `{if director}` parts of the **Skyrim Game Master NPC Prompt**.
 
 **Use cases**
 
 - Watch your followers talk to each other without steering every line.
 - Stage a scene: set up an argument, drop in news, or introduce an event, then see how each NPC reacts based on their own bio and memories.
+- Make one NPC do something: *Lydia sharpens her sword and offers to sell the old one.*
 
 ### Quick start
 
-1. Start a conversation with two or more NPCs.
-2. **LLM** tab → turn on **Multi Conversation Director Mode** (optionally also [Multi-NPC Game Master Mode](#game-master-mode)).
+1. **LLM** tab → turn on **Multi Conversation Director Mode** (optionally also [Multi-NPC Game Master Mode](#game-master-mode)).
+2. Start a conversation with one or more NPCs.
 3. Type a direction, for example *Lydia and Serana sit by the fire after a long day of travel.*
 4. Let the NPCs talk. Send `.` to keep it going, or type a new direction to change the scene.
 
 **Notes**
 
-- Skyrim multi-NPC conversations only.
+- Skyrim only. Radiant conversations are not affected.
 - The default director prompts use [`{bios_and_summaries}`](#bios_and_summaries-prompt-variable).
+- If your prompt profile overrides the **Skyrim Game Master Prompt**, **Skyrim Game Master NPC Prompt**, **Skyrim Multi-NPC Director Prompt**, **Skyrim Say To Room Decision Nobody Criteria**, **Skyrim Talk/Nearby/Random Event Generator Prompt** or **Memory Prompt**, it needs the director parts too, or Director Mode uses your text as it is.
+
+### For developers
+
+- Which conversations are directed is decided in `Conversation.__select_conversation_type`: with Director Mode on, a conversation with the player and one NPC uses `multi_npc` / `multi_npc_game_master` instead of `pc_to_npc`. `shout` follows the setting through `multi_npc.is_director_mode()`; `npc_event` never does.
+- `context.started_by_npc` (set from the NPC Initiative start, never reset) makes every type pass `can_direct=False`.
+- In the merged prompts, `director` is true together with `shout` or `say_to_room`, so the default prompts keep it in its own `{if director}` blocks (checked by `tests/test_prompt_merge.py`). The **Skyrim Say To Room Decision Nobody Criteria** also knows `director`.
+- With one NPC, every type uses the one-on-one actions (`multi_npc.npc_actions`). With one directed NPC, the Game Master isn't asked when nobody nearby can join. When someone can, it may still bring them in, but picking the NPC who just spoke ends the turn (`GameMaster.__lone_npc_spoke_last`). Either way the NPC answers each direction once.
+- In Shout, a direction is asked about like a wheel event ("Is X part of what just happened?"), with no speaker, and the people it involves answer even past the reply limit.
+- Keeping the player out: `context.hides_player()` (set by the `Conversation` to `Conversation.hides_player()`: its type's `is_director_mode()`, or watching an NPC Event with the Director Mode setting on) switches off the player's combat, attack and trust events and the vision hint event in `context.py`. With the same check, `GameStateManager.__update_context` drops the game's events that name the player or say "the player" (`__without_player_events`), then adds the quest tag announcements. `conversation_event` ignores Include Player and passes `hides_player`, which adds `director` to the event generator's conditions.
+- `ShoutState.free_places` / `nearby_choices` get `has_player=False` while directing, and `is_direction`, which lets people join past Most People. `NpcEvent.can_notice_player` is False whenever the Director Mode setting is on.
+- Memories: the `Conversation` remembers whether it was ever directed (also when the player only sent `.`) and passes `was_directed` to `save_conversation_state`, which makes `director` true in the Memory Prompt.
+- `tests/test_director_hides_player.py` covers this. The old texts in `tests/prompt_merge_fixtures` check that nothing changes without Director Mode.
+- `tests/test_director_mode_flow.py` plays whole conversations as the game sends them, with made-up models, each with Director Mode on and off: one-on-one, group, saying something to the room, Shout then Private, NPC Initiative, wheel events, NPC Events watched and joined, game events and view lists about the player, actions, the player's voice and interruptions, Most People in Conversation, and memories. Quest news in Director Mode is in `tests/quest_tags/test_conversation_flow.py`. Run them with `MantellaEnv\Scripts\python.exe -m pytest tests/test_director_mode_flow.py tests/test_director_hides_player.py tests/test_director_mode.py`; no game is needed. The hiding check reads the type the conversation is about to switch to (`Conversation.hides_player`), since a request that adds someone is handled before the switch.
+
+## Shout
+
+### Where to find it
+
+In game: **Shout** / **Private** on the [Conversation Wheel](#conversation-wheel) during a conversation. **MCM → Mantella → Shout Mode** for who counts as nearby.
+
+**Conversation** page (below the live conversation) → **Shout** section: **Shout: Who Answers**, **Shout: Most Replies per Person**, **Shout: Most People in Conversation**, **Shout: Most People Answering at Once** and **Shout: Newcomers Remember**. **All Conversations** section → **Game Master Spoken To Threshold**.
+
+**Prompts** tab → the `{if shout}` parts of the **Skyrim Game Master Prompt**, **Skyrim Game Master NPC Prompt** and **Skyrim Decision Nearby Criteria** (see [Conditional blocks](#conditional-blocks)), plus **Skyrim Shout Decision Spoken To Criteria**, **Skyrim Shout Decision Not Spoken To Criteria**, **Skyrim Shout Decision Part Of Event Criteria**, **Skyrim Shout Decision Not Part Of Event Criteria** and **Skyrim Shout Group Answer Note**.
+
+### What it does
+
+A normal conversation is closed: only the people you started it with, or brought in yourself, take part. Call out "Guards!" in a tavern and nobody else reacts.
+
+With **Shout** on, anyone nearby can hear the conversation, answer and join in.
+
+- **The Game Master decides who speaks.** It picks from the people in the conversation and the people nearby. When it picks someone nearby, they join and speak next. This works even with **Multi-NPC Game Master Mode** off, and even when you are talking to one person.
+- **It knows who is around.** It gets the names of everyone nearby, up to **Most People Listed**, so if you call someone by name they can answer from across the room. For the nearest few (**Most People Described**) it also gets their bio, reflection, memories and private thoughts, so "is there a healer here?" can bring the priestess over.
+- **Several people can answer one line.** Say "hello Jake and Emily" or "hello guys" and each of them answers before it's your turn again. Who has to answer is set by the **Who Answers** rule (see [Who Answers Before Your Turn](#who-answers-before-your-turn)). A line said to a whole group gets at most **Most People Answering at Once** answers, and people the line names always answer. Each of them is asked to keep it short (**Skyrim Shout Group Answer Note**; empty it to send no note).
+- **Newcomers know what they heard.** **Newcomers Remember** sets what someone who joins by shouting heard before they joined.
+- **Talking to one person still works as before.** While nobody nearby could join, the person answers and then it's your turn. They keep their one-on-one actions (follow, trade, and so on).
+- Shout stays on until you switch to **Private** or the conversation ends.
+
+**Switching back to Private**
+
+Nobody new joins, and the people who joined by shouting leave. Everyone else stays: the people the conversation started with, and anyone you brought in yourself (Talk / Add, Companions or the spell). A message box asks first, for example *Go private? If you do, Saadia leaves the conversation, and only Hulda, Mikael and Ysolda stay.* Saying no keeps Shout on. The people who stay are told who the conversation is with now.
+
+**MCM settings (Shout Mode page)**
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| **Hearing Distance** | 20 | How far away people can be and still hear you, in meters |
+| **Most People Listed** | 30 | How many of the nearest people the Game Master can pick from, by name |
+| **Most People Described** | 6 | How many of the nearest people the Game Master knows in full: bio and memories. **0** means names only |
+| **Must Be in Sight** | Off | People nearby also need to be in sight: you can see them or they can see you |
+| **Include Followers** | On | Whether your active followers nearby can join by shouting |
+| **Show Messages** | Off | Short notes on screen about who is nearby and who joins |
+
+Hearing Distance, Most People Listed and Must Be in Sight are also used by [Nearby and Random Events](#talk-nearby-and-random-events).
+
+**Mantella settings (Conversation page → Shout)**
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| **Shout: Most People in Conversation** | 6 | Nobody new joins once the conversation has this many people, you included. The people a Nearby or Random Event or a direction is about still join |
+| **Shout: Most People Answering at Once** | 5 | How many answer a line said to a group, like "hello guys": the people in the conversation first, then the nearest |
+| **Shout: Newcomers Remember** | Since Shout | **Since Shout**: what was said since you started shouting. **Last Line**: only your last line and the replies to it. **Everything**: the whole conversation |
+| **Shout: Who Answers** and **Most Replies per Person** | | See [Who Answers Before Your Turn](#who-answers-before-your-turn) |
+| **Game Master Spoken To Threshold** | 0.5 | How sure the decision model has to be that a line was spoken to someone. Raise it if people answer who weren't spoken to |
+
+### Quick start
+
+1. Set up the Game Master model as in [Game Master Mode](#game-master-mode) → **Quick start** step 1. You do not need to turn on **Multi-NPC Game Master Mode**.
+2. In game, bind **MCM → Mantella → General → Open Conversation Wheel**.
+3. Start a conversation in a busy place, like an inn. Hold the wheel key and pick **Shout**.
+4. Say something to the room, for example *Is there a healer here?* Someone nearby who fits joins and answers.
+5. Pick **Private** on the wheel to go back to the people you started with.
+
+**Notes**
+
+- Skyrim only.
+- Without a working Game Master model, you get a note and Shout stays off.
+- Someone busy in a scene (like a bard playing a song), asleep, hostile or fighting can't join.
+- If someone picked can't join (they walked off or got busy), Mantella's log says why, for example `Shout: Sinmir could not be added to the conversation: in a scene`. With **Show Messages** on, the game shows it too.
+- With [Director Mode](#multi-conversation-director-mode) on, Shout is directed too, and you don't count toward **Most People in Conversation**.
+- [NPC Events](#npc-events) run in Shout from the start, and Nearby and Random Events switch it on.
+- The full rules are in [docs/conversation_wheel.md](docs/conversation_wheel.md), "Shout".
+
+## Say Something to the Room
+
+### Where to find it
+
+In game, with no conversation running: **Say** on the [Conversation Wheel](#conversation-wheel), or the **Open Text Prompt** hotkey.
+
+**Prompts** tab → the `{if say_to_room}` parts of the **Skyrim Game Master Prompt** and **Skyrim Decision Nearby Criteria**, and **Skyrim Say To Room Decision Nobody Criteria**.
+
+### What it does
+
+Sometimes you don't want to talk to anyone in particular: you ask the room if anyone has seen a thief, or you shout a warning. Say lets you say something out loud without picking someone first.
+
+- A conversation starts with only you in it, already in [Shout](#shout). What you say is heard by everyone nearby.
+- The Game Master decides whether anyone answers: someone you called by name or by what they are, someone you asked something they would answer, or someone it would be odd not to react.
+- If someone answers, they join, and it becomes a normal Shout conversation.
+- If nobody answers, you get the note *Nobody answers* and the conversation ends.
+
+How you speak:
+
+- **Typing:** the text box opens first. Cancel it and nothing happens. The game finds who is nearby while you type, so the answer comes sooner.
+- **Microphone:** it starts listening once the conversation is ready. You don't have to press the key again.
+- If nobody nearby could hear you, you get the note *Nobody is around to hear you* and nothing starts.
+
+Who can answer, and what they remember, follow the [Shout](#shout) settings. The first time you switch to **Private** in such a conversation, nobody is sent away (everyone there joined by shouting): it only stops new people from joining.
+
+### Quick start
+
+1. Set up the Game Master model as in [Game Master Mode](#game-master-mode) → **Quick start** step 1.
+2. In game, stand in an inn with no conversation running.
+3. Press **Open Text Prompt** (or pick **Say** on the wheel) and type *Innkeeper, a room for the night!*
+4. The innkeeper answers and joins. Keep talking, or let the conversation end.
+
+**Notes**
+
+- Without a working Game Master model, the conversation doesn't start, and you get a note to set it up.
+- With [Director Mode](#multi-conversation-director-mode) on, what you type is a scene direction (*A guard spots a thief running past*), and someone nearby reacts to it, or nobody does.
+- With a decision model, **Skyrim Say To Room Decision Nobody Criteria** describes when nobody answers.
+
+## Who Answers Before Your Turn
+
+### Where to find it
+
+The **Conversation** page in the Mantella UI, below the live conversation. Click a section's title to open it:
+
+| Section | Holds |
+| --- | --- |
+| **All Conversations** | What each Who Answers option means, and **Game Master Spoken To Threshold** |
+| **Group Conversation** | **Who Answers**, **Most Replies per Person**, **Most People Answering at Once**, **Game Master Max NPC Turns per Player Turn** |
+| **Shout** | **Who Answers**, **Most Replies per Person**, and the [Shout](#shout) settings |
+| **Director Mode** | **Who Answers**, **Most Replies per Person**, **Game Master Director Max NPC Turns** |
+| **Events** | A **Who Answers** for each of the Conversation, Nearby and Random Events, and their **Send the Conversation So Far** and **Include Me** |
+| **Watched NPC Event** | **Who Answers**, **Most Replies per Person**, and the NPC Event scene settings |
+
+### What it does
+
+In a conversation with the Game Master, the NPCs reply one after another until it's your turn again, or until the **reply limit**: the most NPC replies in a row before your turn comes anyway. Each kind of conversation takes it from its own setting:
+
+- **Group Conversation** and **Shout**: **Game Master Max NPC Turns per Player Turn** (default **3**).
+- **Director Mode**: **Game Master Director Max NPC Turns** (default **6**).
+- **Events**: the limit of the conversation the event happens in.
+- **Watched NPC Event**: **NPC Event Max Lines Without Player** (default **10**). There the scene ends instead of giving you the turn.
+
+Sometimes you want everyone to have a say; sometimes you want the turn back as soon as the person you asked has answered. **Who Answers** sets who has to speak before your turn, separately for each kind of conversation.
+
+After each line, the Game Master is also asked who it was spoken to (after an event or a direction: who it is about). That is what "spoken to" means below.
+
+| Option | What happens |
+| --- | --- |
+| **Everyone Gets to Speak** | Everyone in the conversation says something before your turn, even past the reply limit. When an NPC speaks to another NPC, the other doesn't have to answer |
+| **Anyone Spoken To Answers, Even by an NPC** | Whoever a line is spoken to must answer, also when an NPC said the line. If someone only gets to answer at the reply limit, they still answer and the others can react to them |
+| **Anyone You Speak To Answers, Others Can React** | Only the people you speak to must answer. When an NPC speaks to another NPC, the Game Master can give you the turn instead. If someone you spoke to only gets to answer at the reply limit, they still answer and the others can react to them |
+| **Anyone You Speak To Answers, No Extra Replies** | The same, but at the reply limit each of them answers once and nobody reacts to them |
+| **Anyone You Speak To Answers, Within the Reply Limit** | The same, but the reply limit is final: whoever hasn't answered by then doesn't |
+| **Game Master Picks Every Speaker** | Nobody has to answer. The Game Master picks one speaker at a time, and the reply limit is final |
+| **Same as the Conversation** | Events only: the rule of the conversation the event happened in |
+
+Each section only offers the options that make a difference there. Under each **Who Answers** dropdown, the option picked there is explained:
+
+| Section | Default | Notes |
+| --- | --- | --- |
+| **Group Conversation** | Others Can React | You speak in a Game Master conversation, not shouting |
+| **Shout** | Others Can React | Also an NPC Event you stepped into |
+| **Director Mode** | Even by an NPC | "You speak to" means who your direction is about. Others Can React isn't offered: here it would work the same as Even by an NPC |
+| **Events** | Same as the Conversation | "You speak to" also means who the event is about |
+| **Watched NPC Event** | Game Master Picks Every Speaker | You have no turn, so the scene ends instead. Only Everyone Gets to Speak, Even by an NPC and Game Master Picks Every Speaker are offered |
+
+**Most Replies per Person** (default **100**, so no limit in practice) is how many times one NPC may speak before your turn (in a watched NPC Event: in the whole scene). Once someone reaches it, the Game Master doesn't pick them again and they no longer have to answer anyone. It wins over every option. If nobody is left who may speak, it's your turn, or the scene ends.
+
+**Group conversations work like Shout here.** Say *Hulda, Mikael, good evening* and both answer before your turn (with the default option). Nobody new joins: that still needs [Shout](#shout). **Group Conversation: Most People Answering at Once** (default **5**) caps a line said to the whole group.
+
+### Quick start
+
+1. Turn on [Game Master Mode](#game-master-mode) and start a conversation with three NPCs.
+2. Say *Good evening, everyone.* With the default option, the line was spoken to all three, so each of them answers before your turn.
+3. Open the **Conversation** page → **Group Conversation** and set **Who Answers** to **Game Master Picks Every Speaker**.
+4. Say the same again. Now nobody has to answer: the Game Master picks one speaker at a time and may give you the turn after the first answer.
+
+**Notes**
+
+- Changes apply from the next line, also during a conversation.
+- Only conversations with the Game Master use these settings: groups with Game Master Mode on, Shout, saying something to the room, Director Mode with Game Master Mode, events and NPC Events. A one-on-one conversation without Shout is unchanged.
+- If the service refuses the extra "spoken to" questions, or the answer can't be read, one person answers, as before.
+- More examples are in [docs/conversation_wheel.md](docs/conversation_wheel.md), "Who answers before your turn".
 
 ## NPC Initiative
 
@@ -2116,7 +2488,7 @@ Normally every conversation starts with you. NPCs never come to you, even when t
 
 With NPC Initiative, a nearby NPC who has a real reason to talk to you walks up and starts the conversation.
 
-1. **A check runs** when you enter a new location (after **Wait After Location Change**), when you have not talked to anyone for **Idle Check** minutes, or when you press the **Check Now** hotkey. Every check restarts the idle timer.
+1. **A check runs** when you enter a new location (after **Wait After Location Change**), when you have not talked to anyone for **Idle Check** minutes, or when you press the **Check Now** hotkey (or pick **Approach** on the Conversation Wheel). **Enabled** only turns the first two on: Check Now works even while it is off. Every check restarts the idle timer.
 2. **The game picks the candidates:** the nearest **Max NPCs per Check** NPCs within **Max Distance** who can see you or who you can see (any NPC in range with **Ignore Line of Sight**). They must be awake, not hostile, not in combat, and not already talking.
 3. **The Game Master decides** who, if anyone, has a reason to approach. It reads each candidate's bio with their [personal reflection](#personal-reflection), their memories, and their private thoughts (the same text as [`{bios_and_summaries}`](#bios_and_summaries-prompt-variable)). The default criteria only accept a specific reason: something from their memories, thoughts, or reflection that they need to tell, ask, thank, warn about, or settle, or else their job at this location. Being nearby or wanting small talk is not a reason.
 4. **The chosen NPC starts a one-on-one conversation.** Instead of your greeting, the **Skyrim NPC Initiative Opener** (default: *{name} approaches {player_name}.*) is sent as narration. The NPC's first reply uses the **Skyrim NPC Initiative Prompt**, which asks them to open with their reason. Once you answer, the conversation continues with the normal **Skyrim Prompt**.
@@ -2147,7 +2519,7 @@ The check follows the **Use Decision Model for Game Master** setting:
 | **Max Distance (m)**               | 10      | How far away an NPC can be to walk up to you                                                                                                                                  |
 | **Ignore Line of Sight**           | Off     | On: any NPC within **Max Distance** can approach, even behind a wall                                                                                                          |
 | **Max NPCs per Check**             | 5       | How many of the nearest NPCs are considered                                                                                                                                   |
-| **Check Now** (hotkey)             | —       | Checks right away and ignores **Min Time Between Checks**. Does nothing while NPC Initiative is off                                                                           |
+| **Check Now** (hotkey)             | —       | Checks right away. Works even while NPC Initiative is off, and ignores **Min Time Between Checks**. If nobody comes over, you get the note `Nobody comes over`. **Approach** on the [Conversation Wheel](#conversation-wheel) does the same |
 | **Skip Threshold**                 | Off     | Hotkey checks ignore **NPC Initiative Threshold**: the top candidate approaches unless **Nobody** is the top answer. Decision model only                                      |
 | **Show Debug Messages**            | Off     | Shows notifications such as `NPC Initiative check: ...` and `NPC Initiative: Lydia approaches`                                                                                |
 
@@ -2179,11 +2551,11 @@ If nobody approaches too often, lower **NPC Initiative Threshold** or edit the c
 
 ### Where to find it
 
-In game: **MCM → Mantella → NPC Events**. Requires the Mantella game plugin version that includes this page.
+In game: **MCM → Mantella → Events** → **NPC Event** section (the page was called NPC Events), and **NPC Event** on the [Conversation Wheel](#conversation-wheel). Requires the Mantella game plugin version that includes this page.
 
-**LLM** tab → **NPC Event Generator LLM Service**, **NPC Event Generator Model**, **NPC Event Generator LLM Parameters** (and **NPC Event Generator Custom Token Count** under **Advanced**), plus **NPC Event Max Participants**, **NPC Event Max Scene Size**, **NPC Event Player Notice Delay**, **NPC Event Max Lines Without Player**, and **NPC Event Wind-Down Lines**.
+**LLM** tab → **NPC Event Generator LLM Service**, **NPC Event Generator Model**, **NPC Event Generator LLM Parameters** (and **NPC Event Generator Custom Token Count** under **Advanced**), plus, on the **Conversation** page, **NPC Event Max Participants**, **NPC Event Player Notice Delay**, **NPC Event Max Lines Without Player**, **NPC Event Wind-Down Lines** and **Watched NPC Event: Who Answers**.
 
-**Prompts** tab → **Skyrim NPC Event Generator Prompt**, **Skyrim NPC Event Game Master Prompt**, **Skyrim NPC Event NPC Prompt**, **Skyrim NPC Event Wind-Down Prompt**, and **Skyrim NPC Event Decision Nearby Criteria**. All of them can be overlaid with [prompt profiles](#prompt-profiles).
+**Prompts** tab → **Skyrim NPC Event Generator Prompt** and **Skyrim NPC Event Wind-Down Prompt**, and the `{if npc_event}` parts of the **Skyrim Game Master Prompt**, **Skyrim Game Master NPC Prompt** and **Skyrim Decision Nearby Criteria** (see [Conditional blocks](#conditional-blocks)). All of them can be overlaid with [prompt profiles](#prompt-profiles).
 
 **Model Profiles** tab → **Apply Profile for NPC Event Generator** (on by default).
 
@@ -2191,22 +2563,25 @@ In game: **MCM → Mantella → NPC Events**. Requires the Mantella game plugin 
 
 Radiant conversations are two NPCs making small talk. NPC Events are scenes: every so often, Mantella invents something that starts happening between some of the NPCs near you, based on who they are, and they act it out. You can watch, walk away, or step in.
 
-1. **A check runs** every **Frequency** minutes, or when you press the **Check Now** hotkey. No check runs while a conversation is running, while you are in combat, or in a menu.
-2. **The game picks the candidates:** the nearest **Max NPCs per Check** NPCs within **Hearing Distance** (at least two). Line of sight is not needed. They must be awake, not hostile, not in combat, and not already talking.
-3. **The NPC Event Generator invents a scene.** It reads each candidate's bio with their [personal reflection](#personal-reflection), their memories, and their private thoughts (the same text as [`{bios_and_summaries}`](#bios_and_summaries-prompt-variable)), picks 2 to **NPC Event Max Participants** of them, and describes what is happening in two or three sentences. It can also decide nothing believable would happen.
-4. **The participants act it out.** The scene always runs with the [Game Master](#game-master-mode), even while **Multi-NPC Game Master Mode** is off: it picks who speaks next with the **Skyrim NPC Event Game Master Prompt**, and each NPC replies on their own with the **Skyrim NPC Event NPC Prompt**. The scene text starts the conversation as an in-game event (narration, like `*Hulda accuses Mikael of ...*`) instead of a greeting, and the first speaker reacts to it. From there the scene lives in the conversation, so it can move on from where it started. The scene text is also available to both prompts as `{event}`, but the default prompts leave it out.
+1. **A check runs** every **Frequency** minutes, or when you press the **Check Now** hotkey or pick **NPC Event** on the wheel. No check runs while a conversation is running, while you are in combat, or in a menu. When you start one yourself and **Ask for a Hint** is on, a text box asks what you'd like to happen (cancel it or leave it empty for a surprise).
+2. **The game picks the candidates:** everyone within **Hearing Distance** (at least two), nearest first, up to the Shout Mode page's **Most People Listed**. Line of sight is not needed. They must be awake, not hostile, not in combat, and not already talking.
+3. **The NPC Event Generator invents a scene.** It gets every candidate's name, and for the nearest **Most People Described** also their bio with their [personal reflection](#personal-reflection), their memories, and their private thoughts (the same text as [`{bios_and_summaries}`](#bios_and_summaries-prompt-variable)). It picks 2 to **NPC Event Max Participants** of them and describes what is happening in two or three sentences. It can also decide nothing believable would happen.
+4. **What happens is shown.** With **Show What Happened** on, a message box shows the scene before it starts. The game is paused until you close it, and Mantella already writes and voices the first line while you read.
+5. **The participants act it out.** The scene runs in [Shout](#shout) from the start, so it always uses the [Game Master](#game-master-mode), even while **Multi-NPC Game Master Mode** is off: it picks who speaks next with the `{if npc_event}` part of the **Skyrim Game Master Prompt**, and each NPC replies on their own with the `{if npc_event}` part of the **Skyrim Game Master NPC Prompt**. The scene text starts the conversation as an in-game event (narration, like `*Hulda accuses Mikael of ...*`) instead of a greeting, and the first speaker reacts to it. From there the scene lives in the conversation, so it can move on from where it started. The scene text is also available to both prompts as `{event}`, but the default prompts leave it out.
 
 **Drawing others in**
 
-The NPCs near the scene who are not part of it are passed to both prompts as `{nearby}`. If someone in the scene calls out to one of them, asks them something, or it makes sense for them to chip in, the Game Master can pick them: they join the conversation and speak next. Everyone who joins later heard the whole scene. Once the scene has **NPC Event Max Scene Size** NPCs, no more NPCs are drawn in (you still can be).
+The NPCs near the scene who are not part of it are passed to both prompts as `{nearby}`. If someone in the scene calls out to one of them, asks them something, or it makes sense for them to chip in, the Game Master can pick them: they join the conversation and speak next. Everyone who joins later heard the whole scene. Once the scene has **Shout: Most People in Conversation** NPCs (Conversation page), no more NPCs are drawn in. While you only watch, you don't count toward it, and you can still be drawn in.
 
-With a decision model, the **Skyrim NPC Event Decision Nearby Criteria** describes when to pick each person nearby.
+With a decision model, the `{if npc_event}` part of the **Skyrim Decision Nearby Criteria** describes when to pick each person nearby.
 
 **You as a bystander**
 
 You are not part of the scene at first. After **NPC Event Player Notice Delay** NPC lines, the NPCs can notice you and draw you in the same way, but only while you are within **Hearing Distance**, not sneaking, and (with **Require Line of Sight**) in sight.
 
-You can also step in at any time: cast the Mantella spell on someone in the scene, or press the [Interrupt NPCs](#interrupt-hotkey) hotkey (the game shows `Joining the conversation...`). Once you join, the scene goes on like a normal conversation until you end it, still with the Game Master and the NPC Event prompts.
+You can also step in at any time: cast the Mantella spell on someone in the scene, pick **Step in** on the wheel, or press the [Interrupt NPCs](#interrupt-hotkey) hotkey (the game shows `Joining the conversation...`). Once you join, the scene goes on as a normal [Shout](#shout) conversation until you end it, with the Shout Mode page's settings, and **Shout**, **Private** and the [events](#talk-nearby-and-random-events) are on the wheel.
+
+How many lines each person says while you watch is set by **Watched NPC Event: Who Answers** and **Most Replies per Person** (see [Who Answers Before Your Turn](#who-answers-before-your-turn)).
 
 **How the scene ends**
 
@@ -2217,31 +2592,32 @@ While you have not joined, the scene ends:
 
 When the scene ends, the conversation ends like any other: with **Enable Conversation Summaries** on, the participants' summaries are saved, so they remember what happened.
 
-**LLM settings**
+**Mantella settings** (the model on the **LLM** tab, the rest on the **Conversation** page → **Watched NPC Event**)
 
 
 | Setting                                | Default                     | What it does                                                                                                                      |
 | -------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | **NPC Event Generator Model**          | `google/gemma-2-9b-it:free` | The model that invents the scenes. Always its own model, never the summary model                                                 |
 | **NPC Event Max Participants**         | 3                           | The most NPCs the generator may put in a scene when it starts                                                                    |
-| **NPC Event Max Scene Size**           | 5                           | The most NPCs in a scene, including the ones drawn in later. You can still be drawn in                                           |
 | **NPC Event Player Notice Delay**      | 3                           | How many NPC lines the scene runs before the NPCs can notice you                                                                 |
 | **NPC Event Max Lines Without Player** | 10                          | The scene ends after this many NPC lines while you have not joined                                                               |
 | **NPC Event Wind-Down Lines**          | 2                           | For this many lines before the limit, the NPCs are asked to wrap the scene up. **0** stops the scene straight after the last line |
 
 
-**MCM settings**
+**MCM settings (Events page → NPC Event)**
 
 
 | Setting                      | Default | What it does                                                                                                                                                     |
 | ---------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Enabled**                  | Off     | Turns NPC Events on                                                                                                                                              |
 | **Frequency (minutes)**      | 20      | How often (in real minutes) a new scene is attempted while no conversation is running                                                                           |
+| **Check Now** (hotkey)       | —       | Attempts a scene right away. Works even while NPC Events are off, and ignores **Frequency**. **NPC Event** on the wheel does the same                           |
+| **Ask for a Hint**           | Off     | When you start a scene yourself, a text box asks what you'd like to happen. Scenes that start on the timer never ask                                           |
+| **Show What Happened**       | On      | A message box shows what happens just before the scene starts. The game is paused until you close it. The Conversation, Nearby and Random Event sections each have their own: there the box shows what happened instead of the note "Something happened" |
 | **Hearing Distance (m)**     | 20      | How far from you NPCs can be to take part or be drawn in. A scene you have not joined ends once you are farther than this from everyone in it, and you can only be noticed within it |
 | **Require Line of Sight**    | Off     | Off: the NPCs can notice you whenever you are within **Hearing Distance** and not sneaking. On: you or one of them must also be able to see the other        |
-| **Include Active Followers** | Off     | Lets your active followers take part and be drawn in. A follower stays with you, so a scene they are in does not end when you walk away                        |
-| **Max NPCs per Check**       | 6       | How many of the nearest NPCs the scene is invented from. The ones not in it can be drawn in later                                                              |
-| **Check Now** (hotkey)       | —       | Attempts a scene right away. Works even while NPC Events are off, and ignores **Frequency**                                                                     |
+| **Include Active Followers** | On      | Lets your active followers take part and be drawn in while you watch. A follower stays with you, so a scene they are in does not end when you walk away: it ends after **NPC Event Max Lines Without Player** |
+| **Most People Described**    | 6       | How many of the nearest people the event generator gets the bios and memories of (was **Max NPCs per Check**). It knows everyone else nearby by name        |
 | **Show Debug Messages**      | Off     | Shows notifications such as `NPC Event starts: ...`, `NPC Event: nothing happens`, and `NPC Event: you walked away`                                              |
 
 
@@ -2249,7 +2625,7 @@ When the scene ends, the conversation ends like any other: with **Enable Convers
 
 1. Set up the Game Master model as in [Game Master Mode](#game-master-mode) → **Quick start** step 1. You do not need to turn on **Multi-NPC Game Master Mode**.
 2. **LLM** tab → pick **NPC Event Generator LLM Service** and **NPC Event Generator Model**. A creative roleplay model works better here than a summary model.
-3. In game, bind **MCM → Mantella → NPC Events → Check Now**, and optionally turn on **Show Debug Messages**.
+3. In game, bind **MCM → Mantella → Events → NPC Event → Check Now** (or use **NPC Event** on the [Conversation Wheel](#conversation-wheel)), and optionally turn on **Show Debug Messages**.
 4. Stand near a few NPCs and press **Check Now**. Check the log for the scene, for example:
 
 ```
@@ -2263,21 +2639,136 @@ NPC Event: Mikael, Uthgerd the Unbroken: Mikael is boasting ...
 
 - Skyrim only.
 - NPC Events, [NPC Initiative](#npc-initiative), and radiant conversations share the one conversation slot, so only one of them starts at a time (NPC Initiative first, then NPC Events, then radiant). Starting a conversation yourself cancels a check that is still running.
-- With the bio section filter on, bios are filtered as in a conversation without you, since you are not part of the scene. See [Bio Sections to Exclude](#bio-sections-to-exclude).
-- If the scene cannot be started on Mantella's side (for example, no Game Master model can be created), the NPCs have a radiant conversation instead.
+- While you only watch, bios are not filtered by [Bio Sections to Exclude](#bio-sections-to-exclude), as in any conversation without you. Once you step in, the filter applies.
+- Needs a working Game Master model: without one, no scene starts, and Mantella's log says why. If a scene can't be started for another reason, the NPCs have a radiant conversation instead.
+- When you start a scene yourself and it can't start, a note says why: a conversation is already running, you're in combat, a menu is open, another check is still running, or fewer than 2 people are nearby.
 - If an NPC's reply comes back empty, the scene ends instead of trying again.
 - **Game Master Message Limit** and **Include Turn Thoughts for Game Master** apply to the scene's Game Master too.
-- The default **Skyrim NPC Event NPC Prompt** asks for [turn thoughts](#turn-thoughts).
+- The default **Skyrim Game Master NPC Prompt** asks for [turn thoughts](#turn-thoughts) in NPC Events too.
 - Profiles: the generator picks a weighted profile slot on each request, like one-on-one conversations. See [Which profile each type uses](#which-profile-each-type-uses).
+
+## Talk, Nearby and Random Events
+
+### Where to find it
+
+In game: **Talk Event**, **Nearby Event** and **Random Event** on the [Conversation Wheel](#conversation-wheel), during a conversation you are in. **MCM → Mantella → Events** → the **Conversation Event**, **Nearby Event** and **Random Event** sections.
+
+**Conversation** page (below the live conversation) → **Events** section: a **Who Answers**, **Send the Conversation So Far** and **Include Me** for each kind of event.
+
+**Prompts** tab → **Skyrim Talk/Nearby/Random Event Generator Prompt** (with its `{if talk_event}`, `{if nearby_event}` and `{if random_event}` parts), and the `{if after_event}` parts of **Skyrim Game Master Decision Instructions** and **Skyrim Game Master Decision Player Criteria**.
+
+The events are written by the NPC Event Generator model (**LLM** tab), whether [NPC Events](#npc-events) are on or not.
+
+### What it does
+
+A conversation can go in circles. An event shakes it up: you pick one on the wheel, something happens, and the NPCs react to it.
+
+| | **Talk Event** (Conversation Event) | **Nearby Event** | **Random Event** |
+| --- | --- | --- | --- |
+| What it's about | The people in the conversation, and the surroundings | People nearby who are not in the conversation | Anyone nearby, in the conversation or not |
+| After the event | The conversation goes on as it is | [Shout](#shout) is switched on, so they can join | Shout is switched on |
+
+When you pick one:
+
+1. The NPCs stop, like [Interrupt](#interrupt-hotkey).
+2. With **Ask for a Hint** on, a text box asks what you'd like to happen, for example *a thief grabs her purse*. Cancel it or leave it empty for a surprise. Only the event generator sees the hint.
+3. The event is written and added to the conversation as an in-game event, so everyone present knows it happened and remembers it. It shows as an **Event** row in the [Live Conversation Editor](#live-conversation-editor).
+4. A message box shows what happened (**Show What Happened**). The game is paused until you close it, and Mantella already writes the reactions while you read.
+5. The Game Master picks who reacts first. You are only picked if the event is aimed at you. After a Nearby or Random Event, the people it is about join, even if the conversation is already full.
+
+You can be on the receiving end of an event (*a stranger bumps into you*), but the event generator never writes what you do, say or feel.
+
+**MCM settings (Events page)**
+
+| Setting | Talk | Nearby | Random | What it does |
+| --- | --- | --- | --- | --- |
+| **Ask for a Hint** | Off | Off | Off | A text box opens when you pick the event |
+| **Show What Happened** | On | On | On | A message box shows what happened. Off: only the note *Something happened* |
+| **Most People Described** | – | 6 | 6 | How many of the nearest people the event generator gets the bios and memories of. **0** means names only |
+| **Include Followers** | – | On | On | Whether the event can be about your followers nearby who aren't in the conversation |
+
+Who counts as nearby comes from the [Shout](#shout) MCM page: **Hearing Distance**, **Must Be in Sight** and **Most People Listed**.
+
+**Mantella settings (Conversation page → Events)**
+
+| Setting | Talk | Nearby | Random | What it does |
+| --- | --- | --- | --- | --- |
+| **Send the Conversation So Far** | On | Off | On | The event generator also gets the recent lines of the conversation, so the event can follow from what was said |
+| **Include Me** | On | Off | On | The event can be about you too. Ignored in Director Mode |
+| **Who Answers** | Same as the Conversation | Same as the Conversation | Same as the Conversation | Who has to react before your turn. See [Who Answers Before Your Turn](#who-answers-before-your-turn) |
+
+### Quick start
+
+1. Set up the Game Master model as in [Game Master Mode](#game-master-mode) → **Quick start** step 1, and pick an **NPC Event Generator Model** on the **LLM** tab.
+2. Turn on **Multi-NPC Game Master Mode**.
+3. In game, start a conversation, hold the wheel key and pick **Talk Event**.
+4. Read what happened, close the box, and listen to the NPCs react.
+
+**Notes**
+
+- Skyrim only.
+- With **Multi-NPC Game Master Mode** off, the events do nothing: you get the note *Events need Game Master Mode*.
+- In a one-on-one conversation, the Game Master is asked once who reacts first to a Talk Event, then it's back to normal.
+- If nothing is written or the request fails, you get the note *Nothing happened* and it's your turn. A Nearby Event with nobody nearby gives *Nobody is nearby*.
+- Pressing **End** while the event is being written cancels it.
+- With [Director Mode](#multi-conversation-director-mode) on, the events are never about you.
+- The full rules are in [docs/conversation_wheel.md](docs/conversation_wheel.md), "Events".
+
+## Conversation Wheel
+
+### Where to find it
+
+In game: **MCM → Mantella → General → Controls → Open Conversation Wheel**. Requires the Mantella game plugin version that includes the wheel.
+
+### What it does
+
+Mantella has many hotkeys, and more features kept needing more of them. The wheel puts everything you can do in one place, and only shows what makes sense right now.
+
+**Hold** the key to show the wheel, point at an option and **click**. Let go without clicking to close it. Pointing at an option shows a short description below it.
+
+Outside a conversation:
+
+| Option | What it does |
+| --- | --- |
+| **Companions** | Starts one conversation with your companions nearby |
+| **Say** | [Say something to the room](#say-something-to-the-room) |
+| **Talk** | Shown when you're looking at someone. Starts a conversation with them |
+| **Companion** | Shown when you're looking at someone. Puts them on your companions list, or takes them off |
+| **NPC Event** | Starts an [NPC Event](#npc-events) now |
+| **Approach** | Checks right away whether someone nearby has a reason to talk to you, like [NPC Initiative](#npc-initiative)'s **Check Now** |
+
+In a conversation:
+
+| Option | What it does |
+| --- | --- |
+| **Interrupt** | The NPCs stop and it's your turn |
+| **Step in** | Shown while you watch an NPC Event. You join the scene |
+| **Join** | Shown during a conversation between NPCs that you're not in. You join it |
+| **End** | Ends the conversation for everyone |
+| **Add / Remove** | Shown when you're looking at someone. Brings them in, or sends them away |
+| **Companions** | Brings in your companions nearby who aren't in the conversation yet |
+| **Shout / Private** | Switches [Shout](#shout) on or off |
+| **Talk Event / Nearby Event / Random Event** | Something happens. See [Talk, Nearby and Random Events](#talk-nearby-and-random-events) |
+
+**Companions** are your followers who are following you right now, plus anyone on your companions list. Nearby means within 20 meters, at most the 6 nearest, and free to talk. The list is saved with your game.
+
+### Quick start
+
+1. In game, open **MCM → Mantella → General** and bind **Open Conversation Wheel** under **Controls**.
+2. Look at an NPC, hold the key and pick **Talk**.
+3. During the conversation, hold the key again to see what else you can do.
+
+**Notes**
+
+- Skyrim only.
+- The wheel's text spaces are small, so names and descriptions are short, and anything longer is shrunk to fit.
+- The options that need the Game Master (Say, Shout, the events) give you a note when it isn't set up.
 
 ## Interrupt Hotkey
 
 ### Where to find it
 
-In game: MCM
-
-
-Requires the Mantella game plugin version that includes this hotkey.
+In game: **MCM → Mantella → General → Controls → Interrupt NPCs**, or **Interrupt** on the [Conversation Wheel](#conversation-wheel). Requires the Mantella game plugin version that includes this hotkey.
 
 ### What it does
 
@@ -2294,6 +2785,8 @@ Nothing happens when:
 - it is already your turn,
 - there is no player in the conversation (radiant conversations),
 - the conversation is ending (the goodbye line is never interrupted, because it carries the action that ends the conversation in game).
+
+While you watch an [NPC Event](#npc-events), the hotkey makes you step into the scene instead (the game shows `Joining the conversation...`). In [Director Mode](#multi-conversation-director-mode), interrupting adds no `Interrupting...` event, since your character isn't there.
 
 ### Quick start
 
@@ -2339,21 +2832,7 @@ A pattern is compared to the **whole** event text, ignoring upper / lower case. 
 
 To see the exact text of events, look for the lines after `In-game events since previous exchange` in Mantella's log.
 
-**Tidying up repeated events**
-
-In a fight with a big party, one area spell touches everyone and each person entering combat is its own event. Before the events are sent with your line, Mantella tidies them. There is no setting for this; it always happens.
-
-- Events that differ only by who was affected become one line: `Yulia hit Tigra, Kak and Gorr with Black Hand`, `Serana and Gorr have entered combat with Cave Bear`.
-- The same event twice is listed once.
-- Several spells cast by the same person become one line: `Yulia casted the spells Heal Cloak and Black Hand`.
-- `Serana casted the spell Orc Strength` is left out when another line already says who Serana used it on.
-- Enemies killed by the same person become one line: `Bandit, Bandit Outlaw and Draugr were killed by Serana`.
-- **Max Count Events** counts the tidied lines, so far more of what happened fits under the limit.
-- **Ignored In-Game Events** is checked before the tidying, against each event as the game sent it. The log shows the tidied lines, so write patterns for the single form (`*Black Hand*` still works).
-
-Heals and buffs are worded as `Yulia used MassHealing on Gorr`, not `Yulia hit Gorr with MassHealing`, so the NPCs don't take them for an attack. Harmful spells and weapons still say `hit`. This wording needs the Mantella game plugin version that includes it; with an older plugin every spell still says `hit`.
-
-For developers: the tidying is `tidy_events` in `src/conversation/ingame_event_tidy.py`, called from `Conversation.update_game_events`. It matches the sentences written by `MantellaListenerScript.psc` and `MantellaTargetListenerScript.psc`, so a change of wording there needs the patterns updated. The friendly wording comes from `IsFriendlySpell` in those two scripts (`Spell.IsHostile()`).
+Before the events are sent, Mantella also merges repeated ones into fewer lines. See [Tidier In-Game Events](#tidier-in-game-events).
 
 **When an NPC dies**
 
@@ -2373,6 +2852,46 @@ For developers: the add-on signs up for the extender's `OnActorKilled` through `
 2. **Other** tab → **Advanced** → set **Ignored In-Game Events** to `*Flame Cloak*`.
 3. Keep talking. With [Hot Swap](#hot-swap) on, those events are gone from the next request.
 
+## Tidier In-Game Events
+
+### Where to find it
+
+There is no setting: it always happens. The heal and buff wording needs the Mantella game plugin version that includes it.
+
+### What it does
+
+In a fight with a big party, one area spell touches everyone, and each person entering combat is its own event. The NPCs got a long list of near-identical lines, and **Max Count Events** (**Other** tab → **Advanced**) cut off the rest of what happened.
+
+Before the events are sent with your line, Mantella tidies them:
+
+| Before | After |
+| --- | --- |
+| `Yulia hit Tigra with Black Hand`, `Yulia hit Kak with Black Hand`, `Yulia hit Gorr with Black Hand` | `Yulia hit Tigra, Kak and Gorr with Black Hand` |
+| `Serana has entered combat with Cave Bear`, `Gorr has entered combat with Cave Bear` | `Serana and Gorr have entered combat with Cave Bear` |
+| The same event twice | Listed once |
+| `Yulia casted the spell Heal Cloak`, `Yulia casted the spell Black Hand` | `Yulia casted the spells Heal Cloak and Black Hand` |
+| `Serana casted the spell Orc Strength`, `Serana used Orc Strength on Gorr` | Only `Serana used Orc Strength on Gorr`: the cast is left out when another line already says who it was used on |
+| `Bandit was killed by Serana`, `Draugr was killed by Serana` | `Bandit and Draugr were killed by Serana` |
+
+**Max Count Events** counts the tidied lines, so far more of what happened fits under the limit.
+
+**Heals and buffs no longer sound like attacks.** They are worded as `Yulia used MassHealing on Gorr`, not `Yulia hit Gorr with MassHealing`, so the NPCs don't take them for an attack. Harmful spells and weapons still say `hit`.
+
+### Quick start
+
+1. Start a conversation with a few followers and get into a fight. Cast an area spell, or a heal on the group.
+2. In Mantella's log, find the lines after `In-game events since previous exchange`. Hits by the same spell are on one line, and a heal says `used ... on`.
+
+**Notes**
+
+- [Ignored In-Game Events](#in-game-events) is checked before the tidying, against each event as the game sent it. The log shows the tidied lines, so write patterns for the single form (`*Black Hand*` still works).
+- With an older game plugin, every spell still says `hit`. The merging works either way.
+
+### For developers
+
+- The tidying is `tidy_events` in `src/conversation/ingame_event_tidy.py`, called from `Conversation.update_game_events`. It matches the sentences written by `MantellaListenerScript.psc` and `MantellaTargetListenerScript.psc`, so a change of wording there needs the patterns updated.
+- The friendly wording comes from `IsFriendlySpell` in those two scripts (`Spell.IsHostile()`).
+
 ## Decensor Bypass
 
 ### Where to find it
@@ -2380,8 +2899,6 @@ For developers: the add-on signs up for the extender's `OnActorKilled` through `
 **LLM** tab → **Advanced** → **Enable Decensor Bypass** (off by default) and **Decensor Assistant Placement**.
 
 **Prompts** tab → **Decensor Handshake Prompt** and **Decensor Assistant Prompt**. Both can be overlaid with [prompt profiles](#prompt-profiles).
-
-**Live Conversation** tab → **Decensor bypass (read-only)** shows what is being sent.
 
 ### What it does
 
@@ -2404,7 +2921,7 @@ The request then looks like: system prompt → handshake (user) → commitment (
 
 The handshake is only sent with **After system prompt**.
 
-- The pair is **not** stored in the conversation history. It is rebuilt from the current prompt text on every request, so it is never summarized, never shown in the Live Conversation table, and an edit applies on the next request.
+- The pair is **not** stored in the conversation history. It is rebuilt from the current prompt text on every request, so it is never summarized, never shown in the live conversation table, and an edit applies on the next request.
 - It is added to live conversation requests only: one-on-one, multi-NPC, radiant, and each NPC reply in [Game Master Mode](#game-master-mode). Summaries, private thoughts, personal reflections, vision, and the Game Master's own decisions are unchanged.
 - If a prompt the placement needs is empty, nothing is sent (a warning is logged once).
 
@@ -2412,7 +2929,7 @@ The handshake is only sent with **After system prompt**.
 
 1. **LLM** tab → **Advanced** → turn on **Enable Decensor Bypass**.
 2. Optional: adjust the two prompts in the **Prompts** tab to fit your model or setting, and pick a **Decensor Assistant Placement**.
-3. Start a conversation, then open **Live Conversation** → **Reload** and check **Decensor bypass (read-only)**, or look at the request in the log.
+3. Start a conversation, then check the request in the log to see what is being sent.
 
 **Notes**
 
