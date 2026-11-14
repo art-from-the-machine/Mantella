@@ -6,7 +6,6 @@ from src.prompt_profile_manager import PromptSectionError
 from typing import Callable, TYPE_CHECKING
 from openai.types.chat import ChatCompletionMessageParam
 from src import utils
-import json
 import logging
 
 if TYPE_CHECKING:
@@ -49,16 +48,6 @@ def decensor_bypass_messages(config) -> list[ChatCompletionMessageParam]:
         return []
     role = "system" if placement == DecensorPlacementEnum.END_AS_SYSTEM else "assistant"
     return [{"role": role, "content": commitment}]
-
-def format_decensor_bypass_preview(config) -> str:
-    """Read-only JSON of the decensor messages, or empty text when they are not sent."""
-    try:
-        bypass = decensor_bypass_messages(config)
-    except PromptSectionError as e:
-        return str(e)
-    if not bypass:
-        return ""
-    return json.dumps(bypass, indent=2, ensure_ascii=False)
 
 class message_thread():
     """A thread of messages consisting of system-, user- and assistant-messages.

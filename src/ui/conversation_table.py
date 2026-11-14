@@ -264,14 +264,12 @@ def delete_selected_rows(json_str: str, rows: list[list], selected_numbers: list
     Deleting a player row also removes its events. A message that only carried events (no row of its own) is removed with its last event.
 
     Raises:
-        ValueError: if rows were added, removed or reordered, or a Joined/Left row is selected
+        ValueError: if rows were added, removed or reordered
     """
     messages, pairs = _load_with_targets(json_str, rows)
     for row, (container, key) in pairs:
         container[key] = str(row[3])
     selected = [target for row, target in pairs if str(row[0]) in selected_numbers]
-    if any(isinstance(container, dict) and container.get("type") in ("join", "leave") for container, _ in selected):
-        raise ValueError("Joined and Left rows can't be deleted: they tell the conversation who is in it.")
     selected_ids = {id(container) for container, _ in selected if isinstance(container, dict)}
     selected_events = {(id(container), key) for container, key in selected if isinstance(container, list)}
     kept: list[dict] = []

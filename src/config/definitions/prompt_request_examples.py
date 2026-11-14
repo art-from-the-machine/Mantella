@@ -5,6 +5,7 @@ The layouts follow the real requests: the decision model's request as Mantella l
 src/conversation/game_master.py), and the Game Master LLM's system and user messages (GameMaster.choose_next_speaker).
 Keep them in step when those requests change."""
 
+import html
 import re
 
 # A slot is {{prompt_type}} or {{prompt_type|note}}, e.g. {{skyrim_game_master_decision_npc_criteria|for Lydia}}.
@@ -316,26 +317,39 @@ EXAMPLES: dict[str, list[tuple[str, str, str]]] = {
 }
 
 
+THIS_PROMPT_CLASS = "prompt-example-this"
+OTHER_PROMPT_CLASS = "prompt-example-other"
+
+
 def render_example(template: str, prompt_type: str, display_names: dict[str, str]) -> str:
-    """The example with the chosen prompt marked, and the other prompts named in brackets"""
+    """The example as HTML: the chosen prompt highlighted, the other prompts named in brackets and dimmed (colours in style.css)"""
     def fill(match: re.Match) -> str:
         slot_type, note = match.group(1), match.group(2)
         suffix = f" ({note})" if note else ""
         if slot_type == prompt_type:
-            return f">>> THIS PROMPT{suffix} <<<"
-        return f"[{display_names.get(slot_type, slot_type)}{suffix}]"
-    return SLOT.sub(fill, template)
+            return f'<span class="{THIS_PROMPT_CLASS}">{html.escape(f"THIS PROMPT{suffix}")}</span>'
+        return f'<span class="{OTHER_PROMPT_CLASS}">{html.escape(f"[{display_names.get(slot_type, slot_type)}{suffix}]")}</span>'
+    pieces, last = [], 0
+    for match in SLOT.finditer(template):
+        pieces.append(html.escape(template[last:match.start()]))
+        pieces.append(fill(match))
+        last = match.end()
+    pieces.append(html.escape(template[last:]))
+    return "".join(pieces)
 
 
 def get_request_examples_markdown(prompt_type: str, display_names: dict[str, str]) -> str:
-    """Markdown with each example request for a prompt type, the prompt's place marked. Empty for prompt types that are not part of a Game Master request"""
+    """Markdown with each example request for a prompt type, the prompt's place highlighted, each example folded. Empty for prompt types that are not part of a Game Master request"""
     examples = EXAMPLES.get(prompt_type)
     if not examples:
         return ""
-    parts = ["**Where it goes in the request.** `>>> THIS PROMPT <<<` marks this prompt, other prompts are named in [brackets]. "
-             "The names and lines are only an example."]
+    parts = [f'**Where it goes in the request.** <span class="{THIS_PROMPT_CLASS}">THIS PROMPT</span> marks this prompt, '
+             f'other prompts are named in <span class="{OTHER_PROMPT_CLASS}">[brackets]</span>. '
+             "The names and lines are only an example. Click an example to open it."]
     for title, template, note in examples:
-        parts.append(f"*{title}:*\n\n```text\n{render_example(template, prompt_type, display_names)}\n```")
+        # The blank lines keep Markdown from ending the fold early, and let the note be read as Markdown
+        example = f'<details class="prompt-example">\n<summary><em>{html.escape(title)}</em></summary>\n\n<pre>{render_example(template, prompt_type, display_names)}</pre>\n\n'
         if note:
-            parts.append(note)
+            example += f"{note}\n\n"
+        parts.append(example + "</details>")
     return "\n\n".join(parts)
