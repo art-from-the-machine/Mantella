@@ -399,9 +399,15 @@ After you talk again and a newer summary is saved, the Thane line moves into the
 
 ### What it's for
 
-Out of the box, NPCs don't know what you've done in your game. You finish the Civil War, kill Alduin or join the Thieves Guild, and the people of Skyrim talk to you as if none of it happened. With tags you could tell them, but you had to update the tag text by hand after every quest.
+**Quest tags track your quest progress and keep NPCs up to date with it.** When a quest moves on or ends, the NPCs who should know about it learn what happened, without you editing anything.
 
-Quest tags keep track of your quest progress for you:
+Out of the box, NPCs don't know what you've done in your game. You drive the Stormcloaks back from Whiterun, and the next day Adrianne Avenicci at the forge is still worrying that they're coming. You could write the outcome into a tag yourself, but then you'd have to rewrite it after every quest, and again for every playthrough.
+
+A quest tag is a tag about a quest that can end in different ways. Instead of one fixed text, it has one text for each possible ending, for example *"The Stormcloaks took Whiterun"* and *"The Stormcloaks attacked Whiterun but failed"*. Mantella checks your game to see which ending is true right now, and gives every NPC with the tag that text. Win the battle, and Adrianne and the other 178 people with the `whiterun_hold_civil_war` tag know the attack failed. You don't touch a file.
+
+Quest tags and their endings come ready-made in the community files on Nexus (see [What you need](#what-you-need)).
+
+What this gives you:
 
 - **NPCs keep up with your playthrough.** When a quest ends a certain way, every NPC with that tag knows about it in their next conversation.
 - **The people you're with react as it happens.** If a quest moves on while you're talking to someone, they hear about it with your next line.
@@ -514,7 +520,17 @@ Announcements during a conversation work the same with Static and Dynamic. Hand-
 
 A quest tag's `description` is always used as well. With Static, the outcome comes right before the description in the bio. With Dynamic, the description stays in the bio and the outcome is a dated memory.
 
-**One tag can choose for itself.** Add an `outcome_mode` column and write `static`, `dynamic` or `off` for that tag (or pick it in the [Tag Editor](#tag-editor), under Quest outcomes). An empty cell follows the setting. `off` means the tag isn't checked and only its `description` is used. With the setting on Off, no tag is checked.
+**One tag can choose for itself.** The easiest way is the [Tag Editor](#tag-editor): open the tag and pick it under **Quest outcomes**.
+
+To do it by hand, add an `outcome_mode` column to a [bio templates](#bio-templates-what-each-tag-means) CSV and write `static`, `dynamic` or `off` in the tag's row. Put it in your own file in `Documents\My Games\Mantella\data\Skyrim\bio_templates\`, so updating the community files doesn't undo it. That file only needs the columns `tag`, `description` and `outcome_mode`. Leave `description` empty, and the tag keeps its text from the community file. For example, `my_quest_settings.csv`:
+
+```
+tag,description,outcome_mode
+whiterun_hold_civil_war,,dynamic
+alchemy_trainer,,off
+```
+
+Then use [Reload Character Data](#reload-character-data) or restart Mantella. An empty cell follows the setting. `off` means the tag isn't checked and only its `description` is used. With the setting on Off, no tag is checked.
 
 With Dynamic, Adrianne from the example above sees:
 
@@ -2376,9 +2392,11 @@ What your prompts say about you is up to them: variables like `{player_name}` or
 
 ### What it does
 
-A normal conversation is closed: only the people you started it with, or brought in yourself, take part. Call out "Guards!" in a tavern and nobody else reacts.
+A normal conversation is private, like talking quietly at a table. Only the people you started it with, or brought in yourself, take part. Everyone else in the room acts as if they can't hear you.
 
-With **Shout** on, anyone nearby can hear the conversation, answer and join in.
+Shout makes the conversation public. Pick **Shout** on the wheel during a conversation, and anyone nearby can overhear, answer and join in. Say you're standing in Dragonsreach and mutter to Lydia that the Jarl's steward is a fool. With Shout on, Proventus Avenicci, standing right behind you, can turn around and answer.
+
+The [Game Master](#game-master-mode), the part of Mantella that decides who speaks next in a group, also decides who nearby joins. To start a public conversation without talking to anyone first, see [Say Something to the Room](#say-something-to-the-room).
 
 - **The Game Master decides who speaks.** It picks from the people in the conversation and the people nearby. When it picks someone nearby, they join and speak next. This works even with **Multi-NPC Game Master Mode** off, and even when you are talking to one person.
 - **It knows who is around.** It gets the names of everyone nearby, up to **Most People Listed**, so if you call someone by name they can answer from across the room. For the nearest few (**Most People Described**) it also gets their bio, reflection, memories and private thoughts, so "is there a healer here?" can bring the priestess over.
@@ -2444,7 +2462,9 @@ In game: **Shout** / **Private** on the [Conversation Wheel](#conversation-wheel
 
 ### What it does
 
-Sometimes you don't want to talk to anyone in particular: you ask the room if anyone has seen a thief, or you shout a warning. Say lets you say something out loud without picking someone first.
+Normally every conversation starts with you picking someone: you cast the spell on one NPC. Say lets you speak to nobody in particular, out loud, and see who reacts. It's [Shout](#shout), but without having to start a conversation with someone first.
+
+For example, you walk into the Bannered Mare and call out *"Who here has seen a Khajiit with a stolen amulet?"* Uthgerd might look up from her mead and say she saw one heading for the stables. Or the whole room might ignore you.
 
 - A conversation starts with only you in it, already in [Shout](#shout). What you say is heard by everyone nearby.
 - The Game Master decides whether anyone answers: someone you called by name or by what they are, someone you asked something they would answer, or someone it would be odd not to react.
@@ -2481,6 +2501,12 @@ In game, with no conversation running: **Say** on the [Conversation Wheel](#conv
 ## Talk Level
 
 ### What it does
+
+When you talk to several NPCs at once, there's always a question: after you speak, who answers, and how much do they talk before it's your turn again?
+
+Say you tell Hulda and Mikael, *"I need someone brave enough to come to Bleak Falls Barrow."* Should only Hulda answer, and then it's your turn? Should both answer? Should Mikael boast, Hulda mock him, and Mikael fire back for six lines while you listen? The talk settings decide this. They only matter when there's more than one NPC, or when people nearby can join in ([Shout](#shout)). A normal one-on-one conversation always goes you, them, you.
+
+The rules come in three parts: who **must** speak before your turn, who answers **first**, and what happens when the NPCs have talked for too long in a row.
 
 In a conversation with the Game Master, the NPCs reply one after another until it's your turn again, or until they reach **Max NPC Turns per Player Turn**: the most NPC replies in a row before your turn comes anyway. Each kind of conversation has its own, in its section:
 
@@ -2528,6 +2554,7 @@ Tick one or more. The people they name must each say something before your turn.
 - Someone due to answer two people speaks once, and that one reply covers both.
 - If people you talked to are still waiting their turn, they go first, and an NPC's **They answer next** is forgotten. Example: you talk to Hulda and Mikael (each in turn), and Hulda asks Saadia something. Mikael answers next; Saadia only speaks if she has to (see the tick boxes) or the Game Master picks her. With **Each answers in turn** for NPCs too, Saadia waits her turn behind Mikael instead.
 - Only Max NPC Turns per Player Turn stops a chain of answers.
+- With **They answer next** for **When an NPC talks to someone**, an argument where every line names someone (*"Sven, …"*, *"Siv, …"*) goes on until Max NPC Turns per Player Turn. To get the turn back whenever the Game Master gives it to you, set it to **The Game Master decides**.
 
 #### What happens at Max NPC Turns per Player Turn
 
@@ -2562,21 +2589,6 @@ While **Anyone an NPC talks to** isn't ticked, nobody can owe an NPC an answer, 
 
 - **When the NPCs reach Max NPC Turns per Player Turn, who still speaks**, **Replies in between** and **Extra rounds** while **Nobody in particular** is ticked: nobody is left who has to speak.
 - **Replies in between** and **Extra rounds** while **Nobody, it's your turn now** is picked, and **Replies in between** while **Extra rounds** is 0.
-
-**What today's old Talk Level options are now.** Each of the six old options can be set up with the new settings (*no limit* means **Extra rounds** 20):
-
-| Old option | Who must speak | Who answers first (you / an NPC) | At Max NPC Turns per Player Turn, who still speaks | Replies in between / Extra rounds |
-| --- | --- | --- | --- | --- |
-| Everyone Gets to Speak | Everyone in the conversation | They answer next / They answer next | Only people who haven't answered you yet | 0 / no limit |
-| Anyone Spoken To Answers, Even by an NPC | Anyone you talk to + Anyone an NPC talks to | They answer next / They answer next | Only people who haven't answered you yet | Max NPC Turns per Player Turn minus 1 / no limit |
-| Anyone You Speak To Answers, Others Can Respond | Anyone you talk to | They answer next / They answer next | (no difference) | Max NPC Turns per Player Turn minus 1 / no limit |
-| Anyone You Speak To Answers, No Extra Replies | Anyone you talk to | They answer next / They answer next | (no difference) | 0 / no limit |
-| Anyone You Speak To Answers, Within the Reply Limit | Anyone you talk to | They answer next / They answer next | Nobody, it's your turn now | (no difference) |
-| Game Master Picks Every Speaker | Nobody in particular | The Game Master decides / The Game Master decides | (no difference) | (no difference) |
-
-One difference from the old options: after an NPC talks to someone, **They answer next** makes them answer next even when the Game Master wants to give you the turn. The old options gave you the turn right away. So an argument where every line names someone ("Sven, …", "Siv, …") goes on until Max NPC Turns per Player Turn. For something close to the old way, set **When an NPC talks to someone** to **The Game Master decides**: you get the turn whenever the Game Master gives it to you. It isn't exactly the old way: when the Game Master picks another NPC instead, the old options still made the person the NPC talked to answer first, and this doesn't.
-
-The new settings also allow what no old option did, for example: the people an NPC talks to answer next but aren't kept on at Max NPC Turns per Player Turn; or the people you talk to must answer, but the Game Master picks their order.
 
 **Where the settings apply.** One shared set of talk settings sits in the **All Conversations** section. Each kind of conversation (Group Conversation, Shout, Director Mode, each of the three Events, Watched NPC Event) has a **Use its own settings** switch: while it is off, that kind uses the shared set; while it is on, its own set appears below the switch and is used instead. A Conversation, Nearby or Random Event with its switch off uses the shared set, also during a Shout or Director Mode that has its own.
 
@@ -2619,7 +2631,7 @@ The **Conversation** page in the Mantella UI, below the live conversation. The p
 ### For developers
 
 - Settings: `src/config/definitions/conversation_definitions.py` (the three option lists, `talk_key`, `use_own_key`, `resolve_ticks`, `greyed_choices`); which set applies to a turn: `turn_rules` in `src/conversation/answer_rules.py`, which also has the answer order (`AnswerOrder`). The turn itself: `GameMasterTurns` in `src/conversation/game_master.py` (`__apply_decision`, `__at_reply_limit`, `__start_round`). The page: tick boxes, radio buttons, settings shown by a switch (`ConfigValue.shown_when`) and greying in `src/ui/settings_ui_constructor.py`.
-- Console tests (no game needed): `pytest tests/test_answer_rules.py tests/test_answer_rules_flow.py tests/config/test_conversation_settings.py tests/ui/test_conversation_page.py`. `test_answer_rules_flow.py` first rebuilds the six old options with the new settings and checks they give the same speakers as before (except the one difference above), then has one test for each rule above.
+- Console tests (no game needed): `pytest tests/test_answer_rules.py tests/test_answer_rules_flow.py tests/config/test_conversation_settings.py tests/ui/test_conversation_page.py`. `test_answer_rules_flow.py` first checks six common setups give the expected speakers, then has one test for each rule above.
 - In-game test: `tests/ingame/talk_settings/talk_settings_ingame.py` with `MantellaTalkTest.psc` in Mantella-Spell. See [docs/conversation_wheel.md](docs/conversation_wheel.md), "Automated tests".
 
 ## NPC Initiative
@@ -2701,7 +2713,13 @@ If nobody approaches too often, lower **NPC Initiative Threshold** or edit the c
 
 ### What it does
 
-Radiant conversations are two NPCs making small talk. NPC Events are scenes: every so often, Mantella invents something that starts happening between some of the NPCs near you, based on who they are, and they act it out. You can watch, walk away, or step in.
+Normally the people of Skyrim only come alive when you talk to them. When you're not in a conversation, they stand around or follow their daily routine. At most, two of them trade a few lines of small talk (Skyrim's "radiant" conversations).
+
+NPC Events give them a life of their own. Every so often, Mantella makes up a small scene between some of the NPCs near you, based on who they are and what they remember. Then they act it out, out loud, while you're there. For example, you're eating at the Bannered Mare when Hulda confronts Mikael. She's found out he's been reciting the same love poem to every woman in Whiterun, and Uthgerd laughs loud enough for the whole inn to hear. They argue it out. After a few lines, Mikael may turn to you and ask you to take his side.
+
+You can watch, walk away, or step in and join the conversation. Afterwards they remember it like any other conversation.
+
+**Not to be confused with** [Talk, Nearby and Random Events](#talk-nearby-and-random-events). Those happen only when you pick them, during a conversation you're already in.
 
 1. **A check runs** every **Frequency** minutes, or when you press the **Check Now** hotkey or pick **NPC Event** on the wheel. No check runs while a conversation is running, while you are in combat, or in a menu. When you start one yourself and **Ask for a Hint** is on, a text box asks what you'd like to happen (cancel it or leave it empty for a surprise).
 2. **The game picks the candidates:** everyone within **Hearing Distance** (at least two), nearest first, up to the Shout Mode page's **Most People Listed**. Line of sight is not needed. They must be awake, not hostile, not in combat, and not already talking.
@@ -2801,7 +2819,22 @@ NPC Event: Mikael, Uthgerd the Unbroken: Mikael is boasting ...
 
 ### What it does
 
-A conversation can go in circles. An event shakes it up: you pick one on the wheel, something happens, and the NPCs react to it.
+An event is a small, unplanned moment that you drop into a conversation you're having. Mantella makes up something that happens right then, fitting the place and the people, for example *a dagger thuds into the table between you and Hulda, with a note tied to the hilt: "Last warning."* It shows you what happened, and the NPCs react as if they had just seen it. It works like a game master at a tabletop game throwing a twist into the scene.
+
+Use one when a conversation is stuck, going in circles or has gone quiet, and you want something to talk about that neither you nor the NPCs planned.
+
+The event only happens in words. Nothing changes in the game world: no dagger appears in the table and nobody draws a weapon. The NPCs who were there still remember it, like anything else said in the conversation.
+
+There are three kinds, depending on who the event is about. For example, you're talking with Hulda in the Bannered Mare, and Saadia and Mikael sit at another table:
+
+- **Talk Event**: something happens to the people you're talking with, or right around you. *Hulda finds a stranger's love letter tucked under your tankard. It's addressed to her.* The same people stay in the conversation.
+- **Nearby Event**: something happens among people nearby who aren't talking with you. *Mikael starts a new song about a Redguard woman hiding from the Thalmor, and Saadia goes pale and reaches for her knife.* [Shout](#shout) is switched on, so they can join.
+- **Random Event**: either one. Mantella decides. *Uthgerd the Unbroken slams her tankard down and challenges the loudest person in the room to a brawl.* That could be you, Hulda or Mikael.
+
+**Not to be confused with:**
+
+- [NPC Events](#npc-events), which start on their own while no conversation is running. NPCs nearby act out a scene while you watch. Talk, Nearby and Random Events only happen when you pick them on the [Conversation Wheel](#conversation-wheel), during a conversation you're in.
+- [In-Game Events](#in-game-events), which are things that really happened in the game, such as you picking something up. The events here are made up.
 
 | | **Talk Event** (Conversation Event) | **Nearby Event** | **Random Event** |
 | --- | --- | --- | --- |
