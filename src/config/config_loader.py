@@ -4,6 +4,10 @@ import os
 import sys
 from typing import Any
 from src.config.definitions.llm_definitions import AutoQuestTagOutcomesEnum, DecensorPlacementEnum, NarrationHandlingEnum, NarrationIndicatorsEnum
+from src.config.definitions.conversation_definitions import (AT_REPLY_LIMIT, DIRECTOR, EXTRA_ROUNDS, GROUP, MAX_NPC_TURNS_KINDS, NPC_EVENT,
+                                                             REPLIES_IN_BETWEEN, SHARED, SHOUT, TALK_KINDS, WHEN_NPC_TALKS, WHEN_YOU_TALK, WHO_MUST_SPEAK,
+                                                             AtReplyLimitEnum, NewcomersRememberEnum, WhoAnswersFirstEnum, WhoMustSpeakEnum,
+                                                             max_npc_turns_identifier, most_replies_identifier, talk_key, use_own_key)
 from src.config.definitions.game_definitions import GameEnum
 from src.config.definitions.tts_definitions import TTSEnum
 from src.conversation.action import Action
@@ -555,10 +559,34 @@ Summary LLM parameter list must follow the Python dictionary format: https://www
 
             self.multi_conversation_director_mode = self.__definitions.get_bool_value("multi_conversation_director_mode")
             self.multi_npc_game_master_mode = self.__definitions.get_bool_value("multi_npc_game_master_mode")
-            self.multi_npc_game_master_max_npc_turns = self.__definitions.get_int_value("multi_npc_game_master_max_npc_turns")
             self.multi_npc_game_master_director_max_npc_turns = self.__definitions.get_int_value("multi_npc_game_master_director_max_npc_turns")
             self.game_master_history_message_count = self.__definitions.get_int_value("game_master_history_message_count")
             self.game_master_include_turn_thoughts = self.__definitions.get_bool_value("game_master_include_turn_thoughts")
+
+            # Conversation page: the talk settings (the shared set, and each kind's switch and own set), and the Shout and event options
+            must_speak_by_name = {option.display_name: option for option in WhoMustSpeakEnum}
+            for kind in [SHARED] + TALK_KINDS:
+                if kind:
+                    setattr(self, use_own_key(kind), self.__definitions.get_bool_value(use_own_key(kind)))
+                ticked = self.__definitions.get_string_list_value(talk_key(kind, WHO_MUST_SPEAK))
+                setattr(self, talk_key(kind, WHO_MUST_SPEAK), frozenset(must_speak_by_name[name] for name in ticked if name in must_speak_by_name))
+                if kind != NPC_EVENT: # A watched NPC Event has nobody "you" talk to
+                    setattr(self, talk_key(kind, WHEN_YOU_TALK), self.__definitions.get_enum_value(talk_key(kind, WHEN_YOU_TALK), WhoAnswersFirstEnum))
+                setattr(self, talk_key(kind, WHEN_NPC_TALKS), self.__definitions.get_enum_value(talk_key(kind, WHEN_NPC_TALKS), WhoAnswersFirstEnum))
+                setattr(self, talk_key(kind, AT_REPLY_LIMIT), self.__definitions.get_enum_value(talk_key(kind, AT_REPLY_LIMIT), AtReplyLimitEnum))
+                setattr(self, talk_key(kind, REPLIES_IN_BETWEEN), self.__definitions.get_int_value(talk_key(kind, REPLIES_IN_BETWEEN)))
+                setattr(self, talk_key(kind, EXTRA_ROUNDS), self.__definitions.get_int_value(talk_key(kind, EXTRA_ROUNDS)))
+            for situation in (GROUP, SHOUT, DIRECTOR, NPC_EVENT):
+                setattr(self, most_replies_identifier(situation), self.__definitions.get_int_value(most_replies_identifier(situation)))
+            for kind in MAX_NPC_TURNS_KINDS:
+                setattr(self, max_npc_turns_identifier(kind), self.__definitions.get_int_value(max_npc_turns_identifier(kind)))
+            self.group_conversation_max_answering: int = self.__definitions.get_int_value("group_conversation_max_answering")
+            self.shout_max_people: int = self.__definitions.get_int_value("shout_max_people")
+            self.shout_max_answering: int = self.__definitions.get_int_value("shout_max_answering")
+            self.shout_newcomers_remember: int = self.__definitions.get_enum_value("shout_newcomers_remember", NewcomersRememberEnum).value
+            for kind in ("conversation", "nearby", "random"):
+                setattr(self, f"{kind}_event_send_history", self.__definitions.get_bool_value(f"{kind}_event_send_history"))
+                setattr(self, f"{kind}_event_include_player", self.__definitions.get_bool_value(f"{kind}_event_include_player"))
 
             # Vision
             self.vision_enabled = self.__definitions.get_bool_value('vision_enabled')

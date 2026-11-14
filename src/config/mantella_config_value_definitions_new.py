@@ -7,6 +7,8 @@ from src.config.types.config_value_group import ConfigValueGroup
 from src.config.definitions.game_definitions import GameDefinitions
 from src.config.definitions.language_definitions import LanguageDefinitions
 from src.config.definitions.llm_definitions import LLMDefinitions
+from src.config.definitions.conversation_definitions import (CONVERSATION_EVENT, CONVERSATION_PAGE, DIRECTOR, GROUP, NEARBY_EVENT, NPC_EVENT, RANDOM_EVENT, SHARED,
+                                                             SHOUT, ConversationDefinitions)
 from src.config.types.config_value_group import ConfigValueGroup
 from src.config.types.config_value_path import ConfigValuePath
 from src.config.types.config_value_string import ConfigValueString
@@ -142,7 +144,6 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_game_master_decision_service_config_value())
         llm_category.add_config_value(LLMDefinitions.get_game_master_decision_model_config_value())
         llm_category.add_config_value(LLMDefinitions.get_npc_initiative_threshold_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_game_master_addressed_threshold_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_llm_api_config_value())
         llm_category.add_config_value(LLMDefinitions.get_summary_model_config_value())
         # (key, label, can use the Summary model instead). The NPC Event Generator and the Fallback always use their own model
@@ -208,14 +209,8 @@ class MantellaConfigValueDefinitionsNew:
         # Multi-NPC LLM Configuration
         llm_category.add_config_value(LLMDefinitions.get_sonnet_prompt_caching_config_value())
         llm_category.add_config_value(LLMDefinitions.get_multi_npc_bios_only_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_director_max_npc_turns_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_multi_npc_game_master_max_npc_turns_config_value())
         llm_category.add_config_value(LLMDefinitions.get_game_master_history_message_count_config_value())
         llm_category.add_config_value(LLMDefinitions.get_game_master_include_turn_thoughts_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_npc_event_max_participants_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_npc_event_player_notice_delay_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_npc_event_max_lines_without_player_config_value())
-        llm_category.add_config_value(LLMDefinitions.get_npc_event_wind_down_lines_config_value())
         llm_category.add_config_value(LLMDefinitions.get_enable_bio_section_filter_config_value())
         llm_category.add_config_value(LLMDefinitions.get_bio_sections_to_exclude_config_value())
         llm_category.add_config_value(LLMDefinitions.get_enable_bio_section_filter_for_memory_config_value())
@@ -243,6 +238,9 @@ class MantellaConfigValueDefinitionsNew:
         llm_category.add_config_value(LLMDefinitions.get_speech_end_indicators())
         llm_category.add_config_value(LLMDefinitions.get_narration_indicators())
         result.add_base_group(llm_category)
+
+        for group in MantellaConfigValueDefinitionsNew.__conversation_groups(on_value_change_callback):
+            result.add_base_group(group)
 
         tts_category = ConfigValueGroup("TTS", "Text-to-Speech", "Settings for the TTS methods Mantella supports.", on_value_change_callback)
         tts_category.add_config_value(TTSDefinitions.get_tts_service_config_value())
@@ -408,5 +406,75 @@ class MantellaConfigValueDefinitionsNew:
             model_profiles_category.add_config_value(LLMDefinitions.get_apply_profile_memory_task_config_value(key, label, has_summary_option))
         model_profiles_category.add_config_value(ModelProfileDefinitions.get_example_profile_json_config_value())
         result.add_base_group(model_profiles_category)
-      
+
         return result
+
+    @staticmethod
+    def __conversation_groups(on_value_change_callback: Callable[..., Any] | None) -> list[ConfigValueGroup]:
+        """The settings at the end of the Conversation page, one section each: who speaks when in Game Master Mode,
+        and the Shout and event options the game only sends to Mantella. Each section can be folded away, and shows its title on the fold"""
+        def section(identifier: str, title: str, description: str) -> ConfigValueGroup:
+            return ConfigValueGroup(identifier, title, description, on_value_change_callback, page=CONVERSATION_PAGE, foldable=True)
+
+        all_conversations = section("Conversation", "All Conversations", ConversationDefinitions.ALL_CONVERSATIONS_DESCRIPTION)
+        all_conversations.add_config_value(LLMDefinitions.get_game_master_addressed_threshold_config_value())
+        for value in ConversationDefinitions.get_talk_config_values(SHARED):
+            all_conversations.add_config_value(value)
+
+        def own_talk_settings(target: ConfigValueGroup, kind: str):
+            """A kind's "Use its own settings" switch, then its own talk settings, which only show while it is on"""
+            target.add_config_value(ConversationDefinitions.get_use_own_settings_config_value(kind))
+            for value in ConversationDefinitions.get_talk_config_values(kind):
+                target.add_config_value(value)
+
+        until_your_turn = ("After you speak, the NPCs reply one after another until it's your turn again. Max NPC Turns per Player Turn, below, "
+                           "is the most NPC replies in a row before your turn comes anyway.")
+        group = section("ConversationGroup", "Group Conversation", f"You speak in a conversation with several NPCs and the Game Master, not shouting. {until_your_turn}")
+        own_talk_settings(group, GROUP)
+        group.add_config_value(ConversationDefinitions.get_max_npc_turns_config_value(GROUP))
+        group.add_config_value(ConversationDefinitions.get_most_replies_config_value(GROUP, "Group Conversation"))
+        group.add_config_value(ConversationDefinitions.get_group_conversation_max_answering_config_value())
+
+        shout = section("ConversationShout", "Shout", f"You speak while shouting: anyone nearby can answer or join in. Also an NPC Event you stepped into. {until_your_turn}")
+        own_talk_settings(shout, SHOUT)
+        shout.add_config_value(ConversationDefinitions.get_max_npc_turns_config_value(SHOUT))
+        shout.add_config_value(ConversationDefinitions.get_most_replies_config_value(SHOUT, "Shout"))
+        shout.add_config_value(ConversationDefinitions.get_shout_max_people_config_value())
+        shout.add_config_value(ConversationDefinitions.get_shout_max_answering_config_value())
+        shout.add_config_value(ConversationDefinitions.get_shout_newcomers_remember_config_value())
+
+        director = section("ConversationDirector", "Director Mode", "You give a direction, shouting or not. The Game Master never gives you the turn: "
+                           "the NPCs reply one after another until Max NPC Turns per Direction, then you can direct again.")
+        own_talk_settings(director, DIRECTOR)
+        director.add_config_value(ConversationDefinitions.get_most_replies_config_value(DIRECTOR, "Director Mode"))
+        director.add_config_value(LLMDefinitions.get_multi_npc_game_master_director_max_npc_turns_config_value())
+
+        uses_conversations = ("Max NPC Turns per Player Turn, below, is the most NPC replies in a row to the event, also in Director Mode. "
+                              "It uses the Most Replies per Person of the conversation it happens in.")
+        event_sections = []
+        for kind, situation, identifier, title, default, what_it_is in [
+                ("conversation", CONVERSATION_EVENT, "ConversationConversationEvent", "Conversation Event", True,
+                 "The reaction to a Talk Event picked on the Conversation Wheel during a conversation you're in: something happens to the people "
+                 "in the conversation, or around them."),
+                ("nearby", NEARBY_EVENT, "ConversationNearbyEvent", "Nearby Event", False,
+                 "The reaction to a Nearby Event picked on the Conversation Wheel during a conversation you're in: something happens among the people "
+                 "nearby who aren't in the conversation. Shout is switched on, so they can join in."),
+                ("random", RANDOM_EVENT, "ConversationRandomEvent", "Random Event", True,
+                 "The reaction to a Random Event picked on the Conversation Wheel during a conversation you're in: something happens that can involve "
+                 "anyone nearby, in the conversation or not. Shout is switched on, so people nearby can join in.")]:
+            event = section(identifier, title, f"{what_it_is} {uses_conversations}")
+            own_talk_settings(event, situation)
+            event.add_config_value(ConversationDefinitions.get_event_send_history_config_value(kind, default))
+            event.add_config_value(ConversationDefinitions.get_event_include_player_config_value(kind, default))
+            event.add_config_value(ConversationDefinitions.get_max_npc_turns_config_value(situation))
+            event_sections.append(event)
+
+        npc_event = section("ConversationNpcEvent", "Watched NPC Event", LLMDefinitions.NPC_EVENT_DESCRIPTION + " The NPCs speak one after another "
+                            "until Max Lines Without Player, then the scene ends. Once you step in, it's a Shout conversation.")
+        own_talk_settings(npc_event, NPC_EVENT)
+        npc_event.add_config_value(ConversationDefinitions.get_most_replies_config_value(NPC_EVENT, "Watched NPC Event"))
+        npc_event.add_config_value(LLMDefinitions.get_npc_event_max_participants_config_value())
+        npc_event.add_config_value(LLMDefinitions.get_npc_event_player_notice_delay_config_value())
+        npc_event.add_config_value(LLMDefinitions.get_npc_event_max_lines_without_player_config_value())
+        npc_event.add_config_value(LLMDefinitions.get_npc_event_wind_down_lines_config_value())
+        return [all_conversations, group, shout, director, *event_sections, npc_event]

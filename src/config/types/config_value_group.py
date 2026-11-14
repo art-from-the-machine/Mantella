@@ -5,9 +5,17 @@ from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 
 class ConfigValueGroup(ConfigValue[list[ConfigValue]]):
-    def __init__(self, identifier: str, name: str, description: str, on_value_change_callback: Callable[..., Any] | None = None, is_hidden: bool = False, tags: list[ConfigValueTag] = [], row_group: str | None = None):
+    def __init__(self, identifier: str, name: str, description: str, on_value_change_callback: Callable[..., Any] | None = None, is_hidden: bool = False, tags: list[ConfigValueTag] = [], row_group: str | None = None,
+                 page: str | None = None, foldable: bool = False):
+        """
+        Args:
+            page (str | None): the UI page these settings are shown at the end of, instead of a tab of their own. None for a tab of their own
+            foldable (bool): shows the settings in a section titled with the name that starts folded and opens on click
+        """
         super().__init__(identifier, name, description, [],[], is_hidden, tags, row_group)
         self.set_on_value_change_callback(on_value_change_callback)
+        self.page = page
+        self.foldable = foldable
 
     def add_config_value(self, new_value: ConfigValue):
         self.value.append(new_value)

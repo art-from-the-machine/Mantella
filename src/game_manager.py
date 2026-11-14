@@ -733,11 +733,11 @@ class GameStateManager:
                 names = [person.name for person in people]
                 max_described = max(0, int(input_json.get(comm_consts.KEY_EVENT_MAXDESCRIBED, 6)))
                 described = [loaded[person.refid] for person in people[:max_described] if person.refid in loaded]
-            if bool(input_json.get(comm_consts.KEY_EVENT_INCLUDEPLAYER, False)) and player_name and not hides_player:
+            if bool(getattr(self.__config, f"{kind}_event_include_player", False)) and player_name and not hides_player:
                 names.append(player_name)
             bios_and_summaries = build_bios_and_summaries_text(described, self.__config, self.__rememberer, context.world_id, player_name or None,
                                                                contains_player=True, always_multi_npc=True)
-            history_lines = talk.event_history_lines() if bool(input_json.get(comm_consts.KEY_EVENT_SENDHISTORY, False)) else []
+            history_lines = talk.event_history_lines() if bool(getattr(self.__config, f"{kind}_event_send_history", False)) else []
             hint = str(input_json.get(comm_consts.KEY_EVENT_HINT, "")).strip()
             logging.log(26, f"Event ({kind}) about: {', '.join(names) or 'nobody'}. With bios and memories: {', '.join(c.name for c in described) or 'nobody'}."
                             + (f" Hint: {hint}" if hint else ""))
@@ -890,14 +890,14 @@ class GameStateManager:
             self.__chat_manager.update_game_master_client(self.__get_npc_initiative_client())
         return self.__chat_manager.game_master_client is not None
 
-    @staticmethod
-    def __shout_settings(input_json: dict[str, Any]) -> dict[str, Any]:
-        """The Shout Mode settings the game sends with each request (see ShoutState.apply_settings)"""
+    def __shout_settings(self, input_json: dict[str, Any]) -> dict[str, Any]:
+        """The Shout settings for each request (see ShoutState.apply_settings): from the Conversation page, except Most People Described,
+        which the game sends, as it also decides whose details it sends"""
         return {
-            "max_people": input_json.get(comm_consts.KEY_SHOUT_MAXPEOPLE),
+            "max_people": self.__config.shout_max_people,
             "max_described": input_json.get(comm_consts.KEY_SHOUT_MAXDESCRIBED),
-            "newcomers_remember": input_json.get(comm_consts.KEY_SHOUT_NEWCOMERSREMEMBER),
-            "max_answering": input_json.get(comm_consts.KEY_SHOUT_MAXANSWERING),
+            "newcomers_remember": self.__config.shout_newcomers_remember,
+            "max_answering": self.__config.shout_max_answering,
         }
 
     def __apply_shout(self, input_json: dict[str, Any]) -> bool:
@@ -1296,11 +1296,6 @@ class GameStateManager:
         if not self.__talk:
             return None
         return self.__talk.get_conversation_as_json()
-
-    def get_decensor_bypass_preview(self) -> str:
-        """Read-only handshake and commitment shown under the live conversation editor."""
-        from src.llm.message_thread import format_decensor_bypass_preview
-        return format_decensor_bypass_preview(self.__config)
 
     def apply_conversation_from_json(self, json_str: str) -> bool:
         """Apply edited JSON back to the live conversation. Returns True on success."""

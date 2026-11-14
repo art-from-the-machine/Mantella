@@ -599,9 +599,6 @@ Content Guidelines:
 {end if}
 
 Response format example:
-{if not shout and not npc_event}
-Ysolda: Ysolda adjusted the strap of her satchel, glancing warily down the road.
-{end if}
 Ysolda: Keep your voice down. We're here to close the deal,  we don't want to draw the attention of the town guard.
 <<thought Ysolda>> My heart is hammering against my ribs standing out here in the open. If the guards catch wind of this shipment, my trading license is forfeit.
 <<action next turn Ysolda>>  I need to make the handoff quickly and get back behind the city gates.
@@ -827,7 +824,7 @@ Always use the most recent memory to determine the current relationship
     @staticmethod
     def get_skyrim_npc_event_wind_down_prompt_config_value() -> ConfigValue:
         description = PromptDefinitions.NPC_EVENT_DESCRIPTION + """
-                        Added to the Game Master's and the NPCs' requests during the last lines before the scene's line limit (NPC Event Wind-Down Lines), while the player has not joined.
+                        Added to the Game Master's and the NPCs' requests during the last lines before the scene's line limit (Wind-Down Lines, Conversation page → Watched NPC Event), while the player has not joined.
                         Supports {names} (the NPCs in the scene)."""
         prompt = "The scene between {names} is coming to an end. Wrap it up naturally in the next few lines: settle it, or leave it on a clear note. Nobody needs to say goodbye."
         return ConfigValueString("skyrim_npc_event_wind_down_prompt","Skyrim NPC Event Wind-Down Prompt",description,prompt,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_NPC_EVENT_WIND_DOWN)])
@@ -910,9 +907,9 @@ Always use the most recent memory to determine the current relationship
 {end if}"""
         return ConfigValueString("skyrim_shout_decision_nearby_criteria","Skyrim Decision Nearby Criteria",description,criteria,[PromptDefinitions.PromptChecker(PromptDefinitions.ALLOWED_PROMPT_VARIABLES_DECISION_NPC_CRITERIA, "skyrim_shout_decision_nearby_criteria")])
 
-    SHOUT_SEVERAL_DESCRIPTION = SHOUT_DESCRIPTION + """
-                        Several people can answer one line: everyone it was spoken to joins the conversation together, and each of them answers before the player gets the turn.
-                        For a line an NPC said, the Game Master can still give the player the turn first."""
+    SHOUT_SEVERAL_DESCRIPTION = """Several people can answer one line, in Shout and in every group conversation with the Game Master (also Director Mode and watched NPC Events).
+                        In Shout, everyone it was spoken to who is nearby joins the conversation together. Who of them has to answer before the player gets the turn
+                        is set by the talk settings on the Conversation page."""
 
     @staticmethod
     def get_skyrim_shout_decision_addressed_criteria_config_value() -> ConfigValue:
@@ -1378,17 +1375,17 @@ Always use the most recent memory to determine the current relationship
             "Every time the next speaker is picked in a Shout conversation while there is room for someone new (Most People in Conversation), when you use Say to speak to whoever is around, and before every line of an NPC Event scene you are watching, while someone nearby could still join.",
             "Use Decision Model for Game Master on."),
         "skyrim_shout_decision_addressed_criteria": (
-            "The rule for who a line was spoken to. When you speak to several people, each of them answers before it is your turn again. Example: you say \"Guards, both of you, over here\" and both guards answer. When an NPC speaks to someone, they answer too, unless the Game Master gives you the turn. How many answer is capped by Most People Answering at Once.",
-            "In a Shout conversation, after each line (yours or an NPC's) that more than one person could have been meant by. Everyone in the conversation and nearby, except the speaker, is checked against it. Also when you use Say, and in NPC Event scenes you are watching (NPC Events run in Shout), where someone nearby who is spoken to joins the scene.",
+            "The rule for who a line was spoken to. With the default talk settings, when you speak to several people, each of them answers before it is your turn again. Example: you say \"Guards, both of you, over here\" and both guards answer. When an NPC speaks to someone, they answer too, unless the Game Master gives you the turn. How many of a group must answer is set by People Who Must Answer a Group Line. The talk settings are on the Conversation page.",
+            "In every group conversation with the Game Master (Shout or not, Director Mode too), after each line (yours or an NPC's) that more than one person could have been meant by. Everyone in the conversation, and in Shout everyone nearby, except the speaker, is checked against it. Also when you use Say, and in NPC Event scenes you are watching, where someone nearby who is spoken to joins the scene. Not asked when it makes no difference (nobody has to answer and the Game Master decides who replies) and nobody nearby could join.",
             "Nothing. With a decision model it is a yes/no check for each person. Without one, the Game Master is told to use it to list who else the line was spoken to."),
         "skyrim_shout_decision_not_addressed_criteria": (
             "The rule for who a line was NOT spoken to, for example someone who was only mentioned. Example: you tell the guard \"Lydia is with me\": Lydia was not spoken to, so she does not answer.",
-            "In a Shout conversation, after each line (yours or an NPC's) that more than one person could have been meant by. The decision model answers yes or no for each person in the conversation and nearby: the Skyrim Shout Decision Spoken To Criteria describes yes, this prompt describes no. Also when you use Say, and in NPC Event scenes you are watching (NPC Events run in Shout).",
+            "In every group conversation with the Game Master, after each line (yours or an NPC's) that more than one person could have been meant by. The decision model answers yes or no for each person in the conversation (and in Shout, nearby): the Skyrim Shout Decision Spoken To Criteria describes yes, this prompt describes no. Also when you use Say, and in NPC Event scenes you are watching.",
             "Use Decision Model for Game Master on. Without a decision model this prompt is not used."),
         "skyrim_shout_group_answer_note": (
             "A short note that keeps answers brief when several people answer the same line or react to the same event, so the conversation does not drag on.",
-            "In a Shout conversation, added to the reply of each NPC when a line was spoken to several people at once, or several people are part of an event that just happened. Not while you are only watching an NPC Event scene.",
-            "Nothing. Used whenever Shout is on. Leave it empty to turn it off."),
+            "In every group conversation with the Game Master (Shout or not), added to the reply of each NPC who has to answer a line spoken to several people at once, or who is one of several people an event that just happened is about.",
+            "Nothing. Used in every group conversation with the Game Master. Leave it empty to turn it off."),
         "skyrim_shout_decision_nobody_criteria": (
             "The rule for when nobody answers what you said out loud, for example \"you did not speak to anyone in particular\".",
             "When you use Say on the Conversation Wheel, or press the Open Text Prompt hotkey with no conversation running, until someone answers.",
@@ -1433,8 +1430,8 @@ Always use the most recent memory to determine the current relationship
             "NPC Events enabled in the MCM for the automatic ones. The hotkey and the wheel work even when it is off."),
         "skyrim_npc_event_wind_down_prompt": (
             "Tells the NPCs in an NPC Event scene to start wrapping it up.",
-            "Near the end of an NPC Event scene you are only watching: added to the last few lines (NPC Event Wind-Down Lines) before the scene reaches NPC Event Max Lines Without Player.",
-            "NPC Event Wind-Down Lines above 0."),
+            "Near the end of an NPC Event scene you are only watching: added to the last few lines (Wind-Down Lines) before the scene reaches Max Lines Without Player. Both are on the Conversation page → Watched NPC Event.",
+            "Wind-Down Lines above 0."),
 
         # Conversation Wheel events
         "skyrim_conversation_event_generator_prompt": (

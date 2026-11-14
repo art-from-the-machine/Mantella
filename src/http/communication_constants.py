@@ -43,8 +43,6 @@ class communication_constants:
     KEY_REQUESTTYPE_CONVERSATIONEVENT: str = PREFIX + "conversation_event"
     KEY_REPLYTYPE_CONVERSATIONEVENT: str = PREFIX + "conversation_event_result"
     KEY_EVENT_KIND: str = PREFIX + "event_kind" # "conversation", "nearby" or "random". In an interrupt request: an event was picked, so a wait for the player to speak ends
-    KEY_EVENT_SENDHISTORY: str = PREFIX + "event_send_history" # Send the Conversation So Far
-    KEY_EVENT_INCLUDEPLAYER: str = PREFIX + "event_include_player" # Include Me
     KEY_EVENT_NEARBY_REFIDS: str = PREFIX + "event_nearby_refids" # Nearby and Random: who the event can be about, nearest first. Random: the NPCs in the conversation too
     KEY_EVENT_NEARBY_NAMES: str = PREFIX + "event_nearby_names" # In the same order as the refids
     KEY_EVENT_NEARBY_ACTORS: str = PREFIX + "event_nearby_actors" # Full actor settings of the nearest who are not in the conversation (Most People Described)
@@ -60,9 +58,6 @@ class communication_constants:
     KEY_SHOUT_NEARBY_NAMES: str = PREFIX + "shout_nearby_names" # In the same order as the refids
     KEY_SHOUT_NEARBY_ACTORS: str = PREFIX + "shout_nearby_actors" # Full actor settings, sent once for each person who is new to the list
     KEY_SHOUT_MAXDESCRIBED: str = PREFIX + "shout_max_described" # How many of the nearest people the Game Master gets the bios and memories of
-    KEY_SHOUT_MAXPEOPLE: str = PREFIX + "shout_max_people"
-    KEY_SHOUT_NEWCOMERSREMEMBER: str = PREFIX + "shout_newcomers_remember" # What someone who joins by shouting heard before: 0 since shouting, 1 the player's last line, 2 everything
-    KEY_SHOUT_MAXANSWERING: str = PREFIX + "shout_max_answering" # Most People Answering at Once: how many answer a line aimed at a group
     KEY_SHOUT_ADDFAILED_REFIDS: str = PREFIX + "shout_add_failed_refids" # Who of the people asked for the game could not add
     KEY_SHOUT_ADDFAILED_REASONS: str = PREFIX + "shout_add_failed_reasons" # In the same order: why, e.g. "in a scene". Only logged
     KEY_REPLYTYPE_SHOUT_ADDACTOR: str = PREFIX + "shout_add_actor"

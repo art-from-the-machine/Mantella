@@ -1,16 +1,27 @@
+from typing import Callable
 from src.config.config_value_constraint import ConfigValueConstraint, ConfigValueConstraintResult
 from src.config.types.config_value_visitor import ConfigValueVisitor
 from src.config.types.config_value import ConfigValue, ConfigValueTag
 
 
 class ConfigValueMultiSelection(ConfigValue[list[str]]):
-    def __init__(self, identifier: str, name: str, description: str, default_value: list[str], options: list[str], constraints: list[ConfigValueConstraint[list[str]]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = [], row_group: str | None = None):
+    def __init__(self, identifier: str, name: str, description: str, default_value: list[str], options: list[str], constraints: list[ConfigValueConstraint[list[str]]] = [], is_hidden: bool = False, tags: list[ConfigValueTag] = [], row_group: str | None = None,
+                 resolve_ticks: Callable[[list[str], list[str]], list[str]] | None = None):
+        """
+        Args:
+            resolve_ticks (Callable[[list[str], list[str]], list[str]] | None): shown as tick boxes, what stays ticked after a click, from the ticks before
+                and after it, e.g. when two options can't be ticked together. None: whatever was clicked
+        """
         super().__init__(identifier, name, description, default_value, constraints, is_hidden, tags, row_group)
         self.__options: list[str] = options
+        self.__resolve_ticks = resolve_ticks
 
     @property
     def options(self) -> list[str]:
         return self.__options
+
+    def resolve_ticks(self, before: list[str], after: list[str]) -> list[str]:
+        return self.__resolve_ticks(before, after) if self.__resolve_ticks else after
     
     def does_value_cause_error(self, value_to_check: list[str]) -> ConfigValueConstraintResult:
         result = super().does_value_cause_error(value_to_check)
@@ -18,7 +29,7 @@ class ConfigValueMultiSelection(ConfigValue[list[str]]):
             return result
         if all(e in self.__options for e in value_to_check):
             return ConfigValueConstraintResult()
-        return ConfigValueConstraintResult(f"All chosen elements for {self.__name} must be from {', '.join(self.__options[:-1]) + ' or ' + self.__options[-1]}")
+        return ConfigValueConstraintResult(f"All chosen elements for {self.name} must be from {', '.join(self.__options[:-1]) + ' or ' + self.__options[-1]}")
     
     def parse(self, config_value: str) -> ConfigValueConstraintResult:
         try:

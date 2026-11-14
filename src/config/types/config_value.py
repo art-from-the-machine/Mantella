@@ -8,6 +8,8 @@ class ConfigValueTag(StrEnum):
     advanced = "advanced"
     basic = "basic"
     share_row = "share_row"
+    tick_boxes = "tick_boxes" # A multi-selection shown as tick boxes instead of a dropdown
+    radio_buttons = "radio_buttons" # A selection shown as radio buttons instead of a dropdown, so every choice shows at once
 
 T = TypeVar('T')
 class ConfigValue(ABC, Generic[T]):
@@ -23,6 +25,7 @@ class ConfigValue(ABC, Generic[T]):
         self.__tags: list[ConfigValueTag] = tags
         self.__row_group: str | None = row_group
         self._on_value_change_callback: Callable[..., Any] | None = None
+        self.shown_when: str | None = None # The identifier of a bool setting in the same section: this setting only shows while that one is on
     
     @property
     def identifier(self) -> str:

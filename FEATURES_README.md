@@ -26,7 +26,7 @@ Trying my best to explain why I added these features and how to make the most of
 - [Multi Conversation Director Mode](#multi-conversation-director-mode)
 - [Shout](#shout)
 - [Say Something to the Room](#say-something-to-the-room)
-- [Who Answers Before Your Turn](#who-answers-before-your-turn)
+- [Talk Level](#talk-level)
 - [bios_and_summaries Prompt Variable](#bios_and_summaries-prompt-variable)
 
 **NPCs that act on their own** — conversations you did not start
@@ -41,6 +41,7 @@ Trying my best to explain why I added these features and how to make the most of
 - [Conditional blocks in prompts](#conditional-blocks)
 - [Sequential LLM Selection](#sequential-llm-selection)
 - [Fallback Model](#fallback-model)
+- [Per-Character LLM and TTS Service](#per-character-llm-and-tts-service)
 - [Decensor Bypass](#decensor-bypass)
 - [LLM Response Timeout](#llm-response-timeout)
 
@@ -61,6 +62,7 @@ Trying my best to explain why I added these features and how to make the most of
 - [Reload Character Data](#reload-character-data)
 - [Real World Timestamp](#real-world-timestamp)
 - [Notes](#notes)
+- [Rearrange Tabs](#rearrange-tabs)
 
 ## Character Tags
 
@@ -185,7 +187,7 @@ Later layers win: mod overwrites base; personal overwrites both. Same tag name i
 **File naming (bio templates)**
 
 - You can put **multiple CSV files** in the same `bio_templates` folder.
-- They do **not** have to be named `bio_templates.csv`. That name is only the default Mantella creates if the folder is empty.
+- They do **not** have to be named `bio_templates.csv`. That name is only the default Mantella creates if the folder is missing.
 - Any filename works as long as it ends in `.csv` — for example: `holds.csv`, `questlines.csv`, `my_custom_tags.csv`.
 - Each file must have columns `tag` and `description`.
 - All CSVs in the folder are loaded and merged into one tag dictionary. If the same tag name appears in more than one file (or a later layer), the **last one loaded wins** (later folder layers always beat earlier ones; within a folder, load order follows the directory listing).
@@ -564,10 +566,12 @@ Put edits in your personal folder, `Documents/My Games/Mantella/data/Skyrim/bio_
 Example personal CSV that rewords outcome 2 of the battle and turns off announcements for the alchemy trainer:
 
 ```
-tag,potential_paste_2,announce
-whiterun_hold_civil_war,"Events Update: Whiterun held. The Stormcloak assault broke at the gates.",
-alchemy_trainer,,no
+tag,description,potential_paste_2,announce
+whiterun_hold_civil_war,,"Events Update: Whiterun held. The Stormcloak assault broke at the gates.",
+alchemy_trainer,,,no
 ```
+
+Every file needs the `tag` and `description` columns, even when you leave the description empty. A file without them is skipped.
 
 Then **Other → Reload Character Data → Reload**.
 
@@ -643,8 +647,8 @@ Mantella's log (`Documents/My Games/Mantella/logging.log`) is the main place to 
 
 | File                                                             | What it shows                                                                                                |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `Mantella/data/Skyrim/conversations/<playthrough>/tag_outcomes.json`        | Which outcome each tag is at in that playthrough (`current`), and when Mantella first saw it (`seen`, `0` = background) |
-| `Mantella/data/Skyrim/conversations/<playthrough>/quest_check_answers.json` | The game's latest raw answers to every question, at the conversation start and at your last line           |
+| `Documents/My Games/Mantella/data/Skyrim/conversations/<playthrough>/tag_outcomes.json`        | Which outcome each tag is at in that playthrough (`current`), and when Mantella first saw it (`seen`, `0` = background) |
+| `Documents/My Games/Mantella/data/Skyrim/conversations/<playthrough>/quest_check_answers.json` | The game's latest raw answers to every question, at the conversation start and at your last line           |
 | `Documents/My Games/Skyrim Special Edition/SKSE/MantellaQuestChecks.log`    | The plugin's own log: whether it got the list, and exactly why a check can't be run                        |
 | `Documents/My Games/Skyrim Special Edition/SKSE/skse64.log`                 | Whether `MantellaQuestChecks.dll` loaded at all (VR: `Skyrim VR/SKSE/sksevr.log`)                          |
 
@@ -775,7 +779,7 @@ It is very handy when you want to teach the LLM facts about custom lore, places,
 
 When Mantella builds a prompt, it looks for those keys in the context — for example the current `{location}`, recent chat, or in-game events (will talk more about where it scans for the key below). If a key is found and matched, its description is inserted wherever you put `{lorebook}` in the prompt.
 
-It works for conversation prompts and also for vision, memory, inner monologue, personal reflection, and resummarize prompts if those include `{lorebook}`.
+It works for conversation prompts and also for memory, inner monologue, personal reflection, and resummarize prompts if those include `{lorebook}`.
 
 Unlike character tags (which permanently expand an NPC's bio), lorebook entries are **situational**: they only appear when a matching key shows up in the context.
 
@@ -854,7 +858,7 @@ The conversation takes place in {language}.
 {lorebook}
 ```
 
-You can also add `{lorebook}` to multi-NPC, radiant, vision, memory, inner monologue, personal reflection, or resummarize prompts if those should receive lore too.
+You can also add `{lorebook}` to multi-NPC, radiant, memory, inner monologue, personal reflection, or resummarize prompts if those should receive lore too.
 
 **3. Reload**
 
@@ -1108,7 +1112,7 @@ Edit the section once and every active profile that uses it sends the new text o
 - Section names can only use letters, digits, and underscores, and cannot reuse a built-in variable name (e.g. `bio`).
 - Sections are expanded **only in active prompt profiles**. Text in the Prompts tab is sent as written.
 
-**Broken variables block the request.** If an active profile uses `{some_section}` that no longer exists (renamed or deleted), or a section expands to a variable that prompt type does not allow, Mantella **refuses that LLM call** and logs `Refusing LLM call. Broken prompt variable '{...}'.` instead of sending a half-filled prompt. Saving such a profile is rejected in the UI too. **Supported variables** under the editor lists the built-in variables and your shared sections for the selected prompt type.
+**Broken variables block the request.** If an active profile uses `{some_section}` that no longer exists (renamed or deleted), or a section expands to a variable that prompt type does not allow, Mantella **refuses that LLM call** and logs `Refusing LLM call. Broken prompt variable '{...}'.` instead of sending a half-filled prompt. Saving such a profile is rejected in the UI too. The **Variables** section under the prompt type lists the built-in variables and your shared sections for the selected prompt type.
 
 **Quick start**
 
@@ -1201,13 +1205,13 @@ Only the display changes: what is saved and sent is the plain text.
 
  Sequential pools walk the list **in order**. Each NPC reply in that conversation uses the **next** model.
 
-If a model fails to connect or errors mid-request, Mantella **skips to the next** entry instead of giving up. The walk **resets to the first model** when a new conversation starts.
+If a model in the list can't be set up, Mantella **skips to the next** entry instead of giving up. If the service is down or rejects a reply, that reply is not tried again with the next model: it goes to the [Fallback Model](#fallback-model) if you turned that on, otherwise the NPC says nothing this time. The next reply uses the next model as usual. The walk **resets to the first model** when a new conversation starts.
 
 Sequential selection **takes priority** over per-request random LLM selection. If sequential is on and the pool has valid entries, random-per-request is not used for that context.
 
 ### Where to find it
 
-**LLM** tab → **Enable Per-Request Sequential LLM (One-on-One / Multi-NPC)** and the matching **Sequential LLM Pool** JSON fields.
+**LLM** tab → **Enable Per-Request Sequential LLM (One-on-One)** and **Enable Per-Request Sequential LLM (Multi-NPC)**, and the matching **Sequential LLM Pool (One-on-One)** and **Sequential LLM Pool (Multi-NPC)** fields.
 
 ### Use cases
 
@@ -1236,7 +1240,7 @@ Use **Sequential LLM Pool (One-on-One)** and/or **Sequential LLM Pool (Multi-NPC
 
 **2. Turn it on**
 
-Enable **Enable Per-Request Sequential LLM** for that conversation type.
+Turn on **Enable Per-Request Sequential LLM (One-on-One)** or **(Multi-NPC)**, whichever matches the pool you filled.
 
 **3. Check**
 
@@ -1245,7 +1249,7 @@ Start a conversation and look at the log: you should see sequential picks cyclin
 **Notes**
 
 - Empty / invalid pools are skipped; Mantella falls back to the normal (or random) client.
-- If **Apply Profile for One-on-One / Multi-NPC** is on, each sequential pick can still apply a [model profile](#multiple-profile-system) for that service+model.
+- If **Apply Profile for One-on-One Conversations** or **Apply Profile for Multi-NPC Conversations** is on, each sequential pick can still apply a [model profile](#multiple-profile-system) for that service+model.
 
 ## Fallback Model
 
@@ -1260,6 +1264,60 @@ It applies to NPC replies in all conversations, NPC Events included. Summaries, 
 ### Where to find it
 
 **LLM** tab → **Use Fallback Model on LLM Errors**, **Fallback LLM Service**, **Fallback Model** and **Fallback LLM Parameters**. **Apply Profile for Fallback** is with the other profile settings.
+
+## Per-Character LLM and TTS Service
+
+### What it does
+
+Lets one NPC use a different model or a different voice service from everyone else. For example, Serana talks through a stronger model and is voiced by xVASynth, while everyone else uses your usual model and Piper.
+
+You set it in the character CSV, one row per NPC, with three columns:
+
+| Column | What to write | What it does |
+| --- | --- | --- |
+| `llm_service` | `or` (OpenRouter), `nano` (NanoGPT) or `openai` (OpenAI) | The service this NPC's model comes from |
+| `model` | The model name, as the service spells it, e.g. `deepseek/deepseek-v4-pro-0813` | The model this NPC talks with |
+| `tts_service` | `piper`, `xtts`, `xvasynth` (or `xva`) | The voice service this NPC is voiced with |
+
+Leave a cell empty to use your normal setting for that NPC.
+
+**The model (`llm_service` and `model`)**
+
+- Only used while **Allow Per-Character LLM Overrides** is on, and only in **one-on-one** conversations. In group conversations, the Game Master and NPC Events, the NPC uses the normal models for those.
+- Both cells must be filled. With only one, or with a service Mantella doesn't know, the NPC uses your normal model and the log says why.
+- If a [random or sequential pool](#sequential-llm-selection) picks the model for a reply, the pool wins.
+- With **Apply Profile for One-on-One Conversations** on, the NPC's model uses its saved [model profile](#multiple-profile-system), if it has one. Otherwise it uses your normal LLM parameters.
+- The service needs its usual API key file, the same as when you pick it on the LLM tab.
+
+**The voice service (`tts_service`)**
+
+- Works without any switch, in every conversation, in Skyrim and Fallout 4.
+- The NPC's voice model columns are used as usual, now with that service. Make sure the service has a voice for them.
+- If the service fails or isn't set up, that line is voiced by your normal TTS service instead. A misspelled name is logged as an error and also falls back to your normal service.
+- Narration read by the narrator always uses your normal service.
+
+### Where to find it
+
+**LLM** tab → **Advanced** → **Allow Per-Character LLM Overrides** (off by default). **TTS** tab → **TTS Service** is the voice service everyone else uses.
+
+The columns go in the character CSV, or in a character override file (see [File structure & override system](#file-structure--override-system)). The base `skyrim_characters.csv` already has the three columns.
+
+### Quick start
+
+1. Put the override in your personal folder, `Documents/My Games/Mantella/data/Skyrim/character_overrides/`, for example `serana.json`:
+
+```json
+{
+  "name": "Serana",
+  "llm_service": "or",
+  "model": "deepseek/deepseek-v4-pro-0813",
+  "tts_service": "xvasynth"
+}
+```
+
+2. **LLM** tab → **Advanced** → turn on **Allow Per-Character LLM Overrides**.
+3. **Other** → **Reload Character Data** → **Reload**.
+4. Talk to Serana alone. The log shows `Created per-character LLM client for Serana using OpenRouter with model: ...` and `TTS for Serana: using xVASynth with voice '...'`.
 
 ## Bio Sections to Exclude
 
@@ -1346,7 +1404,7 @@ They work on different time scales:
 
 A private thought is not invented from nothing. It is the NPC processing *this* conversation on top of how they already see you. Two inputs matter most:
 
-1. Their **[personal reflection](#personal-reflection)** — the long-term relationship they have already been carrying.
+1. Their **conversation summaries** — the history with you so far. (Their [personal reflection](#personal-reflection) is not sent along when the thought is written, but it is part of their prompt while you talk, so it already shaped how they talked and acted.)
 2. The small things in the latest talk — wording, tone, expressions, and what they *did* instead of what they admitted out loud. Those unspoken tells become the thought after you part.
 
 ### Example
@@ -1365,7 +1423,7 @@ Say you have been traveling with **Serana after you saved her from her past**. Y
 
 That paragraph did not come out of nowhere. Two things produced it.
 
-**1. Her personal reflection.** By this camp she already has a longer unspoken write-up of how she sees you — the full example is in [Personal Reflection](#personal-reflection). It already says she stopped waiting for you to turn on her, wants you to stay, does not want you to notice that she wants that, and keeps catching herself picturing you in a future that is not her father's. Tonight's thought is that same relationship, zoomed in on *this* night. The reflection is why "I haven't wanted someone near me in a very long time" is already true before she teases you about a trap. The thought is the short-term version of a feeling the reflection has been carrying since Dimhollow.
+**1. What she already carried into tonight.** Her summaries hold everything you have been through since Dimhollow, and they go into the thought's prompt. By this camp she also has a longer unspoken write-up of how she sees you — the full example is in [Personal Reflection](#personal-reflection). It says she stopped waiting for you to turn on her, wants you to stay, does not want you to notice that she wants that, and keeps catching herself picturing you in a future that is not her father's. The reflection is not sent when the thought is written, but it was in her prompt the whole evening, so it is why she deflected, joked and took first watch the way she did. Tonight's thought is that same relationship, zoomed in on *this* night.
 
 **2. What she did in the conversation, not only what she said.** Nothing romantic is spoken. The summary only records teasing, "I'm fine," first watch. But in the actual conversation, her subtle wordings, her expressions, her tones and actions would indicate how she truly feels. These will be hidden by the summary totally, but will be caught by the private thoughts. After you part, those actions, expressions, and word choices are what the thought is allowed to interpret. 
 
@@ -1393,7 +1451,7 @@ I played it like it was nothing... But I will figure it out.
 
 Here we want to talk more about "Private thoughts".
 
-Private thoughts are a short first-person inner monologue written after a summary is saved, based on the conversation (including wording, tone, and unspoken actions), the bio, [personal reflection](#personal-reflection) when one exists, and past events. The thoughts are stored in a separate folder from memories:
+Private thoughts are a short first-person inner monologue written after a summary is saved, based on the conversation (including wording, tone, and unspoken actions), the bio, and past events (the conversation summaries). The thoughts are stored in a separate folder from memories:
 
 `data/<game>/thoughts/<world_id>/<NPC name>/..._thoughts_X.txt`
 
@@ -1464,7 +1522,7 @@ The dedicated model is used everywhere thoughts are generated: at conversation e
 
 **Notes**
 
-- The conversation LLM only sees the **most recent N** thoughts (**Send Private Thoughts to LLM**). Older thoughts stay on disk and are **not** sent during chat. When a **new** thought is generated, the whole history is passed in as `{previous_thoughts}`.
+- The conversation LLM only sees the **most recent N** thoughts (**Send Private Thoughts to LLM**). Older thoughts stay on disk and are **not** sent during chat. To let a **new** thought build on the old ones, add `{previous_thoughts}` to the **Inner Monologue Prompt**: it is replaced with the whole history. The default prompt does not use it.
 - If you generate thoughts more than once in the same conversation (for example **Save Inner Thoughts Now**, then the conversation-end save), thoughts written during this conversation are left out of `{previous_thoughts}`. A rejected attempt is not fed back into the next one.
 - Thoughts use the **summary LLM** by default, not the chat model. You can give them their own model: see [Private thoughts model](#private-thoughts-model).
 - Saved private thoughts are **not** sent to the summary LLM when it writes a summary, so the factual recap stays factual.
@@ -1807,7 +1865,7 @@ When enabled, conversation **summaries / memories** (and the single-NPC `{privat
 
 Useful when you want to test a bio or tag setup without old memory steering the model, or when a summary file has gone messy and you need a clean conversation without deleting files.
 
-Radiant conversations and other non-chat prompts are not the point of this toggle; it applies to **single-NPC and multi-NPC** player conversations.
+It is meant for **single-NPC and multi-NPC** player conversations, but radiant conversations and the Game Master are also sent without memories while it is on.
 
 ### Where to find it
 
@@ -1875,7 +1933,7 @@ The two nested toggles (both **on** by default) only affect **this button**. The
 
 **Other** tab → **Save Summary Now** → **Save Summary** button, with nested toggles **Also Save Inner Thoughts** and **Also Save Personal Reflection**.
 
-The same tab also has **Save Inner Thoughts Now** and **Save Personal Reflection Now** (those do **not** write a new summary).
+The same tab also has **Save Inner Thoughts Now** and **Save Personal Reflection Now**, each with its own button (**Save Inner Thoughts**, **Save Personal Reflection**). Those do **not** write a new summary.
 
 ### Quick start
 
@@ -1927,6 +1985,20 @@ They are saved per save (world), in their own folder alongside the NPC's summari
 2. Type in **Notes** and click **Save Notes**. The info line shows where the file was saved.
 3. Select the NPC again later (or click **Refresh notes**) to read them.
 
+## Rearrange Tabs
+
+### What it does
+
+Put the Mantella UI's tabs in the order you like, so the ones you use most are up front.
+
+Press on a tab and drag it left or right, then let go. A small movement while clicking still counts as a click, so you don't move tabs by accident.
+
+The order is saved in your `config.ini` (and in your browser), so it stays after you restart Mantella. When an update adds a new tab, it shows up next to the tab it normally follows, not at the end.
+
+### Where to find it
+
+The row of tabs at the top of the Mantella UI (Game, Large Language Model, Prompts, Conversation, Bio Editor, Tag Editor, Documentation, and the rest). There is no setting to turn on. To change the order back, drag the tabs back.
+
 ## Hot Swap
 
 ### What it does
@@ -1952,7 +2024,7 @@ Character CSV / bio template / lorebook file edits are different — those still
 
 1. Confirm **Other → Enable Hot-Swap Settings** is on.
 2. Start (or continue) a conversation with an NPC.
-3. Open the **LLM** tab and turn **Enable Bio Section Filter (Single + Multi)** on or off (optionally edit **Bio Sections to Exclude**).
+3. Open the **LLM** tab and turn **Enable Bio Section Filter (Single + Multi)** on or off (optionally edit **Bio Sections to Exclude (comma-separated)**).
 4. Keep talking in-game — on the next reply, the prompt uses the new filter state without ending the conversation.
 
 **Another example:** change a prompt or LLM parameter while chatting; with hot swap on, the next turn uses the updated settings instead of restarting the conversation.
@@ -1991,7 +2063,7 @@ The handshake and commitment of [Decensor Bypass](#decensor-bypass) are not part
 
 ### Where to find it
 
-The **Conversation** tab in the Mantella UI (was Live Conversation). The settings for who answers before your turn are at the end of the same page (see [Who Answers Before Your Turn](#who-answers-before-your-turn)). The settings are in folded sections: click a title to open it. **All Conversations** links to this documentation and holds Game Master Spoken To Threshold, then each kind of conversation (Group Conversation, Shout, Director Mode, Events, Watched NPC Event) has its own section. Under each Who Answers dropdown, the option picked there is explained.
+The **Conversation** tab in the Mantella UI (was Live Conversation). The talk settings, which set how much the NPCs say before your turn, are at the end of the same page (see [Talk Level](#talk-level)). The settings are in folded sections: click a title to open it. The page heading links to this documentation. **All Conversations** holds Game Master Spoken To Threshold and the shared talk settings, then each kind of conversation (Group Conversation, Shout, Director Mode, Conversation Event, Nearby Event, Random Event, Watched NPC Event) has its own section, with its own Max NPC Turns per Player Turn (or the limit that kind uses instead), and where **Use its own settings** shows its own talk settings. Under each choice, what it does is explained.
 
 ### Quick start
 
@@ -2148,7 +2220,7 @@ Game Master Mode splits the job in two:
 1. **The Game Master decides who speaks next.** It sees the bios (whatever its prompt includes) and the whole conversation, but it never writes dialogue.
 2. **The chosen NPC replies on their own.** That reply is a separate request whose prompt contains **only that NPC's** bio, memory, and [private thoughts](#private-thoughts). The NPC also only sees the part of the conversation they were present for, and only their own [turn thoughts](#turn-thoughts).
 
-After every NPC reply the Game Master decides again: another NPC, or the player. After **Game Master Max NPC Turns per Player Turn** NPC replies in a row (default **3**), the player gets the turn. Who still answers first depends on the situation's **Who Answers** rule on the Conversation page. By default, anyone the player spoke to (or who is part of an event) who hasn't answered yet still answers first, and the count starts over with their reply, so the others can respond to them. See [Who Answers Before Your Turn](#who-answers-before-your-turn). When the player speaks, the Game Master picks who answers (never the player).
+After every NPC reply the Game Master decides again: another NPC, or the player. The talk settings on the Conversation page can overrule it: by default, when an NPC talks to someone, that person answers next, even if the Game Master wanted to give the player the turn. After **Max NPC Turns per Player Turn** NPC replies in a row (default **3**, set for each kind of conversation), the player gets the turn. Who still speaks then depends on the talk settings too. By default, there is one extra round: one person the player spoke to (or who is part of an event) who hasn't answered yet still answers, and one other NPC can reply to them. See [Talk Level](#talk-level). When the player speaks, an NPC always answers first: by default, one of the people the player talked to.
 
 Send `.` to let the NPCs keep talking without saying anything yourself. It is not voiced and does not add an `Interrupting...` event. Nothing is added to the conversation except the in-game events since your last line, if there are any.
 
@@ -2181,14 +2253,14 @@ If the Game Master call fails, gives an invalid answer, or takes longer than [LL
 
 | Setting                                  | Default | What it does                                                                                                                                  |
 | ---------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Game Master Message Limit**            | **0**   | How many of the latest messages are sent to the Game Master. Each player line and each NPC's reply counts as one. **0** sends the whole conversation |
+| **Game Master Message Limit**            | **0**   | How many of the latest messages are sent to the Game Master. Each player line and each NPC's reply counts as one. Notes about people joining or leaving, lines with only in-game events, and scene directions don't count, and are sent along. **0** sends the whole conversation |
 | **Include Turn Thoughts for Game Master** | Off     | On: the NPCs' [turn thoughts](#turn-thoughts) are included, so the Game Master can see who is planning to say or do something next. Off: it only sees what was said |
 
 Even with no limit, the oldest lines are dropped from the Game Master's request in long conversations so it fits the Game Master model's context size.
 
 ### Where to find it
 
-**LLM** tab → **Multi-NPC Game Master Mode**, **Game Master Message Limit**, and **Include Turn Thoughts for Game Master**, plus the Game Master model settings: **Use Decision Model for Game Master**, **Game Master Decision Service**, **Game Master Decision Model** — or, with the decision model off, **Game Master LLM Service**, **Game Master Model**, **Game Master LLM Parameters** (and **Game Master Custom Token Count** under **Advanced**). **Conversation** page (below the live conversation) → who answers before your turn in each situation, **Game Master Max NPC Turns per Player Turn**, **Game Master Director Max NPC Turns** and **Game Master Spoken To Threshold**.
+**LLM** tab → **Multi-NPC Game Master Mode**, **Game Master Message Limit**, and **Include Turn Thoughts for Game Master**, plus the Game Master model settings: **Use Decision Model for Game Master**, **Game Master Decision Service**, **Game Master Decision Model** — or, with the decision model off, **Game Master LLM Service**, **Game Master Model**, **Game Master LLM Parameters** (and **Game Master Custom Token Count** under **Advanced**). **Conversation** page (below the live conversation) → the talk settings (shared, or each kind's own), **Max NPC Turns per Player Turn** (in each kind's section), **Max NPC Turns per Direction** and **Game Master Spoken To Threshold**.
 
 **Prompts** tab → **Skyrim Game Master Prompt**, **Skyrim Game Master NPC Prompt**, and the three decision prompts (**Skyrim Game Master Decision Instructions**, **Skyrim Game Master Decision NPC Criteria**, **Skyrim Game Master Decision Player Criteria**). Who a line was spoken to is asked with **Skyrim Shout Decision Spoken To Criteria**, **Skyrim Shout Decision Not Spoken To Criteria**, **Skyrim Shout Decision Part Of Event Criteria** and **Skyrim Shout Decision Not Part Of Event Criteria**, and **Skyrim Shout Group Answer Note** asks for a short answer; despite their names, these are used in every group conversation with the Game Master, not only in Shout. All of them can be overlaid with [prompt profiles](#prompt-profiles).
 
@@ -2236,7 +2308,7 @@ With Director Mode on, it applies to every conversation you are in:
 
 | Conversation | What happens |
 | --- | --- |
-| With several NPCs | The NPCs talk among themselves. With Game Master Mode, they talk for **Game Master Director Max NPC Turns** replies in a row (default **6**), then you can direct again. |
+| With several NPCs | The NPCs talk among themselves. With Game Master Mode, they talk for **Max NPC Turns per Direction** replies in a row (default **6**), then you can direct again. Who still speaks after that limit is set by the talk settings (see [Talk Level](#talk-level)). |
 | With one NPC | The NPC answers each direction once, then you direct again. The NPC keeps the actions of a one-on-one conversation, so a direction like *Lydia decides to follow the Dragonborn* can make her follow. |
 | Shout | Your directions are heard by everyone around. People nearby join when a direction involves them or someone calls them over. |
 | Saying something to the room | What you type is a direction to whoever is around (*A guard spots a thief running past*). Someone nearby reacts and joins, or nobody does and it ends. |
@@ -2272,7 +2344,7 @@ What your prompts say about you is up to them: variables like `{player_name}` or
 
 **LLM** tab → **Multi Conversation Director Mode**.
 
-**Prompts** tab → **Skyrim Multi-NPC Director Prompt** (without Game Master Mode), and the `{if director}` parts of the **Skyrim Game Master Prompt** and **Skyrim Game Master NPC Prompt** (with [Game Master Mode](#game-master-mode), and always in Shout; see [Conditional blocks](#conditional-blocks)). **Game Master Director Max NPC Turns** and **Director Mode: Who Answers** on the **Conversation** page.
+**Prompts** tab → **Skyrim Multi-NPC Director Prompt** (without Game Master Mode), and the `{if director}` parts of the **Skyrim Game Master Prompt** and **Skyrim Game Master NPC Prompt** (with [Game Master Mode](#game-master-mode), and always in Shout; see [Conditional blocks](#conditional-blocks)). **Max NPC Turns per Direction** and the talk settings (**Use its own settings**) in the **Director Mode** section of the **Conversation** page.
 
 ### Quick start
 
@@ -2293,7 +2365,7 @@ What your prompts say about you is up to them: variables like `{player_name}` or
 - `context.started_by_npc` (set from the NPC Initiative start, never reset) makes every type pass `can_direct=False`.
 - In the merged prompts, `director` is true together with `shout` or `say_to_room`, so the default prompts keep it in its own `{if director}` blocks (checked by `tests/test_prompt_merge.py`). The **Skyrim Say To Room Decision Nobody Criteria** also knows `director`.
 - With one NPC, every type uses the one-on-one actions (`multi_npc.npc_actions`). With one directed NPC, the Game Master isn't asked when nobody nearby can join. When someone can, it may still bring them in, but picking the NPC who just spoke ends the turn (`GameMaster.__lone_npc_spoke_last`). Either way the NPC answers each direction once.
-- In Shout, a direction is asked about like a wheel event ("Is X part of what just happened?"), with no speaker, and the people it involves answer even past the reply limit.
+- In Shout, a direction is asked about like a wheel event ("Is X part of what just happened?"), with no speaker, and the people it involves count as the people you talk to (see [Talk Level](#talk-level)).
 - Keeping the player out: `context.hides_player()` (set by the `Conversation` to `Conversation.hides_player()`: its type's `is_director_mode()`, or watching an NPC Event with the Director Mode setting on) switches off the player's combat, attack and trust events and the vision hint event in `context.py`. With the same check, `GameStateManager.__update_context` drops the game's events that name the player or say "the player" (`__without_player_events`), then adds the quest tag announcements. `conversation_event` ignores Include Player and passes `hides_player`, which adds `director` to the event generator's conditions.
 - `ShoutState.free_places` / `nearby_choices` get `has_player=False` while directing, and `is_direction`, which lets people join past Most People. `NpcEvent.can_notice_player` is False whenever the Director Mode setting is on.
 - Memories: the `Conversation` remembers whether it was ever directed (also when the player only sent `.`) and passes `was_directed` to `save_conversation_state`, which makes `director` true in the Memory Prompt.
@@ -2310,7 +2382,7 @@ With **Shout** on, anyone nearby can hear the conversation, answer and join in.
 
 - **The Game Master decides who speaks.** It picks from the people in the conversation and the people nearby. When it picks someone nearby, they join and speak next. This works even with **Multi-NPC Game Master Mode** off, and even when you are talking to one person.
 - **It knows who is around.** It gets the names of everyone nearby, up to **Most People Listed**, so if you call someone by name they can answer from across the room. For the nearest few (**Most People Described**) it also gets their bio, reflection, memories and private thoughts, so "is there a healer here?" can bring the priestess over.
-- **Several people can answer one line.** Say "hello Jake and Emily" or "hello guys" and each of them answers before it's your turn again. Who has to answer is set by the **Who Answers** rule (see [Who Answers Before Your Turn](#who-answers-before-your-turn)). A line said to a whole group gets at most **Most People Answering at Once** answers, and people the line names always answer. Each of them is asked to keep it short (**Skyrim Shout Group Answer Note**; empty it to send no note).
+- **Several people can answer one line.** Say "hello Jake and Emily" or "hello guys" and each of them answers before it's your turn again. Who has to answer is set by the talk settings (see [Talk Level](#talk-level)). When you speak to the whole group, **People Who Must Answer a Group Line** sets how many of them count as talked to (with the default talk settings, each of them must speak at least once before your turn), and people you call by name are always included. Each of them is asked to keep it short (**Skyrim Shout Group Answer Note**; empty it to send no note).
 - **Newcomers know what they heard.** **Newcomers Remember** sets what someone who joins by shouting heard before they joined.
 - **Talking to one person still works as before.** While nobody nearby could join, the person answers and then it's your turn. They keep their one-on-one actions (follow, trade, and so on).
 - Shout stays on until you switch to **Private** or the conversation ends.
@@ -2323,7 +2395,7 @@ Nobody new joins, and the people who joined by shouting leave. Everyone else sta
 
 | Setting | Default | What it does |
 | --- | --- | --- |
-| **Hearing Distance** | 20 | How far away people can be and still hear you, in meters |
+| **Hearing Distance (m)** | 20 | How far away people can be and still hear you |
 | **Most People Listed** | 30 | How many of the nearest people the Game Master can pick from, by name |
 | **Most People Described** | 6 | How many of the nearest people the Game Master knows in full: bio and memories. **0** means names only |
 | **Must Be in Sight** | Off | People nearby also need to be in sight: you can see them or they can see you |
@@ -2336,17 +2408,17 @@ Hearing Distance, Most People Listed and Must Be in Sight are also used by [Near
 
 | Setting | Default | What it does |
 | --- | --- | --- |
-| **Shout: Most People in Conversation** | 6 | Nobody new joins once the conversation has this many people, you included. The people a Nearby or Random Event or a direction is about still join |
-| **Shout: Most People Answering at Once** | 5 | How many answer a line said to a group, like "hello guys": the people in the conversation first, then the nearest |
-| **Shout: Newcomers Remember** | Since Shout | **Since Shout**: what was said since you started shouting. **Last Line**: only your last line and the replies to it. **Everything**: the whole conversation |
-| **Shout: Who Answers** and **Most Replies per Person** | | See [Who Answers Before Your Turn](#who-answers-before-your-turn) |
+| **Most People in Conversation** | 6 | Nobody new joins once the conversation has this many people, you included. The people a Nearby or Random Event or a direction is about still join |
+| **People Who Must Answer a Group Line** | 5 | When you say something to a group, like "hello guys", this many of them count as talked to: the people in the conversation first, then the nearest. With **Anyone you talk to** ticked (the default), they must speak at least once before your turn. Who of them replies first is set by **When you talk to someone**; after that the Game Master picks, and others can speak in between. People you call by name are always included and take places first. When an NPC speaks to the group, the same number applies. Whether they must answer is set by the talk settings |
+| **Newcomers Remember** | Since Shout | **Since Shout**: what was said since you started shouting. **Last Line**: only your last line and the replies to it. **Everything**: the whole conversation |
+| **Use its own settings** (talk settings) and **Most Replies per Person** | Off, 100 | See [Talk Level](#talk-level) |
 | **Game Master Spoken To Threshold** | 0.5 | How sure the decision model has to be that a line was spoken to someone. Raise it if people answer who weren't spoken to |
 
 ### Where to find it
 
 In game: **Shout** / **Private** on the [Conversation Wheel](#conversation-wheel) during a conversation. **MCM → Mantella → Shout Mode** for who counts as nearby.
 
-**Conversation** page (below the live conversation) → **Shout** section: **Shout: Who Answers**, **Shout: Most Replies per Person**, **Shout: Most People in Conversation**, **Shout: Most People Answering at Once** and **Shout: Newcomers Remember**. **All Conversations** section → **Game Master Spoken To Threshold**.
+**Conversation** page (below the live conversation) → **Shout** section: **Use its own settings** and its talk settings, **Max NPC Turns per Player Turn**, **Most Replies per Person**, **Most People in Conversation**, **People Who Must Answer a Group Line** and **Newcomers Remember**. **All Conversations** section → **Game Master Spoken To Threshold**.
 
 **Prompts** tab → the `{if shout}` parts of the **Skyrim Game Master Prompt**, **Skyrim Game Master NPC Prompt** and **Skyrim Decision Nearby Criteria** (see [Conditional blocks](#conditional-blocks)), plus **Skyrim Shout Decision Spoken To Criteria**, **Skyrim Shout Decision Not Spoken To Criteria**, **Skyrim Shout Decision Part Of Event Criteria**, **Skyrim Shout Decision Not Part Of Event Criteria** and **Skyrim Shout Group Answer Note**.
 
@@ -2406,46 +2478,116 @@ In game, with no conversation running: **Say** on the [Conversation Wheel](#conv
 - With [Director Mode](#multi-conversation-director-mode) on, what you type is a scene direction (*A guard spots a thief running past*), and someone nearby reacts to it, or nobody does.
 - With a decision model, **Skyrim Say To Room Decision Nobody Criteria** describes when nobody answers.
 
-## Who Answers Before Your Turn
+## Talk Level
 
 ### What it does
 
-In a conversation with the Game Master, the NPCs reply one after another until it's your turn again, or until the **reply limit**: the most NPC replies in a row before your turn comes anyway. Each kind of conversation takes it from its own setting:
+In a conversation with the Game Master, the NPCs reply one after another until it's your turn again, or until they reach **Max NPC Turns per Player Turn**: the most NPC replies in a row before your turn comes anyway. Each kind of conversation has its own, in its section:
 
-- **Group Conversation** and **Shout**: **Game Master Max NPC Turns per Player Turn** (default **3**).
-- **Director Mode**: **Game Master Director Max NPC Turns** (default **6**).
-- **Events**: the limit of the conversation the event happens in.
-- **Watched NPC Event**: **NPC Event Max Lines Without Player** (default **10**). There the scene ends instead of giving you the turn.
+- **Group Conversation**, **Shout**, **Conversation Event**, **Nearby Event** and **Random Event**: each its own **Max NPC Turns per Player Turn** (default **3**). An event's own also counts in Director Mode: it is then the most NPC replies to the event before you can direct again.
+- **Director Mode**: **Max NPC Turns per Direction** (default **6**).
+- **Watched NPC Event**: **Max Lines Without Player** (default **10**). There the scene ends instead of giving you the turn.
 
-Sometimes you want everyone to have a say; sometimes you want the turn back as soon as the person you asked has answered. **Who Answers** sets who has to speak before your turn, separately for each kind of conversation.
+Below, what is said about **Max NPC Turns per Player Turn** works the same way with the setting Director Mode or a watched NPC Event uses instead.
 
-After each line, the Game Master is also asked who it was spoken to (after an event or a direction: who it is about). That is what "spoken to" means below.
+Sometimes you want everyone to have a say; sometimes you want the turn back as soon as the person you asked has answered. The **talk settings** answer three separate questions, so you can combine them as you like:
 
-The options are listed from the most talkative to the quietest. **How much the NPCs say** compares them with the same reply limit.
+1. **Who must speak before your turn** (tick boxes).
+2. **Who answers first**: **When you talk to someone** and **When an NPC talks to someone**.
+3. **What happens at Max NPC Turns per Player Turn**: **When the NPCs reach Max NPC Turns per Player Turn, who still speaks**, **Replies in between** and **Extra rounds**.
 
-| Option | How much the NPCs say | What happens |
+**How the next speaker is picked.** After each NPC reply, the Game Master picks who speaks next: anyone in the conversation, also someone who already spoke, or you. The first reply after your line always comes from an NPC. While shouting, it can also pick someone nearby, who then joins. The talk settings say when its pick is overruled. When someone has to speak instead, it is whoever the Game Master rates most likely to speak, or else whoever has waited longest.
+
+**Who a line was spoken to.** After each line, the Game Master is also asked who it was spoken to (after an event or a direction: who it is about). That is what "talk to" means below. For a line to the whole group, only as many people as **People Who Must Answer a Group Line** count as talked to, with anyone the line names first. In Director Mode, the people your direction is about count as the people you talk to; after an event, the people the event is about.
+
+#### Who must speak before your turn
+
+Tick one or more. The people they name must each say something before your turn. If the Game Master gives you the turn while one of them hasn't spoken yet, they speak instead.
+
+| Tick box | Who must speak |
+| --- | --- |
+| **Everyone in the conversation** | Every NPC in the conversation, also anyone who joins |
+| **Anyone you talk to** (default) | Everyone you talk to answers you |
+| **Anyone an NPC talks to** | When an NPC talks to someone, that person answers |
+| **Nobody in particular** | Nobody is guaranteed to speak. Who answers depends on the settings below |
+
+- **Nobody in particular** can't be ticked with the others, and **Everyone in the conversation** can't be ticked with **Anyone you talk to** (it already includes them). Ticking one unticks the other. The last ticked box can't be unticked.
+- **Anyone you talk to** + **Anyone an NPC talks to** go together, and so do **Everyone in the conversation** + **Anyone an NPC talks to**. With the second pair, someone who has already spoken must speak again when an NPC talks to them.
+
+#### Who answers first
+
+**When you talk to someone** and **When an NPC talks to someone** each have three choices. They only set the order of the first replies; after them the Game Master picks freely, also people who already spoke. The people due to reply first do so before your turn, even when the Game Master wants to give you the turn. But only the tick boxes above make someone have to speak: at Max NPC Turns per Player Turn, who replies first is forgotten.
+
+| Choice | Who replies first |
+| --- | --- |
+| **They answer next** (default) | One of the people talked to replies next |
+| **Each answers in turn** | Everyone talked to replies, one after another, once each |
+| **The Game Master decides** | The Game Master picks who replies, in any order |
+
+- When people wait their turn from several lines, the oldest line goes first. Example, with **Each answers in turn** for both settings: you talk to Hulda and Mikael; Hulda talks to Saadia and Ysolda; Mikael talks to Olfina. The order is Hulda, Mikael, Saadia, Ysolda, Olfina.
+- Someone due to answer two people speaks once, and that one reply covers both.
+- If people you talked to are still waiting their turn, they go first, and an NPC's **They answer next** is forgotten. Example: you talk to Hulda and Mikael (each in turn), and Hulda asks Saadia something. Mikael answers next; Saadia only speaks if she has to (see the tick boxes) or the Game Master picks her. With **Each answers in turn** for NPCs too, Saadia waits her turn behind Mikael instead.
+- Only Max NPC Turns per Player Turn stops a chain of answers.
+
+#### What happens at Max NPC Turns per Player Turn
+
+Once the NPCs reach Max NPC Turns per Player Turn, the order of who answers first ends. Of the people who still must speak, **When the NPCs reach Max NPC Turns per Player Turn, who still speaks** (radio buttons) decides who still gets to:
+
+| Choice | Who still speaks |
+| --- | --- |
+| **Only people who haven't answered you yet** (default) | People who still owe you an answer speak; people who only owe an NPC an answer don't |
+| **Everyone who still has to speak** | Nobody is dropped: everyone still waiting to speak |
+| **Nobody, it's your turn now** | Nobody: it's your turn right away |
+
+Who is still waiting to speak depends on the boxes ticked in **Who must speak before your turn**. With more than one ticked, it's all of these together:
+
+- **Anyone you talk to**: everyone you spoke to who hasn't answered you yet (in Director Mode, everyone your direction is about; after an event, everyone the event is about).
+- **Anyone an NPC talks to**: everyone an NPC spoke to who hasn't answered that NPC yet.
+- **Everyone in the conversation**: every NPC in the conversation who hasn't said anything yet.
+
+Nobody else, and nobody who has reached **Most Replies per Person**. The line under the choices says who that is with the boxes you have ticked now.
+
+Example, with **Anyone you talk to** and **Anyone an NPC talks to** ticked: you ask Hulda something, and before answering she asks Saadia something. Then the NPCs reach Max NPC Turns per Player Turn. With **Everyone who still has to speak**, Hulda and Saadia both still may speak (with the default of one **extra round**, only one of them is sure to; see below). With **Only people who haven't answered you yet**, only Hulda does: Saadia only owed an NPC an answer. With **Nobody, it's your turn now**, neither does.
+
+Then they go on in **extra rounds**. In each round, one of them speaks, then up to **Replies in between** other NPCs reply, picked by the Game Master. If one of those replies comes from someone who still has to speak, that counts as their turn too. Nobody new has to speak after Max NPC Turns per Player Turn, but **When an NPC talks to someone** still sets who answers next. If the Game Master gives you the turn while people still have to speak, the round ends early and the next round starts. Someone due to answer an NPC next (**When an NPC talks to someone**) still answers first. **Extra rounds** is the most rounds there can be; when they run out, anyone who hasn't spoken yet doesn't, and it's your turn.
+
+| Setting | Default | What it does |
 | --- | --- | --- |
-| **Everyone Gets to Speak** | **Most**: everyone speaks every time, even past the reply limit | Everyone in the conversation says something before your turn, even past the reply limit. When an NPC speaks to another NPC, the other doesn't have to answer |
-| **Anyone Spoken To Answers, Even by an NPC** | **A lot**: NPCs who speak to each other keep it going | Whoever a line is spoken to must answer, also when an NPC said the line. If the reply limit is reached before someone has answered, they still answer. Then the count of replies starts over from their answer, so the others can respond to what they said |
-| **Anyone You Speak To Answers, Others Can Respond** | **Quite a lot**: replies to a late answer can go past the reply limit | Only the people you speak to must answer. When an NPC speaks to another NPC, the Game Master can give you the turn instead. If the reply limit is reached before someone you spoke to has answered, they still answer. Then the count of replies starts over from their answer, so the others can respond to what they said |
-| **Anyone You Speak To Answers, No Extra Replies** | **Some**: at most one extra answer each past the reply limit | The same, but if the reply limit is reached before some of them have answered, each of them still answers once, then it's your turn: nobody replies to them |
-| **Anyone You Speak To Answers, Within the Reply Limit** | **Little**: never past the reply limit | The same, but the reply limit is final: whoever hasn't answered by then doesn't |
-| **Game Master Picks Every Speaker** | **Least**: you can get the turn back after one reply | Nobody has to answer. The Game Master picks one speaker at a time, and the reply limit is final |
-| **Same as the Conversation** | Same as the conversation's option | Events only: the rule of the conversation the event happened in |
+| **Replies in between** | 1 | How many other NPCs may reply after each person who still has to speak. 0: they speak one after another, nobody replies to them. Never more than Max NPC Turns per Player Turn minus 1 |
+| **Extra rounds** | 1 | The most rounds after Max NPC Turns per Player Turn. 0: it's your turn as soon as the NPCs reach it. Each round takes at least one person off, so 20 is the same as no limit |
 
-Each section only offers the options that make a difference there. In each **Who Answers** dropdown, every option shows how much the NPCs say, for example *Everyone Gets to Speak (most talk)*, and under the dropdown the option picked there is explained:
+While **Anyone an NPC talks to** isn't ticked, nobody can owe an NPC an answer, so **Only people who haven't answered you yet** works exactly like **Everyone who still has to speak**. You can still pick either.
 
-| Section | Default | Notes |
+**Greyed out, not hidden.** Settings that can't change anything with the others as they are stay visible but greyed out:
+
+- **When the NPCs reach Max NPC Turns per Player Turn, who still speaks**, **Replies in between** and **Extra rounds** while **Nobody in particular** is ticked: nobody is left who has to speak.
+- **Replies in between** and **Extra rounds** while **Nobody, it's your turn now** is picked, and **Replies in between** while **Extra rounds** is 0.
+
+**What today's old Talk Level options are now.** Each of the six old options can be set up with the new settings (*no limit* means **Extra rounds** 20):
+
+| Old option | Who must speak | Who answers first (you / an NPC) | At Max NPC Turns per Player Turn, who still speaks | Replies in between / Extra rounds |
+| --- | --- | --- | --- | --- |
+| Everyone Gets to Speak | Everyone in the conversation | They answer next / They answer next | Only people who haven't answered you yet | 0 / no limit |
+| Anyone Spoken To Answers, Even by an NPC | Anyone you talk to + Anyone an NPC talks to | They answer next / They answer next | Only people who haven't answered you yet | Max NPC Turns per Player Turn minus 1 / no limit |
+| Anyone You Speak To Answers, Others Can Respond | Anyone you talk to | They answer next / They answer next | (no difference) | Max NPC Turns per Player Turn minus 1 / no limit |
+| Anyone You Speak To Answers, No Extra Replies | Anyone you talk to | They answer next / They answer next | (no difference) | 0 / no limit |
+| Anyone You Speak To Answers, Within the Reply Limit | Anyone you talk to | They answer next / They answer next | Nobody, it's your turn now | (no difference) |
+| Game Master Picks Every Speaker | Nobody in particular | The Game Master decides / The Game Master decides | (no difference) | (no difference) |
+
+One difference from the old options: after an NPC talks to someone, **They answer next** makes them answer next even when the Game Master wants to give you the turn. The old options gave you the turn right away. So an argument where every line names someone ("Sven, …", "Siv, …") goes on until Max NPC Turns per Player Turn. For something close to the old way, set **When an NPC talks to someone** to **The Game Master decides**: you get the turn whenever the Game Master gives it to you. It isn't exactly the old way: when the Game Master picks another NPC instead, the old options still made the person the NPC talked to answer first, and this doesn't.
+
+The new settings also allow what no old option did, for example: the people an NPC talks to answer next but aren't kept on at Max NPC Turns per Player Turn; or the people you talk to must answer, but the Game Master picks their order.
+
+**Where the settings apply.** One shared set of talk settings sits in the **All Conversations** section. Each kind of conversation (Group Conversation, Shout, Director Mode, each of the three Events, Watched NPC Event) has a **Use its own settings** switch: while it is off, that kind uses the shared set; while it is on, its own set appears below the switch and is used instead. A Conversation, Nearby or Random Event with its switch off uses the shared set, also during a Shout or Director Mode that has its own.
+
+| Kind | Starts with | Notes |
 | --- | --- | --- |
-| **Group Conversation** | Others Can Respond | You speak in a Game Master conversation, not shouting |
-| **Shout** | Others Can Respond | Also an NPC Event you stepped into |
-| **Director Mode** | Even by an NPC | "You speak to" means who your direction is about. Others Can Respond isn't offered: here it would work the same as Even by an NPC |
-| **Events** | Same as the Conversation | "You speak to" also means who the event is about |
-| **Watched NPC Event** | Game Master Picks Every Speaker | You have no turn, so the scene ends instead. Only Everyone Gets to Speak, Even by an NPC and Game Master Picks Every Speaker are offered |
+| **Group Conversation**, **Shout**, **Director Mode**, the three **Events** | The shared set | Director Mode never gives you the turn during the extra rounds |
+| **Watched NPC Event** | Its own: **Nobody in particular**, and the Game Master decides who answers an NPC | You aren't in the scene, so **Anyone you talk to** and **When you talk to someone** aren't offered. The scene ends instead of giving you the turn |
 
-**Most Replies per Person** (default **100**, so no limit in practice) is how many times one NPC may speak before your turn (in a watched NPC Event: in the whole scene). Once someone reaches it, the Game Master doesn't pick them again and they no longer have to answer anyone. It wins over every option. If nobody is left who may speak, it's your turn, or the scene ends.
+**Most Replies per Person** (default **100**, so no limit in practice) is how many times one NPC may speak before your turn (in a watched NPC Event: in the whole scene). Once someone reaches it, the Game Master doesn't pick them again and they no longer have to answer anyone, nor answer first. It wins over all the talk settings. If nobody is left who may speak, it's your turn, or the scene ends.
 
-**Group conversations work like Shout here.** Say *Hulda, Mikael, good evening* and both answer before your turn (with the default option). Nobody new joins: that still needs [Shout](#shout). **Group Conversation: Most People Answering at Once** (default **5**) caps a line said to the whole group.
+**Group conversations work like Shout here.** Say *Hulda, Mikael, good evening* and both answer before your turn (with the defaults). Nobody new joins: that still needs [Shout](#shout). **People Who Must Answer a Group Line** in the **Group Conversation** section (default **5**) sets how many people count as talked to after a line said to the whole group.
 
 ### Where to find it
 
@@ -2453,26 +2595,32 @@ The **Conversation** page in the Mantella UI, below the live conversation. The p
 
 | Section | Holds |
 | --- | --- |
-| **All Conversations** | **Game Master Spoken To Threshold** |
-| **Group Conversation** | **Who Answers**, **Most Replies per Person**, **Most People Answering at Once**, **Game Master Max NPC Turns per Player Turn** |
-| **Shout** | **Who Answers**, **Most Replies per Person**, and the [Shout](#shout) settings |
-| **Director Mode** | **Who Answers**, **Most Replies per Person**, **Game Master Director Max NPC Turns** |
-| **Events** | A **Who Answers** for each of the Conversation, Nearby and Random Events, and their **Send the Conversation So Far** and **Include Me** |
-| **Watched NPC Event** | **Who Answers**, **Most Replies per Person**, and the NPC Event scene settings |
+| **All Conversations** | **Game Master Spoken To Threshold** and the shared talk settings |
+| **Group Conversation** | **Use its own settings** and its talk settings, **Max NPC Turns per Player Turn**, **Most Replies per Person**, **People Who Must Answer a Group Line** |
+| **Shout** | **Use its own settings** and its talk settings, **Max NPC Turns per Player Turn**, **Most Replies per Person**, and the [Shout](#shout) settings |
+| **Director Mode** | **Use its own settings** and its talk settings, **Most Replies per Person**, **Max NPC Turns per Direction** |
+| **Conversation Event**, **Nearby Event**, **Random Event** (one section each) | **Use its own settings** and its talk settings, **Send the Conversation So Far**, **Include Me** and **Max NPC Turns per Player Turn** |
+| **Watched NPC Event** | **Use its own settings** and its talk settings, **Most Replies per Person**, and the NPC Event scene settings |
 
 ### Quick start
 
 1. Turn on [Game Master Mode](#game-master-mode) and start a conversation with three NPCs.
-2. Say *Good evening, everyone.* With the default option, the line was spoken to all three, so each of them answers before your turn.
-3. Open the **Conversation** page → **Group Conversation** and set **Who Answers** to **Game Master Picks Every Speaker**.
-4. Say the same again. Now nobody has to answer: the Game Master picks one speaker at a time and may give you the turn after the first answer.
+2. Say *Good evening, everyone.* With the defaults, the line was spoken to all three, so each of them answers before your turn.
+3. Open the **Conversation** page → **All Conversations** and tick **Nobody in particular** under **Who must speak before your turn**.
+4. Say the same again. Now nobody has to answer: one of them answers first, then the Game Master may give you the turn.
 
 **Notes**
 
 - Changes apply from the next line, also during a conversation.
 - Only conversations with the Game Master use these settings: groups with Game Master Mode on, Shout, saying something to the room, Director Mode with Game Master Mode, events and NPC Events. A one-on-one conversation without Shout is unchanged.
-- If the service refuses the extra "spoken to" questions, or the answer can't be read, one person answers, as before.
-- More examples are in [docs/conversation_wheel.md](docs/conversation_wheel.md), "Who answers before your turn".
+- If the service refuses the extra "spoken to" questions, or the answer can't be read, the Game Master's pick stands, as before.
+- More examples are in [docs/conversation_wheel.md](docs/conversation_wheel.md), "Talk Level".
+
+### For developers
+
+- Settings: `src/config/definitions/conversation_definitions.py` (the three option lists, `talk_key`, `use_own_key`, `resolve_ticks`, `greyed_choices`); which set applies to a turn: `turn_rules` in `src/conversation/answer_rules.py`, which also has the answer order (`AnswerOrder`). The turn itself: `GameMasterTurns` in `src/conversation/game_master.py` (`__apply_decision`, `__at_reply_limit`, `__start_round`). The page: tick boxes, radio buttons, settings shown by a switch (`ConfigValue.shown_when`) and greying in `src/ui/settings_ui_constructor.py`.
+- Console tests (no game needed): `pytest tests/test_answer_rules.py tests/test_answer_rules_flow.py tests/config/test_conversation_settings.py tests/ui/test_conversation_page.py`. `test_answer_rules_flow.py` first rebuilds the six old options with the new settings and checks they give the same speakers as before (except the one difference above), then has one test for each rule above.
+- In-game test: `tests/ingame/talk_settings/talk_settings_ingame.py` with `MantellaTalkTest.psc` in Mantella-Spell. See [docs/conversation_wheel.md](docs/conversation_wheel.md), "Automated tests".
 
 ## NPC Initiative
 
@@ -2557,29 +2705,29 @@ Radiant conversations are two NPCs making small talk. NPC Events are scenes: eve
 
 1. **A check runs** every **Frequency** minutes, or when you press the **Check Now** hotkey or pick **NPC Event** on the wheel. No check runs while a conversation is running, while you are in combat, or in a menu. When you start one yourself and **Ask for a Hint** is on, a text box asks what you'd like to happen (cancel it or leave it empty for a surprise).
 2. **The game picks the candidates:** everyone within **Hearing Distance** (at least two), nearest first, up to the Shout Mode page's **Most People Listed**. Line of sight is not needed. They must be awake, not hostile, not in combat, and not already talking.
-3. **The NPC Event Generator invents a scene.** It gets every candidate's name, and for the nearest **Most People Described** also their bio with their [personal reflection](#personal-reflection), their memories, and their private thoughts (the same text as [`{bios_and_summaries}`](#bios_and_summaries-prompt-variable)). It picks 2 to **NPC Event Max Participants** of them and describes what is happening in two or three sentences. It can also decide nothing believable would happen.
+3. **The NPC Event Generator invents a scene.** It gets every candidate's name, and for the nearest **Most People Described** also their bio with their [personal reflection](#personal-reflection), their memories, and their private thoughts (the same text as [`{bios_and_summaries}`](#bios_and_summaries-prompt-variable)). It picks 2 to **Max Participants** of them and describes what is happening in two or three sentences. It can also decide nothing believable would happen.
 4. **What happens is shown.** With **Show What Happened** on, a message box shows the scene before it starts. The game is paused until you close it, and Mantella already writes and voices the first line while you read.
 5. **The participants act it out.** The scene runs in [Shout](#shout) from the start, so it always uses the [Game Master](#game-master-mode), even while **Multi-NPC Game Master Mode** is off: it picks who speaks next with the `{if npc_event}` part of the **Skyrim Game Master Prompt**, and each NPC replies on their own with the `{if npc_event}` part of the **Skyrim Game Master NPC Prompt**. The scene text starts the conversation as an in-game event (narration, like `*Hulda accuses Mikael of ...*`) instead of a greeting, and the first speaker reacts to it. From there the scene lives in the conversation, so it can move on from where it started. The scene text is also available to both prompts as `{event}`, but the default prompts leave it out.
 
 **Drawing others in**
 
-The NPCs near the scene who are not part of it are passed to both prompts as `{nearby}`. If someone in the scene calls out to one of them, asks them something, or it makes sense for them to chip in, the Game Master can pick them: they join the conversation and speak next. Everyone who joins later heard the whole scene. Once the scene has **Shout: Most People in Conversation** NPCs (Conversation page), no more NPCs are drawn in. While you only watch, you don't count toward it, and you can still be drawn in.
+The NPCs near the scene who are not part of it are passed to both prompts as `{nearby}`. If someone in the scene calls out to one of them, asks them something, or it makes sense for them to chip in, the Game Master can pick them: they join the conversation and speak next. Everyone who joins later heard the whole scene. Once the scene has **Most People in Conversation** NPCs (Conversation page → Shout), no more NPCs are drawn in. While you only watch, you don't count toward it, and you can still be drawn in.
 
 With a decision model, the `{if npc_event}` part of the **Skyrim Decision Nearby Criteria** describes when to pick each person nearby.
 
 **You as a bystander**
 
-You are not part of the scene at first. After **NPC Event Player Notice Delay** NPC lines, the NPCs can notice you and draw you in the same way, but only while you are within **Hearing Distance**, not sneaking, and (with **Require Line of Sight**) in sight.
+You are not part of the scene at first. After **Player Notice Delay** NPC lines, the NPCs can notice you and draw you in the same way, but only while you are within **Hearing Distance**, not sneaking, and (with **Require Line of Sight**) in sight. With [Director Mode](#multi-conversation-director-mode) on, they never notice you. They also don't notice you when someone in the scene has the same name as your character.
 
 You can also step in at any time: cast the Mantella spell on someone in the scene, pick **Step in** on the wheel, or press the [Interrupt NPCs](#interrupt-hotkey) hotkey (the game shows `Joining the conversation...`). Once you join, the scene goes on as a normal [Shout](#shout) conversation until you end it, with the Shout Mode page's settings, and **Shout**, **Private** and the [events](#talk-nearby-and-random-events) are on the wheel.
 
-How many lines each person says while you watch is set by **Watched NPC Event: Who Answers** and **Most Replies per Person** (see [Who Answers Before Your Turn](#who-answers-before-your-turn)).
+How many lines each person says while you watch is set by the talk settings and **Most Replies per Person** in the **Watched NPC Event** section (see [Talk Level](#talk-level)).
 
 **How the scene ends**
 
 While you have not joined, the scene ends:
 
-- after **NPC Event Max Lines Without Player** NPC lines (default **10**). During the last **NPC Event Wind-Down Lines** (default **2**), the **Skyrim NPC Event Wind-Down Prompt** asks the NPCs to wrap the scene up.
+- after **Max Lines Without Player** NPC lines (default **10**). During the last **Wind-Down Lines** (default **2**), the **Skyrim NPC Event Wind-Down Prompt** asks the NPCs to wrap the scene up.
 - when you walk farther than **Hearing Distance** from everyone in it.
 
 When the scene ends, the conversation ends like any other: with **Enable Conversation Summaries** on, the participants' summaries are saved, so they remember what happened.
@@ -2590,10 +2738,10 @@ When the scene ends, the conversation ends like any other: with **Enable Convers
 | Setting                                | Default                     | What it does                                                                                                                      |
 | -------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | **NPC Event Generator Model**          | `google/gemma-2-9b-it:free` | The model that invents the scenes. Always its own model, never the summary model                                                 |
-| **NPC Event Max Participants**         | 3                           | The most NPCs the generator may put in a scene when it starts                                                                    |
-| **NPC Event Player Notice Delay**      | 3                           | How many NPC lines the scene runs before the NPCs can notice you                                                                 |
-| **NPC Event Max Lines Without Player** | 10                          | The scene ends after this many NPC lines while you have not joined                                                               |
-| **NPC Event Wind-Down Lines**          | 2                           | For this many lines before the limit, the NPCs are asked to wrap the scene up. **0** stops the scene straight after the last line |
+| **Max Participants**         | 3                           | The most NPCs the generator may put in a scene when it starts                                                                    |
+| **Player Notice Delay**      | 3                           | How many NPC lines the scene runs before the NPCs can notice you                                                                 |
+| **Max Lines Without Player** | 10                          | The scene ends after this many NPC lines while you have not joined                                                               |
+| **Wind-Down Lines**          | 2                           | For this many lines before the limit, the NPCs are asked to wrap the scene up. **0** stops the scene straight after the last line |
 
 
 **MCM settings (Events page → NPC Event)**
@@ -2608,7 +2756,7 @@ When the scene ends, the conversation ends like any other: with **Enable Convers
 | **Show What Happened**       | On      | A message box shows what happens just before the scene starts. The game is paused until you close it. The Conversation, Nearby and Random Event sections each have their own: there the box shows what happened instead of the note "Something happened" |
 | **Hearing Distance (m)**     | 20      | How far from you NPCs can be to take part or be drawn in. A scene you have not joined ends once you are farther than this from everyone in it, and you can only be noticed within it |
 | **Require Line of Sight**    | Off     | Off: the NPCs can notice you whenever you are within **Hearing Distance** and not sneaking. On: you or one of them must also be able to see the other        |
-| **Include Active Followers** | On      | Lets your active followers take part and be drawn in while you watch. A follower stays with you, so a scene they are in does not end when you walk away: it ends after **NPC Event Max Lines Without Player** |
+| **Include Active Followers** | On      | Lets your active followers take part and be drawn in while you watch. A follower stays with you, so a scene they are in does not end when you walk away: it ends after **Max Lines Without Player** |
 | **Most People Described**    | 6       | How many of the nearest people the event generator gets the bios and memories of (was **Max NPCs per Check**). It knows everyone else nearby by name        |
 | **Show Debug Messages**      | Off     | Shows notifications such as `NPC Event starts: ...`, `NPC Event: nothing happens`, and `NPC Event: you walked away`                                              |
 
@@ -2617,7 +2765,7 @@ When the scene ends, the conversation ends like any other: with **Enable Convers
 
 In game: **MCM → Mantella → Events** → **NPC Event** section (the page was called NPC Events), and **NPC Event** on the [Conversation Wheel](#conversation-wheel). Requires the Mantella game plugin version that includes this page.
 
-**LLM** tab → **NPC Event Generator LLM Service**, **NPC Event Generator Model**, **NPC Event Generator LLM Parameters** (and **NPC Event Generator Custom Token Count** under **Advanced**), plus, on the **Conversation** page, **NPC Event Max Participants**, **NPC Event Player Notice Delay**, **NPC Event Max Lines Without Player**, **NPC Event Wind-Down Lines** and **Watched NPC Event: Who Answers**.
+**LLM** tab → **NPC Event Generator LLM Service**, **NPC Event Generator Model**, **NPC Event Generator LLM Parameters** (and **NPC Event Generator Custom Token Count** under **Advanced**), plus, on the **Conversation** page, **Max Participants**, **Player Notice Delay**, **Max Lines Without Player**, **Wind-Down Lines** and, in the **Watched NPC Event** section, its talk settings.
 
 **Prompts** tab → **Skyrim NPC Event Generator Prompt** and **Skyrim NPC Event Wind-Down Prompt**, and the `{if npc_event}` parts of the **Skyrim Game Master Prompt**, **Skyrim Game Master NPC Prompt** and **Skyrim Decision Nearby Criteria** (see [Conditional blocks](#conditional-blocks)). All of them can be overlaid with [prompt profiles](#prompt-profiles).
 
@@ -2631,7 +2779,7 @@ In game: **MCM → Mantella → Events** → **NPC Event** section (the page was
 4. Stand near a few NPCs and press **Check Now**. Check the log for the scene, for example:
 
 ```
-NPC Event check in The Bannered Mare: Hulda, Mikael, Saadia, Uthgerd the Unbroken
+NPC Event check in The Bannered Mare: Hulda, Mikael, Saadia, Uthgerd the Unbroken. With bios and memories: Hulda, Mikael, Saadia, Uthgerd the Unbroken
 NPC Event: Mikael, Uthgerd the Unbroken: Mikael is boasting ...
 ```
 
@@ -2681,19 +2829,19 @@ You can be on the receiving end of an event (*a stranger bumps into you*), but t
 
 Who counts as nearby comes from the [Shout](#shout) MCM page: **Hearing Distance**, **Must Be in Sight** and **Most People Listed**.
 
-**Mantella settings (Conversation page → Events)**
+**Mantella settings (Conversation page → Conversation Event, Nearby Event and Random Event)**
 
 | Setting | Talk | Nearby | Random | What it does |
 | --- | --- | --- | --- | --- |
 | **Send the Conversation So Far** | On | Off | On | The event generator also gets the recent lines of the conversation, so the event can follow from what was said |
 | **Include Me** | On | Off | On | The event can be about you too. Ignored in Director Mode |
-| **Who Answers** | Same as the Conversation | Same as the Conversation | Same as the Conversation | Who has to react before your turn. See [Who Answers Before Your Turn](#who-answers-before-your-turn) |
+| **Use its own settings** (talk settings) | Off | Off | Off | Off: the shared talk settings in All Conversations. See [Talk Level](#talk-level) |
 
 ### Where to find it
 
 In game: **Talk Event**, **Nearby Event** and **Random Event** on the [Conversation Wheel](#conversation-wheel), during a conversation you are in. **MCM → Mantella → Events** → the **Conversation Event**, **Nearby Event** and **Random Event** sections.
 
-**Conversation** page (below the live conversation) → **Events** section: a **Who Answers**, **Send the Conversation So Far** and **Include Me** for each kind of event.
+**Conversation** page (below the live conversation) → the **Conversation Event**, **Nearby Event** and **Random Event** sections, one per kind of event: **Use its own settings** with its talk settings, **Send the Conversation So Far**, **Include Me** and **Max NPC Turns per Player Turn**.
 
 **Prompts** tab → **Skyrim Talk/Nearby/Random Event Generator Prompt** (with its `{if talk_event}`, `{if nearby_event}` and `{if random_event}` parts), and the `{if after_event}` parts of **Skyrim Game Master Decision Instructions** and **Skyrim Game Master Decision Player Criteria**.
 
@@ -2735,7 +2883,7 @@ Outside a conversation:
 | **NPC Event** | Starts an [NPC Event](#npc-events) now |
 | **Approach** | Checks right away whether someone nearby has a reason to talk to you, like [NPC Initiative](#npc-initiative)'s **Check Now** |
 
-In a conversation:
+In a conversation (while you watch NPCs talk without you, only **Step in** or **Join**, **End** and **Add / Remove** are shown):
 
 | Option | What it does |
 | --- | --- |
@@ -2784,7 +2932,7 @@ Nothing happens when:
 - there is no player in the conversation (radiant conversations),
 - the conversation is ending (the goodbye line is never interrupted, because it carries the action that ends the conversation in game).
 
-While you watch an [NPC Event](#npc-events), the hotkey makes you step into the scene instead (the game shows `Joining the conversation...`). In [Director Mode](#multi-conversation-director-mode), interrupting adds no `Interrupting...` event, since your character isn't there.
+While you watch an [NPC Event](#npc-events), the hotkey also steps you into the scene (the game shows `Joining the conversation...`), and the NPCs stop so it's your turn. In [Director Mode](#multi-conversation-director-mode), interrupting adds no `Interrupting...` event, since your character isn't there.
 
 ### Where to find it
 

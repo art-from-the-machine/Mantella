@@ -1,5 +1,7 @@
+from src.config.definitions.conversation_definitions import CONVERSATION_PAGE
+
 PROMPT_PROFILES_TAB = "Prompt Profiles"
-LIVE_CONVERSATION_TAB = "Live Conversation"
+LIVE_CONVERSATION_TAB = CONVERSATION_PAGE # The live conversation editor, with the Conversation settings below it
 BIO_EDITOR_TAB = "Bio Editor"
 TAG_EDITOR_TAB = "Tag Editor"
 DOCUMENTATION_TAB = "Documentation"
@@ -310,8 +312,8 @@ TAB_REORDER_JS = r"""
 def default_tab_names(base_groups) -> list[str]:
     names: list[str] = []
     for group in base_groups:
-        if group.is_hidden:
-            continue
+        if group.is_hidden or getattr(group, "page", None):
+            continue # Shown on another page, not a tab of its own
         names.append(group.name)
         if group.name == PROMPT_PROFILES_TAB:
             names.append(LIVE_CONVERSATION_TAB)

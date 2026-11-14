@@ -299,7 +299,7 @@ class Conversation:
         """
         with self.__generation_start_lock:
             self.__cancel_game_master_turn()
-            self.__game_master_turns.on_player_input() # Like a player line: the NPCs' turn starts again from the event
+            self.__game_master_turns.on_player_input(kind) # Like a player line: the NPCs' turn starts again from the event, with the event's talk settings
             if isinstance(self.__context.shout, ShoutState):
                 self.__context.shout.clear_pick() # Whoever still had to join or answer reacts to the event instead, if they are part of it
             self.__stop_generation()
@@ -492,6 +492,9 @@ class Conversation:
         if event.player_joined:
             return comm_consts.KEY_REPLYTYPE_PLAYERTALK, None
         if event.has_failed or event.has_reached_limit(self.__context.config):
+            return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None
+        if self.__game_master_turns.nobody_left_to_speak(self.__conversation_type):
+            logging.log(26, "NPC Event: everyone in the scene has reached Most Replies per Person. The scene ends.")
             return comm_consts.KEY_REPLYTYPE_ENDCONVERSATION, None
         # The Game Master gave no valid choice, or the turn was thrown away. The scene goes on
         self.__start_generating_npc_sentences()

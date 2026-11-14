@@ -541,18 +541,12 @@ class LLMDefinitions:
         return ConfigValueBool("multi_npc_game_master_mode", "Multi-NPC Game Master Mode", description, False, tags=[ConfigValueTag.share_row])
 
     @staticmethod
-    def get_multi_npc_game_master_max_npc_turns_config_value() -> ConfigValue:
-        description = """Game Master Mode only. The maximum number of NPC replies in a row before the player gets the turn back.
-                        The Game Master can hand the turn to the player earlier.
-                        In Shout Mode, if someone the player spoke to only gets to answer once the limit is reached, the count starts over with their reply,
-                        so the others can still respond to them."""
-        return ConfigValueInt("multi_npc_game_master_max_npc_turns", "Game Master Max NPC Turns per Player Turn", description, 3, 1, 10, tags=[ConfigValueTag.share_row])
-
-    @staticmethod
     def get_multi_npc_game_master_director_max_npc_turns_config_value() -> ConfigValue:
-        description = """Multi Conversation Director Mode with Game Master Mode or in Shout. The number of NPC replies in a row before the player can direct the scene again.
-                        The Game Master never hands the turn to the player in this mode, so the run only ends early if the Game Master fails to decide."""
-        return ConfigValueInt("multi_npc_game_master_director_max_npc_turns", "Game Master Director Max NPC Turns", description, 6, 1, 30, tags=[ConfigValueTag.share_row])
+        description = """The most NPC replies in a row before you can direct the scene again, in Director Mode (with Game Master Mode, or in Shout).
+                        The Game Master never gives you the turn in this mode, so the NPCs reply until this limit, unless nobody is left who may speak.
+                        Who still speaks once it is reached is set by the talk settings (Director Mode's own, or the shared ones in All Conversations).
+                        The reaction to a Conversation, Nearby or Random Event uses that event's own Max NPC Turns per Player Turn instead."""
+        return ConfigValueInt("multi_npc_game_master_director_max_npc_turns", "Max NPC Turns per Direction", description, 6, 1, 30, tags=[ConfigValueTag.share_row])
 
     @staticmethod
     def get_game_master_history_message_count_config_value() -> ConfigValue:
@@ -622,43 +616,40 @@ class LLMDefinitions:
 
     @staticmethod
     def get_game_master_addressed_threshold_config_value() -> ConfigValue:
-        description = """Shout: several people can answer one line. With each decision, the decision model is also asked about each person whether the latest line was spoken to them
-                        (or, after an event, whether they are part of what happened). It answers with a number from 0 to 1 for how sure it is.
-                        Everyone at or above this value counts as spoken to: they join the conversation and answer before the player gets the turn.
-                        If an NPC said the line and the Game Master gives the player the turn, the player gets it: only a line the player said, or an event, makes people answer first.
+        description = """With each decision, the decision model is also asked about each person whether the latest line was spoken to them
+                        (after an event or a direction: whether they are part of it). It answers with a number from 0 to 1 for how sure it is.
+                        Everyone at or above this value counts as spoken to. What follows from that is set by the talk settings below.
                         Raise it if people answer who were not spoken to. Lower it if people who were spoken to are missed.
                         Ignored when Use Decision Model for Game Master is disabled: the Game Master LLM then lists who was spoken to directly."""
-        return ConfigValueFloat("game_master_addressed_threshold","Game Master Spoken To Threshold",description, 0.5, 0, 1, tags=[ConfigValueTag.advanced])
+        return ConfigValueFloat("game_master_addressed_threshold","Game Master Spoken To Threshold",description, 0.5, 0, 1)
 
-    NPC_EVENT_DESCRIPTION = """NPC Events (enabled in the Mantella MCM): every so often, an event generator invents a scene between some of the NPCs near the player, who then act it out while the player is a bystander.
-                        The scene always runs with the Game Master (Game Master Decision Service and Model, or the Game Master LLM), also when Multi-NPC Game Master Mode is disabled."""
+    # The Watched NPC Event section's description on the Conversation page
+    NPC_EVENT_DESCRIPTION = ("NPC Events (turned on in the Mantella MCM): every so often, an event generator invents a scene between some of the NPCs near you, "
+                             "who then act it out while you watch. The scene always runs with the Game Master (Game Master Decision Service and Model, "
+                             "or the Game Master LLM), also when Multi-NPC Game Master Mode is off.")
 
     @staticmethod
     def get_npc_event_max_participants_config_value() -> ConfigValue:
-        description = LLMDefinitions.NPC_EVENT_DESCRIPTION + """
-                        The most NPCs the event generator may put in a scene when it starts. Others nearby can still be drawn in later, as long as
-                        the Shout Mode page's Most People in Conversation allows it."""
-        return ConfigValueInt("npc_event_max_participants", "NPC Event Max Participants", description, 3, 2, 10, tags=[ConfigValueTag.share_row])
+        description = """The most NPCs the event generator may put in a scene when it starts. Others nearby can still be drawn in later, as long as
+                        Most People in Conversation (in the Shout section) allows it."""
+        return ConfigValueInt("npc_event_max_participants", "Max Participants", description, 3, 2, 10, tags=[ConfigValueTag.share_row])
 
     @staticmethod
     def get_npc_event_player_notice_delay_config_value() -> ConfigValue:
-        description = LLMDefinitions.NPC_EVENT_DESCRIPTION + """
-                        How many NPC lines the scene runs before the NPCs can notice the player nearby and draw them in.
+        description = """How many NPC lines the scene runs before the NPCs can notice the player nearby and draw them in.
                         After that, the player is only noticed while within the MCM hearing distance, not sneaking, and in sight if the MCM requires it."""
-        return ConfigValueInt("npc_event_player_notice_delay", "NPC Event Player Notice Delay", description, 3, 0, 50, tags=[ConfigValueTag.share_row])
+        return ConfigValueInt("npc_event_player_notice_delay", "Player Notice Delay", description, 3, 0, 50, tags=[ConfigValueTag.share_row])
 
     @staticmethod
     def get_npc_event_max_lines_without_player_config_value() -> ConfigValue:
-        description = LLMDefinitions.NPC_EVENT_DESCRIPTION + """
-                        The number of NPC lines after which the scene ends while the player has not joined. Once the player joins, the scene goes on until the player ends it."""
-        return ConfigValueInt("npc_event_max_lines_without_player", "NPC Event Max Lines Without Player", description, 10, 2, 100, tags=[ConfigValueTag.share_row])
+        description = """The number of NPC lines after which the scene ends while the player has not joined. Once the player joins, the scene goes on until the player ends it."""
+        return ConfigValueInt("npc_event_max_lines_without_player", "Max Lines Without Player", description, 10, 2, 100, tags=[ConfigValueTag.share_row])
 
     @staticmethod
     def get_npc_event_wind_down_lines_config_value() -> ConfigValue:
-        description = LLMDefinitions.NPC_EVENT_DESCRIPTION + """
-                        For this many lines before NPC Event Max Lines Without Player, the Skyrim NPC Event Wind-Down Prompt asks the NPCs to wrap the scene up.
+        description = """For this many lines before Max Lines Without Player, the Skyrim NPC Event Wind-Down Prompt asks the NPCs to wrap the scene up.
                         0 stops the scene straight after the last line."""
-        return ConfigValueInt("npc_event_wind_down_lines", "NPC Event Wind-Down Lines", description, 2, 0, 20, tags=[ConfigValueTag.share_row])
+        return ConfigValueInt("npc_event_wind_down_lines", "Wind-Down Lines", description, 2, 0, 20, tags=[ConfigValueTag.share_row])
 
     @staticmethod
     def get_game_master_custom_token_count_config_value() -> ConfigValue:

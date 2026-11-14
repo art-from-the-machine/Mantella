@@ -16,6 +16,12 @@
     width: 100% !important;
 }
 
+/* Under a dropdown: what the picked option does */
+.picked-option-description {
+    color: var(--body-text-color-subdued) !important;
+    margin-top: 4px !important;
+}
+
 .save-summary-now-toggles {
     width: 100% !important;
     margin-top: 8px !important;
@@ -40,7 +46,7 @@
     font-size: 1.05em !important;
 }
 
-.setting-controls input,
+.setting-controls input:not([type="checkbox"]):not([type="radio"]),
 .setting-controls textarea {
     padding-left: 8px !important;
     padding-top: 6px !important;
@@ -442,3 +448,30 @@
 .dark .ph-depth-2 { --ph-bar: rgba(199, 146, 234, 0.55); }
 .dark .ph-depth-3 { --ph-bar: rgba(247, 140, 108, 0.55); }
 .dark .ph-depth-4 { --ph-bar: rgba(195, 232, 141, 0.55); }
+
+/* Example requests in the prompt profile editor's "About this prompt" (src/config/definitions/prompt_request_examples.py):
+   each example is folded, the chosen prompt is highlighted and the other prompts are dimmed */
+.prompt-example {
+    margin: var(--size-2) 0;
+}
+.prompt-example summary {
+    cursor: pointer;
+}
+.prompt-example pre {
+    white-space: pre-wrap;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    background: rgba(127, 127, 127, 0.12);
+    border-radius: var(--radius-sm);
+    padding: var(--size-3);
+}
+.prompt-example-this {
+    background: #fbbf24;
+    color: #1f2937;
+    font-weight: bold;
+    border-radius: 3px;
+    padding: 0 3px;
+}
+.prompt-example-other {
+    color: var(--body-text-color-subdued);
+}

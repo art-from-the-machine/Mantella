@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 NOBODY_NEARBY = "nobody"
 SHOUT_NEARBY_CRITERIA = "skyrim_shout_decision_nearby_criteria"
 
-# Newcomers Remember (Shout Mode MCM page): what someone who joins by shouting heard before they joined. The values the game sends
+# Newcomers Remember (Conversation page): what someone who joins by shouting heard before they joined
 NEWCOMERS_REMEMBER_SINCE_SHOUT = 0 # Everything since the player started shouting
 NEWCOMERS_REMEMBER_LAST_LINE = 1 # Only the player's last line and what was said after it
 NEWCOMERS_REMEMBER_EVERYTHING = 2 # The whole conversation
@@ -29,8 +29,53 @@ class AnswerDue:
     """Someone a line was spoken to, or who is part of an event, and who has not answered it yet"""
     name: str
     speaker: str # Who said the line. Empty for an event
-    is_protected: bool # Spoken to by the player, or part of an event: they still answer once the NPCs have reached their limit of replies in a row, or the Game Master gives the player the turn
+    is_protected: bool # Spoken to by the player, or part of an event or direction, or in the conversation with "Everyone in the conversation": owed to
+                       # the player. "Only people who haven't answered you yet" drops the others (owed to an NPC) at the reply limit
     others: list[str] = field(default_factory=list) # The others the same line was aimed at. Empty unless it was aimed at several people
+
+
+@dataclass(kw_only=True)
+class TurnAnswers:
+    """Who still has to speak before the player's turn (or before a watched NPC Event ends), in any Game Master conversation.
+    Shout keeps its own (ShoutState), as it also clears it when someone could not join"""
+    still_to_answer: dict[str, AnswerDue] = field(default_factory=dict) # By ref id: who a line was aimed at and has not answered it yet
+    analysed_line: tuple[int, str] | None = field(default=None, repr=False) # The last line the Game Master was asked about (who it was aimed at), so it is asked once
+
+    def add_still_to_answer(self, people: list[tuple[str, str]], speaker: str, is_protected: bool):
+        """A line was aimed at these people. Each of them answers before the player gets the turn
+
+        Args:
+            people (list[tuple[str, str]]): the (ref id, name) of each
+            speaker (str): who said the line. Empty for an event
+            is_protected (bool): the player said it, or it is an event or a direction (see AnswerDue)
+        """
+        names = [name for _ref_id, name in people]
+        for ref_id, name in people:
+            known = self.still_to_answer.get(ref_id)
+            others = [n for n in names if n != name]
+            self.still_to_answer[ref_id] = AnswerDue(name, speaker, is_protected or bool(known and known.is_protected), others)
+
+    def take_still_to_answer(self, ref_id: str) -> AnswerDue | None:
+        """They speak now, so they no longer have to answer. None if they did not have to"""
+        return self.still_to_answer.pop(ref_id, None)
+
+    def drop_unprotected_answers(self) -> list[str]:
+        """The NPCs have reached their limit of replies in a row, or the Game Master gives the player the turn: only the people the player spoke to,
+        or who are part of an event or a direction, still answer
+
+        Returns:
+            list[str]: the names of the people who no longer have to answer
+        """
+        dropped = [ref_id for ref_id, due in self.still_to_answer.items() if not due.is_protected]
+        return [self.still_to_answer.pop(ref_id).name for ref_id in dropped]
+
+    def drop_answers(self, ref_ids: set[str]) -> list[str]:
+        """These people no longer have to answer, e.g. they have reached Most Replies per Person
+
+        Returns:
+            list[str]: the names of those of them who had to answer
+        """
+        return [self.still_to_answer.pop(ref_id).name for ref_id in list(self.still_to_answer) if ref_id in ref_ids]
 
 
 @dataclass(kw_only=True)
@@ -142,7 +187,7 @@ class Bystanders:
 
 
 @dataclass(kw_only=True)
-class ShoutState(Bystanders):
+class ShoutState(Bystanders, TurnAnswers):
     """Shout: anyone near the player can answer them or join in. The game sends who is nearby with each request,
     and the limits below decide when the Game Master may draw one of them in.
     NPC Events run in Shout from the start, so it is also who can join a scene the player watches (the game finds them with the NPC Event's rules)"""
@@ -155,16 +200,14 @@ class ShoutState(Bystanders):
     game_master_offer: list[EventPerson] | None = field(default=None, repr=False) # While the Game Master's prompt is built: who it may pick this time
     characters: dict[int, "Character"] = field(default_factory=dict, repr=False) # The nearby people the game sent in full, by refid. Kept while Shout is on
     max_described: int = 6 # Most People Described: how many of the nearest people the Game Master gets the bios and memories of
-    max_answering: int = 5 # Most People Answering at Once: how many answer a line aimed at a group. People the line names always answer
-    still_to_answer: dict[str, AnswerDue] = field(default_factory=dict) # By ref id: who a line was aimed at and has not answered it yet
+    max_answering: int = 5 # People Who Must Answer a Group Line: how many answer a line aimed at a group. People the line names always answer
     answer_first_ref_id: str = "" # Someone in the conversation who speaks first once the others the line was aimed at have been added
-    analysed_line: tuple[int, str] | None = field(default=None, repr=False) # The last line the Game Master was asked about (who it was aimed at), so it is asked once
     newcomers_remember: int = NEWCOMERS_REMEMBER_SINCE_SHOUT # What someone who joins by shouting heard before they joined
     logged_described: list[str] | None = field(default=None, repr=False) # Whose bios the Game Master used, as last logged
     event_ignores_max_people: bool = False # The latest event was a Nearby or Random Event: the people nearby who react to it first join even past Most People in Conversation. Set by each event
 
     def apply_settings(self, settings: dict[str, Any] | None):
-        """The Shout Mode settings from the MCM, sent with each request. Keys: max_people, max_described, newcomers_remember, max_answering"""
+        """The Shout settings, applied with each request (Conversation page, Most People Described from the game). Keys: max_people, max_described, newcomers_remember, max_answering"""
         if not settings:
             return
         if settings.get("max_answering") is not None:
@@ -224,34 +267,6 @@ class ShoutState(Bystanders):
         if self.is_past_limit_allowed(after_event, is_direction):
             return len(self.nearby)
         return max(0, self.max_people - npc_count - (1 if has_player else 0))
-
-    def add_still_to_answer(self, people: list[tuple[str, str]], speaker: str, is_protected: bool):
-        """A line was aimed at these people. Each of them answers before the player gets the turn
-
-        Args:
-            people (list[tuple[str, str]]): the (ref id, name) of each
-            speaker (str): who said the line. Empty for an event
-            is_protected (bool): the player said it, or it is an event: they answer even once the NPCs have reached their limit of replies in a row
-        """
-        names = [name for _ref_id, name in people]
-        for ref_id, name in people:
-            known = self.still_to_answer.get(ref_id)
-            others = [n for n in names if n != name]
-            self.still_to_answer[ref_id] = AnswerDue(name, speaker, is_protected or bool(known and known.is_protected), others)
-
-    def take_still_to_answer(self, ref_id: str) -> AnswerDue | None:
-        """They speak now, so they no longer have to answer. None if they did not have to"""
-        return self.still_to_answer.pop(ref_id, None)
-
-    def drop_unprotected_answers(self) -> list[str]:
-        """The NPCs have reached their limit of replies in a row, or the Game Master gives the player the turn: only the people the player spoke to,
-        or who are part of an event, still answer
-
-        Returns:
-            list[str]: the names of the people who no longer have to answer
-        """
-        dropped = [ref_id for ref_id, due in self.still_to_answer.items() if not due.is_protected]
-        return [self.still_to_answer.pop(ref_id).name for ref_id in dropped]
 
     def nearby_choices(self, config: ConfigLoader, participant_names: list[str], npc_count: int, has_player: bool = True,
                        after_event: bool = False, is_direction: bool = False) -> list[EventPerson]:

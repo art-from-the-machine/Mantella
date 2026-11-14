@@ -1,3 +1,4 @@
+import json
 import typing
 import gradio as gr
 from typing import Any, Callable, TypeVar, NamedTuple, Dict, TypedDict, Optional
@@ -19,6 +20,8 @@ from src.config.types.config_value import ConfigValue, ConfigValueTag
 from src.config.types.config_value_group import ConfigValueGroup
 from src.config.types.config_value_int import ConfigValueInt
 from src.config.types.config_value_visitor import ConfigValueVisitor
+from src.config.definitions.conversation_definitions import (AT_REPLY_LIMIT, EXTRA_ROUNDS, REPLIES_IN_BETWEEN, SHARED, TALK_KINDS, WHO_MUST_SPEAK,
+                                                             greyed_choices, talk_key, who_still_speaks_now)
 
 # Global reference to the game manager for character data reload functionality
 _game_manager_ref = None
@@ -59,7 +62,8 @@ class SettingsUIConstructor(ConfigValueVisitor):
         self.__profile_manager: ModelProfileManager | None = None
         self.__config_loader = config_loader
         self.__prompt_profile_manager: PromptProfileManager | None = None
-    
+        self.__picked_option_description_ui: dict[str, gr.Markdown] = {} # By identifier: the line under a setting's choices
+
     @property
     def config_value_to_ui_element(self) -> dict[ConfigValue, gr.Column]:
         return self.__config_value_to_ui_element
@@ -334,6 +338,13 @@ class SettingsUIConstructor(ConfigValueVisitor):
                              update_on_submit: bool,
                              update_on_blur: bool) -> None:
         """Sets up the event handlers for an input component"""
+        if hasattr(input_ui, "_id") and isinstance(config_value, ConfigValueMultiSelection) and ConfigValueTag.tick_boxes in config_value.tags:
+            # Tick boxes: some can't be ticked together, so a click can untick another. Only a click saves, not the update that follows it
+            def on_ticks(ticked: list[str] | None):
+                resolved = config_value.resolve_ticks(list(config_value.value), list(ticked or []))
+                return gr.update(value=resolved), self.__on_change(config_value, resolved)
+            input_ui.input(on_ticks, input_ui, [input_ui, error_message], show_progress="hidden")
+            return
         if hasattr(input_ui, "_id"):
             if update_on_change:
                 input_ui.change(lambda x: self.__on_change(config_value, x), input_ui, error_message, show_progress="hidden")
@@ -359,8 +370,10 @@ class SettingsUIConstructor(ConfigValueVisitor):
             with gr.Row(equal_height=True, elem_classes="setting-controls"):
                 input_ui = setting.create_input(setting.config_value)
                 input_ui.scale = 999
-                self.__create_buttons(setting.config_value, setting.create_input, 
+                self.__create_buttons(setting.config_value, setting.create_input,
                                     input_ui, gr.Markdown(None), setting.additional_buttons)
+            if isinstance(setting.config_value, ConfigValueSelection) and setting.config_value.option_descriptions:
+                self.__embed_picked_option_description(setting.config_value, input_ui)
             if setting.config_value.identifier == "save_summary_now":
                 self.__embed_save_summary_now_toggles()
                 
@@ -374,6 +387,17 @@ class SettingsUIConstructor(ConfigValueVisitor):
             self.__embed_prompt_preview(setting.config_value, input_ui)
 
         return SettingUIComponents(input_ui, error_message)
+
+    def __embed_picked_option_description(self, config_value: ConfigValueSelection, input_ui: Any) -> None:
+        """Under a dropdown: what the picked option does, updated when another option is picked"""
+        descriptions = config_value.option_descriptions
+        description_ui = gr.Markdown(descriptions.get(config_value.value, ""), elem_classes="picked-option-description")
+        self.__picked_option_description_ui[config_value.identifier] = description_ui
+        if config_value.identifier in {talk_key(kind, AT_REPLY_LIMIT) for kind in [SHARED] + TALK_KINDS}:
+            return # Also depends on the ticked boxes, so __grey_out_talk_settings updates it
+        if hasattr(input_ui, "_id"):
+            # Looked up in the browser: no trip to Mantella, so the text doesn't fade or jump while it changes
+            input_ui.change(None, input_ui, description_ui, js=f"(picked) => ({json.dumps(descriptions)})[picked] || ''")
 
     def __embed_save_summary_now_toggles(self) -> None:
         """Render the Save Summary Now extra toggles inside the same settings panel."""
@@ -1163,65 +1187,139 @@ class SettingsUIConstructor(ConfigValueVisitor):
                     }:
                         child_value.accept_visitor(self)
                 return
-            if config_value.description:
-                gr.Markdown(config_value.description)
-            
-            has_advanced_values = False
-            has_basic_values = False
-            regular_settings = []
-            basic_settings = []
-            advanced_settings = []
-            for cf in config_value.value:
-                if not cf.is_hidden:
-                    if ConfigValueTag.advanced in cf.tags:
-                        advanced_settings.append(cf)
-                        has_advanced_values = True
-                    elif ConfigValueTag.basic in cf.tags:
-                        basic_settings.append(cf)
-                        has_basic_values = True
-                    else:
-                        regular_settings.append(cf)
+            if config_value.foldable:
+                with gr.Accordion(label=config_value.name, open=False):
+                    self.__render_group_settings(config_value)
+            else:
+                self.__render_group_settings(config_value)
 
-            # Render basic settings in an accordion
-            if has_basic_values:
-                with gr.Accordion(label="Basic Settings", open=False):
-                    for cf in basic_settings:
-                        cf.accept_visitor(self)
-                    
-                    # Render any pending row group in basic section
-                    if self.__last_row_group is not None:
-                        self.__render_row_group(self.__last_row_group)
-                        self.__last_row_group = None
-                    
-                    # Render any remaining row groups in basic section
-                    for group_id in list(self.__row_groups.keys()):
-                        self.__render_row_group(group_id)
+    def __render_group_settings(self, config_value: ConfigValueGroup):
+        if config_value.description:
+            gr.Markdown(config_value.description)
 
-            for i, cf in enumerate(regular_settings):
-                cf.accept_visitor(self)
-            
-            # Render any pending row group after processing regular settings
-            if self.__last_row_group is not None:
-                self.__render_row_group(self.__last_row_group)
-                self.__last_row_group = None
-            
-            # Render any remaining row groups (shouldn't happen but just in case)
-            for group_id in list(self.__row_groups.keys()):
-                self.__render_row_group(group_id)
-            
-            if has_advanced_values:
-                with gr.Accordion(label="Advanced", open=False):
-                    for cf in advanced_settings:
-                        cf.accept_visitor(self)
-                    
-                    # Render any pending row group in advanced section
-                    if self.__last_row_group is not None:
-                        self.__render_row_group(self.__last_row_group)
-                        self.__last_row_group = None
-                    
-                    # Render any remaining row groups in advanced section
-                    for group_id in list(self.__row_groups.keys()):
-                        self.__render_row_group(group_id)
+        has_advanced_values = False
+        has_basic_values = False
+        regular_settings = []
+        basic_settings = []
+        advanced_settings = []
+        for cf in config_value.value:
+            if not cf.is_hidden:
+                if ConfigValueTag.advanced in cf.tags:
+                    advanced_settings.append(cf)
+                    has_advanced_values = True
+                elif ConfigValueTag.basic in cf.tags:
+                    basic_settings.append(cf)
+                    has_basic_values = True
+                else:
+                    regular_settings.append(cf)
+
+        # Render basic settings in an accordion
+        if has_basic_values:
+            with gr.Accordion(label="Basic Settings", open=False):
+                for cf in basic_settings:
+                    cf.accept_visitor(self)
+                
+                # Render any pending row group in basic section
+                if self.__last_row_group is not None:
+                    self.__render_row_group(self.__last_row_group)
+                    self.__last_row_group = None
+                
+                # Render any remaining row groups in basic section
+                for group_id in list(self.__row_groups.keys()):
+                    self.__render_row_group(group_id)
+
+        # Settings that only show while a switch is on (shown_when) are kept in a column of their own, which the switch shows and hides
+        columns_by_switch: dict[str, list[gr.Column]] = {}
+        open_column: gr.Column | None = None
+        shown_when: str | None = None
+        for i, cf in enumerate(regular_settings):
+            if cf.shown_when != shown_when:
+                self.__close_shown_when_column(open_column)
+                open_column, shown_when = None, cf.shown_when
+                if shown_when:
+                    switch = self.__identifier_to_config_value.get(shown_when)
+                    open_column = gr.Column(visible=bool(switch.value) if switch else True)
+                    open_column.__enter__()
+                    columns_by_switch.setdefault(shown_when, []).append(open_column)
+            cf.accept_visitor(self)
+        self.__close_shown_when_column(open_column)
+        if config_value.page and self.__pending_shared_setting is not None:
+            # A section of a page (e.g. the Conversation page): its last setting stays in it, instead of sharing a row with the next section's first
+            self.__create_single_setting(self.__pending_shared_setting)
+            self.__pending_shared_setting = None
+        self.__show_columns_with_their_switch(columns_by_switch)
+        self.__grey_out_talk_settings(config_value)
+
+        # Render any pending row group after processing regular settings
+        if self.__last_row_group is not None:
+            self.__render_row_group(self.__last_row_group)
+            self.__last_row_group = None
+        
+        # Render any remaining row groups (shouldn't happen but just in case)
+        for group_id in list(self.__row_groups.keys()):
+            self.__render_row_group(group_id)
+        
+        if has_advanced_values:
+            with gr.Accordion(label="Advanced", open=False):
+                for cf in advanced_settings:
+                    cf.accept_visitor(self)
+                
+                # Render any pending row group in advanced section
+                if self.__last_row_group is not None:
+                    self.__render_row_group(self.__last_row_group)
+                    self.__last_row_group = None
+                
+                # Render any remaining row groups in advanced section
+                for group_id in list(self.__row_groups.keys()):
+                    self.__render_row_group(group_id)
+
+    def __close_shown_when_column(self, column: gr.Column | None):
+        """Ends a column of settings that only show while a switch is on. Its last setting stays in it"""
+        if column is None:
+            return
+        if self.__pending_shared_setting is not None:
+            self.__create_single_setting(self.__pending_shared_setting)
+            self.__pending_shared_setting = None
+        column.__exit__(None, None, None)
+
+    def __show_columns_with_their_switch(self, columns_by_switch: dict[str, list[gr.Column]]):
+        """Shows the settings that depend on a switch while it is on, and hides them while it is off"""
+        for identifier, columns in columns_by_switch.items():
+            switch = self.__identifier_to_config_value.get(identifier)
+            switch_ui = self.__config_value_to_ui_element.get(switch) if switch else None
+            if switch_ui is not None and hasattr(switch_ui, "_id"):
+                def show_or_hide(on, count=len(columns)):
+                    # Gradio takes a single output's value as it is, so one column gets a single update, not a list of one
+                    updates = [gr.update(visible=bool(on))] * count
+                    return updates[0] if count == 1 else updates
+                switch_ui.change(show_or_hide, switch_ui, columns, show_progress="hidden")
+
+    def __grey_out_talk_settings(self, group: ConfigValueGroup):
+        """The talk settings of each set in the section: "who still speaks", Replies in between and Extra rounds are greyed out (not hidden)
+        while they can't change anything (conversation_definitions.greyed_choices), as soon as the page loads and after each change"""
+        identifiers = {value.identifier for value in group.value}
+        for kind in [SHARED] + TALK_KINDS:
+            keys = [talk_key(kind, setting) for setting in (WHO_MUST_SPEAK, AT_REPLY_LIMIT, REPLIES_IN_BETWEEN, EXTRA_ROUNDS)]
+            if not set(keys) <= identifiers:
+                continue
+            components = [self.__config_value_to_ui_element.get(self.__identifier_to_config_value.get(key)) for key in keys]
+            if any(component is None or not hasattr(component, "_id") for component in components):
+                continue
+            must_speak_ui, at_limit_ui, between_ui, rounds_ui = components
+            outputs = [at_limit_ui, between_ui, rounds_ui]
+            for trigger in (must_speak_ui.change, at_limit_ui.change, rounds_ui.change):
+                trigger(talk_greying, [must_speak_ui, at_limit_ui, rounds_ui], outputs, show_progress="hidden")
+            root = gr.context.Context.root_block
+            if root is not None:
+                root.load(talk_greying, [must_speak_ui, at_limit_ui, rounds_ui], outputs, show_progress="hidden")
+            # The line under "who still speaks": what the picked choice does, and who that is with the boxes ticked now
+            line_ui = self.__picked_option_description_ui.get(keys[1])
+            at_limit_value = self.__identifier_to_config_value.get(keys[1])
+            if line_ui is not None and isinstance(at_limit_value, ConfigValueSelection):
+                def describe(must_speak: list[str] | None, picked: str | None, kind=kind, descriptions=at_limit_value.option_descriptions) -> str:
+                    return picked_choice_line(kind, descriptions, must_speak, picked)
+                for trigger in (must_speak_ui.change, at_limit_ui.change) + ((root.load,) if root is not None else ()):
+                    trigger(describe, [must_speak_ui, at_limit_ui], line_ui, show_progress="hidden")
 
     def visit_ConfigValueInt(self, config_value: ConfigValueInt):
         def create_input_component(raw_config_value: ConfigValue) -> gr.Number:
@@ -1663,9 +1761,15 @@ class SettingsUIConstructor(ConfigValueVisitor):
 
             
             # Default handling for non-special cases
+            choices = config_value.options
+            if config_value.option_labels:
+                # (shown text, saved option): the dropdown shows the label, and the option is still what is saved
+                choices = [(config_value.option_labels.get(option, option), option) for option in config_value.options]
+            if ConfigValueTag.radio_buttons in config_value.tags:
+                return gr.Radio(value=config_value.value, choices=choices, show_label=False, container=False)
             return gr.Dropdown(
-                value=config_value.value,                        
-                choices=config_value.options,
+                value=config_value.value,
+                choices=choices,
                 multiselect=False,
                 allow_custom_value=config_value.allows_custom_value,
                 show_label=False,
@@ -1691,11 +1795,13 @@ class SettingsUIConstructor(ConfigValueVisitor):
             self.__model_dependencies.append((config_value.identifier, handler["dependent_config"]))
 
     def visit_ConfigValueMultiSelection(self, config_value: ConfigValueMultiSelection):
-        def create_input_component(raw_config_value: ConfigValue) -> gr.Dropdown:
+        def create_input_component(raw_config_value: ConfigValue) -> Any:
             config_value = typing.cast(ConfigValueMultiSelection, raw_config_value)
             values: list[str | int | float] = []
             for s in config_value.value:
                 values.append(s)
+            if ConfigValueTag.tick_boxes in config_value.tags:
+                return gr.CheckboxGroup(value=values, choices=config_value.options, show_label=False, container=False) # type: ignore
             return gr.Dropdown(value=values,                        
                 choices=config_value.options, # type: ignore
                 multiselect=True,
@@ -1715,3 +1821,16 @@ class SettingsUIConstructor(ConfigValueVisitor):
         
         self.__create_config_value_ui_element(config_value, create_input_component, True, True, True, [("Browse...", on_pick_click)])
 
+
+
+def picked_choice_line(kind: str, descriptions: dict[str, str], must_speak: list[str] | None, picked: str | None) -> str:
+    """The line under "who still speaks": what the picked choice does, then who still gets a turn with the boxes ticked now"""
+    right_now = who_still_speaks_now(kind, list(must_speak or []), picked or "")
+    return "\n\n".join(part for part in (descriptions.get(picked or "", ""), right_now) if part)
+
+
+def talk_greying(must_speak: list[str] | None, at_reply_limit: str | None, extra_rounds: float | None) -> list[Any]:
+    """Greys out "who still speaks", Replies in between and Extra rounds while they can't change anything"""
+    greyed = greyed_choices(list(must_speak or []), at_reply_limit or "", extra_rounds)
+    return [gr.update(interactive=not greyed[AT_REPLY_LIMIT]), gr.update(interactive=not greyed[REPLIES_IN_BETWEEN]),
+            gr.update(interactive=not greyed[EXTRA_ROUNDS])]
